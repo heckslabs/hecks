@@ -9,9 +9,9 @@ require "spec_helper"
 # additively, without removing the smuggle path any existing saga relies on.
 RSpec.describe "a saga leg that never declares the correlation key at all" do
   def boot_beacon
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -72,7 +72,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
         end
       end
 
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 

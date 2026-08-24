@@ -28,9 +28,9 @@ RSpec.describe "the era check at boot" do
     path = File.join(domain_dir, "shaped_#{@load_count}.bluebook")
     File.write(path, source)
 
-    registry = Hecksagain::Runtime::Registry.new(root: root)
-    loading = Hecksagain::Ports::Loading.bootstrap
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new(root: root)
+    loading = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
       eval(translation_source) if translation_source
@@ -40,7 +40,7 @@ RSpec.describe "the era check at boot" do
 
   def check!(root, source, translation_source: nil)
     registry, domain_dir = load_domain(root, source, translation_source: translation_source)
-    Hecksagain::Runtime::EraCheck.check!(registry, domain_dir)
+    Hecks::Runtime::EraCheck.check!(registry, domain_dir)
     registry
   end
 
@@ -54,7 +54,7 @@ RSpec.describe "the era check at boot" do
       File.write(File.join(root, "other.bluebook"), other)
 
       bluebook = Struct.new(:name).new("Shaped")
-      expect(Hecksagain::Runtime::EraCheck.source_text_for(bluebook, root)).to eq("#{first}\n#{second}")
+      expect(Hecks::Runtime::EraCheck.source_text_for(bluebook, root)).to eq("#{first}\n#{second}")
     end
   end
 
@@ -80,7 +80,7 @@ RSpec.describe "the era check at boot" do
       RUBY
 
       expect { check!(root, ERA_V1, translation_source: translation) }.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         "compute rules require the Postgres adapter; Account is bound to Memory"
       )
     end
@@ -90,12 +90,12 @@ RSpec.describe "the era check at boot" do
     Dir.mktmpdir do |root|
       registry, = load_domain(root, ERA_V1)
       bluebook = registry.bluebook("Shaped")
-      stored_hash = Hecksagain::Runtime::StorageShape.mint_hash(bluebook)
+      stored_hash = Hecks::Runtime::StorageShape.mint_hash(bluebook)
 
       # comments and whitespace still project to the minted name
       cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
       expect(
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic, stored_hash: stored_hash
         )
       ).to eq(:cosmetic)
@@ -103,11 +103,11 @@ RSpec.describe "the era check at boot" do
       # a shape edit would retroactively redefine era 1 — no --accept
       # gets past this
       expect do
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: stored_hash
         )
       end.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         /the edit changed the era's SHAPE, not just its text.*retroactively redefine what era 1 meant/m
       )
 
@@ -120,15 +120,15 @@ RSpec.describe "the era check at boot" do
       # once booted fine suddenly unattestable. What still cannot load,
       # under any grammar, is text that is not even valid Ruby.
       expect do
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: "Hecks.bluebook \"Shaped\" do\n  ((((\nend\n", stored_hash: stored_hash
         )
-      end.to raise_error(Hecksagain::Runtime::WiringError, /does not load as a bluebook/)
+      end.to raise_error(Hecks::Runtime::WiringError, /does not load as a bluebook/)
 
       # an era that was never named cannot be shape-checked — reported,
       # not refused
       expect(
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: nil
         )
       ).to eq(:unnamed)
@@ -140,7 +140,7 @@ RSpec.describe "the era check at boot" do
       registry, = load_domain(root, ERA_V1)
       bluebook = registry.bluebook("Shaped")
       # JSON round-trip: stored projections come back string-keyed
-      projection = JSON.parse(JSON.generate(Hecksagain::Runtime::StorageShape.project(bluebook)))
+      projection = JSON.parse(JSON.generate(Hecks::Runtime::StorageShape.project(bluebook)))
 
       # a hash minted under a DIFFERENT canonical form would no longer
       # match a recomputation — the projection comparison must win, or
@@ -148,7 +148,7 @@ RSpec.describe "the era check at boot" do
       wrong_form_hash = "0" * 64
       cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
       expect(
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic,
           stored_hash: wrong_form_hash, stored_projection: projection
         )
@@ -156,19 +156,19 @@ RSpec.describe "the era check at boot" do
 
       # and a real shape change still refuses, judged structurally
       expect do
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: ERA_DRIFTED,
           stored_hash: wrong_form_hash, stored_projection: projection
         )
       end.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         /no longer projects to the shape frozen for era 1.*retroactively redefine what era 1 meant/m
       )
 
       # a stored projection also lets an UNNAMED era be shape-checked —
       # strictly better than the :unnamed shrug
       expect(
-        Hecksagain::Translation::Reattest.shape_guard!(
+        Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic,
           stored_hash: nil, stored_projection: projection
         )

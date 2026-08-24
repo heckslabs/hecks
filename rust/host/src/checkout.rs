@@ -115,8 +115,8 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 // THE MOCK OUTBOUND SIDE — MockStripeAdapter's own `create_session`
-// (vendor/hecksagain/lib/hecksagain/adapters/driven/mock_stripe_adapter.rb,
-// the hecksagain gem's own generic stand-in), ported byte-for-byte:
+// (vendor/hecks/lib/hecks/adapters/driven/mock_stripe_adapter.rb,
+// the hecks gem's own generic stand-in), ported byte-for-byte:
 // never reads price/product name (a real adapter needs them to build a
 // session a payer actually sees; this only needs to look enough like
 // one to swap in), and the URL it returns carries the SAME

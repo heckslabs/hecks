@@ -3,7 +3,7 @@
 **Status: built.** Landed 2026-08-04 — the doctest harness
 (`spec/support/doctest.rb`, `spec/guides_spec.rb`), all twelve guides plus
 `AUTHORING.md` and `index.md` under `docs/implemented/guides/`, the generated reference
-(`bin/reference`, `lib/hecksagain/doc/reference.rb`, `docs/implemented/reference/`,
+(`bin/reference`, `lib/hecks/doc/reference.rb`, `docs/implemented/reference/`,
 golden-checked and coverage-gated by `spec/reference_golden_spec.rb`), and
 README's own generated regions (guides index, reference pointer, corpus
 roster, tool table). This file is kept as the design record — the plan below
@@ -11,7 +11,7 @@ is what was actually built, not a forward-looking proposal anymore.
 
 ## Context
 
-hecksagain has excellent *maintainer* documentation (narrated code comments) and
+hecks has excellent *maintainer* documentation (narrated code comments) and
 almost nothing for the person *writing a bluebook*: README teaches ~6 of ~25
 constructs, `entity`/`one_of`/`lifecycle`/`process_manager`/`ensures`/`pattern:`/
 `admits:`/ports/`.world`/all translation rules and 15 of 19 bin tools have ZERO
@@ -51,7 +51,7 @@ inline `# =>` assertion convention; full guide set this pass.
 - Boot phase mirrors `spec/spec_helper.rb#boot_in_memory`: fresh Registry,
   `with_registry` → Kernel.load ports/adapters → each bluebook block written to
   its OWN Tempfile (`.bluebook` suffix; distinct paths defeat the Prism TREES
-  per-path memo in lib/hecksagain/adapters/driven/prism.rb; keep Tempfile refs
+  per-path memo in lib/hecks/adapters/driven/prism.rb; keep Tempfile refs
   until after `registry.verify!`) → `Kernel.eval(src, TOPLEVEL_BINDING,
   tmp.path, 1)` (TOPLEVEL_BINDING required for ConstShim) → `ruby boot` blocks →
   `verify!` + `Runtime::Loader.bind_runtime`.
@@ -71,7 +71,7 @@ inline `# =>` assertion convention; full guide set this pass.
   declared chapter names and FAILS LOUDLY on cross-guide collisions (random spec
   order would make silent rebinds flaky). Each guide uses unique domain names.
 
-### B. Reference generator — `lib/hecksagain/doc/reference.rb` (~230 loc) + `bin/reference` (~30 loc) + `spec/reference_golden_spec.rb` (~70 loc)
+### B. Reference generator — `lib/hecks/doc/reference.rb` (~230 loc) + `bin/reference` (~30 loc) + `spec/reference_golden_spec.rb` (~70 loc)
 
 - Source: `MetaValidator.grammar_registry` → bluebook("Bluebook") → Syntax
   aggregate → Keyword rows (word, context, body, inner, opens, fills, status,

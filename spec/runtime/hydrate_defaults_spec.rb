@@ -8,7 +8,7 @@ require "spec_helper"
 # The runtime now fills declared defaults on the hydrate path too.
 RSpec.describe "hydrating stored state through declared defaults" do
   def aggregate_with_defaults
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
@@ -34,7 +34,7 @@ RSpec.describe "hydrating stored state through declared defaults" do
   end
 
   it "fills a declared default the stored record predates" do
-    instance = Hecksagain::Runtime::Instance.new(
+    instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate_with_defaults, id: "a1", state: { balance: { "cents" => 100 } }
     )
 
@@ -44,7 +44,7 @@ RSpec.describe "hydrating stored state through declared defaults" do
   end
 
   it "never overwrites a stored value with a default" do
-    instance = Hecksagain::Runtime::Instance.new(
+    instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate_with_defaults, id: "a1",
       state: { balance: { "cents" => 100 }, standing: { "value" => "delinquent" }, status: "closed" }
     )
@@ -54,7 +54,7 @@ RSpec.describe "hydrating stored state through declared defaults" do
   end
 
   it "leaves an attribute with no declared default exactly as stored — absent" do
-    instance = Hecksagain::Runtime::Instance.new(
+    instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate_with_defaults, id: "a1", state: { standing: { "value" => "good" } }
     )
 

@@ -21,9 +21,9 @@ require "spec_helper"
 #   trigger stores it as a reference     -> `chit_id:`
 RSpec.describe "a for_each policy's row id" do
   def boot_keys
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -120,7 +120,7 @@ RSpec.describe "a for_each policy's row id" do
       end
     end
 
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def issue(runtime, serial, holder)

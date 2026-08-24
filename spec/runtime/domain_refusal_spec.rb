@@ -30,7 +30,7 @@ RSpec.describe "every refusal the corpus provokes" do
   }.freeze
 
   def domain_refusal?(error)
-    Hecksagain::Runtime::DOMAIN_REFUSALS.any? { |klass| error.is_a?(klass) }
+    Hecks::Runtime::DOMAIN_REFUSALS.any? { |klass| error.is_a?(klass) }
   end
 
   CORPUS.each do |name, path|
@@ -76,8 +76,8 @@ RSpec.describe "every refusal the corpus provokes" do
   it "catches an error the domain is NOT allowed to raise" do
     # The guard has to be seen refusing something, or it is one more rule that
     # cannot fire. EvaluationError is the class the three leaks above wore.
-    error = Hecksagain::Bluebook::Expression::EvaluationError.new("a predicate blew up")
+    error = Hecks::Bluebook::Expression::EvaluationError.new("a predicate blew up")
     expect(domain_refusal?(error)).to be(false)
-    expect(domain_refusal?(Hecksagain::Runtime::TypeMismatch.new("a value was wrong"))).to be(true)
+    expect(domain_refusal?(Hecks::Runtime::TypeMismatch.new("a value was wrong"))).to be(true)
   end
 end

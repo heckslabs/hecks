@@ -1,5 +1,5 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct structural port of
-// `Hecksagain::Bluebook::Expression::Evaluator` and `::Resolver`
+// `Hecks::Bluebook::Expression::Evaluator` and `::Resolver`
 // (docs/implemented/guides/running-a-runtime.md's "The expression grammar"), not a
 // reimplementation of parsing. bin/project_rust parses real canonical
 // `given`/`ensures`/invariant text with the REAL Ruby parser and emits
@@ -17,7 +17,7 @@
 // a string, what a `:composite` field's dotted lookup does — is in
 // `expression_operators/<category>.rs` or `attribute_shapes/<shape>.rs`,
 // one file per capability, named after the exact vocabulary
-// `bin/ir --meta` (attribute shapes) and `lib/hecksagain/bluebook/
+// `bin/ir --meta` (attribute shapes) and `lib/hecks/bluebook/
 // expression/projection.json` (operator categories) already use for it.
 // `interpret`'s own match handles ONLY the leaves no capability file
 // owns (literals, `Lookup`) plus `dispatch_operator`, below, which is

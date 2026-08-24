@@ -12,7 +12,7 @@
 //
 // GROUND TRUTH — read directly, not assumed identical between callers:
 //
-//   `Runtime::QueryInterpreter#interpret` (lib/hecksagain/runtime/
+//   `Runtime::QueryInterpreter#interpret` (lib/hecks/runtime/
 //   query_interpreter.rb) — a declared AGGREGATE query's own path:
 //   `ordered = ordered(matched, declared.order_by, declared.null_semantics)`
 //   then `capped = declared.limit ? ordered.first(resolve_query_value(
@@ -22,7 +22,7 @@
 //   [field]) }` — id-string identity, exactly what `apply` below sorts by
 //   in its own TIER 1.
 //
-//   `Ports::Query::InMemory.execute` (lib/hecksagain/ports/query/
+//   `Ports::Query::InMemory.execute` (lib/hecks/ports/query/
 //   in_memory.rb) — the read model's own path (`ReadModelInterpreter#
 //   project` calls this for the one eligible head): `matched = Ordering.
 //   apply(matched, declared.order_by, declared.null_semantics, identity:
@@ -48,7 +48,7 @@
 use super::{query_comparators, Json};
 
 /// A declared `order_by :field, :direction` — `field`/`direction` read
-/// exactly like `QuerySpecification::Common::OrderBy` (lib/hecksagain/
+/// exactly like `QuerySpecification::Common::OrderBy` (lib/hecks/
 /// query_specification/common/order_by.rb); `descending` collapses Ruby's
 /// own `direction.to_s == "desc"` test to a bool once, at codegen time,
 /// rather than re-testing a string on every row compared.

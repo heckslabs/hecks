@@ -4,7 +4,7 @@
 Words available inside `operation do ... end` / `tells do ... end` / `asks do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -48,7 +48,7 @@ class RefRegistry
   def locate(**) = "https://registry.example/lic-1"
 end
 
-Hecksagain::Adapters.const_set(:RefRegistry, RefRegistry) unless Hecksagain::Adapters.const_defined?(:RefRegistry, false)
+Hecks::Adapters.const_set(:RefRegistry, RefRegistry) unless Hecks::Adapters.const_defined?(:RefRegistry, false)
 Hecks.adapter("RefRegistry") { port "Registry" }
 
 Hecks.hecksagon("PortOperationReference") do
@@ -56,19 +56,19 @@ Hecks.hecksagon("PortOperationReference") do
 
   PortOperationReference::Licence.port "Registry" do
     tells "Inspected" do
-      attribute :serial, Hecksagain::Bluebook::Reference.new("Licence")
+      attribute :serial, Hecks::Bluebook::Reference.new("Licence")
       attribute :inspector, Holder
       emits "InspectionRecorded"
     end
 
     asks "Check" do
-      attribute :serial, Hecksagain::Bluebook::Reference.new("Licence")
+      attribute :serial, Hecks::Bluebook::Reference.new("Licence")
       answers "StandingReturned"
       refuses "StandingUnavailable"
     end
 
     asks "Locate" do
-      attribute :serial, Hecksagain::Bluebook::Reference.new("Licence")
+      attribute :serial, Hecks::Bluebook::Reference.new("Licence")
       answers "LocationReturned"
       refuses "LocationUnavailable"
     end

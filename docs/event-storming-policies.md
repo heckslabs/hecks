@@ -1,4 +1,4 @@
-# Event storming's Policy, in hecksagain
+# Event storming's Policy, in hecks
 
 > The consumer guide for policies and process managers now lives at
 > [guides/policies-and-process-managers.md](guides/policies-and-process-managers.md);
@@ -12,19 +12,19 @@ of wrong guesses made while investigating it, and names the one real gap.
 
 ## The mapping, and what's already built for each
 
-| Event storming sticky | hecksagain construct |
+| Event storming sticky | hecks construct |
 |---|---|
 | Command (blue) | `command` |
 | Aggregate (yellow) | `aggregate` |
 | Domain Event (orange) | `emits` |
 | **Policy (lilac)** | **`Policy`** — `reaction.bluebook`, `runtime/policy_interpreter.rb` |
-| Actor/Role | `role` (currently descriptive only — see the Rails integration doc's open questions; zero references anywhere in `lib/hecksagain/runtime`) |
+| Actor/Role | `role` (currently descriptive only — see the Rails integration doc's open questions; zero references anywhere in `lib/hecks/runtime`) |
 | Long-running Process | `ProcessManager` — same file, `runtime/saga_interpreter.rb` |
 | Read Model (green) | `read_model` |
 | External System (pink) | **not modeled — the one real gap, see below** |
 
 `Policy` is declared as part of the language's own self-description
-(`lib/hecksagain/language/bluebook/reaction.bluebook`), the same way every other
+(`lib/hecks/language/bluebook/reaction.bluebook`), the same way every other
 construct in this language is. Its DSL surface is exactly three methods
 (`PolicyBuilder`):
 

@@ -24,10 +24,10 @@ require "tmpdir"
 # (`header_chapter_name`, below) is TEXT SCANNING, not DSL execution —
 # the exact same technique `spec/parser_parity_spec.rb`'s own
 # `chapter_name_of` already uses, established precedent in this repo,
-# not a shortcut invented here. Calling `Hecksagain::Framework.members`
-# is a plain `Dir.glob` + naming lookup (`lib/hecksagain/framework.rb`'s
+# not a shortcut invented here. Calling `Hecks::Framework.members`
+# is a plain `Dir.glob` + naming lookup (`lib/hecks/framework.rb`'s
 # own body) — no `Kernel.load` of anything. Reading
-# `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` is the already-discovered,
+# `Hecks::Bluebook::MetaValidator::GRAMMAR_FILES` is the already-discovered,
 # sorted folder contents. NONE of these boot, `instance_eval`, or otherwise
 # execute a `.bluebook`/`.hecksagon` file's own DSL body — that only
 # ever happens inside `hecks-parse`, a separate OS process, in Rust.
@@ -56,7 +56,7 @@ require "tmpdir"
 # tier `derive_append_optionals` already occupies, feeding one narrow,
 # specific fact into a sidecar that needs it. Which adapters actually
 # ARE lineage-capable is read the same way, off
-# `lib/hecksagain/adapters/driven/*.rb`'s own `lineage_capable?`
+# `lib/hecks/adapters/driven/*.rb`'s own `lineage_capable?`
 # declarations — never hand-listed, so a second capable adapter needs no
 # change here.
 #
@@ -111,12 +111,12 @@ module RustProjectPipeline
     # EVERY OTHER CHAPTER `uses_framework` NAMES — same real chapters
     # `bin/project_rust`'s own default path pulls in via
     # `Framework.load!`'s side effect, resolved here through the SAME
-    # `Hecksagain::Framework.members` lookup that method itself calls,
+    # `Hecks::Framework.members` lookup that method itself calls,
     # never re-derived by hand. A framework member has no `.hecksagon`
     # of its own (`Framework.load!`'s own header) — just its `.bluebook`.
     chapters = uses_framework_names.map do |fw_name|
-      fw_path = Hecksagain::Framework.members.fetch(fw_name) do
-        abort "bin/project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecksagain::Framework.members.keys.sort.join(', ')}"
+      fw_path = Hecks::Framework.members.fetch(fw_name) do
+        abort "bin/project_rust (Rust path): uses_framework #{fw_name.inspect} names no known framework member — known: #{Hecks::Framework.members.keys.sort.join(', ')}"
       end
       fw_chapter_name = header_chapter_name(fw_path)
       unless fw_chapter_name == fw_name
@@ -135,7 +135,7 @@ module RustProjectPipeline
     # own default path reads off `MetaValidator.grammar_registry`
     # (real Ruby boot there; here it's the SAME constant array of file
     # PATHS, read without booting anything).
-    meta_files = Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES
+    meta_files = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
     meta_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", "Bluebook", *meta_files))
 
     out_root = File.expand_path("../rust/src/generated", __dir__)
@@ -152,7 +152,7 @@ module RustProjectPipeline
     Dir.mktmpdir("hecks-codegen-full") do |tmp|
       meta_ir_path = File.join(tmp, "meta_ir.json")
       File.write(meta_ir_path, meta_ir_text)
-      meta_source_label = "the self-hosted language (lib/hecksagain/language/bluebook)"
+      meta_source_label = "the self-hosted language (lib/hecks/language/bluebook)"
       run!(CODEGEN_BIN, "full", out_root, "meta", meta_source_label, meta_ir_path)
       write_sidecars!(File.join(out_root, "meta"), meta_ir_text, meta_source_label)
 
@@ -233,7 +233,7 @@ module RustProjectPipeline
     end
 
     ir[:lineage] = {
-      capable_aggregates: capable.map { |aggregate| { name: aggregate[:name], storage_name: Hecksagain::Naming.snake(aggregate[:name]) } }
+      capable_aggregates: capable.map { |aggregate| { name: aggregate[:name], storage_name: Hecks::Naming.snake(aggregate[:name]) } }
     }
     JSON.pretty_generate(ir)
   end
@@ -264,12 +264,12 @@ module RustProjectPipeline
 
   # Which adapters actually carry eras — read off their own source, the
   # same "structural fact about a file, not domain DSL execution"
-  # precedent `header_chapter_name`/`Hecksagain::Framework.members`
+  # precedent `header_chapter_name`/`Hecks::Framework.members`
   # already establish, so a second lineage-capable adapter arriving needs
   # no change here (matches `EraCheck.lineage_capable?`'s own "the
   # capability is asked of the adapter, never of its name" design).
   def lineage_capable_adapter_names
-    Dir[File.join(ROOT, "lib/hecksagain/adapters/driven/*.rb")].filter_map do |path|
+    Dir[File.join(ROOT, "lib/hecks/adapters/driven/*.rb")].filter_map do |path|
       text = File.read(path)
       next unless text.match?(/lineage_capable\?\s*=\s*true/)
 

@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
 # Declared properties over generated histories — the other half of
 # property-based testing the fuzzer was missing. Two directions, as
@@ -8,7 +8,7 @@ require "hecksagain/fuzzing"
 # history that violates it — a property nothing can ever fail is
 # decoration, the same lesson the coverage gates state for
 # declarations.
-RSpec.describe "Hecksagain::Fuzzing::Properties" do
+RSpec.describe "Hecks::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT
   PROPERTIES_PIZZAS  = File.join(ROOT_DIR, "examples/pizzas")
   PROPERTIES_BANKING = File.join(ROOT_DIR, "examples/banking")
@@ -23,11 +23,11 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
   # found it: every genuine `Translation::Map.Seal` refusal read as
   # unresolvable because `command_for_verb` only ever consulted whichever
   # bluebook happened to load first.
-  PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecksagain/grammar")
+  PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecks/grammar")
 
   def generated_history(domain, seed)
-    steps = Hecksagain::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
-    Hecksagain::Fuzzing::Replay.call(domain, steps)
+    steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
+    Hecks::Fuzzing::Replay.call(domain, steps)
   end
 
   describe "the standard battery, over real generated sequences" do
@@ -35,7 +35,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       it "holds for #{File.basename(domain)} across #{seed_count} seeds" do
         (1..seed_count).each do |seed|
           history = generated_history(domain, seed)
-          results = Hecksagain::Fuzzing::Properties.check(history)
+          results = Hecks::Fuzzing::Properties.check(history)
 
           results.each do |property, result|
             expect(result).to eq(true), "#{domain} seed #{seed} — #{property}: #{result}"
@@ -45,8 +45,8 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
       it "stays deterministic for #{File.basename(domain)} across #{seed_count} seeds" do
         (1..seed_count).each do |seed|
-          steps = Hecksagain::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
-          result = Hecksagain::Fuzzing::Properties.replay_is_deterministic(domain, steps)
+          steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
+          result = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, steps)
 
           expect(result).to eq(true), "#{domain} seed #{seed}: #{result}"
         end
@@ -56,18 +56,18 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
   describe "each property, seen failing" do
     def bluebook_for(domain)
-      Hecksagain::Fuzzing::Replay.call(domain, [])[:bluebook]
+      Hecks::Fuzzing::Replay.call(domain, [])[:bluebook]
     end
 
     def bluebooks_for(domain)
-      Hecksagain::Fuzzing::Replay.call(domain, [])[:bluebooks]
+      Hecks::Fuzzing::Replay.call(domain, [])[:bluebooks]
     end
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
       history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
                   instances: { "Pizzas::Order#p1" => { status: "teleported" } } }
 
-      result = Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)
+      result = Hecks::Fuzzing::Properties.lifecycle_values_are_declared(history)
       expect(result).to be_a(String)
       expect(result).to include("teleported")
     end
@@ -76,7 +76,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
                   instances: { "Pizzas::Order#p1" => { status: "available" } } }
 
-      expect(Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.lifecycle_values_are_declared(history)).to eq(true)
     end
 
     it "saga_advances_follow_declared_handlers names an advance no handler declares" do
@@ -84,7 +84,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   sagas:    [{ process_manager: "Settlement", on: "Invented", instance: "x",
                             advanced: true, from: "requested", to: "nowhere_declared" }] }
 
-      result = Hecksagain::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)
+      result = Hecks::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)
       expect(result).to be_a(String)
       expect(result).to include("nowhere_declared")
     end
@@ -94,7 +94,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   sagas:    [{ process_manager: "Settlement", on: "TransferRequested", instance: "x",
                             advanced: true, from: "requested", to: "requested" }] }
 
-      expect(Hecksagain::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to eq(true)
     end
 
     it "query_answers_match_reference names a native answer the reference interpreter disputes" do
@@ -102,7 +102,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                               rows: [{ id: "Margherita" }],
                               reference_rows: [] }] }
 
-      result = Hecksagain::Fuzzing::Properties.query_answers_match_reference(history)
+      result = Hecks::Fuzzing::Properties.query_answers_match_reference(history)
       expect(result).to be_a(String)
       expect(result).to include("Pizzas::Order.Expensive").and include("natively")
     end
@@ -114,7 +114,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         { query: "Pizzas.some_read_model", args: {}, rows: [], reference_rows: nil }
       ] }
 
-      expect(Hecksagain::Fuzzing::Properties.query_answers_match_reference(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to eq(true)
     end
 
     it "replay_is_deterministic names a real divergence — a genuinely different step count" do
@@ -122,8 +122,8 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # one to hand) — a wrong claim that two DIFFERENT step lists are
       # "the same replay" is exactly what this property exists to catch,
       # so this proves the comparison itself is sensitive to real drift.
-      first  = Hecksagain::Fuzzing::Replay.call(PROPERTIES_PIZZAS, [])
-      second = Hecksagain::Fuzzing::Replay.call(
+      first  = Hecks::Fuzzing::Replay.call(PROPERTIES_PIZZAS, [])
+      second = Hecks::Fuzzing::Replay.call(
         PROPERTIES_PIZZAS,
         [{ "verb" => "Pizzas::Order.CreatePizza",
            "args" => { "name"  => { "value" => "X" },
@@ -148,7 +148,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   queries:   [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
                              rows: [{ id: "s1", status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } }] }] }
 
-      result = Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)
+      result = Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::ATMCard.ByFee").and include("4 eligible row(s)")
     end
@@ -168,7 +168,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                                { id: "s4", status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
                              ] }] }
 
-      expect(Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
     end
 
     # SafeDepositBox.Rented — real corpus, `where(status: "rented"); order_by
@@ -179,7 +179,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                              rows: [{ id: "UPTOWN:1", branch_code: { value: "UPTOWN" }, box_number: { value: 1 },
                                       status: "rented" }] }] }
 
-      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      result = Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::SafeDepositBox.Rented").and include("UPTOWN")
     end
@@ -190,7 +190,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                              rows: [{ id: "DOWNTOWN:12", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                       status: "rented" }] }] }
 
-      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      result = Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::SafeDepositBox.Rented")
     end
@@ -199,7 +199,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   queries:   [{ query: "Banking::SafeDepositBox.Rented", args: {}, error: "a made up refusal" }] }
 
-      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      result = Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::SafeDepositBox.Rented").and include("a made up refusal")
     end
@@ -215,7 +215,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                              "which branch_code this ask is scoped to" }
                   ] }
 
-      expect(Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to eq(true)
     end
 
     it "dispatch_binding_fidelity names a saga dispatch bound to the wrong value" do
@@ -226,7 +226,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
           args: { number: "WRONG", amount: 500 } }
       ] }
 
-      result = Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)
+      result = Hecks::Fuzzing::Properties.dispatch_binding_fidelity(history)
       expect(result).to be_a(String)
       expect(result).to include("Settlement").and include("Account::Credit").and include("WRONG")
     end
@@ -237,7 +237,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
           with_spec: { account_ref: :account }, args: { account_ref: "WRONG" } }
       ] }
 
-      result = Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)
+      result = Hecks::Fuzzing::Properties.dispatch_binding_fidelity(history)
       expect(result).to be_a(String)
       expect(result).to include("NotifyOnDebit").and include("WRONG")
     end
@@ -264,7 +264,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         ]
       }
 
-      expect(Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.dispatch_binding_fidelity(history)).to eq(true)
     end
 
     it "mutations_match_recompute names an append whose after-state disagrees with the recomputed element" do
@@ -276,7 +276,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                       args:   { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
-      result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
+      result = Hecks::Fuzzing::Properties.mutations_match_recompute(history)
       expect(result).to be_a(String)
       expect(result).to include("AddTag").and include("append")
     end
@@ -290,7 +290,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                       args:   { name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
-      result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
+      result = Hecks::Fuzzing::Properties.mutations_match_recompute(history)
       expect(result).to be_a(String)
       expect(result).to include("Clamp").and include("clamp")
     end
@@ -316,15 +316,15 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                       args:   { name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
-      expect(Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to eq(true)
     end
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
-                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+                              kind: "Hecks::Runtime::GivenNotMet" }] }
 
-      result = Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)
+      result = Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)
       expect(result).to be_a(String)
       expect(result).to include("a made up reason")
     end
@@ -340,9 +340,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # not stand in for "a real given" here even unchanged.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
-                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+                              kind: "Hecks::Runtime::GivenNotMet" }] }
 
-      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
 
     it "guard_refusals_are_declared resolves a refusal against ITS OWN domain, not just the first-loaded one" do
@@ -365,9 +365,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebooks: bluebooks,
                   refusals:  [{ verb:  "Translation::Map.Seal",
                                 error: "Seal refused — an empty edge explains nothing",
-                                kind:  "Hecksagain::Runtime::GivenNotMet" }] }
+                                kind:  "Hecks::Runtime::GivenNotMet" }] }
 
-      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
 
     it "guard_refusals_are_declared ignores a refusal sharing the same wording but a DIFFERENT raised class" do
@@ -378,18 +378,18 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb:  "Banking::Account.CloseAccount",
                                 error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
-                                kind:  "Hecksagain::Runtime::LifecycleRefused" }] }
+                                kind:  "Hecks::Runtime::LifecycleRefused" }] }
 
-      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
 
     it "lifecycle_guard_and_given_violations_are_refused names a step the guard should have refused but didn't" do
       history = { guard_checks: [
-        { verb: "Banking::Account.Debit", recomputed_refused: true, recomputed_kind: "Hecksagain::Runtime::GivenNotMet",
+        { verb: "Banking::Account.Debit", recomputed_refused: true, recomputed_kind: "Hecks::Runtime::GivenNotMet",
           actual_refused: false, actual_kind: nil }
       ] }
 
-      result = Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
+      result = Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::Account.Debit").and include("refused").and include("admitted")
     end
@@ -397,10 +397,10 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     it "lifecycle_guard_and_given_violations_are_refused names a step the guard refused but shouldn't have" do
       history = { guard_checks: [
         { verb: "Banking::Account.Credit", recomputed_refused: false, recomputed_kind: nil,
-          actual_refused: true, actual_kind: "Hecksagain::Runtime::LifecycleRefused" }
+          actual_refused: true, actual_kind: "Hecks::Runtime::LifecycleRefused" }
       ] }
 
-      result = Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
+      result = Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::Account.Credit")
     end
@@ -409,18 +409,18 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { guard_checks: [
         { verb: "Banking::Account.Debit", recomputed_refused: false, recomputed_kind: nil,
           actual_refused: false, actual_kind: nil },
-        { verb: "Banking::Account.CloseAccount", recomputed_refused: true, recomputed_kind: "Hecksagain::Runtime::LifecycleRefused",
-          actual_refused: true, actual_kind: "Hecksagain::Runtime::LifecycleRefused" }
+        { verb: "Banking::Account.CloseAccount", recomputed_refused: true, recomputed_kind: "Hecks::Runtime::LifecycleRefused",
+          actual_refused: true, actual_kind: "Hecks::Runtime::LifecycleRefused" }
       ] }
 
-      expect(Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to eq(true)
     end
 
     it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
       history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "teleported", memory: { a: 1 } } } } }
 
-      result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
+      result = Hecks::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
       expect(result).to be_a(String)
       expect(result).to include("teleported")
     end
@@ -434,7 +434,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "screening", memory: { kind: :wire } } } } }
 
-      result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
+      result = Hecks::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
       expect(result).to be_a(String)
       expect(result).to include("does not survive its own checkpoint round-trip")
     end
@@ -446,14 +446,14 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                                                                     memory: { customer:  "delta juliet",
                                                                               reference: { value: "corr-1" } } } } } }
 
-      expect(Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to eq(true)
     end
 
     it "fanout_dispatches_once_per_matching_row names a row the reaction log missed" do
       history = { fan_outs: [{ policy: "ReviewOnFlag", on: "Flagged",
                               expected_row_ids: ["a1", "a2"], actual_row_ids: ["a1"] }] }
 
-      result = Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
+      result = Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
       expect(result).to be_a(String)
       expect(result).to include('["a1", "a2"]').and include('["a1"]')
     end
@@ -462,7 +462,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { fan_outs: [{ policy: "ReviewOnFlag", on: "Flagged",
                               expected_row_ids: nil, actual_row_ids: ["a1"] }] }
 
-      result = Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
+      result = Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
       expect(result).to be_a(String)
       expect(result).to include("where did not hold")
     end
@@ -473,7 +473,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         { policy: "ReviewOnFlag", on: "Flagged", expected_row_ids: nil, actual_row_ids: [] }
       ] }
 
-      expect(Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
     end
 
     it "aggregation_matches_recompute names a count that disagrees with the recomputed eligible rows" do
@@ -486,7 +486,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 99 }] }] }
 
-      result = Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)
+      result = Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)
       expect(result).to be_a(String)
       expect(result).to include("99").and include("2")
     end
@@ -502,7 +502,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 2 }] }] }
 
-      expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
     end
 
     it "aggregation_matches_recompute passes a median matching the interpreter's own even/odd convention" do
@@ -514,14 +514,14 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 200.0 }] }] }
 
-      expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
     end
 
     it "stored_records_satisfy_declared_invariants names a stored balance that violates Account's own invariant" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   instances: { "Banking::Account#a1" => { balance: { cents: -500, currency: "USD" } } } }
 
-      result = Hecksagain::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)
+      result = Hecks::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking::Account#a1").and include("the balance never goes negative")
     end
@@ -530,7 +530,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   instances: { "Banking::Account#a1" => { balance: { cents: 500, currency: "USD" } } } }
 
-      expect(Hecksagain::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to eq(true)
     end
 
     # AccountsByKind — real corpus, group_by :kind, :number, rootless. The
@@ -552,7 +552,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
                              rows: [{ accounts: {} }] }] }
 
-      result = Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)
+      result = Hecks::Fuzzing::Properties.group_by_matches_recompute(history)
       expect(result).to be_a(String)
       expect(result).to include("Banking.accounts_by_kind").and include("3 eligible row(s)")
     end
@@ -569,7 +569,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
                                "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }
                              } }] }] }
 
-      expect(Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to eq(true)
     end
   end
 end

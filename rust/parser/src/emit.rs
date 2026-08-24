@@ -66,7 +66,7 @@ pub fn write(value: &JsonValue) -> String {
 }
 
 /// The pinned `Expression::CanonicalForm.table` — a fixed, non-per-domain
-/// constant (`lib/hecksagain/bluebook/expression/projection.json`'s own
+/// constant (`lib/hecks/bluebook/expression/projection.json`'s own
 /// `normalisations` array, read+field-ordered exactly the way
 /// `CanonicalForm.table` itself does: `strategy, source_token,
 /// replacement, boundary, position` — `position` rendered as a STRING,
@@ -94,7 +94,7 @@ fn canonical_form_table() -> JsonValue {
     ])
 }
 
-/// `IR::Bluebook#to_h` (lib/hecksagain/bluebook/ir/bluebook.rb) — top of
+/// `IR::Bluebook#to_h` (lib/hecks/bluebook/ir/bluebook.rb) — top of
 /// the construct chain, field order pinned there.
 pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
     JsonValue::Object(vec![
@@ -138,7 +138,7 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
     ])
 }
 
-/// `IR::Aggregate#to_h` (lib/hecksagain/bluebook/ir/aggregate.rb).
+/// `IR::Aggregate#to_h` (lib/hecks/bluebook/ir/aggregate.rb).
 fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(a.name.clone())),
@@ -208,7 +208,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
     ])
 }
 
-/// `IR::Attribute#to_h` (lib/hecksagain/bluebook/ir/attribute.rb).
+/// `IR::Attribute#to_h` (lib/hecks/bluebook/ir/attribute.rb).
 fn attribute_json(a: &ir::Attribute) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(a.name.clone())),
@@ -231,7 +231,7 @@ fn attribute_json(a: &ir::Attribute) -> JsonValue {
     ])
 }
 
-/// `IR::ValueObject#to_h` (lib/hecksagain/bluebook/ir/value_object.rb).
+/// `IR::ValueObject#to_h` (lib/hecks/bluebook/ir/value_object.rb).
 fn value_object_json(v: &ir::ValueObject) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(v.name.clone())),
@@ -297,7 +297,7 @@ fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
     ])
 }
 
-/// `IR::Command#to_h` (lib/hecksagain/bluebook/ir/command.rb).
+/// `IR::Command#to_h` (lib/hecks/bluebook/ir/command.rb).
 fn command_json(c: &ir::Command) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(c.name.clone())),
@@ -344,7 +344,7 @@ fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
     }
 }
 
-/// `IR::Mutation#to_h` (lib/hecksagain/bluebook/ir/command.rb) — see
+/// `IR::Mutation#to_h` (lib/hecks/bluebook/ir/command.rb) — see
 /// `ir::MutationSource`'s own header for why an APPEND's `fields:` and a
 /// non-append's literal `source:` are rendered two different ways.
 fn mutation_json(m: &ir::Mutation) -> JsonValue {
@@ -418,7 +418,7 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
     }
 }
 
-/// `IR::Lifecycle#to_h` (lib/hecksagain/bluebook/ir/lifecycle.rb) — the
+/// `IR::Lifecycle#to_h` (lib/hecks/bluebook/ir/lifecycle.rb) — the
 /// `transitions:` list is already EXPANDED (one `StateTransitionRow` per
 /// `from_state`, mirroring Ruby's own `expand`) by the time it reaches
 /// here; nothing left to fan out.
@@ -444,7 +444,7 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
     ])
 }
 
-/// `IR::Query#to_h` (lib/hecksagain/bluebook/ir/query.rb) merged with
+/// `IR::Query#to_h` (lib/hecks/bluebook/ir/query.rb) merged with
 /// `QuerySpecification::Common::Options#extra_options_to_h` — the latter
 /// via `query_options_json`, which appends `offset`/`cursor`/
 /// `consistency`/`freshness`/`authorization`/`null_semantics`/
@@ -550,7 +550,7 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     pairs
 }
 
-/// `IR::Entity#to_h` (lib/hecksagain/bluebook/ir/entity.rb). STAGE 4:
+/// `IR::Entity#to_h` (lib/hecks/bluebook/ir/entity.rb). STAGE 4:
 /// real, confirmed by banking.bluebook's own `LedgerEntry`/`Withdrawal`/
 /// `Visit`/`KeyIssuance` (`parse::entity`, previously fully stubbed).
 fn entity_json(e: &ir::Entity) -> JsonValue {
@@ -610,7 +610,7 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
     ])
 }
 
-/// `IR::ReadModel#to_h` (lib/hecksagain/bluebook/ir/read_model.rb) —
+/// `IR::ReadModel#to_h` (lib/hecks/bluebook/ir/read_model.rb) —
 /// `wheres`/`order_by`/`limit` spelled explicitly (the SAME mechanism
 /// `query_json` uses, per `read_model.rb`'s own 2026-08-11 comment on
 /// why), `aggregate_heads`/`group_by` after them, then
@@ -690,7 +690,7 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     JsonValue::Object(pairs)
 }
 
-/// `IR::ProcessManager#to_h` (lib/hecksagain/bluebook/ir/process_manager.rb).
+/// `IR::ProcessManager#to_h` (lib/hecks/bluebook/ir/process_manager.rb).
 /// STAGE 4: real, confirmed by banking.bluebook's own three sagas
 /// (`Settlement`/`ExternalSettlement`/`Onboarding`).
 fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
@@ -759,8 +759,8 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
     ])
 }
 
-/// `Policy#to_h` (`lib/hecksagain/bluebook/policy.rb`, generated by
-/// `bin/project_model` from `lib/hecksagain/language/bluebook/
+/// `Policy#to_h` (`lib/hecks/bluebook/policy.rb`, generated by
+/// `bin/project_model` from `lib/hecks/language/bluebook/
 /// reaction.bluebook`'s own `Policy` aggregate — field ORDER here is the
 /// declaration order that file's `attribute` lines give, which is the
 /// real wire order `spec/parser_parity_spec.rb` byte-matches against,
@@ -798,7 +798,7 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
 }
 
 /// `IR::DomainPort#to_h` / `IR::PortOperation#to_h`
-/// (lib/hecksagain/bluebook/ir/domain_port.rb).
+/// (lib/hecks/bluebook/ir/domain_port.rb).
 fn domain_port_json(p: &ir::DomainPort) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),

@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "multi-field value-object identity at runtime" do
   def boot_identity_runtime
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -32,7 +32,7 @@ RSpec.describe "multi-field value-object identity at runtime" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "coerces defaults and concatenates every member in declaration order" do
@@ -53,7 +53,7 @@ RSpec.describe "multi-field value-object identity at runtime" do
     runtime = boot_identity_runtime
     aggregate = runtime.registry.bluebook("IdentityRuntime").aggregate("TransferInstruction")
 
-    fresh = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: "ACH:e2e-42")
+    fresh = Hecks::Runtime::Instance.new(aggregate: aggregate, id: "ACH:e2e-42")
 
     expect(fresh[:identity]).to be_nil
   end
@@ -66,6 +66,6 @@ RSpec.describe "multi-field value-object identity at runtime" do
         "IdentityRuntime::TransferInstruction.Register",
         identity: { scheme: "ACH", end_to_end_id: "" }
       )
-    end.to raise_error(Hecksagain::Runtime::InvariantViolation, /end-to-end id is present/)
+    end.to raise_error(Hecks::Runtime::InvariantViolation, /end-to-end id is present/)
   end
 end

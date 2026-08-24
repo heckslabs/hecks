@@ -4,7 +4,7 @@
 Words available inside `read_model do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -16,7 +16,7 @@ and a rootless `group_by`. `offset`, `authorize` and `nulls` are
 declared by no read model in the corpus, so they get one of their own:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -514,7 +514,7 @@ There is no working example to write, and that is the documentation —
 the word refuses where it is written:
 
 ```ruby
-Hecksagain::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: no interpreter implements cursor pagination
+Hecks::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: no interpreter implements cursor pagination
 ```
 
 **Written exemption (ADR 0025 principle 4)** — same reasoning as

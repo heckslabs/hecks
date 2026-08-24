@@ -1,6 +1,6 @@
 // GOOGLE SIGN-IN + SESSIONS, IN-PROCESS — the Rust-native counterpart
 // to `Ports::Authentication`/`Ports::IdentityResolution`/Embryonaut's
-// own `EmbryonautAccessControl` adapter (Ruby, hecksagain +
+// own `EmbryonautAccessControl` adapter (Ruby, hecks +
 // embryonaut repos). Ported behavior-for-behavior against those, not
 // reinvented: same OAuth scope, same state-CSRF check, same ID-token
 // signature verification against Google's real JWKS, same
@@ -632,7 +632,7 @@ mod tests {
     // lineage.rb) -- member_row_by_email/session_for_member_by_identity/
     // all_people all query this exact table against the real, deployed
     // database (confirmed live via a bastion tunnel: `\dt` + `SELECT id,
-    // state FROM member_head` on the real hecksagain-embryonaut RDS
+    // state FROM member_head` on the real hecks-embryonaut RDS
     // instance). Uniquely named per test, same reasoning dispatch.rs's
     // own `scratch_db` gives itself.
     async fn scratch_member_db(name: &str) -> Mutex<tokio_postgres::Client> {

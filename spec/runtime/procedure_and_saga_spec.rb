@@ -14,7 +14,7 @@ require "spec_helper"
 # why it cannot drift from the thing it describes.
 RSpec.describe "a procedure, and when it is a saga" do
   def in_registry
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
@@ -68,8 +68,8 @@ RSpec.describe "a procedure, and when it is a saga" do
   # back if the other will not take it. Booted ONCE per file — nothing below
   # ever dispatches, only reads the loaded process manager's IR back out.
   before(:context) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)

@@ -6,7 +6,7 @@ require "spec_helper"
 #
 # Against PIZZAS, so nothing here can pass because the runner happens to know
 # the chapter it was developed beside.
-RSpec.describe Hecksagain::Facade::CliRunner do
+RSpec.describe Hecks::Facade::CliRunner do
   let(:runtime) { boot_in_memory }
 
   def run(*argv) = described_class.call(runtime: runtime, argv: argv, program: "bin/run")
@@ -18,8 +18,8 @@ RSpec.describe Hecksagain::Facade::CliRunner do
   end
 
   def banking_runtime
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -36,7 +36,7 @@ RSpec.describe Hecksagain::Facade::CliRunner do
       end
     end
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   describe "the usage" do

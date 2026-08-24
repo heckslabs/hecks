@@ -40,7 +40,7 @@
 
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "json"
 require "tempfile"
 
@@ -117,12 +117,12 @@ BLUEBOOK
 # instances/translations back through it ──
 
 def load_registry(source, translation_source: nil)
-  registry = Hecksagain::Runtime::Registry.new
-  loading = Hecksagain::Ports::Loading.bootstrap
+  registry = Hecks::Runtime::Registry.new
+  loading = Hecks::Ports::Loading.bootstrap
   file = Tempfile.new(["mint-and-seed-lineage-", ".bluebook"])
   file.write(source)
   file.flush
-  Hecksagain.with_registry(registry) do
+  Hecks.with_registry(registry) do
     loading.load_library
     Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
     eval(translation_source) if translation_source
@@ -137,14 +137,14 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url }
   settings[:role] = role if role
-  Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
   registry
 end
 
 def label_of(source)
-  Hecksagain::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
+  Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
 end
 
 def edge_source(from:, to:)
@@ -159,9 +159,9 @@ end
 
 def account_instance(aggregate, kind_label, cents:)
   cost_field = aggregate.attribute(:amount) ? :amount : :cost
-  built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
-  built[:kind] = Hecksagain::Runtime::Value.for(aggregate, :kind, { label: kind_label })
-  built[cost_field] = Hecksagain::Runtime::Value.for(aggregate, cost_field, { cents: cents })
+  built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
+  built[:kind] = Hecks::Runtime::Value.for(aggregate, :kind, { label: kind_label })
+  built[cost_field] = Hecks::Runtime::Value.for(aggregate, cost_field, { cents: cents })
   built
 end
 
@@ -169,7 +169,7 @@ end
 
 registry_v1 = check!(V1, owner_url: owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
-adapter_v1 = Hecksagain::Adapters::PostgresEra.new(
+adapter_v1 = Hecks::Adapters::PostgresEra.new(
   aggregate: aggregate_v1, settings: { database: owner_url, domain: DOMAIN, era: 1 }
 )
 era1_writes = { "biz" => 100, "pers" => 250 }
@@ -181,7 +181,7 @@ from = label_of(V1)
 to = label_of(V2)
 registry_v2 = check!(V2, owner_url: owner_url, translation_source: edge_source(from: from, to: to), role: app_role)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
-adapter_v2 = Hecksagain::Adapters::PostgresEra.new(
+adapter_v2 = Hecks::Adapters::PostgresEra.new(
   # owner_url, NOT app_url — a fresh PostgresEra.new re-runs
   # ensure_head_snapshot!'s idempotent backfill check
   # (head_compiler.rb), which touches hecks_backfill_progress;
@@ -204,11 +204,11 @@ era2_writes.each { |kind, cents| adapter_v2.save(account_instance(aggregate_v2, 
 # with era 2's own untranslated writes — independent of anything this
 # script has already read back FROM Postgres. ──
 
-lineage = Hecksagain::Ports::Persistence::Lineage.for(registry_v2, DOMAIN, aggregate_v2)
+lineage = Hecks::Ports::Persistence::Lineage.for(registry_v2, DOMAIN, aggregate_v2)
 raise "expected a real translation edge for Account" unless lineage
 
 translated_era1 = era1_writes.map do |kind, cents|
-  entry = Hecksagain::Ports::Persistence::Entry.new(
+  entry = Hecks::Ports::Persistence::Entry.new(
     operation: "save", id: kind, state: { cost: { cents: cents }, kind: { label: kind } }, mirrors: nil
   )
   translated = lineage.translate(entry)

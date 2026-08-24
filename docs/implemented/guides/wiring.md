@@ -72,7 +72,7 @@ Hecks.hecksagon("Pizzas") do
   # the Postgres binding that file actually ships with.
   Pizzas::Order.port "PaymentGateway" do
     operation "Receive" do
-      attribute :name, Hecksagain::Bluebook::Reference.new("Order")
+      attribute :name, Hecks::Bluebook::Reference.new("Order")
       attribute :customer_name, CustomerName
       attribute :amount, Price
       emits "PizzaPaymentReceived"

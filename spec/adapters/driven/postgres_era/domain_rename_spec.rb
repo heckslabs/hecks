@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../../support/postgres_probe"
 
 # `formerly_known_as` — a domain's own declared identity can change, and
@@ -8,8 +8,8 @@ require_relative "../../../support/postgres_probe"
 # support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
                io: true do
-  RENAME_DB = "hecksagain_domain_rename_spec".freeze
-  RENAME_ROLE = "hecksagain_domain_rename_spec_app".freeze
+  RENAME_DB = "hecks_domain_rename_spec".freeze
+  RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
 
   OLD_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "OldName" do
@@ -100,12 +100,12 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
   end
 
   def load_registry(source, translation_source: nil)
-    registry = Hecksagain::Runtime::Registry.new
-    loading = Hecksagain::Ports::Loading.bootstrap
+    registry = Hecks::Runtime::Registry.new
+    loading = Hecks::Ports::Loading.bootstrap
     file = Tempfile.new(["domain-rename-", ".bluebook"])
     file.write(source)
     file.flush
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
       eval(translation_source) if translation_source
@@ -120,7 +120,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
     bluebook = registry.bluebooks.values.first
     settings = { database: RENAME_DB }
     settings[:role] = role if role
-    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
@@ -128,12 +128,12 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
 
   def hash_of(source)
     registry = load_registry(source)
-    Hecksagain::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
+    Hecks::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
   end
 
   def label_of(source) = hash_of(source)[0, 6]
 
-  def journal_name(domain) = "hecks_journal_#{Hecksagain::Naming.snake(domain)}"
+  def journal_name(domain) = "hecks_journal_#{Hecks::Naming.snake(domain)}"
 
   def to_regclass(db, relation)
     db.exec_params("SELECT to_regclass($1)", [relation])[0]["to_regclass"]
@@ -141,7 +141,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
 
   def adapter_for(registry, aggregate_name, domain:)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
+    Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
   end
 
   def reset_app_role!
@@ -174,7 +174,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
   def write_old_record
     registry = check!(OLD_SOURCE)
     adapter = adapter_for(registry, "Acct", domain: "OldName")
-    adapter.save(Hecksagain::Runtime::Instance.new(
+    adapter.save(Hecks::Runtime::Instance.new(
                    aggregate: registry.bluebooks.values.first.aggregate("Acct"), id: "a1",
                    state: { number: { "value" => "a1" }, balance: { "cents" => 500 } }
                  ))
@@ -224,7 +224,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
   it "renames the domain column across hecks_eras, hecks_era_texts, hecks_approvals, and hecks_attestations" do
     check!(OLD_SOURCE)
     db = PG.connect(dbname: RENAME_DB)
-    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "OldName")
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName")
     lineage.reattest!(1) # forces hecks_attestations into existence under the OLD name
     db.close
 
@@ -275,7 +275,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
     old_label = label_of(OLD_SOURCE)
 
     expect { check!(NEW_SOURCE_CHANGED) }.to raise_error(
-      Hecksagain::Runtime::WiringError, /cannot boot NewName: the shape changed \(era 2\) and no translation edge covers it/
+      Hecks::Runtime::WiringError, /cannot boot NewName: the shape changed \(era 2\) and no translation edge covers it/
     )
 
     new_label = label_of(NEW_SOURCE_CHANGED)
@@ -308,7 +308,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
     RUBY
 
     expect { check!(NEW_SOURCE_CHANGED, translation_source: uncovered_edge) }.to raise_error(
-      Hecksagain::Runtime::WiringError, /:note is new and required, with no default:/
+      Hecks::Runtime::WiringError, /:note is new and required, with no default:/
     )
   end
 

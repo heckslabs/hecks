@@ -36,12 +36,12 @@ AllCops:
     # spec/parser_table_spec.rb. Linting the ARTIFACT rather than its
     # generator just creates permanent drift on the next regen — a
     # real instance of this found live: autocorrecting
-    # lib/hecksagain/vocabulary.rb's hash-literal spacing broke
+    # lib/hecks/vocabulary.rb's hash-literal spacing broke
     # vocabulary_table_spec.rb because the generator itself still
     # emits the old, un-autocorrected style.
-    - "lib/hecksagain/vocabulary.rb"
-    - "lib/hecksagain/projections/parser_table.rb"
-    - "lib/hecksagain/bluebook/policy.rb"
+    - "lib/hecks/vocabulary.rb"
+    - "lib/hecks/projections/parser_table.rb"
+    - "lib/hecks/bluebook/policy.rb"
     # PRE-EXISTING, UNRELATED TO THIS CONFIG — `ruby -c bin/project_deploy`
     # itself fails (confirmed independently of rubocop): two heredocs
     # opened on separate lines of the SAME `if/else` interpolation
@@ -102,7 +102,7 @@ Style/CommentedKeyword:
 
 # module_function IS the pattern (QueryIR, Codemod, Naming, and others
 # all declare a module's entire public surface as function-style calls
-# on purpose, matching how each is actually used — Hecksagain::QueryIR.
+# on purpose, matching how each is actually used — Hecks::QueryIR.
 # constructs(...), never QueryIR.new.constructs(...)).
 Style/ModuleFunction:
   Enabled: false

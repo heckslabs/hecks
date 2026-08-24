@@ -5,16 +5,16 @@ RSpec.describe "the rules a command obeys" do
   RULES_TILL    = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
   def boot(bluebook)
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -50,7 +50,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: "a lot")
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
+      end.to raise_error(Hecks::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
     end
 
     it "refuses a non-Integer amount on an ELEMENT, in the same words" do
@@ -59,7 +59,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                          number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+      end.to raise_error(Hecks::Runtime::TypeMismatch,
                          'Money.cents expects Integer, got "a lot"')
     end
 
@@ -94,7 +94,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.Credit",
                          number: { value: "a1" }, narrative: { text: "No amount at all" })
-      end.to raise_error(Hecksagain::Runtime::AbsentArgument,
+      end.to raise_error(Hecks::Runtime::AbsentArgument,
                          "Credit was not given amount — it takes amount, narrative")
     end
 
@@ -143,7 +143,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                          number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet,
+      end.to raise_error(Hecks::Runtime::GivenNotMet,
                          "Amend refused — an amendment leaves a non-negative amount")
     end
   end
@@ -164,7 +164,7 @@ narrative: { text: "Opening" })
       # of sync with the state machine and did.
       expect do
         runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
-      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
+      end.to raise_error(Hecks::Runtime::LifecycleRefused,
                          'FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"')
     end
 
@@ -181,7 +181,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                          number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Amend refused — entry is posted")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Amend refused — entry is posted")
     end
 
     it "does not settle a transfer until its destination credit is recorded" do
@@ -206,7 +206,7 @@ narrative: { text: "Opening" })
       # destination credit was recorded, same guarantee as before.
       expect do
         runtime.dispatch("Banking::Transfer.Settle", transfer: "x1")
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Settle refused — transfer is credited")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Settle refused — transfer is credited")
     end
 
     it "refuses duplicate and out-of-order transfer legs without changing their state" do
@@ -229,13 +229,13 @@ narrative: { text: "Opening" })
       # GivenNotMet, not LifecycleRefused. Still refused at every one of
       # these out-of-order points, same guarantee as before.
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, "Settle refused — transfer is credited")
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Settle refused — transfer is credited")
 
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
       runtime.dispatch("Banking::Transfer.Credited", transfer: "x1")
 
       expect { runtime.dispatch("Banking::Transfer.Credited", transfer: "x1") }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, "Credited refused — transfer is debited")
+        .to raise_error(Hecks::Runtime::GivenNotMet, "Credited refused — transfer is debited")
       expect(runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Transfer"))
                     .find("x1")[:status]).to eq("credited")
     end
@@ -267,7 +267,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
                          amount: { cents: 100, currency: "USD" }, narrative: { text: "after" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Credit refused — customer is active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Credit refused — customer is active")
     end
 
     it "reads a command-level reference argument's field (one hop)" do
@@ -295,7 +295,7 @@ narrative: { text: "Opening" })
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
                          authorisation: { value: "auth2" }, amount: { cents: 500, currency: "USD" },
                          merchant: { value: "Merchant" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — customer is active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — customer is active")
     end
 
     it "leaves a command with no reference-typed attributes at all untouched" do
@@ -324,7 +324,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::OnboardingCase.Open", customer: "c",
                          reference: { value: "case-2" }, account_number: { value: "a3" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Open refused — customer is active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Open refused — customer is active")
     end
 
     # The other half of the same bug: an id that does NOT resolve to a real
@@ -340,7 +340,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::OnboardingCase.Open", customer: "no-such-customer",
                          reference: { value: "case-3" }, account_number: { value: "a4" })
-      end.to raise_error(Hecksagain::Runtime::NotFound)
+      end.to raise_error(Hecks::Runtime::NotFound)
     end
 
     # An ENTITY command's given/ensures reaching its own PARENT aggregate
@@ -368,7 +368,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                          number: { value: "a1" }, sequence: { value: 3 }, narrative: { text: "after" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Reverse refused — customer is active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — customer is active")
     end
   end
 
@@ -392,7 +392,7 @@ narrative: { text: "Opening" })
       expect do
         runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
                          serial: { value: "s1" }, daily_fee: { cents: 100 })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Issue refused — customer is active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Issue refused — customer is active")
     end
 
     it "refuses on a bare ACCOUNT status guard — CardPayment.Authorize against a frozen account" do
@@ -403,7 +403,7 @@ narrative: { text: "Opening" })
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
                          authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
                          merchant: { value: "Merchant" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — account is open")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — account is open")
     end
 
     it "refuses on an ALIASED cross-aggregate reference's status guard — Transfer.Request from a frozen source" do
@@ -416,7 +416,7 @@ narrative: { text: "Opening" })
         runtime.dispatch("Banking::Transfer.Request", reference: { value: "x1" },
                          source: "a1", destination: "a2", amount: { cents: 100 },
                          narrative: { text: "From a frozen source" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Request refused — source account is open")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Request refused — source account is open")
     end
 
     it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — ATMCard.Retire on an already-retired card" do
@@ -427,7 +427,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Retire refused — card is issued or active")
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Retire refused — card is issued or active")
     end
   end
 
@@ -437,16 +437,16 @@ narrative: { text: "Opening" })
         klass.public_instance_methods(false).sort - [:registry]
       end
 
-      expect(surface[Hecksagain::Runtime::CommandInterpreter]).to eq([:call])
-      expect(surface[Hecksagain::Runtime::EntityInterpreter]).to  eq([:call])
+      expect(surface[Hecks::Runtime::CommandInterpreter]).to eq([:call])
+      expect(surface[Hecks::Runtime::EntityInterpreter]).to  eq([:call])
       # `reference_call` is the query oracle's second DOOR into the same
       # home — the interpreter's own evaluation, skipping the adapter's
       # native hook, so the fuzzer can diff the two answers. Same
       # declared-query resolution, same argument gate, same interpret —
       # a second entrance, not a second set of rules.
-      expect(surface[Hecksagain::Runtime::QueryInterpreter]).to   eq([:call, :reference_call])
-      expect(surface[Hecksagain::Runtime::PolicyInterpreter]).to  eq([:react])
-      expect(surface[Hecksagain::Runtime::SagaInterpreter]).to    eq([:advance])
+      expect(surface[Hecks::Runtime::QueryInterpreter]).to   eq([:call, :reference_call])
+      expect(surface[Hecks::Runtime::PolicyInterpreter]).to  eq([:react])
+      expect(surface[Hecks::Runtime::SagaInterpreter]).to    eq([:advance])
     end
   end
 end

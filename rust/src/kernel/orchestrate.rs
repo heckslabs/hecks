@@ -1,5 +1,5 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct port of `Dispatcher#dispatch`'s
-// own reaction plumbing (lib/hecksagain/runtime/dispatcher.rb, read
+// own reaction plumbing (lib/hecks/runtime/dispatcher.rb, read
 // directly): every command dispatch runs its OWN pipeline, then hands
 // each event it announced to policy matching AND process-manager
 // advancement, re-entering dispatch for whatever either fires —

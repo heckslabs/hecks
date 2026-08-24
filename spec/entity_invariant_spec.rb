@@ -14,14 +14,14 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(BANKING_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -40,7 +40,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
     expect do
       runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 1 },
                        date: { value: "2026-08-16" }, sequence: { value: 1 }, note: { text: "" })
-    end.to raise_error(Hecksagain::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
+    end.to raise_error(Hecks::Runtime::InvariantViolation, /Visit refused.*a written note is not blank/)
   end
 
   it "accepts a visit with no note at all — optional stays optional" do

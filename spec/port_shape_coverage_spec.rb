@@ -22,8 +22,8 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
   # the exported IR back out (`ir`, `all_value_objects`, `all_attributes`
   # below), nothing dispatches a command, so a shared registry is safe.
   before(:context) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -33,7 +33,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     @banking_registry = registry
   end
 
-  let(:ir) { Hecksagain::Projector::Exporter.call(banking_registry).fetch("Banking") }
+  let(:ir) { Hecks::Projector::Exporter.call(banking_registry).fetch("Banking") }
   let(:banking_registry) { @banking_registry }
 
   def all_value_objects

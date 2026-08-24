@@ -1,5 +1,5 @@
-require "hecksagain"
-require "hecksagain/fuzzing/isolated_boot"
+require "hecks"
+require "hecks/fuzzing/isolated_boot"
 
 # §11'S INTEGRATION LAYER — everything BETWEEN a verified OIDC token and
 # an authorized dispatch. What "verified" means (redirect, code exchange,
@@ -25,7 +25,7 @@ require "hecksagain/fuzzing/isolated_boot"
 # Heki-backed boot from touching examples/banking/data/ for real.
 RSpec.describe "the OIDC client projection's integration layer" do
   def runtime
-    Hecksagain::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
+    Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
   end
 
   let(:business) { runtime }
@@ -63,11 +63,11 @@ RSpec.describe "the OIDC client projection's integration layer" do
   # a scoped dispatch out, refusing before the block ever runs if either
   # step says no.
   def authenticated_dispatch(registry, issuer:, subject:, role:)
-    identity_id = Hecksagain::Ports::IdentityResolution.resolve(registry, issuer: issuer, subject: subject)
+    identity_id = Hecks::Ports::IdentityResolution.resolve(registry, issuer: issuer, subject: subject)
     raise "unknown identity" unless identity_id
-    raise "not authorized" unless Hecksagain::Ports::Authorization.holds_role?(registry, actor_id: identity_id, role: role)
+    raise "not authorized" unless Hecks::Ports::Authorization.holds_role?(registry, actor_id: identity_id, role: role)
 
-    Hecksagain.as_caller(role: role) { yield }
+    Hecks.as_caller(role: role) { yield }
   end
 
   it "resolves a verified (issuer, subject), checks the role, and dispatches — the full path" do

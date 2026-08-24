@@ -39,7 +39,7 @@ RSpec.describe "the Rust parser's own coverage", io: true do
   # LIVE words only (admitted/deprecated; proposed/retired words reach no
   # generated parser table at all, same as every other projection).
   def self.judged_meta
-    Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
   end
 
   def self.syntax = judged_meta.aggregates.find { |a| a.hecks_name == "Syntax" }
@@ -55,8 +55,8 @@ RSpec.describe "the Rust parser's own coverage", io: true do
   # S14, ADR 0026 — Keyword is a genuine entity of Syntax now, dispatched
   # through a real lifecycle rather than merely declared — `SyntaxBoot.
   # call` hands back the same shape `rows("Keyword")` used to.
-  DECLARED_PAIRS = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-                                                                  .select { |row| live?(row) }.map { |row|
+  DECLARED_PAIRS = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+                                                             .select { |row| live?(row) }.map { |row|
     [
       row[:word], row[:context]
     ]

@@ -1,6 +1,6 @@
 require "json"
 require "open3"
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
 # THE RUST DIFFERENTIAL HARNESS, WIRED IN — bin/rust_conformance's own
 # header comment used to say plainly that nothing did this ("this tool
@@ -163,7 +163,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       binary = build_rust_for(File.basename(domain).downcase)
       skip "rust/Cargo.toml has no #{File.basename(domain).downcase} feature — run bin/project_rust for it first" unless binary
 
-      ruby_result = Hecksagain::Fuzzing::Replay.call(domain, steps)
+      ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
       ruby_events = JSON.parse(JSON.generate(ruby_result[:events]))
       ruby_refusals = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }

@@ -23,19 +23,19 @@ require "tmpdir"
 # sitting in `"awaiting_credit"` this whole arc is about.
 RSpec.describe "durable saga/process-manager state" do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
+  SQLITE_ADAPTER = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
 
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-saga-durability-")
+    @dir = Dir.mktmpdir("hecks-saga-durability-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
   end
 
   def boot_wire(root: @dir)
-    registry = Hecksagain::Runtime::Registry.new(root: root)
+    registry = Hecks::Runtime::Registry.new(root: root)
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -62,7 +62,7 @@ RSpec.describe "durable saga/process-manager state" do
     # directory on disk, the same reason `banking_matrix_spec.rb`'s own
     # `boot` helper doesn't call `Loader.boot` either.
     registry.rehydrate_sagas!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def stuck_wire(runtime)
@@ -120,8 +120,8 @@ RSpec.describe "durable saga/process-manager state" do
 
   describe "the saga_mutex (§7)" do
     it "keeps two threads racing begin_saga on the SAME correlation from double-booking or losing a checkpoint" do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -137,7 +137,7 @@ RSpec.describe "durable saga/process-manager state" do
         end
       end
       registry.verify!
-      runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
       runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
       runtime.dispatch("Wire::Drawer.Open", number: { value: "right" })

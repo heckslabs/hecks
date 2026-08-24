@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 
 # `Memory` was the one driven adapter without `reset!` — Postgres/
 # PostgresEra/Sqlite/D1 all already have it, and `Ports::Persistence::
@@ -7,7 +7,7 @@ require "hecksagain"
 # closes that one gap: a caller that keeps ONE booted runtime across many
 # cases (skipping `load_domain`'s own per-boot cost) can now reset it back
 # to the same clean slate a fresh `Hecks.boot` would have given it.
-RSpec.describe Hecksagain::Adapters::Memory do
+RSpec.describe Hecks::Adapters::Memory do
   let(:runtime) { boot_in_memory }
 
   def repository

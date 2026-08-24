@@ -1,4 +1,4 @@
-//! The `Query` construct (`lib/hecksagain/bluebook/ir/query.rb`, built on
+//! The `Query` construct (`lib/hecks/bluebook/ir/query.rb`, built on
 //! `QuerySpecification::Common::Options`). `where`'s pairs comparator
 //! splitting (`build/query_derive.rs`), `order_by`. STAGE 4 adds `limit`
 //! and the five open-map options (`offset`/`cursor`/`authorize`/`nulls`/

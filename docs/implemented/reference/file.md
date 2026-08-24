@@ -4,7 +4,7 @@
 Words available at the top of a file.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -142,7 +142,7 @@ runtime.registry.hecksagon("FileReference").binds.map(&:adapter)  # => ["Memory"
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a `.port` file — a resource door a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of door: `persistence`, `extraction`, and every other port under `lib/hecksagain/ports/` are real examples. See the Port reference page for the words inside.
+Opens a `.port` file — a resource door a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of door: `persistence`, `extraction`, and every other port under `lib/hecks/ports/` are real examples. See the Port reference page for the words inside.
 
 Read back off the registry, the same way a world is:
 

@@ -12,13 +12,13 @@ require "spec_helper"
 # allowed to coexist: the manifest's verbs are held equal to the
 # runtime's own verb list, and its roles are held to be exactly the
 # strings the commands declare.
-RSpec.describe Hecksagain::Projections::OIDC do
+RSpec.describe Hecks::Projections::OIDC do
   let(:runtime)  { boot_in_memory }
   let(:pizzas)   { runtime.registry.bluebook("Pizzas") }
   let(:manifest) { described_class.call(bluebook: pizzas) }
 
   it "registers itself under :oidc as it loads" do
-    expect(Hecksagain::Projector.registered?(:oidc)).to be true
+    expect(Hecks::Projector.registered?(:oidc)).to be true
     expect(described_class.projection_key).to eq(:oidc)
   end
 

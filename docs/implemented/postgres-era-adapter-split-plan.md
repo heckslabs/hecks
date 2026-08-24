@@ -14,7 +14,7 @@ clean `d7394fdc` checkout to confirm rather than assumed. Not yet done: merging 
 and re-running Phase 2's real-Postgres validation spec (and the rest of the io-tagged suite) in CI
 once merged.
 
-Trigger: today's single `Postgres` adapter (`lib/hecksagain/adapters/driven/postgres.rb`) always
+Trigger: today's single `Postgres` adapter (`lib/hecks/adapters/driven/postgres.rb`) always
 carries full era/lineage machinery — `hecks_eras`, advisory-lock-guarded `append`, `head_view`
 compiled as a `DISTINCT ON`/`UNION ALL` reduction once a domain mints a second era — whether or
 not a domain ever uses it. **Verified against every real consumer in this checkout**: `Pizzas::Order`
@@ -73,7 +73,7 @@ Scope 3 (nothing to validate until the cache-table engine exists), and Scopes 2/
 files once Scope 1 lands, so they parallelize cleanly. It also surfaced work the original scope list
 didn't name at all: the adapter's own 2700-line spec suite (`postgres_spec.rb`, 525 lines;
 `postgres/lineage_spec.rb`, 1413 lines; `postgres/domain_rename_spec.rb`, 338 lines;
-`adapters/query_agreement_spec.rb`, 430 lines) all bind `Hecksagain::Adapters::Postgres` directly and
+`adapters/query_agreement_spec.rb`, 430 lines) all bind `Hecks::Adapters::Postgres` directly and
 need the same rename Scope 1 gives every other consumer — not mentioned in the original Scope 1, but
 the same prerequisite.
 
@@ -83,9 +83,9 @@ Phase 0 — Rename (sequential, blocking, no parallelism possible)
   │  Track A creates a NEW lib/.../postgres.rb and a NEW spec/.../postgres_spec.rb at
   │  paths this phase must vacate first.
   │
-  ├─ lib/hecksagain/adapters/driven/postgres.rb        → postgres_era.rb (class → PostgresEra)
-  ├─ lib/hecksagain/adapters/driven/postgres.adapter    → postgres_era.adapter
-  ├─ lib/hecksagain/adapters/driven/postgres/           → postgres_era/  (lineage + lineage_manager)
+  ├─ lib/hecks/adapters/driven/postgres.rb        → postgres_era.rb (class → PostgresEra)
+  ├─ lib/hecks/adapters/driven/postgres.adapter    → postgres_era.adapter
+  ├─ lib/hecks/adapters/driven/postgres/           → postgres_era/  (lineage + lineage_manager)
   ├─ driven.rb's require_relative repointed
   ├─ every real consumer repointed to persisted_by("PostgresEra"): pizzas/compliance
   │  .hecksagon + .world, saga_durability_postgres_spec.rb's inline Wire fixture,
@@ -102,7 +102,7 @@ Phase 0 — Rename (sequential, blocking, no parallelism possible)
      lex.rs) swept for accuracy; historical audit logs / dated correction entries in
      HECKS_IMPLEMENTATION_PLAN.md deliberately left untouched (point-in-time records)
 
-  STATUS: done. Verified: `require "hecksagain"` loads clean; PostgresEra resolves and
+  STATUS: done. Verified: `require "hecks"` loads clean; PostgresEra resolves and
   answers lineage_capable? true.
 
 Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 lands)
@@ -110,7 +110,7 @@ Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 land
   query_agreement_spec.rb), 0 failures. Track B: 26 examples, 0 failures.
 
   ┌─ Track A: new plain `Postgres` adapter (original Scope 2) ────────────────────────┐
-  │  lib/hecksagain/adapters/driven/postgres.rb (NEW), postgres.adapter (NEW),         │
+  │  lib/hecks/adapters/driven/postgres.rb (NEW), postgres.adapter (NEW),         │
   │  postgres/codec.rb (NEW — real typed columns for scalars, jsonb for nested/list,   │
   │  ported from Sqlite::Codec's shape, not its SQLite-JSON-text mechanics),           │
   │  postgres/schema_builder.rb (NEW — plain CREATE INDEX per declared where/order_by  │
@@ -159,7 +159,7 @@ Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 land
   `ntuples`-checked form.
 
 Phase 2 — Validation (original Scope 5), depends on Phase 1 Track C only
-  New spec in hecksagain's own suite, against a real throwaway Postgres database (never the
+  New spec in hecks's own suite, against a real throwaway Postgres database (never the
   dev database, PostgresProbe/before(:all)-scratch-db pattern every other real-Postgres spec
   already uses) — with a toy aggregate pushed through a real era mint. Must prove: cache-table
   correctness both before and after a mint, backfill resumability under a simulated
@@ -235,7 +235,7 @@ See Phase 0 above.
 - `D1` inherits this for free — it shares `SchemaBuilder` with `Sqlite` verbatim.
 
 ### 5. Validation
-- New spec in hecksagain's own suite (`spec/`), against a real throwaway Postgres database — never
+- New spec in hecks's own suite (`spec/`), against a real throwaway Postgres database — never
   the dev database, matching `rust/host`'s own `dispatch.rs` test precedent — with a toy aggregate
   pushed through a real era mint. Must prove: cache-table correctness both before and after a mint,
   backfill resumability under a simulated crash/restart, and genuine non-blocking-ness (a concurrent
@@ -248,7 +248,7 @@ See Phase 0 above.
 - **`OracleEra`.** The one database surveyed that technically clears every bar this plan checks
   against — real incremental materialized views (via materialized view logs, so no `UNION`/`DISTINCT`
   wall), genuine online partition operations, `DBMS_LOCK` with the same transaction-scoped release
-  guarantee Postgres's advisory locks give. Not scheduled now. Given hecksagain's actual destination
+  guarantee Postgres's advisory locks give. Not scheduled now. Given hecks's actual destination
   is enterprise deployment, not a permanently-internal tool, this is a real future adapter, not
   something to dismiss on "wrong spirit for an internal tool" grounds — revisit deliberately, don't
   let it fall out silently.

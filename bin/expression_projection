@@ -28,7 +28,7 @@
 # the checked-in file was broken beyond self-repair — it read a second
 # runtime's own checked-in operator table as independent ground truth.
 # With one runtime, that ground truth is simpler: the file is checked
-# into git, so `git checkout -- lib/hecksagain/bluebook/expression/projection.json`
+# into git, so `git checkout -- lib/hecks/bluebook/expression/projection.json`
 # restores the last-known-good version directly.
 #
 # Operators carry the vocabulary's comparison algebra (the domain owns
@@ -40,7 +40,7 @@
 require "json"
 require "tempfile"
 
-TARGET = File.expand_path("../lib/hecksagain/bluebook/expression/projection.json", __dir__)
+TARGET = File.expand_path("../lib/hecks/bluebook/expression/projection.json", __dir__)
 
 def write_atomically(content)
   Tempfile.create("projection", File.dirname(TARGET)) do |tmp|
@@ -51,17 +51,17 @@ def write_atomically(content)
 end
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/grammar"
+require "hecks"
+require "hecks/grammar"
 
-dispatcher = Hecksagain::Grammar.expression
+dispatcher = Hecks::Grammar.expression
 
-judged     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+judged     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 vocabulary = judged.aggregates.find { |a| a.name == "Vocabulary" }
 algebra    = vocabulary.value_objects.find { |vo| vo.hecks_name == "Comparison" }
                        .members.to_h { |row| [row.to_h.values.first, row.to_h] }
 
-operators = Hecksagain::Grammar.admitted_operators(dispatcher).map do |op|
+operators = Hecks::Grammar.admitted_operators(dispatcher).map do |op|
   row = { symbol: op[:symbol], category: op[:category],
           precedence: op[:precedence], arity: op[:arity] }
   next row unless op[:category] == "comparison"
@@ -78,7 +78,7 @@ end
 # every future boot; refuse to write it, naming each operator and where
 # the language stands on it.
 admitted = operators.map { |row| row[:symbol] }
-stranded = Hecksagain::Grammar.self_bearing_operators.reject { |symbol, _| admitted.include?(symbol) }
+stranded = Hecks::Grammar.self_bearing_operators.reject { |symbol, _| admitted.include?(symbol) }
 unless stranded.empty?
   abort stranded.map { |symbol, sites|
     "#{symbol} is self-bearing — the language's own predicates evaluate through it " \
@@ -88,7 +88,7 @@ end
 
 content = JSON.pretty_generate(
   operators:      operators,
-  normalisations: Hecksagain::Grammar.admitted_normalisations(dispatcher)
+  normalisations: Hecks::Grammar.admitted_normalisations(dispatcher)
 ) + "\n"
 
 if ARGV.include?("--stdout")

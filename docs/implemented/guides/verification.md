@@ -96,10 +96,10 @@ Call it the same way `spec/model_check_spec.rb` does — in process,
 against the chapter you just booted:
 
 ```ruby
-require "hecksagain/bluebook/model_check"
+require "hecks/bluebook/model_check"
 
 chapter  = runtime.registry.bluebooks.values.first
-findings = Hecksagain::Bluebook::ModelCheck.call(chapter)
+findings = Hecks::Bluebook::ModelCheck.call(chapter)
 
 findings.map(&:kind).sort   # => [:dead_transition, :stuck_state, :unreachable_state, :unreachable_state]
 findings.count { |f| f.severity == :error }    # => 3
@@ -210,7 +210,7 @@ the domain declining), whether every declared property still holds,
 and — separately, because it costs a second full replay — whether two
 runs of the identical steps produced byte-identical histories.
 
-Four declared properties, in `Hecksagain::Fuzzing::Properties`:
+Four declared properties, in `Hecks::Fuzzing::Properties`:
 `lifecycle_values_are_declared` (every lifecycle field a replay leaves
 an instance holding is one of that aggregate's own declared states),
 `saga_advances_follow_declared_handlers` (every saga advance a replay
@@ -222,7 +222,7 @@ section — pizzas, era 2, the one `docs/implemented/guides/AUTHORING.md` points
 whenever a guide needs a real domain rather than an invented one:
 
 ```ruby
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
 steps = [
   { "verb" => "Pizzas::Order.CreatePizza",
@@ -233,9 +233,9 @@ steps = [
   { "query" => "Pizzas::Order.Available", "args" => {} }
 ]
 
-history = Hecksagain::Fuzzing::Replay.call("examples/pizzas", steps)
+history = Hecks::Fuzzing::Replay.call("examples/pizzas", steps)
 
-Hecksagain::Fuzzing::Properties.check(history)
+Hecks::Fuzzing::Properties.check(history)
   # => { lifecycle_values_are_declared: true, saga_advances_follow_declared_handlers: true, query_answers_match_reference: true }
 ```
 
@@ -264,11 +264,11 @@ not cheap, so `bin/fuzz` only pays for it once a sequence is otherwise
 clean:
 
 ```ruby
-Hecksagain::Fuzzing::Properties.replay_is_deterministic("examples/pizzas", steps)   # => true
+Hecks::Fuzzing::Properties.replay_is_deterministic("examples/pizzas", steps)   # => true
 ```
 
 This is the one worth being exact about, because it checks a promise,
-not a convenience. `Hecksagain::Runtime` mints nothing: every identity
+not a convenience. `Hecks::Runtime` mints nothing: every identity
 in this language is declared and derived from what you passed in,
 never invented — no random hex, no counter, nothing not reproducible
 from the payload was ever allowed into the interpreter, specifically
@@ -321,7 +321,7 @@ query including its refusal paths:
 require "json"
 
 script  = JSON.parse(File.read("spec/corpus/banking.json"))
-history = Hecksagain::Fuzzing::Replay.call("examples/banking", script.fetch("steps"))
+history = Hecks::Fuzzing::Replay.call("examples/banking", script.fetch("steps"))
 
 # The same check bin/run performs after every corpus run — every refusal
 # the script says must happen, actually happened.

@@ -3,7 +3,7 @@ require "tmpdir"
 
 RSpec.describe "SQLite execution-plan capabilities" do
   def item_aggregate
-    Hecksagain::Bluebook::DSL::BluebookBuilder.build("SqlitePlanning") do
+    Hecks::Bluebook::DSL::BluebookBuilder.build("SqlitePlanning") do
       vision "SQLite implements the same atomic-put contract as Memory"
 
       aggregate "Item" do
@@ -18,21 +18,21 @@ RSpec.describe "SQLite execution-plan capabilities" do
   end
 
   it "atomically appends and projects while reporting insert versus replacement" do
-    Dir.mktmpdir("hecksagain-sqlite-plan-") do |root|
+    Dir.mktmpdir("hecks-sqlite-plan-") do |root|
       aggregate = item_aggregate
-      adapter = Hecksagain::Adapters::Sqlite.new(
+      adapter = Hecks::Adapters::Sqlite.new(
         aggregate: aggregate,
         settings:  { database: "items.db" },
         root:      root
       )
-      repository = Hecksagain::Ports::Persistence::AppendOnly.new(adapter)
+      repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
 
-      first = Hecksagain::Runtime::Instance.new(
+      first = Hecks::Runtime::Instance.new(
         aggregate: aggregate,
         id:        "sku-1",
         state:     { identity: { sku: "sku-1" }, label: { value: "First" } }
       )
-      second = Hecksagain::Runtime::Instance.new(
+      second = Hecks::Runtime::Instance.new(
         aggregate: aggregate,
         id:        "sku-1",
         state:     { identity: { sku: "sku-1" }, label: { value: "Second" } }

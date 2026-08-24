@@ -12,16 +12,16 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
   DELEGATES_TO_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(DELEGATES_TO_FIXTURE)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -77,7 +77,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
     expect {
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b2", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
-    }.to raise_error(Hecksagain::Runtime::GivenNotMet, /destination differs from current square/)
+    }.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
   it "persists nothing from a refused delegation — the failed attempt leaves the piece exactly where it was" do
@@ -87,7 +87,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
 
     begin
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b3", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
-    rescue Hecksagain::Runtime::GivenNotMet
+    rescue Hecks::Runtime::GivenNotMet
       nil
     end
 

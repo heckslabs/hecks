@@ -24,7 +24,7 @@ detail:**
   envelope, distinct from a domain's own `version:`, golden-tested.
 - §33 Semantic identity/provenance — provenance edges attach *to IR nodes
   themselves*.
-- §30 Projector architecture — `Hecksagain::Projector.register(name,
+- §30 Projector architecture — `Hecks::Projector.register(name,
   projector)`, a generic registration mechanism, not one bespoke exporter
   per consumer.
 - §31 Port fulfillment graph — models which ports a domain's own bindings
@@ -100,12 +100,12 @@ projection count grows.
 0026 already made turning "does the language use what it declares?" into
 `spec/self_use_spec.rb`. It checks the one part of "is this a projector?"
 that's actually mechanizable today: every file in
-`lib/hecksagain/projections/` (the sanctioned home for a "canonical IR
+`lib/hecks/projections/` (the sanctioned home for a "canonical IR
 in, external artifact out" tool) `extend`s `Projector::Target` and is
-live in `Hecksagain::Projector`'s own registry — nothing sits there
+live in `Hecks::Projector`'s own registry — nothing sits there
 declared but unregistered, and nothing registers a key without properly
 extending the target contract. The two other kinds
-`lib/hecksagain/projector.rb`'s own header already distinguishes — an
+`lib/hecks/projector.rb`'s own header already distinguishes — an
 EXPORT (needs a declaration's bindings, which a projection's own call
 shape has no channel for) or a STATE PROJECTION (reads records, not a
 declaration) — get a named, reasoned roster instead of a bare exemption
@@ -113,7 +113,7 @@ list, checked against the real files still existing, the same
 `META_DOMAIN_KNOWN_GAPS` discipline `spec/fuzzing/
 meta_domain_coverage_spec.rb` already holds the language's own grammar to.
 
-This gate found something real on its own first run: `lib/hecksagain/
+This gate found something real on its own first run: `lib/hecks/
 projections/ir.rb` extends `Projector::Target` via `IR.extend(Projector::
 Target)` — a real, legitimate method-call form every sibling file instead
 spells as a bare `extend Projector::Target`. The gate's own first
@@ -132,7 +132,7 @@ something derived" *outside* `Projector::Target` entirely — the risk
 reliably needs a real signal for "looks IR-shaped" precise enough not to
 false-positive across `bin/`'s three dozen other scripts, and wasn't
 worth the risk of a fragile heuristic for this first version. The
-`lib/hecksagain/projections/` directory convention plus this gate is the
+`lib/hecks/projections/` directory convention plus this gate is the
 practical stopgap: scoping a new projector there and following the
 `Target` contract is the path of least resistance, which is most of what
 matters day to day, even without a gate that would catch someone
@@ -166,7 +166,7 @@ deliberately going around it.
   how to sequence future additions to either list.
 - **`spec/projector_seam_spec.rb` is a real, running gate as of this
   ADR** — see "The gate is enforced, not just stated" above. `bundle exec
-  rspec` fails if a file in `lib/hecksagain/projections/` is ever added
+  rspec` fails if a file in `lib/hecks/projections/` is ever added
   without registering, or if the known-non-projection roster names a file
   that's since been renamed or deleted.
 

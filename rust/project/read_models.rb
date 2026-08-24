@@ -19,7 +19,7 @@ module RustProjection
     # generated `QUERIES` table.
     #
     # GROUND TRUTH: `Runtime::ReadModelInterpreter#project`
-    # (lib/hecksagain/runtime/read_model_interpreter.rb), read directly —
+    # (lib/hecks/runtime/read_model_interpreter.rb), read directly —
     # resolve the root by id, walk every declared head ROOT-FIRST for
     # COMPUTATION regardless of `include` order (a real, once-live bug:
     # a many-side head declared before its own root silently matched
@@ -37,13 +37,13 @@ module RustProjection
     # data here to bake a filter/sort/cap from no matter how this
     # generator was written. That changed 2026-08-11: `ReadModel#to_h`
     # now spells `wheres`/`order_by`/`limit` explicitly, the same
-    # mechanism `Query#to_h` already used (`lib/hecksagain/bluebook/
+    # mechanism `Query#to_h` already used (`lib/hecks/bluebook/
     # ir/read_model.rb`'s own comment has the full history) — so this
     # generator now reads real filter/sort/cap data off the canonical
     # `ir.json` for the first time, and does something with it, for the
     # ONE eligible head `ReadModel#filtered_head_name` already names
     # (`seal_query_options`'s own "options apply to a single collection"
-    # rule — read directly in `lib/hecksagain/bluebook/dsl/
+    # rule — read directly in `lib/hecks/bluebook/dsl/
     # read_model_builder.rb` — means there is never ambiguity about which
     # head where/order_by/limit apply to; this generator trusts that
     # invariant the same way the Ruby interpreter does, rather than

@@ -6,7 +6,7 @@ require "json"
 # A `pattern:` is declared data, so it stays inside what regex engines agree
 # on. A pattern one engine admits and another refuses is a bluebook that
 # loads in one place and not another, which is the failure this exists to stop.
-RSpec.describe Hecksagain::Bluebook::PatternSubset do
+RSpec.describe Hecks::Bluebook::PatternSubset do
   # PATTERNS_CONTRACT, not CONTRACT : a constant assigned inside an RSpec.describe
   # block lands on Object, so a bare `CONTRACT` here silently overwrote the one in
   # naming_spec and broke a test in a file this one never mentions. Whichever

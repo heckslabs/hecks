@@ -1,4 +1,4 @@
-module Hecksagain
+module Hecks
   module Adapters
     # THE DETERMINISTIC `agent` FULFILLMENT — a hand-loaded queue of raw
     # answers, one queue per operation, so a spec (or `bin/interview`
@@ -49,7 +49,7 @@ module Hecksagain
         @queues ||= {}
         queue = @queues[op]
         if queue.nil? || queue.empty?
-          raise Hecksagain::Ports::Agent::Unavailable,
+          raise Hecks::Ports::Agent::Unavailable,
                 "ScriptedAgent has no #{op} answer queued — called with #{call.inspect}"
         end
 

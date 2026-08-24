@@ -12,7 +12,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
                io: true do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
   POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
-  SAGA_DURABILITY_SPEC_DB = "hecksagain_saga_durability_spec".freeze
+  SAGA_DURABILITY_SPEC_DB = "hecks_saga_durability_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -37,9 +37,9 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
   end
 
   def boot_wire
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -65,7 +65,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
 
     registry.verify!
     registry.rehydrate_sagas!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def stuck_wire(runtime)

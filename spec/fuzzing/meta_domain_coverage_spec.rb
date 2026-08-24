@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
 # THE GATE THAT AUTOMATES THE THING THIS ARC EXISTS FOR — "we don't do
 # a good job of adding the properties when we add to the language."
@@ -34,9 +34,9 @@ require "hecksagain/fuzzing"
 # purpose — and empty, which is the position to defend" makes for its
 # own gate.
 RSpec.describe "the fuzzer's declared properties, against the language's own grammar" do
-  META_DOMAIN_GRAMMAR = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-  META_DOMAIN_PROPERTY_COVERAGE = Hecksagain::Fuzzing::Properties::FEATURE_COVERAGE
-  META_DOMAIN_GUARANTEED_BY_CONSTRUCTION = Hecksagain::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION
+  META_DOMAIN_GRAMMAR = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  META_DOMAIN_PROPERTY_COVERAGE = Hecks::Fuzzing::Properties::FEATURE_COVERAGE
+  META_DOMAIN_GUARANTEED_BY_CONSTRUCTION = Hecks::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION
 
   # EVERY "Construct#attribute" THE LANGUAGE CAN DECLARE, read straight
   # off the meta-domain — never re-typed, so an attribute added to

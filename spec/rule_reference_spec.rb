@@ -1,20 +1,20 @@
 require "spec_helper"
 require "tmpdir"
-require "hecksagain/codemod"
+require "hecks/codemod"
 
-# THE THREE RESOLUTION PRIMITIVES `lib/hecksagain/bluebook/dsl/rule_
+# THE THREE RESOLUTION PRIMITIVES `lib/hecks/bluebook/dsl/rule_
 # reference.rb` extracted from five hand-written builder methods,
 # proven behaviorally here rather than just by the real corpus
 # continuing to boot byte-identical (which it does — see this refactor's
 # own commit message) — a synthetic minimal bluebook per primitive
 # means these tests still catch a regression even if the real corpus
 # never happens to exercise a given branch again.
-RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
+RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
   def load(source)
     Dir.mktmpdir do |dir|
       path = File.join(dir, "smoke.bluebook")
       File.write(path, source)
-      Hecksagain::Codemod.load_bluebook(path)
+      Hecks::Codemod.load_bluebook(path)
     end
   end
 
@@ -23,7 +23,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
 
     it "reads the REAL self-hosted table (Keyword#resolves_via) once bootstrapping is done, " \
        "the same generated data rust/parser/src/keywords.rs is generated from" do
-      table = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      table = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
       populated = table.reject { |row| row[:resolves_via].to_s == "" }
 
       expect(populated).not_to be_empty
@@ -32,7 +32,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
 
     it "names a primitive every BOOTSTRAP_FALLBACK entry actually is — the ONE window " \
        "(MetaValidator.bootstrapping?) where the real table cannot be read yet" do
-      Hecksagain::Bluebook::DSL::RuleReference::BOOTSTRAP_FALLBACK.each_value do |rule|
+      Hecks::Bluebook::DSL::RuleReference::BOOTSTRAP_FALLBACK.each_value do |rule|
         expect(known_primitives).to include(rule[:resolves_via])
       end
     end
@@ -40,12 +40,12 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
 
   describe "#verify_resolves_via!" do
     it "raises when the grammar table disagrees with what a builder is about to do" do
-      Hecksagain::Bluebook::MetaValidator.grammar_registry # ensure bootstrapping is over
+      Hecks::Bluebook::MetaValidator.grammar_registry # ensure bootstrapping is over
 
-      expect(Hecksagain::Bluebook::MetaValidator.bootstrapping?).to be(false)
-      expect { Hecksagain::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "hash_chain") }
+      expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
+      expect { Hecks::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "hash_chain") }
         .to raise_error(/the grammar table and the implementation have drifted/)
-      expect { Hecksagain::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "owner_keyed") }
+      expect { Hecks::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "owner_keyed") }
         .not_to raise_error
     end
   end
@@ -132,7 +132,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
             end
           end
         BLUEBOOK
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /names no precondition/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /names no precondition/)
     end
   end
 
@@ -296,7 +296,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
             end
           end
         BLUEBOOK
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /is ambiguous in this chapter/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /is ambiguous in this chapter/)
     end
 
     it "resolves the named candidate when declared_by: disambiguates" do
@@ -357,7 +357,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
             end
           end
         BLUEBOOK
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /names no rule a sibling value/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /names no rule a sibling value/)
     end
   end
 end

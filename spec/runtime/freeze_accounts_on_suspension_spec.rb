@@ -32,8 +32,8 @@ require "spec_helper"
 #   for the ORIGINAL reason.
 RSpec.describe "FreezeAccountsOnSuspension" do
   def build
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -57,7 +57,7 @@ RSpec.describe "FreezeAccountsOnSuspension" do
       end
     end
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "freezes every open account the suspended customer holds, and only theirs" do

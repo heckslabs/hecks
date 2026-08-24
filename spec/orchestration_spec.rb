@@ -26,7 +26,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   ORCHESTRATION_CORPUS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
-    "Expression" => "lib/hecksagain/grammar/expression.bluebook",
+    "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
     "Reflex"     => "spec/fixtures/reflex.bluebook"
@@ -49,8 +49,8 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   KNOWN_GAPS = [].freeze
 
   def load_chapter(file)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -90,10 +90,10 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   end
 
   def assembled_from_the_language(built)
-    held = Hecksagain::Bluebook::MetaValidator.hold(built)
+    held = Hecks::Bluebook::MetaValidator.hold(built)
     expect(held[:refusals]).to be_empty, "the language refused it: #{held[:refusals].inspect}"
 
-    Hecksagain::Bluebook::Assembly.call(held[:declaration])
+    Hecks::Bluebook::Assembly.call(held[:declaration])
   end
 
   ORCHESTRATION_CORPUS.each do |name, file|
@@ -138,6 +138,6 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     # merely tolerate it.
     built = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
 
-    expect(Hecksagain::Bluebook::MetaValidator.call(built)).not_to be(built)
+    expect(Hecks::Bluebook::MetaValidator.call(built)).not_to be(built)
   end
 end

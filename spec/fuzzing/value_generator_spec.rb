@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/fuzzing/value_generator"
+require "hecks/fuzzing/value_generator"
 
-RSpec.describe Hecksagain::Fuzzing::ValueGenerator do
+RSpec.describe Hecks::Fuzzing::ValueGenerator do
   describe "determinism" do
     it "produces the exact same value for the same seed" do
       first  = described_class.string_value(Random.new(42))
@@ -27,7 +27,7 @@ RSpec.describe Hecksagain::Fuzzing::ValueGenerator do
   describe ".primitive" do
     it "answers every declared primitive type" do
       random = Random.new(1)
-      Hecksagain::Bluebook::Attribute::PRIMITIVES.each do |type_name|
+      Hecks::Bluebook::Attribute::PRIMITIVES.each do |type_name|
         expect { described_class.primitive(type_name, random: random) }.not_to raise_error
       end
     end

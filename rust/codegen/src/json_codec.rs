@@ -65,7 +65,7 @@ pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
 }
 
 /// `Value.for_attribute` → `fields_for`'s own bare-scalar branch
-/// (lib/hecksagain/runtime/value/coercion.rb), at codegen time instead
+/// (lib/hecks/runtime/value/coercion.rb), at codegen time instead
 /// of runtime — port of `json_codec.rb#sole_field_of`. `None` for
 /// anything but a genuinely single-field value object, so every other
 /// composite branch below is unchanged.
@@ -99,7 +99,7 @@ pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<Str
 /// own `from_json` — entity commands run no such check at all.
 pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_managers: &[Json]) -> Vec<String> {
     let references = command.get("references").map(Json::to_s).unwrap_or_default();
-    let reference_key = if references.is_empty() { None } else { Some(crate::hecksagain_naming::reference_key(&references)) };
+    let reference_key = if references.is_empty() { None } else { Some(crate::hecks_naming::reference_key(&references)) };
 
     let identity_heads: Vec<String> = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(|p| p.to_s().split('.').next().unwrap_or("").to_string()).collect();
 
@@ -419,7 +419,7 @@ pub fn extract_id_supported(aggregate: &Json) -> bool {
 pub fn emit_extract_id(exemplar: &Exemplar, aggregate: &Json) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let identified_by: Vec<String> = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect();
-    let reference_key = crate::hecksagain_naming::snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
+    let reference_key = crate::hecks_naming::snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
 
     let tier1_subs: Vec<Vec<(&str, String)>> =
         identified_by.iter().enumerate().map(|(i, path)| vec![("\"tmpl_path\"", naming::ruby_inspect_string(path)), ("c0", format!("c{i}"))]).collect();

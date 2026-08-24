@@ -1,0 +1,32 @@
+# The framework members, bound so they can boot standing alone —
+# `Hecks.boot("lib/hecks/framework")` rather than only as something
+# another domain attached with `uses_framework`.
+#
+# `uses_framework` does NOT read this file (Framework.load! loads a
+# member's bluebook and nothing else, deliberately — see framework.rb),
+# so an attaching domain still declares its own binding for these
+# aggregates, exactly as before. This only answers the case where the
+# framework is the domain being booted.
+Hecks.hecksagon "Compliance" do
+  # Every command here declares `role "Compliance officer"` — only real
+  # access control once Governance can check it against something (S8).
+  uses_framework "Governance"
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "ConsoleSettings" do
+  # Same reason as Compliance, above — S8.
+  uses_framework "Governance"
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Identity" do
+  # `Identity::Identity.Register` declares `role "Identity registrar"` —
+  # same reason as Compliance/ConsoleSettings, above — S8.
+  uses_framework "Governance"
+  persisted_by "Memory"
+end

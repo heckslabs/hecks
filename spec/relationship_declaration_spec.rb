@@ -2,7 +2,7 @@ require "spec_helper"
 
 RSpec.describe "relationship declarations" do
   def build_chapter(&block)
-    Hecksagain::Bluebook::DSL::BluebookBuilder.build("RelationshipFixture", &block)
+    Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipFixture", &block)
   end
 
   it "preserves relationship kind and cardinality through canonical IR and assembly" do
@@ -53,7 +53,7 @@ RSpec.describe "relationship declarations" do
       ]
     )
 
-    expect(Hecksagain::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
+    expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
   end
 
   it "uses the same relationship declarations on an entity" do
@@ -108,7 +108,7 @@ RSpec.describe "relationship declarations" do
     end
 
     portfolio = chapter.aggregate("Portfolio")
-    instance = Hecksagain::Runtime::Instance.new(aggregate: portfolio, id: "p-1")
+    instance = Hecks::Runtime::Instance.new(aggregate: portfolio, id: "p-1")
     expect(instance[:accounts]).to eq([])
 
     expect do
@@ -120,6 +120,6 @@ RSpec.describe "relationship declarations" do
           has_many Accounts, optional: true
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /has_many takes no optional/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /has_many takes no optional/)
   end
 end

@@ -14,15 +14,15 @@ RSpec.describe "a reference that arrives as an object" do
   SETTLEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
 
   def boot_settlement
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(SETTLEMENT)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -37,7 +37,7 @@ RSpec.describe "a reference that arrives as an object" do
     expect do
       runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                          source: { value: "a" }, destination: "b")
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+    end.to raise_error(Hecks::Runtime::TypeMismatch,
                        "Ask refused — a reference is an id, and source arrived as an object " \
                        "(Drawer is known by number)")
   end
@@ -50,7 +50,7 @@ RSpec.describe "a reference that arrives as an object" do
     expect do
       runtime.dispatch("Wire::Wire.Ask", reference: { value: "w1" }, amount: { cents: 100 },
                                          destination: { value: "b" }, source: { value: "a" })
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch, /and source arrived as an object/)
+    end.to raise_error(Hecks::Runtime::TypeMismatch, /and source arrived as an object/)
   end
 
   # WITHOUT THIS THE GUARD PROVES NOTHING. A refusal on the wrapped form is only
@@ -74,15 +74,15 @@ RSpec.describe "a reference that arrives as an object" do
     BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
     def boot_banking
-      registry = Hecksagain::Runtime::Registry.new
+      registry = Hecks::Runtime::Registry.new
 
-      Hecksagain.with_registry(registry) do
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(BANKING)
-        Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+        Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end
     end
 
@@ -92,7 +92,7 @@ RSpec.describe "a reference that arrives as an object" do
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
 
       expect { banking.query("Banking.customer_portfolio", customer: { value: "c" }) }
-        .to raise_error(Hecksagain::Runtime::TypeMismatch,
+        .to raise_error(Hecks::Runtime::TypeMismatch,
                         "customer_portfolio refused — a reference is an id, and customer arrived as an object")
     end
 

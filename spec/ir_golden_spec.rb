@@ -38,7 +38,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     # corpus's coverage gates exist to catch, now exercised by the real
     # domain rather than a fixture invented solely to hold it.
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
-    "Expression" => "lib/hecksagain/grammar/expression.bluebook",
+    "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
     "Reflex"     => "spec/fixtures/reflex.bluebook"
@@ -51,8 +51,8 @@ RSpec.describe "the IR the builder produces, frozen" do
   LANGUAGES = %w[Bluebook World Hecksagon].freeze
 
   def load_chapter(file)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -101,7 +101,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   LANGUAGES.each do |name|
     it "#{name}, the language itself, matches its frozen IR" do
-      compare(name, Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook(name))
+      compare(name, Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name))
     end
   end
 end

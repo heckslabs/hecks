@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/bluebook/model_check"
+require "hecks/bluebook/model_check"
 
 # The lightweight-formal-methods leg of the verification arc: every
 # lifecycle is a declared FSM and every process manager a declared
@@ -11,8 +11,8 @@ RSpec.describe "the model checker" do
   ROOT_DIR = InMemoryDomain::ROOT
 
   def boot(bluebook)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -34,7 +34,7 @@ RSpec.describe "the model checker" do
 
   def findings_for(name)
     path = File.join(ROOT_DIR, "spec/fixtures/model_check/#{name}.bluebook")
-    Hecksagain::Bluebook::ModelCheck.call(boot(path))
+    Hecks::Bluebook::ModelCheck.call(boot(path))
   end
 
   def has?(findings, kind, subject)
@@ -146,10 +146,10 @@ RSpec.describe "the model checker" do
 
     MODEL_CHECK_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
                                    .select { |path| File.directory?(path) }.sort.freeze
-    MODEL_CHECK_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
-    # `lib/hecksagain/framework/bluebook/`'s flat sibling-file shape — see corpus_spec.rb's
+    MODEL_CHECK_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).sort.freeze
+    # `lib/hecks/framework/bluebook/`'s flat sibling-file shape — see corpus_spec.rb's
     # own FRAMEWORK_MEMBERS comment for why this isn't EXAMPLE_ROOTS-shaped.
-    MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook",
+    MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook",
                                                        "*.bluebook")).sort.freeze
 
     MODEL_CHECK_CORPUS = (
@@ -159,11 +159,11 @@ RSpec.describe "the model checker" do
     ).reject { |_, source| source.nil? }.freeze
 
     # The SAME constant bin/model_check reads — one table, not a copy.
-    MODEL_CHECK_ALLOWED = Hecksagain::Bluebook::ModelCheck::ALLOWED_FINDINGS
+    MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
     MODEL_CHECK_CORPUS.each do |name, source|
       it "#{name} has no error bin/model_check does not already name" do
-        findings = Hecksagain::Bluebook::ModelCheck.call(boot(source))
+        findings = Hecks::Bluebook::ModelCheck.call(boot(source))
         errors   = findings.select { |f| f.severity == :error }
         allowed  = MODEL_CHECK_ALLOWED.fetch(name, [])
 
@@ -175,7 +175,7 @@ RSpec.describe "the model checker" do
     it "names nothing in the allowlist that the checker no longer finds" do
       MODEL_CHECK_ALLOWED.each do |name, entries|
         source = MODEL_CHECK_CORPUS.to_h.fetch(name) { next }
-        findings = Hecksagain::Bluebook::ModelCheck.call(boot(source))
+        findings = Hecks::Bluebook::ModelCheck.call(boot(source))
         found = findings.select { |f| f.severity == :error }.map { |f| [f.kind, f.subject] }
 
         stale = entries - found
@@ -185,10 +185,10 @@ RSpec.describe "the model checker" do
 
     it "the language itself is clean" do
       %w[Bluebook World].each do |name|
-        chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook(name)
+        chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
         next unless chapter
 
-        errors = Hecksagain::Bluebook::ModelCheck.call(chapter).select { |f| f.severity == :error }
+        errors = Hecks::Bluebook::ModelCheck.call(chapter).select { |f| f.severity == :error }
         expect(errors).to be_empty, errors.map(&:to_s).join("\n")
       end
     end

@@ -1,4 +1,4 @@
-//! IR structs matching `lib/hecksagain/bluebook/ir/*.rb`'s own `to_h`
+//! IR structs matching `lib/hecks/bluebook/ir/*.rb`'s own `to_h`
 //! field-for-field, in Ruby's own key order — the target shape Stage 2+'s
 //! real construction (parse/*.rs + build/*.rs) will populate and emit.rs
 //! will serialize to byte-match `JSON.pretty_generate(Exporter.call(...))`.
@@ -14,7 +14,7 @@
 //! against Ruby's own `to_h` again at Stage 2, when this first has to
 //! byte-match a real golden.
 
-/// A `nil`-or-value Ruby field, rendered through `Hecksagain::Literal`
+/// A `nil`-or-value Ruby field, rendered through `Hecks::Literal`
 /// where the Ruby side does so (member/where/mutation source values) — see
 /// ruby_value.rs. Plain JSON-shaped fields (strings, bools, numbers, lists)
 /// don't need this and use native Rust types directly.
@@ -93,7 +93,7 @@ pub enum CommandFrom {
     Multiple(Vec<String>),
 }
 
-// `IR::Mutation#classified_source` (lib/hecksagain/bluebook/ir/command.rb)
+// `IR::Mutation#classified_source` (lib/hecks/bluebook/ir/command.rb)
 // — an ARGUMENT-sourced mutation renders `{kind: "argument", name: ...}`;
 // a LITERAL-sourced one renders `{kind: "literal", value: source}` with
 // `source` passed straight through, NOT through `Literal.render` — a real,
@@ -116,7 +116,7 @@ pub enum Mutation {
         target: String,
         fields: Vec<(String, String)>,
     }, // field -> Literal::render spelling
-    // `CommandBuilder#delegates_to_impl`'s own comment (lib/hecksagain/
+    // `CommandBuilder#delegates_to_impl`'s own comment (lib/hecks/
     // bluebook/dsl/command_builder.rb) — a `delegates_to "Entity.Command",
     // with: { ... }` clause rides the EXACT SAME multi-binding `fields:`
     // wire shape an `:append` mutation already carries (confirmed at
@@ -271,7 +271,7 @@ pub struct Entity {
     pub commands: Vec<Command>,
     pub queries: Vec<Query>,
     // S17, ADR 0026 — a piece nested inside a piece (Dispatch, inside
-    // Handler, reaction.bluebook) — `lib/hecksagain/bluebook/entity.rb`'s
+    // Handler, reaction.bluebook) — `lib/hecks/bluebook/entity.rb`'s
     // own `emits_ir` now names `entities: many(:entities)`, the same
     // field an Aggregate already carries, one level down.
     pub entities: Vec<Entity>,
@@ -401,7 +401,7 @@ pub struct Policy {
     pub target_domain: Option<String>,
     // `where`/`for_each` — new language surface (conditional policy
     // dispatch + fan-out; `PolicyBuilder#where`/`#for_each`,
-    // `lib/hecksagain/bluebook/dsl/policy_builder.rb`). Named
+    // `lib/hecks/bluebook/dsl/policy_builder.rb`). Named
     // `where_clause`/`for_each_query` in Rust (`where` is a reserved
     // word, and `for_each` collides with nothing but is renamed to match)
     // — `emit.rs::policy_json` still spells the JSON keys `where`/

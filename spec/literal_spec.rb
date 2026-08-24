@@ -8,7 +8,7 @@ require "spec_helper"
 # renderings this replaced were `Hash#inspect` and `Symbol#to_s`, which meant
 # the wire format quietly said whatever the interpreter said — 3.3 spells the
 # same Hash `{:k=>"v"}` and 3.4 spells it `{k: "v"}`.
-RSpec.describe Hecksagain::Literal do
+RSpec.describe Hecks::Literal do
   describe ".render" do
     {
       nil                       => "nil",

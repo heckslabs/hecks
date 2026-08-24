@@ -1,8 +1,8 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../support/postgres_probe"
 
 RSpec.describe "Postgres atomic_put persistence", io: true do
-  SCHEMA = "hecksagain_atomic_put_spec".freeze
+  SCHEMA = "hecks_atomic_put_spec".freeze
 
   def database
     ENV["POSTGRES_URL"].to_s.empty? ? "postgres" : ENV.fetch("POSTGRES_URL")
@@ -12,7 +12,7 @@ RSpec.describe "Postgres atomic_put persistence", io: true do
   # PG.connect(database) alone hands it to libpq as a HOST, not a database
   # name, and fails to resolve. Same dual-branch declared.start_with?(...)
   # PG.connect(declared) : PG.connect(dbname: declared) the real adapter
-  # under test already uses (lib/hecksagain/adapters/driven/postgres.rb
+  # under test already uses (lib/hecks/adapters/driven/postgres.rb
   # .connect_for) for the exact same POSTGRES_URL-or-local-default shape.
   def pg_connect
     database.start_with?("postgres://", "postgresql://") ? PG.connect(database) : PG.connect(dbname: database)
@@ -50,7 +50,7 @@ RSpec.describe "Postgres atomic_put persistence", io: true do
   end
 
   def item_aggregate
-    Hecksagain::Bluebook::DSL::BluebookBuilder.build("PostgresPlanning") do
+    Hecks::Bluebook::DSL::BluebookBuilder.build("PostgresPlanning") do
       vision "Postgres implements the atomic-put execution contract"
 
       aggregate "Item" do
@@ -65,15 +65,15 @@ RSpec.describe "Postgres atomic_put persistence", io: true do
   end
 
   def repository(aggregate)
-    adapter = Hecksagain::Adapters::Postgres.new(
+    adapter = Hecks::Adapters::Postgres.new(
       aggregate: aggregate,
       settings:  { database: database, schema: SCHEMA }
     )
-    Hecksagain::Ports::Persistence::AppendOnly.new(adapter)
+    Hecks::Ports::Persistence::AppendOnly.new(adapter)
   end
 
   def item(aggregate, label)
-    Hecksagain::Runtime::Instance.new(
+    Hecks::Runtime::Instance.new(
       aggregate: aggregate,
       id:        "sku-1",
       state:     { identity: { sku: "sku-1" }, label: { value: label } }

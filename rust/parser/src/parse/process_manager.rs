@@ -1,5 +1,5 @@
 //! The `ProcessManager`/`Handler` constructs
-//! (`lib/hecksagain/bluebook/ir/process_manager.rb`) — shared here the
+//! (`lib/hecks/bluebook/ir/process_manager.rb`) — shared here the
 //! same way Ruby shares them (`Handler`'s builder is
 //! `ProcessManagerBuilder::HandlerBuilder`, a nested class, not a
 //! standalone one — see `spec/syntax_conformance_spec.rb`'s `BUILDER`
@@ -32,8 +32,8 @@
 //! `ir::ProcessManagerHandler`'s own `event_type`/`from_state`/`to_state`/
 //! `dispatches`) is BYTE-IDENTICAL to before this slice — only how the
 //! DECLARATION reaches that same shape changed, confirmed against the
-//! Ruby source (`lib/hecksagain/bluebook/process_manager.rb`, unchanged by
-//! S7) and the builder (`lib/hecksagain/bluebook/dsl/process_manager_
+//! Ruby source (`lib/hecks/bluebook/process_manager.rb`, unchanged by
+//! S7) and the builder (`lib/hecks/bluebook/dsl/process_manager_
 //! builder.rb`, which EXPANDS a `from: [...]` transition into several flat
 //! handler rows immediately, before constructing the IR object — mirrored
 //! here the same way, in `parse_transition` below).

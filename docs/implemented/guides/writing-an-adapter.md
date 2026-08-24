@@ -53,7 +53,7 @@ one that talks to something over a network.
 
 ## The persistence contract
 
-`Hecksagain::Ports::Persistence::AppendOnly` is what actually stands
+`Hecks::Ports::Persistence::AppendOnly` is what actually stands
 between the domain and your adapter — every save and delete is
 append-before-project, as a port invariant, not a convention your
 adapter has to remember on its own. Read its constructor and the
@@ -91,14 +91,14 @@ class IncompleteStore
   attr_reader :aggregate
 end
 
-aggregate = Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
-  Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
+aggregate = Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+  Hecks::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
     b.value_object("Label") { attribute :value, String }
     b.attribute :label, Label
   end.build
 end
 
-Hecksagain::Ports::Persistence::AppendOnly.new(IncompleteStore.new(aggregate: aggregate))  # ~> WiringError: does not implement append-only persistence: append, project, entries
+Hecks::Ports::Persistence::AppendOnly.new(IncompleteStore.new(aggregate: aggregate))  # ~> WiringError: does not implement append-only persistence: append, project, entries
 ```
 
 That is the actual gate. Everything below is what a real adapter puts
@@ -107,7 +107,7 @@ behind it, walked against the two smallest ones this codebase has.
 ### What each method does, read off Heki
 
 Heki is a file-backed store — a compressed snapshot plus an
-append-only journal beside it (`lib/hecksagain/adapters/driven/heki.rb`,
+append-only journal beside it (`lib/hecks/adapters/driven/heki.rb`,
 `heki/snapshot.rb`, `heki/journal.rb`). Its own `initialize` takes
 exactly what every adapter's does:
 
@@ -182,12 +182,12 @@ it by hand.
 
 ```ruby
 def crate(aggregate, id, **fields)
-  built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-  fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+  built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+  fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
   built
 end
 
-memory = Hecksagain::Adapters::Memory.new(aggregate: aggregate)
+memory = Hecks::Adapters::Memory.new(aggregate: aggregate)
 memory.save(crate(aggregate, "crate-1", label: { value: "wool blankets" }))
 
 memory.find("crate-1").state[:label].to_h  # => { value: "wool blankets" }
@@ -216,7 +216,7 @@ file on disk and not a metaphor:
 require "tmpdir"
 
 dir  = Dir.mktmpdir("writing-an-adapter-heki-")
-heki = Hecksagain::Adapters::Heki.new(aggregate: aggregate, root: dir)
+heki = Hecks::Adapters::Heki.new(aggregate: aggregate, root: dir)
 heki.save(crate(aggregate, "crate-2", label: { value: "cedar chest" }))
 
 heki.find("crate-2").state[:label].to_h  # => { value: "cedar chest" }
@@ -263,8 +263,8 @@ interpreter and let it do the walking. That fallback can be shown to
 answer correctly, live, against a declared query:
 
 ```ruby
-queryable = Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
-  Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
+queryable = Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+  Hecks::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
     b.value_object("Label") { attribute :value, String }
     b.attribute :label, Label
     b.lifecycle(:status, default: "stored") { transition "Move" => "moved", from: "stored" }
@@ -272,7 +272,7 @@ queryable = Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
   end.build
 end
 
-qmemory = Hecksagain::Adapters::Memory.new(aggregate: queryable)
+qmemory = Hecks::Adapters::Memory.new(aggregate: queryable)
 qmemory.save(crate(queryable, "crate-1", label: { value: "wool blankets" }, status: "stored"))
 qmemory.save(crate(queryable, "crate-2", label: { value: "cedar chest" },   status: "moved"))
 
@@ -347,14 +347,14 @@ rescue StandardError
 end
 ```
 
-Today exactly one adapter answers true — `Hecksagain::Adapters::Postgres`
+Today exactly one adapter answers true — `Hecks::Adapters::Postgres`
 declares `def self.lineage_capable? = true` and nothing else does.
 Memory and Heki simply do not implement the class method at all, and
 the check treats that the same as answering false:
 
 ```ruby
-Hecksagain::Adapters::Memory.respond_to?(:lineage_capable?)  # => false
-Hecksagain::Adapters::Heki.respond_to?(:lineage_capable?)    # => false
+Hecks::Adapters::Memory.respond_to?(:lineage_capable?)  # => false
+Hecks::Adapters::Heki.respond_to?(:lineage_capable?)    # => false
 ```
 
 Lineage-capable is what lets an adapter mint an era when a domain's
@@ -442,7 +442,7 @@ Hecks.hecksagon("Pizzas") do
 
   Pizzas::Order.port "PaymentGateway" do
     operation "Receive" do
-      attribute :name, Hecksagain::Bluebook::Reference.new("Order")
+      attribute :name, Hecks::Bluebook::Reference.new("Order")
       attribute :customer_name, CustomerName
       attribute :amount, Price
 

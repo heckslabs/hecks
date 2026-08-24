@@ -4,9 +4,9 @@ require "spec_helper"
 # as much as about the reader. If bluebook.bluebook renames a list or moves an
 # append onto a different command, one of these fails — which is the point: the
 # judge is about to be driven by this, and a wrong plan is a silent judge.
-RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
+RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
   def plan
-    @plan ||= described_class.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+    @plan ||= described_class.for(Hecks::Bluebook::MetaValidator.grammar_registry)
   end
 
   describe "the containment tree, recovered from the declarations" do
@@ -120,12 +120,12 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
   end
 
   it "names every verb the language declares, and no others" do
-    declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
-                                                  .bluebook("Bluebook").aggregates
-                                                  .flat_map do |a|
-                                                    a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
-                                                      a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
-                                                  end
+    declared = Hecks::Bluebook::MetaValidator.grammar_registry
+                                             .bluebook("Bluebook").aggregates
+                                             .flat_map do |a|
+                                               a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
+                                                 a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
+                                             end
 
     expect(plan.verbs).to match_array(declared)
   end

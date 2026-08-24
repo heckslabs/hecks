@@ -1,8 +1,8 @@
-require "hecksagain"
+require "hecks"
 
 RSpec.describe "the expression sublanguage" do
   def evaluate(expression, state = {}, args = {})
-    Hecksagain::Bluebook::Expression::Evaluator.call(expression, state, args)
+    Hecks::Bluebook::Expression::Evaluator.call(expression, state, args)
   end
 
   describe "literals" do
@@ -84,7 +84,7 @@ RSpec.describe "the expression sublanguage" do
     it "raises rather than answering for a name it cannot resolve" do
       %w[positive? negative? zero?].each do |test|
         expect { evaluate("missing.#{test}") }
-          .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve "missing"/)
+          .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot resolve "missing"/)
       end
     end
   end
@@ -190,7 +190,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver is not a string" do
       expect { evaluate('value.split("::")', value: 12) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /split expects a string, got 12/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /split expects a string, got 12/)
     end
   end
 
@@ -205,7 +205,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver has no #last" do
       expect { evaluate("value.last", value: 12) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /last expects a list, got 12/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /last expects a list, got 12/)
     end
   end
 
@@ -220,7 +220,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver has no #first" do
       expect { evaluate("value.first", value: 12) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /first expects a list, got 12/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /first expects a list, got 12/)
     end
   end
 
@@ -243,7 +243,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver is not a list" do
       expect { evaluate("value.all? { |s| s.length > 0 }", value: "oops") }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
     end
 
     it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain re-routing check this grammar gap forced a workaround for" do
@@ -289,7 +289,7 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver is not a list" do
       expect { evaluate('value.find { |l| l.load == "USNYC" }.voyage', value: "oops") }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /find expects a list, got "oops"/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /find expects a list, got "oops"/)
     end
 
     it "nests inside a block predicate's own predicate — the shipping-domain re-routing check that first exposed this: scanning for .find and .any?/.all?/.none? SEPARATELY found the wrong (inner) occurrence when they nest, the same crash signature nested .any? had before parse_block_opener unified the scan" do
@@ -325,9 +325,9 @@ RSpec.describe "the expression sublanguage" do
 
     it "raises when the receiver is not a string" do
       expect { evaluate('value.start_with?("{")', value: 12) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /start_with\? expects a string, got 12/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /start_with\? expects a string, got 12/)
       expect { evaluate('value.end_with?("}")', value: 12) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /end_with\? expects a string, got 12/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /end_with\? expects a string, got 12/)
     end
   end
 
@@ -387,7 +387,7 @@ RSpec.describe "the expression sublanguage" do
     def agrees?(expression, bindings)
       mine = begin
         evaluate(expression, bindings)
-      rescue Hecksagain::Bluebook::Expression::EvaluationError
+      rescue Hecks::Bluebook::Expression::EvaluationError
         :raised
       end
 
@@ -436,7 +436,7 @@ RSpec.describe "the expression sublanguage" do
     it "refuses a non-string needle in a string, exactly as Ruby does" do
       expect(agrees?("code.include?(5)", code: "a5b")).to be(true)
       expect { evaluate("code.include?(5)", code: "a5b") }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError,
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError,
                         /no implicit conversion of Integer into String/)
     end
 
@@ -448,7 +448,7 @@ RSpec.describe "the expression sublanguage" do
     it "refuses an incomparable ordering, exactly as Ruby does" do
       expect(agrees?("label < 3", label: "abc")).to be(true)
       expect { evaluate("label < 3", label: "abc") }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /comparison of String with 3 failed/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /comparison of String with 3 failed/)
     end
 
     it "orders strings against strings" do
@@ -460,17 +460,17 @@ RSpec.describe "the expression sublanguage" do
   describe "refusing what it cannot evaluate" do
     it "raises on a name it cannot resolve" do
       expect { evaluate("mispelled_attribute > 0") }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve "mispelled_attribute"/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot resolve "mispelled_attribute"/)
     end
 
     it "raises when a sign predicate has no number" do
       expect { evaluate("label.positive?", { label: "abc" }) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /positive\? expects a number/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /positive\? expects a number/)
     end
 
     it "raises when size has nothing to count" do
       expect { evaluate("count.size", { count: 3 }) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /size expects a list or string/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /size expects a list or string/)
     end
 
     it "still resolves a declared attribute that happens to be nil" do
@@ -480,20 +480,20 @@ RSpec.describe "the expression sublanguage" do
 
   describe "extraction" do
     it "lowers a real Ruby block to canonical text" do
-      canonical = Hecksagain::Adapters::Prism.canonical(proc { 1 < 2 })
+      canonical = Hecks::Adapters::Prism.canonical(proc { 1 < 2 })
       expect(canonical).to eq("1 < 2")
     end
 
     it "folds .length onto .size while extracting" do
-      canonical = Hecksagain::Adapters::Prism.canonical(proc { [].length < 10 })
+      canonical = Hecks::Adapters::Prism.canonical(proc { [].length < 10 })
       expect(canonical).to include(".size")
     end
   end
 
-  # `Hecksagain::Adapters::Prism::TREES` caches a file's parsed AST for
+  # `Hecks::Adapters::Prism::TREES` caches a file's parsed AST for
   # the life of the process, keyed by path — correct for every ordinary
   # caller, wrong for anything that reloads an edited file in-process
-  # (found for real building `Hecksagain::Codemod`, see its own file
+  # (found for real building `Hecks::Codemod`, see its own file
   # header). `forget`/`forget_all` are the real invalidation API.
   describe "cache invalidation" do
     around do |example|
@@ -502,32 +502,32 @@ RSpec.describe "the expression sublanguage" do
 
     it "forget re-parses a specific file's tree on the next read, not before" do
       File.write(@tmp_file, "1")
-      first = Hecksagain::Adapters::Prism.tree_for(@tmp_file)
+      first = Hecks::Adapters::Prism.tree_for(@tmp_file)
 
       File.write(@tmp_file, "2")
-      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).to equal(first),
-                                                                 "still cached — a rewrite alone must not invalidate it"
+      expect(Hecks::Adapters::Prism.tree_for(@tmp_file)).to equal(first),
+                                                            "still cached — a rewrite alone must not invalidate it"
 
-      Hecksagain::Adapters::Prism.forget(@tmp_file)
-      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
+      Hecks::Adapters::Prism.forget(@tmp_file)
+      expect(Hecks::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
     end
 
     it "forget_all clears every cached tree, not just one path" do
       File.write(@tmp_file, "1")
-      first = Hecksagain::Adapters::Prism.tree_for(@tmp_file)
+      first = Hecks::Adapters::Prism.tree_for(@tmp_file)
 
-      Hecksagain::Adapters::Prism.forget_all
+      Hecks::Adapters::Prism.forget_all
       File.write(@tmp_file, "2")
-      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
+      expect(Hecks::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
     end
 
     it "forget on a path never cached is a no-op, not a raise" do
-      expect { Hecksagain::Adapters::Prism.forget("/no/such/file.rb") }.not_to raise_error
+      expect { Hecks::Adapters::Prism.forget("/no/such/file.rb") }.not_to raise_error
     end
   end
 
   describe "caching" do
-    let(:evaluator) { Hecksagain::Bluebook::Expression::Evaluator }
+    let(:evaluator) { Hecks::Bluebook::Expression::Evaluator }
 
     it "parses a leaf expression's grammar once, no matter how many times its predicate runs" do
       expr = "amount > 0"
@@ -569,14 +569,14 @@ RSpec.describe "the expression sublanguage" do
 
     it "Evaluator.interpret refuses a node type it has no case for, rather than silently returning nil" do
       expect do
-        Hecksagain::Bluebook::Expression::Evaluator.interpret(UnknownNode.new, {}, {})
-      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /no interpreter handles/)
+        Hecks::Bluebook::Expression::Evaluator.interpret(UnknownNode.new, {}, {})
+      end.to raise_error(Hecks::Bluebook::Expression::EvaluationError, /no interpreter handles/)
     end
 
     it "Resolver.interpret refuses a node type it has no case for, rather than silently returning nil" do
       expect do
-        Hecksagain::Bluebook::Expression::Resolver.interpret(UnknownNode.new, {}, {})
-      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /no interpreter handles/)
+        Hecks::Bluebook::Expression::Resolver.interpret(UnknownNode.new, {}, {})
+      end.to raise_error(Hecks::Bluebook::Expression::EvaluationError, /no interpreter handles/)
     end
   end
 

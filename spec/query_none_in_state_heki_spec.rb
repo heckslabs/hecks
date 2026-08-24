@@ -15,7 +15,7 @@ require "tmpdir"
 # didn't.
 RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-heki-none-in-state-")
+    @dir = Dir.mktmpdir("hecks-heki-none-in-state-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
@@ -26,26 +26,26 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
     file.write(source)
     file.flush
 
-    previous = ENV["HECKSAGAIN_META_VALIDATION"]
-    ENV["HECKSAGAIN_META_VALIDATION"] = "off"
+    previous = ENV["HECKS_META_VALIDATION"]
+    ENV["HECKS_META_VALIDATION"] = "off"
 
-    registry = Hecksagain::Runtime::Registry.new(root: @dir)
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new(root: @dir)
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/heki.adapter"))
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
       Hecks.hecksagon(hecksagon_name, &binds)
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(
-      Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Loader.bind_runtime(
+      Hecks::Runtime::Dispatcher.new(registry)
     )
   ensure
-    ENV["HECKSAGAIN_META_VALIDATION"] = previous
+    ENV["HECKS_META_VALIDATION"] = previous
     file&.close!
   end
 

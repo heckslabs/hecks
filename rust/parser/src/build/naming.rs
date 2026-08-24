@@ -1,4 +1,4 @@
-//! Mirrors `Hecksagain::Naming` (`lib/hecksagain/naming.rb`) — the small,
+//! Mirrors `Hecks::Naming` (`lib/hecks/naming.rb`) — the small,
 //! pure name-shape conversions several other derivations lean on:
 //! `pascal` (an attribute name -> a synthesized value-object type name,
 //! `closed_sets.rs`), `snake` (a value-object type name -> a minted
@@ -8,7 +8,7 @@
 //! shape: every derivation that needs a name transform reads it from one
 //! place, not a second hand-rolled copy per call site.
 
-/// `Hecksagain::Naming.demodulise` — `"Pizzas::Order" -> "Order"`. A bare
+/// `Hecks::Naming.demodulise` — `"Pizzas::Order" -> "Order"`. A bare
 /// constant written in a bluebook never carries a namespace prefix in
 /// practice (the DSL's own `const_missing` hands back a plain Symbol), so
 /// this is mostly a no-op here, kept for parity with the Ruby call sites
@@ -21,7 +21,7 @@ pub fn demodulise(type_name: &str) -> String {
         .to_string()
 }
 
-/// `Hecksagain::Naming.command_ref` — the command-reference text a bare
+/// `Hecks::Naming.command_ref` — the command-reference text a bare
 /// command constant (`trigger Account::Debit`) OR the legacy quoted
 /// string (`trigger "Account.Debit"`, still accepted under
 /// `MetaValidator.shadow_parsing?`) resolves to. A String/Symbol value
@@ -43,7 +43,7 @@ pub fn command_ref(raw: &str) -> String {
     }
 }
 
-/// `Hecksagain::Naming.snake` — `"PizzaName" -> "pizza_name"`. Mirrors
+/// `Hecks::Naming.snake` — `"PizzaName" -> "pizza_name"`. Mirrors
 /// the two-pass regex exactly: first split a run of capitals followed by
 /// a Capital+lowercase (`"HTTPServer"` -> `"HTTP_Server"`), then split a
 /// lowercase/digit followed by a capital (`"PizzaName"` -> `"Pizza_Name"`),
@@ -78,7 +78,7 @@ pub fn snake(text: &str) -> String {
     pass2.to_lowercase()
 }
 
-/// `Hecksagain::Naming.pascal` — `"pizza_name" -> "PizzaName"`. Not
+/// `Hecks::Naming.pascal` — `"pizza_name" -> "PizzaName"`. Not
 /// exercised by pizzas.bluebook (its one closed set, `Size`, is a
 /// hand-written sibling `value_object`, not the inline `attribute :size,
 /// one_of(...)` shorthand this backs) — kept for the same reason `snake`
@@ -96,7 +96,7 @@ pub fn pascal(text: &str) -> String {
         .collect()
 }
 
-/// `Hecksagain::Naming.plural` — the name a COLLECTION of something
+/// `Hecks::Naming.plural` — the name a COLLECTION of something
 /// takes, e.g. a read model's own many-side `include` head
 /// (`ReadModelBuilder#add_aggregate_head`, `build/read_model.rs`) when no
 /// `as:` is given: `"state_style" -> "state_styles"`, `"collection" ->
@@ -119,7 +119,7 @@ pub fn plural(text: &str) -> String {
     format!("{text}s")
 }
 
-/// `Hecksagain::Naming.singularize` — the inverse of `plural`, used by
+/// `Hecks::Naming.singularize` — the inverse of `plural`, used by
 /// `has_many`'s own target-name derivation (`has_many Invoices` points at
 /// `Invoice`). Two suffix rules only, tried in order — the SAME two
 /// `plural` itself inverts, not a general-purpose singularizer.

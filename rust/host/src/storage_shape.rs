@@ -1,4 +1,4 @@
-// Port of lib/hecksagain/runtime/storage_shape.rb's `project`/`mint_hash`/
+// Port of lib/hecks/runtime/storage_shape.rb's `project`/`mint_hash`/
 // `mint_label` — the canonical shape-hash Ruby computes once at mint
 // time. rust/host needs to compute the SAME hash independently at boot,
 // to detect drift against `hecks_eras` by comparing its own compiled

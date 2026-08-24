@@ -16,11 +16,11 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
     file.write(source)
     file.flush
 
-    previous = ENV["HECKSAGAIN_META_VALIDATION"]
-    ENV["HECKSAGAIN_META_VALIDATION"] = "off"
+    previous = ENV["HECKS_META_VALIDATION"]
+    ENV["HECKS_META_VALIDATION"] = "off"
 
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -30,11 +30,11 @@ RSpec.describe "identity coercion on a numeric identified_by field" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(
-      Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Loader.bind_runtime(
+      Hecks::Runtime::Dispatcher.new(registry)
     )
   ensure
-    ENV["HECKSAGAIN_META_VALIDATION"] = previous
+    ENV["HECKS_META_VALIDATION"] = previous
     file&.close!
   end
 

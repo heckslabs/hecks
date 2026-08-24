@@ -1,5 +1,5 @@
 //! The `ValueObject`/`OneOf` constructs
-//! (`lib/hecksagain/bluebook/ir/value_object.rb`) — shared here exactly as
+//! (`lib/hecks/bluebook/ir/value_object.rb`) — shared here exactly as
 //! `ValueObjectBuilder` answers both in Ruby (`one_of` `instance_eval`s
 //! its block on the builder itself, so the two contexts are one Ruby
 //! object; see `spec/syntax_conformance_spec.rb`'s own `BUILDER` table).

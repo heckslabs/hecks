@@ -135,7 +135,7 @@ if let Some(id) = key.strip_prefix("Embryonaut::RecurringPayment#") {
 
 // HAND-PATCHED, NOT GENERATED — this domain's own bluebook source isn't
 // available in this repository (see project_embryonaut_founder_app: it's
-// a separate, private app repo that path-references hecksagain), so
+// a separate, private app repo that path-references hecks), so
 // `bin/project_rust` cannot be re-run for it here the way it just was for
 // Banking/Pizzas/the framework chapters. `AggregateScan`'s own default
 // impl (`fn scan(...) -> None` for every aggregate name — kernel/

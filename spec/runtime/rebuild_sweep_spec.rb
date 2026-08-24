@@ -10,16 +10,16 @@ RSpec.describe "the rebuild sweep" do
   FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/projected_fields.bluebook")
 
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(FIXTURE)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -34,7 +34,7 @@ RSpec.describe "the rebuild sweep" do
     expect(account.key?(:customer_status)).to be(false)
 
     expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a1") }
-      .to raise_error(Hecksagain::Runtime::ProjectionAbsent, /not yet projected/)
+      .to raise_error(Hecks::Runtime::ProjectionAbsent, /not yet projected/)
   end
 
   it "copies the target's own field once swept, and a guard reads the local copy" do
@@ -42,7 +42,7 @@ RSpec.describe "the rebuild sweep" do
     runtime.dispatch("ProjectedFields::Customer.Register", ref: { value: "c2" })
     runtime.dispatch("ProjectedFields::Account.Open", customer: "c2", ref: { value: "a2" })
 
-    changed = Hecksagain::Runtime::RebuildSweep.call(
+    changed = Hecks::Runtime::RebuildSweep.call(
       runtime.registry, "ProjectedFields", runtime.registry.bluebook("ProjectedFields").aggregate("Account")
     )
     expect(changed).to eq(1)
@@ -61,7 +61,7 @@ RSpec.describe "the rebuild sweep" do
     runtime.dispatch("ProjectedFields::Account.Open", customer: "c3", ref: { value: "a3" })
 
     aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
-    Hecksagain::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)
+    Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)
 
     runtime.dispatch("ProjectedFields::Customer.Suspend", ref: "c3")
 
@@ -71,11 +71,11 @@ RSpec.describe "the rebuild sweep" do
     expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a3") }
       .not_to raise_error
 
-    changed = Hecksagain::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)
+    changed = Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)
     expect(changed).to eq(1)
 
     expect { runtime.dispatch("ProjectedFields::Account.CheckCustomerActive", ref: "a3") }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet)
+      .to raise_error(Hecks::Runtime::GivenNotMet)
   end
 
   it "changes nothing, and saves nothing, on a second sweep with no drift" do
@@ -84,7 +84,7 @@ RSpec.describe "the rebuild sweep" do
     runtime.dispatch("ProjectedFields::Account.Open", customer: "c4", ref: { value: "a4" })
 
     aggregate = runtime.registry.bluebook("ProjectedFields").aggregate("Account")
-    expect(Hecksagain::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(1)
-    expect(Hecksagain::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(0)
+    expect(Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(1)
+    expect(Hecks::Runtime::RebuildSweep.call(runtime.registry, "ProjectedFields", aggregate)).to eq(0)
   end
 end

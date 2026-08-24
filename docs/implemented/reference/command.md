@@ -4,7 +4,7 @@
 Words available inside `command do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -15,7 +15,7 @@ for real. A command-level `provenance` is written nowhere in the
 corpus, so it gets a chapter of its own:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -137,7 +137,7 @@ account = Banking::Account.open!(customer: "cm-1", number: { value: "cm-a1" },
 | positional 1 | text | true | role |
 <!-- generated:end -->
 
-Names who calls this command — "Compliance officer", "Back office". Optional: a command with no declared `role` is never checked against anything. Where it IS declared, enforcement is opt-in on the caller's side too — unchecked by default, real once a caller states one. `Hecksagain.as_caller(role:, &block)` binds who is dispatching for the block (`Runtime::Caller`, `Thread.current`-backed, safe under nesting); a command whose declared `role` doesn't match refuses with `Unauthorized` (`CommandRules::Authorization#refuse_role_mismatch`, the `role_mismatch` refusal template). A policy or saga reaction never inherits the triggering caller's role — `Dispatcher#reenter` clears it, since a reaction is the system acting, not the original caller.
+Names who calls this command — "Compliance officer", "Back office". Optional: a command with no declared `role` is never checked against anything. Where it IS declared, enforcement is opt-in on the caller's side too — unchecked by default, real once a caller states one. `Hecks.as_caller(role:, &block)` binds who is dispatching for the block (`Runtime::Caller`, `Thread.current`-backed, safe under nesting); a command whose declared `role` doesn't match refuses with `Unauthorized` (`CommandRules::Authorization#refuse_role_mismatch`, the `role_mismatch` refusal template). A policy or saga reaction never inherits the triggering caller's role — `Dispatcher#reenter` clears it, since a reaction is the system acting, not the original caller.
 
 `Freeze` is declared `role "Compliance officer"`. Unchecked by default —
 a caller who states nothing is not refused:
@@ -150,11 +150,11 @@ Banking::Account.find("cm-a1").status  # => "frozen"
 Real the moment a caller does state one:
 
 ```ruby
-Hecksagain.as_caller(role: "Teller") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }  # ~> Unauthorized: Unfreeze refused
+Hecks.as_caller(role: "Teller") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }  # ~> Unauthorized: Unfreeze refused
 ```
 
 ```ruby
-Hecksagain.as_caller(role: "Compliance officer") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
+Hecks.as_caller(role: "Compliance officer") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
 Banking::Account.find("cm-a1").status  # => "open"
 ```
 

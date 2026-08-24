@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "lexical parent state and explicit disambiguation" do
   def boot_meter
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -36,7 +36,7 @@ RSpec.describe "lexical parent state and explicit disambiguation" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "lets a payload name shadow parent state while parent. remains explicit" do
@@ -51,6 +51,6 @@ RSpec.describe "lexical parent state and explicit disambiguation" do
 
     expect do
       runtime.dispatch("Visibility::Meter.RaiseReading", to: "m-1", with: { reading: { value: 9 } })
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /new reading is higher/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /new reading is higher/)
   end
 end

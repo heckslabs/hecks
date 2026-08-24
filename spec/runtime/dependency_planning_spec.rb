@@ -1,12 +1,12 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Runtime::DependencyPlanning do
+RSpec.describe Hecks::Runtime::DependencyPlanning do
   def field(name, type)
-    Hecksagain::Bluebook::Attribute.new(name: name, type: type)
+    Hecks::Bluebook::Attribute.new(name: name, type: type)
   end
 
   def mutation(target, op, source)
-    Hecksagain::Bluebook::Mutation.new(target: target, op: op, source: source)
+    Hecks::Bluebook::Mutation.new(target: target, op: op, source: source)
   end
 
   let(:sku) { field(:sku, String) }
@@ -15,7 +15,7 @@ RSpec.describe Hecksagain::Runtime::DependencyPlanning do
   let(:amount) { field(:amount, Integer) }
 
   let(:register) do
-    Hecksagain::Bluebook::Command.declare(
+    Hecks::Bluebook::Command.declare(
       name:       "Register",
       attributes: [sku, label, quantity],
       mutations:  [
@@ -27,17 +27,17 @@ RSpec.describe Hecksagain::Runtime::DependencyPlanning do
   end
 
   let(:restock) do
-    Hecksagain::Bluebook::Command.declare(
+    Hecks::Bluebook::Command.declare(
       name:       "Restock",
       attributes: [amount],
       givens:     [
-        Hecksagain::Bluebook::Given.new(
+        Hecks::Bluebook::Given.new(
           description: "the amount is positive",
           canonical:   "amount > 0"
         )
       ],
       ensures:    [
-        Hecksagain::Bluebook::Given.new(
+        Hecks::Bluebook::Given.new(
           description: "the stock grew by the amount",
           canonical:   "quantity == old.quantity + amount"
         )
@@ -47,13 +47,13 @@ RSpec.describe Hecksagain::Runtime::DependencyPlanning do
   end
 
   let(:inventory_item) do
-    Hecksagain::Bluebook::Aggregate.new(
+    Hecks::Bluebook::Aggregate.new(
       name:          "InventoryItem",
       attributes:    [sku, label, quantity],
       commands:      [register, restock],
       identified_by: [:sku],
       invariants:    [
-        Hecksagain::Bluebook::Invariant.new(
+        Hecks::Bluebook::Invariant.new(
           description: "stock is never negative",
           canonical:   "quantity >= 0"
         )
@@ -96,16 +96,16 @@ RSpec.describe Hecksagain::Runtime::DependencyPlanning do
   end
 
   it "counts deterministic fresh-instance defaults without calling them command mutations" do
-    notes = Hecksagain::Bluebook::Attribute.new(name: :notes, type: String, list: true)
-    nickname = Hecksagain::Bluebook::Attribute.new(name: :nickname, type: String, optional: true)
-    enabled = Hecksagain::Bluebook::Attribute.new(name: :enabled, type: TrueClass, default: true)
-    aggregate = Hecksagain::Bluebook::Aggregate.new(
+    notes = Hecks::Bluebook::Attribute.new(name: :notes, type: String, list: true)
+    nickname = Hecks::Bluebook::Attribute.new(name: :nickname, type: String, optional: true)
+    enabled = Hecks::Bluebook::Attribute.new(name: :enabled, type: TrueClass, default: true)
+    aggregate = Hecks::Bluebook::Aggregate.new(
       name:          "DefaultedItem",
       attributes:    [sku, notes, nickname, enabled],
       commands:      [],
       identified_by: [:sku]
     )
-    command = Hecksagain::Bluebook::Command.declare(
+    command = Hecks::Bluebook::Command.declare(
       name:       "Register",
       attributes: [sku],
       mutations:  [mutation(:sku, :set, :sku)]

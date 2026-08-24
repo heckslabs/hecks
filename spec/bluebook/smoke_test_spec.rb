@@ -1,10 +1,10 @@
 require "spec_helper"
-require "hecksagain/bluebook/smoke_test"
+require "hecks/bluebook/smoke_test"
 require "tmpdir"
 
-RSpec.describe Hecksagain::Bluebook::SmokeTest do
+RSpec.describe Hecks::Bluebook::SmokeTest do
   around do |example|
-    @root = Dir.mktmpdir("hecksagain-smoke-")
+    @root = Dir.mktmpdir("hecks-smoke-")
     example.run
   ensure
     FileUtils.remove_entry(@root) if @root
@@ -131,7 +131,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
       end
     RUBY
 
-    real_runtime = Hecksagain.boot(dir, install_facade: false)
+    real_runtime = Hecks.boot(dir, install_facade: false)
     real_runtime.dispatch("Widget::Item.Add", name: { value: "smoke-test" })
     repository = real_runtime.registry.repository("Widget", real_runtime.registry.bluebook("Widget").aggregate("Item"))
     expect(repository.all.size).to eq(1)
@@ -141,7 +141,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
     # RE-READ FROM DISK, A FRESH BOOT — not the same in-memory Ruby
     # objects, so this proves the real Heki FILE itself was untouched,
     # not merely that a stale reference still looks right.
-    reread = Hecksagain.boot(dir, install_facade: false)
+    reread = Hecks.boot(dir, install_facade: false)
     reread_repository = reread.registry.repository("Widget", reread.registry.bluebook("Widget").aggregate("Item"))
     expect(reread_repository.all.map(&:id)).to eq(["smoke-test"])
   end

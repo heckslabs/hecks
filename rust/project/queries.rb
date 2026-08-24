@@ -327,12 +327,12 @@ module RustProjection
           field: where[:field].to_s,
           op: where[:op].to_s,
           arg: symbol ? raw_value.delete_prefix(":") : nil,
-          literal: symbol ? nil : Hecksagain::Literal.read(raw_value),
+          literal: symbol ? nil : Hecks::Literal.read(raw_value),
         }
       end
     end
 
-    # `where[:op]` (one of `Hecksagain::QuerySpecification::Common::
+    # `where[:op]` (one of `Hecks::QuerySpecification::Common::
     # COMPARATORS`, grammar-validated at bluebook declare time —
     # `admits: "Vocabulary::QueryComparator"`) to its Rust `QueryComparator`
     # variant name. `Vocabulary::QueryComparator` itself declares NINE names

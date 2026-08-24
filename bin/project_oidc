@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json`
-# — the artifact half of §11, `Hecksagain::Projections::OIDC`, made
+# — the artifact half of §11, `Hecks::Projections::OIDC`, made
 # producible outside a spec run.
 #
 #   bin/project_oidc                    # every domain in this checkout
@@ -22,10 +22,10 @@ require "bundler/setup"
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
 ROOT   = File.expand_path("..", __dir__)
-FOLDER = Hecksagain::Adapters::Folder.new
+FOLDER = Hecks::Adapters::Folder.new
 
 # The same discovery `bin/project_cli` already uses — every `.hecksagon` in
 # the checkout names a domain root, `rust/`, `deploy/`, `tmp/` and
@@ -53,7 +53,7 @@ wanted.each do |path|
   bluebook = runtime.registry.bluebook(name)
   out      = File.join(ROOT, path, "oidc.json")
 
-  Hecksagain::Projector.write(Hecksagain::Projector.call(:oidc, bluebook: bluebook), out)
+  Hecks::Projector.write(Hecks::Projector.call(:oidc, bluebook: bluebook), out)
   puts "  #{path}/oidc.json  <-  #{name}"
 rescue StandardError => e
   warn "  #{path}: cannot project — #{e.message.lines.first.strip}"

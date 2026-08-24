@@ -1,13 +1,13 @@
 require "spec_helper"
 require "tempfile"
 
-RSpec.describe Hecksagain::Facade::Handle do
+RSpec.describe Hecks::Facade::Handle do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking_in_memory
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -27,7 +27,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   # A non-creating verb whose snake-cased name collides with a real
@@ -44,9 +44,9 @@ RSpec.describe Hecksagain::Facade::Handle do
   # name a command `Freeze`, so the guard has to keep being tested. A
   # chapter that exists only to collide is the honest way to do that.
   def boot_collider
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -84,7 +84,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "dispatches a verb even when its name collides with a Kernel method" do
@@ -161,7 +161,7 @@ RSpec.describe Hecksagain::Facade::Handle do
   # side id-keyed cache down to one entry (every wrapped-hash key stringifies
   # the same way).
   it "keeps a declared attribute literally named id from clobbering the bare identity in to_h" do
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     source = <<~BLUEBOOK
       Hecks.bluebook "Thingy" do
         aggregate "Thing" do
@@ -190,7 +190,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     file.write(source)
     file.flush
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -203,7 +203,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
     thing = Thingy::Thing.mint!(id: { value: "t1" }, name: { value: "goggles" })
 
@@ -213,7 +213,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     # Scope check: this fix is about `:id` specifically clobbering itself,
     # not a general re-unwrap of every field — an ordinary declared
     # attribute stays exactly what it always was, a `Runtime::Value`.
-    expect(thing.to_h[:name]).to be_a(Hecksagain::Runtime::Value)
+    expect(thing.to_h[:name]).to be_a(Hecks::Runtime::Value)
     expect(thing.to_h[:name].to_h).to eq({ value: "goggles" })
   ensure
     file&.close!

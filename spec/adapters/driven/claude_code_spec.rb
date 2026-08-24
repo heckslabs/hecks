@@ -1,11 +1,11 @@
-require "hecksagain"
-require_relative "../../../lib/hecksagain/adapters/driven/claude_code"
+require "hecks"
+require_relative "../../../lib/hecks/adapters/driven/claude_code"
 
 # TRANSPORT ONLY — never spawns the real `claude` binary (that would make
 # this suite hit a live model on every run: slow, billed, non-deterministic).
 # `Open3.capture2` is stubbed at the boundary; everything upstream of it
 # (prompt construction, argv shape, envelope unwrapping) runs for real.
-RSpec.describe Hecksagain::Adapters::ClaudeCode do
+RSpec.describe Hecks::Adapters::ClaudeCode do
   def envelope_for(hash) = JSON.generate({ "result" => JSON.generate(hash) })
 
   describe ".unwrap" do
@@ -16,12 +16,12 @@ RSpec.describe Hecksagain::Adapters::ClaudeCode do
 
     it "refuses an envelope with no result key" do
       expect { described_class.unwrap(JSON.generate({ "cost" => 0.01 })) }
-        .to raise_error(Hecksagain::Ports::Agent::ValidationError, /no "result"/)
+        .to raise_error(Hecks::Ports::Agent::ValidationError, /no "result"/)
     end
 
     it "refuses a result that is not JSON" do
       expect { described_class.unwrap(JSON.generate({ "result" => "sure, sounds good" })) }
-        .to raise_error(Hecksagain::Ports::Agent::ValidationError, /not JSON/)
+        .to raise_error(Hecks::Ports::Agent::ValidationError, /not JSON/)
     end
   end
 
@@ -43,22 +43,22 @@ RSpec.describe Hecksagain::Adapters::ClaudeCode do
       allow(Open3).to receive(:capture2).and_return(["boom", status])
 
       expect { described_class.call(system: "x", payload: {}) }
-        .to raise_error(Hecksagain::Ports::Agent::Unavailable, /exited 1/)
+        .to raise_error(Hecks::Ports::Agent::Unavailable, /exited 1/)
     end
 
     it "raises Unavailable when the binary is missing" do
       allow(Open3).to receive(:capture2).and_raise(Errno::ENOENT.new("claude"))
 
       expect { described_class.call(system: "x", payload: {}) }
-        .to raise_error(Hecksagain::Ports::Agent::Unavailable, /not on PATH/)
+        .to raise_error(Hecks::Ports::Agent::Unavailable, /not on PATH/)
     end
 
     it "raises Unavailable when the call times out" do
       allow(Open3).to receive(:capture2) { sleep 0.2 }
-      stub_const("Hecksagain::Adapters::ClaudeCode::TIMEOUT_SECONDS", 0.01)
+      stub_const("Hecks::Adapters::ClaudeCode::TIMEOUT_SECONDS", 0.01)
 
       expect { described_class.call(system: "x", payload: {}) }
-        .to raise_error(Hecksagain::Ports::Agent::Unavailable, /did not answer within/)
+        .to raise_error(Hecks::Ports::Agent::Unavailable, /did not answer within/)
     end
   end
 

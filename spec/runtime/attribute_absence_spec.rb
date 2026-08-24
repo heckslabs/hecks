@@ -11,7 +11,7 @@ require "spec_helper"
 # the narrowed behaviour: optional stays nil, required raises named.
 RSpec.describe "reading a declared attribute a record predates" do
   def aggregate_without_defaults
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
@@ -36,16 +36,16 @@ RSpec.describe "reading a declared attribute a record predates" do
   # stored state below, exactly as a record written before it existed
   # would arrive off any adapter's own decode.
   def record_predating_balance(aggregate)
-    Hecksagain::Runtime::Instance.new(
+    Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: "a1", state: { number: { "value" => "a1" } }
     )
   end
 
-  def rules = Hecksagain::Runtime::CommandRules.new(Hecksagain::Runtime::Registry.new)
+  def rules = Hecks::Runtime::CommandRules.new(Hecks::Runtime::Registry.new)
 
   FakeCommand = Struct.new(:givens, :ensures, :attributes, :hecks_name)
 
-  def given(canonical) = Hecksagain::Bluebook::Given.new(description: "balance check", canonical: canonical, predicate: nil)
+  def given(canonical) = Hecks::Bluebook::Given.new(description: "balance check", canonical: canonical, predicate: nil)
 
   it "raises AttributeAbsent, naming the aggregate and field, when a given reads it" do
     aggregate = aggregate_without_defaults
@@ -53,7 +53,7 @@ RSpec.describe "reading a declared attribute a record predates" do
 
     expect { rules.enforce_givens(record_predating_balance(aggregate), command, {}, domain: "Absence") }
       .to raise_error(
-        Hecksagain::Runtime::AttributeAbsent,
+        Hecks::Runtime::AttributeAbsent,
         "Account balance is absent on this record — declared, not optional, and added since it was " \
         "written. Backfill it in a translation (backfill :balance, default: ...), or declare it optional: true"
       )
@@ -66,7 +66,7 @@ RSpec.describe "reading a declared attribute a record predates" do
 
     expect do
       rules.enforce_ensures(record_predating_balance(aggregate), command, {}, old: old, domain: "Absence")
-    end.to raise_error(Hecksagain::Runtime::AttributeAbsent, /Account balance is absent/)
+    end.to raise_error(Hecks::Runtime::AttributeAbsent, /Account balance is absent/)
   end
 
   it "still reads nil for an OPTIONAL field a record predates — unchanged, not a regression" do

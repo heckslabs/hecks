@@ -10,7 +10,7 @@ require "spec_helper"
 RSpec.describe "Comparison.holds?, an unrecognized comparator" do
   it "refuses rather than silently comparing for equality" do
     expect do
-      Hecksagain::QuerySpecification::Common::Comparison.holds?("starts_with", "abc", "a")
-    end.to raise_error(Hecksagain::Runtime::WiringError, /no comparator handles "starts_with"/)
+      Hecks::QuerySpecification::Common::Comparison.holds?("starts_with", "abc", "a")
+    end.to raise_error(Hecks::Runtime::WiringError, /no comparator handles "starts_with"/)
   end
 end

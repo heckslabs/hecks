@@ -9,13 +9,13 @@ RSpec.describe "the storage-shape projection" do
   FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 
   def self.project_fixture(path)
-    registry = Hecksagain::Runtime::Registry.new
-    loading = Hecksagain::Ports::Loading.bootstrap
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    loading = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(File.read(path), TOPLEVEL_BINDING, path, 1)
     end
-    Hecksagain::Runtime::StorageShape.project(registry.bluebooks.values.first)
+    Hecks::Runtime::StorageShape.project(registry.bluebooks.values.first)
   end
 
   BASE = project_fixture(File.join(FIXTURES, "base.bluebook"))
@@ -47,18 +47,18 @@ RSpec.describe "the storage-shape projection" do
 
   it "mints a stable name from the canonical serialization — Ruby-only, at mint time" do
     path = File.join(FIXTURES, "base.bluebook")
-    registry = Hecksagain::Runtime::Registry.new
-    loading = Hecksagain::Ports::Loading.bootstrap
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    loading = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(File.read(path), TOPLEVEL_BINDING, path, 1)
     end
     bluebook = registry.bluebooks.values.first
 
-    label = Hecksagain::Runtime::StorageShape.mint_label(bluebook)
+    label = Hecks::Runtime::StorageShape.mint_label(bluebook)
     expect(label).to match(/\A\h{6}\z/)
-    expect(Hecksagain::Runtime::StorageShape.mint_hash(bluebook))
+    expect(Hecks::Runtime::StorageShape.mint_hash(bluebook))
       .to start_with(label)
-    expect(Hecksagain::Runtime::StorageShape.mint_label(bluebook)).to eq(label)
+    expect(Hecks::Runtime::StorageShape.mint_label(bluebook)).to eq(label)
   end
 end

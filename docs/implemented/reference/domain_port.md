@@ -4,7 +4,7 @@
 Words available inside `port do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -52,7 +52,7 @@ class RefCarrier
   end
 end
 
-Hecksagain::Adapters.const_set(:RefCarrier, RefCarrier) unless Hecksagain::Adapters.const_defined?(:RefCarrier, false)
+Hecks::Adapters.const_set(:RefCarrier, RefCarrier) unless Hecks::Adapters.const_defined?(:RefCarrier, false)
 Hecks.adapter("RefCarrier") { port "Carrier" }
 
 Hecks.hecksagon("DomainPortReference") do
@@ -60,13 +60,13 @@ Hecks.hecksagon("DomainPortReference") do
 
   DomainPortReference::Shipment.port "Carrier" do
     asks "Quote" do
-      attribute :waybill, Hecksagain::Bluebook::Reference.new("Shipment")
+      attribute :waybill, Hecks::Bluebook::Reference.new("Shipment")
       answers "QuoteReturned"
       refuses "QuoteRefused"
     end
 
     tells "Delivered" do
-      attribute :waybill, Hecksagain::Bluebook::Reference.new("Shipment")
+      attribute :waybill, Hecks::Bluebook::Reference.new("Shipment")
       emits "DeliveryReported"
     end
   end
@@ -239,7 +239,7 @@ real domain here actually needs (`persisted_by`, `projected_by`,
 `opened_by`) is a FRAMEWORK-level default (`hecksagon_builder.rb`'s
 own settings words), never a project declaring its own `port "X" do
 verb "..." end` line — so nothing in `examples/` or
-`lib/hecksagain/framework/` exercises the bare construct this section
+`lib/hecks/framework/` exercises the bare construct this section
 documents. `writing-an-adapter.md`'s own worked example is the closest
 this repo has to a real one, and it is a guide, not a corpus member.
 

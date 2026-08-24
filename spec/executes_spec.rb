@@ -20,8 +20,8 @@ require "spec_helper"
 RSpec.describe "the language holds a bluebook, and gives it back" do
   def pizzas
     @pizzas ||= begin
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -49,14 +49,14 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   def held
     @held ||= begin
       pizzas
-      runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
-      judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
+      runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
+      judge   = Hecks::Bluebook::MetaValidator::Judge.allocate
       judge.instance_variable_set(:@bluebook, pizzas)
       judge.instance_variable_set(:@refusals, [])
       judge.instance_variable_set(:@runtime, runtime)
       judge.instance_variable_set(
         :@plan,
-        Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+        Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
       )
       judge.send(:judge!)
       [runtime, judge.instance_variable_get(:@refusals)]
@@ -160,20 +160,20 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # cross-check was green, consistently wrong being indistinguishable from
     # right. The pluraliser now lives in one place, carrying the
     # three real rules.
-    expect(Hecksagain::Naming.plural("query")).to eq("queries")
-    expect(Hecksagain::Naming.plural("entity")).to eq("entities")
-    expect(Hecksagain::Naming.plural("policy")).to eq("policies")
-    expect(Hecksagain::Naming.plural("dispatch")).to eq("dispatches")
-    expect(Hecksagain::Naming.plural("value_object")).to eq("value_objects")
+    expect(Hecks::Naming.plural("query")).to eq("queries")
+    expect(Hecks::Naming.plural("entity")).to eq("entities")
+    expect(Hecks::Naming.plural("policy")).to eq("policies")
+    expect(Hecks::Naming.plural("dispatch")).to eq("dispatches")
+    expect(Hecks::Naming.plural("value_object")).to eq("value_objects")
     # a vowel before the y is not a plural rule — day, not daies
-    expect(Hecksagain::Naming.plural("day")).to eq("days")
+    expect(Hecks::Naming.plural("day")).to eq("days")
   end
 
   # Banking is the only corpus member with a cross-aggregate reference.
   def banking
     @banking ||= begin
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -188,14 +188,14 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   def held_account_attributes
     @held_account_attributes ||= begin
       banking
-      runtime = Hecksagain::Bluebook::MetaValidator.fresh_runtime
-      judge   = Hecksagain::Bluebook::MetaValidator::Judge.allocate
+      runtime = Hecks::Bluebook::MetaValidator.fresh_runtime
+      judge   = Hecks::Bluebook::MetaValidator::Judge.allocate
       judge.instance_variable_set(:@bluebook, banking)
       judge.instance_variable_set(:@refusals, [])
       judge.instance_variable_set(:@runtime, runtime)
       judge.instance_variable_set(
         :@plan,
-        Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+        Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
       )
       judge.send(:judge!)
       raise "banking refused: #{judge.instance_variable_get(:@refusals).inspect}" unless
@@ -226,7 +226,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # `Reference<Customer>` is an ENCODING. The meta-domain holds the head, and the
     # spelling is derived on the way out — in Readings, the one place that knows the
     # IR's shape differs from the language's.
-    reader = Object.new.extend(Hecksagain::Bluebook::MetaValidator::Readings)
+    reader = Object.new.extend(Hecks::Bluebook::MetaValidator::Readings)
 
     expect(reader.reference_type("Banking::Customer")).to eq("Reference<Customer>")
     expect(reader.reference_type(held_account_attributes["customer"]))
@@ -238,7 +238,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # a repository it would bypass the rules, the authorisation and the shape that
     # every writer goes through — and the read side would drift from the write
     # side exactly as independently hand-kept tables always do.
-    expect(Hecksagain::Bluebook::MetaValidator.grammar_registry
+    expect(Hecks::Bluebook::MetaValidator.grammar_registry
              .bluebook("Bluebook").aggregates
              .flat_map { |a| a.queries.map { |q| "#{a.name}.#{q.name}" } })
       .to include("Bluebook.Called", "Aggregate.DeclaredIn")

@@ -1,9 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 
-RSpec.describe Hecksagain::Bluebook::ProjectLoader do
+RSpec.describe Hecks::Bluebook::ProjectLoader do
   around do |example|
-    @root = Dir.mktmpdir("hecksagain-project-loader-")
+    @root = Dir.mktmpdir("hecks-project-loader-")
     example.run
   ensure
     FileUtils.remove_entry(@root) if @root

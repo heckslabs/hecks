@@ -1,14 +1,14 @@
-require "hecksagain"
+require "hecks"
 
-RSpec.describe Hecksagain::Ports::AccessControl do
+RSpec.describe Hecks::Ports::AccessControl do
   def registry_with(&extra)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.expand_path("../../lib/hecksagain/ports/access_control.port", __dir__))
+      Kernel.load(File.expand_path("../../lib/hecks/ports/access_control.port", __dir__))
       extra&.call
     end
     registry
@@ -19,7 +19,7 @@ RSpec.describe Hecksagain::Ports::AccessControl do
       registry = registry_with
 
       expect { described_class.available_roles(registry) }
-        .to raise_error(Hecksagain::Runtime::WiringError, /no adapter implements/)
+        .to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
     end
 
     it "refuses to choose between more than one bound adapter" do
@@ -29,7 +29,7 @@ RSpec.describe Hecksagain::Ports::AccessControl do
       end
 
       expect { described_class.available_roles(registry) }
-        .to raise_error(Hecksagain::Runtime::WiringError, /FirstAccessControl, SecondAccessControl/)
+        .to raise_error(Hecks::Runtime::WiringError, /FirstAccessControl, SecondAccessControl/)
     end
   end
 end

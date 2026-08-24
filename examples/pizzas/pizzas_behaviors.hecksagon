@@ -1,5 +1,5 @@
 # MEMORY, NOT `pizzas.hecksagon`'s OWN POSTGRESERA BIND — a `.behaviors`
-# example boots a fresh runtime per test (Hecksagain::Behaviors's own
+# example boots a fresh runtime per test (Hecks::Behaviors's own
 # design), so it wants an adapter with no real database to reach at all.
 # `pizzas.hecksagon` binds `PostgresEra` against `pizzas.world`'s real
 # connection string, which is right for the actual deployed domain and

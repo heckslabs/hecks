@@ -14,8 +14,8 @@
 // Because a real dispatch site now exists, `bin/project_kernel_
 // capabilities` no longer regenerates this file (see its own header,
 // where that decision is made and explained). The variant NAMES are
-// still exactly `Hecksagain::QuerySpecification::Common::COMPARATORS`
-// (lib/hecksagain/query_specification/common/comparators.rb) — the same
+// still exactly `Hecks::QuerySpecification::Common::COMPARATORS`
+// (lib/hecks/query_specification/common/comparators.rb) — the same
 // set `Vocabulary::QueryComparator` (language/bluebook/vocabulary.bluebook)
 // declares and spec/vocabulary_conformance_spec holds the runtime to. NINE
 // now, not eight — `NoneInState` (item #9, whole-project table-
@@ -28,10 +28,10 @@
 // interpretation file under rust/src/kernel/ already is.
 //
 // GROUND TRUTH FOR THE MATCHING LOGIC ITSELF, read directly rather than
-// guessed at: `Ports::Query::InMemory#holds?` (lib/hecksagain/ports/
+// guessed at: `Ports::Query::InMemory#holds?` (lib/hecks/ports/
 // query/in_memory.rb) — the engine that actually answers a memory-backed
 // aggregate's query in Ruby, and the same shape `QueryInterpreter#holds?`
-// (lib/hecksagain/runtime/query_interpreter.rb) deliberately duplicates
+// (lib/hecks/runtime/query_interpreter.rb) deliberately duplicates
 // byte-for-byte for entity/sub-list queries and the fuzzer's own
 // reference oracle (that file's own comment: kept identical on purpose).
 // Proven against REAL, adversarially-picked cases, not merely read:
@@ -165,7 +165,7 @@ impl QueryComparator {
     }
 }
 
-/// `Comparison#none_in_state?` (lib/hecksagain/query_specification/
+/// `Comparison#none_in_state?` (lib/hecks/query_specification/
 /// common/comparison.rb), ported directly — the ONE comparator this
 /// kernel answers with real repository access rather than a pure `held`/
 /// `want` comparison. `want` is `"Aggregate:state"` (already `comparable`

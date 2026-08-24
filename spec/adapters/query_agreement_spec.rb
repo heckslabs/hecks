@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 # `pg` is required explicitly — the adapter only requires it lazily,
@@ -44,7 +44,7 @@ module QueryAgreementD1Probe
     @available =
       begin
         if ENV["CLOUDFLARE_ACCOUNT_ID"] && ENV["CLOUDFLARE_D1_DATABASE_ID"] && ENV["CLOUDFLARE_D1_API_TOKEN"]
-          Hecksagain::Adapters::D1::Connection.new(
+          Hecks::Adapters::D1::Connection.new(
             account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
             database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
             api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
@@ -61,14 +61,14 @@ end
 
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, PostgresEra, plain Postgres, and D1",
                io: true do
-  AGREEMENT_DB = "hecksagain_query_agreement_spec".freeze
+  AGREEMENT_DB = "hecks_query_agreement_spec".freeze
   # A SEPARATE scratch database from PostgresEra's own AGREEMENT_DB above
   # — both engines run against the same live server in the same test
   # run, and PostgresEra's own journal/head-view machinery and plain
   # Postgres's own flat table shape have nothing to share; one database
   # per engine keeps a `DROP SCHEMA public CASCADE` on one from ever
   # touching the other's tables.
-  PLAIN_POSTGRES_AGREEMENT_DB = "hecksagain_query_agreement_spec_plain".freeze
+  PLAIN_POSTGRES_AGREEMENT_DB = "hecks_query_agreement_spec_plain".freeze
 
   # Instance methods, not `def self.` — `PostgresProbe`/`QueryAgreementD1Probe`
   # already memoize the real check once at the module level, so every call
@@ -119,7 +119,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   before do
     next unless d1_available?
 
-    scrub = Hecksagain::Adapters::D1::Connection.new(
+    scrub = Hecks::Adapters::D1::Connection.new(
       account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
       database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
       api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
@@ -130,7 +130,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   end
 
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-query-agreement-")
+    @dir = Dir.mktmpdir("hecks-query-agreement-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
@@ -143,7 +143,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # comparator over a non-numeric field all refuse at build time — this
   # fixture exercises none of those refusals, only the answering side).
   # `ConstShim.with` — this fixture calls the builder API directly
-  # (`Hecksagain::Bluebook::DSL::AggregateBuilder.new(...).tap { |b| ... }`),
+  # (`Hecks::Bluebook::DSL::AggregateBuilder.new(...).tap { |b| ... }`),
   # outside any `Hecks.bluebook do ... end`/`instance_eval` a real bluebook
   # loads through, so `Object.const_missing`'s own global hook (S0b) is
   # never installed unless this does it directly — without it, a bare
@@ -153,11 +153,11 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # bareword resolver) — `Attribute#spell`'s `type.to_s` renders a Symbol
   # identically to the quoted String this replaces.
   def build_aggregate
-    Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) { build_thing_aggregate }
+    Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) { build_thing_aggregate }
   end
 
   def build_thing_aggregate
-    Hecksagain::Bluebook::DSL::AggregateBuilder.new("Thing").tap do |builder|
+    Hecks::Bluebook::DSL::AggregateBuilder.new("Thing").tap do |builder|
       builder.lifecycle(:status, default: "open") do
         transition "Close" => "closed", from: "open"
       end
@@ -277,17 +277,17 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   let(:aggregate) { build_aggregate }
 
-  let(:memory)   { Hecksagain::Adapters::Memory.new(aggregate: aggregate) }
-  let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
-  let(:postgres) { postgres_available? ? Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
+  let(:memory)   { Hecks::Adapters::Memory.new(aggregate: aggregate) }
+  let(:sqlite)   { Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
+  let(:postgres) { postgres_available? ? Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
   let(:plain_postgres) do
-    postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate,
-                                                             settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
+    postgres_available? ? Hecks::Adapters::Postgres.new(aggregate: aggregate,
+                                                        settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
   end
   let(:d1) do
     next nil unless d1_available?
 
-    Hecksagain::Adapters::D1.new(
+    Hecks::Adapters::D1.new(
       aggregate: aggregate,
       settings:  {
         account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
@@ -298,8 +298,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 

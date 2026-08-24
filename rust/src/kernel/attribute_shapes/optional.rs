@@ -1,5 +1,5 @@
 // Implements the `:optional` branch of `Runtime::Value::Coercion::SHAPES`
-// (lib/hecksagain/runtime/value/coercion.rb) — `for_attribute`'s own
+// (lib/hecks/runtime/value/coercion.rb) — `for_attribute`'s own
 // FIRST check, `return value if attribute.nil? || value.nil?`: an
 // attribute that was never supplied arrives as Ruby's `nil`, unchanged —
 // no value object ever gets a chance to run its own coercion or

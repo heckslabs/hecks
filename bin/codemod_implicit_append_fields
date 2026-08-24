@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # A CODEMOD, not an agent — for the class of redundancy
-# `CommandBuilder#resolve_append_fields!` (lib/hecksagain/bluebook/dsl/
+# `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/
 # command_builder.rb) makes obsolete: a command's own `attribute
 # :field, Type` line that byte-for-byte repeats what an `append:`
 # mutation's target list ELEMENT construct already declares for that
@@ -10,7 +10,7 @@
 #
 # The boot/safety-net machinery (edit -> reboot -> diff-or-revert,
 # per-candidate isolation for the self-hosted meta-domain, the process-
-# lifetime AST cache fix) lives in `Hecksagain::Codemod` — this file is
+# lifetime AST cache fix) lives in `Hecks::Codemod` — this file is
 # only the two things specific to THIS rule: how to find a candidate
 # (`find_candidates`, replaying `resolve_append_fields!`'s own lookup
 # against the already-booted IR) and how to remove one
@@ -21,8 +21,8 @@
 # Usage: bin/codemod_implicit_append_fields [--dry-run]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/codemod"
+require "hecks"
+require "hecks/codemod"
 
 DRY_RUN = ARGV.include?("--dry-run")
 
@@ -40,9 +40,9 @@ end
 # public shape every other Projector reads.
 find_candidates = lambda do |registry|
   found = []
-  Hecksagain::Codemod.each_command(registry) do |construct, command|
+  Hecks::Codemod.each_command(registry) do |construct, command|
     command.mutations.select { |m| m.op == :append }.each do |mutation|
-      element = Hecksagain::Codemod.element_construct_for(construct, mutation.target)
+      element = Hecks::Codemod.element_construct_for(construct, mutation.target)
       next unless element
 
       mutation.source.each do |field, value|
@@ -51,7 +51,7 @@ find_candidates = lambda do |registry|
         local = command.attributes.find { |attr| attr.name.to_s == field.to_s }
         next unless local
 
-        owner_attr = Hecksagain::Codemod.owner_attribute(element, field)
+        owner_attr = Hecks::Codemod.owner_attribute(element, field)
         next unless identical_attribute?(local, owner_attr)
 
         found << Candidate.new(command_name: command.hecks_name, field: field.to_s, type: local.type)
@@ -80,6 +80,6 @@ end
 
 label = ->(c) { "#{c.command_name}##{c.field} (#{c.type})" }
 
-runner  = Hecksagain::Codemod::Runner.new(find_candidates: find_candidates, apply_candidate: apply_candidate, label: label)
+runner  = Hecks::Codemod::Runner.new(find_candidates: find_candidates, apply_candidate: apply_candidate, label: label)
 results = runner.run(dry_run: DRY_RUN)
 runner.report(results, dry_run: DRY_RUN)

@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require "tmpdir"
 require "fileutils"
 
@@ -17,7 +17,7 @@ RSpec.describe "a constructed aggregate" do
   it "is a door over the runtime, not a minted class" do
     expect(Order).to be_a(Module)
     expect(Order).not_to be_a(Class)
-    expect(Order.ir).to be_a(Hecksagain::Bluebook::Aggregate)
+    expect(Order.ir).to be_a(Hecks::Bluebook::Aggregate)
     expect(Order.fqn).to eq("Pizzas::Order")
   end
 
@@ -27,7 +27,7 @@ RSpec.describe "a constructed aggregate" do
                                   pizza: { price_cents: { cents: 1200 },
                                            size:        { value: "large" } })
 
-      expect(pizza).to be_a(Hecksagain::Facade::Handle)
+      expect(pizza).to be_a(Hecks::Facade::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
       expect(pizza.pizza.price_cents.to_h).to eq(cents: 1200)
       expect(pizza.status).to eq("available")
@@ -84,7 +84,7 @@ RSpec.describe "a constructed aggregate" do
       pizza = Order.create_pizza!(name: { value: "Bare" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })
 
       expect { pizza.purchase!(customer_name: { value: "Chris" }, amount: { cents: 900 }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /at least one topping/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /at least one topping/)
     end
 
     it "enforces the value object invariant" do
@@ -93,7 +93,7 @@ RSpec.describe "a constructed aggregate" do
                                            size:        { value: "large" } })
 
       expect { pizza.add_topping!(topping: { value: "Air" }, amount: { value: 0 }) }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
+        .to raise_error(Hecks::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)
     end
   end
 

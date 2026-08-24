@@ -1,5 +1,5 @@
-//! The `Entity` construct (`lib/hecksagain/bluebook/ir/entity.rb`, built
-//! by `Hecksagain::Bluebook::DSL::EntityBuilder`) — a piece of an
+//! The `Entity` construct (`lib/hecks/bluebook/ir/entity.rb`, built
+//! by `Hecks::Bluebook::DSL::EntityBuilder`) — a piece of an
 //! aggregate with an identity of its own. STAGE 4: `EntityBuilder`
 //! `include AttributeCollector`, the SAME module `AggregateBuilder` does,
 //! and its own `identified_by` is (per its own comment) "the aggregate's

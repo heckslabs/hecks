@@ -34,7 +34,7 @@ RSpec.describe "QueryComparator, held to Rust's own hand-maintained enum" do
   ALL_VARIANT_NAMES = ALL_BLOCK.scan(/QueryComparator::(\w+)/).flatten.freeze
 
   it "recognizes exactly the wire names Vocabulary::QueryComparator declares, both directions" do
-    live = Hecksagain::Vocabulary.symbols("QueryComparator").map(&:to_s)
+    live = Hecks::Vocabulary.symbols("QueryComparator").map(&:to_s)
     expect(PARSE_WIRE_NAMES).to match_array(live),
                                 "rust/src/kernel/query_comparators.rs's own QueryComparator::parse recognizes " \
                                 "#{PARSE_WIRE_NAMES.inspect}, but Vocabulary::QueryComparator declares " \

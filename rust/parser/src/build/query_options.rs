@@ -1,5 +1,5 @@
 //! Mirrors `QuerySpecification::Common::DSL`'s five option words
-//! (`lib/hecksagain/query_specification/common/dsl.rb`) — `offset`/
+//! (`lib/hecks/query_specification/common/dsl.rb`) — `offset`/
 //! `cursor`/`authorize`/`nulls`/`inspect_query`. Shared verbatim by
 //! `parse::query` and `parse::read_model`, since both Ruby builders
 //! `include QuerySpecification::Common::DSL` and land on the identical

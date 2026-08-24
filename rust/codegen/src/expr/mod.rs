@@ -1,4 +1,4 @@
-//! Port of `lib/hecksagain/bluebook/expression/{evaluator,resolver}.rb`'s
+//! Port of `lib/hecks/bluebook/expression/{evaluator,resolver}.rb`'s
 //! own `parse` step ONLY — not `interpret`/`call` (semantics stay in Ruby
 //! at dispatch time, and identically in `rust/src/kernel/expr.rs` for the
 //! compiled Rust side; this module exists purely so `expr_emitter.rs` can

@@ -234,7 +234,7 @@ command — only appended by one that acts on its parent.
 ## Wiring
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
   Banking::Customer.persisted_by("Memory")
@@ -406,7 +406,7 @@ matches, across every box that has one, each row carrying which parent
 it came from:
 
 ```ruby
-runtime.query("Banking::SafeDepositBox.Visit.Recent").map { |row| row.transform_values { |v| Hecksagain::Runtime::Value.materialize(v) } }  # => [{ safe_deposit_box: "DOWNTOWN:12", date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "Flagged for a follow-up" }, state: "logged" }, { safe_deposit_box: "DOWNTOWN:12", date: { value: "2026-01-05" }, sequence: { value: 2 }, note: { text: "Second visit, same day" }, state: "logged" }]
+runtime.query("Banking::SafeDepositBox.Visit.Recent").map { |row| row.transform_values { |v| Hecks::Runtime::Value.materialize(v) } }  # => [{ safe_deposit_box: "DOWNTOWN:12", date: { value: "2026-01-05" }, sequence: { value: 1 }, note: { text: "Flagged for a follow-up" }, state: "logged" }, { safe_deposit_box: "DOWNTOWN:12", date: { value: "2026-01-05" }, sequence: { value: 2 }, note: { text: "Second visit, same day" }, state: "logged" }]
 ```
 
 `safe_deposit_box` is not a field you declared — it's the parent's own

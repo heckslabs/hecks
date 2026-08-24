@@ -1,11 +1,11 @@
 #!/usr/bin/env ruby
 
 # Generates random-but-valid command/query sequences from a domain's own IR
-# (Hecksagain::Fuzzing::SequenceGenerator) and checks each one the way a
-# single runtime actually can: replay it (Hecksagain::Fuzzing::Replay) and
+# (Hecks::Fuzzing::SequenceGenerator) and checks each one the way a
+# single runtime actually can: replay it (Hecks::Fuzzing::Replay) and
 # ask whether anything broke — an exception Replay's own per-step isolation
 # didn't catch (a genuine interpreter defect, not a domain refusal), a
-# declared property that doesn't hold (Hecksagain::Fuzzing::Properties —
+# declared property that doesn't hold (Hecks::Fuzzing::Properties —
 # lifecycle values staying inside their declared set, saga advances
 # following declared handlers), or two replays of the same steps producing
 # different histories (Properties.replay_is_deterministic — the runtime
@@ -24,8 +24,8 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
-require "hecksagain/fuzzing"
+require "hecks"
+require "hecks/fuzzing"
 require "json"
 require "tmpdir"
 require "fileutils"
@@ -49,8 +49,8 @@ end
 # refusal. That is the whole reason this needs no second-opinion
 # subprocess : "did this break" is answerable from inside the one runtime.
 def outcome(domain, steps)
-  history = Hecksagain::Fuzzing::Replay.call(domain, steps)
-  violations = Hecksagain::Fuzzing::Properties.check(history).reject { |_, result| result == true }
+  history = Hecks::Fuzzing::Replay.call(domain, steps)
+  violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
   return [:clean, nil] if violations.empty?
 
   [:property_violation, violations.map { |name, message| "#{name}: #{message}" }.join("; ")]
@@ -84,11 +84,11 @@ def fuzz_domain(domain, seeds, steps)
   while (clean + failures.length) < seeds && drawn < cap
     drawn += 1
     seed = drawn
-    generated = Hecksagain::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
+    generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
     verdict, message = outcome(domain, generated)
 
     if verdict == :clean
-      determinism = Hecksagain::Fuzzing::Properties.replay_is_deterministic(domain, generated)
+      determinism = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, generated)
       if determinism == true
         clean += 1
         next
@@ -211,7 +211,7 @@ end
 # the generator can only produce a null by OMITTING AN OPTIONAL
 # ARGUMENT, and between them the example domains hold exactly ONE
 # non-list optional command attribute — measured, 2400 generated steps
-# produced zero nulls. `lib/hecksagain/framework` alone holds 29, and
+# produced zero nulls. `lib/hecks/framework` alone holds 29, and
 # the language's own chapters hold 96. A differential oracle only ever
 # sees what its corpus can express, which is the same lesson the
 # adapter-agreement gate taught this week by having no null in its
@@ -221,9 +221,9 @@ end
 # without anyone remembering to add it here. The exclusions are all
 # "not a domain": build artifacts and their vendored copies, the Rust
 # parser's own fixtures, frozen era archives, translation files (which
-# are not chapters), and lib/hecksagain/forms/examples — a presentation
+# are not chapters), and lib/hecks/forms/examples — a presentation
 # config that merely wears the .bluebook extension while actually
-# calling `Hecksagain::Forms.configure`.
+# calling `Hecks::Forms.configure`.
 # `spec/fixtures/eras` and `spec/fixtures/model_check` are the two that
 # are NOT domains despite looking like directories full of them:
 # `eras/` holds a dozen deliberately CONFLICTING versions of one domain
@@ -234,7 +234,7 @@ end
 # ordinary, separate, well-formed domains that merely share a folder.
 EXCLUDED_FROM_SWEEP = %r{
   /\.aws-sam/ | ^rust/ | /data/eras/ | /translations/
-  | ^lib/hecksagain/forms/examples/
+  | ^lib/hecks/forms/examples/
   | ^spec/fixtures/(eras|model_check)/
 }x
 

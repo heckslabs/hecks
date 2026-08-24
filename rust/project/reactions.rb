@@ -243,13 +243,13 @@ module RustProjection
       )
     end
 
-    # A `with:` binding's raw wire spelling — Hecksagain::Literal's, the
+    # A `with:` binding's raw wire spelling — Hecks::Literal's, the
     # same one every other to_h-bound literal field rides. `Marks.read` is
     # the exact, already-proven inverse (mutations.rb's
     # `append_field_source` is the identical round trip on a `sets
     # append:` field) — reused rather than re-derived.
     def with_value_parsed(raw)
-      Hecksagain::Bluebook::Assembly::Marks.read(raw)
+      Hecks::Bluebook::Assembly::Marks.read(raw)
     end
 
     # A parsed `with:` literal (`Marks.read`'s own output shape for
@@ -357,7 +357,7 @@ module RustProjection
       arms = chapters.flat_map do |domain_name, aggregate_names|
         aggregate_names.map do |name|
           qualified = "#{domain_name}::#{name}"
-          key = Hecksagain::Naming.snake(name)
+          key = Hecks::Naming.snake(name)
           "        #{qualified.inspect} => Some(#{key.inspect}),"
         end
       end

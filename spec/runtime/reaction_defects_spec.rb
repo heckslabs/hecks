@@ -19,14 +19,14 @@ require "spec_helper"
 # silent.
 RSpec.describe "a reaction that cannot be delivered" do
   let(:event) do
-    Hecksagain::Runtime::Event.new(
+    Hecks::Runtime::Event.new(
       name: "Rang", aggregate: "Reflex::Echo", id: "bell-1",
       payload: {}, occurred_at: Time.now.utc.iso8601
     )
   end
 
   let(:policy) do
-    Hecksagain::Bluebook::Policy.new(
+    Hecks::Bluebook::Policy.new(
       name: "ReactToRing", on_event: "Rang", trigger_command: "Echo.Ring"
     )
   end
@@ -70,8 +70,8 @@ RSpec.describe "a reaction that cannot be delivered" do
 
   it "RECORDS a refusal by the domain — the emitting command still stands" do
     registry = registry_for(policy)
-    interpreter = Hecksagain::Runtime::PolicyInterpreter.new(
-      registry, door: door_raising(Hecksagain::Runtime::GivenNotMet.new("bell already rung"))
+    interpreter = Hecks::Runtime::PolicyInterpreter.new(
+      registry, door: door_raising(Hecks::Runtime::GivenNotMet.new("bell already rung"))
     )
 
     expect { interpreter.react(event, "Reflex") }.not_to raise_error
@@ -80,7 +80,7 @@ RSpec.describe "a reaction that cannot be delivered" do
 
   it "RECORDS a defect in the runtime, distinguishably, rather than raising or logging it as a refusal" do
     registry = registry_for(policy)
-    interpreter = Hecksagain::Runtime::PolicyInterpreter.new(
+    interpreter = Hecks::Runtime::PolicyInterpreter.new(
       registry, door: door_raising(NoMethodError.new("undefined method `boom'"))
     )
 

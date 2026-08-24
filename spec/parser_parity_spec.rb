@@ -66,8 +66,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select { |path|
     File.directory?(path)
   }.sort.freeze
-  PARITY_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
-  PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook",
+  PARITY_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).sort.freeze
+  PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook",
                                                 "*.bluebook")).sort.freeze
   # STAGE 5's OWN TARGET — narrow, load-bearing unit-test fixtures for
   # OTHER Ruby specs (era/lineage bumps, model-checker findings, dispatch
@@ -79,7 +79,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   PARITY_FIXTURE_MEMBERS = Dir.glob(File.join(PARITY_FIXTURES_ROOT, "**", "*.bluebook")).sort.freeze
 
   # STAGE 6's OWN TARGET — the self-hosted grammar itself: every concept file
-  # `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` discovers, which
+  # `Hecks::Bluebook::MetaValidator::GRAMMAR_FILES` discovers, which
   # together constitute ONE `Hecks.bluebook "Bluebook", version: "1"`
   # declaration (`meta_validator.rb`'s own comment: "`BluebookBuilder
   # .build` keeps one builder open per chapter name across calls ... so
@@ -88,7 +88,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # built for exactly this). Read directly off the same discovered source set
   # the Ruby bootstrap uses, so parser parity and runtime loading cannot keep
   # separate filename catalogs.
-  PARITY_LANGUAGE_GRAMMAR_FILES = Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES
+  PARITY_LANGUAGE_GRAMMAR_FILES = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
 
   # [chapter name, bluebook path] — the chapter name is what `hecks-parse
   # chapter --chapter <Name>` expects; every real corpus `.bluebook` file
@@ -126,7 +126,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
     # STAGE 6 — one member, several concept files (see PARITY_LANGUAGE_GRAMMAR_FILES'
     # own comment). Stemmed "bluebook_language" rather than bare
     # "bluebook" to keep it visibly distinct from
-    # `lib/hecksagain/language/bluebook/bluebook.bluebook` — one of the
+    # `lib/hecks/language/bluebook/bluebook.bluebook` — one of the
     # concept files, not the whole member.
     [["bluebook_language", PARITY_LANGUAGE_GRAMMAR_FILES]]
   ).reject { |_stem, path| path.nil? }.freeze
@@ -222,7 +222,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   }.merge(
     # THE FRAMEWORK TRIO (Stage 3). A framework bluebook has no
     # `.hecksagon` of its own (confirmed by reading
-    # lib/hecksagain/framework/bluebook/ directly): the comparison target
+    # lib/hecks/framework/bluebook/ directly): the comparison target
     # is `hecks-parse chapter --chapter <Name> <bluebook>` standing
     # alone, no `uses_framework`/`resolve` multi-file step needed (that
     # mechanism only matters for a CONSUMING app's own `.hecksagon`,
@@ -236,7 +236,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
     # kept in this repo.
     %w[identity governance console_settings].to_h { |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
-        raise "no lib/hecksagain/framework/bluebook/#{stem}.bluebook"
+        raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
       [stem, [chapter_name, [bluebook]]]
     }
@@ -247,7 +247,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
     # the framework trio: a grammar chapter has no `.hecksagon` either.
     %w[expression translation].to_h { |stem|
       bluebook = PARITY_GRAMMAR_CHAPTERS.find { |path| File.basename(path, ".bluebook") == stem } or
-        raise "no lib/hecksagain/grammar/#{stem}.bluebook"
+        raise "no lib/hecks/grammar/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
       [stem, [chapter_name, [bluebook]]]
     }
@@ -324,10 +324,10 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   def self.ruby_ir_json(stem, chapter_name, paths)
     registry =
       if stem == "bluebook_language"
-        Hecksagain::Bluebook::MetaValidator.grammar_registry
+        Hecks::Bluebook::MetaValidator.grammar_registry
       else
-        fresh = Hecksagain::Runtime::Registry.new
-        Hecksagain.with_registry(fresh) do
+        fresh = Hecks::Runtime::Registry.new
+        Hecks.with_registry(fresh) do
           Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -338,7 +338,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
         end
         fresh
       end
-    ir = Hecksagain::Projector::Exporter.call(registry).fetch(chapter_name)
+    ir = Hecks::Projector::Exporter.call(registry).fetch(chapter_name)
     "#{JSON.pretty_generate(ir)}\n"
   end
 

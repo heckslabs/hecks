@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecksagain/codemod"
+require "hecks/codemod"
 
 # THE RUBY-SIDE `word_gate` — item #13 of the whole-project table-
 # unification survey, and the first slice of it: Ruby's own DSL
@@ -12,12 +12,12 @@ require "hecksagain/codemod"
 # this slice's own commit message) — a synthetic minimal bluebook
 # means these tests still catch a regression even if the real corpus
 # never happens to exercise a given branch again.
-RSpec.describe "Hecksagain::Bluebook::DSL::WordGate" do
+RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
   def load(source)
     Dir.mktmpdir do |dir|
       path = File.join(dir, "smoke.bluebook")
       File.write(path, source)
-      Hecksagain::Codemod.load_bluebook(path)
+      Hecks::Codemod.load_bluebook(path)
     end
   end
 
@@ -70,7 +70,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::WordGate" do
           end
         end
       BLUEBOOK
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed,
                        /'median' is not a word Aggregate admits — legal words here: .*identified_by/)
   end
 
@@ -104,7 +104,7 @@ RSpec.describe "Hecksagain::Bluebook::DSL::WordGate" do
      "both are private, the same way Object itself defines them, so " \
      "spec/syntax_conformance_spec.rb's own word↔builder gate never counts them " \
      "as words a builder answers" do
-    builder = Hecksagain::Bluebook::DSL::AggregateBuilder
+    builder = Hecks::Bluebook::DSL::AggregateBuilder
     answered = builder.public_instance_methods - Object.public_instance_methods
     expect(answered).not_to include(:method_missing, :respond_to_missing?)
   end
@@ -113,8 +113,8 @@ RSpec.describe "Hecksagain::Bluebook::DSL::WordGate" do
      "MetaValidator.bootstrapping? gate RuleReference#lookup already relies on, " \
      "since the grammar table this module reads does not exist yet while it is " \
      "still being built" do
-    expect(Hecksagain::Bluebook::MetaValidator.bootstrapping?).to be(false)
-    Hecksagain::Bluebook::MetaValidator.grammar_registry # already booted; still true off-bootstrap
-    expect(Hecksagain::Bluebook::MetaValidator.bootstrapping?).to be(false)
+    expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
+    Hecks::Bluebook::MetaValidator.grammar_registry # already booted; still true off-bootstrap
+    expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
   end
 end

@@ -4,16 +4,16 @@ RSpec.describe "a composite-identified aggregate with two entities" do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(BANKING_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -100,7 +100,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                             date: { value: "2026-01-05" }, sequence: { value: 1 })
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /only a rented box is opened/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /only a rented box is opened/)
   end
 
   it "refuses to return a key that is not issued" do
@@ -114,7 +114,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                                       serial: { value: "KEY-1" })
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /only an issued key is returned/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /only an issued key is returned/)
   end
 
   it "announces two facts from one dispatch, and refuses a second surrender" do
@@ -128,7 +128,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
 
     expect do
       runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /only a rented box is surrendered/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /only a rented box is surrendered/)
   end
 
   it "answers a query with the closed-set attribute the inline shorthand declared" do
@@ -149,7 +149,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                             date: { value: "2026-01-05" }, sequence: { value: 1 })
-    end.to raise_error(Hecksagain::Runtime::AlreadyExists, /Visit.*already exists/)
+    end.to raise_error(Hecks::Runtime::AlreadyExists, /Visit.*already exists/)
 
     # THE ONE THAT DID LAND STANDS — a refused second write leaves the
     # first exactly as it was, not doubled and not gone.
@@ -166,7 +166,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                             serial: { value: "KEY-1" })
-    end.to raise_error(Hecksagain::Runtime::AlreadyExists, /KeyIssuance.*already exists/)
+    end.to raise_error(Hecks::Runtime::AlreadyExists, /KeyIssuance.*already exists/)
 
     keys = Banking::SafeDepositBox.find("DOWNTOWN:12").keys
     expect(keys.size).to eq(1)
@@ -193,7 +193,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
                                                      box_number: { value: 1 }, size: { value: "small" })
 
     expect { runtime.query("Banking::SafeDepositBox.Rented") }
-      .to raise_error(Hecksagain::Runtime::Unauthorized, /declares authorize with tenant: branch_code/)
+      .to raise_error(Hecks::Runtime::Unauthorized, /declares authorize with tenant: branch_code/)
 
     downtown = runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN")
     expect(downtown.map { |row| row[:id] }).to eq(["DOWNTOWN:12"])

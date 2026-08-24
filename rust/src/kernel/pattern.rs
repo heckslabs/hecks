@@ -1,5 +1,5 @@
 // HAND-WRITTEN, ONCE, GENERIC — a regex matcher for exactly the dialect
-// `Hecksagain::Bluebook::PatternSubset` (`lib/hecksagain/bluebook/
+// `Hecks::Bluebook::PatternSubset` (`lib/hecks/bluebook/
 // pattern_subset.rb`) admits into a bluebook's `pattern:` declaration in
 // the first place: literal characters, `.`, `^`/`$` (and `\A`/`\z`)
 // anchors, `[...]`/`[^...]` character classes with explicit ranges,

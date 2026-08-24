@@ -34,7 +34,7 @@ Run against `main` in a clean detached worktree:
 | Rust `cargo test` | passes, but **zero unit tests exist** |
 
 The one RSpec failure seen in a full run — `schema-evolution.md`'s doctest,
-`database "hecksagain_doctest_grange" already exists` — is **environmental**:
+`database "hecks_doctest_grange" already exists` — is **environmental**:
 `spec/support/doctest.rb` uses a fixed global Postgres DB name, so two
 concurrent checkouts on one machine race. It passes in isolation. (Worth
 fixing: the fixed name should carry a per-process suffix.)
@@ -54,7 +54,7 @@ retires the whole cluster.
 
 ### S1 — `render_value` erases types on the IR wire
 
-`lib/hecksagain/query_specification/common/comparators.rb:6`
+`lib/hecks/query_specification/common/comparators.rb:6`
 
 ```ruby
 def self.render_value(value) = value.is_a?(Symbol) ? ":#{value}" : value.to_s
@@ -97,7 +97,7 @@ layer). Same root, two exploited surfaces — see H10 and H12.
 
 ### H1 — Entity commands run no argument gate → silent nil-overwrite data loss
 
-`lib/hecksagain/runtime/entity_interpreter.rb:27` · confirmed
+`lib/hecks/runtime/entity_interpreter.rb:27` · confirmed
 
 `DISPATCH_ORDER` omits `refuse_unknown_arguments` and
 `refuse_absent_arguments`, on a comment claiming an entity "inherits its
@@ -114,7 +114,7 @@ Verified against the banking corpus:
 
 ### H2 — Era mint is not atomic (nested transaction commits it early)
 
-`lib/hecksagain/adapters/driven/postgres/lineage/head_compiler.rb:38`
+`lib/hecks/adapters/driven/postgres/lineage/head_compiler.rb:38`
 (reached from `mint_transaction.rb:19`) · confirmed
 
 `mint_era!` opens a manual `@db.exec("BEGIN")` and takes
@@ -136,7 +136,7 @@ correct data, which is why live use never caught it.
 
 ### H3 — Deleting an era-migrated record resurrects it in the head view
 
-`lib/hecksagain/adapters/driven/postgres.rb:192`; head view at
+`lib/hecks/adapters/driven/postgres.rb:192`; head view at
 `head_compiler.rb:276` · likely (static; no live PG)
 
 The delete branch of `append` only does
@@ -154,8 +154,8 @@ correctly.
 
 ### H4 — Rekey SQL is invisible to the human-approval digest
 
-`lib/hecksagain/translation/audit/approval_digest.rb` via
-`lib/hecksagain/projector/exporter.rb:37` · confirmed
+`lib/hecks/translation/audit/approval_digest.rb` via
+`lib/hecks/projector/exporter.rb:37` · confirmed
 
 `edge_digest → translation_hash → translation_aggregate` serializes
 renames/moves/converts/drops/retypes/**computes (with sql)** but **not
@@ -168,7 +168,7 @@ different mapping and still mint under the stale approval.
 
 ### H5 — A dotted-member `compute` exempts the whole attribute from the Layer-2 gate
 
-`lib/hecksagain/translation/audit/layer_two.rb:56` · confirmed
+`lib/hecks/translation/audit/layer_two.rb:56` · confirmed
 
 `compute_tops` maps `"price.cents"` to top-level key `"price"`, and both the
 `expected` and `actual` sides then reject that key from the cross-execution
@@ -178,7 +178,7 @@ migration SQL nulls `price.currency` — or drops `price` entirely — produces
 
 ### H6 — `limit` applied before `offset` in the in-memory query port
 
-`lib/hecksagain/ports/query/in_memory.rb:21` · confirmed
+`lib/hecks/ports/query/in_memory.rb:21` · confirmed
 
 ```ruby
 matched = matched.first(limit) if declared.limit
@@ -193,7 +193,7 @@ structurally blind to this.
 
 ### H7 — Reference/entity query engine ignores `offset` and dotted paths
 
-`lib/hecksagain/runtime/query_interpreter.rb:78, 149, 261` · confirmed
+`lib/hecks/runtime/query_interpreter.rb:78, 149, 261` · confirmed
 
 - `interpret`/`reference_interpret`/`entity_rows` apply `limit` but ignore a
   declared `offset` (and `cursor`), so the fuzzer's reference oracle
@@ -209,7 +209,7 @@ structurally blind to this.
 
 ### H8 — `seal_defaults` doesn't cover `one_of` closed sets
 
-`lib/hecksagain/bluebook/dsl/aggregate_builder.rb:228` · confirmed
+`lib/hecks/bluebook/dsl/aggregate_builder.rb:228` · confirmed
 
 `seal_defaults` checks `@value_objects` only, never `closed_sets`. The exact
 case named in its own comment —
@@ -221,7 +221,7 @@ Sibling method `declared_value_object` (`:385`) already includes
 
 ### H9 — Meta-validator cache key omits read-model filters → stale filters served
 
-`lib/hecksagain/bluebook/meta_validator.rb:127` · confirmed
+`lib/hecks/bluebook/meta_validator.rb:127` · confirmed
 
 The held-declaration cache is keyed on `SHA256(JSON(bluebook.to_h))`, but the
 language deliberately holds more than `to_h` carries — `ReadModel#to_h` omits
@@ -283,7 +283,7 @@ unlike every other required var.
 
 ### H12 — Record ids containing `.` are unroutable
 
-`lib/hecksagain/presentation/app.rb:70` · confirmed
+`lib/hecks/presentation/app.rb:70` · confirmed
 
 `split_format` splits the third path segment on the first `.`, so any
 identity with a dot (an email `identified_by { email.address }`, a

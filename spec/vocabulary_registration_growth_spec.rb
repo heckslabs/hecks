@@ -21,7 +21,7 @@ require "spec_helper"
 # numbering, "THE RUNTIME TABLE bug, distinct from the DSL
 # declaration"). Not claimed fixed here; that's the next item's job.
 RSpec.describe "vocabulary.bluebook registers this session's new words" do
-  def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.full_rows(name)
     aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
@@ -48,7 +48,7 @@ RSpec.describe "vocabulary.bluebook registers this session's new words" do
 
   it "QueryComparator now agrees with the runtime's own Comparators::COMPARATORS closed set" do
     declared = VOCAB_GROWTH_QUERY_COMPARATOR_ROWS.map { |row| row[:name] }
-    runtime  = Hecksagain::QuerySpecification::Common::COMPARATORS.map(&:to_s)
+    runtime  = Hecks::QuerySpecification::Common::COMPARATORS.map(&:to_s)
 
     expect(declared).to match_array(runtime)
   end

@@ -1,18 +1,18 @@
 require "spec_helper"
-require "hecksagain/fuzzing/invalid_value_generator"
+require "hecks/fuzzing/invalid_value_generator"
 
 # The claim this generator makes is narrow and worth holding : every value it
 # returns is the WRONG SHAPE for the attribute it was asked about. A generator
 # that quietly produced a valid value would look like it was widening coverage
 # while changing nothing, which is the failure mode a fuzzer cannot report on
 # itself — a sequence full of accidentally-valid payloads still AGREES.
-RSpec.describe Hecksagain::Fuzzing::InvalidValueGenerator do
+RSpec.describe Hecks::Fuzzing::InvalidValueGenerator do
   # Booted ONCE per file — every example below only reads the loaded
   # aggregate's IR back out (`described_class.corrupt`/`.kinds_for` never
   # dispatch), so a shared boot is safe.
   before(:context) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)

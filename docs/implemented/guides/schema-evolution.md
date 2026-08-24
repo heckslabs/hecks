@@ -100,8 +100,8 @@ full of bins.
 require "fileutils"
 require "tmpdir"
 
-GRANGE_DB  = "hecksagain_doctest_grange"
-GRANGE_DIR = Dir.mktmpdir("hecksagain-doctest-grange-")
+GRANGE_DB  = "hecks_doctest_grange"
+GRANGE_DIR = Dir.mktmpdir("hecks-doctest-grange-")
 
 admin = PG.connect(dbname: "postgres")
 admin.exec("DROP DATABASE IF EXISTS #{GRANGE_DB} WITH (FORCE)")
@@ -281,16 +281,16 @@ The Grange edge above used two of the nine things a translation rule
 can say: `was:` (an aggregate renamed) and `move` (a field crossed a
 value-object boundary). The other seven matter just as much, and each
 one's effect on a stored record can be shown without a second Postgres
-round-trip — `Hecksagain::Ports::Persistence::Lineage` is the exact
+round-trip — `Hecks::Ports::Persistence::Lineage` is the exact
 code every mint runs internally, and it answers directly:
 
 ```ruby
-Move     = Hecksagain::Bluebook::TranslationMove
-Convert  = Hecksagain::Bluebook::TranslationConvert
-Retype   = Hecksagain::Bluebook::TranslationRetype
-Backfill = Hecksagain::Bluebook::TranslationBackfill
-Entry    = Hecksagain::Ports::Persistence::Entry
-Lineage  = Hecksagain::Ports::Persistence::Lineage
+Move     = Hecks::Bluebook::TranslationMove
+Convert  = Hecks::Bluebook::TranslationConvert
+Retype   = Hecks::Bluebook::TranslationRetype
+Backfill = Hecks::Bluebook::TranslationBackfill
+Entry    = Hecks::Ports::Persistence::Entry
+Lineage  = Hecks::Ports::Persistence::Lineage
 ```
 
 **`rename`** — a field keeps its shape, only its name changes:

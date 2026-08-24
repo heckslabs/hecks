@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/fuzzing/sequence_generator"
+require "hecks/fuzzing/sequence_generator"
 
-RSpec.describe Hecksagain::Fuzzing::SequenceGenerator do
+RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   def domain(name) = File.join(InMemoryDomain::ROOT, "examples/#{name}")
 
   describe "determinism" do
@@ -23,7 +23,7 @@ RSpec.describe Hecksagain::Fuzzing::SequenceGenerator do
   describe "validity" do
     # The real self-test. Generation dispatches every candidate step against
     # a live, throwaway runtime as it builds the sequence (SequenceGenerator
-    # #call) — `safe_call` only rescues Hecksagain::Runtime::DOMAIN_REFUSALS,
+    # #call) — `safe_call` only rescues Hecks::Runtime::DOMAIN_REFUSALS,
     # so anything else propagates and fails this example. That's exactly what
     # should happen if the generator ever produces a step shaped wrongly
     # enough to crash the interpreter for reasons that have nothing to do

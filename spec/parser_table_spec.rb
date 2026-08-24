@@ -24,9 +24,9 @@ RSpec.describe "the generated parser table" do
     expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run bin/project_parser_table"
 
     committed = File.read(committed_path)
-    regenerated = Hecksagain::Projector.call(
+    regenerated = Hecks::Projector.call(
       :parser_table,
-      bluebook: Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      bluebook: Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     )
 
     expect(committed).to eq(regenerated),
@@ -40,7 +40,7 @@ RSpec.describe "the generated parser table" do
     # `SyntaxBoot.call`, not `rows` directly any more (that still reads
     # the still-static seed rows, `KeywordSeed`/`ArgumentSeed`, straight
     # off the closed set).
-    table = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call
+    table = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
 
     expect(table[:keywords]).not_to be_empty
     expect(table[:arguments]).not_to be_empty
@@ -51,7 +51,7 @@ RSpec.describe "the generated parser table" do
   # the projection's own body — a requirement written as behaviour
   # instead of declared.
   it "refuses a chapter with no Syntax aggregate" do
-    expect { Hecksagain::Projector.call(:parser_table, bluebook: boot_in_memory.registry.bluebook("Pizzas")) }
-      .to raise_error(Hecksagain::Projector::WrongConstruct, /needs a chapter declaring Syntax/)
+    expect { Hecks::Projector.call(:parser_table, bluebook: boot_in_memory.registry.bluebook("Pizzas")) }
+      .to raise_error(Hecks::Projector::WrongConstruct, /needs a chapter declaring Syntax/)
   end
 end

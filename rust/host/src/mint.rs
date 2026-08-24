@@ -5,7 +5,7 @@
 // `crate::storage_shape` and `Exporter.translation_aggregate`'s own
 // header for why this crate never needs its own SQL compiler).
 //
-// A faithful, function-for-function port of `lib/hecksagain/adapters/
+// A faithful, function-for-function port of `lib/hecks/adapters/
 // driven/postgres_era/lineage/{provisioning,mint_transaction,
 // head_compiler,resumable_backfill}.rb`'s combined behavior — every SQL
 // string below is the SAME text those files issue, gathered verbatim,

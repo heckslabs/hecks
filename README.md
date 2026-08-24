@@ -1,4 +1,4 @@
-# hecksagain
+# hecks
 
 A `.bluebook` file declares a business domain — aggregates, value objects,
 commands, invariants — and the runtime boots it. Nothing in a domain is
@@ -90,7 +90,7 @@ own examples run against the real runtime on every push.
 ## Reference
 
 <!-- generated:begin id=reference -->
-[The DSL reference](docs/implemented/reference/index.md) — 22 contexts, generated from the aggregate-local tables under `lib/hecksagain/language/` and held to them by `spec/reference_golden_spec.rb`.
+[The DSL reference](docs/implemented/reference/index.md) — 22 contexts, generated from the aggregate-local tables under `lib/hecks/language/` and held to them by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
 ## Writing a bluebook
@@ -288,7 +288,7 @@ diffable FACT rather than a closure that can only ever be executed, the
 same reason the domain as a whole is data (see the opening paragraph).
 
 The admissible subset is conceived in
-[`lib/hecksagain/grammar/expression.bluebook`](lib/hecksagain/grammar/expression.bluebook)
+[`lib/hecks/grammar/expression.bluebook`](lib/hecks/grammar/expression.bluebook)
 and bounded by what the interpreter floor can evaluate:
 
 ```ruby skip
@@ -301,7 +301,7 @@ only once it reads as a real rendering — an operator with no rendering is
 not a slow operator, it is not an operator. That sentence is checked, not
 aspired to: every operator the evaluator runs passes through the grammar
 chapter's own Admit gate on each suite run
-(`lib/hecksagain/grammar/expression_operators.json`, held by
+(`lib/hecks/grammar/expression_operators.json`, held by
 `spec/operator_conformance_spec.rb`).
 
 ## The folder convention
@@ -321,8 +321,8 @@ Ports and adapters are **not** in there. They are the two halves of the
 inverted arrow, and each ships with the library beside its implementation:
 
 ```ruby skip
-lib/hecksagain/ports/            the PORT — the how-verb and the signal
-lib/hecksagain/adapters/driven/
+lib/hecks/ports/            the PORT — the how-verb and the signal
+lib/hecks/adapters/driven/
   sqlite.adapter                 the DECLARATION — its port, and the config it needs
   sqlite.rb                      the IMPLEMENTATION — the same thing said in Ruby
   memory.* heki.* postgres.* folder.* prism.*
@@ -385,15 +385,15 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
 | `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
-| `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecksagain/bluebook/dsl/ command_build... |
+| `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecks/bluebook/dsl/ command_builder.rb... |
 | `bin/console` | Boots a domain (pizzas by default) and drops into IRB with its door installed — the fastest way to dispatch a real command by hand. bin/c... |
 | `bin/doc_coverage` | EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is a declaration, and a declaration nothing runs cannot disagree wit... |
 | `bin/docs` | A domain's usage document, projected from its own bluebook. bin/docs # list every domain in this checkout bin/docs examples/banking # the... |
 | `bin/evolve` | The language-change convention, made executable. Adding a word to the bluebook surface has always been a many-file walk — syntax row, Rub... |
 | `bin/expression_projection` | The expression machinery's tables, projected from the grammar chapter's admitted set and checked in, so the evaluator and the canonical f... |
-| `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecksagain::Fuzzing::SequenceGenerator) and checks each one th... |
+| `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
-| `bin/hecksagain_query_ir_mcp` | AN MCP SERVER exposing Hecksagain::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/... |
+| `bin/hecks_query_ir_mcp` | AN MCP SERVER exposing Hecks::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/query... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
 | `bin/merge_tail` | Tail-merge: the one deliberate command. It marks a business event — an old app retiring — never a shape change. One transaction: advance ... |
@@ -403,15 +403,15 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
 | `bin/project_cli` | Mints a command-line binary for a domain, named after its bluebook. bin/project_cli # every domain in this checkout bin/project_cli qa # ... |
 | `bin/project_deploy` | The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md. Generates the SAM template and build Makefile for rus... |
-| `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecksagain::Forms::FieldShape#text_field (lib/hecksagain/ forms/field_shape... |
+| `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecks::Forms::FieldShape#text_field (lib/hecks/ forms/field_shape.rb) match... |
 | `bin/project_kernel_capabilities` | Generates the two capability enums the hand-written Rust kernel (rust/src/kernel/attribute_shapes/*.rs, rust/src/kernel/ expression_opera... |
 | `bin/project_model` | Projects the model's holding half from the language that declares it. Behaviour::X is hand-written and untouched; `settle` is the seam. b... |
-| `bin/project_oidc` | Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json` — the artifact half of §11, `Hecksagain::Projections::OIDC`,... |
-| `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecksagain... |
-| `bin/project_refusal_wording` | Generates rust/src/kernel/refusal_wording.rs from `Hecksagain::Runtime:: RefusalWording::TEMPLATES` (lib/hecksagain/runtime/refusal_wordi... |
+| `bin/project_oidc` | Projects every domain's OIDC client/scope manifest into `<domain>/oidc.json` — the artifact half of §11, `Hecks::Projections::OIDC`, made... |
+| `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecks's se... |
+| `bin/project_refusal_wording` | Generates rust/src/kernel/refusal_wording.rs from `Hecks::Runtime:: RefusalWording::TEMPLATES` (lib/hecks/runtime/refusal_wording.rb) — t... |
 | `bin/project_rust` | Generates Rust source for one domain into rust/src/generated/ — the driver for `RustProjection` (rust/project.rb, alongside the Rust crat... |
-| `bin/project_tenant` | THE TENANT PROVISIONER — same split bin/project_deploy already draws between VALIDATING a declared shape (lib/hecksagain/deploy's own Ten... |
-| `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecksagain/vocabulary.rb. A one-line wrapper over the projector registry, deliberately —... |
+| `bin/project_tenant` | THE TENANT PROVISIONER — same split bin/project_deploy already draws between VALIDATING a declared shape (lib/hecks/deploy's own Tenant.D... |
+| `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecks/vocabulary.rb. A one-line wrapper over the projector registry, deliberately — the ... |
 | `bin/project_wasm` | The WASM projector — wraps THE SAME Rust binary bin/project_rust already generates, rather than a second, WASM-specific implementation (d... |
 | `bin/project_wasm_browser` | The BROWSER wasm-bindgen projector — decision docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a SEPARATE binary from... |
 | `bin/query_ir` | STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session working ON the language (adding a resolution rule, checking a propagatio... |
@@ -431,7 +431,7 @@ Every domain this repository's own tests and docs draw examples from:
 ## The library
 
 ```ruby skip
-lib/hecksagain/
+lib/hecks/
   language/     the language, declared in its own bluebooks.  WHAT A BLUEBOOK IS.
   grammar/      the expression and translation sublanguages, and the Admit gate.
   bluebook/     dsl → ir → expression.  READING ONE.
@@ -449,7 +449,7 @@ Everything below is built on that core, each one a capability rather than
 a bolt-on:
 
 ```ruby skip
-lib/hecksagain/
+lib/hecks/
   facade/               the door — Handle, AggregateDoor, JsonDoor, Surface.  Class-free, per boot.
   router/               the project-wide dispatch door; installs each chapter's namespace at boot.
   ports/                domain ports — auth, identity, persistence, query — declared like everything else.
@@ -462,7 +462,7 @@ lib/hecksagain/
   deploy/               the Deploy bluebook — what `deployed_to` means, judged the same way as everything else.
 ```
 
-Nothing here is required by `require "hecksagain"` unless a booted domain
+Nothing here is required by `require "hecks"` unless a booted domain
 actually uses it — `forms/` and `fuzzing/` each stay out of the core
 boot chain on purpose, so a project that never touches one never pays
 for it.
@@ -475,7 +475,7 @@ while, kept honest against Ruby by a full differential-testing harness
 [`docs/implemented/rust-experiment.md`](docs/implemented/rust-experiment.md) for what it found and
 why: the domain's structure (aggregates, commands, rules, shapes) is
 genuinely declarative and belongs in `.bluebook`, judged by the self-hosted
-grammar in `lib/hecksagain/language/bluebook/`; the empirical half (actual
+grammar in `lib/hecks/language/bluebook/`; the empirical half (actual
 parsing, actual dispatch, actual I/O) resisted that treatment and had to be
 hand-duplicated by a second, hand-maintained implementation kept in parity
 by hand, forever, as Ruby changed — exactly the failure mode a generator

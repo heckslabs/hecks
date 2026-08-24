@@ -16,8 +16,8 @@ require "spec_helper"
 # identity — the exact inputs `boot` reads — so it is served precisely
 # while those inputs are unchanged and never otherwise. Three facts:
 RSpec.describe "SyntaxBoot's memo" do
-  SyntaxBootUnderTest = Hecksagain::Bluebook::MetaValidator::SyntaxBoot
-  MetaValidatorUnderTest = Hecksagain::Bluebook::MetaValidator
+  SyntaxBootUnderTest = Hecks::Bluebook::MetaValidator::SyntaxBoot
+  MetaValidatorUnderTest = Hecks::Bluebook::MetaValidator
 
   it "answers from the cache while the grammar registry's chapters are unchanged" do
     first = SyntaxBootUnderTest.call
@@ -32,7 +32,7 @@ RSpec.describe "SyntaxBoot's memo" do
     before = registry.bluebooks.keys
 
     begin
-      Hecksagain.with_registry(registry) do
+      Hecks.with_registry(registry) do
         Hecks.bluebook "SyntaxBootMemoProbe" do
           vision "a throwaway chapter, added only to prove the syntax table's own memo notices a new chapter"
           supporting

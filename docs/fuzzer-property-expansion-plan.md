@@ -56,7 +56,7 @@ This is worse than a duplicate row: it's silent duplication plus silent future m
 **Root cause**: `CommandInterpreter#hydrate` checks `AlreadyExists` for an aggregate's own creating
 command (`repository.find(id)` before building a new `Instance`) — this was itself a real,
 previously-fixed bug, per that file's own comment trail. The entity path never got the matching
-fix. `MutationApplier#entity_element` (`lib/hecksagain/runtime/command_interpreter/mutation_applier.rb:174-189`)
+fix. `MutationApplier#entity_element` (`lib/hecks/runtime/command_interpreter/mutation_applier.rb:174-189`)
 has two branches minting/accepting a new element's identity, and **neither checks the sibling list
 for a collision**:
 - auto-mint branch (`current.size + 1`) — safe today only because no real domain ever `remove:`s
@@ -124,7 +124,7 @@ dedicated property proving the "pages partition the whole set, no gaps, no overl
 is worth adding on top. Either way, small once #4 lands.
 
 *Note for whoever builds this*: `offset`/`nulls`/`cursor` are declared by the `Paging` sub-language
-now (`lib/hecksagain/language/bluebook/attaches/paging.bluebook`, ADR 0026/S15), not the core
+now (`lib/hecks/language/bluebook/attaches/paging.bluebook`, ADR 0026/S15), not the core
 `syntax.bluebook` — confirmed this changes nothing about the Ruby runtime (`DSL`/`Ports::Query`/
 `QueryInterpreter` are all untouched by that move), but worth a one-line comment so a future reader
 isn't confused hunting for the grammar rows in the wrong file.

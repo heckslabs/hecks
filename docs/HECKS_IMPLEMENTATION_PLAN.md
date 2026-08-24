@@ -1,6 +1,6 @@
-# HECKSAGAIN Architecture & Implementation Guide
+# HECKS Architecture & Implementation Guide
 
-> This document is the canonical engineering specification for HecksAgain.
+> This document is the canonical engineering specification for Hecks.
 > It combines architectural invariants, execution model, implementation guidance,
 > and the feature roadmap into a single reference intended for humans and coding agents.
 
@@ -38,13 +38,13 @@ Read the sections in order:
 ---
 # Part I — Architectural Foundation
 
-# HECKSAGAIN_IMPLEMENTATION_PLAN
+# HECKS_IMPLEMENTATION_PLAN
 
 # Addendum: Foundational Architecture
 
 ## Intent as the Primary Artifact
 
-HecksAgain models organizational intent rather than software
+Hecks models organizational intent rather than software
 implementation. Bluebooks are the canonical description of *why* an
 organization behaves the way it does. Runtimes, APIs, databases, user
 interfaces, documentation, reports, AI assistants, and language
@@ -215,7 +215,7 @@ Runtime behavior always remains deterministic.
 
 Every architectural invariant should be captured as an ADR. The
 implementation plan and ADRs together become the durable engineering
-memory of HecksAgain.
+memory of Hecks.
 
 ------------------------------------------------------------------------
 
@@ -247,7 +247,7 @@ concepts while preserving the small core language.
 7. Every new imperative capability must enter through a port/adapter.
 8. Do not introduce a second hand-written interpretation of Bluebook semantics unless explicitly approved.
 9. Add focused specs next to the subsystem being changed, then add corpus/golden coverage where the wire representation changes.
-10. Treat `lib/hecksagain/language/` and the self-hosted language declarations as load-bearing specifications, not documentation.
+10. Treat `lib/hecks/language/` and the self-hosted language declarations as load-bearing specifications, not documentation.
 
 ---
 
@@ -263,10 +263,10 @@ Commands already carry a single `role` field through `Bluebook::DSL::CommandBuil
 
 Likely files:
 
-- `lib/hecksagain/bluebook/dsl/command_builder.rb`
-- `lib/hecksagain/bluebook/ir/command.rb`
-- `lib/hecksagain/runtime/command_rules/authorization.rb`
-- `lib/hecksagain/language/bluebook/behavior.bluebook`
+- `lib/hecks/bluebook/dsl/command_builder.rb`
+- `lib/hecks/bluebook/ir/command.rb`
+- `lib/hecks/runtime/command_rules/authorization.rb`
+- `lib/hecks/language/bluebook/behavior.bluebook`
 - `spec/runtime/authorization_spec.rb`
 - `spec/corpus/*.json`
 
@@ -351,13 +351,13 @@ sketch below closely showed `Governance.authorize_transition!` called by
 APPLICATION code, before `Runtime::Caller.as(role:)` wraps a nested
 dispatch — not woven into `CommandInterpreter`/`Dispatcher`/
 `CommandRules::Authorization` at all. So none of those three changed.
-`lib/hecksagain/framework/bluebook/governance.bluebook` gained a second aggregate,
+`lib/hecks/framework/bluebook/governance.bluebook` gained a second aggregate,
 `RoleTransition` (`from_role`/`to_role`, `Grant`/`Revoke`, an `Allowed`
 query) — the fact "role X may act as role Y" that `RoleAssignment` alone
 could not answer. `spec/act_as_spec.rb` demonstrates the full pattern
 against two separate registries (Governance's own, and a real Pizzas
 boot): an application checks `Allowed`, then wraps the downstream dispatch
-in `Hecksagain.as_caller(role: ...)` ; the unauthorized-refusal path (no
+in `Hecks.as_caller(role: ...)` ; the unauthorized-refusal path (no
 `Allowed` row → the app-level check itself refuses, before any dispatch)
 and the role-restoration proof (a THIRD dispatch, right after the nested
 one, still authorized under the ORIGINAL role) are both covered. Also
@@ -375,7 +375,7 @@ see "Non-goals".
 `Runtime::Caller` already provides:
 
 ```ruby
-Hecksagain::Runtime::Caller.as(role: "Teller") { ... }
+Hecks::Runtime::Caller.as(role: "Teller") { ... }
 ```
 
 and authorization reads that ambient role. Dispatcher reactions explicitly clear caller context because system reactions should not inherit the initiating human's authority.
@@ -384,12 +384,12 @@ That is very close to the execution primitive required for `act_as`, but today i
 
 Likely files:
 
-- `lib/hecksagain/runtime/caller.rb`
-- `lib/hecksagain/runtime/dispatcher.rb`
-- `lib/hecksagain/runtime/command_interpreter.rb`
-- `lib/hecksagain/runtime/command_rules/authorization.rb`
-- `lib/hecksagain/bluebook/ir/command.rb`
-- `lib/hecksagain/language/bluebook/behavior.bluebook`
+- `lib/hecks/runtime/caller.rb`
+- `lib/hecks/runtime/dispatcher.rb`
+- `lib/hecks/runtime/command_interpreter.rb`
+- `lib/hecks/runtime/command_rules/authorization.rb`
+- `lib/hecks/bluebook/ir/command.rb`
+- `lib/hecks/language/bluebook/behavior.bluebook`
 - `spec/runtime/authorization_spec.rb`
 - new `spec/runtime/act_as_spec.rb`
 
@@ -502,7 +502,7 @@ The domain event itself may remain business-focused; the execution/evidence enve
 
 # 3. Governance Bluebook
 
-**Status:** Done (2026-08-07) — `lib/hecksagain/framework/bluebook/governance.bluebook`
+**Status:** Done (2026-08-07) — `lib/hecks/framework/bluebook/governance.bluebook`
 (+ `.hecksagon`, Memory-persisted). `RoleAssignment` aggregate: composite
 identity `(actor_id, role_name, starts_at)` rather than the sketch's
 synthetic `assignment_id` — no UUID adapter exists yet (`§5`), and a real
@@ -517,7 +517,7 @@ query); `AssignmentsForActor` is an ordinary `query`, the construct that
 actually answers "who holds what" — no new DSL surface needed anywhere
 in this build. `spec/corpus_spec.rb`/`spec/model_check_spec.rb` extended
 with a `FRAMEWORK_MEMBERS` glob (mirrors `GRAMMAR_CHAPTERS`'s flat-file
-pattern) so `lib/hecksagain/framework/bluebook/*.bluebook` gets the same
+pattern) so `lib/hecks/framework/bluebook/*.bluebook` gets the same
 must-load/must-have-a-corpus-script/no-unnamed-model-check-finding
 guarantees `examples/*` domains get. `spec/governance_spec.rb` (4
 examples) + `spec/corpus/governance.json`, full suite green (1004
@@ -629,14 +629,14 @@ end
 
 # 4. Identities Bluebook
 
-**Status:** Done (2026-08-07) — `lib/hecksagain/framework/bluebook/identity.bluebook`
+**Status:** Done (2026-08-07) — `lib/hecks/framework/bluebook/identity.bluebook`
 (+ `.hecksagon`, Memory-persisted; chapter renamed from `Identities` to
 `Identity` on 2026-08-08, matching Governance's own singular naming —
 the aggregate inside is ALSO named `Identity`, so its FQN is the
 slightly repetitive but unambiguous `Identity::Identity`). Attached to
 Banking for real via `uses_framework "Identity"` in
 `examples/banking/bluebook/banking.hecksagon`, the same mechanism
-Governance uses — see `§31`'s own note on `Hecksagain::Framework`.
+Governance uses — see `§31`'s own note on `Hecks::Framework`.
 `Identity` (identity_id minted via `§5`'s
 `Ports::IdentityGeneration.uuid` — no natural key exists for "a newly
 recognized identity," and this is the first real consumer of that
@@ -744,7 +744,7 @@ The Bluebook need not know how it is derived if the adapter supplies it.
 
 # 5. UUID adapter and imperative enrichment
 
-**Status:** Done (2026-08-07) — `lib/hecksagain/ports/identity_generation.{port,rb}`,
+**Status:** Done (2026-08-07) — `lib/hecks/ports/identity_generation.{port,rb}`,
 modeled on `Ports::Extraction` (one adapter registry-wide implements the
 port; zero/many both refuse), not on Persistence's heavier per-aggregate
 binding — different aggregates have no real reason to want different
@@ -949,8 +949,8 @@ Formalize canonical IR as a versioned contract that can be consumed without Ruby
 ### Ruby generation example
 
 ```ruby
-registry = Hecksagain.registry
-json = Hecksagain::Projector::Exporter.json(registry)
+registry = Hecks.registry
+json = Hecks::Projector::Exporter.json(registry)
 File.write("payments.ir.json", json)
 ```
 
@@ -959,8 +959,8 @@ File.write("payments.ir.json", json)
 ```ruby
 original = registry.bluebook("Payments")
 
-json = Hecksagain::Runtime::DeclarationSnapshot.dump(original)
-restored = Hecksagain::Runtime::DeclarationSnapshot.load(json)
+json = Hecks::Runtime::DeclarationSnapshot.dump(original)
+restored = Hecks::Runtime::DeclarationSnapshot.load(json)
 
 expect(restored.to_h).to eq(original.to_h)
 ```
@@ -1006,17 +1006,17 @@ Recorded formally as `docs/implemented/decisions/0011-rust-compiles-types-interp
 
 Everything below this point in §8, up through the original "Non-goals for milestone 1," was written before work started and describes a design that was **not** the one implemented. The as-built system inverts one of that design's own stated non-goals — worth reading as a real correction, not a footnote:
 
-**Location.** `rust/` at the repo root (a Cargo crate — renamed twice in review, first from the pre-existing `rust_runner/`, then settled here specifically so Ruby generator code doesn't live under `lib/hecksagain/`) holds both the Rust crate (`rust/src/`) and its Ruby generator (`rust/project.rb` + `rust/project/*.rb`, module `RustProjection`, no `Hecksagain::` namespace — it's tooling *for* hecksagain, not part of the library). `bin/project_rust <domain>` is the thin driver.
+**Location.** `rust/` at the repo root (a Cargo crate — renamed twice in review, first from the pre-existing `rust_runner/`, then settled here specifically so Ruby generator code doesn't live under `lib/hecks/`) holds both the Rust crate (`rust/src/`) and its Ruby generator (`rust/project.rb` + `rust/project/*.rb`, module `RustProjection`, no `Hecks::` namespace — it's tooling *for* hecks, not part of the library). `bin/project_rust <domain>` is the thin driver.
 
 **Architecture actually built: compile types, interpret dispatch DATA.** `rust/src/kernel/{expr.rs,dispatch.rs}` is hand-written **once**, and is a small, fully generic interpreter: `interpret(expr, ctx)` walks an `Expr` AST (a direct structural port of `Evaluator`/`Resolver`'s node kinds — `Or`/`And`/`Not`/`Compare`/`Include`/`Lookup`/arithmetic/sign-test/etc.), and `dispatch(...)` walks the real `DISPATCH_ORDER` steps generically, driven by whatever `GivenSpec`/`EnsuresSpec`/mutation-closure a generated function hands it. This is the **opposite** of the non-goal this section originally stated ("No generic kernel that parses or interprets canonical IR at runtime") — `given`/`ensures`/invariant text genuinely is walked as data, by one hand-written interpreter, at the compiled binary's own runtime. What IS compiled ahead of time, by `bin/project_rust`, is narrower than originally planned: just the **type shapes** — real Rust structs/enums per value object/entity/record, plus a `Fielded` trait impl per type so the generic interpreter can do name-based field lookup (`"balance.cents"`) against otherwise fully static, typed data. The generator itself parses real IR objects via Ruby's own `Evaluator.parse`, then emits `Expr::Compare { ... }`-shaped Rust *data literals*, not compiled boolean expressions.
 
 Why this diverged: mid-build, generating one bespoke Rust function per command *shape* (a plain creator vs. an acting command with a given vs. one with a lifecycle transition vs. one with `ensures`...) didn't converge — every new shape needed a new hand-written case, the same failure mode this section already correctly diagnosed for the *retired* Rust runtime, just one level down (per-shape codegen instead of a whole second interpreter). Interpreting dispatch data generically, once, was the fix — see `docs/implemented/guides/running-a-runtime.md`'s "Interpret data, don't compile source" section for the fuller argument.
 
-**What generates correctly today, for both Pizzas and Banking, zero skips:** every `then_set` op (`set`/`append`/`increment`/`decrement`, including cross-VO-type coercion by matching field names — `Value::Coercion#fields_for`'s real rule, not a guess), `given`/`ensures` (any expression the real grammar admits — no `Unsupported` case, because an interpreter needs none of the static machinery a compiler would), lifecycle transitions, closed sets (including multi-field ones, as a data table rather than a tag enum), composite identity (dotted, bare-declared, and bare-undeclared components), and **entities** — a capability this section didn't originally scope at all: `list_of(Entity)` attributes (`Account.ledger`, a `Vec<LedgerEntry>`) are a valid `append` target, with the entity's own identity and lifecycle field auto-filled at append time the way `MutationApplier#entity_element` fills them. The self-hosted grammar itself (`lib/hecksagain/language/bluebook/`) also compiles through the identical pipeline, alongside whichever business domain is the build target — another capability not in the original plan.
+**What generates correctly today, for both Pizzas and Banking, zero skips:** every `then_set` op (`set`/`append`/`increment`/`decrement`, including cross-VO-type coercion by matching field names — `Value::Coercion#fields_for`'s real rule, not a guess), `given`/`ensures` (any expression the real grammar admits — no `Unsupported` case, because an interpreter needs none of the static machinery a compiler would), lifecycle transitions, closed sets (including multi-field ones, as a data table rather than a tag enum), composite identity (dotted, bare-declared, and bare-undeclared components), and **entities** — a capability this section didn't originally scope at all: `list_of(Entity)` attributes (`Account.ledger`, a `Vec<LedgerEntry>`) are a valid `append` target, with the entity's own identity and lifecycle field auto-filled at append time the way `MutationApplier#entity_element` fills them. The self-hosted grammar itself (`lib/hecks/language/bluebook/`) also compiles through the identical pipeline, alongside whichever business domain is the build target — another capability not in the original plan.
 
 **What's still real and unbuilt, same as before:** an entity's OWN commands (`LedgerEntry.Amend`/`.Reverse` — addressing one list element by identity, a materially different and larger feature) — **done** ([0013](decisions/0013-rust-generates-entities-policies-sagas.md)); role checking — **done** ([0019](decisions/0019-rust-generates-role-checking.md)); reference-existence checking (`resolve_references`) — **done** ([0017](decisions/0017-rust-generates-reference-existence-checking.md)); attribute-level `admits:`/`pattern:` constraint checks — **done** ([0018](decisions/0018-rust-generates-attribute-constraint-checks.md)); the `CardPayment.tags` `nil`-vs-`[]` list representation gap — **done** ([0020](decisions/0020-rust-option-wraps-creation-optional-list-fields.md), full corpus parity: 35/35 matching instances); era selection / historical-era support — **split, partially done**: reading a lineage-capable aggregate's current, already-translated state and writing a new mutation from Rust — **done** (`rust/host`'s `journal::read_lineage_head_all`/`_by_id`/`append_lineage_mutation`, generic over any aggregate `Projector::Exporter.lineage` names, tracked per domain by `bin/rust_coverage`'s own `lineage_aggregate` findings); minting an era, detecting shape drift, or compiling a translation rule to SQL from Rust — still **not done, and not planned**, by architecture rather than by gap (that machinery parses bluebook/translation-rule DSL source at runtime, which ADR 0007 rules out for any Rust target permanently — `rust/project.rb`'s own header carries the full, current account, including why this generator's own WASM kernel deliberately still never blends a lineage-capable aggregate into its `InMemoryRepository` replay path); WASM (`§9`, fully unstarted, and now depends on a different underlying design than `§9` assumes — see `§9`'s own note).
 
-> **Correction (2026-08-10):** "building a Rust Postgres adapter FIRST" is now stale — one exists, built afterward (`rust/host/src/journal.rs`, `rust/host/src/main.rs`), and is live in production (the deployed pizzas Lambda). It's real, tested against a genuine Postgres instance including Ruby's own RLS fence (`journal::lineage_tests::a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`, using real Ruby `LineageManager` mint code, not a stand-in), and writes each accepted command's mutations into Ruby's OWN per-aggregate, era-partitioned schema (`hecks_journal_<domain>`, `<aggregate>_head_snapshot_<era>` — same table names Ruby's `postgres.rb` uses) so a human or Ruby tooling reading that schema sees Rust's writes exactly the way it sees Ruby's own. As of the boot-gate hardening in this same investigation, `rust/host` also refuses to boot against a *stale* era (one that exists in `hecks_eras` but has been superseded by a later mint), not merely a never-minted one — closing the gap where a bare existence check would have let a stale checkout start and rely on RLS alone to catch it, and only for the subset of commands touching a lineage-capable aggregate. What's still genuinely, entirely missing — the actual remaining scope of this line item — is everything on the *reading and transition* side: `rust/host` writes into exactly the ONE era it's deployed against and never reads the era-partitioned tables back (its own command-replay state comes from a separate, flat, era-oblivious journal); there is no Rust equivalent of `LineageManager`'s edge-chain resolution, shadow-parsing, shape-hashing, translation-rule execution, mint transaction, tamper-evidence, or coverage/approval checks (`lib/hecksagain/adapters/driven/postgres/lineage_manager/*.rb`, `lineage/*.rb`) — all of that remains Ruby-only, deliberately, per ADR 0007 (Rust doesn't carry the bluebook parser or translation DSL). So: narrower than this section originally claimed in the "Postgres adapter" dimension (done), unchanged in the "shape-diff/migration/multi-era-read subsystem" dimension (still not started, still genuinely large — see the era/lineage investigation's own scoping notes for the phased plan a full port would need).
+> **Correction (2026-08-10):** "building a Rust Postgres adapter FIRST" is now stale — one exists, built afterward (`rust/host/src/journal.rs`, `rust/host/src/main.rs`), and is live in production (the deployed pizzas Lambda). It's real, tested against a genuine Postgres instance including Ruby's own RLS fence (`journal::lineage_tests::a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`, using real Ruby `LineageManager` mint code, not a stand-in), and writes each accepted command's mutations into Ruby's OWN per-aggregate, era-partitioned schema (`hecks_journal_<domain>`, `<aggregate>_head_snapshot_<era>` — same table names Ruby's `postgres.rb` uses) so a human or Ruby tooling reading that schema sees Rust's writes exactly the way it sees Ruby's own. As of the boot-gate hardening in this same investigation, `rust/host` also refuses to boot against a *stale* era (one that exists in `hecks_eras` but has been superseded by a later mint), not merely a never-minted one — closing the gap where a bare existence check would have let a stale checkout start and rely on RLS alone to catch it, and only for the subset of commands touching a lineage-capable aggregate. What's still genuinely, entirely missing — the actual remaining scope of this line item — is everything on the *reading and transition* side: `rust/host` writes into exactly the ONE era it's deployed against and never reads the era-partitioned tables back (its own command-replay state comes from a separate, flat, era-oblivious journal); there is no Rust equivalent of `LineageManager`'s edge-chain resolution, shadow-parsing, shape-hashing, translation-rule execution, mint transaction, tamper-evidence, or coverage/approval checks (`lib/hecks/adapters/driven/postgres/lineage_manager/*.rb`, `lineage/*.rb`) — all of that remains Ruby-only, deliberately, per ADR 0007 (Rust doesn't carry the bluebook parser or translation DSL). So: narrower than this section originally claimed in the "Postgres adapter" dimension (done), unchanged in the "shape-diff/migration/multi-era-read subsystem" dimension (still not started, still genuinely large — see the era/lineage investigation's own scoping notes for the phased plan a full port would need).
 
 **Verification, as actually done:** `bin/rust_conformance` (restored 2026-08-07 alongside this document, confirmed still running against the current codebase — `spec/corpus/pizzas.json` and `banking.json` both still work) was **not** wired into the Rust generator's workflow at any point. Everything above was verified instead by direct `cargo run` smoke tests against real scenarios (`Account.Open → Credit → Debit → over-limit refusal`, `ScheduledPayment.Schedule → Fail → Retry ×3 → exhausted`, the full Pizzas walkthrough), diffed by eye against known-correct Ruby behavior, plus `spec/port_shape_coverage_spec.rb` (a Ruby-side gate ensuring Banking keeps exercising every IR shape the generator branches on) and full-suite regression on the Ruby side after every change. Wiring `bin/rust_conformance` into an automated per-change check against the Rust output remains real, valuable, un-started work — see "If this is picked up again," below.
 
@@ -1244,10 +1244,10 @@ against a live provider) is deliberately NOT built: security-critical,
 needs real external dependencies and provider credentials neither
 available nor meaningfully testable here, scoped out on purpose rather
 than stubbed. What IS built and proven against real Banking: a new
-`identity_resolution` port (`lib/hecksagain/ports/identity_resolution.{port,rb}`),
+`identity_resolution` port (`lib/hecks/ports/identity_resolution.{port,rb}`),
 resolved zero/one/many exactly like the `authorization` port
-`Ports::Authorization` built for `§2`, fulfilled by `Hecksagain::Adapters::IdentityRegistry`
-(`lib/hecksagain/adapters/driven/identity_registry.rb`) — a same-registry
+`Ports::Authorization` built for `§2`, fulfilled by `Hecks::Adapters::IdentityRegistry`
+(`lib/hecks/adapters/driven/identity_registry.rb`) — a same-registry
 dispatch against `Identity::ExternalIdentifier.ResolvedBy`, mirroring
 `GovernanceAuthorization`'s own shape exactly. `spec/oidc_projection_spec.rb`
 composes it with `Ports::Authorization.holds_role?` and `Hecks.as_caller`
@@ -2112,10 +2112,10 @@ Do not mechanically translate source code line-by-line.
 
 # 30. Projector architecture
 
-**Status:** Done (2026-08-08) — `Hecksagain::Projector.register(name, projector)` /
-`.call(name, bluebook:, options:)` now exist for real (`lib/hecksagain/projector.rb`),
+**Status:** Done (2026-08-08) — `Hecks::Projector.register(name, projector)` /
+`.call(name, bluebook:, options:)` now exist for real (`lib/hecks/projector.rb`),
 proven against a genuine registered target, `:ir`
-(`lib/hecksagain/projector/ir_projector.rb`), whose output matches
+(`lib/hecks/projector/ir_projector.rb`), whose output matches
 `spec/golden/ir/Pizzas.json` byte-for-byte once sorted and carries
 `ir_version:` as target-version metadata for free (`§7`). `Exporter`
 itself is UNTOUCHED and still exactly what `bin/ir`, `bin/project_rust`,
@@ -2133,7 +2133,7 @@ unknown-target/golden-determinism.
 
 ### Target
 
-Turn `Hecksagain::Projector` into a stable projection framework rather than one exporter module.
+Turn `Hecks::Projector` into a stable projection framework rather than one exporter module.
 
 Suggested interface:
 
@@ -2173,8 +2173,8 @@ This prevents target formatting logic from polluting canonical semantics.
 
 # 31. Port fulfillment graph
 
-**Status:** Done (2026-08-07) — `lib/hecksagain/runtime/capability_graph.rb`,
-`Hecksagain::Runtime::CapabilityGraph`, exposing exactly the sketched
+**Status:** Done (2026-08-07) — `lib/hecks/runtime/capability_graph.rb`,
+`Hecks::Runtime::CapabilityGraph`, exposing exactly the sketched
 `registry.capability_graph.{fulfillments,unfulfilled,cycles}`. Built off
 what the registry already holds: `registry.ports`/`registry.adapters`, and
 the same `adapter.port == port.name` match `Ports::Extraction` and
@@ -2492,7 +2492,7 @@ Measured, with the ordinary `fuzzing`/`io` exclusions:
 
 The 146 failures are not 146 problems. They are five causes:
 
-- **109 — one predicate.** `CommandInterpreter#legacy_implicit_creation?` reads `route.nil? && plan.write_set.empty? && command.creates?`. Every un-migrated creating command in the corpus (`Account.Open`, `Wire.Ask`, the `Engagement`/`Team`/`Light` fixtures) has a *non-empty* write set — `sets :number`, `sets :kind` — so it misses that fallback; it is not `complete_state?` either, because its `belongs_to` is still spelled as a command-level `reference_to`; so it falls through to `hydrate_existing`, which demands a record that does not exist yet. `Hecksagain::Runtime::NotFound: no Account with number.value "a1"`, 73 times for `Account` alone. The four in `spec/runtime/relationship_semantics_spec.rb` are in this count: that is the plan's own Wave 2B relationship exemplar, green when written and broken afterwards by the Wave 3 planner.
+- **109 — one predicate.** `CommandInterpreter#legacy_implicit_creation?` reads `route.nil? && plan.write_set.empty? && command.creates?`. Every un-migrated creating command in the corpus (`Account.Open`, `Wire.Ask`, the `Engagement`/`Team`/`Light` fixtures) has a *non-empty* write set — `sets :number`, `sets :kind` — so it misses that fallback; it is not `complete_state?` either, because its `belongs_to` is still spelled as a command-level `reference_to`; so it falls through to `hydrate_existing`, which demands a record that does not exist yet. `Hecks::Runtime::NotFound: no Account with number.value "a1"`, 73 times for `Account` alone. The four in `spec/runtime/relationship_semantics_spec.rb` are in this count: that is the plan's own Wave 2B relationship exemplar, green when written and broken afterwards by the Wave 3 planner.
 - **7 — the retired `reference_to` refused where the corpus still spells it.** Five doc pages (`writing-an-adapter`, `wiring`, `port_operation`, `domain_port`, `hecksagon`) plus two `spec/dsl_spec.rb` port-operation examples.
 - **15 — generated-artifact drift.** IR goldens (9), the Pizzas projector golden, the generated reference tables, and the word-coverage/doc-coverage gates that now name `belongs_to` and Entity's relationship words. Wave 8 work, correctly deferred.
 - **3 — doctest mismatches in migrated guides**, one of which is a real behavior change in disguise (below).
@@ -2566,4 +2566,4 @@ When implementing any feature:
 - Prefer extending IR, projections, adapters, or supporting Bluebooks over expanding the core DSL.
 - Ensure new concepts can be projected consistently across target projections.
 
-This document is intended to become the long-term architectural memory of HecksAgain.
+This document is intended to become the long-term architectural memory of Hecks.

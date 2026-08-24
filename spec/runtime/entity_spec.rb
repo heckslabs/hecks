@@ -4,16 +4,16 @@ RSpec.describe "an entity" do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(BANKING_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -52,7 +52,7 @@ narrative: { text: "Groceries" })
     expect do
       runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
 narrative: { text: "" })
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+    end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'Narrative.text must match [^ \t\n\r], got ""')
   end
 
@@ -85,7 +85,7 @@ narrative: { text: "" })
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Reverse refused — entry is posted")
+    end.to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — entry is posted")
   end
 
   it "refuses an element nobody posted, naming the parent" do
@@ -97,7 +97,7 @@ narrative: { text: "" })
                        number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
       # The message names the declared PATH now ("sequence.value"), not just the
       # head — the same precision every construct's not-found message carries.
-    end.to raise_error(Hecksagain::Runtime::NotFound,
+    end.to raise_error(Hecks::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
   end
 
@@ -108,7 +108,7 @@ narrative: { text: "" })
                      number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
-    materialized = rows.map { |row| row.transform_values { |value| Hecksagain::Runtime::Value.materialize(value) } }
+    materialized = rows.map { |row| row.transform_values { |value| Hecks::Runtime::Value.materialize(value) } }
     expect(materialized).to eq([
                                  { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" }, narrative: { text: "Posted in error" },
                                    direction: { value: "debit" }, state: "reversed" }

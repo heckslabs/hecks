@@ -3,10 +3,10 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "hecksagain-embryonaut"
+stack_name = "hecks-embryonaut"
 region = "us-east-1"
 resolve_s3 = true
-s3_prefix = "hecksagain-embryonaut"
+s3_prefix = "hecks-embryonaut"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 disable_rollback = false

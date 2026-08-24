@@ -1,6 +1,6 @@
 # command_form.bluebook and query_form.bluebook: forms and views straight off the IR
 
-**Status: prototype.** A working slice lives at `lib/hecksagain/forms/`,
+**Status: prototype.** A working slice lives at `lib/hecks/forms/`,
 demoed by `bin/present` against the banking example. This records the
 design, what it deliberately does and doesn't do yet, and the path to
 making these real words in the language rather than the ordinary Ruby DSL
@@ -57,7 +57,7 @@ branch of an if.
 
 Not a framework, not a component library — plain, hand-rolled HTML5, in the
 spirit of the rest of this codebase (no ERB, no template engine anywhere in
-the repo; see `lib/hecksagain/forms/html.rb`'s own note). Concretely:
+the repo; see `lib/hecks/forms/html.rb`'s own note). Concretely:
 
 - **Semantic, accessible markup.** Real `<label for>`, `<fieldset>`/`<legend>`
   for a value object's own fields, `aria-describedby` linking a field to its
@@ -121,7 +121,7 @@ offer for "which account."
 
 ## The field-shape mapping
 
-`lib/hecksagain/forms/field_shape.rb` is the one place `IR::Attribute`
+`lib/hecks/forms/field_shape.rb` is the one place `IR::Attribute`
 becomes an HTML input shape — shared by both words equally, since a
 command's own attribute and a query's own parameter resolve to the exact
 same shape. It's the piece the prior prototype in this repo
@@ -169,7 +169,7 @@ to draw the input, one reading of the IR for both jobs.
 where a command and a query actually differ — `CommandFormRenderer`
 (`command_form_renderer.rb`) owns the POST form and its submit handling;
 `QueryFormRenderer` (`query_form_renderer.rb`) owns the canonical link,
-quick-links, and filter form. Everything else in `lib/hecksagain/forms/` is
+quick-links, and filter form. Everything else in `lib/hecks/forms/` is
 genuinely cross-cutting and stays shared rather than being forked in two —
 splitting it would mean two copies drifting, for no reader's benefit:
 
@@ -202,13 +202,13 @@ splitting it would mean two copies drifting, for no reader's benefit:
   `world` do. `docs/implemented/guides/extending-hecks.md` is explicit that a real word
   is "a declared row before it is a line of Ruby," judged by
   `syntax.bluebook` — and this hasn't earned that yet. It's an ordinary
-  Ruby DSL (`Hecksagain::Forms.configure("Name") { expose "Banking" }`,
-  `lib/hecksagain/forms.rb`), one level of module state, no different in
+  Ruby DSL (`Hecks::Forms.configure("Name") { expose "Banking" }`,
+  `lib/hecks/forms.rb`), one level of module state, no different in
   kind from a project's own initializer. This was tried the other way
   first — `Hecks.present` as a real collector into `Runtime::Registry` —
   and reverted: `spec/syntax_conformance_spec.rb` and
   `spec/dsl_coverage_spec.rb` both correctly refused a new word on the
-  `Hecksagain` module surface with no `syntax.bluebook` row and no coverage
+  `Hecks` module surface with no `syntax.bluebook` row and no coverage
   example, which is exactly what those gates are for. Graduating this into
   real syntax — earning a place beside `bluebook`/`hecksagon`, as two (or
   three) separate words rather than one — is the natural next step once
@@ -224,7 +224,7 @@ splitting it would mean two copies drifting, for no reader's benefit:
   and `spec/model_check_spec.rb` (`Dir.glob(examples/*)`), each expected to
   be a complete, independently model-checked domain with its own corpus
   script. The demo config is a sample of *this feature*, not a domain, so
-  it lives at `lib/hecksagain/forms/examples/banking_console.bluebook`
+  it lives at `lib/hecks/forms/examples/banking_console.bluebook`
   instead — found this the hard way, mid-build, when adding a second example
   directory turned two unrelated specs red.
 - **No field-level refusal attribution.** A domain refusal is a typed
@@ -266,7 +266,7 @@ Then, for example: `open http://localhost:4567/`,
 `curl http://localhost:4567/Banking/Account/Debit`.
 
 To point this at a different domain, write a
-`lib/hecksagain/forms/examples/banking_console.bluebook`-shaped file
+`lib/hecks/forms/examples/banking_console.bluebook`-shaped file
 (anywhere but `examples/*` — see above) declaring which chapters to
 expose, and adapt `bin/present`'s own boot block (or, for a domain whose
 `.hecksagon` already binds a real adapter rather than needing the

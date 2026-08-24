@@ -1,0 +1,489 @@
+Hecks.bluebook "ConsoleSettings" do
+  vision "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see embryonaut_console's own presentation_config.rb for the fuller story."
+  supporting
+
+  # A FRAMEWORK MEMBER LIKE IDENTITY/GOVERNANCE — attach with
+  # `uses_framework "ConsoleSettings"` in the consuming app's own
+  # `.hecksagon`, plus a `Hecks.hecksagon "ConsoleSettings" do ... end`
+  # persistence binding (Heki is the common case — a small, local,
+  # per-app settings store, no shared database needed). This used to
+  # boot in a SECOND, independent registry (embryonaut_console's own
+  # console_settings_domain.rb) specifically so no consuming app needed
+  # any change at all — that property is real and now given up on
+  # purpose, in favor of the one binding mechanism every other
+  # framework member already uses, rather than this being the one
+  # exception with its own private boot path.
+  #
+  # NOT named "Forms" — Hecks::Forms (lib/hecks/forms/) already
+  # names a different, real thing: a dormant prototype (the working half
+  # of command_form.bluebook/query_form.bluebook, see docs/command-form-
+  # and-query-form-bluebook.md) that renders raw forms/query views
+  # straight off any IR, zero config. This chapter is the opposite kind
+  # of surface — a CURATED, hand-authored dashboard's own settings — and
+  # picks a name that doesn't read as the same one.
+  #
+  # SCOPE: everything presentation.yml carries EXCEPT a collection's own
+  # `after_create` (a dispatch chain with a literal-or-$field-or-
+  # count_query arg shape — a harder design problem that shouldn't gate
+  # everything else; Ruby-side PresentationConfig keeps validating it,
+  # same as always, with nowhere yet to persist it). `overview.stats`
+  # (Overview, below) and every `extra_json`/`identity_extra_json`
+  # field throughout this chapter were BOTH originally scoped out on an
+  # "confirmed unused in any real presentation.yml" basis that turned
+  # out to be checked against the wrong file — embryonaut_console's own
+  # fixture, never this app's actual, live one. Migrating the real file
+  # found both very much in use.
+
+  aggregate "StateStyle" do
+    description "One aggregate's one lifecycle state, styled — a tone and whether it needs attention. Every real state gets a row, even a bare one (PresentationConfig's own missing_state_entries! check), so Declare and the two Set commands are separate: a bare row is a real, valid thing to have."
+
+    # `agg`, not `aggregate` — the bluebook DSL's own word for what's being
+    # declared right now; naming an attribute that would shadow it invites
+    # exactly the confusion ui_schema.rb's own identity-collision fix
+    # (see [[project_generic_founder_app]]) already had to work around
+    # once for `id`.
+    attribute :agg,       StateStyleText
+    attribute :state,     StateStyleText
+    attribute :tone,      one_of("good", "warn", "danger", "muted", "accent"), optional: true
+
+    identified_by :agg, :state
+    # `Flag`, wrapping "true"/"false" — not a bare `String` and not
+    # `TrueClass`. Two confirmed-by-trying reasons neither works directly
+    # on an aggregate/command attribute:
+    #   - `TrueClass`/`FalseClass` are real, pre-existing Ruby constants,
+    #     so writing them here resolves through NORMAL Ruby constant
+    #     lookup rather than ever reaching the DSL's own ConstShim (unlike
+    #     a bareword like `Flag`, which has no such constant and so DOES
+    #     reach it) — the meta-validator has no separate case for the
+    #     literal class objects, so it goes looking for a declared value
+    #     object named "TrueClass" and fails. `Attribute::PRIMITIVES`
+    #     lists them, but no real bluebook in this codebase spells one.
+    #   - A bare primitive (`String`, `Integer`) directly on an
+    #     AGGREGATE or COMMAND attribute fails the identical way — every
+    #     real example in this codebase only ever uses `String`/`Integer`
+    #     INSIDE a `value_object do...end` block, never as a top-level
+    #     attribute's own type; reproduced with a 4-line isolated bluebook
+    #     before trusting it as a real rule, not a guess.
+    # PresentationConfig's own Ruby glue converts "true"/"false" at the
+    # boundary.
+    attribute :attention, Flag, optional: true
+
+    # WHATEVER A STATE ENTRY CARRIES THAT ISN'T tone/attention — a
+    # display `label` (e.g. Client's own "active" reading "Active
+    # client", not the raw state name) or a `note`, confirmed live as
+    # real, in-use fields this schema didn't model. Serialized, not
+    # decomposed — the same verified-then-opaque reasoning Overview's
+    # own `where_json` already documents: PresentationConfig's own
+    # reshape/write is where the real key set is enumerated and
+    # subtracted from, in Ruby, not here.
+    attribute :extra_json, StateStyleExtra, optional: true
+
+    value_object "StateStyleText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
+
+    value_object "Flag" do
+      attribute :value, String
+    end
+
+    # A bare `String` fails directly on an aggregate/command attribute
+    # (StateStyleText's own comment gives the confirmed-by-trying
+    # reason) — this wraps extra_json's own opaque JSON text the same
+    # way every other scalar field in this chapter already wraps one.
+    value_object "StateStyleExtra" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one aggregate's one state a presentation row, styled or bare"
+
+      attribute :agg,   StateStyleText
+      attribute :state, StateStyleText
+
+      given("a style names its own aggregate") { !agg.value.to_s.empty? }
+      given("a style names its own state") { !state.value.to_s.empty? }
+
+      emits "StateStyleDeclared"
+    end
+
+    command "SetTone" do
+      role "Console"
+      goal "Color one state"
+
+      reference_to StateStyle
+      attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
+
+      sets :tone
+      emits "ToneSet"
+    end
+
+    command "SetAttention" do
+      role "Console"
+      goal "Mark whether one state needs a person's attention"
+
+      reference_to StateStyle
+      attribute :attention, Flag
+
+      sets :attention
+      emits "AttentionSet"
+    end
+
+    command "SetExtra" do
+      role "Console"
+      goal "Carry whatever per-state fields aren't individually modeled yet (label, note, ...)"
+
+      reference_to StateStyle
+      attribute :extra_json, StateStyleExtra
+
+      sets :extra_json
+      emits "StateStyleExtraSet"
+    end
+  end
+
+  aggregate "Collection" do
+    description "One app aggregate's own console presentation — nav label, curated columns, detail-panel fields (with an optional entity state_filter and a row_columns subset), identity-assignment strategy, field formats, preconditions, and which query lists it. Every list-shaped piece is rows on this root, never a nested list inside a value object — the same 'an open map is rows on a head' shape Wiring::Setting and Query::AskOption already use, and the same reason: no value object here can hold a map, and this sidesteps ever needing to find out whether one can hold a plain list either."
+
+    attribute :agg,                  SettingsText
+
+    identified_by :agg
+
+    attribute :label,                SettingsText, optional: true
+    attribute :key,                  SettingsText, optional: true
+    attribute :nav_order,            SettingsNumber, optional: true
+    attribute :primary_field,        SettingsText, optional: true
+    attribute :list_query,           SettingsText, optional: true
+    attribute :identity_field,       SettingsText, optional: true
+    attribute :identity_strategy,    one_of("slug", "sequence", "port"), optional: true
+    attribute :identity_source,      SettingsText, optional: true
+    attribute :identity_prefix,      SettingsText, optional: true
+    # `pad` (a sequence strategy's own zero-padding width, e.g. "C-004"
+    # vs "C-4") confirmed live as real, in-use — not modeled as its own
+    # attribute for the same reason `identity_source`/`identity_prefix`
+    # aren't a closed set either: whatever a real identity rule carries
+    # beyond field/strategy/source/prefix, opaque, same as extra_json
+    # below.
+    attribute :identity_extra_json,  CollectionExtra, optional: true
+    attribute :columns,              list_of(Column)
+    attribute :detail_fields,        list_of(DetailField)
+    attribute :detail_field_columns, list_of(DetailFieldColumn)
+    attribute :preconditions,        list_of(Precondition)
+    attribute :field_formats,        list_of(FieldFormat)
+    # WHATEVER A COLLECTION ENTRY CARRIES beyond the fields above —
+    # `noun_sing`, `create_label`, `nav_group` confirmed live as real,
+    # in-use fields this schema didn't model (10/8/2 real occurrences
+    # respectively). Same verified-then-opaque reasoning as StateStyle's
+    # own extra_json.
+    attribute :extra_json,           CollectionExtra, optional: true
+
+    value_object "SettingsText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
+
+    value_object "SettingsNumber" do
+      attribute :value, Integer
+    end
+
+    # A bare `String` fails directly on an aggregate/command attribute —
+    # see StateStyleExtra's own comment. Shared by both extra_json and
+    # identity_extra_json; both are opaque JSON text, no reason for two
+    # separate wrapper types.
+    value_object "CollectionExtra" do
+      attribute :value, String
+    end
+
+    # A list/table column. `sortable`/`sort_default` are optional — most
+    # columns take the frontend's own default (sortable, no forced order).
+    # `sort_default` stays a plain String, not a closed set — narrow
+    # enough (and PresentationConfig.validate! already checks it in
+    # Ruby) that a dedicated `one_of: [...]` (S3, ADR 0025 — the field's
+    # own keyword now, no sibling value object or `admits:` indirection
+    # needed) still isn't worth it for this one field.
+    value_object "Column" do
+      attribute :field,        String
+      attribute :sortable,     String, optional: true  # "true"/"false" — see StateStyle.attention's own comment
+      attribute :sort_default, String, optional: true
+      # `head`/`as`/`hop` confirmed live as real, in-use column-level
+      # overrides this schema didn't model — verified-then-opaque, same
+      # reasoning as StateStyle's own extra_json.
+      attribute :extra_json,   String, optional: true
+    end
+
+    # One field the detail panel shows. `state_filter` only means anything
+    # on an entity-backed rows field (ui_schema.rb's own apply_row_state_
+    # filter checks this at read time, same as it does today) — nothing
+    # here refuses a state_filter on the wrong shape of field, since that
+    # check needs the APP's own live IR, which this domain can't see; it
+    # stays a Ruby-side PresentationConfig.validate! check, same as always.
+    # `display` is a plain String for the same nested-`one_of` collision
+    # reason `sort_default` is, above.
+    value_object "DetailField" do
+      attribute :field,        String
+      attribute :display,      String, optional: true
+      attribute :state_filter, String, optional: true
+      # `head`/`as`/`hop` confirmed live as real, in-use detail-field
+      # overrides this schema didn't model — verified-then-opaque, same
+      # reasoning as StateStyle's own extra_json.
+      attribute :extra_json,   String, optional: true
+    end
+
+    # A rows-shaped detail field's own sub-column filter, FLATTENED to one
+    # row per (field, column) pair rather than nested inside DetailField —
+    # grouped back by `field` on the way out. The same flattening
+    # Query::AskOption already uses for a compound option's own parts.
+    value_object "DetailFieldColumn" do
+      attribute :field,  String
+      attribute :column, String
+    end
+
+    value_object "Precondition" do
+      attribute :field, String
+      attribute :state, String
+      # `message` (a custom refusal message override) confirmed live as
+      # real, in-use — verified-then-opaque, same reasoning as
+      # StateStyle's own extra_json.
+      attribute :extra_json, String, optional: true
+    end
+
+    # `format` stays a plain String too — same nested-`one_of` collision.
+    value_object "FieldFormat" do
+      attribute :field,  String
+      attribute :format, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one app aggregate a presentation row, before anything is curated on it yet"
+
+      attribute :agg, SettingsText
+
+      given("a collection names its own aggregate") { !agg.value.to_s.empty? }
+
+      emits "CollectionDeclared"
+    end
+
+    command "SetLabel" do
+      role "Console"
+      goal "Name a collection's own nav label"
+
+      reference_to Collection
+      attribute :label, SettingsText
+
+      sets :label
+      emits "LabelSet"
+    end
+
+    command "SetKey" do
+      role "Console"
+      goal "Override a collection's own nav/route key"
+
+      reference_to Collection
+      attribute :key, SettingsText
+
+      sets :key
+      emits "KeySet"
+    end
+
+    command "SetNavOrder" do
+      role "Console"
+      goal "Place a collection in the nav"
+
+      reference_to Collection
+      attribute :nav_order, SettingsNumber
+
+      sets :nav_order
+      emits "NavOrderSet"
+    end
+
+    command "SetPrimaryField" do
+      role "Console"
+      goal "Name which field stands in for a whole record"
+
+      reference_to Collection
+      attribute :primary_field, SettingsText
+
+      sets :primary_field
+      emits "PrimaryFieldSet"
+    end
+
+    command "SetListQuery" do
+      role "Console"
+      goal "Name which of an aggregate's own queries lists its records"
+
+      reference_to Collection
+      attribute :list_query, SettingsText
+
+      sets :list_query
+      emits "ListQuerySet"
+    end
+
+    command "SetIdentity" do
+      role "Console"
+      goal "Name how a collection assigns its own new records' identity"
+
+      reference_to Collection
+      attribute :identity_field,       SettingsText
+      attribute :identity_strategy,    one_of("slug", "sequence", "port")
+
+      sets :identity_field
+      sets :identity_strategy
+      sets :identity_source
+      sets :identity_prefix
+      sets :identity_extra_json
+      emits "IdentitySet"
+    end
+
+    command "SetExtra" do
+      role "Console"
+      goal "Carry whatever per-collection fields aren't individually modeled yet (noun_sing, create_label, nav_group, ...)"
+
+      reference_to Collection
+      attribute :extra_json, CollectionExtra
+
+      sets :extra_json
+      emits "CollectionExtraSet"
+    end
+
+    command "ReplaceColumns" do
+      role "Console"
+      goal "Replace a collection's own whole list of table columns"
+
+      reference_to Collection
+
+      sets :columns
+      emits "ColumnsReplaced"
+    end
+
+    command "ReplaceDetailFields" do
+      role "Console"
+      goal "Replace a collection's own whole list of detail-panel fields"
+
+      reference_to Collection
+
+      sets :detail_fields
+      emits "DetailFieldsReplaced"
+    end
+
+    command "ReplaceDetailFieldColumns" do
+      role "Console"
+      goal "Replace every rows-field's own sub-column filter, whole"
+
+      reference_to Collection
+
+      sets :detail_field_columns
+      emits "DetailFieldColumnsReplaced"
+    end
+
+    command "ReplacePreconditions" do
+      role "Console"
+      goal "Replace a collection's own whole list of dispatch preconditions"
+
+      reference_to Collection
+
+      sets :preconditions
+      emits "PreconditionsReplaced"
+    end
+
+    command "ReplaceFieldFormats" do
+      role "Console"
+      goal "Replace a collection's own whole list of field display formats"
+
+      reference_to Collection
+
+      sets :field_formats
+      emits "FieldFormatsReplaced"
+    end
+  end
+
+  # THE DASHBOARD'S OWN STAT CARDS — domain-WIDE, not per-aggregate the
+  # way Collection is (a stat can name any collection, or none in
+  # particular), so this is a SINGLETON: exactly one row, ever, for the
+  # whole console. `attribute :key, OverviewKey` holds a literal constant
+  # ("overview") rather than anything a person chooses — the same reason
+  # a creating command needs SOME identity to hydrate against (hydrate's
+  # own "an identity that is invented is neither derived from the record
+  # nor permanently associated with it" comment), just with the value
+  # fixed instead of derived from what's being declared.
+  aggregate "Overview" do
+    description "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention Collection's own columns/detail_fields/preconditions/field_formats already use."
+
+    attribute :key, OverviewKey
+
+    identified_by :key
+
+    attribute :stats, list_of(Stat)
+
+    value_object "OverviewKey" do
+      attribute :value, String
+      invariant("is the one true singleton key") { value == "overview" }
+    end
+
+    # `where_json` carries the stat's own recursive filter expression
+    # (`not:` wrapping another whole where clause, `state:`/
+    # `has_related:`/`not_has_related:` combined by implicit AND) —
+    # serialized, not decomposed into the bluebook's own closed
+    # attribute grammar. That tree is genuinely open-ended (arbitrary
+    # nesting depth via `not:`, an arbitrary literal attribute name as
+    # a where key for anything that isn't `state`), and hecks's
+    # attribute types have no way to express "arbitrary nested map" at
+    # all — the same reason `sort_default`/`display`/`format` above stay
+    # plain Strings rather than a nested `one_of`. PresentationConfig's
+    # own `validate_where!`/`validate_has_related!` still walk and check
+    # the REAL structure, in Ruby, against the app's own live IR, before
+    # this is ever serialized and dispatched — this field is the
+    # verified-then-opaque storage, not an unchecked one.
+    value_object "Stat" do
+      attribute :label,      String
+      attribute :collection, String
+      attribute :as,         String, optional: true
+      attribute :field,      String, optional: true
+      attribute :where_json, String, optional: true
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Create the one console-wide overview row, before any stat is curated"
+
+      attribute :key, OverviewKey
+
+      given("only the one true singleton key is ever declared") { key.value == "overview" }
+
+      emits "OverviewDeclared"
+    end
+
+    command "ReplaceStats" do
+      role "Console"
+      goal "Replace the dashboard's whole list of stat cards"
+
+      reference_to Overview
+
+      sets :stats
+      emits "StatsReplaced"
+    end
+  end
+
+  # BOTH ROOTLESS — bulk, no root record, no id argument at dispatch —
+  # and grouped by an aggregate's own full identity, which is what makes
+  # each leaf exactly one row rather than an arbitrary collision (see
+  # `group_by`'s own reference doc). PresentationConfig.rb's own read
+  # side (`reshape_states`/`reshape_collections`) dispatches these
+  # instead of hand-rolling the unwrap/grouping in Ruby — see its own
+  # header for what's still Ruby (the detail_field_columns/detail_fields
+  # join, which isn't a report concern at all — two list attributes on
+  # the SAME record, not two aggregates — and Overview's own stat cards,
+  # which are read straight off Overview.find, a singleton needing
+  # neither grouping nor unwrapping either).
+  read_model "Styles" do
+    description "Every StateStyle row, nested by the aggregate and state it styles."
+    include StateStyle
+    group_by :agg, :state
+  end
+
+  read_model "Curated" do
+    description "Every Collection row, nested by the app aggregate it curates."
+    include Collection
+    group_by :agg
+  end
+end

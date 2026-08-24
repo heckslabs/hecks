@@ -3,7 +3,7 @@ require "tmpdir"
 
 # The language passes its own rules — and RUNS from its own records.
 #
-# `lib/hecksagain/language/bluebook/` declares what a bluebook is, and
+# `lib/hecks/language/bluebook/` declares what a bluebook is, and
 # nine rules are now enforced there and nowhere else. It is itself a bluebook —
 # so it must satisfy the rules it declares, or the language demands of every
 # domain something its own definition does not do.
@@ -16,10 +16,10 @@ require "tmpdir"
 # other path is a verdicts-cache hit after boot) ; the last two prove the
 # fixpoint is load-bearing, not merely possible.
 RSpec.describe "the language's own definition" do
-  def meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   it "is judged by the rules it declares, and passes" do
-    refusals = Hecksagain::Bluebook::MetaValidator::Judge.new(meta).refusals
+    refusals = Hecks::Bluebook::MetaValidator::Judge.new(meta).refusals
 
     expect(refusals).to be_empty
   end
@@ -69,7 +69,7 @@ RSpec.describe "the language's own definition" do
       BLUEBOOK
 
       expect { Hecks.boot(dir) }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /an event is named/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /an event is named/)
     end
   end
 
@@ -83,9 +83,9 @@ RSpec.describe "the language's own definition" do
   # about the moment just after a bind — which is exactly the moment this
   # asserts, whatever order the suite ran in.
   it "runs from its own records — registry and the installed door agree from bind" do
-    Hecksagain::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
-    registry = Hecksagain::Bluebook::MetaValidator.grammar_registry
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
+    registry = Hecks::Bluebook::MetaValidator.grammar_registry
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
     expect(Object.const_get(:Bluebook).const_get(:Aggregate).ir)
       .to be(registry.bluebook("Bluebook").aggregate("Aggregate"))
@@ -94,10 +94,10 @@ RSpec.describe "the language's own definition" do
   end
 
   it "lost nothing on the way through — assembled equals a fresh raw load, chapter for chapter" do
-    registry = Hecksagain::Bluebook::MetaValidator.grammar_registry
-    raw = Hecksagain::Bluebook::MetaValidator.load_grammar_into(Hecksagain::Runtime::Registry.new)
+    registry = Hecks::Bluebook::MetaValidator.grammar_registry
+    raw = Hecks::Bluebook::MetaValidator.load_grammar_into(Hecks::Runtime::Registry.new)
 
-    Hecksagain::Bluebook::MetaValidator::LANGUAGE_CHAPTERS.each do |name|
+    Hecks::Bluebook::MetaValidator::LANGUAGE_CHAPTERS.each do |name|
       expect(registry.bluebook(name).to_h).to eq(raw.bluebook(name).to_h)
     end
   end

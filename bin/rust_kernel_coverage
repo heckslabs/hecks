@@ -57,9 +57,9 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
-require "hecksagain/grammar"
-require "hecksagain/runtime/value/coercion"
+require "hecks"
+require "hecks/grammar"
+require "hecks/runtime/value/coercion"
 
 ROOT = File.expand_path("..", __dir__)
 
@@ -70,9 +70,9 @@ def check(category_dir, names, source)
   end
 end
 
-rows = check("attribute_shapes", Hecksagain::Runtime::Value::Coercion::SHAPES,
+rows = check("attribute_shapes", Hecks::Runtime::Value::Coercion::SHAPES,
              "Coercion::SHAPES") +
-       check("expression_operators", Hecksagain::Grammar.admitted_operators.map { |op| op[:category] }.uniq,
+       check("expression_operators", Hecks::Grammar.admitted_operators.map { |op| op[:category] }.uniq,
              "Grammar.admitted_operators's own category field")
 
 missing = rows.reject { |row| row[:present] }

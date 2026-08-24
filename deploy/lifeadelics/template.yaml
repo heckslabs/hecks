@@ -22,7 +22,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  lifeadelics — dispatched through hecksagain's rust/host, a
+  lifeadelics — dispatched through hecks's rust/host, a
   wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
   journal (docs/decisions/0018), backed by its own private RDS
   Postgres instance. PackageType Zip, no container.
@@ -77,7 +77,7 @@ Resources:
       # piece of generated deploy config already holds to. Matches
       # `stack_name` above exactly — one name, two places it's read
       # from, never out of sync since both derive from `infra_name`.
-      FunctionName: hecksagain-lifeadelics
+      FunctionName: hecks-lifeadelics
       # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
       # `sam build --use-container WebFunction` run as TWO SEPARATE
       # single-resource invocations (deploy:'s own comment on why:

@@ -1,5 +1,5 @@
 // Implements the `:composite` branch of `Runtime::Value::Coercion::SHAPES`
-// (lib/hecksagain/runtime/value/coercion.rb) — `for_attribute`'s
+// (lib/hecks/runtime/value/coercion.rb) — `for_attribute`'s
 // `coerced =` line: the attribute's type names a DECLARED value object,
 // rebuilt recursively via `Value.build`. By the time an expression is
 // being EVALUATED, that rebuilding has already happened (a generated

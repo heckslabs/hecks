@@ -1,6 +1,6 @@
-require "hecksagain"
+require "hecks"
 
-RSpec.describe Hecksagain::Runtime::Value do
+RSpec.describe Hecks::Runtime::Value do
   describe ".latest_by" do
     # A REAL list_of FIELD, not a synthetic array — `toppings` grows by
     # plain append (`AddTopping`), the exact shape `.latest_by` exists

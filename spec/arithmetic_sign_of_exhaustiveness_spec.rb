@@ -8,7 +8,7 @@ require "spec_helper"
 # before reaching #sign_of, so this is a direct, no-boot unit test of the
 # backstop itself, not a real dispatch path today.
 RSpec.describe "CommandRules::Arithmetic#sign_of" do
-  def rules = Hecksagain::Runtime::CommandRules.new(nil)
+  def rules = Hecks::Runtime::CommandRules.new(nil)
 
   it "answers the declared sign for increment and decrement" do
     expect(rules.sign_of(:increment)).to eq(1)
@@ -17,11 +17,11 @@ RSpec.describe "CommandRules::Arithmetic#sign_of" do
 
   it "refuses a declared op that carries no sign, rather than silently answering decrement" do
     expect { rules.sign_of(:set) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /no sign declared for mutation op :set/)
+      .to raise_error(Hecks::Runtime::WiringError, /no sign declared for mutation op :set/)
   end
 
   it "refuses an op name the table has never heard of at all" do
     expect { rules.sign_of(:teleport) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /no sign declared for mutation op :teleport/)
+      .to raise_error(Hecks::Runtime::WiringError, /no sign declared for mutation op :teleport/)
   end
 end

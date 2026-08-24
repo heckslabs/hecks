@@ -17,9 +17,9 @@ RSpec.describe "reaction invocation routing" do
   end
 
   def reaction_registry
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Hecks.bluebook "ReactionRouting" do
         aggregate "Permit" do
           attribute :code, Code
@@ -65,11 +65,11 @@ RSpec.describe "reaction invocation routing" do
   it "keeps an explicitly projected aggregate receiver out of command facts" do
     registry = reaction_registry
     door = RecordingReactionDoor.new
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name: "PermitFlagged", aggregate: "Signal", id: "signal-1", payload: { permit: "permit-1" }
     )
 
-    Hecksagain::Runtime::PolicyInterpreter.new(registry, door: door).react(event, "ReactionRouting")
+    Hecks::Runtime::PolicyInterpreter.new(registry, door: door).react(event, "ReactionRouting")
 
     expect(door.calls).to eq([
                                ["ReactionRouting::Permit.Revoke", { to: "permit-1", with: {} }]
@@ -77,7 +77,7 @@ RSpec.describe "reaction invocation routing" do
   end
 
   it "orders aggregate and entity identities outside an entity command's facts" do
-    invocation = Hecksagain::Runtime::ReactionInvocation.build(
+    invocation = Hecks::Runtime::ReactionInvocation.build(
       registry:  reaction_registry,
       verb:      "ReactionRouting::Permit.Review.Annotate",
       projected: {
@@ -95,9 +95,9 @@ RSpec.describe "reaction invocation routing" do
   end
 
   it "separates a process manager's receiver and correlation passthrough from its declared facts" do
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     fixture = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -108,7 +108,7 @@ RSpec.describe "reaction invocation routing" do
     handler = process_manager.handler_for("WireAsked")
     dispatch = handler.dispatches.first
     door = RecordingReactionDoor.new
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name:      "WireAsked",
       aggregate: "Wire",
       id:        "wire-1",
@@ -121,7 +121,7 @@ RSpec.describe "reaction invocation routing" do
     )
     instance = { state: "asked", memory: event.payload }
 
-    Hecksagain::Runtime::SagaInterpreter.new(registry, door: door).send(
+    Hecks::Runtime::SagaInterpreter.new(registry, door: door).send(
       :deliver_saga_dispatch,
       process_manager, dispatch, event, instance, "wire-1", "Wire"
     )

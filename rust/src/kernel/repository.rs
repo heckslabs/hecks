@@ -60,7 +60,7 @@ impl<T: Clone> Repository<T> for InMemoryRepository<T> {
 }
 
 /// `resolve_references` — `CommandRules::References#resolve_references`
-/// (`lib/hecksagain/runtime/command_rules/references.rb`), read directly.
+/// (`lib/hecks/runtime/command_rules/references.rb`), read directly.
 /// Hand-written and generic, unlike almost every other per-command check,
 /// because its one caller is `registry.rs`'s generated `dispatch_by_name`
 /// (`rust/project/reactions.rb`'s `emit_reference_check`) — the same place
@@ -141,7 +141,7 @@ pub trait AggregateScan {
 /// trait might not back onto a `BTreeMap` at all.
 ///
 /// `field`/`comparator`/`want` ground truth: `Ports::Query::InMemory#holds?`
-/// (lib/hecksagain/ports/query/in_memory.rb) — see query_comparators.rs's
+/// (lib/hecks/ports/query/in_memory.rb) — see query_comparators.rs's
 /// own header for the full citation, including the real, adversarially-
 /// exercised specs this was checked against rather than merely read.
 pub fn filter_entries(
@@ -211,7 +211,7 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 }
 
 /// `refuse_role_mismatch` — `CommandRules::Authorization`
-/// (`lib/hecksagain/runtime/command_rules/authorization.rb`), read
+/// (`lib/hecks/runtime/command_rules/authorization.rb`), read
 /// directly:
 /// ```ruby
 /// def refuse_role_mismatch(command)
@@ -227,7 +227,7 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 /// deliberately role-checking corpus fixture) → unchecked; no role the
 /// command itself declared (`command_role: None`) → unchecked. Ruby's
 /// caller comes from thread-local ambient state (`Caller.current`,
-/// `Hecksagain.as_caller`) that this kernel has no analogue for — a
+/// `Hecks.as_caller`) that this kernel has no analogue for — a
 /// step's own `role:` key plays that part instead, read once at the CLI
 /// boundary (`cli.rs`) and threaded through `orchestrate`'s OUTERMOST
 /// dispatch only, exactly mirroring `Dispatcher#reenter`'s own

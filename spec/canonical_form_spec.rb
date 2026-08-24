@@ -1,6 +1,6 @@
-require "hecksagain"
+require "hecks"
 
-RSpec.describe Hecksagain::Bluebook::Expression::CanonicalForm do
+RSpec.describe Hecks::Bluebook::Expression::CanonicalForm do
   describe ".apply" do
     it "collapses a run of spaces to one" do
       expect(described_class.apply("a   <   b")).to eq("a < b")

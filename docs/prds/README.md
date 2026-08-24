@@ -1,7 +1,7 @@
 # Runtime & parser bug-scrubbing: eight PRDs, sequenced
 
 Scoped 2026-08-16, after a survey of what bug-hunting infrastructure already
-exists for the Ruby runtime and the Rust parser (`lib/hecksagain/fuzzing/`,
+exists for the Ruby runtime and the Rust parser (`lib/hecks/fuzzing/`,
 `spec/adapters/query_agreement_spec.rb`, `bin/model_check`, the parser
 parity/coverage specs, `bin/fuzz`'s own shrinker). That survey is the "what's
 already covered" baseline every PRD below cites against — none of these
@@ -62,13 +62,13 @@ immediately.
 
 None of these seriously collide. The rough file footprint per PRD:
 
-- `01` — `lib/hecksagain/runtime/dispatcher.rb`, `lib/hecksagain/runtime/registry.rb`, one new concurrency spec.
-- `02` — `lib/hecksagain/fuzzing/value_generator.rb`, `lib/hecksagain/fuzzing/invalid_value_generator.rb`, existing growth specs.
-- `03` — `lib/hecksagain/fuzzing/isolated_boot.rb`, `lib/hecksagain/fuzzing/sequence_generator.rb`, `spec/fuzzing/properties_spec.rb`.
-- `04` — a new `spec/adapters/mutation_agreement_spec.rb` (hand-written path) or `lib/hecksagain/fuzzing/properties.rb` (fuzzer-extension path, only if built after `03`).
+- `01` — `lib/hecks/runtime/dispatcher.rb`, `lib/hecks/runtime/registry.rb`, one new concurrency spec.
+- `02` — `lib/hecks/fuzzing/value_generator.rb`, `lib/hecks/fuzzing/invalid_value_generator.rb`, existing growth specs.
+- `03` — `lib/hecks/fuzzing/isolated_boot.rb`, `lib/hecks/fuzzing/sequence_generator.rb`, `spec/fuzzing/properties_spec.rb`.
+- `04` — a new `spec/adapters/mutation_agreement_spec.rb` (hand-written path) or `lib/hecks/fuzzing/properties.rb` (fuzzer-extension path, only if built after `03`).
 - `05` — `spec/rust_conformance_spec.rb`, possibly a new `bin/` script bridging `SequenceGenerator` output to the Rust conformance binary.
 - `06` — `rust/` only (a new `fuzz/` crate under `rust/parser/` or similar). Zero Ruby-side files.
-- `07` — a new `Gemfile` entry + config, scoped narrowly to `lib/hecksagain/runtime/command_interpreter.rb` first.
+- `07` — a new `Gemfile` entry + config, scoped narrowly to `lib/hecks/runtime/command_interpreter.rb` first.
 - `08` — `bin/fuzz` itself, plus whatever coverage-instrumentation hook it needs.
 
 The only real overlap is `03` and `05` both touching the fuzzer's own

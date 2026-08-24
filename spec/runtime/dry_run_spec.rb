@@ -15,16 +15,16 @@ RSpec.describe "Dispatcher#dry_run?" do
   DRY_RUN_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(DRY_RUN_FIXTURE)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -51,7 +51,7 @@ RSpec.describe "Dispatcher#dry_run?" do
 
     expect {
       runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
-    }.to raise_error(Hecksagain::Runtime::GivenNotMet, /destination differs from current square/)
+    }.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
   # THE SHAPE dry_run WAS BUILT FOR — a `delegates_to` command's own

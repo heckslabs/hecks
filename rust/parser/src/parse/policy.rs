@@ -1,5 +1,5 @@
-//! The `Policy` construct (`lib/hecksagain/bluebook/ir/policy.rb`,
-//! `Hecksagain::Bluebook::DSL::PolicyBuilder`) — `on`/`trigger` filling
+//! The `Policy` construct (`lib/hecks/bluebook/ir/policy.rb`,
+//! `Hecks::Bluebook::DSL::PolicyBuilder`) — `on`/`trigger` filling
 //! `on_event`/`trigger_command`. Confirmed real: pizzas.bluebook's own
 //! `OnPizzaPaymentReceived`, declared directly on the CHAPTER (never
 //! inside an `aggregate` — a policy written on an aggregate is HOISTED

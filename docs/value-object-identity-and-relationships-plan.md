@@ -11,7 +11,7 @@
 - Wave 4B query inference is resolved on `Node.GrandparentLabelled` in Ruby and Rust, and policy/process lexical visibility is resolved with `Event.id` remaining routing-only. The port/handler audit found and fixed the shared port-routing seam before any local refusal was added.
 - The Memory execution-plan oracle and SQLite pilot are implemented. D1 passes its focused transactional-batch contract; Postgres and PostgresEra implement the same atomic-put contract and load cleanly, with live assertions pending only because no PostgreSQL server is reachable locally.
 - The `SafeDepositBox.Rent` behavioral-reference exemplar is resolved: `CustomerNumber` is an ordinary fact and `belongs_to Customer` is retained state. Cross-aggregate value-object resolution prefers an aggregate-local duplicate and otherwise requires one chapter-wide shape.
-- The self-host migration recipe is frozen on `language/world/world.bluebook`, and all remaining exact one-symbol identities under `lib/hecksagain/language` have been converted to named value-object identities. Focused Bluebook/World assembly and byte-exact language parser parity pass.
+- The self-host migration recipe is frozen on `language/world/world.bluebook`, and all remaining exact one-symbol identities under `lib/hecks/language` have been converted to named value-object identities. Focused Bluebook/World assembly and byte-exact language parser parity pass.
 - The one-symbol identity form remains transitional while live self-hosted and domain sources are migrated. Do not apply the final retired/refusal status or corpus-wide regeneration early.
 - No full suite has been run. Per the plan, full verification and checked-in regeneration remain Wave 8 activities.
 

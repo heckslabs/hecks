@@ -14,17 +14,17 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
 root      = File.expand_path("..", __dir__)
 directory = File.join(root, "docs/implemented/reference")
-chapter   = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+chapter   = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
-written = Hecksagain::Projector.write(
-  Hecksagain::Projector.call(:reference, bluebook: chapter, options: { from: directory }),
+written = Hecks::Projector.write(
+  Hecks::Projector.call(:reference, bluebook: chapter, options: { from: directory }),
   directory, as: :files
 )
-Hecksagain::Doc::Reference.write_readme!(root)
+Hecks::Doc::Reference.write_readme!(root)
 
 puts "wrote #{written.size} pages to docs/implemented/reference/, and regenerated README.md's own indexes"
 
@@ -33,8 +33,8 @@ puts "wrote #{written.size} pages to docs/implemented/reference/, and regenerate
 # what they now owe it. `bin/doc_coverage` asks the same two questions
 # as its own exit status, for the pre-push hook.
 {
-  "prose"             => Hecksagain::Doc::Reference.undocumented(directory),
-  "a running example" => Hecksagain::Doc::Reference.unexemplified(directory)
+  "prose"             => Hecks::Doc::Reference.undocumented(directory),
+  "a running example" => Hecks::Doc::Reference.unexemplified(directory)
 }.each do |owed, missing|
   if missing.empty?
     puts "every live word carries #{owed}."

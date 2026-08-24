@@ -4,7 +4,7 @@
 
 ## Context
 
-`lib/hecksagain/language/bluebook/` declares what a bluebook IS. Until this week it could not be booted the way the bluebooks it describes are booted — nine files each say `Hecks.bluebook "Bluebook"`, and each was judged before its siblings had been read. `MetaValidator.defer` fixed that, and booting it made a second question askable for the first time: **does the language use the constructs it declares?**
+`lib/hecks/language/bluebook/` declares what a bluebook IS. Until this week it could not be booted the way the bluebooks it describes are booted — nine files each say `Hecks.bluebook "Bluebook"`, and each was judged before its siblings had been read. `MetaValidator.defer` fixed that, and booting it made a second question askable for the first time: **does the language use the constructs it declares?**
 
 Measured, counting real declarations rather than grammar rows:
 
@@ -48,7 +48,7 @@ The obvious way to make that gate survivable is an exemption list. This decision
 
 That inverts the gate from something needing excuses into something that *defines the boundary*: the core language is exactly what the language itself uses, by construction rather than by assertion.
 
-Sub-languages already exist and set the precedent — `lib/hecksagain/grammar/expression.bluebook` (*"the subset of regular Ruby a predicate is allowed to be"*) and `translation.bluebook` (*"the declared bridge from one era of a domain's storage shape to the next"*) are self-contained chapters describing one bounded concern each, standing apart from the core grammar. This decision names the pattern and gives it a seam.
+Sub-languages already exist and set the precedent — `lib/hecks/grammar/expression.bluebook` (*"the subset of regular Ruby a predicate is allowed to be"*) and `translation.bluebook` (*"the declared bridge from one era of a domain's storage shape to the next"*) are self-contained chapters describing one bounded concern each, standing apart from the core grammar. This decision names the pattern and gives it a seam.
 
 ### The sub-language declares where it attaches
 

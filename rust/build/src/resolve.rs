@@ -1,7 +1,7 @@
 //! Chapter resolution — the Rust equivalent of
 //! `rust/project_rust_pipeline.rb`'s own `header_chapter_name`, framework
-//! member lookup (`Hecksagain::Framework.members`), and the self-hosted
-//! grammar's own nine-file list (`Hecksagain::Bluebook::MetaValidator::
+//! member lookup (`Hecks::Framework.members`), and the self-hosted
+//! grammar's own nine-file list (`Hecks::Bluebook::MetaValidator::
 //! GRAMMAR_FILES`). NONE of this executes a `.bluebook`/`.hecksagon`
 //! file's own DSL body — every function here is plain text scanning or a
 //! directory listing, the same "not a `Kernel.load`" distinction that
@@ -59,15 +59,15 @@ fn extract_quoted(rest: &str) -> Option<String> {
     Some(inner[..end].to_string())
 }
 
-/// `Hecksagain::Framework.members` (`lib/hecksagain/framework.rb`) — a
+/// `Hecks::Framework.members` (`lib/hecks/framework.rb`) — a
 /// DIRECTORY LISTING, not a hand-kept list (that file's own header: "a
 /// member added here and forgotten in a list would be a member
 /// `uses_framework` could never find"). Named by file stem, pascal-cased
-/// (`Naming.pascal`, `lib/hecksagain/naming.rb`), matching the one-to-one
+/// (`Naming.pascal`, `lib/hecks/naming.rb`), matching the one-to-one
 /// spelling every framework member's own filename already keeps with its
 /// declared chapter name.
 pub fn framework_members(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
-    let dir = root.join("lib/hecksagain/framework/bluebook");
+    let dir = root.join("lib/hecks/framework/bluebook");
     let mut members = Vec::new();
     for entry in std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))? {
         let entry = entry.map_err(|e| format!("reading {}: {e}", dir.display()))?;
@@ -82,7 +82,7 @@ pub fn framework_members(root: &Path) -> Result<Vec<(String, PathBuf)>, String> 
     Ok(members)
 }
 
-/// `Naming.pascal` (`lib/hecksagain/naming.rb`) — `snake_case` ->
+/// `Naming.pascal` (`lib/hecks/naming.rb`) — `snake_case` ->
 /// `PascalCase`: split on `_`, upcase each part's first character, join.
 pub fn pascal(text: &str) -> String {
     text.split('_')
@@ -100,7 +100,7 @@ pub fn pascal(text: &str) -> String {
 /// rule as ordinary domains. Discovery—not a mirrored Ruby filename array—is
 /// the contract, so adding a domain concept cannot drift this native pipeline.
 pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
-    let dir = root.join("lib/hecksagain/language/bluebook");
+    let dir = root.join("lib/hecks/language/bluebook");
     bluebook_files(&dir)
 }
 

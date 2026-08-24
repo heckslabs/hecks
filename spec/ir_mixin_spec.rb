@@ -5,12 +5,12 @@ require "spec_helper"
 # constructs still emit byte-identically, which is the important
 # guarantee, but they cannot show that the two SHAPES are handled the
 # same way or that an undeclared construct fails loudly.
-RSpec.describe Hecksagain::IR do
+RSpec.describe Hecks::IR do
   # A construct that is an ordinary object — Bluebook/Aggregate/Policy/
   # ReadModel are all this shape.
   def instance_shaped
     Class.new do
-      include Hecksagain::IR
+      include Hecks::IR
 
       emits_ir(name: :name, loud: :loud?, computed: -> { "#{name}!" })
 
@@ -26,7 +26,7 @@ RSpec.describe Hecksagain::IR do
   # them as types and a type has to be a real constant.
   def class_shaped
     Class.new do
-      extend Hecksagain::IR
+      extend Hecks::IR
 
       emits_ir(name: :hecks_name, size: :size)
 
@@ -71,7 +71,7 @@ RSpec.describe Hecksagain::IR do
   describe "many/one" do
     let(:child) do
       Class.new do
-        include Hecksagain::IR
+        include Hecks::IR
 
         emits_ir(n: :n)
 
@@ -83,7 +83,7 @@ RSpec.describe Hecksagain::IR do
 
     it "recurses into a list with many" do
       parent = Class.new do
-        include Hecksagain::IR
+        include Hecks::IR
 
         emits_ir(kids: many(:kids))
         attr_reader :kids
@@ -96,7 +96,7 @@ RSpec.describe Hecksagain::IR do
 
     it "recurses into a single child with one" do
       parent = Class.new do
-        include Hecksagain::IR
+        include Hecks::IR
 
         emits_ir(kid: one(:kid))
         attr_reader :kid
@@ -111,7 +111,7 @@ RSpec.describe Hecksagain::IR do
     # ordinary case rather than an edge one.
     it "answers nil for an absent child rather than raising" do
       parent = Class.new do
-        include Hecksagain::IR
+        include Hecks::IR
 
         emits_ir(kid: one(:kid))
         def kid = nil
@@ -122,9 +122,9 @@ RSpec.describe Hecksagain::IR do
   end
 
   it "refuses to emit a construct that never declared its shape" do
-    silent = Class.new { include Hecksagain::IR }
+    silent = Class.new { include Hecks::IR }
 
-    expect { silent.new.to_h }.to raise_error(Hecksagain::IR::Undeclared, /never declared its shape/)
+    expect { silent.new.to_h }.to raise_error(Hecks::IR::Undeclared, /never declared its shape/)
   end
 
   # The point of declaring emission as DATA rather than writing it out:
@@ -132,11 +132,11 @@ RSpec.describe Hecksagain::IR do
   # instead of reading a method body.
   describe "the declaration is readable" do
     it "reports the emitted shape of a real construct" do
-      spec = Hecksagain::Bluebook::Aggregate.ir_spec
+      spec = Hecks::Bluebook::Aggregate.ir_spec
 
       expect(spec.keys).to include(:name, :attributes, :commands, :lifecycle)
-      expect(spec[:attributes]).to be_a(Hecksagain::IR::Many)
-      expect(spec[:lifecycle]).to be_a(Hecksagain::IR::One)
+      expect(spec[:attributes]).to be_a(Hecks::IR::Many)
+      expect(spec[:lifecycle]).to be_a(Hecks::IR::One)
     end
   end
 end

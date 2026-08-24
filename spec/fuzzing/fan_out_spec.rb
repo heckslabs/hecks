@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
 # `Replay.fan_out_findings` cannot be exercised through `Replay.call`
 # itself — that needs a domain PATH to boot fresh from disk
@@ -12,11 +12,11 @@ require "hecksagain/fuzzing"
 # repository) actually agrees with what `PolicyInterpreter#deliver_for_each`
 # really dispatched — the same two-engines-compared shape
 # `query_answers_match_reference` already trusts, aimed at fan-out.
-RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
+RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   def boot_fanout
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -98,7 +98,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
       end
     end
 
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def open_two_accounts_for(runtime, customer_id)
@@ -123,7 +123,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
 
     mark = runtime.reactions.size
     result = runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
-    Hecksagain::Fuzzing::Replay.fan_out_findings(runtime, snapshot, result.events, runtime.reactions[mark..])
+    Hecks::Fuzzing::Replay.fan_out_findings(runtime, snapshot, result.events, runtime.reactions[mark..])
   end
 
   it "recomputes the SAME row-id set the real dispatch actually fanned out over" do
@@ -167,6 +167,6 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
     findings = flag(runtime, "c1", "high")
     history = { fan_outs: findings }
 
-    expect(Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
+    expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
   end
 end

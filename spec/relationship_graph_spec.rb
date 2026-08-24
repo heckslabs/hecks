@@ -3,7 +3,7 @@ require "spec_helper"
 RSpec.describe "relationship graph validation" do
   it "treats relationship declarations as aggregate-boundary edges" do
     expect do
-      Hecksagain::Bluebook::DSL::BluebookBuilder.build("RelationshipCycle") do
+      Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipCycle") do
         vision "a relationship ring is not an aggregate boundary"
 
         aggregate "Owner" do
@@ -23,7 +23,7 @@ RSpec.describe "relationship graph validation" do
         end
       end
     end.to raise_error(
-      Hecksagain::Bluebook::DSL::Malformed,
+      Hecks::Bluebook::DSL::Malformed,
       /reference cycle: (Owner -> Team -> Owner|Team -> Owner -> Team)/
     )
   end

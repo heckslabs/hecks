@@ -2,7 +2,7 @@
 // a Function-URL HTTP event (`requestContext.http`/`rawPath` present
 // — the API Gateway v2 payload format every Function URL invocation
 // uses, unconditionally) and, if present, resolves it against the
-// SAME IR `Hecksagain::Presentation::FieldShape` walks in Ruby
+// SAME IR `Hecks::Presentation::FieldShape` walks in Ruby
 // (`HECKS_IR_PATH`, a plain-JSON sidecar — see domain_generator.rb's
 // own comment on why this isn't the metadata.rs-embedded constant:
 // this crate has no path dependency on the kernel crate that embeds
@@ -369,7 +369,7 @@ fn identity_paths(aggregate: &Value) -> Vec<String> {
 }
 
 // ---- field shape — IR::Attribute -> Field, mirrors ------------------
-// Hecksagain::Presentation::FieldShape / hecks_on_web's own copy of it.
+// Hecks::Presentation::FieldShape / hecks_on_web's own copy of it.
 
 #[derive(Clone, Debug)]
 struct Field {
@@ -437,7 +437,7 @@ fn humanize(path: &str) -> String {
 
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
 
-// `Hecksagain::Presentation::FieldShape#resolve`'s own dispatch order,
+// `Hecks::Presentation::FieldShape#resolve`'s own dispatch order,
 // mirrored exactly (field_shape.rb): list? -> reference? -> admits
 // truthy -> not-a-PRIMITIVE (value object) -> primitive. `domain_ir` is
 // the WHOLE chapter — needed by `admits:` resolution (a set can be
@@ -723,7 +723,7 @@ fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<
 }
 
 // ---- params: flat dotted form body -> nested JSON args --------------
-// Mirrors Hecksagain::Presentation::Params/hecks_on_web's own copy.
+// Mirrors Hecks::Presentation::Params/hecks_on_web's own copy.
 
 fn extract_args(fields: &[Field], raw: &HashMap<String, String>) -> Value {
     let mut pairs: Vec<(String, Value)> = Vec::new();

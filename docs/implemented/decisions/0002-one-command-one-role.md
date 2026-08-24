@@ -1,6 +1,6 @@
 # One command → one role
 
-**Status:** Accepted — implemented (`lib/hecksagain/bluebook/dsl/command_builder.rb`, `spec/dsl_spec.rb`)
+**Status:** Accepted — implemented (`lib/hecks/bluebook/dsl/command_builder.rb`, `spec/dsl_spec.rb`)
 
 ## Context
 

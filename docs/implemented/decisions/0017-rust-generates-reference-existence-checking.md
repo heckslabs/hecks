@@ -4,7 +4,7 @@
 
 ## Context
 
-`CommandRules::References#resolve_references` (`lib/hecksagain/runtime/command_rules/references.rb`) is Ruby's own check that a `Reference<X>`-typed command argument actually names a record that exists — `Transfer.Request`'s `source`/`destination`, for instance. The generator has represented a reference as a bare `String` id since the very first slice (aggregates-and-value-objects.md's own framing: "a bare id... not a nested object"), but nothing checked that id ever named a real record. 0013 traced a real corpus mismatch to exactly this: `Transfer.Request` to a never-opened account (`xfer-ghost`) succeeded in Rust, ran its saga to a refused-and-compensated end, and left `Account#acct-8`'s ledger holding extra compensating entries Ruby's own ledger never has — because Ruby refuses the whole command before any saga starts at all.
+`CommandRules::References#resolve_references` (`lib/hecks/runtime/command_rules/references.rb`) is Ruby's own check that a `Reference<X>`-typed command argument actually names a record that exists — `Transfer.Request`'s `source`/`destination`, for instance. The generator has represented a reference as a bare `String` id since the very first slice (aggregates-and-value-objects.md's own framing: "a bare id... not a nested object"), but nothing checked that id ever named a real record. 0013 traced a real corpus mismatch to exactly this: `Transfer.Request` to a never-opened account (`xfer-ghost`) succeeded in Rust, ran its saga to a refused-and-compensated end, and left `Account#acct-8`'s ledger holding extra compensating entries Ruby's own ledger never has — because Ruby refuses the whole command before any saga starts at all.
 
 ## Decision
 

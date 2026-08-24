@@ -18,7 +18,7 @@
 # networking, so it needs no route either.
   #
   # WebFunction is the ONE exception -- real Google OAuth token
-  # exchange (hecksagain's own GoogleAuthentication adapter posting to
+  # exchange (hecks's own GoogleAuthentication adapter posting to
   # https://oauth2.googleapis.com/token) is a genuine third-party HTTPS
   # call with no AWS PrivateLink/VPC Endpoint option (unlike
   # lambda:InvokeFunction, above), and WebFunction is ALSO
@@ -33,7 +33,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  embryonaut — dispatched through hecksagain's rust/host, a
+  embryonaut — dispatched through hecks's rust/host, a
   wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
   journal (docs/decisions/0018), backed by its own private RDS
   Postgres instance. PackageType Zip, no container.
@@ -271,7 +271,7 @@ Resources:
       # piece of generated deploy config already holds to. Matches
       # `stack_name` above exactly — one name, two places it's read
       # from, never out of sync since both derive from `infra_name`.
-      FunctionName: hecksagain-embryonaut
+      FunctionName: hecks-embryonaut
       # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
       # `sam build --use-container WebFunction` run as TWO SEPARATE
       # single-resource invocations (deploy:'s own comment on why:
@@ -421,7 +421,7 @@ Resources:
     # knows how to build at all, so it needs an explicit custom
     # workflow — this function doesn't.
     Properties:
-      FunctionName: hecksagain-embryonaut-web
+      FunctionName: hecks-embryonaut-web
       Runtime: ruby3.2
       Architectures: [arm64]
       # THREE parts (file.Class.method), not two — aws-lambda-ric's own
@@ -439,14 +439,14 @@ Resources:
           DOMAIN_ROOT: /var/task
           # NOT `declared_domain_name` — `Adapters::Lambda`/
           # `RemoteDispatcher` both read this to compute WHICH
-          # deployed Lambda function to invoke (`hecksagain-#{...}`,
+          # deployed Lambda function to invoke (`hecks-#{...}`,
           # matching this stack's own name), a question `infra_name`
           # answers and a domain's own business identity does not.
           # Real, live, and confirmed the hard way: this was still
           # wired to `declared_domain_name` when EmbryonautFoundersApp
           # first deployed, and WebFunction immediately threw
           # `ResourceNotFoundException: Function not found:
-          # hecksagain-embryonautfoundersapp` on every read AND on the
+          # hecks-embryonautfoundersapp` on every read AND on the
           # Google OAuth callback itself — a real signed-in user hit
           # this within minutes of the deploy that introduced it.
           DOMAIN_NAME: embryonaut
@@ -510,8 +510,8 @@ Resources:
           # time, never touches the function's execution role" dynamic
           # -reference mechanism DATABASE_URL/SESSION_SECRET above
           # already rely on, just pointed at a name instead of a Ref.
-          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_id}}"
-          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_secret}}"
+          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:hecks-embryonaut-web-google-oauth:SecretString:client_id}}"
+          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:hecks-embryonaut-web-google-oauth:SecretString:client_secret}}"
           GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
       VpcConfig:
         SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
@@ -523,7 +523,7 @@ Resources:
       # real, live AccessDeniedException caught it, the same request
       # that also caught the wrong-function-name bug just above
       # (WebFunctionRole is not authorized... on resource
-      # hecksagain-task — this stack has never had ANY policy granting
+      # hecks-task — this stack has never had ANY policy granting
       # that action, so the fix isn't complete without adding one).
       Policies:
         - LambdaInvokePolicy:

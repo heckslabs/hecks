@@ -155,7 +155,7 @@ jobs:
       # meta-domain) and replays each one, checking every declared
       # property (docs/decisions/0024) plus interpreter-crash and
       # determinism. Wired in here, not run only ad hoc, because it found
-      # a real bug the first time anyone pointed it at lib/hecksagain/
+      # a real bug the first time anyone pointed it at lib/hecks/
       # grammar: a domain composing more than one bluebook (grammar is
       # Expression+Translation; banking is Banking+Governance+Identity)
       # could make a property misresolve a refusal against the wrong

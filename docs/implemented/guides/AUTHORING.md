@@ -143,7 +143,7 @@ Cut any sentence that exists for tone rather than information.
 
 There is a sibling language at `~/Projects/hecks` with vocabulary this
 repo does not have: `Hecks.family`, `charged_by`, `signal :effect`,
-`driving on cron`, storehouse. **None of that exists in hecksagain and
+`driving on cron`, storehouse. **None of that exists in hecks and
 none of it may appear in these guides.**
 Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving

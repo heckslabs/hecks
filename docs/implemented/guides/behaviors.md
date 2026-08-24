@@ -11,7 +11,7 @@ missing command, a missing query), not a gap in this DSL.
 This guide teaches the DSL's own vocabulary using chess as the running
 example — turn order, blocking, occupancy, capture, and a graveyard that
 records what fell — because those are real rules worth showing refused,
-not because chess ships with hecksagain. The examples this page actually
+not because chess ships with hecks. The examples this page actually
 *runs* are `examples/pizzas/bluebook/pizzas.behaviors`, the real,
 in-repo corpus member.
 
@@ -91,9 +91,9 @@ is exactly the case `emits:` is written to see through.
 
 ## Refusals
 
-Every `Hecksagain::Runtime` refusal class (`GivenNotMet`, `EnsuresNotMet`,
+Every `Hecks::Runtime` refusal class (`GivenNotMet`, `EnsuresNotMet`,
 `LifecycleRefused`, `InvariantViolation`, `AlreadyExists`, `NotFound`, and
-the rest of `Hecksagain::Runtime::DOMAIN_REFUSALS`) satisfies `refused:`.
+the rest of `Hecks::Runtime::DOMAIN_REFUSALS`) satisfies `refused:`.
 Where the refusal happens matters: a refusal raised by a `setup` dispatch
 is always an **error** — the example never reached the situation it
 claims to test — while a refusal from the command or query actually
@@ -133,17 +133,17 @@ that is a missing word in the bluebook, not a reason to add a sixth
 
 ## Running it
 
-`Hecksagain::Behaviors.run(path)` runs one file and returns one result
+`Hecks::Behaviors.run(path)` runs one file and returns one result
 per test — `:pass`, `:fail`, or `:error`, each with a message.
-`Hecksagain::Behaviors.run_all(dir)` sweeps every `.behaviors` file under
+`Hecks::Behaviors.run_all(dir)` sweeps every `.behaviors` file under
 a directory. Boot is a fresh `Hecks.boot_files` call per test — cheap,
 and never shared, so one test's state can never leak into the next's.
 
 ```ruby
-require "hecksagain/behaviors"
+require "hecks/behaviors"
 
 path   = File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.behaviors")
-result = Hecksagain::Behaviors.run(path)
+result = Hecks::Behaviors.run(path)
 
 result.parse_error                              # => nil
 result.runs.size                                 # => 6
@@ -161,17 +161,17 @@ bin/behaviors examples/
 ```
 
 For a consumer whose own test suite runs on rspec,
-`hecksagain/behaviors/rspec` turns a `.behaviors` file into ordinary
+`hecks/behaviors/rspec` turns a `.behaviors` file into ordinary
 examples — one `it` per test, named by the test's own description — the
 same shape this repo's own `spec/behaviors_examples_spec.rb` uses to run
 `examples/pizzas/bluebook/pizzas.behaviors` as part of `bundle exec
 rspec`:
 
 ```ruby skip
-require "hecksagain/behaviors/rspec"
+require "hecks/behaviors/rspec"
 
 Dir.glob("bluebook/**/*.behaviors").each do |path|
-  Hecksagain::Behaviors::RSpec.describe_file(path)
+  Hecks::Behaviors::RSpec.describe_file(path)
 end
 ```
 
@@ -187,7 +187,7 @@ domain's real `chess.behaviors` file — turn order, blocking, occupancy,
 capture, and the graveyard, the same five categories `spec/chess_spec.rb`
 groups its own direct assertions under in the project that domain lives
 in. It is not part of this repo's own corpus (`examples/` stays domains
-hecksagain itself owns and ships), which is why every snippet above is
+hecks itself owns and ships), which is why every snippet above is
 marked "shown, never run" rather than boot the game for real — but it is
 real, and it is the shape a `.behaviors` file takes once a domain has
 more than one aggregate, entities with their own commands, and a

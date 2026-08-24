@@ -6,7 +6,7 @@
 //! its own build output layout (`rust/build/target/{debug,release}/
 //! hecks-build`), fragile the moment that layout changes for any reason
 //! unrelated to this crate's own logic. Walking up from the CURRENT
-//! DIRECTORY looking for `hecksagain.gemspec` (a file that names the repo
+//! DIRECTORY looking for `hecks.gemspec` (a file that names the repo
 //! root unambiguously and never moves) is the same technique `bundle
 //! exec`/`rspec`/`cargo` themselves already rely on for "find my project
 //! root from wherever the user happens to be standing" — robust to being
@@ -22,12 +22,12 @@ pub fn find() -> Result<PathBuf, String> {
 fn find_from(start: &Path) -> Result<PathBuf, String> {
     let mut dir = start.to_path_buf();
     loop {
-        if dir.join("hecksagain.gemspec").is_file() {
+        if dir.join("hecks.gemspec").is_file() {
             return Ok(dir);
         }
         if !dir.pop() {
             return Err(format!(
-                "could not find the hecksagain repo root (no 'hecksagain.gemspec' found walking up from {}) — \
+                "could not find the hecks repo root (no 'hecks.gemspec' found walking up from {}) — \
                  run hecks-build from inside the repo",
                 start.display()
             ));

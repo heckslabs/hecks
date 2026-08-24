@@ -19,7 +19,7 @@
 // `cargo test --lib` is what proves it compiles — plain `mod` inclusion
 // forces full type-checking with no `#[test]` fn required for that.
 //
-// THE AXES A SHAPE VARIES ALONG ARE NOT INVENTED HERE. `lib/hecksagain/
+// THE AXES A SHAPE VARIES ALONG ARE NOT INVENTED HERE. `lib/hecks/
 // language/bluebook/shape.bluebook`'s own `ShapeField` value object
 // (`name`/`type`/`list`/`optional`/`pattern`/`default`/`admits`) is
 // where this language already names, once, every dimension a real

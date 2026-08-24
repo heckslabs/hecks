@@ -22,7 +22,7 @@ pub fn ir() -> Option<&'static Value> {
 }
 
 /// The `(qualified_aggregate, storage_name)` pairs `Exporter.lineage`
-/// (lib/hecksagain/projector/exporter.rb) exported for this domain — a
+/// (lib/hecks/projector/exporter.rb) exported for this domain — a
 /// BINDING fact, not part of an aggregate's own canonical shape (see
 /// that method's own header for why), which is exactly why it rides in
 /// `ir.json` as its own top-level `lineage` key rather than nested

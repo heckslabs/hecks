@@ -43,9 +43,9 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
   def fixture_path(dir, name) = File.join(dir, "#{name}.bluebook")
 
   def eval_live(source, path)
-    registry = Hecksagain::Runtime::Registry.new
-    loading  = Hecksagain::Ports::Loading.bootstrap
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    loading  = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
     end
@@ -58,7 +58,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       File.write(path, EMPTY_VISION)
 
       expect { eval_live(EMPTY_VISION, path) }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /a vision says something/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /a vision says something/)
     end
   end
 
@@ -67,7 +67,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       path = fixture_path(dir, "shadow")
       File.write(path, EMPTY_VISION)
 
-      bluebook = Hecksagain::Runtime::EraGuard.shadow_parse(EMPTY_VISION, path)
+      bluebook = Hecks::Runtime::EraGuard.shadow_parse(EMPTY_VISION, path)
 
       expect(bluebook.hecks_name).to eq("ShadowParseFixture")
       expect(bluebook.aggregate("Thing").attribute(:name)).not_to be_nil
@@ -81,31 +81,31 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       File.write(shadow_path, EMPTY_VISION)
       File.write(live_path, EMPTY_VISION)
 
-      Hecksagain::Runtime::EraGuard.shadow_parse(EMPTY_VISION, shadow_path)
+      Hecks::Runtime::EraGuard.shadow_parse(EMPTY_VISION, shadow_path)
 
       expect { eval_live(EMPTY_VISION, live_path) }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /a vision says something/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /a vision says something/)
     end
   end
 
   describe "MetaValidator.while_shadow_parsing" do
     it "is off by default, and restores itself even when the block raises" do
-      expect(Hecksagain::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
 
-      expect { Hecksagain::Bluebook::MetaValidator.while_shadow_parsing { raise "boom" } }
+      expect { Hecks::Bluebook::MetaValidator.while_shadow_parsing { raise "boom" } }
         .to raise_error("boom")
 
-      expect(Hecksagain::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
     end
 
     it "is on for exactly the span of its own block" do
       seen_inside = nil
-      Hecksagain::Bluebook::MetaValidator.while_shadow_parsing do
-        seen_inside = Hecksagain::Bluebook::MetaValidator.shadow_parsing?
+      Hecks::Bluebook::MetaValidator.while_shadow_parsing do
+        seen_inside = Hecks::Bluebook::MetaValidator.shadow_parsing?
       end
 
       expect(seen_inside).to be(true)
-      expect(Hecksagain::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
     end
   end
 end

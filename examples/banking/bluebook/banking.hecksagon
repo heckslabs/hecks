@@ -58,6 +58,6 @@ end
 # domain delivery, rust/host's own lambda_client.rs). A domain that
 # wants Compliance's Review aggregates IN-PROCESS instead can still
 # `uses_framework "Compliance"` — the bluebook itself supports either
-# consumption mode (lib/hecksagain/framework/bluebook/compliance.
+# consumption mode (lib/hecks/framework/bluebook/compliance.
 # bluebook's own header) — Banking's own choice here is cross-Lambda,
 # on purpose, to prove that path for real.

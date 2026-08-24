@@ -198,7 +198,7 @@ module RustProjection
           next "#{m[:target]}.#{field_name}: not a declared field" unless field_attr
 
           # A SYMBOL names an argument, anything else IS the value — the one
-          # distinction the wire spelling carries (Hecksagain::Literal), read
+          # distinction the wire spelling carries (Hecks::Literal), read
           # rather than sniffed off the first character.
           parsed = append_field_source(source)
           next literal_problem(m, field_name, parsed, field_attr, value_objects_by_name) unless parsed.is_a?(Symbol)
@@ -226,7 +226,7 @@ module RustProjection
     # trip the self-hosted grammar's own bootstrap uses it for. A Symbol
     # back means the field names a command ARGUMENT ; anything else IS the
     # literal value.
-    def append_field_source(source) = Hecksagain::Bluebook::Assembly::Marks.read(source)
+    def append_field_source(source) = Hecks::Bluebook::Assembly::Marks.read(source)
 
     def literal_problem(mutation, field_name, literal, field_attr, value_objects_by_name)
       return nil if literal.is_a?(Hash) && literal_hash_bridgeable?(literal, field_attr[:type], value_objects_by_name)

@@ -13,7 +13,7 @@ module RustProjection
   # substitution never produce invalid syntax: the exemplar was already
   # valid with the placeholder in that exact position.
   #
-  # WHAT VARIES SHAPE TO SHAPE ISN'T INVENTED HERE, EITHER: `lib/hecksagain/
+  # WHAT VARIES SHAPE TO SHAPE ISN'T INVENTED HERE, EITHER: `lib/hecks/
   # language/bluebook/shape.bluebook`'s own `ShapeField` already names, once
   # for the whole language, the axes a real attribute's shape can vary
   # along (`list`, `optional`, `pattern`, `admits`). The exemplar shapes

@@ -102,7 +102,7 @@ pub fn run(input: &str) -> String {
     let mut reaction_log: Vec<Json> = Vec::new();
     let mut saga_log: Vec<Json> = Vec::new();
     // One entry per successfully-answered "query" step, in step order —
-    // Fuzzing::Replay's own `queries` array (lib/hecksagain/fuzzing/
+    // Fuzzing::Replay's own `queries` array (lib/hecks/fuzzing/
     // replay.rb), read directly: a REFUSED query step (either shape)
     // reports through `refusals` above instead, exactly like a refused
     // command does, and contributes nothing here — matching Ruby, which
@@ -272,9 +272,9 @@ pub fn run(input: &str) -> String {
         };
 
         // `role:` — the SAME optional per-step key `Fuzzing::Replay.call`
-        // reads (`lib/hecksagain/fuzzing/replay.rb`), now on this side of
+        // reads (`lib/hecks/fuzzing/replay.rb`), now on this side of
         // the wire too: Ruby's caller is thread-local ambient state
-        // (`Hecksagain.as_caller`) this kernel has no analogue for, so a
+        // (`Hecks.as_caller`) this kernel has no analogue for, so a
         // step's own `role:` plays that part instead — passed ONLY into
         // THIS top-level `orchestrate` call, never into a reaction's own
         // re-entry (`orchestrate.rs`'s own `None` at every recursive call

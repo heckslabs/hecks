@@ -1,9 +1,9 @@
-require "hecksagain"
+require "hecks"
 require "tmpdir"
 
-RSpec.describe Hecksagain::Adapters::Sqlite do
+RSpec.describe Hecks::Adapters::Sqlite do
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-sqlite-")
+    @dir = Dir.mktmpdir("hecks-sqlite-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
@@ -20,8 +20,8 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
@@ -48,8 +48,8 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
       aggregate: reserved, settings: { database: "reserved.db" }, root: @dir
     )
 
-    built = Hecksagain::Runtime::Instance.new(aggregate: reserved, id: "o1")
-    built[:name] = Hecksagain::Runtime::Value.for(reserved, :name, { value: "Margherita" })
+    built = Hecks::Runtime::Instance.new(aggregate: reserved, id: "o1")
+    built[:name] = Hecks::Runtime::Value.for(reserved, :name, { value: "Margherita" })
     adapter.save(built)
 
     expect(adapter.find("o1").name.to_h).to eq(value: "Margherita")
@@ -98,10 +98,10 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     adapter.save(instance("p2", name: { value: "Diavola" }))
     adapter.save(instance("p3", name: { value: "Bare" }))
 
-    where = Hecksagain::QuerySpecification::Common::WhereClause.new(
+    where = Hecks::QuerySpecification::Common::WhereClause.new(
       field: "name", op: :in, value: "Margherita,Diavola"
     )
-    declared = Hecksagain::Bluebook::Query.new(name: "ByName", wheres: [where])
+    declared = Hecks::Bluebook::Query.new(name: "ByName", wheres: [where])
 
     expect(adapter.query(declared, {}).map(&:id)).to contain_exactly("p1", "p2")
   end
@@ -109,8 +109,8 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
   it "pushes an 'in' where-clause matching nothing when the list is empty" do
     adapter.save(instance("p1", name: { value: "Margherita" }))
 
-    where = Hecksagain::QuerySpecification::Common::WhereClause.new(field: "name", op: :in, value: "")
-    declared = Hecksagain::Bluebook::Query.new(name: "ByName", wheres: [where])
+    where = Hecks::QuerySpecification::Common::WhereClause.new(field: "name", op: :in, value: "")
+    declared = Hecks::Bluebook::Query.new(name: "ByName", wheres: [where])
 
     expect(adapter.query(declared, {})).to be_empty
   end
@@ -125,7 +125,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
   end
 
   it "records and reloads domain events" do
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
       payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
     )

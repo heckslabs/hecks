@@ -16,9 +16,9 @@ RSpec.describe "the first specializer" do
   # just wider than the thing making it.
   %w[Policy Handler].each do |category|
     it "derives #{category}'s plain fields exactly as hand-written" do
-      derived = Hecksagain::Bluebook::Assembly::Specializer.fields_for(category)
-      hand    = Hecksagain::Bluebook::Assembly.contract(category).fields
-                                              .select { |_name, (_source, mark)| mark == :plain }
+      derived = Hecks::Bluebook::Assembly::Specializer.fields_for(category)
+      hand    = Hecks::Bluebook::Assembly.contract(category).fields
+                                         .select { |_name, (_source, mark)| mark == :plain }
 
       expect(derived).to eq(hand)
     end
@@ -28,9 +28,9 @@ RSpec.describe "the first specializer" do
     # silently skipped one would pass the comparison above by matching a
     # table it had itself shrunk.
     it "leaves no plain field of #{category}'s for the hand-written table alone to carry" do
-      derived = Hecksagain::Bluebook::Assembly::Specializer.fields_for(category)
-      plain   = Hecksagain::Bluebook::Assembly.contract(category).fields
-                                              .select { |_name, (_source, mark)| mark == :plain }.keys
+      derived = Hecks::Bluebook::Assembly::Specializer.fields_for(category)
+      plain   = Hecks::Bluebook::Assembly.contract(category).fields
+                                         .select { |_name, (_source, mark)| mark == :plain }.keys
 
       expect(derived.keys).to match_array(plain)
     end

@@ -1,4 +1,4 @@
-//! The `Hecksagon` construct (`lib/hecksagain/language/hecksagon.bluebook`,
+//! The `Hecksagon` construct (`lib/hecks/language/hecksagon.bluebook`,
 //! `HecksagonBuilder`) — a `.hecksagon` file's own content: `binds`,
 //! `subscriptions`, `framework_members` (`uses_framework`). Two things
 //! contribute to `ir.json` per the plan's finding #5: `port ... do ... end`

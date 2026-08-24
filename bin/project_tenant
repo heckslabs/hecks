@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 # THE TENANT PROVISIONER — same split bin/project_deploy already draws
-# between VALIDATING a declared shape (lib/hecksagain/deploy's own
+# between VALIDATING a declared shape (lib/hecks/deploy's own
 # Tenant.Declare) and GENERATING/ACTING on it (this script). Three
 # local, idempotent steps, in order: write the tenant's own
 # `environments/<slug>.world` overlay, boot the domain once under it
@@ -30,7 +30,7 @@
 #     --schema=NAME --database=NAME [--adapter=PostgresEra]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "fileutils"
 require "optparse"
 
@@ -54,11 +54,11 @@ end
 domain_directory = File.expand_path(directory)
 File.directory?(domain_directory) or abort "no such domain directory: #{domain_directory}"
 
-# VALIDATED, not hand-checked — dispatches into lib/hecksagain/deploy's
+# VALIDATED, not hand-checked — dispatches into lib/hecks/deploy's
 # own Tenant.Declare (the same given/invariant machinery LambdaTarget's
 # own validation already is), before this script writes or connects to
 # anything.
-deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecksagain/deploy", __dir__))
+deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
 begin
   deploy_dispatcher.dispatch(
     "Deploy::Tenant.Declare",
@@ -67,7 +67,7 @@ begin
     realm:  { value: options[:realm] },
     schema: { value: options[:schema] }
   )
-rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "tenant #{slug.inspect} is invalid: #{e.message}"
 end
 
@@ -102,7 +102,7 @@ puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{option
 # refuse_ungoverned_roles! already holds itself to across every
 # hecksagon a boot merges.
 dispatcher.registry.bluebooks.each_key do |name|
-  Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
+  Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
 end
 
 puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — safe to host alongside other tenants"

@@ -1,9 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 
-RSpec.describe Hecksagain::Router do
+RSpec.describe Hecks::Router do
   around do |example|
-    @root = Dir.mktmpdir("hecksagain-router-")
+    @root = Dir.mktmpdir("hecks-router-")
     example.run
   ensure
     FileUtils.remove_entry(@root) if @root
@@ -103,7 +103,7 @@ number: { value: "ACC-1" }, balance: { cents: 0 } }] }
   # A REAL GAP, HIT LIVE: `install_namespace_entry` installs one method per
   # declared verb, so an aggregate reached only through the router surface
   # had no `.find`/`.all`/`.count` at all — the read/CRUD half of what a
-  # plain `Hecksagain.boot` already gives for free via `AggregateDoor`. A
+  # plain `Hecks.boot` already gives for free via `AggregateDoor`. A
   # domain whose own commands never happen to include a lookup-by-id query
   # (real case: a `List` aggregate, read only by id, no query of its own)
   # had no way to read one record back through the router at all.

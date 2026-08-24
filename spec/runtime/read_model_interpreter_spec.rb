@@ -13,8 +13,8 @@ require "tmpdir"
 # declared at all, the "leaves it exactly as before" control).
 RSpec.describe "a read model's query options" do
   def build(adapter: "Memory")
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -39,7 +39,7 @@ RSpec.describe "a read model's query options" do
       yield if block_given?
     end
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   # ELEVEN disputed amounts (S13, ADR 0025 — coverage standard,
@@ -82,8 +82,8 @@ RSpec.describe "a read model's query options" do
 
   it "refuses at build with zero many-side heads" do
     expect do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Hecks.bluebook("Solitary") do
@@ -106,13 +106,13 @@ RSpec.describe "a read model's query options" do
           end
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /includes 0 many-side aggregates, not exactly one/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 0 many-side aggregates, not exactly one/)
   end
 
   it "refuses at build with more than one many-side head" do
     expect do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Hecks.bluebook("Crowded") do
@@ -155,7 +155,7 @@ RSpec.describe "a read model's query options" do
           end
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /includes 2 many-side aggregates, not exactly one/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 2 many-side aggregates, not exactly one/)
   end
 
   it "leaves a read model with no declared options exactly as before" do
@@ -179,8 +179,8 @@ RSpec.describe "a read model's query options" do
   # surfaced there; caught only by deliberately reversing the order.
   it "joins the many side correctly regardless of which order include declares it and the root in" do
     build_reversed = lambda do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -231,7 +231,7 @@ RSpec.describe "a read model's query options" do
         end
       end
       registry.verify!
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
     runtime = build_reversed.call
@@ -246,12 +246,12 @@ RSpec.describe "a read model's query options" do
 
   it "applies the same options through Sqlite's native projected-table path" do
     Dir.mktmpdir do |dir|
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
@@ -269,7 +269,7 @@ RSpec.describe "a read model's query options" do
         end
       end
       registry.verify!
-      runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
       seed_disputed_card_payments
 
@@ -297,8 +297,8 @@ RSpec.describe "a read model's query options" do
   # that fails to build is not a real corpus member to freeze.
   context "count and median" do
     def build_with_bad_median(adapter: "Memory")
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -343,7 +343,7 @@ RSpec.describe "a read model's query options" do
         end
       end
       registry.verify!
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
     def open_account(runtime, customer:, account:)
@@ -430,8 +430,8 @@ RSpec.describe "a read model's query options" do
 
     it "refuses count and median declared together" do
       expect do
-        registry = Hecksagain::Runtime::Registry.new
-        Hecksagain.with_registry(registry) do
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Hecks.bluebook("BothReductions") do
@@ -454,13 +454,13 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares both count and median/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both count and median/)
     end
 
     it "refuses count declared together with group_by" do
       expect do
-        registry = Hecksagain::Runtime::Registry.new
-        Hecksagain.with_registry(registry) do
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Hecks.bluebook("CountAndGroup") do
@@ -483,13 +483,13 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares count\/median together with group_by/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count\/median together with group_by/)
     end
 
     it "refuses count declared with more than one many-side head" do
       expect do
-        registry = Hecksagain::Runtime::Registry.new
-        Hecksagain.with_registry(registry) do
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Hecks.bluebook("CrowdedCount") do
@@ -520,7 +520,7 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares count\/median but includes 2 many-side/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count\/median but includes 2 many-side/)
     end
   end
 end
@@ -538,8 +538,8 @@ end
 # unchanged by this feature.
 RSpec.describe "a rootless read model's own group_by" do
   def build(adapter: "Memory")
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -557,7 +557,7 @@ RSpec.describe "a rootless read model's own group_by" do
       yield if block_given?
     end
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def open_accounts(runtime)
@@ -605,8 +605,8 @@ RSpec.describe "a rootless read model's own group_by" do
   end
 
   it "nests by several fields, one level per field, in declared order" do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -650,7 +650,7 @@ RSpec.describe "a rootless read model's own group_by" do
       Hecks.hecksagon("Nested") { Nested::Gadget.persisted_by("Memory") }
     end
     registry.verify!
-    runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
     Nested::Gadget.declare!(ref: { value: "w1" }, group: { value: "g1" })
     Nested::Gadget.declare!(ref: { value: "w2" }, group: { value: "g1" })
@@ -671,20 +671,20 @@ RSpec.describe "a rootless read model's own group_by" do
     registry = runtime.registry
     bluebook = registry.bluebook("Banking")
     model = bluebook.read_model("AccountsByKind")
-    bad = Hecksagain::Bluebook::ReadModel.new(
+    bad = Hecks::Bluebook::ReadModel.new(
       name: model.name, reference_name: nil, reference_target: nil,
       aggregate_heads: model.aggregate_heads, group_by: [{ field: :no_such_field }]
     )
 
     expect do
-      Hecksagain::Runtime::ReadModelInterpreter.new(registry).send(:project, "Banking", bad, {})
+      Hecks::Runtime::ReadModelInterpreter.new(registry).send(:project, "Banking", bad, {})
     end.to raise_error(ArgumentError, /no_such_field.*declares no such attribute/m)
   end
 
   it "refuses group_by declared with zero many-side heads" do
     expect do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Hecks.bluebook("Rootful") do
@@ -707,13 +707,13 @@ RSpec.describe "a rootless read model's own group_by" do
           end
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares group_by but includes 0 many-side/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares group_by but includes 0 many-side/)
   end
 
   it "refuses group_by declared with more than one many-side head" do
     expect do
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Hecks.bluebook("Crowded2") do
@@ -744,17 +744,17 @@ RSpec.describe "a rootless read model's own group_by" do
           end
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares group_by but includes 2 many-side/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares group_by but includes 2 many-side/)
   end
 
   it "applies group_by through Sqlite's own boot too, by skipping the native escape hatch" do
     Dir.mktmpdir do |dir|
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"))
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
@@ -771,7 +771,7 @@ RSpec.describe "a rootless read model's own group_by" do
         end
       end
       registry.verify!
-      runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
 
       open_accounts(runtime)
 

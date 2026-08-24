@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "hecksagain-query-ir": {
-      "command": "bin/hecksagain_query_ir_mcp"
+    "hecks-query-ir": {
+      "command": "bin/hecks_query_ir_mcp"
     }
   }
 }

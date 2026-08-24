@@ -1,7 +1,7 @@
-require "hecksagain"
+require "hecks"
 require "json"
 
-RSpec.describe Hecksagain::Naming do
+RSpec.describe Hecks::Naming do
   CONTRACT_PATH = File.expand_path("corpus/fixtures/naming.json", __dir__)
   CONTRACT = JSON.parse(File.read(CONTRACT_PATH)).freeze
 

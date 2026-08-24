@@ -6,10 +6,10 @@ require "spec_helper"
 # same discipline the docs projector spec keeps, and it earned it twice here:
 # banking is the domain that declares a command and a query of one name, and
 # pizzas is the one whose value objects nest two deep.
-RSpec.describe Hecksagain::Projector::CliProjector do
+RSpec.describe Hecks::Projector::CliProjector do
   def corpus
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -29,7 +29,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
   end
 
   it "is registered under :cli, reachable the way every projector is" do
-    expect(Hecksagain::Projector).to be_registered(:cli)
+    expect(Hecks::Projector).to be_registered(:cli)
   end
 
   it "names a subcommand after its aggregate and verb, and keeps the fully-qualified one" do

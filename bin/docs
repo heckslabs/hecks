@@ -19,7 +19,7 @@
 # refuses instead and names what is actually there.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
+require "hecks"
 
 ROOT = File.expand_path("..", __dir__)
 
@@ -62,7 +62,7 @@ end
 # the whole of banking. Nothing in this corpus names an aggregate after a
 # directory in the same checkout, and if something ever does, the explicit
 # two-argument form still says which is which.
-here = Hecksagain::Adapters::Folder.new.domain_root
+here = Hecks::Adapters::Folder.new.domain_root
 
 path, aggregate =
   if ARGV.empty?              then [here, nil]
@@ -91,11 +91,11 @@ bluebook = runtime.registry.bluebooks.values.first
 abort "#{path} loaded no bluebook" unless bluebook
 
 begin
-  puts Hecksagain::Projector.call(
+  puts Hecks::Projector.call(
     :docs,
     bluebook: bluebook,
     options:  aggregate ? { aggregate: aggregate } : {}
   )
-rescue Hecksagain::Runtime::NotFound => e
+rescue Hecks::Runtime::NotFound => e
   abort e.message
 end

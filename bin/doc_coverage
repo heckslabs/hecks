@@ -25,13 +25,13 @@
 # examples is noise.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/doc/reference"
+require "hecks"
+require "hecks/doc/reference"
 
 directory = File.join(File.expand_path("..", __dir__), "docs/implemented/reference")
 
-undocumented  = Hecksagain::Doc::Reference.undocumented(directory)
-unexemplified = Hecksagain::Doc::Reference.unexemplified(directory)
+undocumented  = Hecks::Doc::Reference.undocumented(directory)
+unexemplified = Hecks::Doc::Reference.unexemplified(directory)
 
 # REPORTED SEPARATELY, because they are different repairs: an
 # undocumented word needs somebody to write about it, an unexemplified

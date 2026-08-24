@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/doc/reference"
+require "hecks/doc/reference"
 
 # S13, ADR 0025 — "A word earns its place by being used. A word stays if
 # it has a real corpus use AND a running doctest. An external consumer
@@ -38,9 +38,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.hecksagon"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.world"),
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook"),
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook"),
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
     # `.port` — REAL, non-synthetic production declarations (13 real
     # ports the framework itself binds against), unlike the S15 Paging
     # precedent's own seed-row false-positive risk (a naive whole-token
@@ -48,10 +48,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # ARE `Hecks.port "..." do verb "..." ; signal :... end` calls.
     # Whole-project table-unification survey, item #13's remaining
     # builders.
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports", "*.port"),
+    File.join(InMemoryDomain::ROOT, "lib/hecks/ports", "*.port"),
     # `.adapter` — same reasoning, one artifact over: 6+ real, non-
     # synthetic driven adapters (Memory, Postgres, Sqlite, D1, ...).
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven", "*.adapter")
+    File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven", "*.adapter")
   ].freeze
 
   # `examples/*/**/*.bluebook`'s own `**` has to be recursive — a
@@ -115,7 +115,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # word inside a string literal" — turned into a real check, not just a
   # read-every-finding promise, once Translation/TranslationAggregate's
   # own coverage (item #13's remaining builders) hit it for real:
-  # `lib/hecksagain/grammar/translation.bluebook`'s own UNRELATED `Rule
+  # `lib/hecks/grammar/translation.bluebook`'s own UNRELATED `Rule
   # .Kind` closed set (`one_of: ["rename", "move", "convert", ...]`) and
   # ordinary English prose (`given("a retired rule ...")`) both contain
   # this language's own rule-word SPELLINGS as plain string DATA, not as
@@ -182,7 +182,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "verb (DomainPort)"                    =>
                                               "every resource port a real domain here needs (persisted_by/projected_by/" \
                                               "opened_by) is a framework-level default, never a project's own `port \"X\" do " \
-                                              "verb \"...\" end` — nothing in examples/ or lib/hecksagain/framework/ needs a " \
+                                              "verb \"...\" end` — nothing in examples/ or lib/hecks/framework/ needs a " \
                                               "swappable resource port of its own. writing-an-adapter.md's own worked example " \
                                               "is the closest this repo has, and it is a guide, not a corpus member.",
     "asks (DomainPort)"                    =>
@@ -198,10 +198,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "refuses (PortOperation)"              =>
                                               "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
     "attaches_to (Bluebook)"               =>
-                                              "genuinely, load-bearingly used for real — lib/hecksagain/language/bluebook/" \
+                                              "genuinely, load-bearingly used for real — lib/hecks/language/bluebook/" \
                                               "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
                                               "at every boot by SyntaxBoot's own generic discovery (ADR 0026, S15) — but that " \
-                                              "file sits inside lib/hecksagain/language/bluebook, excluded from CORPUS_GLOBS " \
+                                              "file sits inside lib/hecks/language/bluebook, excluded from CORPUS_GLOBS " \
                                               "on purpose (the language describing itself is not what this corpus counts, the " \
                                               "same reason every core grammar word's own name is not scanned as a use of " \
                                               "itself). A sub-language chapter is caught by the same exclusion its own words " \
@@ -253,7 +253,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "exists only to be refused, never to succeed.",
     "uses_embryonaut_bluebook (Hecksagon)" =>
                                               "no hecksagon in THIS repository's own corpus vendors an embryonaut bluebook — " \
-                                              "real, external use is what this word is for: lifeadelics/domain (a hecksagain-" \
+                                              "real, external use is what this word is for: lifeadelics/domain (a hecks-" \
                                               "based service, not part of this repository) declares `uses_embryonaut_bluebook " \
                                               "\"payments\"` for real, attaching embryonaut_bluebooks/payments' Payment " \
                                               "aggregate — a full settle/refund/dispute lifecycle shared across every project " \
@@ -266,7 +266,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # these 9 words happens to collide with an UNRELATED real corpus use
     # of the same spelling: `retired`/`rename`/`convert`/`drop`/`retype`/
     # `compute`/`rekey`/`backfill`/`unresolved` all appear as plain STRING
-    # VALUES inside lib/hecksagain/grammar/translation.bluebook's own
+    # VALUES inside lib/hecks/grammar/translation.bluebook's own
     # unrelated `Rule.Kind` closed set (a pre-existing, different self-
     # hosted "Translation" domain — governs proposing/executing/admitting
     # individual rules for bin/evolve's scaffold tooling, never loaded
@@ -300,9 +300,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do
-    missing = Hecksagain::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/implemented/reference"))
-                                        .reject { |word, _context, _prose| corpus_uses?(word) }
-                                        .map { |word, context, _prose| Hecksagain::Doc::Reference.name_of(word, context) }
+    missing = Hecks::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/implemented/reference"))
+                                   .reject { |word, _context, _prose| corpus_uses?(word) }
+                                   .map { |word, context, _prose| Hecks::Doc::Reference.name_of(word, context) }
 
     unnamed = missing - EXEMPT.keys
 
@@ -314,7 +314,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
         #{unnamed.join("\n        ")}
 
       Either add a real declaration somewhere in examples/,
-      lib/hecksagain/grammar/, or lib/hecksagain/framework/bluebook/,
+      lib/hecks/grammar/, or lib/hecks/framework/bluebook/,
       or add a reasoned entry to EXEMPT naming why one would be
       synthetic, vacuous, or impossible.
     WHY

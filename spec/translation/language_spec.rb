@@ -6,10 +6,10 @@ require "tmpdir"
 # message here is pinned byte-for-byte — refusal wording is contract,
 # so a wording drift fails the suite.
 RSpec.describe "the translation language" do
-  Malformed = Hecksagain::Bluebook::DSL::Malformed
+  Malformed = Hecks::Bluebook::DSL::Malformed
 
   def build_translation(&block)
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) { Hecks.data_translation("Lineage", from: "1", to: "2", &block) }
     registry.translations.first
   end
@@ -38,11 +38,11 @@ RSpec.describe "the translation language" do
       expect(declared.computes.map { |c| [c.from, c.to, c.sql] })
         .to eq([["price_cents", "price_dollars", "price_cents::numeric / 100"]])
 
-      lineage = Hecksagain::Ports::Persistence::Lineage.new({}, computes: declared.computes)
+      lineage = Hecks::Ports::Persistence::Lineage.new({}, computes: declared.computes)
       expect(lineage.explains?("price_cents")).to be(true)
       expect(lineage.computes?).to be(true)
 
-      entry = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { price_cents: 100 })
+      entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { price_cents: 100 })
       expect(lineage.translate(entry).state).to eq(price_cents: 100)
     end
 
@@ -54,15 +54,15 @@ RSpec.describe "the translation language" do
 
       expect(declared.backfills.map { |b| [b.name, b.default] }).to eq([[:tier, "standard"]])
 
-      lineage = Hecksagain::Ports::Persistence::Lineage.new({}, backfills: declared.backfills)
+      lineage = Hecks::Ports::Persistence::Lineage.new({}, backfills: declared.backfills)
       expect(lineage.explains?("tier")).to be(true)
       expect(lineage.explains?("other")).to be(false)
 
-      filled = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme" })
+      filled = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme" })
       expect(lineage.translate(filled).state).to eq(name: "Acme", tier: "standard")
 
-      already_there = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1",
-                                                                state: { name: "Acme", tier: "gold" })
+      already_there = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "a1",
+                                                           state: { name: "Acme", tier: "gold" })
       expect(lineage.translate(already_there).state).to eq(name: "Acme", tier: "gold")
     end
   end
@@ -145,7 +145,7 @@ RSpec.describe "the translation language" do
     end
 
     it "refuses a translation whose own header says nothing" do
-      registry = Hecksagain::Runtime::Registry.new
+      registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         expect { Hecks.data_translation("", from: "1", to: "2") }
           .to raise_error(Malformed, "a translation names no domain")
@@ -193,14 +193,14 @@ RSpec.describe "the translation language" do
         aggregate("Account") { retype "Money", to: "Cash" }
       end
       declared = translation.for_aggregate("Account")
-      lineage = Hecksagain::Ports::Persistence::Lineage.new(
+      lineage = Hecks::Ports::Persistence::Lineage.new(
         declared.renames, declared.moves, declared.converts, declared.drops, retypes: declared.retypes
       )
 
       expect(lineage.retype?("Money", "Cash")).to be(true)
       expect(lineage.retype?("Cash", "Money")).to be(false)
 
-      entry = Hecksagain::Ports::Persistence::Entry.new(
+      entry = Hecks::Ports::Persistence::Entry.new(
         operation: "save", id: "a1", state: { price: { "cents" => 100 } }
       )
       expect(lineage.translate(entry).state).to eq(price: { "cents" => 100 })
@@ -225,15 +225,15 @@ RSpec.describe "the translation language" do
         aggregate("Account") { move "amount.cents", to: "team_ref.detail" }
       end
       declared = translation.for_aggregate("Account")
-      lineage = Hecksagain::Ports::Persistence::Lineage.new(
+      lineage = Hecks::Ports::Persistence::Lineage.new(
         declared.renames, declared.moves, declared.converts, declared.drops
       )
-      entry = Hecksagain::Ports::Persistence::Entry.new(
+      entry = Hecks::Ports::Persistence::Entry.new(
         operation: "save", id: "a1", state: { amount: { "cents" => 500 }, team_ref: "team-1" }
       )
 
       expect { lineage.translate(entry) }.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         "cannot move amount.cents to: team_ref.detail: team_ref already holds \"team-1\", not a value " \
         "this can nest under — moving into it would discard that value silently. Rename or drop team_ref first."
       )
@@ -244,10 +244,10 @@ RSpec.describe "the translation language" do
         aggregate("Account") { move "amount.cents", to: "kind.stashed" }
       end
       declared = translation.for_aggregate("Account")
-      lineage = Hecksagain::Ports::Persistence::Lineage.new(
+      lineage = Hecks::Ports::Persistence::Lineage.new(
         declared.renames, declared.moves, declared.converts, declared.drops
       )
-      entry = Hecksagain::Ports::Persistence::Entry.new(
+      entry = Hecks::Ports::Persistence::Entry.new(
         operation: "save", id: "a1", state: { amount: { "cents" => 500 }, kind: { "value" => "biz" } }
       )
 
@@ -257,8 +257,8 @@ RSpec.describe "the translation language" do
 
   describe "EraGuard with the new rule kinds" do
     def eval_bluebook(registry, source, path)
-      loading = Hecksagain::Ports::Loading.bootstrap
-      Hecksagain.with_registry(registry) do
+      loading = Hecks::Ports::Loading.bootstrap
+      Hecks.with_registry(registry) do
         loading.load_library
         Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
       end
@@ -298,23 +298,23 @@ RSpec.describe "the translation language" do
         FileUtils.mkdir_p(domain_dir)
         File.write(File.join(domain_dir, "guarded.bluebook"), GUARDED_V1)
 
-        registry = Hecksagain::Runtime::Registry.new(root: dir)
+        registry = Hecks::Runtime::Registry.new(root: dir)
         eval_bluebook(registry, GUARDED_V1, File.join(domain_dir, "guarded.bluebook"))
-        Hecksagain::Runtime::EraGuard.check!(registry, domain_dir)
+        Hecks::Runtime::EraGuard.check!(registry, domain_dir)
 
         File.write(File.join(domain_dir, "guarded.bluebook"), source)
-        drifted = Hecksagain::Runtime::Registry.new(root: dir)
+        drifted = Hecks::Runtime::Registry.new(root: dir)
         eval_bluebook(drifted, source, File.join(domain_dir, "guarded.bluebook"))
         if translation_source
-          Hecksagain.with_registry(drifted) { eval(translation_source) }
+          Hecks.with_registry(drifted) { eval(translation_source) }
         end
-        Hecksagain::Runtime::EraGuard.check!(drifted, domain_dir)
+        Hecks::Runtime::EraGuard.check!(drifted, domain_dir)
       end
     end
 
     it "a bare type rename refuses, and names retype among the remedies" do
       expect { check_era!(GUARDED_RETYPED) }.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         /not explained by any rename, move, convert, retype, or drop/
       )
     end
@@ -342,7 +342,7 @@ RSpec.describe "the translation language" do
       end'
 
       expect { check_era!(gone) }.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         /Account existed and now doesn't, and nothing declares was: "Account"/
       )
 
@@ -371,7 +371,7 @@ RSpec.describe "the translation language" do
 
     it "a new required attribute with no default refuses, naming backfill among the remedies" do
       expect { check_era!(GUARDED_NEW_REQUIRED_ATTRIBUTE) }.to raise_error(
-        Hecksagain::Runtime::WiringError,
+        Hecks::Runtime::WiringError,
         /:tier is new and required.*backfill :tier, default:/
       )
     end

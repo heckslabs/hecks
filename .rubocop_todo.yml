@@ -29,11 +29,11 @@ Lint/ConstantDefinitionInBlock:
 # Configuration parameters: IgnoreLiteralBranches, IgnoreConstantBranches, IgnoreDuplicateElseBranch.
 Lint/DuplicateBranch:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/sqlite/projection.rb'
-    - 'lib/hecksagain/bluebook/expression/resolver.rb'
-    - 'lib/hecksagain/literal.rb'
-    - 'lib/hecksagain/query_specification/common/comparison.rb'
-    - 'lib/hecksagain/runtime/value/coercion.rb'
+    - 'lib/hecks/adapters/driven/sqlite/projection.rb'
+    - 'lib/hecks/bluebook/expression/resolver.rb'
+    - 'lib/hecks/literal.rb'
+    - 'lib/hecks/query_specification/common/comparison.rb'
+    - 'lib/hecks/runtime/value/coercion.rb'
     - 'spec/orchestration_spec.rb'
 
 # Offense count: 1
@@ -41,7 +41,7 @@ Lint/DuplicateBranch:
 # DelegatingMethods: delegate
 Lint/DuplicateMethods:
   Exclude:
-    - 'lib/hecksagain.rb'
+    - 'lib/hecks.rb'
 
 # Offense count: 9
 # Configuration parameters: AllowComments, AllowEmptyLambdas.
@@ -60,10 +60,10 @@ Lint/ImplicitStringConcatenation:
 # Offense count: 4
 Lint/IneffectiveAccessModifier:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/hecksagon_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/port_operation_builder.rb'
-    - 'lib/hecksagain/fqn.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/hecksagon_builder.rb'
+    - 'lib/hecks/bluebook/dsl/port_operation_builder.rb'
+    - 'lib/hecks/fqn.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -74,7 +74,7 @@ Lint/Loop:
 # Offense count: 1
 Lint/NoReturnInBeginEndBlocks:
   Exclude:
-    - 'lib/hecksagain/grammar.rb'
+    - 'lib/hecks/grammar.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -87,10 +87,10 @@ Lint/NonAtomicFileOperation:
 Lint/RedundantDirGlobSort:
   Exclude:
     - 'bin/model_check'
-    - 'lib/hecksagain/adapters/driven/folder.rb'
-    - 'lib/hecksagain/bluebook/meta_validator.rb'
-    - 'lib/hecksagain/doc/reference.rb'
-    - 'lib/hecksagain/grammar.rb'
+    - 'lib/hecks/adapters/driven/folder.rb'
+    - 'lib/hecks/bluebook/meta_validator.rb'
+    - 'lib/hecks/doc/reference.rb'
+    - 'lib/hecks/grammar.rb'
     - 'spec/combination_coverage_spec.rb'
     - 'spec/corpus_spec.rb'
     - 'spec/load_hygiene_spec.rb'
@@ -106,9 +106,9 @@ Lint/RedundantDirGlobSort:
 Lint/RedundantRequireStatement:
   Exclude:
     - 'bin/rust_coverage'
-    - 'lib/hecksagain/bluebook/model_check.rb'
-    - 'lib/hecksagain/fuzzing/sequence_generator.rb'
-    - 'lib/hecksagain/query_ir.rb'
+    - 'lib/hecks/bluebook/model_check.rb'
+    - 'lib/hecks/fuzzing/sequence_generator.rb'
+    - 'lib/hecks/query_ir.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -117,7 +117,7 @@ Lint/RedundantRequireStatement:
 # AdditionalNilMethods: present?, blank?, try, try!
 Lint/RedundantSafeNavigation:
   Exclude:
-    - 'lib/hecksagain/runtime/value/coercion.rb'
+    - 'lib/hecks/runtime/value/coercion.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
@@ -134,10 +134,10 @@ Lint/SelfAssignment:
 # Offense count: 4
 Lint/StructNewOverride:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/attribute_collector.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/plan.rb'
-    - 'lib/hecksagain/bluebook/translation.rb'
-    - 'lib/hecksagain/runtime/entity_interpreter.rb'
+    - 'lib/hecks/bluebook/dsl/attribute_collector.rb'
+    - 'lib/hecks/bluebook/meta_validator/plan.rb'
+    - 'lib/hecks/bluebook/translation.rb'
+    - 'lib/hecks/runtime/entity_interpreter.rb'
 
 # Offense count: 1
 # Configuration parameters: AllowComments, AllowNil.
@@ -164,8 +164,8 @@ Lint/UselessAssignment:
 # Offense count: 3
 Lint/UselessConstantScoping:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/aggregate_builder.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/judge.rb'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
+    - 'lib/hecks/bluebook/meta_validator/judge.rb'
 
 # Offense count: 42
 # Configuration parameters: AllowedMethods, AllowedPatterns, CountRepeatedAttributes, Max.
@@ -178,8 +178,8 @@ Metrics/AbcSize:
 Metrics/BlockLength:
   Exclude:
     - 'bin/rust_coverage'
-    - 'lib/hecksagain/bluebook/project_register.rb'
-    - 'lib/hecksagain/fuzzing/replay.rb'
+    - 'lib/hecks/bluebook/project_register.rb'
+    - 'lib/hecks/fuzzing/replay.rb'
 
 # Offense count: 1
 # Configuration parameters: CountBlocks, CountModifierForms, Max.
@@ -191,7 +191,7 @@ Metrics/BlockNesting:
 # Configuration parameters: CountComments, Max, CountAsOne.
 Metrics/ClassLength:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
 
 # Offense count: 37
 # Configuration parameters: AllowedMethods, AllowedPatterns, Max.
@@ -207,7 +207,7 @@ Metrics/MethodLength:
 # Configuration parameters: CountComments, Max, CountAsOne.
 Metrics/ModuleLength:
   Exclude:
-    - 'lib/hecksagain/fuzzing/properties.rb'
+    - 'lib/hecks/fuzzing/properties.rb'
 
 # Offense count: 49
 # Configuration parameters: CountKeywordArgs, MaxOptionalParameters.
@@ -222,7 +222,7 @@ Metrics/PerceivedComplexity:
 # Offense count: 1
 Naming/AccessorMethodName:
   Exclude:
-    - 'lib/hecksagain/bluebook/meta_validator/readings.rb'
+    - 'lib/hecks/bluebook/meta_validator/readings.rb'
 
 # Offense count: 37
 # This cop supports safe autocorrection (--autocorrect).
@@ -230,15 +230,15 @@ Naming/AccessorMethodName:
 # SupportedStyles: anonymous, explicit
 Naming/BlockForwarding:
   Exclude:
-    - 'lib/hecksagain.rb'
-    - 'lib/hecksagain/adapters/driven/heki.rb'
-    - 'lib/hecksagain/bluebook/dsl/aggregate_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/domain_port_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/translation_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/world_builder.rb'
-    - 'lib/hecksagain/facade/handle.rb'
-    - 'lib/hecksagain/query_specification/field_path.rb'
+    - 'lib/hecks.rb'
+    - 'lib/hecks/adapters/driven/heki.rb'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/domain_port_builder.rb'
+    - 'lib/hecks/bluebook/dsl/translation_builder.rb'
+    - 'lib/hecks/bluebook/dsl/world_builder.rb'
+    - 'lib/hecks/facade/handle.rb'
+    - 'lib/hecks/query_specification/field_path.rb'
     - 'spec/dsl_spec.rb'
 
 # Offense count: 34
@@ -257,14 +257,14 @@ Naming/PredicateMethod:
     - 'bin/evolve'
     - 'bin/fuzz'
     - 'bin/model_check'
-    - 'lib/hecksagain/adapters/driven/d1.rb'
-    - 'lib/hecksagain/adapters/driven/heki.rb'
-    - 'lib/hecksagain/adapters/driven/postgres.rb'
-    - 'lib/hecksagain/adapters/driven/postgres_era.rb'
-    - 'lib/hecksagain/adapters/driven/sqlite.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/reconstruction.rb'
-    - 'lib/hecksagain/forms/params.rb'
-    - 'lib/hecksagain/ports/persistence/append_only.rb'
+    - 'lib/hecks/adapters/driven/d1.rb'
+    - 'lib/hecks/adapters/driven/heki.rb'
+    - 'lib/hecks/adapters/driven/postgres.rb'
+    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/adapters/driven/sqlite.rb'
+    - 'lib/hecks/bluebook/meta_validator/reconstruction.rb'
+    - 'lib/hecks/forms/params.rb'
+    - 'lib/hecks/ports/persistence/append_only.rb'
 
 # Offense count: 2
 # Configuration parameters: NamePrefix, ForbiddenPrefixes, AllowedMethods, MethodDefinitionMacros, UseSorbetSigs.
@@ -274,7 +274,7 @@ Naming/PredicateMethod:
 # MethodDefinitionMacros: define_method, define_singleton_method
 Naming/PredicatePrefix:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/aggregate_builder.rb'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
 
 # Offense count: 32
 # This cop supports safe autocorrection (--autocorrect).
@@ -438,7 +438,7 @@ Security/Eval:
 # Offense count: 1
 Security/Open:
   Exclude:
-    - 'lib/hecksagain/forms/html.rb'
+    - 'lib/hecks/forms/html.rb'
 
 # Offense count: 5
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -446,10 +446,10 @@ Security/Open:
 # SupportedStyles: inline, group
 Style/AccessModifierDeclarations:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/attribute_collector.rb'
-    - 'lib/hecksagain/bluebook/dsl/translation_builder.rb'
-    - 'lib/hecksagain/runtime/value/admission.rb'
-    - 'lib/hecksagain/runtime/value/coercion.rb'
+    - 'lib/hecks/bluebook/dsl/attribute_collector.rb'
+    - 'lib/hecks/bluebook/dsl/translation_builder.rb'
+    - 'lib/hecks/runtime/value/admission.rb'
+    - 'lib/hecks/runtime/value/coercion.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
@@ -457,13 +457,13 @@ Style/AccessModifierDeclarations:
 # SupportedStyles: prefer_alias, prefer_alias_method
 Style/Alias:
   Exclude:
-    - 'lib/hecksagain/ports/persistence/remote_runtime.rb'
+    - 'lib/hecks/ports/persistence/remote_runtime.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/AmbiguousEndlessMethodDefinition:
   Exclude:
-    - 'lib/hecksagain/ports/persistence/append_only.rb'
+    - 'lib/hecks/ports/persistence/append_only.rb'
 
 # Offense count: 48
 # This cop supports safe autocorrection (--autocorrect).
@@ -473,23 +473,23 @@ Style/AmbiguousEndlessMethodDefinition:
 # RedundantBlockArgumentNames: blk, block, proc
 Style/ArgumentsForwarding:
   Exclude:
-    - 'lib/hecksagain.rb'
-    - 'lib/hecksagain/adapters/driven/heki.rb'
-    - 'lib/hecksagain/bluebook/dsl/aggregate_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/command_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/domain_port_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/entity_builder.rb'
-    - 'lib/hecksagain/bluebook/read_model.rb'
-    - 'lib/hecksagain/ports/persistence/append_only.rb'
-    - 'lib/hecksagain/query_specification/read_model/specification.rb'
-    - 'lib/hecksagain/runtime.rb'
+    - 'lib/hecks.rb'
+    - 'lib/hecks/adapters/driven/heki.rb'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/command_builder.rb'
+    - 'lib/hecks/bluebook/dsl/domain_port_builder.rb'
+    - 'lib/hecks/bluebook/dsl/entity_builder.rb'
+    - 'lib/hecks/bluebook/read_model.rb'
+    - 'lib/hecks/ports/persistence/append_only.rb'
+    - 'lib/hecks/query_specification/read_model/specification.rb'
+    - 'lib/hecks/runtime.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/ArrayIntersect:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
 
 # Offense count: 96
 # This cop supports safe autocorrection (--autocorrect).
@@ -507,8 +507,8 @@ Style/BlockDelimiters:
 Style/CollectionCompact:
   Exclude:
     - 'bin/model_check'
-    - 'lib/hecksagain/bluebook/meta_validator/judge.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/world_judge.rb'
+    - 'lib/hecks/bluebook/meta_validator/judge.rb'
+    - 'lib/hecks/bluebook/meta_validator/world_judge.rb'
     - 'spec/model_check_spec.rb'
     - 'spec/parser_parity_spec.rb'
 
@@ -516,14 +516,14 @@ Style/CollectionCompact:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/CollectionQuerying:
   Exclude:
-    - 'lib/hecksagain/translation/scaffold/differ.rb'
+    - 'lib/hecks/translation/scaffold/differ.rb'
 
 # Offense count: 3
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/CombinableLoops:
   Exclude:
-    - 'lib/hecksagain/bluebook/meta_validator/judge.rb'
-    - 'lib/hecksagain/runtime/dispatcher.rb'
+    - 'lib/hecks/bluebook/meta_validator/judge.rb'
+    - 'lib/hecks/runtime/dispatcher.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
@@ -557,8 +557,8 @@ Style/Documentation:
 # SupportedStyles: class_keyword, class_new, class_definition
 Style/EmptyClassDefinition:
   Exclude:
-    - 'lib/hecksagain/ports/agent.rb'
-    - 'lib/hecksagain/ports/authentication.rb'
+    - 'lib/hecks/ports/agent.rb'
+    - 'lib/hecks/ports/authentication.rb'
     - 'spec/support/doctest.rb'
 
 # Offense count: 2
@@ -567,8 +567,8 @@ Style/EmptyClassDefinition:
 # SupportedStyles: empty, nil, both
 Style/EmptyElse:
   Exclude:
-    - 'lib/hecksagain/fuzzing/invalid_value_generator.rb'
-    - 'lib/hecksagain/query_specification/common/null_policy.rb'
+    - 'lib/hecks/fuzzing/invalid_value_generator.rb'
+    - 'lib/hecks/query_specification/common/null_policy.rb'
 
 # Offense count: 34
 # This cop supports safe autocorrection (--autocorrect).
@@ -596,8 +596,8 @@ Style/EvalWithLocation:
 # This cop supports safe autocorrection (--autocorrect).
 Style/ExplicitBlockArgument:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/postgres_era/lineage/head_compiler.rb'
-    - 'lib/hecksagain/runtime/read_model_interpreter.rb'
+    - 'lib/hecks/adapters/driven/postgres_era/lineage/head_compiler.rb'
+    - 'lib/hecks/runtime/read_model_interpreter.rb'
     - 'spec/dsl_spec.rb'
     - 'spec/oidc_projection_spec.rb'
     - 'spec/scoped_constant_spec.rb'
@@ -625,7 +625,7 @@ Style/FetchEnvVar:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/GlobalStdStream:
   Exclude:
-    - 'bin/hecksagain_query_ir_mcp'
+    - 'bin/hecks_query_ir_mcp'
 
 # Offense count: 4
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -634,7 +634,7 @@ Style/GlobalStdStream:
 Style/HashEachMethods:
   Exclude:
     - 'bin/fuzz'
-    - 'lib/hecksagain/bluebook/model_check.rb'
+    - 'lib/hecks/bluebook/model_check.rb'
     - 'spec/corpus_spec.rb'
     - 'spec/syntax_conformance_spec.rb'
 
@@ -643,9 +643,9 @@ Style/HashEachMethods:
 Style/HashExcept:
   Exclude:
     - 'bin/expression_projection'
-    - 'lib/hecksagain/forms/app.rb'
-    - 'lib/hecksagain/query_specification/common/options.rb'
-    - 'lib/hecksagain/translation/audit/layer_two.rb'
+    - 'lib/hecks/forms/app.rb'
+    - 'lib/hecks/query_specification/common/options.rb'
+    - 'lib/hecks/translation/audit/layer_two.rb'
     - 'spec/codegen_parity_spec.rb'
     - 'spec/operator_conformance_spec.rb'
     - 'spec/round_trip_spec.rb'
@@ -672,13 +672,13 @@ Style/HashSyntax:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/HashTransformValues:
   Exclude:
-    - 'lib/hecksagain/bluebook/meta_validator/syntax_boot.rb'
+    - 'lib/hecks/bluebook/meta_validator/syntax_boot.rb'
 
 # Offense count: 2
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/IdenticalConditionalBranches:
   Exclude:
-    - 'lib/hecksagain/translation/scaffold/renderer.rb'
+    - 'lib/hecks/translation/scaffold/renderer.rb'
 
 # Offense count: 38
 # This cop supports safe autocorrection (--autocorrect).
@@ -690,24 +690,24 @@ Style/IfUnlessModifier:
 # Configuration parameters: InverseMethods, InverseBlocks.
 Style/InverseMethods:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/postgres/codec.rb'
-    - 'lib/hecksagain/adapters/driven/sqlite/codec.rb'
-    - 'lib/hecksagain/adapters/driven/sqlite/projection.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/reconstruction.rb'
-    - 'lib/hecksagain/translation/audit/layer_two.rb'
+    - 'lib/hecks/adapters/driven/postgres/codec.rb'
+    - 'lib/hecks/adapters/driven/sqlite/codec.rb'
+    - 'lib/hecks/adapters/driven/sqlite/projection.rb'
+    - 'lib/hecks/bluebook/meta_validator/reconstruction.rb'
+    - 'lib/hecks/translation/audit/layer_two.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/KeywordArgumentsMerging:
   Exclude:
-    - 'lib/hecksagain/bluebook/assembly/build.rb'
-    - 'lib/hecksagain/bluebook/meta_validator/judge.rb'
+    - 'lib/hecks/bluebook/assembly/build.rb'
+    - 'lib/hecks/bluebook/meta_validator/judge.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/KeywordParametersOrder:
   Exclude:
-    - 'lib/hecksagain/fqn.rb'
+    - 'lib/hecks/fqn.rb'
 
 # Offense count: 7
 # This cop supports safe autocorrection (--autocorrect).
@@ -716,7 +716,7 @@ Style/KeywordParametersOrder:
 Style/Lambda:
   Exclude:
     - 'bin/backfill_era_projections'
-    - 'lib/hecksagain/bluebook/aggregate.rb'
+    - 'lib/hecks/bluebook/aggregate.rb'
     - 'spec/codegen_parity_spec.rb'
     - 'spec/fuzzing/value_generator_spec.rb'
     - 'spec/self_use_spec.rb'
@@ -731,40 +731,40 @@ Style/MapJoin:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/MapToSet:
   Exclude:
-    - 'lib/hecksagain/fuzzing/sequence_generator/catalog.rb'
-    - 'lib/hecksagain/query_ir.rb'
+    - 'lib/hecks/fuzzing/sequence_generator/catalog.rb'
+    - 'lib/hecks/query_ir.rb'
     - 'spec/rust_conformance_spec.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
 Style/ModuleMemberExistenceCheck:
   Exclude:
-    - 'lib/hecksagain/bluebook/assembly/contract.rb'
+    - 'lib/hecks/bluebook/assembly/contract.rb'
 
 # Offense count: 4
 Style/MultilineBlockChain:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/postgres_era.rb'
-    - 'lib/hecksagain/doc/reference.rb'
-    - 'lib/hecksagain/query_specification/common/options.rb'
-    - 'lib/hecksagain/runtime/value/coercion.rb'
+    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/doc/reference.rb'
+    - 'lib/hecks/query_specification/common/options.rb'
+    - 'lib/hecks/runtime/value/coercion.rb'
 
 # Offense count: 29
 # This cop supports safe autocorrection (--autocorrect).
 Style/MultilineIfModifier:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/command_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/identity_declaration.rb'
-    - 'lib/hecksagain/bluebook/dsl/port_operation_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/process_manager_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/read_model_builder.rb'
-    - 'lib/hecksagain/bluebook/project_register.rb'
-    - 'lib/hecksagain/fqn.rb'
-    - 'lib/hecksagain/grammar/evolve.rb'
-    - 'lib/hecksagain/ports/persistence/append_only.rb'
-    - 'lib/hecksagain/query_ir.rb'
-    - 'lib/hecksagain/router/namespace_installer.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/command_builder.rb'
+    - 'lib/hecks/bluebook/dsl/identity_declaration.rb'
+    - 'lib/hecks/bluebook/dsl/port_operation_builder.rb'
+    - 'lib/hecks/bluebook/dsl/process_manager_builder.rb'
+    - 'lib/hecks/bluebook/dsl/read_model_builder.rb'
+    - 'lib/hecks/bluebook/project_register.rb'
+    - 'lib/hecks/fqn.rb'
+    - 'lib/hecks/grammar/evolve.rb'
+    - 'lib/hecks/ports/persistence/append_only.rb'
+    - 'lib/hecks/query_ir.rb'
+    - 'lib/hecks/router/namespace_installer.rb'
 
 # Offense count: 6
 # This cop supports safe autocorrection (--autocorrect).
@@ -772,9 +772,9 @@ Style/MultilineTernaryOperator:
   Exclude:
     - 'bin/project_rust'
     - 'bin/translation_audit'
-    - 'lib/hecksagain/bluebook/assembly/build.rb'
-    - 'lib/hecksagain/forms/field_shape.rb'
-    - 'lib/hecksagain/runtime/command_interpreter/mutation_applier.rb'
+    - 'lib/hecks/bluebook/assembly/build.rb'
+    - 'lib/hecks/forms/field_shape.rb'
+    - 'lib/hecks/runtime/command_interpreter/mutation_applier.rb'
     - 'spec/adapters/query_agreement_spec.rb'
 
 # Offense count: 6
@@ -782,8 +782,8 @@ Style/MultilineTernaryOperator:
 # Configuration parameters: AllowMethodComparison, ComparisonsThreshold.
 Style/MultipleComparison:
   Exclude:
-    - 'lib/hecksagain/bluebook/expression/evaluator.rb'
-    - 'lib/hecksagain/fuzzing/properties.rb'
+    - 'lib/hecks/bluebook/expression/evaluator.rb'
+    - 'lib/hecks/fuzzing/properties.rb'
     - 'spec/dsl_spec.rb'
     - 'spec/fuzzing/properties_spec.rb'
     - 'spec/fuzzing/replay_spec.rb'
@@ -805,21 +805,21 @@ Style/NestedFileDirname:
 # This cop supports safe autocorrection (--autocorrect).
 Style/NestedTernaryOperator:
   Exclude:
-    - 'lib/hecksagain/forms/field_renderer.rb'
-    - 'lib/hecksagain/query_ir.rb'
+    - 'lib/hecks/forms/field_renderer.rb'
+    - 'lib/hecks/query_ir.rb'
 
 # Offense count: 1
 # Configuration parameters: AllowedClasses.
 Style/OneClassPerFile:
   Exclude:
-    - 'lib/hecksagain/ports/persistence.rb'
+    - 'lib/hecks/ports/persistence.rb'
 
 # Offense count: 1
 # Configuration parameters: AllowedMethods.
 # AllowedMethods: respond_to_missing?
 Style/OptionalBooleanParameter:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/command_builder.rb'
+    - 'lib/hecks/bluebook/dsl/command_builder.rb'
 
 # Offense count: 8
 # This cop supports safe autocorrection (--autocorrect).
@@ -828,9 +828,9 @@ Style/ParallelAssignment:
     - 'bin/codemod_hoist_local_givens'
     - 'bin/codemod_implicit_append_fields'
     - 'bin/fuzz'
-    - 'lib/hecksagain/fuzzing/sequence_generator/catalog.rb'
-    - 'lib/hecksagain/query_specification/common/options.rb'
-    - 'lib/hecksagain/router/namespace_installer.rb'
+    - 'lib/hecks/fuzzing/sequence_generator/catalog.rb'
+    - 'lib/hecks/query_specification/common/options.rb'
+    - 'lib/hecks/router/namespace_installer.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
@@ -849,10 +849,10 @@ Style/PredicateWithKind:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/ReduceToHash:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/runtime/instance.rb'
-    - 'lib/hecksagain/runtime/read_model_interpreter.rb'
-    - 'lib/hecksagain/runtime/value.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/runtime/instance.rb'
+    - 'lib/hecks/runtime/read_model_interpreter.rb'
+    - 'lib/hecks/runtime/value.rb'
     - 'spec/adapters/driven/postgres_spec.rb'
 
 # Offense count: 1
@@ -860,20 +860,20 @@ Style/ReduceToHash:
 # Configuration parameters: Methods.
 Style/RedundantArgument:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/identity_declaration.rb'
+    - 'lib/hecks/bluebook/dsl/identity_declaration.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantAssignment:
   Exclude:
-    - 'lib/hecksagain/bluebook/assembly.rb'
+    - 'lib/hecks/bluebook/assembly.rb'
     - 'spec/round_trip_spec.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantBegin:
   Exclude:
-    - 'lib/hecksagain/translation/audit/layer_one.rb'
+    - 'lib/hecks/translation/audit/layer_one.rb'
     - 'spec/operator_conformance_spec.rb'
 
 # Offense count: 73
@@ -885,14 +885,14 @@ Style/RedundantConstantBase:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/RedundantEach:
   Exclude:
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantFreeze:
   Exclude:
     - 'bin/docs'
-    - 'lib/hecksagain/doc/reference.rb'
+    - 'lib/hecks/doc/reference.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -904,8 +904,8 @@ Style/RedundantInterpolation:
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantInterpolationUnfreeze:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/postgres_era.rb'
-    - 'lib/hecksagain/adapters/driven/sql_query_builder.rb'
+    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/adapters/driven/sql_query_builder.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
@@ -935,7 +935,7 @@ Style/RedundantSort:
 Style/RegexpLiteral:
   Exclude:
     - 'bin/rust_coverage'
-    - 'lib/hecksagain/bluebook/expression/resolver.rb'
+    - 'lib/hecks/bluebook/expression/resolver.rb'
     - 'spec/adapters/driven/postgres_era/lineage_spec.rb'
     - 'spec/adapters/driven/postgres_era_spec.rb'
     - 'spec/adapters/driven/postgres_spec.rb'
@@ -949,9 +949,9 @@ Style/RegexpLiteral:
 Style/RescueModifier:
   Exclude:
     - 'bin/translation_audit'
-    - 'lib/hecksagain/adapters/driven/postgres_era/lineage/mint_transaction.rb'
-    - 'lib/hecksagain/adapters/driven/postgres_era/lineage/provisioning.rb'
-    - 'lib/hecksagain/adapters/driven/postgres_era/lineage/tail_merge.rb'
+    - 'lib/hecks/adapters/driven/postgres_era/lineage/mint_transaction.rb'
+    - 'lib/hecks/adapters/driven/postgres_era/lineage/provisioning.rb'
+    - 'lib/hecks/adapters/driven/postgres_era/lineage/tail_merge.rb'
     - 'spec/dsl_spec.rb'
 
 # Offense count: 1
@@ -960,14 +960,14 @@ Style/RescueModifier:
 # SupportedStyles: implicit, explicit
 Style/RescueStandardError:
   Exclude:
-    - 'lib/hecksagain/fuzzing/replay.rb'
+    - 'lib/hecks/fuzzing/replay.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
 # Configuration parameters: AllowedMethods, AllowedPatterns.
 Style/ReturnNilInPredicateMethodDefinition:
   Exclude:
-    - 'lib/hecksagain/query_ir.rb'
+    - 'lib/hecks/query_ir.rb'
 
 # Offense count: 12
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -975,27 +975,27 @@ Style/ReturnNilInPredicateMethodDefinition:
 # AllowedMethods: present?, blank?, presence, try, try!
 Style/SafeNavigation:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/sql_query_builder.rb'
-    - 'lib/hecksagain/bluebook/dsl/bluebook_builder.rb'
-    - 'lib/hecksagain/fuzzing/properties.rb'
-    - 'lib/hecksagain/fuzzing/replay.rb'
-    - 'lib/hecksagain/query_specification/common/authorization_spec.rb'
-    - 'lib/hecksagain/runtime/command_interpreter/mutation_applier.rb'
-    - 'lib/hecksagain/runtime/entity_interpreter.rb'
-    - 'lib/hecksagain/runtime/era_guard/shape_diff.rb'
-    - 'lib/hecksagain/runtime/instance.rb'
+    - 'lib/hecks/adapters/driven/sql_query_builder.rb'
+    - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
+    - 'lib/hecks/fuzzing/properties.rb'
+    - 'lib/hecks/fuzzing/replay.rb'
+    - 'lib/hecks/query_specification/common/authorization_spec.rb'
+    - 'lib/hecks/runtime/command_interpreter/mutation_applier.rb'
+    - 'lib/hecks/runtime/entity_interpreter.rb'
+    - 'lib/hecks/runtime/era_guard/shape_diff.rb'
+    - 'lib/hecks/runtime/instance.rb'
 
 # Offense count: 1
 # Configuration parameters: Max.
 Style/SafeNavigationChainLength:
   Exclude:
-    - 'lib/hecksagain/fuzzing/properties.rb'
+    - 'lib/hecks/fuzzing/properties.rb'
 
 # Offense count: 1
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/SelectByKind:
   Exclude:
-    - 'lib/hecksagain/query_specification/common/comparison.rb'
+    - 'lib/hecks/query_specification/common/comparison.rb'
 
 # Offense count: 5
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -1005,21 +1005,21 @@ Style/SelectByRegexp:
     - 'bin/fuzz'
     - 'bin/project_cli'
     - 'bin/project_oidc'
-    - 'lib/hecksagain/fuzzing/isolated_boot.rb'
+    - 'lib/hecks/fuzzing/isolated_boot.rb'
 
 # Offense count: 1
 # This cop supports safe autocorrection (--autocorrect).
 Style/SelfAssignment:
   Exclude:
-    - 'lib/hecksagain/projector/cli_projector.rb'
+    - 'lib/hecks/projector/cli_projector.rb'
 
 # Offense count: 13
 # This cop supports safe autocorrection (--autocorrect).
 # Configuration parameters: AllowAsExpressionSeparator.
 Style/Semicolon:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/postgres.rb'
-    - 'lib/hecksagain/ports/projection.rb'
+    - 'lib/hecks/adapters/driven/postgres.rb'
+    - 'lib/hecks/ports/projection.rb'
     - 'spec/dsl_spec.rb'
     - 'spec/expression_spec.rb'
     - 'spec/facade/handle_spec.rb'
@@ -1032,11 +1032,11 @@ Style/Semicolon:
 Style/StringConcatenation:
   Exclude:
     - 'bin/expression_projection'
-    - 'lib/hecksagain/doc/reference.rb'
-    - 'lib/hecksagain/grammar/evolve.rb'
-    - 'lib/hecksagain/projections/model.rb'
-    - 'lib/hecksagain/projections/vocabulary.rb'
-    - 'lib/hecksagain/projector/docs_projector.rb'
+    - 'lib/hecks/doc/reference.rb'
+    - 'lib/hecks/grammar/evolve.rb'
+    - 'lib/hecks/projections/model.rb'
+    - 'lib/hecks/projections/vocabulary.rb'
+    - 'lib/hecks/projector/docs_projector.rb'
     - 'spec/adapters/driven/heki_spec.rb'
     - 'spec/bluebook/project_loader_spec.rb'
     - 'spec/load_hygiene_spec.rb'
@@ -1050,11 +1050,11 @@ Style/StringConcatenation:
 Style/StringLiteralsInInterpolation:
   Exclude:
     - 'bin/project_kernel_capabilities'
-    - 'lib/hecksagain/adapters/driven/heki/journal.rb'
-    - 'lib/hecksagain/forms/field_renderer.rb'
-    - 'lib/hecksagain/forms/html.rb'
-    - 'lib/hecksagain/fuzzing/replay.rb'
-    - 'lib/hecksagain/projections/model.rb'
+    - 'lib/hecks/adapters/driven/heki/journal.rb'
+    - 'lib/hecks/forms/field_renderer.rb'
+    - 'lib/hecks/forms/html.rb'
+    - 'lib/hecks/fuzzing/replay.rb'
+    - 'lib/hecks/projections/model.rb'
 
 # Offense count: 3
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -1062,7 +1062,7 @@ Style/StringLiteralsInInterpolation:
 # AllowedMethods: define_method
 Style/SymbolProc:
   Exclude:
-    - 'lib/hecksagain/bluebook/behaviour/traits.rb'
+    - 'lib/hecks/bluebook/behaviour/traits.rb'
     - 'spec/operator_conformance_spec.rb'
     - 'spec/self_use_spec.rb'
 
@@ -1104,10 +1104,10 @@ Style/TrailingCommaInHashLiteral:
 # AllowedMethods: to_ary, to_a, to_c, to_enum, to_h, to_hash, to_i, to_int, to_io, to_open, to_path, to_proc, to_r, to_regexp, to_str, to_s, to_sym
 Style/TrivialAccessors:
   Exclude:
-    - 'lib/hecksagain/adapters/driven/heki.rb'
-    - 'lib/hecksagain/adapters/driven/memory.rb'
-    - 'lib/hecksagain/fqn.rb'
-    - 'lib/hecksagain/runtime/reference_hop.rb'
+    - 'lib/hecks/adapters/driven/heki.rb'
+    - 'lib/hecks/adapters/driven/memory.rb'
+    - 'lib/hecks/fqn.rb'
+    - 'lib/hecks/runtime/reference_hop.rb'
     - 'spec/construct_spec.rb'
     - 'spec/judge_coverage_spec.rb'
     - 'spec/ports/projection_spec.rb'

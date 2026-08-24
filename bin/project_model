@@ -7,12 +7,12 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
-chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-out     = File.expand_path("../lib/hecksagain/bluebook", __dir__)
+chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+out     = File.expand_path("../lib/hecks/bluebook", __dir__)
 
-written = Hecksagain::Projector.write(
-  Hecksagain::Projector.call(:model, bluebook: chapter), out, as: :files
+written = Hecks::Projector.write(
+  Hecks::Projector.call(:model, bluebook: chapter), out, as: :files
 )
 written.each { |path| puts "wrote #{path}" }

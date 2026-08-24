@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Fqn do
+RSpec.describe Hecks::Fqn do
   it "addresses a command with a PascalCase verb" do
     fqn = described_class.command(realm: "Acme", domain: "Banking", aggregate: "Account", command: "Credit")
 
@@ -26,7 +26,7 @@ RSpec.describe Hecksagain::Fqn do
 
   it "refuses an address whose verb cannot tell a command from a query" do
     expect { described_class.parse("Acme::Banking::Account.MixedCase_Query") }
-      .to raise_error(Hecksagain::Fqn::Invalid, /PascalCase command or snake_case query/)
+      .to raise_error(Hecks::Fqn::Invalid, /PascalCase command or snake_case query/)
   end
 
   it "rejects malformed separators, empty segments, and invalid versions" do

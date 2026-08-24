@@ -26,7 +26,7 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 require "json"
 
 USAGE = "usage: bin/run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>".freeze
@@ -47,7 +47,7 @@ def cli_form(domain, argv)
   # script-shaped — not `-`, not inline JSON, not a file that exists — so
   # there is nothing else it could have meant, and a near miss deserves the
   # runner's "did you mean" rather than the step-list form's "no such script".
-  text, status = Hecksagain::Facade::CliRunner.call(runtime: runtime, argv: argv, program: "bin/run")
+  text, status = Hecks::Facade::CliRunner.call(runtime: runtime, argv: argv, program: "bin/run")
   status.zero? ? puts(text) : abort(text)
   exit 0
 end
@@ -61,7 +61,7 @@ script_shaped = ->(arg) { arg == "-" || arg.match?(/\A\s*\{/) || File.file?(arg)
 # THE FIRST ARGUMENT IS A DOMAIN ONLY WHEN IT IS A DIRECTORY. Everything else
 # — a verb, a script path, inline JSON — belongs to the domain you are standing
 # in, found by walking up for a `.hecksagon`.
-here = Hecksagain::Adapters::Folder.new.domain_root
+here = Hecks::Adapters::Folder.new.domain_root
 argv = ARGV.dup
 domain = argv.first && File.directory?(argv.first) ? argv.shift : here
 

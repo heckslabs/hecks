@@ -1,5 +1,5 @@
 // Implements the `:list` branch of `Runtime::Value::Coercion::SHAPES`
-// (lib/hecksagain/runtime/value/coercion.rb) — `Attribute#list?` /
+// (lib/hecks/runtime/value/coercion.rb) — `Attribute#list?` /
 // `for_attribute`'s `hydrate_entity_list` branch. At the
 // expression-evaluation layer a list-typed field is represented by its
 // own LENGTH ONLY (`Value::List(usize)`, `expr.rs`'s own header): real

@@ -1,12 +1,12 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../support/postgres_probe"
 
 # Runs only when a Postgres server is reachable (any local default
 # install will do) — same reachability gate every real-Postgres spec in
 # this repo already uses (support/postgres_probe.rb).
-RSpec.describe Hecksagain::Adapters::Postgres,
+RSpec.describe Hecks::Adapters::Postgres,
                io: true do
-  PLAIN_POSTGRES_SPEC_DB = "hecksagain_postgres_spec".freeze
+  PLAIN_POSTGRES_SPEC_DB = "hecks_postgres_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -39,8 +39,8 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
@@ -50,12 +50,12 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /declares no "database"/)
+      .to raise_error(Hecks::Runtime::WiringError, /declares no "database"/)
   end
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Order/)
+      .to raise_error(Hecks::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Order/)
   end
 
   it "projects its schema as one real typed column per scalar attribute, plus id" do
@@ -123,7 +123,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   end
 
   it "records and reloads domain events" do
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
       payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
     )
@@ -223,8 +223,8 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     # answers, so this builds one directly, the same way
     # query_agreement_spec.rb builds its own throwaway fixture.
     def build_tagged_aggregate
-      Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
-        Hecksagain::Bluebook::DSL::AggregateBuilder.new("Widget").tap do |builder|
+      Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+        Hecks::Bluebook::DSL::AggregateBuilder.new("Widget").tap do |builder|
           builder.value_object("Tag") { attribute :name, String }
           builder.attribute :tags, builder.list_of(Tag)
           builder.query("TaggedRed") { where(tags: { contains: "red" }) }
@@ -236,8 +236,8 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     let(:tagged_adapter) { described_class.new(aggregate: tagged_aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB }) }
 
     def tagged_instance(id, tags:)
-      built = Hecksagain::Runtime::Instance.new(aggregate: tagged_aggregate, id: id)
-      built[:tags] = Hecksagain::Runtime::Value.for(tagged_aggregate, :tags, tags)
+      built = Hecks::Runtime::Instance.new(aggregate: tagged_aggregate, id: id)
+      built[:tags] = Hecks::Runtime::Value.for(tagged_aggregate, :tags, tags)
       built
     end
 
@@ -260,10 +260,10 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     adapter.save(instance("p2", name: { value: "Diavola" }))
     adapter.save(instance("p3", name: { value: "Bare" }))
 
-    where = Hecksagain::QuerySpecification::Common::WhereClause.new(
+    where = Hecks::QuerySpecification::Common::WhereClause.new(
       field: "name", op: :in, value: "Margherita,Diavola"
     )
-    declared = Hecksagain::Bluebook::Query.new(name: "ByName", wheres: [where])
+    declared = Hecks::Bluebook::Query.new(name: "ByName", wheres: [where])
 
     expect(adapter.query(declared, {}).map(&:id)).to contain_exactly("p1", "p2")
   end

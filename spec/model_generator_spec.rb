@@ -6,15 +6,15 @@ require "spec_helper"
 # fails the ordinary suite rather than surviving until the next
 # regeneration silently discards it.
 RSpec.describe "the generated model" do
-  let(:chapter) { Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
-  let(:projected) { Hecksagain::Projector.call(:model, bluebook: chapter) }
+  let(:chapter) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
+  let(:projected) { Hecks::Projector.call(:model, bluebook: chapter) }
 
-  Hecksagain::Projections::Model::HOST.each_value do |host|
+  Hecks::Projections::Model::HOST.each_value do |host|
     it "#{host.fetch(:file)} is exactly what bin/project_model would render" do
-      committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecksagain/bluebook", host.fetch(:file)))
+      committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook", host.fetch(:file)))
 
       expect(projected.fetch(host.fetch(:file))).to eq(committed),
-                                                    "lib/hecksagain/bluebook/#{host.fetch(:file)} has drifted — run bin/project_model"
+                                                    "lib/hecks/bluebook/#{host.fetch(:file)} has drifted — run bin/project_model"
     end
   end
 

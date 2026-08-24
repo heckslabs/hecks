@@ -8,11 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /private/tmp/hecksagain-framework-move/rust/host
+HOST_DIR := /private/tmp/hecks-framework-move/rust/host
 # `domain_name`, matching bin/project_wasm's own target_mod_name
 # (a Rust-build-pipeline naming convention, not AWS resource
 # identity — see HECKS_WASM_PATH's own comment above).
-WASM     := /private/tmp/hecksagain-framework-move/rust/dist/embryonautfoundersapp.wasm
+WASM     := /private/tmp/hecks-framework-move/rust/dist/embryonautfoundersapp.wasm
 
 build-EmbryonautFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -27,7 +27,7 @@ build-EmbryonautFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /private/tmp/hecksagain-framework-move && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
+	cd /private/tmp/hecks-framework-move && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -65,7 +65,7 @@ restore-EmbryonautFunction-build:
 	cp $(WASM) .aws-sam/build/EmbryonautFunction/embryonautfoundersapp.wasm
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "EmbryonautFunction:" } or raise "restore-EmbryonautFunction-build: EmbryonautFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-EmbryonautFunction-build: no CodeUri line found under EmbryonautFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: EmbryonautFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
-# `make mint-era` — takes hecksagain-embryonaut's RDS instance from freshly
+# `make mint-era` — takes hecks-embryonaut's RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
 # resolve" (template.yaml's own env vars already assume era 1 —
 # this is what makes that true). Run ONCE per fresh database, before
@@ -75,10 +75,10 @@ restore-EmbryonautFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /private/tmp/hecksagain-framework-move
+ROOT      := /private/tmp/hecks-framework-move
 DOMAIN    := /Users/christopheryoung/Projects/embryonautfoundersapp
-STACK     := hecksagain-embryonaut
-BASTION_STACK := hecksagain-embryonaut-bastion
+STACK     := hecks-embryonaut
+BASTION_STACK := hecks-embryonaut-bastion
 
 mint-era:
 	@echo "Looking up $(STACK)'s VPC/security group..."
@@ -181,7 +181,7 @@ mint-era:
 			nc -z localhost 15432 2>/dev/null && break; \
 			sleep 1; \
 		done; \
-		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"], schema: "embryonautfoundersapp" }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \
+		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecks"; require "hecks/presentation"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"], schema: "embryonautfoundersapp" }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \
 		BOOT_STATUS=$$?; \
 		echo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \
 		sleep 3; \
@@ -465,7 +465,7 @@ rename-schema:
 # execution image — sidesteps the AL2 package conflict between
 # `openssl-libs` and the build image's own pre-installed
 # `openssl-snapsafe-libs` entirely, rather than fighting it.
-PG_NATIVE_DIR := /private/tmp/hecksagain-framework-move/tmp/pg-native-arm64-ruby3.2
+PG_NATIVE_DIR := /private/tmp/hecks-framework-move/tmp/pg-native-arm64-ruby3.2
 
 $(PG_NATIVE_DIR)/pg_ext.so:
 	@mkdir -p $(PG_NATIVE_DIR)
@@ -518,13 +518,13 @@ patch-pg-native: $(PG_NATIVE_DIR)/pg_ext.so
 	ln -sf libpq.so.5.16 .aws-sam/build/WebFunction/lib/libpq.so.5
 
 
-# Owns hecksagain-embryonaut-web-google-oauth's WHOLE lifecycle (create on
+# Owns hecks-embryonaut-web-google-oauth's WHOLE lifecycle (create on
 # first run, update every run after — idempotent, cheap, no reason
 # to cache the way patch-pg-native's own multi-minute build does) —
 # deliberately OUTSIDE CloudFormation, straight from /Users/christopheryoung/Projects/embryonautfoundersapp's own
 # gitignored .env.local, so the real client_id/secret never lands in
 # this generated, git-TRACKED template.yaml as plaintext. Read by
-# name (`{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:...}}`,
+# name (`{{resolve:secretsmanager:hecks-embryonaut-web-google-oauth:...}}`,
 # template.yaml's own Environment — WebFunction's
 # own), not by `!Ref` — see that comment for why this secret isn't a
 # stack resource at all. NOT nested inside patch-pg-native's own
@@ -538,8 +538,8 @@ sync-google-oauth:
 		CLIENT_SECRET=$$(grep '^GOOGLE_CLIENT_SECRET=' /Users/christopheryoung/Projects/embryonautfoundersapp/.env.local | cut -d= -f2-); \
 		test -n "$$CLIENT_ID" -a -n "$$CLIENT_SECRET" || { echo "sync-google-oauth: /Users/christopheryoung/Projects/embryonautfoundersapp/.env.local is missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET"; exit 1; }; \
 		SECRET_JSON=$$(ruby -rjson -e 'puts JSON.generate({client_id: ARGV[0], client_secret: ARGV[1]})' "$$CLIENT_ID" "$$CLIENT_SECRET"); \
-		aws secretsmanager put-secret-value --secret-id hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null 2>&1 || \
-		aws secretsmanager create-secret --name hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
+		aws secretsmanager put-secret-value --secret-id hecks-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null 2>&1 || \
+		aws secretsmanager create-secret --name hecks-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
 
 
 # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
@@ -604,7 +604,7 @@ deploy:
 		echo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \
 	fi
 	$(MAKE) sync-google-oauth
-	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecksagain-embryonaut-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
+	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecks-embryonaut-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
 	if [ -n "$$WEB_URL" ]; then \
 		sam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"; \
 	else \

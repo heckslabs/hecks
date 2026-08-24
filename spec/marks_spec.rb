@@ -3,11 +3,11 @@ require "spec_helper"
 # Assembly::Marks has no direct coverage anywhere else — every other spec
 # exercises it indirectly, through a full domain boot. `bindings` specifically:
 # a saga's dispatch bindings ride the same self-describing spelling every other
-# to_h-bound literal field does (Hecksagain::Literal), and had the same gap
+# to_h-bound literal field does (Hecks::Literal), and had the same gap
 # `where_clause` did until this — recovering an object literal and a kwarg
 # reference (the bug that broke banking's saga narrative once already) but not a
 # number or boolean, because nothing in the real corpus has ever bound one.
-RSpec.describe Hecksagain::Bluebook::Assembly::Marks do
+RSpec.describe Hecks::Bluebook::Assembly::Marks do
   describe ".bindings" do
     it "recovers a kwarg reference as the Symbol it names" do
       expect(described_class.bindings(source: ":amount")).to eq(source: :amount)

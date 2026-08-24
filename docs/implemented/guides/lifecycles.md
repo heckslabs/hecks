@@ -50,7 +50,7 @@ ever refunded first.
 ## Wiring
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
   Banking::Customer.persisted_by("Memory")
@@ -169,9 +169,9 @@ yourself, the same way `spec/model_check_spec.rb` does — boot a
 registry, hand the bluebook to `ModelCheck.call`:
 
 ```ruby
-require "hecksagain/bluebook/model_check"
+require "hecks/bluebook/model_check"
 
-findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
+findings = Hecks::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
 cp_findings = findings.select { |f| f.subject == "CardPayment" }
 
 cp_findings.map { |f| [f.kind, f.severity] }  # => [[:stuck_state, :warning], [:stuck_state, :warning], [:stuck_state, :warning]]
@@ -260,7 +260,7 @@ end
 ```
 
 ```ruby
-findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Impasse"))
+findings = Hecks::Bluebook::ModelCheck.call(runtime.registry.bluebook("Impasse"))
 
 findings.map { |f| [f.kind, f.severity] }.uniq.sort_by { |kind, _| kind.to_s }
 # => [[:dead_transition, :error], [:stuck_state, :warning], [:unreachable_state, :error]]

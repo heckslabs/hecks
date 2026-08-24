@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "Memory execution-plan capabilities" do
   def boot_inventory
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -30,7 +30,7 @@ RSpec.describe "Memory execution-plan capabilities" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "uses atomic put only after a complete-state proof and reports its outcome" do
@@ -65,7 +65,7 @@ RSpec.describe "Memory execution-plan capabilities" do
         "Inventory::Item.Register",
         with: { sku: "sku-1", label: { value: "Second" } }
       )
-    }.to raise_error(Hecksagain::Runtime::AlreadyExists, /Register creates a Item that already exists/)
+    }.to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
     expect(finds).to eq(0)
     expect(repository.find("sku-1").state[:label].to_h).to eq(value: "First")
 
@@ -75,6 +75,6 @@ RSpec.describe "Memory execution-plan capabilities" do
         to:   "sku-1",
         with: { sku: "sku-2", label: { value: "Wrong receiver" } }
       )
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch, /routes to "sku-1".*identity facts name "sku-2"/)
+    end.to raise_error(Hecks::Runtime::TypeMismatch, /routes to "sku-1".*identity facts name "sku-2"/)
   end
 end

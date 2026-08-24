@@ -1,6 +1,6 @@
-require "hecksagain/behaviors"
+require "hecks/behaviors"
 
-RSpec.describe Hecksagain::Behaviors do
+RSpec.describe Hecks::Behaviors do
   def fixture(name) = File.join(File.expand_path("fixtures", __dir__), name)
 
   describe "parse errors" do
@@ -20,7 +20,7 @@ RSpec.describe Hecksagain::Behaviors do
     end
 
     it "refuses Hecks.behaviors called outside the runner" do
-      expect { Hecks.behaviors("Direct") { vision "x" } }.to raise_error(Hecksagain::Behaviors::LoadOutsideRunner)
+      expect { Hecks.behaviors("Direct") { vision "x" } }.to raise_error(Hecks::Behaviors::LoadOutsideRunner)
     end
   end
 

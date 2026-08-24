@@ -4,7 +4,7 @@
 
 ## The problem
 
-`lib/hecksagain/fuzzing/value_generator.rb`'s own edge-case tables:
+`lib/hecks/fuzzing/value_generator.rb`'s own edge-case tables:
 
 ```ruby
 INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648]  # Int32 only
@@ -37,7 +37,7 @@ snuck into a comparator or a stored-column type.
 2. Add `Float::NAN`, `Float::INFINITY`, `-Float::INFINITY`, `-0.0` to
    `FLOAT_EDGE_CASES`.
 3. Trace what each of these actually does through
-   `lib/hecksagain/runtime/value/coercion.rb`'s `check_numeric_fields`
+   `lib/hecks/runtime/value/coercion.rb`'s `check_numeric_fields`
    (`coercion.rb:313-327`) and `CommandRules::Arithmetic#multiply`/`#clamp`
    (touched twice already this session — the `clamp` phantom-field fix,
    and the four independent recompute functions in

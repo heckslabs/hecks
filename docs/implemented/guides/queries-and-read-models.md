@@ -26,7 +26,7 @@ loaded directly rather than invented for this page — the same file
 exercise, kept honest by the same build the moment it changes:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -195,7 +195,7 @@ or silently expensive:
 
 ```ruby
 seal_hop = lambda do
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Hecks.bluebook("QueriesHopOrder") do
       aggregate "Client" do
         value_object("ClientName") { attribute :value, String }
@@ -410,7 +410,7 @@ verified by hand.
 Reaching the seal directly needs the same ambient registry a `.bluebook`
 file gets from the boot loader — `Hecks.bluebook` refuses to run
 outside one — so each attempt below opens its own with
-`Hecksagain.with_registry` by hand, wrapped in a `lambda` so the build
+`Hecks.with_registry` by hand, wrapped in a `lambda` so the build
 only runs, and only refuses, at the point this guide claims it does.
 Most of these throwaway aggregates skip `identified_by`: the seal
 each one trips runs before identity would ever matter, so there's no
@@ -423,7 +423,7 @@ otherwise match nothing and refuse nothing, forever, on every adapter:
 
 ```ruby
 seal_a = lambda do
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Hecks.bluebook("QueriesSealA") do
       aggregate "Ledger" do
         value_object("EntryLabel") { attribute :value, String }
@@ -442,7 +442,7 @@ SQL compared the text lexicographically, two answers for one query:
 
 ```ruby
 seal_b = lambda do
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Hecks.bluebook("QueriesSealB") do
       aggregate "Ledger" do
         value_object("EntryLabel") { attribute :value, String }
@@ -466,7 +466,7 @@ the compared field" pins directly:
 
 ```ruby
 seal_c = lambda do
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Hecks.bluebook("QueriesSealC") do
       aggregate "Ledger" do
         identified_by :balance
@@ -487,7 +487,7 @@ hash, and the two would disagree about what the row even holds:
 
 ```ruby
 seal_d = lambda do
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Hecks.bluebook("QueriesSealD") do
       aggregate "Ledger" do
         value_object("Money") { attribute :cents, Integer }

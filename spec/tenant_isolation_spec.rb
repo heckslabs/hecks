@@ -119,16 +119,16 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       bloom = boot_tenant(dir, "bloom")
 
       # NEITHER refuses — Memory is tenant_capable? by construction.
-      expect { Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(acme.registry, "Tenanted") }
+      expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(acme.registry, "Tenanted") }
         .not_to raise_error
-      expect { Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(bloom.registry, "Tenanted") }
+      expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(bloom.registry, "Tenanted") }
         .not_to raise_error
 
-      register = Hecksagain::Bluebook::ProjectRegister.new
+      register = Hecks::Bluebook::ProjectRegister.new
       register_tenant(register, acme, dir)
       register_tenant(register, bloom, dir)
 
-      router = Hecksagain::Router.new(register)
+      router = Hecks::Router.new(register)
 
       router.dispatch("Acme::Tenanted::Widget.Make", ref: { value: "only-acme-has-this" })
 
@@ -149,7 +149,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       # against the BUILDER's own binds directly, before any adapter is
       # ever instantiated, the same way refuse_ungoverned_roles! checks
       # a merged hecksagon without needing a live repository either.
-      registry = Hecksagain::Runtime::Registry.new(root: dir)
+      registry = Hecks::Runtime::Registry.new(root: dir)
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
@@ -157,15 +157,15 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         Kernel.load(File.join(dir, "tenanted.hecksagon"))
       end
 
-      expect { Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(registry, "Tenanted") }
-        .to raise_error(Hecksagain::Runtime::WiringError, /not tenant_capable\?/)
+      expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(registry, "Tenanted") }
+        .to raise_error(Hecks::Runtime::WiringError, /not tenant_capable\?/)
     end
   end
 
   it "keeps two tenants' data completely apart on real PostgresEra, in genuinely separate schemas", io: true do
     skip "no local Postgres reachable" unless PostgresProbe.available?
 
-    db = "hecksagain_tenant_isolation_spec"
+    db = "hecks_tenant_isolation_spec"
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")
@@ -190,14 +190,14 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         acme  = boot_tenant(dir, "acme")
         bloom = boot_tenant(dir, "bloom")
 
-        expect { Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(acme.registry, "Tenanted") }
+        expect { Hecks::Runtime::TenantCheck.refuse_unless_tenant_capable!(acme.registry, "Tenanted") }
           .not_to raise_error
 
-        register = Hecksagain::Bluebook::ProjectRegister.new
+        register = Hecks::Bluebook::ProjectRegister.new
         register_tenant(register, acme, dir)
         register_tenant(register, bloom, dir)
 
-        router = Hecksagain::Router.new(register)
+        router = Hecks::Router.new(register)
         router.dispatch("Acme::Tenanted::Widget.Make", ref: { value: "acme-only-real-postgres" })
 
         expect(router.query("Acme::Tenanted::Widget.all").map { |w| w[:ref][:value] }).to eq(["acme-only-real-postgres"])

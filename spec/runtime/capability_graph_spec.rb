@@ -1,9 +1,9 @@
-require "hecksagain"
+require "hecks"
 require_relative "../fixtures/sequential_identity"
 
-RSpec.describe Hecksagain::Runtime::CapabilityGraph do
+RSpec.describe Hecks::Runtime::CapabilityGraph do
   def identity_generation_port
-    File.expand_path("../../lib/hecksagain/ports/identity_generation.port", __dir__)
+    File.expand_path("../../lib/hecks/ports/identity_generation.port", __dir__)
   end
 
   def sequential_adapter
@@ -11,15 +11,15 @@ RSpec.describe Hecksagain::Runtime::CapabilityGraph do
   end
 
   def secure_random_adapter
-    File.expand_path("../../lib/hecksagain/adapters/driven/secure_random_identity.adapter", __dir__)
+    File.expand_path("../../lib/hecks/adapters/driven/secure_random_identity.adapter", __dir__)
   end
 
   # THREE PORTS, TWO BOUND. Persistence and extraction each get their usual
   # adapter (Memory, Prism) ; identity_generation is declared, on purpose,
   # with nothing implementing it — the gap the graph exists to name.
   def registry
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -42,8 +42,8 @@ RSpec.describe Hecksagain::Runtime::CapabilityGraph do
 
     it "lists more than one adapter for a port more than one implements" do
       held = registry
-      Hecksagain.with_registry(held) { Kernel.load(sequential_adapter) }
-      Hecksagain.with_registry(held) { Kernel.load(secure_random_adapter) }
+      Hecks.with_registry(held) { Kernel.load(sequential_adapter) }
+      Hecks.with_registry(held) { Kernel.load(secure_random_adapter) }
 
       expect(held.capability_graph.fulfillments["identity_generation"])
         .to contain_exactly("SequentialIdentity", "SecureRandomIdentity")
@@ -57,7 +57,7 @@ RSpec.describe Hecksagain::Runtime::CapabilityGraph do
 
     it "is empty once every declared port has an adapter" do
       held = registry
-      Hecksagain.with_registry(held) { Kernel.load(sequential_adapter) }
+      Hecks.with_registry(held) { Kernel.load(sequential_adapter) }
 
       expect(held.capability_graph.unfulfilled).to be_empty
     end

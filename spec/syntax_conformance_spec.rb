@@ -20,14 +20,14 @@ require "spec_helper"
 # and not to the language is invisible to anything projected from the language,
 # which is precisely the class of bug that made the parser unprojectable.
 RSpec.describe "the declared syntax" do
-  D = Hecksagain::Bluebook::DSL
+  D = Hecks::Bluebook::DSL
 
-  def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.syntax = judged_meta.aggregates.find { |a| a.hecks_name == "Syntax" }
 
   # The same chapter, reachable from inside an example.
-  def meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   # EVERY CELL AS TEXT. A member's fields decode back through typed literal
   # decoding on the way out of reconstruction — the same path Attribute#list
@@ -47,8 +47,8 @@ RSpec.describe "the declared syntax" do
   # each one through the real admission/lifecycle door, handing back the
   # exact shape `rows` used to read straight off the closed set — nothing
   # below this line needed to change.
-  KEYWORDS      = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-  ARGUMENTS     = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
+  KEYWORDS      = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+  ARGUMENTS     = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
   CONTEXTS      = rows("Context").map { |row| row[:name] }
   BODIES        = rows("Body").map { |row| row[:name] }
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
@@ -137,7 +137,7 @@ RSpec.describe "the declared syntax" do
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
-      # `behaviors` — lib/hecksagain/behaviors.rb, opt-in and never
+      # `behaviors` — lib/hecks/behaviors.rb, opt-in and never
       # collected into a domain Registry (its own header says so
       # plainly) — a `.behaviors` file is a test artifact a runner
       # reads, never a bluebook declaration, so it carries no syntax
@@ -638,7 +638,7 @@ RSpec.describe "the declared syntax" do
   end
 
   def self.all_meta_aggregates
-    registry     = Hecksagain::Bluebook::MetaValidator.grammar_registry
+    registry     = Hecks::Bluebook::MetaValidator.grammar_registry
     aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation].flat_map { |chapter| registry.bluebook(chapter).aggregates }
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
@@ -685,8 +685,8 @@ RSpec.describe "the declared syntax" do
   META_ONLY_CATEGORIES = %w[Vocabulary Syntax Keyword Argument].freeze
 
   it "opens every category the judge dispatches" do
-    plan = Hecksagain::Bluebook::MetaValidator::Plan.for(
-      Hecksagain::Bluebook::MetaValidator.grammar_registry
+    plan = Hecks::Bluebook::MetaValidator::Plan.for(
+      Hecks::Bluebook::MetaValidator.grammar_registry
     ).names - META_ONLY_CATEGORIES
     opened = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
 

@@ -21,7 +21,7 @@
 // command already does, never silently wrong.
 //
 // GROUND TRUTH: `Runtime::QueryInterpreter#interpret`
-// (lib/hecksagain/runtime/query_interpreter.rb), read directly — for THIS
+// (lib/hecks/runtime/query_interpreter.rb), read directly — for THIS
 // subset specifically (no hop), `interpret` and its own differential twin
 // `reference_interpret` are PROVABLY the identical answer, order_by/limit
 // included: both share the exact same `ordered`/`capped` sequence —

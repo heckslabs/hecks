@@ -4,7 +4,7 @@
 Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -13,7 +13,7 @@ All three words are wiring, so they run against `examples/banking` with
 a hecksagon written here rather than the one the example ships:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -27,7 +27,7 @@ Hecks.hecksagon("Banking") do
   # the bare, chapter-level form.
   Banking::Account.port "RiskFeed" do
     operation "Flag" do
-      attribute :number, Hecksagain::Bluebook::Reference.new("Account")
+      attribute :number, Hecks::Bluebook::Reference.new("Account")
       attribute :narrative, Narrative
       emits "RiskFlagReceived"
     end
@@ -78,7 +78,7 @@ runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("Accoun
 | positional 1 | text | true | framework_members |
 <!-- generated:end -->
 
-Names a `lib/hecksagain/framework/bluebook/` member this domain wants attached — `uses_framework "Governance"`, say. Attaching one is a deployment decision, the same kind `persisted_by`/`projected_by` already are, so it lives in the hecksagon rather than as a fact stated in the domain's own bluebook. Loads that member's own bluebook into whatever registry this one is loading into — always from its own real location, never a copy, so it keeps working even when this domain is itself copied somewhere else first (a fuzz run's isolated tmp boot, for instance). Persistence is NOT part of what this loads — a member's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever is attaching it, the same as any other binding decision.
+Names a `lib/hecks/framework/bluebook/` member this domain wants attached — `uses_framework "Governance"`, say. Attaching one is a deployment decision, the same kind `persisted_by`/`projected_by` already are, so it lives in the hecksagon rather than as a fact stated in the domain's own bluebook. Loads that member's own bluebook into whatever registry this one is loading into — always from its own real location, never a copy, so it keeps working even when this domain is itself copied somewhere else first (a fuzz run's isolated tmp boot, for instance). Persistence is NOT part of what this loads — a member's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever is attaching it, the same as any other binding decision.
 
 The member is recorded on the hecksagon that asked for it:
 
@@ -104,9 +104,9 @@ runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => 
 | positional 1 | text | true | vendored_bluebooks |
 <!-- generated:end -->
 
-One level further out than `uses_framework`: not a member shipped inside hecksagain's own `lib/`, but a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout* — `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. Loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. Persistence is NOT part of what this loads, the same restriction `uses_framework` already draws — a consuming project declares its own separate `Hecks.hecksagon` block to bind the vendored aggregates' real storage.
+One level further out than `uses_framework`: not a member shipped inside hecks's own `lib/`, but a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout* — `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. Loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. Persistence is NOT part of what this loads, the same restriction `uses_framework` already draws — a consuming project declares its own separate `Hecks.hecksagon` block to bind the vendored aggregates' real storage.
 
-Real, external use: `lifeadelics/domain` (a hecksagain-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
+Real, external use: `lifeadelics/domain` (a hecks-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
 
 Outside a real, rooted project — the doctest registry above, say — there is nowhere to vendor from, and it refuses rather than silently finding nothing:
 

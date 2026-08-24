@@ -6,16 +6,16 @@ require "spec_helper"
 # `old` names the state as the givens saw it.
 RSpec.describe "a command's ensures" do
   def boot(chapter = "Vault", &domain)
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Hecks.bluebook(chapter, &domain)
     end
-    Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Dispatcher.new(registry)
   end
 
   # A scratch domain, not a corpus fixture — one command whose postcondition
@@ -104,7 +104,7 @@ RSpec.describe "a command's ensures" do
     runtime = open_box(vault)
 
     expect { runtime.dispatch("Vault::Box.Overstate", number: { value: "b1" }, amount: { cents: 100 }) }
-      .to raise_error(Hecksagain::Runtime::EnsuresNotMet,
+      .to raise_error(Hecks::Runtime::EnsuresNotMet,
                       "Overstate refused — the balance grew by exactly double the deposit")
 
     expect(runtime.registry.repository("Vault", runtime.registry.bluebook("Vault").aggregate("Box"))
@@ -123,7 +123,7 @@ RSpec.describe "a command's ensures" do
   end
 
   it "is EnsuresNotMet, is a domain refusal, and reads as the domain judging" do
-    expect(Hecksagain::Runtime::DOMAIN_REFUSALS).to include(Hecksagain::Runtime::EnsuresNotMet)
+    expect(Hecks::Runtime::DOMAIN_REFUSALS).to include(Hecks::Runtime::EnsuresNotMet)
   end
 
   # ENSURES is the first refusal that ever sits AFTER a mutation — every
@@ -230,7 +230,7 @@ RSpec.describe "a command's ensures" do
       runtime.dispatch("Coin::Purse.Open", number: { value: "p1" })
 
       expect { runtime.dispatch("Coin::Purse.TotalUp", number: { value: "p1" }) }
-        .to raise_error(Hecksagain::Runtime::EnsuresNotMet)
+        .to raise_error(Hecks::Runtime::EnsuresNotMet)
 
       stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")
       expect(stored[:total][:cents]).to eq(0)
@@ -243,7 +243,7 @@ RSpec.describe "a command's ensures" do
 cents: { cents: 25 })
 
       expect { runtime.dispatch("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" }, new_label: { value: "tails" }) }
-        .to raise_error(Hecksagain::Runtime::EnsuresNotMet)
+        .to raise_error(Hecks::Runtime::EnsuresNotMet)
 
       stored = runtime.registry.repository("Coin", runtime.registry.bluebook("Coin").aggregate("Purse")).find("p1")
       expect(stored[:coins].first[:label][:value]).to eq("heads")

@@ -1,11 +1,11 @@
-require "hecksagain"
+require "hecks"
 require "tmpdir"
 require "zlib"
 require "json"
 
-RSpec.describe Hecksagain::Adapters::Heki do
+RSpec.describe Hecks::Adapters::Heki do
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-heki-")
+    @dir = Dir.mktmpdir("hecks-heki-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
@@ -22,8 +22,8 @@ RSpec.describe Hecksagain::Adapters::Heki do
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 

@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/query_ir"
+require "hecks/query_ir"
 
-RSpec.describe Hecksagain::QueryIR do
+RSpec.describe Hecks::QueryIR do
   describe ".constructs" do
     it "reports every real construct clean, matching spec/model_shape_conformance_spec.rb's own passing gate" do
       diffs = described_class.constructs
@@ -55,7 +55,7 @@ RSpec.describe Hecksagain::QueryIR do
     # alone precisely to isolate "one owner, many referencing
     # commands" from that separate, real, cross-aggregate case.
     it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates" do
-      raw = described_class.send(:collect_rules, Hecksagain::Codemod.load_bluebook(
+      raw = described_class.send(:collect_rules, Hecks::Codemod.load_bluebook(
                                                    InMemoryDomain::BANKING_BLUEBOOK_DIR
                                                  ))
       account_given = raw.select do |r|

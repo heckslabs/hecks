@@ -17,7 +17,7 @@ We also investigated whether minting a new era could carry the rename forward in
 
 - `Bluebook::DSL::BluebookBuilder#report` is the primary method; `read_model` is `alias_method`'d to it, kept alive permanently — the same shape as `sets`/`then_set`.
 - The self-hosted grammar was updated through the actual tool, not by hand: `bin/evolve rename read_model --context Bluebook --to report`, which rewrote `syntax.bluebook`'s row to `word: "report", context: "Bluebook", ..., was: "read_model"`, regenerated the golden IR, and ran its own gates (`syntax_conformance_spec`, `syntax_lifecycle_spec`, `ir_golden_spec`).
-- All *live* `.bluebook` authoring sources were moved to `report`: `examples/banking/bluebook/`, the self-hosted `lib/hecksagain/language/bluebook/bluebook.bluebook`, and `spec/fixtures/reflex.bluebook`.
+- All *live* `.bluebook` authoring sources were moved to `report`: `examples/banking/bluebook/`, the self-hosted `lib/hecks/language/bluebook/bluebook.bluebook`, and `spec/fixtures/reflex.bluebook`.
 - Frozen held-era text (`examples/banking/data/eras/banking/1.bluebook` and its `archive/` copy) was deliberately left untouched — editing it would trip the tamper detector it exists to trigger.
 - `docs/implemented/reference/` was regenerated via `bin/reference`, with the prose for the renamed word hand-updated (the generator refuses to silently drop prose for a word the language no longer declares by its old name).
 

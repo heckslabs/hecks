@@ -116,7 +116,7 @@ below).
 ## Wiring
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -153,7 +153,7 @@ dispatch; the rest of this page proves each row once, live, against
 | `TypeMismatch` | an argument arrived in the wrong shape — a reference handed as an object is the case that costs the most in practice | a customer passed as an object instead of an id |
 
 Every one of these is a `StandardError` subclass under
-`Hecksagain::Runtime`, and every one is the domain answering, not the
+`Hecks::Runtime`, and every one is the domain answering, not the
 runtime breaking. A refusal is a response, not a malfunction.
 
 ## Creating vs. acting

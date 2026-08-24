@@ -1,8 +1,8 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Bluebook::MetaValidator::TranslationJudge do
+RSpec.describe Hecks::Bluebook::MetaValidator::TranslationJudge do
   let(:meta_language) do
-    Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Translation")
+    Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Translation")
   end
 
   it "retains the translation parent as a relationship without behavioral self references" do
@@ -24,21 +24,21 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::TranslationJudge do
     runtime.define_singleton_method(:dispatch) do |verb, to:, with:|
       calls << { verb: verb, to: to, with: with }
     end
-    allow(Hecksagain::Bluebook::MetaValidator).to receive(:fresh_runtime).and_return(runtime)
+    allow(Hecks::Bluebook::MetaValidator).to receive(:fresh_runtime).and_return(runtime)
 
-    aggregate = Hecksagain::Bluebook::TranslationAggregate.new(
+    aggregate = Hecks::Bluebook::TranslationAggregate.new(
       name:      "Account",
       renames:   { old_name: :new_name },
-      backfills: [Hecksagain::Bluebook::TranslationBackfill.new(:tier, "standard")]
+      backfills: [Hecks::Bluebook::TranslationBackfill.new(:tier, "standard")]
     )
-    translation = Hecksagain::Bluebook::Translation.new(
+    translation = Hecks::Bluebook::Translation.new(
       domain: "Banking", from: "held", to: "current",
       aggregates: [aggregate], retired: ["Ledger"]
     )
 
     described_class.new(translation)
 
-    translation_id = Hecksagain::Naming.identity(%w[Banking held current])
+    translation_id = Hecks::Naming.identity(%w[Banking held current])
     expect(calls).to include(
       {
         verb: "Translation::Translation.Retire",

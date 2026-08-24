@@ -218,20 +218,20 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
     bluebook = registry.bluebook("Pizzas")
     aggregate = bluebook.aggregate("Order")
 
-    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: File.read(InMemoryDomain::PIZZAS_BLUEBOOK),
       settings: { database: owner_url, role: app_role }
     )
 
-    adapter = Hecksagain::Adapters::PostgresEra.new(
+    adapter = Hecks::Adapters::PostgresEra.new(
       aggregate: aggregate, settings: { database: owner_url, domain: "Pizzas", era: 1 }
     )
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: "p1")
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: "p1")
     fields = {
       name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } },
       toppings: [{ name: "Basil", amount: 3 }], customer_name: { value: "Alice" }
     }
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     adapter.save(built)
 
     results = run_harness(binary, db_name, app_role, "Pizzas", 1, [{ "op" => "read_by_id", "storage_name" => "order", "id" => "p1" }])

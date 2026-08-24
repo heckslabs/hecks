@@ -1,4 +1,4 @@
-//! `hecks-parse` — the fresh, purpose-built Rust parser for hecksagain's
+//! `hecks-parse` — the fresh, purpose-built Rust parser for hecks's
 //! own `.bluebook` DSL (see `/Users/christopheryoung/.claude/plans/sequential-petting-whale.md`
 //! for the full 8-stage plan this crate is Stage 1 of).
 //!

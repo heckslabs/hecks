@@ -8,29 +8,29 @@ if ENV["COVERAGE"]
   end
 end
 
-require "hecksagain"
+require "hecks"
 
 module InMemoryDomain
   ROOT             = File.expand_path("..", __dir__)
   PIZZAS_BLUEBOOK  = File.join(ROOT, "examples/pizzas/bluebook/pizzas.bluebook")
   BANKING_BLUEBOOK_DIR = File.join(ROOT, "examples/banking/bluebook").freeze
-  PERSISTENCE_PORT = File.join(ROOT, "lib/hecksagain/ports/persistence.port")
-  EXTRACTION_PORT  = File.join(ROOT, "lib/hecksagain/ports/extraction.port")
-  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter")
-  PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter")
-  POSTGRES_ADAPTER = File.join(ROOT, "lib/hecksagain/adapters/driven/postgres.adapter")
-  POSTGRES_ERA_ADAPTER = File.join(ROOT, "lib/hecksagain/adapters/driven/postgres_era.adapter")
+  PERSISTENCE_PORT = File.join(ROOT, "lib/hecks/ports/persistence.port")
+  EXTRACTION_PORT  = File.join(ROOT, "lib/hecks/ports/extraction.port")
+  MEMORY_ADAPTER   = File.join(ROOT, "lib/hecks/adapters/driven/memory.adapter")
+  PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
+  POSTGRES_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres.adapter")
+  POSTGRES_ERA_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres_era.adapter")
 
   # A chapter may reopen across several business-concept files. Load the set
   # inside the same deferred validation window Runtime::Loader uses, then judge
   # the completed chapter once rather than treating each file as a domain.
   def load_bluebook_files(path)
     if path.is_a?(Array)
-      Hecksagain::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
-      return Hecksagain::Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
+      Hecks::Bluebook::MetaValidator.defer { path.each { |file| Kernel.load(file) } }
+      return Hecks::Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
     end
 
-    folder = Hecksagain::Adapters::Folder.new
+    folder = Hecks::Adapters::Folder.new
     return folder.load_bluebooks(folder.bluebook_directory(path)) unless File.file?(path)
 
     folder.load_bluebooks(File.dirname(path), [File.basename(path)])
@@ -38,9 +38,9 @@ module InMemoryDomain
   module_function :load_bluebook_files
 
   def boot_in_memory
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(PERSISTENCE_PORT)
       Kernel.load(EXTRACTION_PORT)
       Kernel.load(MEMORY_ADAPTER)
@@ -62,8 +62,8 @@ module InMemoryDomain
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(
-      Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Loader.bind_runtime(
+      Hecks::Runtime::Dispatcher.new(registry)
     )
   end
 end

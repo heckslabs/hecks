@@ -7,11 +7,11 @@
 #   bin/project <domain>
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
+require "hecks"
 
 runtime = Hecks.boot(ARGV.fetch(0))
 runtime.registry.bluebooks.each do |domain, bluebook|
   bluebook.aggregates.each do |aggregate|
-    Hecksagain::Ports::Projection.worker(runtime.registry, domain, aggregate, policy: :refresh)&.catch_up!
+    Hecks::Ports::Projection.worker(runtime.registry, domain, aggregate, policy: :refresh)&.catch_up!
   end
 end

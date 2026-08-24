@@ -3,10 +3,10 @@
 version = 0.1
 
 [default.deploy.parameters]
-stack_name = "hecksagain-pizzas"
+stack_name = "hecks-pizzas"
 region = "us-east-1"
 resolve_s3 = true
-s3_prefix = "hecksagain-pizzas"
+s3_prefix = "hecks-pizzas"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 disable_rollback = false

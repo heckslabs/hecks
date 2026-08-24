@@ -81,13 +81,13 @@ hmac = "0.12"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 # CROSS-LAMBDA POLICY DISPATCH (lambda_client.rs) — a direct port of
-# `Adapters::Lambda::Client` (lib/hecksagain/adapters/driven/lambda/
+# `Adapters::Lambda::Client` (lib/hecks/adapters/driven/lambda/
 # client.rb): given a cross-domain policy's OWN target domain name
 # (baked in at codegen time from its `across:` declaration — never
 # path/basename-derived, so this crate never repeats the real bug that
 # comment names Ruby working around: "root is always /var/task inside a
 # deployed Lambda", `ENV["DOMAIN_NAME"]`-first), compute
-# "hecksagain-<domain>" and invoke that Lambda directly, same service,
+# "hecks-<domain>" and invoke that Lambda directly, same service,
 # same function-name convention, different language's SDK for it.
 #
 # NEITHER CRATE'S "default"/"rustls" FEATURE IS USED — both, checked

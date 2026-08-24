@@ -1,5 +1,5 @@
 // Implements the `:scalar` branch of `Runtime::Value::Coercion::SHAPES`
-// (lib/hecksagain/runtime/value/coercion.rb) — `for_attribute`'s final
+// (lib/hecks/runtime/value/coercion.rb) — `for_attribute`'s final
 // `else value` (the value object lookup misses, so the raw
 // String/Integer/Float/Boolean value passes through unchanged). At the
 // expression-evaluation layer that "raw value" is one of this kernel's

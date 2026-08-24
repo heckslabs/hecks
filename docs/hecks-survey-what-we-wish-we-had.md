@@ -1,7 +1,7 @@
-# hecks survey: what it has that hecksagain doesn't
+# hecks survey: what it has that hecks doesn't
 
 **Status: survey, 2026-08-17.** A thorough read of `~/Projects/hecks` (the
-older, larger sibling that now depends on hecksagain via its Gemfile) to answer
+older, larger sibling that now depends on hecks via its Gemfile) to answer
 one question: *what does it have that we wish we had — especially Storehouse?*
 
 Every item is marked for how real it is over there. A lot of hecks is
@@ -14,7 +14,7 @@ processes listed, stores read.
 
 hecks is a sprawling *organism* — a persistent agent ("Miette") with a modelled
 body, daemons, hooks, a corpus of ~156 bluebooks describing its own machinery.
-hecksagain is the clean *core* that organism now runs on. Almost nothing we
+hecks is the clean *core* that organism now runs on. Almost nothing we
 envy is a language feature; the language here is stricter and better. What
 hecks has is the **operational surface around the bus** — how you *see*
 dispatches, *schedule* them, *gate* them, and let an agent *drive the whole
@@ -33,7 +33,7 @@ Storehouse is three things wearing one name:
    `storehouse loop|drive|clock` processes were running under overmind at
    survey time. Heki *writes* through the binary were retired ("to mutate
    state, use a bluebook command") — the binary enforces the door on itself.
-2. **A Ruby CLI** (`hecks/hecksagain_runtime/bin/hecksagain-cli`) over *our*
+2. **A Ruby CLI** (`hecks/hecks_runtime/bin/hecks-cli`) over *our*
    gem: `dispatch query state catalog describe list validate macrophage
    governed-door behaviors conceive-behaviors statusline`. One line of JSON per
    call. This is what the MCP shells out to.
@@ -64,7 +64,7 @@ tool. They *had* nine hand-registered `Tools.*` sugar tools (`_bash`, `_read`,
 Every `dispatch`/`query`/`state` call requires a one-line `summary`, enforced by
 the tool schema, so every audit row carries human intent for free.
 
-*Ours:* a 3-tool query-IR MCP (`bin/hecksagain_query_ir_mcp`); the only
+*Ours:* a 3-tool query-IR MCP (`bin/hecks_query_ir_mcp`); the only
 agent-facing dispatch is `bin/run <domain> '{"steps":[…]}'`. **Real and
 running over there.**
 
@@ -221,7 +221,7 @@ most-specific-wins. That cascade alone would collapse our N repeated
   trap": `size < 10` was unhandled, so the whole command silently vanished).
   Our fuzzer is arguably stronger, but we have no per-command example suite
   generated from the model. **Authoring DSL exists; no interpreter under
-  hecksagain — currently inert.**
+  hecks — currently inert.**
 - **Morphology promotion loop.** Runtime accumulates rejection pressure for
   words not in the compile-time list; at ≥3 the candidate is promoted and the
   compile-time artifact regenerated. A general recipe: static fast path,
@@ -275,5 +275,5 @@ hecks paths, all under `~/Projects/hecks`: `CLAUDE.md`, `README.md`,
 `hecks_conception/aggregates/framework/{event_sourcing,hexagon,session,handler_registry,audit,agent_inbox,sidequest,tool_cache,mindstream,process_health}/bluebook/`,
 `hecks_conception/aggregates/language/grammar/bluebook/{driving,hexagon,extraction,behaviors_conception,morphology}.bluebook`,
 `hecks_conception/docs/{sprint12-architecture-decision.md,designs/event-sourcing-lineage.md,flows-design.md}`,
-`tooling/storehouse-mcp/`, `tooling/git-hooks/`, `hecksagain_runtime/`,
+`tooling/storehouse-mcp/`, `tooling/git-hooks/`, `hecks_runtime/`,
 `inbox/i768.md`–`i781.md`, `~/Projects/miette/self/settings.json` (hooks).

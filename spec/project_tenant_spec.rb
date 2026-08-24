@@ -15,7 +15,7 @@ RSpec.describe "bin/project_tenant", io: true do
   # load_hygiene_spec.rb's "no two spec files disagree about a
   # top-level constant" gate.
   SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
-  DB = "hecksagain_project_tenant_spec".freeze
+  DB = "hecks_project_tenant_spec".freeze
 
   def fixture(dir)
     File.write(File.join(dir, "scratch.bluebook"), <<~BLUEBOOK)
@@ -130,11 +130,11 @@ RSpec.describe "bin/project_tenant", io: true do
       acme  = Hecks.boot(dir, environment: "acme", install_facade: false)
       bloom = Hecks.boot(dir, environment: "bloom", install_facade: false)
 
-      register = Hecksagain::Bluebook::ProjectRegister.new
+      register = Hecks::Bluebook::ProjectRegister.new
       register.register([acme.registry.bluebook("Scratch")], acme.registry, acme, dir)
       register.register([bloom.registry.bluebook("Scratch")], bloom.registry, bloom, dir)
 
-      router = Hecksagain::Router.new(register)
+      router = Hecks::Router.new(register)
       router.dispatch("Acme::Scratch::Widget.Make", ref: { value: "acme-provisioned-for-real" })
 
       expect(router.query("Acme::Scratch::Widget.all").map { |w| w[:ref][:value] }).to eq(["acme-provisioned-for-real"])

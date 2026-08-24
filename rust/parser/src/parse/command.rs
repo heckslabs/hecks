@@ -1,4 +1,4 @@
-//! The `Command` construct (`lib/hecksagain/bluebook/ir/command.rb`) — a
+//! The `Command` construct (`lib/hecks/bluebook/ir/command.rb`) — a
 //! verb declared on an aggregate or entity. `given` source-body capture
 //! through canonical.rs (BOTH spellings — `{ ... }` and `do ... end`, see
 //! `parse::mod::source_body_text`'s own header), `sets`' four named forms
@@ -622,7 +622,7 @@ fn apply_reference_to(
 /// already says that.
 ///
 /// `multiply:`/`clamp:`/`remove:` — vendored additions (command_builder.rb's
-/// own header comment: "not (yet) upstream hecksagain"). `multiply:` reads
+/// own header comment: "not (yet) upstream hecks"). `multiply:` reads
 /// exactly like `increment:`/`decrement:` (an argument reference, resolved
 /// through the SAME Symbol-vs-Literal branch below). `clamp:`'s own source
 /// is always a literal `[min, max]` pair — `ruby_value::read` already parses

@@ -1,5 +1,5 @@
-require "hecksagain"
-require "hecksagain/fuzzing/isolated_boot"
+require "hecks"
+require "hecks/fuzzing/isolated_boot"
 
 # THE REAL, SHIPPED WIRING — not a hand-composed registry. Banking's own
 # `.hecksagon` declares `uses_framework "Governance"` (see
@@ -19,9 +19,9 @@ require "hecksagain/fuzzing/isolated_boot"
 # `act_as` flow through the port, the same shape `act_as_spec.rb` proves
 # by querying Governance directly (two separate registries, for
 # RoleTransition's own reasons — see that file's own header).
-RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
+RSpec.describe Hecks::Adapters::GovernanceAuthorization do
   def runtime
-    Hecksagain::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
+    Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy) }
   end
 
   let(:business) { runtime }
@@ -77,12 +77,12 @@ RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
     customer = register_customer(business)
     assign(business, actor: "officer-1", role: "Compliance officer")
 
-    allowed = Hecksagain::Ports::Authorization.holds_role?(
+    allowed = Hecks::Ports::Authorization.holds_role?(
       business.registry, actor_id: "officer-1", role: "Compliance officer"
     )
     expect(allowed).to be(true)
 
-    result = Hecksagain.as_caller(role: "Compliance officer") do
+    result = Hecks.as_caller(role: "Compliance officer") do
       business.dispatch(
         "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
       )
@@ -94,7 +94,7 @@ RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
   it "the app-level check refuses before any dispatch, when the port says no" do
     customer = register_customer(business)
 
-    allowed = Hecksagain::Ports::Authorization.holds_role?(
+    allowed = Hecks::Ports::Authorization.holds_role?(
       business.registry, actor_id: "nobody", role: "Compliance officer"
     )
     expect(allowed).to be(false)
@@ -156,13 +156,13 @@ RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
     grant_transition(business, from: "Branch clerk", to: "Compliance officer")
     customer = register_customer(business)
 
-    Hecksagain.as_caller(role: "Branch clerk") do
-      allowed = Hecksagain::Ports::Authorization.authorized_as?(
+    Hecks.as_caller(role: "Branch clerk") do
+      allowed = Hecks::Ports::Authorization.authorized_as?(
         business.registry, from_role: "Branch clerk", to_role: "Compliance officer"
       )
       expect(allowed).to be(true)
 
-      suspended = Hecksagain.as_caller(role: "Compliance officer") do
+      suspended = Hecks.as_caller(role: "Compliance officer") do
         business.dispatch(
           "Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" }
         )

@@ -1,5 +1,5 @@
 //! The `Bluebook` construct — the top of the construct chain
-//! (`lib/hecksagain/bluebook/ir/bluebook.rb`), and the driver for
+//! (`lib/hecks/bluebook/ir/bluebook.rb`), and the driver for
 //! `hecks-parse chapter --chapter <Name> <files...>`.
 //!
 //! Parses each `.bluebook` file's header + body into one `ir::Bluebook`,

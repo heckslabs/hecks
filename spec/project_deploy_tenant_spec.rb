@@ -93,8 +93,8 @@ RSpec.describe "bin/project_deploy --tenant", io: true do
         # TWO GENUINELY SEPARATE STACKS — different logical ids, so a
         # real `sam deploy` of both stands up two independent Lambdas,
         # not one overwriting the other.
-        expect(acme_template).to include("FunctionName: hecksagain-#{acme_stack}")
-        expect(bloom_template).to include("FunctionName: hecksagain-#{bloom_stack}")
+        expect(acme_template).to include("FunctionName: hecks-#{acme_stack}")
+        expect(bloom_template).to include("FunctionName: hecks-#{bloom_stack}")
       ensure
         cleanup(acme_stack, bloom_stack)
       end

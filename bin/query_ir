@@ -8,9 +8,9 @@
 # (docs/decisions/0028-.../ and .claude/skills/bluebook-construct-
 # creator/SKILL.md) without hand-grepping corpus text or hand-reading
 # Ruby source each time. This is a THIN TEXT FRONT END — the real
-# logic AND the text formatting live in Hecksagain::QueryIR
-# (lib/hecksagain/query_ir.rb), shared with
-# bin/hecksagain_query_ir_mcp so the two front ends can never drift
+# logic AND the text formatting live in Hecks::QueryIR
+# (lib/hecks/query_ir.rb), shared with
+# bin/hecks_query_ir_mcp so the two front ends can never drift
 # into two different answers — or two different renderings of the
 # same answer — for the same question.
 #
@@ -31,17 +31,17 @@
 #     construct-creator/SKILL.md walks in prose, checked structurally
 #     for one construct/field pair — which ones already show signs of
 #     it, which don't. Advisory, not a gate (see the doc comment on
-#     Hecksagain::QueryIR.impact_preview for what a NOT YET can mean).
+#     Hecks::QueryIR.impact_preview for what a NOT YET can mean).
 #
-# Boots the lightweight way (Hecksagain::Codemod's own path) — no live
+# Boots the lightweight way (Hecks::Codemod's own path) — no live
 # Postgres needed for a Postgres-backed domain like compliance.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/query_ir"
+require "hecks"
+require "hecks/query_ir"
 
 def run_constructs(args)
-  puts Hecksagain::QueryIR.format_constructs(Hecksagain::QueryIR.constructs(args))
+  puts Hecks::QueryIR.format_constructs(Hecks::QueryIR.constructs(args))
 rescue ArgumentError => e
   warn e.message
   exit 1
@@ -51,7 +51,7 @@ def run_duplicates(args)
   use_meta = args.delete("--meta") || args.empty?
   domains  = args.empty? ? nil : args
 
-  puts Hecksagain::QueryIR.format_duplicates(Hecksagain::QueryIR.duplicates(domains: domains, include_meta: use_meta))
+  puts Hecks::QueryIR.format_duplicates(Hecks::QueryIR.duplicates(domains: domains, include_meta: use_meta))
 end
 
 def run_impact(args)
@@ -61,7 +61,7 @@ def run_impact(args)
     exit 1
   end
 
-  puts Hecksagain::QueryIR.format_impact_preview(Hecksagain::QueryIR.impact_preview(name, field))
+  puts Hecks::QueryIR.format_impact_preview(Hecks::QueryIR.impact_preview(name, field))
 rescue ArgumentError => e
   warn e.message
   exit 1

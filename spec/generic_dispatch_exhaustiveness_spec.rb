@@ -11,7 +11,7 @@ require "spec_helper"
 # it directly to exercise the backstop past the one gate that would
 # otherwise prevent reaching it.
 RSpec.describe "GenericDispatch.try, an unrecognized dispatch shape" do
-  GenericDispatch = Hecksagain::Bluebook::DSL::GenericDispatch
+  GenericDispatch = Hecks::Bluebook::DSL::GenericDispatch
 
   it "refuses rather than silently no-opping" do
     allow(GenericDispatch).to receive(:shape_for).and_return({ kind: :teleport })
@@ -21,6 +21,6 @@ RSpec.describe "GenericDispatch.try, an unrecognized dispatch shape" do
       # before any real argument is read, same as `try`'s own real
       # `case` never reaching past `shape_for` for an unhandled kind.
       GenericDispatch.try(nil, "Aggregate", "teleport", [], {}, nil, {})
-    end.to raise_error(Hecksagain::Runtime::WiringError, /no dispatcher handles shape :teleport/)
+    end.to raise_error(Hecks::Runtime::WiringError, /no dispatcher handles shape :teleport/)
   end
 end

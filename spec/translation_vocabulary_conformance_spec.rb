@@ -11,13 +11,13 @@ require "spec_helper"
 # every other closed set. This is the same gate for the translation sublanguage.
 RSpec.describe "the declared translation rule kinds" do
   def self.declared_kinds
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar/translation.bluebook"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar/translation.bluebook"))
     end
     kind = registry.bluebook("Translation").aggregate("Rule").value_object("Kind")
     [kind, kind.members.map { |row| row.to_h.values.first }]
@@ -41,12 +41,12 @@ RSpec.describe "the declared translation rule kinds" do
   # to be excluded from the direct-methods half here too, or it would show
   # up as an extra "word" of its own alongside the one GENERIC_DISPATCH.
   # handles? already adds.
-  GENERIC_DISPATCH = Hecksagain::Bluebook::DSL::GenericDispatch
+  GENERIC_DISPATCH = Hecks::Bluebook::DSL::GenericDispatch
   AGGREGATE_RULES = (
-    (Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
+    (Hecks::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
       %i[build method_missing unresolved_impl rename_impl move_impl convert_impl retype_impl compute_impl
          rekey_impl backfill_impl]).map(&:to_s) +
-      Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
         .select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }
         .map { |row| row[:word] }
         .select { |word| GENERIC_DISPATCH.handles?("TranslationAggregate", word) }
@@ -76,11 +76,11 @@ RSpec.describe "the declared translation rule kinds" do
   # context's full legal-word list — `identified_by` (real, Aggregate
   # context) stands in for the old `banana` probe.
   it "names the same kinds WordGate refuses toward" do
-    builder = Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
+    builder = Hecks::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
     message = begin
       builder.identified_by :whatever
       nil
-    rescue Hecksagain::Bluebook::DSL::Malformed => e
+    rescue Hecks::Bluebook::DSL::Malformed => e
       e.message
     end
 

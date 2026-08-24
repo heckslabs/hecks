@@ -115,7 +115,7 @@ Resources:
       SecurityGroupIds: [!Ref BastionSecurityGroup]
       IamInstanceProfile: !Ref BastionInstanceProfile
       Tags:
-        - { Key: Name, Value: hecksagain-banking-bastion }
+        - { Key: Name, Value: hecks-banking-bastion }
 
 Outputs:
   InstanceId:

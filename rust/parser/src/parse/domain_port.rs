@@ -1,5 +1,5 @@
 //! The `DomainPort`/`PortOperation` constructs
-//! (`lib/hecksagain/bluebook/ir/domain_port.rb`) — shared here the same
+//! (`lib/hecks/bluebook/ir/domain_port.rb`) — shared here the same
 //! way `spec/syntax_conformance_spec.rb`'s own `BUILDER` table pairs
 //! `PortOperationBuilder` with `DomainPortBuilder`. The PRIMARY/DRIVING
 //! half of hexagonal architecture: an operation carries no `given`/

@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecksagain/bluebook/synthesizer"
+require "hecks/bluebook/synthesizer"
 require "tmpdir"
 
-RSpec.describe Hecksagain::Bluebook::Synthesizer do
+RSpec.describe Hecks::Bluebook::Synthesizer do
   # A REAL, LOADED CHAPTER — the whole point of testing this against
   # actual IR rather than a hand-built double: `pizzas.bluebook`
   # already exercises a closed set (`Size`), a plain multi-field value
@@ -10,8 +10,8 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
   # here — a value object whose OWN field is ANOTHER value object
   # (`Pizza.price_cents: Price`, not a raw primitive).
   let(:chapter) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -88,7 +88,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
     # DOES own is a real CROSS-aggregate reference, tested here against
     # a small hand-built domain for full certainty about the shape.
     around do |example|
-      @root = Dir.mktmpdir("hecksagain-synth-")
+      @root = Dir.mktmpdir("hecks-synth-")
       example.run
     ensure
       FileUtils.remove_entry(@root) if @root
@@ -121,8 +121,8 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
         end
       RUBY
 
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)

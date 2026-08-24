@@ -1,12 +1,12 @@
 require "spec_helper"
 
 RSpec.describe "value-object identity declarations" do
-  let(:builder) { Hecksagain::Bluebook::DSL::AggregateBuilder }
+  let(:builder) { Hecks::Bluebook::DSL::AggregateBuilder }
 
   def build_aggregate(name, &block)
-    scoped = Hecksagain::Bluebook::DSL::ConstShim::ScopedConstant
-    Hecksagain::Bluebook::DSL::ConstShim.with(->(constant) { scoped.for(constant) }) do
-      Hecksagain::Bluebook::DSL::AggregateBuilder.build(name, &block)
+    scoped = Hecks::Bluebook::DSL::ConstShim::ScopedConstant
+    Hecks::Bluebook::DSL::ConstShim.with(->(constant) { scoped.for(constant) }) do
+      Hecks::Bluebook::DSL::AggregateBuilder.build(name, &block)
     end
   end
 
@@ -43,7 +43,7 @@ RSpec.describe "value-object identity declarations" do
     expect(box.identity_paths).to eq(["location.branch.value", "location.number"])
     expect(box.identified_by).to eq(:location)
     expect(
-      Hecksagain::Runtime::Identity.of(
+      Hecks::Runtime::Identity.of(
         box,
         { location: { branch: { value: "PHX" }, number: 42 } }
       )
@@ -73,7 +73,7 @@ RSpec.describe "value-object identity declarations" do
 
     expect(box.attributes.map(&:name)).to eq(%i[branch_code box_number])
     expect(box.identity_paths).to eq(%w[branch_code box_number])
-    expect(Hecksagain::Runtime::Identity.of(box, { branch_code: "PHX", box_number: 42 }))
+    expect(Hecks::Runtime::Identity.of(box, { branch_code: "PHX", box_number: 42 }))
       .to eq("PHX:42")
   end
 
@@ -110,7 +110,7 @@ RSpec.describe "value-object identity declarations" do
   end
 
   it "round-trips the resolved identity paths and synthesized value objects through assembly" do
-    chapter = Hecksagain::Bluebook::DSL::BluebookBuilder.build("IdentityFixture") do
+    chapter = Hecks::Bluebook::DSL::BluebookBuilder.build("IdentityFixture") do
       vision "identity declarations read as domain value concepts"
 
       aggregate "TransferInstruction" do
@@ -121,7 +121,7 @@ RSpec.describe "value-object identity declarations" do
       end
     end
 
-    expect(Hecksagain::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
+    expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
   end
 
   it "refuses optional and list-valued identity members at declaration time" do
@@ -131,7 +131,7 @@ RSpec.describe "value-object identity declarations" do
           attribute :region, String, optional: true
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /identity member identity.region is optional/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /identity member identity.region is optional/)
 
     expect do
       build_aggregate("ListIdentity") do
@@ -139,7 +139,7 @@ RSpec.describe "value-object identity declarations" do
           attribute :regions, list_of(String)
         end
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /identity member identity.regions is a list/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /identity member identity.regions is a list/)
   end
 
   it "refuses duplicate identity declarations and duplicate minted fields" do
@@ -149,7 +149,7 @@ RSpec.describe "value-object identity declarations" do
         identified_by AccountNumber, as: :number
         identified_by AccountNumber, as: :other_number
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares identified_by more than once/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares identified_by more than once/)
 
     expect do
       build_aggregate("Account") do
@@ -157,7 +157,7 @@ RSpec.describe "value-object identity declarations" do
         attribute :number, AccountNumber
         identified_by AccountNumber, as: :number
       end
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /mints :number, but that attribute is already declared/)
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /mints :number, but that attribute is already declared/)
   end
 
   it "preserves the declaration position of a minted identity field" do
@@ -172,7 +172,7 @@ RSpec.describe "value-object identity declarations" do
   end
 
   it "declares a minimum arity of two for the variadic compound-key grammar" do
-    rows = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:arguments].select do |row|
+    rows = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:arguments].select do |row|
       row[:keyword] == "identified_by" && row[:kind] == "symbol" && row[:named].empty?
     end
 

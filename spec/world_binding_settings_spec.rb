@@ -7,13 +7,13 @@ require "spec_helper"
 # settings lookup down Heki's generic `persisted_by` entry — Memory then
 # failed `check_settings` with "Memory does not declare :dir", a setting
 # that was never its own. Fixed in `Behaviour::World#for_binding`
-# (lib/hecksagain/bluebook/behaviour/hexagon.rb) to only fall back to the
+# (lib/hecks/bluebook/behaviour/hexagon.rb) to only fall back to the
 # generic entry when its own `settings[:adapter]` matches the adapter being
 # asked about.
 RSpec.describe "World#for_binding" do
   it "answers {} for an adapter the world configured nothing for, even when a sibling adapter under the same verb has settings" do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)

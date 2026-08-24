@@ -34,7 +34,7 @@ module RustProjection
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
 
     # `Value.for_attribute` → `fields_for`'s own bare-scalar branch
-    # (lib/hecksagain/runtime/value/coercion.rb), at codegen time instead
+    # (lib/hecks/runtime/value/coercion.rb), at codegen time instead
     # of runtime: a value-object-typed field whose OWN type has exactly
     # one attribute accepts a bare JSON scalar in the caller's place of
     # the wrapped `{"field": ...}` shape — `size: "large"` alongside
@@ -130,7 +130,7 @@ module RustProjection
     # different, more permissive concern `Value.for_attribute`'s coercion
     # already covers — never this gate.
     def command_argument_allowlist(aggregate, command, process_managers)
-      reference_key = command[:references].to_s.empty? ? nil : Hecksagain::Naming.reference_key(command[:references]).to_s
+      reference_key = command[:references].to_s.empty? ? nil : Hecks::Naming.reference_key(command[:references]).to_s
       identity_heads = aggregate[:identified_by].map { |path| path.split(".").first }
       correlation_keys = Array(process_managers).filter_map { |pm| pm[:correlates_by]&.split(".")&.first }
       (["id", reference_key] + identity_heads + correlation_keys).compact.uniq
@@ -567,7 +567,7 @@ module RustProjection
     # `reference:`, exactly the shape tier 1 alone cannot resolve.
     def emit_extract_id(aggregate)
       name = rust_ident(aggregate[:name])
-      reference_key = Hecksagain::Naming.snake(aggregate[:name])
+      reference_key = Hecks::Naming.snake(aggregate[:name])
 
       tier1_subs = aggregate[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}" } }
       tier1_join =

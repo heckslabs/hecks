@@ -107,7 +107,7 @@ having to change.
   either `declared_by:` or the single-candidate form still shows as its
   OWN separate "(declared)" owner in `bin/query_ir duplicates`' own
   output, even once genuinely deduped in source. See
-  `lib/hecksagain/query_ir.rb`'s own `declaration_count` comment — this is
+  `lib/hecks/query_ir.rb`'s own `declaration_count` comment — this is
   the SAME root cause as object identity not surviving a bluebook's own
   self-hosting build, one level wider, and is not fixable from the
   exported IR alone.
@@ -123,15 +123,15 @@ having to change.
 
 ## Reference implementation
 
-- `lib/hecksagain/bluebook/dsl/bluebook_builder.rb` — `@chapter_named_givens`
+- `lib/hecks/bluebook/dsl/bluebook_builder.rb` — `@chapter_named_givens`
   (init), `#aggregate` (threads the pool into every `AggregateBuilder.build`
   call).
-- `lib/hecksagain/bluebook/dsl/aggregate_builder.rb` — `#initialize`
+- `lib/hecks/bluebook/dsl/aggregate_builder.rb` — `#initialize`
   (`chapter_named_givens:`), `#given` (`declared_by:` kwarg, write-through
   keyed by `[description][owner name]`, bare-reference dispatch),
   `#reference_named_chapter_given` (the disambiguation logic — exact-owner
   lookup, single-candidate resolve, or ambiguity refusal).
-- `lib/hecksagain/language/bluebook/syntax.bluebook` — new Argument row,
+- `lib/hecks/language/bluebook/syntax.bluebook` — new Argument row,
   `given`/`Aggregate` context, `named: "declared_by"`, `kind: "constant"` —
   required ONLY because `syntax_conformance_spec.rb` checks every keyword
   argument a builder method takes against the language's own self-

@@ -1,5 +1,5 @@
 // CROSS-AGGREGATE DEREFERENCE — `CommandRules::References#dereference`
-// (lib/hecksagain/runtime/command_rules/references.rb), read directly.
+// (lib/hecks/runtime/command_rules/references.rb), read directly.
 // Ruby's own `given`/`ensures` clauses can name a HOP through a declared
 // `reference_to`/`belongs_to` field (`customer.status`, `account.customer.
 // status`, `parent.account.customer.status`) — resolved by fetching the

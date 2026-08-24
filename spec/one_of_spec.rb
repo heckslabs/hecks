@@ -4,16 +4,16 @@ RSpec.describe "one_of" do
   ONE_OF_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(ONE_OF_BANKING)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -37,7 +37,7 @@ RSpec.describe "one_of" do
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
       runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "gold" }, daily_limit: { cents: 10_000 })
-    end.to raise_error(Hecksagain::Runtime::InvariantViolation,
+    end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'AccountKind admits "current", "savings", "reserve" — got "gold"')
   end
 
@@ -63,7 +63,7 @@ RSpec.describe "one_of" do
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
       runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                                 kind: { name: "current" }, daily_limit: { cents: -1 })
-    end.to raise_error(Hecksagain::Runtime::InvariantViolation,
+    end.to raise_error(Hecks::Runtime::InvariantViolation,
                        'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
   end
 
@@ -75,7 +75,7 @@ RSpec.describe "one_of" do
                        reference: { value: "CUST-0009" },
                        name:      { given: "No", family: "Route" },
                        email:     { address: "nowhere" })
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch,
+    end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
 end

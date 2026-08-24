@@ -2,21 +2,21 @@
 
 # Generates Rust source for one domain into rust/src/generated/ — the
 # driver for `RustProjection` (rust/project.rb, alongside the Rust crate
-# it targets, not under lib/hecksagain/), which carries the architecture
+# it targets, not under lib/hecks/), which carries the architecture
 # and what-is/isn't-generated notes in full.
 #
 #   bin/project_rust <domain>
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
-require "hecksagain/bluebook/meta_validator"
+require "hecks"
+require "hecks/bluebook/meta_validator"
 require_relative "../rust/project"
 require "fileutils"
 require "json"
 
 # A plain Ruby `require`, not a DSL `Kernel.load` below — this only
-# defines the `Hecksagain::Adapters::PostgresEra` CLASS constant
+# defines the `Hecks::Adapters::PostgresEra` CLASS constant
 # (`lineage_capable?`'s own singleton method lives there — the plain,
 # non-era `Postgres` class does NOT declare it at all), so `registry.
 # adapter_class("PostgresEra")` (Runtime::EraCheck's own capability
@@ -24,7 +24,7 @@ require "json"
 # every other time: `require "pg"` is lazy, inside `PostgresEra.
 # connect_for` only (that file's own comment) — nothing here opens or
 # even attempts a database connection.
-require "hecksagain/adapters/driven/postgres_era"
+require "hecks/adapters/driven/postgres_era"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
@@ -86,17 +86,17 @@ else
   # inside its own directory (`<domain>/vendor/embryonaut_bluebooks/`),
   # not beside it the way Runtime::Loader.boot's `directory` (the
   # nested `bluebook/` subfolder one level down) needs its OWN parent.
-  target_registry = Hecksagain::Runtime::Registry.new(root: File.expand_path(domain))
+  target_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
   # Declared BEFORE the block below, not first-assigned inside it — a
   # block passed to a method call (unlike `if`/`while`) opens its own
   # local scope, so a variable only ever assigned inside `with_registry
   # do ... end` would vanish the moment the block returns.
   domain_bluebook_path = nil
-  Hecksagain.with_registry(target_registry) do
-    Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
-    Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
-    Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
-    Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
+  Hecks.with_registry(target_registry) do
+    Kernel.load(File.expand_path("../lib/hecks/ports/persistence.port", __dir__))
+    Kernel.load(File.expand_path("../lib/hecks/ports/extraction.port", __dir__))
+    Kernel.load(File.expand_path("../lib/hecks/adapters/driven/memory.adapter", __dir__))
+    Kernel.load(File.expand_path("../lib/hecks/adapters/driven/prism.adapter", __dir__))
     # The DSL declaration (name + fields), NOT the Ruby class required
     # above — `registry.adapters["PostgresEra"]` (an Adapter, from THIS
     # load) and `registry.adapter_class("PostgresEra")` (the Ruby class,
@@ -104,7 +104,7 @@ else
     # lineage_capable?` checks in sequence; both have to be present or it
     # silently (and correctly, for any OTHER unloaded adapter) answers
     # false.
-    Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/postgres_era.adapter", __dir__))
+    Kernel.load(File.expand_path("../lib/hecks/adapters/driven/postgres_era.adapter", __dir__))
     # EVERY *.bluebook FILE DIRECTLY IN THE DOMAIN'S OWN DIRECTORY, not
     # just one — Wave 7's own reference-decluttering split banking's
     # aggregates across 8 sibling files (customer_relationships.bluebook,
@@ -118,7 +118,7 @@ else
     # order the single explicit `Kernel.load` used to give it alone.
     bluebook_directory = File.join(domain, "bluebook")
     domain_bluebook_path = File.join(bluebook_directory, "#{File.basename(domain)}.bluebook")
-    Hecksagain::Adapters::Folder.new.load_bluebooks(bluebook_directory)
+    Hecks::Adapters::Folder.new.load_bluebooks(bluebook_directory)
 
     # ALSO every translations/*.bluebook edge — same directory's own
     # `translations/` subdirectory, same load-order position Vocabulary's
@@ -154,7 +154,7 @@ else
   # insertion order (Ruby Hash's own guarantee) already puts it first
   # regardless of how many framework chapters get pulled in after it.
   target_domain_name = target_registry.bluebooks.keys.first
-  target_ir = json_shaped(Hecksagain::Projector::Exporter.call(target_registry).fetch(target_domain_name))
+  target_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(target_domain_name))
 
   # MERGED IN, NOT PART OF `Exporter.call`'s OWN OUTPUT — see `Exporter.
   # lineage`'s own header: a binding fact, not a shape fact, so it rides
@@ -163,7 +163,7 @@ else
   # mentions an adapter). Every consumer of `target_ir` from here on
   # (metadata.rs's embedded IR_JSON, the `ir.json` sidecar rust/host
   # already reads at runtime, manifest.json) sees it the same way.
-  target_ir[:lineage] = json_shaped(Hecksagain::Projector::Exporter.lineage(target_registry, target_domain_name))
+  target_ir[:lineage] = json_shaped(Hecks::Projector::Exporter.lineage(target_registry, target_domain_name))
 
   # SAME SEAM, SAME REASONING — `Exporter.translations` walks the whole
   # registry (a shared registry can hold another domain's edges too, the
@@ -176,7 +176,7 @@ else
   # boot-time-mint consumer never needs to compile SQL itself, only
   # execute what Ruby already compiled.
   target_ir[:translations] = json_shaped(
-    Hecksagain::Projector::Exporter.translations(target_registry).select { |edge| edge[:domain] == target_domain_name }
+    Hecks::Projector::Exporter.translations(target_registry).select { |edge| edge[:domain] == target_domain_name }
   )
 
   # THE RAW BLUEBOOK SOURCE TEXT — a binding fact same as `lineage`/
@@ -193,7 +193,7 @@ else
   # already stored would ever match.
   target_ir[:source_text] = File.read(domain_bluebook_path)
 
-  # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
+  # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecks/language/bluebook/`
   # declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
   # Query, Entity, Member, Policy, ProcessManager, Handler, Dispatch,
   # Vocabulary, Syntax, ReadModel — in the SAME DSL any business domain uses,
@@ -203,7 +203,7 @@ else
   # then judged through its own fixpoint) — reused here rather than
   # re-derived, so this can never silently drift from what MetaValidator
   # itself actually loads.
-  meta_ir = json_shaped(Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
+  meta_ir = json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
 
   out_root = File.expand_path("../rust/src/generated", __dir__)
   FileUtils.mkdir_p(out_root)
@@ -223,7 +223,7 @@ else
 
   target_mod_name = File.basename(domain)
   FileUtils.rm_rf(File.join(out_root, target_mod_name))
-  meta_result = RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)",
+  meta_result = RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecks/language/bluebook)",
                                                      File.join(out_root, "meta"), "meta")
 
   # META'S OWN merged.rs — meta has always gotten full codegen (aggregates,
@@ -303,7 +303,7 @@ else
   (target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
     chapter_mod_name = chapter_name.downcase
     chapter_mod_names[chapter_mod_name] = chapter_name
-    chapter_ir = json_shaped(Hecksagain::Projector::Exporter.call(target_registry).fetch(chapter_name))
+    chapter_ir = json_shaped(Hecks::Projector::Exporter.call(target_registry).fetch(chapter_name))
     FileUtils.rm_rf(File.join(out_root, chapter_mod_name))
     chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})",
                                                           File.join(out_root, chapter_mod_name), chapter_mod_name)

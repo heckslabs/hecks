@@ -1,6 +1,6 @@
-require "hecksagain"
+require "hecks"
 
-RSpec.describe Hecksagain::Adapters::SecureRandomIdentity do
+RSpec.describe Hecks::Adapters::SecureRandomIdentity do
   it "generates a real UUID" do
     expect(described_class.uuid).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/)
   end

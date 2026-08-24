@@ -10,7 +10,7 @@
 # `deployed_to("AwsLambda") { region "..."; memory 512; timeout 10 }` is
 # a NEW verb in a domain's `.world` file, but needs no framework change
 # at all: `Hecks.world`'s own settings-bag is already fully generic
-# (lib/hecksagain/bluebook/dsl/world_builder.rb#method_missing) — the
+# (lib/hecks/bluebook/dsl/world_builder.rb#method_missing) — the
 # same mechanism `persisted_by`/`projected_by` already use.
 #
 #   bin/project_deploy <domain>
@@ -25,7 +25,7 @@
 # container, no Docker, no ECR.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "fileutils"
 
 require "optparse"
@@ -66,8 +66,8 @@ world_file = File.join(domain, "bluebook", "#{domain_name}.world")
 
 File.exist?(world_file) or abort "#{world_file} does not exist — a domain needs a .world file to declare deployed_to(\"AwsLambda\")"
 
-registry = Hecksagain::Runtime::Registry.new
-Hecksagain.with_registry(registry) { Kernel.load(world_file) }
+registry = Hecks::Runtime::Registry.new
+Hecks.with_registry(registry) { Kernel.load(world_file) }
 
 # The declared world's own name, not the directory's — same distinction
 # bin/project_rust draws between a domain PATH and its bluebook's own
@@ -131,7 +131,7 @@ deploy_settings[:adapter] == "AwsLambda" or
     then re-run bin/project_deploy #{domain}.
   MSG
 
-# VALIDATED, not hand-checked — dispatches into lib/hecksagain/deploy's
+# VALIDATED, not hand-checked — dispatches into lib/hecks/deploy's
 # own LambdaTarget.Declare (the same given/invariant machinery every
 # other kind of bluebook mistake in this codebase is caught by),
 # replacing what used to be a `fetch(:region) { abort ... }` chain with
@@ -143,7 +143,7 @@ deploy_settings[:adapter] == "AwsLambda" or
 # is honored only at the JSON/Rust-codegen boundary, never by Ruby's
 # own direct dispatch — so this validates a fully-resolved target,
 # after defaulting, not instead of it.
-deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecksagain/deploy", __dir__))
+deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecks/deploy", __dir__))
 begin
   target = deploy_dispatcher.dispatch(
     "Deploy::LambdaTarget.Declare",
@@ -161,7 +161,7 @@ begin
     # attribute) — unless a domain names "Rust" explicitly.
     web: { value: deploy_settings.fetch(:web, "None") }
   ).instance
-rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "#{world_file}'s deployed_to(\"AwsLambda\") is invalid: #{e.message}"
 end
 
@@ -187,12 +187,12 @@ end
 # a root to vendor from" without it. This registry builds its own
 # bluebook fresh from `domain`'s own files rather than reusing
 # `target_registry` above, so it needs the identical fix independently.
-cross_domain_registry = Hecksagain::Runtime::Registry.new(root: File.expand_path(domain))
-Hecksagain.with_registry(cross_domain_registry) do
-  Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
-  Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
-  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
-  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
+cross_domain_registry = Hecks::Runtime::Registry.new(root: File.expand_path(domain))
+Hecks.with_registry(cross_domain_registry) do
+  Kernel.load(File.expand_path("../lib/hecks/ports/persistence.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecks/ports/extraction.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecks/adapters/driven/memory.adapter", __dir__))
+  Kernel.load(File.expand_path("../lib/hecks/adapters/driven/prism.adapter", __dir__))
   Kernel.load(File.join(domain, "bluebook", "#{domain_name}.bluebook"))
   hecksagon_file = File.join(domain, "bluebook", "#{domain_name}.hecksagon")
   Kernel.load(hecksagon_file) if File.exist?(hecksagon_file)
@@ -246,7 +246,7 @@ def cross_domain_lambda_policies_yaml(targets, base)
     "section (below) exists for, extended to a target this stack does",
     "not own (so no `!Ref FunctionName` to reach for — the target's",
     "own function name is `lambda_client.rs`'s own computed",
-    '"hecksagain-#{domain}" convention, read directly, matching every',
+    '"hecks-#{domain}" convention, read directly, matching every',
     "OTHER function-name computation in this whole project). Declared,",
     "not deployed: an ARN naming a function that does not exist YET is",
     "still valid IAM policy — the call simply fails with",
@@ -262,7 +262,7 @@ def cross_domain_lambda_policies_yaml(targets, base)
   ].map { |line| "#{base}# #{line}" }.join("\n")
 
   resources = targets.map { |target|
-    "#{base}          - !Sub \"arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:hecksagain-#{target.downcase}\""
+    "#{base}          - !Sub \"arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:hecks-#{target.downcase}\""
   }.join("\n")
 
   # Ends with exactly one trailing newline (`+ "\n"`, not a heredoc's
@@ -310,11 +310,11 @@ if shared
 
     naming the already-deployed domain whose Postgres instance this one borrows.
   MSG
-  # `hecksagain-<lowercase name>` / lowercase name-as-dbname — the SAME
+  # `hecks-<lowercase name>` / lowercase name-as-dbname — the SAME
   # two conventions `stack_name`/`DBName: #{infra_name}` below already
   # commit to for THIS domain; the owner was generated by this same
   # script and holds to them too.
-  owner_stack_name = "hecksagain-#{owner_domain_name.downcase}"
+  owner_stack_name = "hecks-#{owner_domain_name.downcase}"
   owner_db_name     = owner_domain_name.downcase
 end
 
@@ -335,7 +335,7 @@ out_dir = File.join(root, "deploy", infra_name)
 FileUtils.mkdir_p(out_dir)
 
 logical_id = "#{infra_name.split(/[_-]/).map(&:capitalize).join}Function"
-stack_name = "hecksagain-#{infra_name}"
+stack_name = "hecks-#{infra_name}"
 
 db_id = "#{logical_id.sub(/Function\z/, '')}Db"
 # The Aurora shape splits the database in two (a DBCluster carrying
@@ -524,11 +524,11 @@ template_yaml = <<~YAML
   # inside the same VPC: dispatch a command, read/write the journal.
   # CloudWatch Logs delivery doesn't go through the function's own VPC
   # networking, so it needs no route either.
-  #{google_oauth_present ? "  #\n  # #{web_logical_id} is the ONE exception -- real Google OAuth token\n  # exchange (hecksagain's own GoogleAuthentication adapter posting to\n  # https://oauth2.googleapis.com/token) is a genuine third-party HTTPS\n  # call with no AWS PrivateLink/VPC Endpoint option (unlike\n  # lambda:InvokeFunction, above), and #{web_logical_id} is ALSO\n  # VPC-attached (Member's own permanent Postgres binding needs the\n  # private RDS instance directly). A real, live 15-second Lambda\n  # timeout caught this -- the token-exchange POST had nowhere to\n  # route to and just hung. #{db_id}NatGateway below is the real,\n  # ongoing-cost fix (one NAT Gateway, one public subnet) -- opt-in,\n  # the SAME google_oauth_present signal that wires\n  # GOOGLE_CLIENT_ID/SECRET, since nothing else in this stack needs\n  # outbound internet at all." : "  # Real outbound internet access from here (a future external API\n  # call, say) would need a NAT Gateway added -- a real, ongoing cost\n  # this template doesn't take on until something actually needs it."}
+  #{google_oauth_present ? "  #\n  # #{web_logical_id} is the ONE exception -- real Google OAuth token\n  # exchange (hecks's own GoogleAuthentication adapter posting to\n  # https://oauth2.googleapis.com/token) is a genuine third-party HTTPS\n  # call with no AWS PrivateLink/VPC Endpoint option (unlike\n  # lambda:InvokeFunction, above), and #{web_logical_id} is ALSO\n  # VPC-attached (Member's own permanent Postgres binding needs the\n  # private RDS instance directly). A real, live 15-second Lambda\n  # timeout caught this -- the token-exchange POST had nowhere to\n  # route to and just hung. #{db_id}NatGateway below is the real,\n  # ongoing-cost fix (one NAT Gateway, one public subnet) -- opt-in,\n  # the SAME google_oauth_present signal that wires\n  # GOOGLE_CLIENT_ID/SECRET, since nothing else in this stack needs\n  # outbound internet at all." : "  # Real outbound internet access from here (a future external API\n  # call, say) would need a NAT Gateway added -- a real, ongoing cost\n  # this template doesn't take on until something actually needs it."}
   AWSTemplateFormatVersion: '2010-09-09'
   Transform: AWS::Serverless-2016-10-31
   Description: >
-    #{infra_name} — dispatched through hecksagain's rust/host, a
+    #{infra_name} — dispatched through hecks's rust/host, a
     wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
     journal (docs/decisions/0018), backed by its own private RDS
     Postgres instance. PackageType Zip, no container.
@@ -1112,14 +1112,14 @@ template_yaml = <<~YAML
           DOMAIN_ROOT: /var/task
           # NOT `declared_domain_name` — `Adapters::Lambda`/
           # `RemoteDispatcher` both read this to compute WHICH
-          # deployed Lambda function to invoke (`hecksagain-\#{...}`,
+          # deployed Lambda function to invoke (`hecks-\#{...}`,
           # matching this stack's own name), a question `infra_name`
           # answers and a domain's own business identity does not.
           # Real, live, and confirmed the hard way: this was still
           # wired to `declared_domain_name` when EmbryonautFoundersApp
           # first deployed, and WebFunction immediately threw
           # `ResourceNotFoundException: Function not found:
-          # hecksagain-embryonautfoundersapp` on every read AND on the
+          # hecks-embryonautfoundersapp` on every read AND on the
           # Google OAuth callback itself — a real signed-in user hit
           # this within minutes of the deploy that introduced it.
           DOMAIN_NAME: #{infra_name}
@@ -1205,7 +1205,7 @@ template_yaml = <<~YAML
       # real, live AccessDeniedException caught it, the same request
       # that also caught the wrong-function-name bug just above
       # (WebFunctionRole is not authorized... on resource
-      # hecksagain-task — this stack has never had ANY policy granting
+      # hecks-task — this stack has never had ANY policy granting
       # that action, so the fix isn't complete without adding one).
       Policies:
         - LambdaInvokePolicy:
@@ -1555,7 +1555,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1575,15 +1575,15 @@ mint_era_recipe =
 # a deploy's own pre-flight boot check refuses a shape change with no
 # translation edge covering it. Same bastion/tunnel/retry/teardown
 # chain mint_era_recipe already uses — only the one thing done over the
-# tunnel differs: these run the scaffold/audit SCRIPTS (hecksagain's
+# tunnel differs: these run the scaffold/audit SCRIPTS (hecks's
 # own bin/, not a Ruby -e one-liner) instead of a boot check, since
 # both scripts already do their own registry-loading internally.
 # HECKS_SCHEMA is exported because neither script takes a settings
 # override the way mint_era_recipe's inline `LineageManager.check!`
 # call does — they resolve their own DB connection purely off the
 # domain's `.world` file, which reads that same env var.
-# `cwd:`/`run_prefix:` — every existing caller runs a hecksagain-owned
-# script from hecksagain's own $(ROOT) with `-Ilib` (source, not the
+# `cwd:`/`run_prefix:` — every existing caller runs a hecks-owned
+# script from hecks's own $(ROOT) with `-Ilib` (source, not the
 # installed gem); `migrate_console_settings_recipe` below is the one
 # exception, an APP-owned script that needs the app's own Gemfile
 # context instead — `cd $(DOMAIN) && bundle exec ruby`, not `-Ilib`.
@@ -1642,7 +1642,7 @@ translation_audit_recipe = translation_recipe.call("translation-audit", "bin/tra
 
 # `make migrate-console-settings` — the SAME bastion/tunnel/retry/
 # teardown chain as scaffold-translation/translation-audit, running an
-# APP-owned one-time migration script instead of one of hecksagain's
+# APP-owned one-time migration script instead of one of hecks's
 # own bin/ tools (see translation_recipe's own `cwd:`/`run_prefix:`
 # comment). Only meaningful for a domain that actually has one — most
 # domains don't, so this target is generated unconditionally but simply

@@ -7,10 +7,10 @@ require "spec_helper"
 # and a spec that only ever projected the one it was developed against could
 # not tell — the `Policy` accessors were guessed wrong on the first pass and it
 # was banking, not the QA chapter, that said so.
-RSpec.describe Hecksagain::Projector::DocsProjector do
+RSpec.describe Hecks::Projector::DocsProjector do
   def corpus
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -26,8 +26,8 @@ RSpec.describe Hecksagain::Projector::DocsProjector do
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
 
   it "is registered under :docs, reachable the way every projector is" do
-    expect(Hecksagain::Projector).to be_registered(:docs)
-    expect(Hecksagain::Projector.call(:docs, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
+    expect(Hecks::Projector).to be_registered(:docs)
+    expect(Hecks::Projector.call(:docs, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
 
   it "needs no runtime, no store and no boot — only the IR" do
@@ -160,7 +160,7 @@ RSpec.describe Hecksagain::Projector::DocsProjector do
   # cannot tell an empty document from an empty domain.
   it "refuses an aggregate name that names nothing, and says what is there" do
     expect { described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Acount" }) }
-      .to raise_error(Hecksagain::Runtime::NotFound, /no aggregate named "Acount".*it declares .*Account/m)
+      .to raise_error(Hecks::Runtime::NotFound, /no aggregate named "Acount".*it declares .*Account/m)
   end
 
   describe "options" do

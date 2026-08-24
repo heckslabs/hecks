@@ -44,7 +44,7 @@ struct Chapter {
     ir_text: String,
 }
 
-const META_SOURCE_LABEL: &str = "the self-hosted language (lib/hecksagain/language/bluebook)";
+const META_SOURCE_LABEL: &str = "the self-hosted language (lib/hecks/language/bluebook)";
 
 pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let parser_dir = root.join("rust/parser");
@@ -95,7 +95,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let target_ir_text = crate::json::write(&target_ir);
 
     // EVERY OTHER CHAPTER `uses_framework` NAMES — resolved through the
-    // SAME `Hecksagain::Framework.members`-equivalent directory listing
+    // SAME `Hecks::Framework.members`-equivalent directory listing
     // (`resolve::framework_members`) the Ruby pipeline itself calls,
     // never hand-derived.
     let framework_members = resolve::framework_members(root)?;

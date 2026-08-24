@@ -598,7 +598,7 @@ fn matching_brace_body(text: &str) -> Option<(String, &str)> {
 /// `Pizzas::Order.persisted_by("PostgresEra")` / `Pizzas::Order.port
 /// "PaymentGateway" do` — a HECKSAGON body line addressed to one already-
 /// declared aggregate, via Ruby's own `BindingProxy`
-/// (`lib/hecksagain/bluebook/dsl/binding_proxy.rb`): `<Domain>::
+/// (`lib/hecks/bluebook/dsl/binding_proxy.rb`): `<Domain>::
 /// <Aggregate>.<verb>`. Real corpus syntax, confirmed by reading
 /// `examples/pizzas/bluebook/pizzas.hecksagon` directly — not the bare
 /// `Hecks.hecksagon "Name" do` header form `FILE_RECEIVER_PREFIX` already
@@ -794,7 +794,7 @@ mod tests {
     fn strips_the_hecks_receiver_prefix_at_the_top_of_a_file() {
         // Confirmed against the real corpus, not assumed: every actual
         // file (examples/pizzas/bluebook/pizzas.bluebook,
-        // lib/hecksagain/language/bluebook/*.bluebook, ...) opens with
+        // lib/hecks/language/bluebook/*.bluebook, ...) opens with
         // `Hecks.bluebook "Name" do`, never a bare `bluebook "Name" do`.
         let line = SourceLine {
             number: 1,

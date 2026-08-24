@@ -34,7 +34,7 @@
 
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "json"
 require "tempfile"
 
@@ -101,12 +101,12 @@ BLUEBOOK
 # ── same proven helpers mint_and_seed_lineage.rb already carries ──
 
 def load_registry(source, translation_source: nil)
-  registry = Hecksagain::Runtime::Registry.new
-  loading = Hecksagain::Ports::Loading.bootstrap
+  registry = Hecks::Runtime::Registry.new
+  loading = Hecks::Ports::Loading.bootstrap
   file = Tempfile.new(["mint-and-seed-lineage-compute-", ".bluebook"])
   file.write(source)
   file.flush
-  Hecksagain.with_registry(registry) do
+  Hecks.with_registry(registry) do
     loading.load_library
     Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
     eval(translation_source) if translation_source
@@ -121,14 +121,14 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url }
   settings[:role] = role if role
-  Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
   registry
 end
 
 def label_of(source)
-  Hecksagain::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
+  Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
 end
 
 def edge_source(from:, to:)
@@ -142,9 +142,9 @@ def edge_source(from:, to:)
 end
 
 def account_instance(aggregate, kind_label, field, int_value)
-  built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
-  built[:kind] = Hecksagain::Runtime::Value.for(aggregate, :kind, { label: kind_label })
-  built[field] = Hecksagain::Runtime::Value.for(aggregate, field, { value: int_value })
+  built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
+  built[:kind] = Hecks::Runtime::Value.for(aggregate, :kind, { label: kind_label })
+  built[field] = Hecks::Runtime::Value.for(aggregate, field, { value: int_value })
   built
 end
 
@@ -152,7 +152,7 @@ end
 
 registry_v1 = check!(V1, owner_url: owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
-adapter_v1 = Hecksagain::Adapters::PostgresEra.new(
+adapter_v1 = Hecks::Adapters::PostgresEra.new(
   aggregate: aggregate_v1, settings: { database: owner_url, domain: DOMAIN, era: 1 }
 )
 adapter_v1.save(account_instance(aggregate_v1, "a", :score, 5))
@@ -174,9 +174,9 @@ registry_for_edge = load_registry(V2, translation_source: translation_source)
 edge = registry_for_edge.translations.find { |t| t.domain == DOMAIN && t.from == from && t.to == to }
 raise "expected a real translation edge for #{DOMAIN}" unless edge
 
-edge_digest = Hecksagain::Translation::Audit.edge_digest(edge)
+edge_digest = Hecks::Translation::Audit.edge_digest(edge)
 approval_db = PG.connect(owner_url)
-lineage_for_approval = Hecksagain::Adapters::PostgresEra::Lineage.new(approval_db, DOMAIN)
+lineage_for_approval = Hecks::Adapters::PostgresEra::Lineage.new(approval_db, DOMAIN)
 lineage_for_approval.record_approval!(from: from, to: to, edge_digest: edge_digest)
 approval_db.close
 
@@ -185,7 +185,7 @@ approval_db.close
 
 registry_v2 = check!(V2, owner_url: owner_url, translation_source: translation_source, role: app_role)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
-adapter_v2 = Hecksagain::Adapters::PostgresEra.new(
+adapter_v2 = Hecks::Adapters::PostgresEra.new(
   # owner_url, not app_url -- same ensure_head_snapshot!/backfill-
   # progress permission gap mint_and_seed_lineage.rb's own comment
   # documents; unrelated to compute specifically.

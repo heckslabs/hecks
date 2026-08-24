@@ -11,7 +11,7 @@
 # actually dispatched against them.
 #
 # ONE SYNTHESIZED CALL PER DECLARED COMMAND, ONE PER DECLARED REPORT,
-# per aggregate root created along the way (`Hecksagain::Bluebook
+# per aggregate root created along the way (`Hecks::Bluebook
 # ::Synthesizer`) — never a random guess: a closed set uses its own
 # first admitted member, a reference reuses whatever id this same run
 # already minted for that target. Every failure is collected and
@@ -40,8 +40,8 @@
 # actually run commands against.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/bluebook/smoke_test"
+require "hecks"
+require "hecks/bluebook/smoke_test"
 
 ROOT = File.expand_path("..", __dir__)
 
@@ -61,7 +61,7 @@ ok = true
 targets.each do |dir|
   name = File.basename(dir)
   puts "── #{name}"
-  failures = Hecksagain::Bluebook::SmokeTest.call(dir)
+  failures = Hecks::Bluebook::SmokeTest.call(dir)
   if failures.empty?
     puts "   clean — every declared command and report dispatched cleanly"
   else

@@ -1,5 +1,5 @@
-//! Mirrors `Hecksagain::Bluebook::PatternSubset`
-//! (`lib/hecksagain/bluebook/pattern_subset.rb`) — WHICH REGEXES a
+//! Mirrors `Hecks::Bluebook::PatternSubset`
+//! (`lib/hecks/bluebook/pattern_subset.rb`) — WHICH REGEXES a
 //! bluebook may say in `attribute ..., pattern: ...`. A declared pattern
 //! is a fact carried in the bluebook, not Ruby code, so it must not lean
 //! on what any one engine happens to accept: backreferences/lookaround/

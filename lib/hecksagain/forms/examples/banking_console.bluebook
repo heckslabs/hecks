@@ -1,3 +1,0 @@
-Hecksagain::Forms.configure "BankingConsole" do
-  expose "Banking"
-end

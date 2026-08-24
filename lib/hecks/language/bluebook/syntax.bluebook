@@ -1,0 +1,447 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Syntax" do
+    # HOW A BLUEBOOK IS SPELLED — the layer the language did not have.
+    #
+    # Every other file in this directory declares SHAPE. `Aggregate` has an
+    # `identified_by` that is a `list_of(IdentityPath)` ; `Field` has a name, a
+    # type and a cardinality. Nothing anywhere said that the field is SPELLED
+    # `identified_by`, that a block opens with `do`, or that a symbol argument
+    # starts with `:`. Grep this directory for keyword, token or syntax before
+    # this file existed and the only hit was a comment.
+    #
+    # That gap is why the parser could not be projected, and it is also where the
+    # bugs were. When `identified_by` became `list_of(IdentityPath)` the projected
+    # struct regenerated to a list of strings with nobody touching it, and was
+    # correct. The HAND-WRITTEN halves broke : a hand-written parser could not read
+    # `identified_by do` at all and swallowed whole aggregate bodies in silence,
+    # and a dispatcher that read the field as a scalar got nothing on an array
+    # and fell through to a minted `"id"`. The declared half survived. The
+    # undeclared halves did not.
+    #
+    # DECLARATIONS, NOT RUNTIME STATE — the same reading as Vocabulary beside it,
+    # and no commands for the same reason. A domain does not declare its own
+    # syntax ; the syntax is fixed when the language is defined. Nothing
+    # dispatches this, `Plan` skips it by construction (a category with nothing
+    # to offer contributes nothing), and `spec/syntax_conformance_spec` READS it
+    # from the IR and holds each builder to it in both directions.
+    #
+    # WHY THE KEYWORD BELONGS TO THE CATEGORY AND NOT TO A RECORD. The word
+    # `aggregate` is a fact about the Aggregate CATEGORY, not about
+    # `Pizzas::Pizza` — and the meta-domain's records are instances. So there is
+    # nothing for a dispatched syntax to hang off, and this is a closed set.
+    #
+    # WHAT IS NOT HERE. Only the `.bluebook` surface. `.port`, `.adapter`,
+    # `.hecksagon`, `.world` and `translations/*.bluebook` are SIBLING artifacts
+    # with their own builders and their own files ; a parser projected from this
+    # reads bluebooks, and half-covering the siblings would say less than naming
+    # the exclusion does.
+    #
+    # THIS IS ALSO WHY THE GENERIC-BLUEBOOK-READER ARC STOPS HERE.
+    # A generic reader driven by THIS table
+    # covers every keyword whose argument-binding this table can
+    # express (M1-M7), down to `member`'s and `sets`' pairs, which turned out
+    # to need a schema correction rather than new machinery. What stays
+    # outside the table either isn't ONE shape a bigger table
+    # would close (`attribute`, three separate irregularities) or isn't
+    # covered by this table AT ALL : `.hecksagon`/`.world`'s open adapter-verb
+    # vocabulary is the one truly PERMANENT exclusion, for the same reason
+    # named above — a verb's schema is not even contained in the file being
+    # parsed, registered instead by host application code
+    # (`Hecks.port("post") { verb "posted_by" }`), so no table this file
+    # could hold would ever be enough.
+    description "How a bluebook is SPELLED — every word the surface admits, the body it may open, and the field it fills. The layer every other file in this directory does not have."
+
+    belongs_to Bluebook
+
+    # ITS NAME, and nothing else — a syntax hangs under no other thing, exactly
+    # as a vocabulary does.
+    identified_by SyntaxName, as: :name
+
+    # S14, ADR 0026 — Keyword/Argument nested here (see `entity
+    # "Keyword"`/`entity "Argument"`, below), entities rather than
+    # closed-set value-object members. `list_of(...)` forward-references
+    # them the same way banking's own `attribute :ledger,
+    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    attribute :keywords,  list_of(Keyword)
+    attribute :arguments, list_of(Argument)
+
+    value_object "SyntaxName" do
+      attribute :value, String
+      invariant("a syntax is named") { !value.to_s.empty? }
+    end
+
+    # WHERE A WORD MAY BE TYPED. Mostly a category, but not always : `OneOf`,
+    # `Lifecycle` and `Type` are bodies with no category of their own, and `File`
+    # is the outside of every body. A context is not the same question as a
+    # category, which is why this is its own set rather than a list of the
+    # thirteen.
+    #
+    # `Lifecycle` is a DECLARED FOLD — contracts.rb folds state_field,
+    # state_start and transitions onto whichever of Aggregate or Entity opened
+    # it — so a word typed there fills a field of the ENCLOSING category, not of
+    # a Lifecycle that does not exist.
+    #
+    # `Type` is the second argument of `attribute`, which is a place words are
+    # spelled (`list_of`, `one_of`) and so is a context like any other.
+    value_object "Context" do
+      attribute :name, String,
+                one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
+                         "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
+                         "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation",
+                         "TranslationAggregate"]
+    end
+
+    # WHAT A WORD'S BLOCK IS, and the three answers are genuinely different
+    # things to a parser :
+    #
+    #   keywords  a nested body of more words — `aggregate "X" do … end`
+    #   source    a block that is NEVER CALLED. Its text is the declaration —
+    #             `given("…") { balance >= amount }`, `identified_by :name`.
+    #             Recovered through Ports::Extraction, which is why `number.value`
+    #             needs no method called `number` to exist.
+    #   rows      a body of `member` rows and nothing else — `one_of do … end`
+    #   none      no block at all
+    #
+    # A `source` body IS the thing the word declares : `given`'s body is the
+    # rule's canonical text, `identified_by`'s body is the identity paths. A
+    # `keywords` or `rows` body fills the record the word opens.
+    value_object "Body" do
+      attribute :name, String, one_of: ["none", "keywords", "source", "rows"]
+    end
+
+    # WHERE A WORD STANDS IN ITS OWN LIFE. The same shape the expression
+    # grammar's Operator carries (proposed → admitted → retired), plus
+    # `deprecated` — a word still read but on its way out, which an operator
+    # never needed because nothing outside this repo writes expressions yet.
+    # A row DEFAULTS to admitted, so the table below stays a table of words
+    # rather than a table of words-with-ceremony; only a word entering or
+    # leaving the language spells its status. The projections read this:
+    # a proposed or retired word reaches no generated parser table, so to
+    # every projected reader it simply does not exist — the operator rule,
+    # at the syntax layer.
+    value_object "Status" do
+      attribute :name, String, one_of: ["proposed", "admitted", "deprecated", "retired"]
+    end
+
+    # WHICH OF THE THREE SHARED RESOLUTION PRIMITIVES (Hecks::
+    # Bluebook::DSL::RuleReference — a "declared once, referenced by
+    # name" family word's own bare form resolves through, once it has
+    # one: `hash_chain` (an ordered chain of flat pools, first match
+    # wins — `given` on Command), `owner_keyed` (one pool keyed by
+    # declaring owner, needing `disambiguator` below to pick among more
+    # than one candidate — `given` on Aggregate), `sibling_scan` (a
+    # live scan over already-built sibling objects, no separate pool at
+    # all — `invariant` on ValueObject). BLANK for every OTHER word —
+    # most of the language declares once and is never referenced back,
+    # so `Keyword#resolves_via` stays optional rather than forcing every
+    # existing row to spell "none."
+    value_object "ResolutionScope" do
+      attribute :name, String, one_of: ["hash_chain", "owner_keyed", "sibling_scan"]
+    end
+
+    # WHICH DISAMBIGUATOR KEYWORD a bare reference may supply when its
+    # own `resolves_via` is `owner_keyed` and more than one candidate is
+    # registered — `declared_by:` is the only one that exists today
+    # (`AggregateBuilder#given`'s own chapter-wide sharing,
+    # docs/implemented/resolution-rules/chapter-given.md). A closed set of one,
+    # deliberately, not a boolean flag — the SAME reason `Body`/`Status`
+    # above are closed sets rather than booleans even where today's
+    # count is small: a second disambiguator kind, if this family ever
+    # grows one, is a new MEMBER of this set, not a second attribute.
+    value_object "Disambiguator" do
+      attribute :name, String, one_of: ["declared_by"]
+    end
+
+    # WHAT AN ARGUMENT LOOKS LIKE WHEN IT IS TYPED. Lexical, not semantic — two
+    # arguments of the same kind are read the same way and mean whatever the
+    # field they fill means.
+    #
+    # `literal` is the widest : a default is written so its TYPE survives — `0`
+    # rather than `"0"`, `0.0` rather than `"0.0"` — which is what LiteralText is
+    # about, and why it is not `text`.
+    value_object "ArgumentKind" do
+      attribute :name, String,
+                one_of: ["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"]
+    end
+
+    # WHAT A `pairs` ARGUMENT'S OWN PAIR(S) DO. Found by tracing every real
+    # `pairs` reader (parse_where_line, parse_pm_handler, parse_lifecycle,
+    # parse_with_hash, `one_of`'s member builder, `sets`' append: builder) —
+    # four genuinely different shapes were hiding under one `kind`:
+    #
+    #   fields    ONE pair, contributing two NAMED SUB-FIELDS to the single
+    #             compound this keyword invocation is already building — the
+    #             same role a positional argument plays, just sourced from a
+    #             pair instead of a bare token. `on`'s `transition:` sets
+    #             `from_state`/`to_state` on the ProcessManagerHandler its
+    #             OWN `event_type` argument is also filling ; Lifecycle's
+    #             `transition` sets `command`/`to_state` on the Transition
+    #             its own `from:` argument also fills.
+    #   elements  EACH pair independently becomes a NEW compound, appended to
+    #             the keyword's own list field (`where`'s own `fills:
+    #             "wheres"`, declared at the Keyword level, same as
+    #             `attribute`'s). `where(balance: {gte: 100}, status: "open")`
+    #             is two WhereClauses from one line, not one.
+    #   verbatim  each pair is captured as-is, key and value both left as
+    #             text — `dispatch`'s `with:` : resolution (`:name` reference
+    #             vs literal) happens at DISPATCH time, not parse time, so
+    #             there is nothing to interpret here at all.
+    #   sibling   the pair's KEY names a field of an ALREADY-DECLARED sibling
+    #             construct — `member`'s keys are the enclosing value
+    #             object's own attributes ; `sets`' `append:` keys are the
+    #             target entity/value-object's own attributes. Not a static
+    #             fact this table can enumerate (the valid keys differ per
+    #             domain) — named here so a reader knows to resolve
+    #             dynamically rather than assume an omission.
+    value_object "PairsShape" do
+      attribute :name, String, one_of: ["fields", "elements", "verbatim", "sibling"]
+    end
+
+    # THE SPELLINGS LIVE WITH THEIR DOMAIN CONCEPTS. Each aggregate declares
+    # its own KeywordSeed and ArgumentSeed value objects beside the behavior
+    # those rows describe. SyntaxBoot discovers and combines those local tables
+    # automatically; this aggregate owns only the live Keyword/Argument records
+    # and the genuinely shared lexical vocabulary below.
+
+
+    # S14, ADR 0026 — "`Status` becomes a real `lifecycle` with declared
+    # transitions, so the ordering is enforced by declaration and the
+    # model checker can finally see it" (the ADR's own words). A value
+    # object has no identity, so it cannot transition — it can only be
+    # replaced wholesale (this file's own prior header, before this
+    # slice) — so Keyword and Argument become genuine ENTITIES of
+    # Syntax, each carrying a real `lifecycle :status`.
+    #
+    # THE REAL RECORD, not the source. The aggregate-local `KeywordSeed` rows
+    # are what get WRITTEN — hand-typed grammar data, still the
+    # natural way to spell ~106 static facts. `Keyword` is what gets
+    # READ : `SyntaxBoot` (meta_validator/syntax_boot.rb) dispatches one
+    # `Syntax.Keyword` per seed row, once, at boot, into a REAL "Bluebook"
+    # domain runtime — the same distinction `Reconstruction`/`Judge`
+    # already draw everywhere else between what a chapter DECLARES and
+    # what gets DISPATCHED from it, just run once more, for the
+    # language's own grammar table this time.
+    #
+    # `identified_by :position` — POSITIONAL, the same reason Member's
+    # own is (S17): a keyword row has no other field guaranteed unique on
+    # its own (the same word is legitimately admitted in more than one
+    # context), and declaration order is a fact about the SOURCE the
+    # language already holds deliberately elsewhere.
+    value_object "KeywordPosition" do
+      attribute :value, Integer
+    end
+
+    entity "Keyword" do
+      description "One word the bluebook surface admits — the body it may open, and the field it fills. Nested under Syntax because it is now the LANGUAGE'S OWN data, not merely its declaration : a word's own status is a real fact that moves, not a string replaced wholesale."
+
+      identified_by KeywordPosition, as: :position
+
+      attribute :word,    KeywordSeedText
+      attribute :context, KeywordSeedText, admits: "Syntax::Context"
+      attribute :body,    KeywordSeedText, admits: "Syntax::Body"
+      attribute :inner,   KeywordSeedText
+      attribute :opens,   KeywordSeedText
+      attribute :fills,   KeywordSeedText
+      attribute :was,     KeywordSeedText, optional: true
+      # WHICH SHARED PRIMITIVE (Hecks::Bluebook::DSL::
+      # RuleReference) this word's own bare form resolves through, once
+      # it has one — see `ResolutionScope`'s own comment, above, for the
+      # three real values and which existing word declares each.
+      # BLANK for every other word.
+      attribute :resolves_via,   KeywordSeedText, admits: "Syntax::ResolutionScope", optional: true
+      # WHICH DISAMBIGUATOR keyword argument a bare reference may supply
+      # when `resolves_via` is `owner_keyed` — see `Disambiguator`'s own
+      # comment. BLANK unless `resolves_via` is `owner_keyed` AND more
+      # than one candidate can register (today: only `given` on
+      # Aggregate).
+      attribute :disambiguator,  KeywordSeedText, admits: "Syntax::Disambiguator", optional: true
+      # THE ESCAPE HATCH — item #13's full metaprogrammed dispatch (slice
+      # 3, whole-project table-unification survey). BLANK for every word
+      # `GenericDispatch` fills/opens/zero-args directly off `fills:`/
+      # `opens:`. NON-EMPTY names a real Ruby method this word's whole
+      # call (args, kwargs, block, untouched) forwards to instead — for
+      # words whose own logic is genuinely too complex to re-derive from
+      # argument shape alone (`attribute`'s own type-quoting/closed-set-
+      # synthesis/pattern validation). The method itself stays exactly
+      # what it always was, hand-written, unchanged — this column only
+      # says WHICH one answers the word, the same way `resolves_via`
+      # already names which shared primitive a bare reference resolves
+      # through, one level up. Read DURING bootstrap too (`WordGate`'s
+      # own `BOOTSTRAP_CALLS_FALLBACK`, a small explicit table naming
+      # the SAME (context, word) -> method pairs this column would say,
+      # since the real table doesn't exist yet at that point) — the one
+      # place in this whole arc a bootstrap fallback was worth building,
+      # because it duplicates NO logic, only a method NAME.
+      attribute :calls, KeywordSeedText, optional: true
+
+      lifecycle :status, default: "admitted" do
+        # NOT `proposed` : nothing in the real table is ever declared
+        # proposed today, and the lifecycle's own default has to stay
+        # "admitted" to match every existing row's own implicit status —
+        # changing it would make every one of the ~106 rows silently
+        # start "proposed" instead. Declaring `proposed` as a state
+        # reachable from nowhere would be exactly the kind of decorative,
+        # unused declaration this whole ADR series exists to catch — so
+        # it is left out, honestly, rather than declared and unreachable.
+        transition "Deprecate" => "deprecated", from: "admitted"
+        transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+      end
+
+      command "Deprecate" do
+        role "Language"
+        goal "Mark a word as on its way out, still read"
+
+        emits "KeywordDeprecated"
+      end
+
+      command "Retire" do
+        role "Language"
+        goal "Remove a word from every generated parser table"
+
+        emits "KeywordRetired"
+      end
+    end
+
+    # S14, ADR 0026 — same reason Keyword's own is, one construct over.
+    # `identified_by :position` — positional, the SAME field name as
+    # Keyword's own on purpose: an Argument row's identity is never
+    # compared against a Keyword row's, so the shared name costs nothing
+    # and names the same fact both times.
+    value_object "ArgumentPosition" do
+      attribute :value, Integer
+    end
+
+    entity "Argument" do
+      description "One argument a keyword takes, typed. Nested under Syntax (a SIBLING of Keyword, not nested inside it — `keyword`/`context` name which Keyword row it belongs to, carried as ordinary fields rather than through containment, because the language reads Argument rows independently of any one Keyword element)."
+
+      identified_by ArgumentPosition, as: :position
+
+      attribute :keyword,          ArgumentSeedText
+      attribute :context,          ArgumentSeedText, admits: "Syntax::Context"
+      attribute :at,               ArgumentSeedText, optional: true
+      attribute :named,            ArgumentSeedText, optional: true
+      attribute :kind,             ArgumentSeedText, admits: "Syntax::ArgumentKind"
+      attribute :required,         ArgumentSeedText
+      attribute :fills,            ArgumentSeedText
+      attribute :selects,          ArgumentSeedText, optional: true
+      attribute :pair_key_fills,   ArgumentSeedText, optional: true
+      attribute :pair_value_fills, ArgumentSeedText, optional: true
+      attribute :pairs_shape,      ArgumentSeedText, optional: true
+      attribute :variadic,         ArgumentSeedText, optional: true
+      # Minimum positional count for a variadic form. `identified_by` uses
+      # two so one symbol can retire without retiring compound keys.
+      attribute :minimum,          ArgumentSeedText, optional: true
+      # ABSENT means "apply the uniform, kind-driven coercion" (text ->
+      # .to_s, symbol -> .to_sym) — item #13's full metaprogrammed
+      # dispatch (slice 1, whole-project table-unification survey) reads
+      # this to decide whether a GENERATED fill method may coerce its own
+      # argument before storing it. `"false"` marks the six real
+      # exceptions a full builder-method audit found (read the real Ruby
+      # source, not inferred): `vision`/`description`(x4)/`goal` all
+      # store a `kind: "text"` argument RAW, with no `.to_s` at all —
+      # `.to_s` on an actual String is a same-object no-op for every real
+      # corpus use, but a direct Ruby API call passing something else
+      # (`vision(42)`) would see genuinely different stored behavior, so
+      # this couldn't be assumed uniform across every text-kind row the
+      # way it turned out to genuinely be for every OTHER text-kind
+      # argument in the whole grammar.
+      attribute :coerce,           ArgumentSeedText, optional: true
+      # ABSENT means "an empty value is stored same as any other" — item
+      # #13's full metaprogrammed dispatch (slice 2, whole-project
+      # table-unification survey). NON-EMPTY names the exact Malformed
+      # message a real word's own hand-written method raised on a blank
+      # value BEFORE storing it (`Translation#retired`: "a retired needs
+      # an aggregate name"; `TranslationAggregate#drop`: "a drop needs a
+      # name") — `required: "true"` alone only gates Ruby's own ARITY
+      # (an argument omitted entirely), never a present-but-blank one,
+      # so this is a genuinely separate fact the table did not already
+      # carry. Most `required: "true"` rows do NOT raise on blank
+      # (confirmed by reading every one migrated in slice 1 —
+      # `Policy#on`/`ProcessManager#correlates_by`/etc. all accept and
+      # store an empty string same as any other), so this could not be
+      # assumed uniform from `required:` either. Carries the REAL text
+      # rather than a generated one — refusal wording is itself a
+      # checked contract in this codebase (item #2, whole-project
+      # table-unification survey, `RefusalWording::TEMPLATES`), not
+      # throwaway UX text a generic template could safely replace.
+      attribute :blank_message,    ArgumentSeedText, optional: true
+
+      lifecycle :status, default: "admitted" do
+        transition "Deprecate" => "deprecated", from: "admitted"
+        transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+      end
+
+      command "Deprecate" do
+        role "Language"
+        goal "Mark an argument as on its way out, still read"
+
+        emits "ArgumentDeprecated"
+      end
+
+      command "Retire" do
+        role "Language"
+        goal "Remove an argument from every generated parser table"
+
+        emits "ArgumentRetired"
+      end
+    end
+
+    value_object "KeywordSeedText" do
+      attribute :value, String
+    end
+
+    value_object "ArgumentSeedText" do
+      attribute :value, String
+    end
+
+    # THE SYNTAX RECORD ITSELF. There is only ever one — the language
+    # describes its own single surface, not several — so unlike every
+    # other aggregate's own creating command, this carries no `position`:
+    # there are no siblings to order among.
+    command "Declare" do
+      role "Language"
+      goal "Open the language's own syntax table"
+
+      attribute :bluebook, BluebookName
+      attribute :name, SyntaxName
+
+      sets :bluebook
+      sets :name
+
+      emits "SyntaxDeclared"
+    end
+
+    # THE KEYWORD'S OWN CREATION. An entity is never created through its
+    # own dotted verb (S17's own finding, EntityInterpreter#element_of
+    # only LOCATES) — so, mirroring `ValueObject.Member`/`ProcessManager.
+    # Handler`, this is a bare, aggregate-level append. `position` is
+    # minted by `SyntaxBoot` as the seed row's own index — the same walk-
+    # index convention Member's own `position` already uses.
+    command "Keyword" do
+      role "Language"
+      goal "Admit one word the bluebook surface accepts"
+
+
+      sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
+                                 inner: :inner, opens: :opens, fills: :fills, was: :was,
+                                 resolves_via: :resolves_via, disambiguator: :disambiguator, calls: :calls }
+
+      emits "KeywordAdmitted"
+    end
+
+    command "Argument" do
+      role "Language"
+      goal "Admit one argument a keyword takes"
+
+
+      sets :arguments, append: { position: :position, keyword: :keyword, context: :context, at: :at,
+                                  named: :named, kind: :kind, required: :required, fills: :fills,
+                                  selects: :selects, pair_key_fills: :pair_key_fills,
+                                  pair_value_fills: :pair_value_fills, pairs_shape: :pairs_shape,
+                                  variadic: :variadic, minimum: :minimum,
+                                  coerce: :coerce, blank_message: :blank_message }
+
+      emits "ArgumentAdmitted"
+    end
+  end
+end

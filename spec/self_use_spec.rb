@@ -40,7 +40,7 @@ require "spec_helper"
 # any other spec file's own same-named constant (found for real:
 # `spec/orchestration_spec.rb` already declares both).
 RSpec.describe "the language uses everything the core grammar declares" do
-  SELF_USE_LANGUAGE = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  SELF_USE_LANGUAGE = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.walk_entities(node, &block)
     node.entities.each do |entity|
@@ -147,7 +147,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
         #{unnamed.keys.join("\n        ")}
 
       Either use the construct for real somewhere in
-      lib/hecksagain/language/bluebook/, or name it in SELF_USE_KNOWN_GAPS
+      lib/hecks/language/bluebook/, or name it in SELF_USE_KNOWN_GAPS
       with a reason it cannot be, honestly.
     WHY
   end

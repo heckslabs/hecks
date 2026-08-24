@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require_relative "fixtures/sequential_identity"
 
 # A local boot, not `boot_in_memory` — Pizzas-specific by design. Same
@@ -6,16 +6,16 @@ require_relative "fixtures/sequential_identity"
 # port/adapter this domain's own Register command actually needs.
 RSpec.describe "Identity" do
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.expand_path("../lib/hecksagain/ports/identity_generation.port", __dir__))
+      Kernel.load(File.expand_path("../lib/hecks/ports/identity_generation.port", __dir__))
       Kernel.load(File.expand_path("fixtures/sequential_identity.adapter", __dir__))
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
       Hecks.hecksagon("Identity") do
         uses_framework "Governance"
         ::Identity::Identity.persisted_by("Memory")
@@ -28,14 +28,14 @@ RSpec.describe "Identity" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   let(:runtime) { boot }
 
   def register
-    Hecksagain::Adapters::SequentialIdentity.reset!
-    minted = Hecksagain::Ports::IdentityGeneration.uuid(runtime.registry)
+    Hecks::Adapters::SequentialIdentity.reset!
+    minted = Hecks::Ports::IdentityGeneration.uuid(runtime.registry)
     runtime.dispatch("Identity::Identity.Register", identity_id: { value: minted })
   end
 
@@ -65,7 +65,7 @@ RSpec.describe "Identity" do
         identity: "no-such-identity",
         key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
       )
-    end.to raise_error(Hecksagain::Runtime::NotFound)
+    end.to raise_error(Hecks::Runtime::NotFound)
   end
 
   it "lets more than one external identifier link to the same identity" do

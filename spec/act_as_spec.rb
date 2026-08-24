@@ -1,9 +1,9 @@
-require "hecksagain"
+require "hecks"
 
 # §2's demonstration: a caller acting under one role, temporarily assuming
 # another to dispatch a command that role does not itself hold — checked
 # against Governance's `RoleTransition`, then scoped with
-# `Hecksagain.as_caller`. TWO SEPARATE REGISTRIES, on purpose: Governance's
+# `Hecks.as_caller`. TWO SEPARATE REGISTRIES, on purpose: Governance's
 # own, and Pizzas' — checking authority and dispatching a business command
 # are two independent steps an application already coordinates in plain
 # Ruby, so nothing here composes them into one registry.
@@ -15,14 +15,14 @@ require "hecksagain"
 # pattern composes out of primitives that already exist.
 RSpec.describe "act_as — a role acting as another, checked against Governance" do
   def governance_runtime
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/governance.bluebook"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
       Hecks.hecksagon("Governance") do
         ::Governance::RoleAssignment.persisted_by("Memory")
         ::Governance::RoleTransition.persisted_by("Memory")
@@ -30,13 +30,13 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def pizzas_runtime
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -53,7 +53,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   let(:governance) { governance_runtime }
@@ -89,14 +89,14 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     business = pizzas
 
     created = nil
-    Hecksagain.as_caller(role: "Customer") do
+    Hecks.as_caller(role: "Customer") do
       # `CreatePizza` needs "Chef" — the OUTER caller is "Customer" and does
       # not hold it. The nested `as_caller` is what makes this dispatch
       # authorized at all.
-      created = Hecksagain.as_caller(role: "Chef") do
+      created = Hecks.as_caller(role: "Chef") do
         business.dispatch("Pizzas::Order.CreatePizza", name: { value: "Margherita" }, **PIZZA_ARGS)
       end
-      Hecksagain.as_caller(role: "Chef") do
+      Hecks.as_caller(role: "Chef") do
         business.dispatch(
           "Pizzas::Order.AddTopping", id: created.instance.id,
           topping: { value: "Basil" }, amount: { value: 1 }
@@ -123,7 +123,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   def act_as(from:, to:, dispatched:)
     raise "not authorized: #{from} may not act as #{to}" unless transition_granted?(from: from, to: to)
 
-    Hecksagain.as_caller(role: to) do
+    Hecks.as_caller(role: to) do
       dispatched[:ran] = true
       yield
     end
@@ -135,7 +135,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
 
     expect(transition_granted?(from: "Customer", to: "Chef")).to be(false)
     expect do
-      Hecksagain.as_caller(role: "Customer") do
+      Hecks.as_caller(role: "Customer") do
         act_as(from: "Customer", to: "Chef", dispatched: dispatched) do
           business.dispatch("Pizzas::Order.CreatePizza", name: { value: "Refused" }, **PIZZA_ARGS)
         end
@@ -160,9 +160,9 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     business = pizzas
 
     expect do
-      Hecksagain.as_caller(role: "Customer") do
+      Hecks.as_caller(role: "Customer") do
         business.dispatch("Pizzas::Order.CreatePizza", name: { value: "NeverGranted" }, **PIZZA_ARGS)
       end
-    end.to raise_error(Hecksagain::Runtime::Unauthorized)
+    end.to raise_error(Hecks::Runtime::Unauthorized)
   end
 end

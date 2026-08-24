@@ -21,15 +21,15 @@ RSpec.describe "a graph assembled from declarations" do
   ASSEMBLY_CORPUS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
-    "Expression" => "lib/hecksagain/grammar/expression.bluebook",
+    "Expression" => "lib/hecks/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
   def load_chapter(file)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -54,7 +54,7 @@ RSpec.describe "a graph assembled from declarations" do
   end
 
   def assert_inverse(built)
-    assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
+    assembled = Hecks::Bluebook::Assembly.call(built.to_h)
 
     expect(differences(built.to_h, assembled.to_h)).to be_empty
   end
@@ -67,14 +67,14 @@ RSpec.describe "a graph assembled from declarations" do
 
   %w[Bluebook World].each do |name|
     it "rebuilds #{name}, the language itself, exactly as it was declared" do
-      assert_inverse(Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook(name))
+      assert_inverse(Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name))
     end
   end
 
   describe "the table, held to the language" do
     def plan
-      Hecksagain::Bluebook::MetaValidator::Plan.for(
-        Hecksagain::Bluebook::MetaValidator.grammar_registry
+      Hecks::Bluebook::MetaValidator::Plan.for(
+        Hecks::Bluebook::MetaValidator.grammar_registry
       )
     end
 
@@ -129,10 +129,10 @@ RSpec.describe "a graph assembled from declarations" do
     end
 
     it "consumes or explicitly derives every field the language declares" do
-      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
       unclaimed = plan.names.flat_map do |category|
-        contract = Hecksagain::Bluebook::Assembly.contract(category)
+        contract = Hecks::Bluebook::Assembly.contract(category)
 
         stored_fields(meta, category)
           .reject { |field| contract.declares?(field) }
@@ -147,7 +147,7 @@ RSpec.describe "a graph assembled from declarations" do
 
     it "names a contract for every category the language declares" do
       missing = plan.names.reject do |category|
-        Hecksagain::Bluebook::Assembly::CONTRACTS.key?(category)
+        Hecks::Bluebook::Assembly::CONTRACTS.key?(category)
       end
 
       expect(missing).to be_empty,
@@ -168,7 +168,7 @@ RSpec.describe "a graph assembled from declarations" do
       keys = declaration_keys
 
       unjustified = plan.names.flat_map do |category|
-        contract = Hecksagain::Bluebook::Assembly.contract(category)
+        contract = Hecks::Bluebook::Assembly.contract(category)
 
         contract.derived.filter_map do |field, kind|
           fault = fault_in(category, contract, field, kind, keys)
@@ -184,9 +184,9 @@ RSpec.describe "a graph assembled from declarations" do
       case kind
       when :parent
         return nil if field.to_s.end_with?("_id")
-        return nil if Hecksagain::Bluebook::Assembly::PARENT_POINTERS.include?(field)
+        return nil if Hecks::Bluebook::Assembly::PARENT_POINTERS.include?(field)
 
-        "no parent names it — a pointer is a *_id or one of #{Hecksagain::Bluebook::Assembly::PARENT_POINTERS.inspect}"
+        "no parent names it — a pointer is a *_id or one of #{Hecks::Bluebook::Assembly::PARENT_POINTERS.inspect}"
       when :children
         # `field` is a PLURALIZED collection name ("dispatches", not
         # "dispatch"), and naively stripping a trailing "s" mis-singularizes
@@ -195,12 +195,12 @@ RSpec.describe "a graph assembled from declarations" do
         # `Judge#collection_reader` used to name the field in the first
         # place, which category name it belongs to, rather than guessing
         # the word backward.
-        child = plan.names.find { |name| Hecksagain::Naming.plural(Hecksagain::Naming.snake(name)) == field.to_s }
+        child = plan.names.find { |name| Hecks::Naming.plural(Hecks::Naming.snake(name)) == field.to_s }
         return nil if plan.category(child)&.parent == category
 
         "no category #{child} is declared with #{category} as its parent"
       when :elsewhere
-        return nil if Hecksagain::Bluebook::Assembly.elsewhere?(category, field)
+        return nil if Hecks::Bluebook::Assembly.elsewhere?(category, field)
 
         "elsewhere is allow-listed one at a time, and this is not on the list"
       when :walk
@@ -259,7 +259,7 @@ RSpec.describe "a graph assembled from declarations" do
         return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s)
       end
 
-      meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       ask  = meta.aggregate(category)&.query("DeclaredIn")
 
       ask&.order_by&.field.to_s == field.to_s
@@ -271,7 +271,7 @@ RSpec.describe "a graph assembled from declarations" do
       @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map { |file|
         built = load_chapter(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
                 load_chapter(file).bluebooks.values.first
-        keys_in(Hecksagain::Bluebook::MetaValidator.hold(built)[:declaration])
+        keys_in(Hecks::Bluebook::MetaValidator.hold(built)[:declaration])
       }.uniq
     end
 
@@ -290,7 +290,7 @@ RSpec.describe "a graph assembled from declarations" do
     # declares have a way to be offered, and does every shaper the table names exist?
     it "offers every appendable list, by a shaper that exists or a reader on the holder" do
       unreadable = plan.names.flat_map do |category|
-        contract = Hecksagain::Bluebook::Assembly.contract(category)
+        contract = Hecks::Bluebook::Assembly.contract(category)
 
         plan.category(category).appends.keys.filter_map do |list|
           shaper = contract.shaper(list)
@@ -307,7 +307,7 @@ RSpec.describe "a graph assembled from declarations" do
                             "#{unreadable.join("\n  ")}"
     end
 
-    def readings = Hecksagain::Bluebook::MetaValidator::Readings.instance_methods(false)
+    def readings = Hecks::Bluebook::MetaValidator::Readings.instance_methods(false)
 
     # THE READ DIRECTION, HELD THE SAME WAY.
     #
@@ -316,12 +316,12 @@ RSpec.describe "a graph assembled from declarations" do
     # `reads:` column — so the same two questions apply: does every read exception
     # name a key that exists, and does every reader it names exist?
     it "reads every declaration key by a reader that exists, for a key the table names" do
-      meta    = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-      readers = Hecksagain::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
-                Hecksagain::Bluebook::MetaValidator::Shapes.instance_methods(false)
+      meta    = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      readers = Hecks::Bluebook::MetaValidator::Reconstruction.private_instance_methods(false) +
+                Hecks::Bluebook::MetaValidator::Shapes.instance_methods(false)
 
       broken = plan.names.flat_map do |category|
-        contract = Hecksagain::Bluebook::Assembly.contract(category)
+        contract = Hecks::Bluebook::Assembly.contract(category)
         named    = contract.fields.values.map(&:first)
 
         Hash(contract.reads).filter_map do |key, spec|
@@ -371,7 +371,7 @@ RSpec.describe "a graph assembled from declarations" do
       # field renamed in the language and left behind here, would be dead weight
       # nothing exercises.
       declared = plan.names
-      phantom  = Hecksagain::Bluebook::Assembly::CONTRACTS.keys - declared
+      phantom  = Hecks::Bluebook::Assembly::CONTRACTS.keys - declared
 
       expect(phantom).to be_empty
     end
@@ -381,7 +381,7 @@ RSpec.describe "a graph assembled from declarations" do
     # The graph is what the runtime RUNS, so an assembled aggregate has to carry
     # the same verbs, fields and owned shapes the DSL would have built.
     built     = load_chapter(ASSEMBLY_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
-    assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
+    assembled = Hecks::Bluebook::Assembly.call(built.to_h)
     pizza     = assembled.aggregate("Order")
 
     expect(pizza.command("CreatePizza").creates?).to be(true)
@@ -392,7 +392,7 @@ RSpec.describe "a graph assembled from declarations" do
 
   it "gives an assembled reference a resolvable edge" do
     built     = load_chapter(ASSEMBLY_CORPUS.fetch("Banking")).bluebook("Banking")
-    assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
+    assembled = Hecks::Bluebook::Assembly.call(built.to_h)
     account   = assembled.aggregate("Account")
 
     expect(account.attribute(:customer).type.resolve)

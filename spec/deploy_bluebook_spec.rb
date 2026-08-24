@@ -1,9 +1,9 @@
-require "hecksagain"
+require "hecks"
 require "tmpdir"
 require "fileutils"
 require "open3"
 
-# `lib/hecksagain/deploy/bluebook/deploy.bluebook`'s own header explains
+# `lib/hecks/deploy/bluebook/deploy.bluebook`'s own header explains
 # WHY this domain exists: `deployed_to("AwsLambda")`'s settings used to
 # be validated nowhere in the language — a bare `fetch(:region) { abort
 # ... }` chain in bin/project_deploy, the exact raw-Ruby-refusal pattern
@@ -12,7 +12,7 @@ require "open3"
 # bin/project_deploy genuinely dispatches into it rather than falling
 # back to hand-rolled checks.
 RSpec.describe "the self-hosted Deploy bluebook" do
-  DEPLOY_DOMAIN = File.expand_path("../lib/hecksagain/deploy", __dir__)
+  DEPLOY_DOMAIN = File.expand_path("../lib/hecks/deploy", __dir__)
 
   def dispatcher
     @dispatcher ||= Hecks.boot(DEPLOY_DOMAIN)
@@ -45,27 +45,27 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   it "refuses an absent region" do
     expect { declare(region: { value: nil }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /Region invariant violated — a region is named/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /Region invariant violated — a region is named/)
   end
 
   it "refuses memory below Lambda's own 128 MB floor" do
     expect { declare(memory: { value: 64 }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /memory is at least 128 MB/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /memory is at least 128 MB/)
   end
 
   it "refuses memory above Lambda's own 10240 MB ceiling" do
     expect { declare(memory: { value: 20_000 }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /memory is at most 10240 MB/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /memory is at most 10240 MB/)
   end
 
   it "refuses a non-positive timeout" do
     expect { declare(timeout: { value: 0 }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /a timeout is positive/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a timeout is positive/)
   end
 
   it "refuses a timeout above Lambda's own 900s ceiling" do
     expect { declare(timeout: { value: 1000 }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /fits Lambda's own 900s ceiling/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /fits Lambda's own 900s ceiling/)
   end
 
   it "accepts \"Aurora\" for database" do
@@ -80,7 +80,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   it "refuses a database outside {Postgres, Aurora, Shared}" do
     expect { declare(database: { value: "MySQL" }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation)
+      .to raise_error(Hecks::Runtime::InvariantViolation)
   end
 
   it "accepts \"Rust\" for web" do
@@ -90,7 +90,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   it "refuses a web value outside {None, Rust}" do
     expect { declare(web: { value: "Ruby" }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation)
+      .to raise_error(Hecks::Runtime::InvariantViolation)
   end
 
   # THE END-TO-END PROOF — bin/project_deploy itself dispatches into

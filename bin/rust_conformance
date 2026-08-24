@@ -40,8 +40,8 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
-require "hecksagain/fuzzing"
+require "hecks"
+require "hecks/fuzzing"
 require "json"
 require "open3"
 
@@ -63,7 +63,7 @@ script = ARGV.shift or abort "usage: bin/rust_conformance <domain> <script.json>
 other  = ARGV.shift
 
 steps  = JSON.parse(File.read(script)).fetch("steps")
-result = Hecksagain::Fuzzing::Replay.call(domain, steps)
+result = Hecks::Fuzzing::Replay.call(domain, steps)
 
 comparable = {
   "instances" => result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) },

@@ -518,7 +518,7 @@ ALLOWLIST = [
 # why era/lineage-bound aggregate support had no allowlist entry: nothing
 # in `ir[:aggregates]` (a current-era snapshot) ever named an aggregate's
 # adapter binding, so `expected_from_ir` had no way to even enumerate it
-# as a raw finding here. `Exporter.lineage` (lib/hecksagain/projector/
+# as a raw finding here. `Exporter.lineage` (lib/hecks/projector/
 # exporter.rb) closed exactly that gap — `ir[:lineage][:capable_aggregates]`
 # is now a real, exported list, `expected_from_ir`/both manifest builders
 # above both walk it under `kind: "lineage_aggregate"`, and every such

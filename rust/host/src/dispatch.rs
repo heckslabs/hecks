@@ -83,7 +83,7 @@ pub async fn handle_facts(
 // so by the time `handle` runs that schema is guaranteed to exist and
 // this checkout is guaranteed not to be stale.
 // `role` -- OPTIONAL, matching `Adapters::Lambda::Client#dispatch`'s own
-// `role: nil` default (lib/hecksagain/adapters/driven/lambda/client.rb):
+// `role: nil` default (lib/hecks/adapters/driven/lambda/client.rb):
 // Ruby's client only ever puts a `"role"` key on the wire when a caller
 // is actually bound (`payload["role"] = role if role`), so `None` here
 // reproduces that exactly -- a step with no role looks, on the wire,
@@ -484,7 +484,7 @@ mod tests {
     }
 
     // A REAL, THROWAWAY POSTGRES DATABASE per test — never the real
-    // dev database, same reasoning hecksagain's own
+    // dev database, same reasoning hecks's own
     // spec/adapters/driven/postgres_spec.rb and Embryonaut's
     // spec/adapters/embryonaut_access_control_spec.rb hold themselves
     // to. Uniquely named per test (not one shared scratch DB) so
@@ -870,7 +870,7 @@ mod tests {
             let calls = invoker.calls.lock().unwrap();
             assert_eq!(calls.len(), 1);
             let (function_name, payload) = &calls[0];
-            assert_eq!(function_name, "hecksagain-compliance");
+            assert_eq!(function_name, "hecks-compliance");
             let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
             // FULLY QUALIFIED, not the bare "Compliance.OpenReview" this
             // used to assert — found live, deploying a real second domain

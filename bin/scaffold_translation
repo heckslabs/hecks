@@ -8,14 +8,14 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
 domain_path = ARGV.shift or abort "usage: bin/scaffold_translation <domain>"
 
-loading = Hecksagain::Ports::Loading.bootstrap
+loading = Hecks::Ports::Loading.bootstrap
 directory = loading.bluebook_directory(domain_path)
-registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory))
-Hecksagain.with_registry(registry) do
+registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
+Hecks.with_registry(registry) do
   loading.load_library
   loading.load_project(loading.shared_root(nil, directory))
   # deliberately NOT translations/*.bluebook: an unresolved edge file
@@ -27,7 +27,7 @@ end
 
 bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
 first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
-adapter_name = Hecksagain::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
+adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
 capable =
   begin
     adapter_class = registry.adapter_class(adapter_name)
@@ -36,28 +36,28 @@ capable =
     false
   end
 
-current_shape = Hecksagain::Runtime::StorageShape.project(bluebook)
-manager = Hecksagain::Adapters::PostgresEra::LineageManager
+current_shape = Hecks::Runtime::StorageShape.project(bluebook)
+manager = Hecks::Adapters::PostgresEra::LineageManager
 
 if capable
-  settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
-  db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, settings)
-  lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+  settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
+  db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+  lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   if lineage.eras.empty?
-    lineage.hold_first!(Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory),
-                        projection: Hecksagain::Runtime::StorageShape.project(bluebook))
+    lineage.hold_first!(Hecks::Runtime::EraCheck.source_text_for(bluebook, directory),
+                        projection: Hecks::Runtime::StorageShape.project(bluebook))
     puts "#{bluebook.name} held era 1 just now — nothing to scaffold."
     exit 0
   end
   latest = lineage.eras.last
   held_bluebook = manager.shadow(latest[:held_text])
-  if Hecksagain::Runtime::StorageShape.project(held_bluebook) == current_shape
+  if Hecks::Runtime::StorageShape.project(held_bluebook) == current_shape
     puts "#{bluebook.name} matches era #{latest[:ordinal]} — nothing to scaffold."
     exit 0
   end
   path = manager.scaffold!(registry, bluebook, lineage, latest, directory)
-  diffed = Hecksagain::Translation::Scaffold.diff(held_bluebook, bluebook)
+  diffed = Hecks::Translation::Scaffold.diff(held_bluebook, bluebook)
   db.close
 else
   # Eras belong to the adapters that can carry data across them. An

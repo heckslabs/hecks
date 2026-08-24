@@ -1,8 +1,8 @@
 //! Source-body slicing + whitespace collapse — mirrors
-//! `Hecksagain::Bluebook::Expression::CanonicalForm`
-//! (lib/hecksagain/bluebook/expression/canonical_form.rb), which itself
+//! `Hecks::Bluebook::Expression::CanonicalForm`
+//! (lib/hecks/bluebook/expression/canonical_form.rb), which itself
 //! reads its normalisation rules from
-//! lib/hecksagain/bluebook/expression/projection.json rather than hosting
+//! lib/hecks/bluebook/expression/projection.json rather than hosting
 //! them as a second hand-written table.
 //!
 //! Used for `given`/`ensures`/`invariant`/`identified_by { }` bodies —

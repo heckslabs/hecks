@@ -31,7 +31,7 @@ a straight line:
 **Phase one: the projection thesis.** The premise was that Rust shouldn't be
 a second, independently-written implementation at all — it should be
 *generated* from the same self-description the Ruby side already judges
-itself against (`lib/hecksagain/language/bluebook/`). `bin/ir_structs` and
+itself against (`lib/hecks/language/bluebook/`). `bin/ir_structs` and
 `bin/ir_vocabulary` emitted typed Rust structs and closed-set enums straight
 from the language's own declarations; `bin/ir_rust` went a rung further,
 projecting a whole compiled domain as Rust *values*, sealed to its source by

@@ -1,7 +1,7 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../fixtures/sequential_identity"
 
-RSpec.describe Hecksagain::Adapters::SequentialIdentity do
+RSpec.describe Hecks::Adapters::SequentialIdentity do
   before { described_class.reset! }
 
   it "counts up from 1, deterministically" do

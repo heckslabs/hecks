@@ -345,7 +345,7 @@ pub async fn delete_saga<C: GenericClient>(
 // below write each accepted command's own mutations (the kernel's new
 // "mutations" output field, adf38fd) into the SAME per-aggregate,
 // era-partitioned schema Ruby's own PostgresEra adapter uses
-// (lib/hecksagain/adapters/driven/postgres_era.rb + postgres_era/lineage.rb) —
+// (lib/hecks/adapters/driven/postgres_era.rb + postgres_era/lineage.rb) —
 // same table names, same era fence — so the two runtimes can point at
 // the SAME database and a human/Ruby tooling reading it sees this
 // runtime's writes the same way Ruby's own `head_view` already
@@ -378,7 +378,7 @@ pub struct LineageConfig {
     pub era: i32,
 }
 
-/// `Naming.snake` (lib/hecksagain/naming.rb:30-35), ported verbatim — a
+/// `Naming.snake` (lib/hecks/naming.rb:30-35), ported verbatim — a
 /// pure syntactic transform (PascalCase/camelCase -> snake_case) with
 /// no semantic judgment, unlike shape-hashing or translation-rule
 /// compilation, so duplicating it here (rather than inventing a

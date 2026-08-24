@@ -1,21 +1,21 @@
 require "spec_helper"
-require "hecksagain/forms"
+require "hecks/forms"
 require "rack/test"
 require "json"
 
-RSpec.describe Hecksagain::Forms::App do
+RSpec.describe Hecks::Forms::App do
   include Rack::Test::Methods
 
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
-  FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecksagain/forms/examples/banking_console.bluebook")
+  FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecks/forms/examples/banking_console.bluebook")
 
   # The same rebind spec/facade/handle_spec.rb already uses —
   # [[feedback_specs_prefer_memory_adapter]] — banking.hecksagon itself
   # binds "Heki", a real store no spec should need.
   def app
     @app ||= begin
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -33,7 +33,7 @@ RSpec.describe Hecksagain::Forms::App do
         end
       end
       registry.verify!
-      Hecksagain::Forms::App.for(registry: registry, app_name: "BankingConsole")
+      Hecks::Forms::App.for(registry: registry, app_name: "BankingConsole")
     end
   end
 

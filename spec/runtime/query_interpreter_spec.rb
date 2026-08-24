@@ -15,7 +15,7 @@ require "tempfile"
 # lookup down to one entry.
 RSpec.describe "a query's own rows keep a declared :id attribute from clobbering the bare identity" do
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     source = <<~BLUEBOOK
       Hecks.bluebook "Thingy" do
         aggregate "Thing" do
@@ -48,7 +48,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     file.flush
 
     runtime = nil
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -61,8 +61,8 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     end
 
     registry.verify!
-    runtime = Hecksagain::Runtime::Dispatcher.new(registry)
-    Hecksagain::Runtime::Loader.bind_runtime(runtime)
+    runtime = Hecks::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Loader.bind_runtime(runtime)
     runtime
   ensure
     file&.close!
@@ -76,6 +76,6 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
 
     expect(rows.size).to eq(1)
     expect(rows.first[:id]).to eq("t1")
-    expect(rows.first[:name]).to be_a(Hecksagain::Runtime::Value)
+    expect(rows.first[:name]).to be_a(Hecks::Runtime::Value)
   end
 end

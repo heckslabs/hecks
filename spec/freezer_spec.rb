@@ -11,7 +11,7 @@ require "spec_helper"
 # So this asks the question of a REAL result rather than a constructed
 # one, and asks it about the whole reachable graph rather than the object
 # on top.
-RSpec.describe Hecksagain::Freezer do
+RSpec.describe Hecks::Freezer do
   describe "the walk itself" do
     it "sees through a container that is frozen on top" do
       shallow = { name: +"mutable" }.freeze

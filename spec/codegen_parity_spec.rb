@@ -100,8 +100,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # directly so this can't silently drift from what "the real generator's
   # own input" means.
   def self.domain_ir(bluebook_path, domain_name)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -109,7 +109,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
       Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
       InMemoryDomain.load_bluebook_files(bluebook_path)
     end
-    json_shaped(Hecksagain::Projector::Exporter.call(registry).fetch(domain_name))
+    json_shaped(Hecks::Projector::Exporter.call(registry).fetch(domain_name))
   end
 
   # THE ONE MEMBER THAT CAN'T GO THROUGH `domain_ir` — same reason
@@ -120,7 +120,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # in LATER files — the ordinary `Hecks.bluebook`-triggered path refuses
   # immediately).
   def self.meta_ir
-    json_shaped(Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
+    json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
   end
 
   # [member name, ir-loader lambda] — a REAL corpus member each,
@@ -131,10 +131,10 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   CODEGEN_CORPUS_MEMBERS = [
     ["pizzas", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
     ["identity", -> {
-      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"), "Identity")
+      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"), "Identity")
     }],
     ["governance", -> {
-      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/governance.bluebook"), "Governance")
+      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"), "Governance")
     }],
     ["compliance", -> {
       domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")

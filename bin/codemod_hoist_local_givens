@@ -27,7 +27,7 @@
 # it into itself) and deserve their own deliberate, isolated round
 # rather than riding along here.
 #
-# NOT `Hecksagain::Codemod::Runner` — Runner's own safety net requires
+# NOT `Hecks::Codemod::Runner` — Runner's own safety net requires
 # the exported IR to come back BYTE-IDENTICAL, which is the right
 # invariant for a resolution rule that imports an ALREADY-EXISTING
 # value (append-fields' own case) but the WRONG one here: hoisting
@@ -51,9 +51,9 @@
 # Usage: bin/codemod_hoist_local_givens [--dry-run]
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/codemod"
-require "hecksagain/query_ir"
+require "hecks"
+require "hecks/codemod"
+require "hecks/query_ir"
 
 DRY_RUN = ARGV.include?("--dry-run")
 
@@ -68,10 +68,10 @@ Candidate = Struct.new(:description, :canonical, :owner, :locations, keyword_ini
 # instead of silently skipping all of them the moment two owners
 # happen to phrase a rule identically.
 def find_candidates(registry)
-  Hecksagain::QueryIR.collect_rules(registry)
-                     .select { |r| r.kind == "given" }
-                     .group_by { |r| [r.description, r.canonical, Hecksagain::QueryIR.owner_of(r.location)] }
-                     .filter_map do |(description, canonical, owner), rules|
+  Hecks::QueryIR.collect_rules(registry)
+                .select { |r| r.kind == "given" }
+                .group_by { |r| [r.description, r.canonical, Hecks::QueryIR.owner_of(r.location)] }
+                .filter_map do |(description, canonical, owner), rules|
     next if rules.size < 2
     next if rules.any? { |r| r.location.end_with?(" (declared)") } # already hoisted for THIS owner
 
@@ -188,17 +188,17 @@ end
 # "(declared)" entries are deliberately excluded from this comparison;
 # they are exactly what is SUPPOSED to differ.
 def command_rule_map(registry)
-  Hecksagain::QueryIR.collect_rules(registry)
-                     .reject { |r| r.location.end_with?(" (declared)") }
-                     .group_by(&:location)
-                     .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
+  Hecks::QueryIR.collect_rules(registry)
+                .reject { |r| r.location.end_with?(" (declared)") }
+                .group_by(&:location)
+                .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
 end
 
 def run_files(files, dry_run:)
   files = files.sort
   originals = files.to_h { |file| [file, File.read(file)] }
-  before_rules = command_rule_map(Hecksagain::Codemod.load_bluebook(files))
-  candidates = find_candidates(Hecksagain::Codemod.load_bluebook(files))
+  before_rules = command_rule_map(Hecks::Codemod.load_bluebook(files))
+  candidates = find_candidates(Hecks::Codemod.load_bluebook(files))
   result_path = files.one? ? files.first : File.dirname(files.first)
 
   return { file: result_path, status: :clean } if candidates.empty?
@@ -217,8 +217,8 @@ def run_files(files, dry_run:)
   return { file: result_path, status: :skipped, reason: "no candidate matched its own source text", candidates: [] } if applied.empty?
 
   texts.each { |file, text| File.write(file, text) }
-  after_rules, error = Hecksagain::Codemod.safely do
-    command_rule_map(Hecksagain::Codemod.load_bluebook(files))
+  after_rules, error = Hecks::Codemod.safely do
+    command_rule_map(Hecks::Codemod.load_bluebook(files))
   end
   originals.each { |file, text| File.write(file, text) } if dry_run || after_rules != before_rules
 
@@ -232,7 +232,7 @@ end
 
 label = ->(c) { "#{c.owner}##{c.description.inspect} (#{c.locations.size} locations)" }
 
-results = Hecksagain::Codemod::EXAMPLE_ROOTS.filter_map do |domain_dir|
+results = Hecks::Codemod::EXAMPLE_ROOTS.filter_map do |domain_dir|
   bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
   next if bluebook_files.empty?
 

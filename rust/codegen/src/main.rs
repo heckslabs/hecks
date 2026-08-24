@@ -30,7 +30,7 @@ mod exemplar;
 mod expr;
 mod expr_emitter;
 mod fielded;
-mod hecksagain_naming;
+mod hecks_naming;
 mod json;
 mod json_codec;
 mod literal;

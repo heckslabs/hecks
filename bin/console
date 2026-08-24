@@ -7,7 +7,7 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 require "irb"
 
 DOMAIN  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
@@ -15,7 +15,7 @@ RUNTIME = Hecks.boot(DOMAIN)
 
 RUNTIME.registry.bluebooks.each_value do |bluebook|
   aggregates = bluebook.aggregates.map do |aggregate|
-    "    #{aggregate.name}: #{aggregate.commands.map { |c| Hecksagain::Naming.snake(c.hecks_name) }.sort.join(', ')}"
+    "    #{aggregate.name}: #{aggregate.commands.map { |c| Hecks::Naming.snake(c.hecks_name) }.sort.join(', ')}"
   end
 
   puts <<~DOMAIN
@@ -27,7 +27,7 @@ end
 
 puts <<~BANNER
 
-  hecksagain #{Hecksagain::VERSION}
+  hecks #{Hecks::VERSION}
 
   try:
     order = Order.create_pizza(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })

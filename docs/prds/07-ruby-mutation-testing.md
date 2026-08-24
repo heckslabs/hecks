@@ -1,4 +1,4 @@
-# PRD 07 — Automated mutation testing of hecksagain's own Ruby source
+# PRD 07 — Automated mutation testing of hecks's own Ruby source
 
 **Status:** Not started. No harness exists — confirmed: no `mutant` gem, no
 custom script, no CI step, nothing beyond a single comment describing a
@@ -13,12 +13,12 @@ being precise about which one this PRD is:
   declared, first-class language construct, extensively covered by this
   session's own `mutations_match_recompute` property. Not this PRD.
 - **Mutation testing as a QA technique** — deliberately mutating
-  hecksagain's own Ruby *source code* (flip a comparison operator, delete a
+  hecks's own Ruby *source code* (flip a comparison operator, delete a
   guard clause, change a boundary) and checking whether the test suite
   actually catches it. This is what this PRD builds.
 
 The only trace of this second sense anywhere in the repo is a comment in
-`lib/hecksagain/runtime/command_interpreter.rb`:
+`lib/hecks/runtime/command_interpreter.rb`:
 
 > "Mutation testing found this the other way round: the only two
 > declarations in banking whose removal changed observable dispatch
@@ -55,7 +55,7 @@ once there's already momentum from earlier wins, not as the opening move.
    itself struggles to even generate sensible mutants against the DSL
    builder layer, that's a real finding worth reporting rather than forcing
    through.
-2. **Scope narrowly first** — `lib/hecksagain/runtime/command_interpreter.rb`
+2. **Scope narrowly first** — `lib/hecks/runtime/command_interpreter.rb`
    and its own `mutation_applier.rb`/`argument_gate.rb` siblings (the
    dispatch pipeline, already the most heavily property-tested code in the
    runtime, so a good place to find out whether "heavily tested" and

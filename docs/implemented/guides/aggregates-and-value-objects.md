@@ -19,7 +19,7 @@ holding another value object — draws instead from
 it happens.
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -209,7 +209,7 @@ because the value object wants its fields and gets a number instead:
 
 ```ruby
 def banking_bad_default
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     code = <<~RUBY
@@ -245,7 +245,7 @@ engine reads them:
 
 ```ruby
 def banking_bad_pattern
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     code = <<~RUBY
@@ -385,7 +385,7 @@ attribute — writes bare `member` lines instead, no `one_of:` (that
 keyword only ever names one field, by construction):
 
 ```ruby skip
-# lib/hecksagain/language/bluebook/vocabulary.bluebook
+# lib/hecks/language/bluebook/vocabulary.bluebook
 value_object "Comparison" do
   attribute :symbol,             String
   attribute :compares_less_than, String
@@ -416,7 +416,7 @@ value object holds no `value_objects` of its own to nest inside):
 
 ```ruby
 def banking_nested_one_of
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     code = <<~RUBY
@@ -592,7 +592,7 @@ singular relationship is:
 
 ```ruby
 def banking_has_many_demo
-  Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
+  Hecks.with_registry(Hecks::Runtime::Registry.new) do
     Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -629,7 +629,7 @@ def banking_has_many_demo
       HasManyDemo::Slip.persisted_by("Memory")
       HasManyDemo::Vault.persisted_by("Memory")
     end
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(Hecksagain.current_registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(Hecks.current_registry))
   end
 end
 ```

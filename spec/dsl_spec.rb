@@ -1,9 +1,9 @@
-require "hecksagain"
+require "hecks"
 require_relative "support/postgres_probe"
 
 RSpec.describe "the DSL surface" do
   def in_registry
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
@@ -55,7 +55,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry { Hecks.bluebook("WithReg") { vision "v" } }
 
       expect(registry.bluebook("WithReg").vision).to eq("v")
-      expect(Hecksagain.current_registry).to be_nil
+      expect(Hecks.current_registry).to be_nil
     end
 
     it ".bluebook registers a domain" do
@@ -147,7 +147,7 @@ RSpec.describe "the DSL surface" do
             Hexed::Thing.posted_by("Carrier")
           end
         end
-      end.to raise_error(Hecksagain::Runtime::WiringError, /needs a registry with a root to vendor from/)
+      end.to raise_error(Hecks::Runtime::WiringError, /needs a registry with a root to vendor from/)
     end
 
     it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
@@ -214,7 +214,7 @@ RSpec.describe "the DSL surface" do
             aggregate("Thing") { rekey sql: "" }
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs its sql: expression/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /needs its sql: expression/)
     end
 
     it ".data_translation registers a backfill with its default value" do
@@ -235,7 +235,7 @@ RSpec.describe "the DSL surface" do
             aggregate("Thing") { backfill :tier, default: nil }
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs a default: value/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /needs a default: value/)
     end
 
     it ".data_translation refuses an unresolved placeholder and an unknown rule" do
@@ -245,7 +245,7 @@ RSpec.describe "the DSL surface" do
             aggregate("Thing") { unresolved :cost, candidates: [:amount] }
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /leaves :cost unresolved/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /leaves :cost unresolved/)
 
       # WordGate (item #13's remaining builders) replaced the builder's
       # own hand-written method_missing — a genuine typo, admitted
@@ -270,7 +270,7 @@ RSpec.describe "the DSL surface" do
             aggregate("Thing") { identified_by :cost }
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /not a word TranslationAggregate admits/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /not a word TranslationAggregate admits/)
 
       expect do
         in_registry do
@@ -290,13 +290,13 @@ RSpec.describe "the DSL surface" do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
-      expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
+      expect(runtime).to be_a(Hecks::Runtime::Dispatcher)
       expect(runtime.verbs).to include("Pizzas::Order.Purchase")
     end
 
     it ".boot refuses a declaration loaded outside a boot" do
       expect { Hecks.bluebook("Orphan") { vision "x" } }
-        .to raise_error(Hecksagain::LoadOutsideBoot, /outside a boot/)
+        .to raise_error(Hecks::LoadOutsideBoot, /outside a boot/)
     end
 
     # `.boot_files` — the explicit-file sibling of `.boot`. Memory-persisted
@@ -312,22 +312,22 @@ RSpec.describe "the DSL surface" do
         install_facade: false
       )
 
-      expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
+      expect(runtime).to be_a(Hecks::Runtime::Dispatcher)
       expect(runtime.registry.bluebooks.keys).to eq(%w[Pizzas Governance])
     end
   end
 
   describe "Hecks.behaviors" do
     it "refuses a call outside the behaviors runner" do
-      require "hecksagain/behaviors"
+      require "hecks/behaviors"
 
       expect { Hecks.behaviors("Orphan") { vision "x" } }
-        .to raise_error(Hecksagain::Behaviors::LoadOutsideRunner, /outside/)
+        .to raise_error(Hecks::Behaviors::LoadOutsideRunner, /outside/)
     end
   end
 
   describe "declarations that cannot mean what they say" do
-    Malformed = Hecksagain::Bluebook::DSL::Malformed
+    Malformed = Hecks::Bluebook::DSL::Malformed
 
     it "refuses a vision that says nothing" do
       expect { build_bluebook("Mute") { vision "" } }
@@ -628,22 +628,22 @@ RSpec.describe "the DSL surface" do
 
     it "materializes a declared value object rather than a hash" do
       registry = account_domain
-      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      runtime  = Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
       state = runtime.dispatch("Coerced::Holding.Open", id: "h1",
                                kind: { name: "current" }, amount: { cents: 100, currency: "GBP" }).state
 
-      expect(state[:kind]).to be_a(Hecksagain::Runtime::Value)
+      expect(state[:kind]).to be_a(Hecks::Runtime::Value)
       expect(state[:kind].type_name).to eq("Kind")
       expect(state[:kind][:name]).to eq("current")
     end
 
     it "identifies a value object by its declared state" do
       registry = account_domain
-      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      runtime  = Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
       first  = runtime.dispatch("Coerced::Holding.Open", id: "h1",
@@ -657,15 +657,15 @@ RSpec.describe "the DSL surface" do
 
     it "enforces the invariant on a value object" do
       registry = account_domain
-      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      runtime  = Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
       expect {
         runtime.dispatch("Coerced::Holding.Open", id: "h2",
                          kind: { name: "offshore" }, amount: { cents: 100, currency: "GBP" })
       }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
+        .to raise_error(Hecks::Runtime::InvariantViolation, /current or savings/)
     end
 
     # NOT for every value object any more. `Value::Coercion#fields_for` was
@@ -678,15 +678,15 @@ RSpec.describe "the DSL surface" do
     # currency) is that case here.
     it "refuses a scalar for every multi-field value object" do
       registry = account_domain
-      runtime  = Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
+      runtime  = Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry.tap(&:verify!))
       )
 
       expect {
         runtime.dispatch("Coerced::Holding.Open", id: "h3",
                          kind: { name: "current" }, amount: "a lot")
       }
-        .to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
+        .to raise_error(Hecks::Runtime::TypeMismatch, /pass its fields as an object/)
     end
   end
 
@@ -772,7 +772,7 @@ RSpec.describe "the DSL surface" do
         build_bluebook("BadModel") do
           read_model("Portfolio") { description "nothing to gather" }
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs an aggregate-head reference or at least one include/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /needs an aggregate-head reference or at least one include/)
 
       # a reference, so `needs an aggregate-head reference` does not fire first
       # and mask the description rule this case is about
@@ -783,7 +783,7 @@ RSpec.describe "the DSL surface" do
             description ""
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /a description says something/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /a description says something/)
 
       expect {
         build_bluebook("BadModel") do
@@ -792,7 +792,7 @@ RSpec.describe "the DSL surface" do
             reference_to Account
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /already has a projection reference/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /already has a projection reference/)
 
       expect {
         build_bluebook("BadModel") do
@@ -802,7 +802,7 @@ RSpec.describe "the DSL surface" do
             include Customer, as: :customer
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /already projects customer/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /already projects customer/)
     end
 
     it "lets read models combine common query options with aggregate-head joins" do
@@ -837,7 +837,7 @@ RSpec.describe "the DSL surface" do
             cursor :after
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
     end
 
     it "refuses two aggregates that reference each other" do
@@ -861,7 +861,7 @@ RSpec.describe "the DSL surface" do
             reference_to Rider
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed,
                        /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
@@ -896,7 +896,7 @@ RSpec.describe "the DSL surface" do
             reference_to Board
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed,
                        /reference cycle: (Board -> Product -> Board|Product -> Board -> Product)/)
     end
 
@@ -1099,7 +1099,7 @@ RSpec.describe "the DSL surface" do
 
     it "core, supporting and generic each record a classification" do
       %i[core supporting generic].each_with_index do |keyword, index|
-        builder = Hecksagain::Bluebook::DSL::BluebookBuilder.new("Classified#{index}")
+        builder = Hecks::Bluebook::DSL::BluebookBuilder.new("Classified#{index}")
         builder.public_send(keyword)
         expect(builder.classification).to eq(keyword)
       end
@@ -1113,11 +1113,11 @@ RSpec.describe "the DSL surface" do
       # "Referencer" itself is built, deferred instead of refused
       # (`AggregateBuilder#pending_chapter_given`), and only resolved once
       # `MetaValidator.judge_deferred!` runs, after both have loaded.
-      registry = Hecksagain::Runtime::Registry.new
+      registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Hecksagain::Bluebook::MetaValidator.defer do
+        Hecks::Bluebook::MetaValidator.defer do
           Hecks.bluebook("SplitGiven") do
             aggregate("Referencer") do
               identified_by :id
@@ -1131,7 +1131,7 @@ RSpec.describe "the DSL surface" do
             end
           end
         end
-        Hecksagain::Bluebook::MetaValidator.judge_deferred!(registry)
+        Hecks::Bluebook::MetaValidator.judge_deferred!(registry)
       end
 
       referencer = registry.bluebook("SplitGiven").aggregates.find { |a| a.hecks_name == "Referencer" }
@@ -1232,7 +1232,7 @@ RSpec.describe "the DSL surface" do
     # don't have to think about one, which makes it the wrong tool for proving
     # there is no default underneath.
     it "identified_by has no default : an aggregate that declares none has none" do
-      undeclared = Hecksagain::Bluebook::DSL::AggregateBuilder.build("Undeclared") {}
+      undeclared = Hecks::Bluebook::DSL::AggregateBuilder.build("Undeclared") {}
 
       expect(undeclared.identity_paths).to eq([])
       expect(undeclared.identified_by).to be_nil
@@ -1296,7 +1296,7 @@ RSpec.describe "the DSL surface" do
 
       it "no longer takes a block at all — not even alongside a field name" do
         expect do
-          Hecksagain::Bluebook::DSL::AggregateBuilder.build("Both") do
+          Hecks::Bluebook::DSL::AggregateBuilder.build("Both") do
             identified_by(:id) { id.value }
           end
         end.to raise_error(Malformed, /identified_by cannot combine a value-object type with a block/)
@@ -1353,7 +1353,7 @@ RSpec.describe "the DSL surface" do
     # real file on disk the way `spec/shadow_parse_spec.rb` does end to end.
     describe "identified_by ValueObject while shadow-parsing" do
       def legacy(&block)
-        Hecksagain::Bluebook::MetaValidator.while_shadow_parsing { yield }
+        Hecks::Bluebook::MetaValidator.while_shadow_parsing { yield }
       end
 
       it "mints the attribute AND derives its path, no separate attribute call needed" do
@@ -1659,7 +1659,7 @@ RSpec.describe "the DSL surface" do
             cursor :after
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares cursor, but no interpreter implements cursor pagination/)
     end
 
     it "query reads a comparator from the hash form" do
@@ -2417,7 +2417,7 @@ RSpec.describe "the DSL surface" do
 
     it "sets still refuses two operations at once with the new keyword list named" do
       expect { build_command("CmdSetTornNew") { sets :status, to: "a", remove: :b } }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /tries to set and remove/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /tries to set and remove/)
     end
 
     # `delegates_to` — CommandBuilder#delegates_to_impl's own comment gives
@@ -2448,7 +2448,7 @@ RSpec.describe "the DSL surface" do
 
     it "delegates_to refuses a target that does not name an entity and a command" do
       expect { build_command("CmdDelegateBadTarget") { delegates_to "JustAnEntity" } }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /does not name an entity and a command/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /does not name an entity and a command/)
     end
 
     it "delegates_to refuses sharing a command with its own sets/emits — a pure passthrough only" do
@@ -2457,7 +2457,7 @@ RSpec.describe "the DSL surface" do
           delegates_to "Piece.Move", with: { id: :id }
           emits "SomethingElseToo"
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /pure passthrough/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /pure passthrough/)
     end
 
     it "sets append: pushes a built value object onto a list" do
@@ -2519,7 +2519,7 @@ RSpec.describe "the DSL surface" do
     # nothing, so it is refused outright instead.
     it "sets a field neither the command nor the owner declares still refuses, at aggregate build time" do
       expect { build_command("CmdUnresolvedSets") { sets :nonexistent } }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /never declares/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /never declares/)
     end
 
     it "emits announces a fact" do
@@ -2599,7 +2599,7 @@ RSpec.describe "the DSL surface" do
     it "operation adds a named operation" do
       port = build_domain_port do
         operation("Receive") do
-          attribute :thing_id, Hecksagain::Bluebook::Reference.new("Thing")
+          attribute :thing_id, Hecks::Bluebook::Reference.new("Thing")
           emits "Received"
         end
       end
@@ -2631,15 +2631,15 @@ RSpec.describe "the DSL surface" do
         build_domain_port do
           verb "opened_by"
           operation("Receive") do
-            attribute :thing_id, Hecksagain::Bluebook::Reference.new("Thing")
+            attribute :thing_id, Hecks::Bluebook::Reference.new("Thing")
             emits "Received"
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares both a verb and operations/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares both a verb and operations/)
     end
 
     it "refuses a port with no verb and no operations" do
-      expect { build_domain_port {} }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no verb and no operations/)
+      expect { build_domain_port {} }.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares no verb and no operations/)
     end
 
     it "a bare port at a hecksagon's root belongs to the chapter, not one aggregate" do
@@ -2701,7 +2701,7 @@ RSpec.describe "the DSL surface" do
           reference_to Thing
           emits "Done"
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /behavioral routing.*to:.*attribute/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /behavioral routing.*to:.*attribute/)
     end
 
     it "attribute adds a payload field without a receiver field" do
@@ -2728,7 +2728,7 @@ RSpec.describe "the DSL surface" do
     it "refuses an operation with no emits" do
       expect {
         build_operation {}
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no emits/)
+      }.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares no emits/)
     end
   end
 
@@ -2768,12 +2768,12 @@ RSpec.describe "the DSL surface" do
     let(:collector) { [] }
 
     it ".namespace answers any aggregate constant with a proxy" do
-      namespace = Hecksagain::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
-      expect(namespace::Anything).to be_a(Hecksagain::Bluebook::DSL::BindingProxy)
+      namespace = Hecks::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
+      expect(namespace::Anything).to be_a(Hecks::Bluebook::DSL::BindingProxy)
     end
 
     it "method_missing records a bind for any how-verb" do
-      namespace = Hecksagain::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
+      namespace = Hecks::Bluebook::DSL::BindingProxy.namespace("Dom", collector)
       namespace::Thing.invented_by("Someone")
 
       bind = collector.first
@@ -2781,12 +2781,12 @@ RSpec.describe "the DSL surface" do
     end
 
     it "respond_to_missing? agrees that it answers to anything" do
-      proxy = Hecksagain::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
+      proxy = Hecks::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
       expect(proxy).to respond_to(:any_verb_at_all)
     end
 
     it "to_s is the fully-qualified aggregate it stands for" do
-      proxy = Hecksagain::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
+      proxy = Hecks::Bluebook::DSL::BindingProxy.new("Dom::Thing", collector)
       expect(proxy.to_s).to eq("Dom::Thing")
     end
 
@@ -2801,12 +2801,12 @@ RSpec.describe "the DSL surface" do
 
   describe "the world's settings collector" do
     it "respond_to_missing? agrees that any key is a setting" do
-      collector = Hecksagain::Bluebook::DSL::SettingsCollector.new
+      collector = Hecks::Bluebook::DSL::SettingsCollector.new
       expect(collector).to respond_to(:anything_at_all)
     end
 
     it "to_h returns the collected values" do
-      collector = Hecksagain::Bluebook::DSL::SettingsCollector.new
+      collector = Hecks::Bluebook::DSL::SettingsCollector.new
       collector.instance_eval { office "EC1" }
       expect(collector.to_h).to eq(office: "EC1")
     end
@@ -2814,19 +2814,19 @@ RSpec.describe "the DSL surface" do
 
   describe "the const shim" do
     it "is inert outside a load, so an ordinary typo still raises" do
-      expect(Hecksagain::Bluebook::DSL::ConstShim).not_to be_active
+      expect(Hecks::Bluebook::DSL::ConstShim).not_to be_active
       expect { NoSuchConstantAnywhere }.to raise_error(NameError)
     end
 
     it "resolves unknown constants while a load is running, and restores after" do
       seen = nil
-      Hecksagain::Bluebook::DSL::ConstShim.with(->(name) { "resolved:#{name}" }) do
+      Hecks::Bluebook::DSL::ConstShim.with(->(name) { "resolved:#{name}" }) do
         seen = SomeUndefinedType
-        expect(Hecksagain::Bluebook::DSL::ConstShim).to be_active
+        expect(Hecks::Bluebook::DSL::ConstShim).to be_active
       end
 
       expect(seen).to eq("resolved:SomeUndefinedType")
-      expect(Hecksagain::Bluebook::DSL::ConstShim).not_to be_active
+      expect(Hecks::Bluebook::DSL::ConstShim).not_to be_active
     end
   end
 end

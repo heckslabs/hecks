@@ -15,15 +15,15 @@ RSpec.describe "an argument a command does not declare" do
   TILL = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
   def boot_till
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(TILL)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -31,7 +31,7 @@ RSpec.describe "an argument a command does not declare" do
     runtime = boot_till
 
     expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, nonsense: 1) }
-      .to raise_error(Hecksagain::Runtime::UnknownArgument, /nonsense/)
+      .to raise_error(Hecks::Runtime::UnknownArgument, /nonsense/)
   end
 
   it "is refused even when every declared argument is also present" do
@@ -39,14 +39,14 @@ RSpec.describe "an argument a command does not declare" do
     runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
 
     expect { runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: { cents: 500 }, sneaky: "x") }
-      .to raise_error(Hecksagain::Runtime::UnknownArgument, /sneaky/)
+      .to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end
 
   it "names every unknown argument at once, not just the first" do
     runtime = boot_till
 
     expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }, one: 1, two: 2) }
-      .to raise_error(Hecksagain::Runtime::UnknownArgument, /one.*two|two.*one/)
+      .to raise_error(Hecks::Runtime::UnknownArgument, /one.*two|two.*one/)
   end
 
   it "leaves the identity keys alone" do

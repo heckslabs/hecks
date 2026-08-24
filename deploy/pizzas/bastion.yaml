@@ -114,7 +114,7 @@ Resources:
       SecurityGroupIds: [!Ref BastionSecurityGroup]
       IamInstanceProfile: !Ref BastionInstanceProfile
       Tags:
-        - { Key: Name, Value: hecksagain-pizzas-bastion }
+        - { Key: Name, Value: hecks-pizzas-bastion }
 
 Outputs:
   InstanceId:

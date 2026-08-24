@@ -22,7 +22,7 @@
 # (mint AND write), the actual end-to-end claim ADR-0030-in-progress
 # makes, not a narrower "the DDL text matches" one.
 #
-# `ir.json` for each shape comes from `Hecksagain::Projector::Exporter.
+# `ir.json` for each shape comes from `Hecks::Projector::Exporter.
 # call`/`.translations` DIRECTLY — the SAME calls `bin/project_rust`
 # itself makes to build the real `ir.json` sidecar every deployed
 # domain ships — not a hand-approximated JSON shape this fixture
@@ -32,7 +32,7 @@
 
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "json"
 require "tempfile"
 require "open3"
@@ -105,12 +105,12 @@ V2 = <<~BLUEBOOK
 BLUEBOOK
 
 def load_registry(source, translation_source: nil)
-  registry = Hecksagain::Runtime::Registry.new
-  loading = Hecksagain::Ports::Loading.bootstrap
+  registry = Hecks::Runtime::Registry.new
+  loading = Hecks::Ports::Loading.bootstrap
   file = Tempfile.new(["mint-via-rust-", ".bluebook"])
   file.write(source)
   file.flush
-  Hecksagain.with_registry(registry) do
+  Hecks.with_registry(registry) do
     loading.load_library
     Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
     eval(translation_source) if translation_source
@@ -121,7 +121,7 @@ ensure
 end
 
 def label_of(source)
-  Hecksagain::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
+  Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
 end
 
 def edge_source(from:, to:)
@@ -143,9 +143,9 @@ edge_src = edge_source(from: from_label, to: to_label)
 def export_ir(source, translation_source:)
   registry = load_registry(source, translation_source: translation_source)
   domain_name = registry.bluebooks.keys.first
-  ir = Hecksagain::Projector::Exporter.call(registry).fetch(domain_name)
+  ir = Hecks::Projector::Exporter.call(registry).fetch(domain_name)
   ir.merge(
-    translations: Hecksagain::Projector::Exporter.translations(registry).select { |edge| edge[:domain] == domain_name },
+    translations: Hecks::Projector::Exporter.translations(registry).select { |edge| edge[:domain] == domain_name },
     source_text: source
   )
 end
@@ -165,7 +165,7 @@ def check_ruby!(source, owner_url:, translation_source: nil, role: nil)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url }
   settings[:role] = role if role
-  Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
   registry
@@ -173,9 +173,9 @@ end
 
 def account_instance(aggregate, kind_label, cents:)
   field = aggregate.attribute(:amount) ? :amount : :cost
-  built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
-  built[:kind] = Hecksagain::Runtime::Value.for(aggregate, :kind, { label: kind_label })
-  built[field] = Hecksagain::Runtime::Value.for(aggregate, field, { cents: cents })
+  built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: kind_label)
+  built[:kind] = Hecks::Runtime::Value.for(aggregate, :kind, { label: kind_label })
+  built[field] = Hecks::Runtime::Value.for(aggregate, field, { cents: cents })
   built
 end
 
@@ -189,7 +189,7 @@ end
 
 registry_v1 = check_ruby!(V1, owner_url: ruby_owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
-adapter_v1 = Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate_v1, settings: { database: ruby_owner_url, domain: DOMAIN, era: 1 })
+adapter_v1 = Hecks::Adapters::PostgresEra.new(aggregate: aggregate_v1, settings: { database: ruby_owner_url, domain: DOMAIN, era: 1 })
 era1_writes = { "biz" => 100, "pers" => 250 }
 era1_writes.each { |kind, cents| adapter_v1.save(account_instance(aggregate_v1, kind, cents: cents)) }
 
@@ -207,7 +207,7 @@ end
 
 registry_v2 = check_ruby!(V2, owner_url: ruby_owner_url, translation_source: edge_src, role: nil)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
-adapter_v2 = Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate_v2, settings: { database: ruby_owner_url, domain: DOMAIN, era: 2 })
+adapter_v2 = Hecks::Adapters::PostgresEra.new(aggregate: aggregate_v2, settings: { database: ruby_owner_url, domain: DOMAIN, era: 2 })
 era2_writes = { "gift" => 5 }
 era2_writes.each { |kind, cents| adapter_v2.save(account_instance(aggregate_v2, kind, cents: cents)) }
 

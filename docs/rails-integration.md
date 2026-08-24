@@ -1,7 +1,7 @@
-# A Rails integration for hecksagain
+# A Rails integration for hecks
 
 **Status: design only. Nothing in this document is built.** It records a session's
-worth of reasoning about how a Rails app should sit on top of hecksagain as a driving
+worth of reasoning about how a Rails app should sit on top of hecks as a driving
 adapter — what to generate, what to hand-write, and several ideas that were
 considered and specifically rejected, kept here so they aren't re-litigated later.
 
@@ -11,7 +11,7 @@ The starting instinct was "bye bye ActiveRecord" — not ActiveModel. Those are 
 claims, and the difference matters:
 
 - **ActiveRecord** infers a model's shape *from* the database schema — the migration is
-  upstream, the Ruby class reflects it, and the two can drift. hecksagain already
+  upstream, the Ruby class reflects it, and the two can drift. hecks already
   inverts this: a domain's shape is declared once, in its `.bluebook`, and the SQL
   schema is *projected* from it ("one column per attribute... never hand-written").
   Nothing about a Rails integration should reintroduce a second, database-derived
@@ -39,10 +39,10 @@ adapter. The domain doesn't know or need to know which one called it. This has o
 hard consequence for the design: **core `Handle`/`AggregateDoor` must never gain a
 Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration layer
 built on top of the core facade, applied once at boot — never inside
-`lib/hecksagain/facade/`.
+`lib/hecks/facade/`.
 
 ```ruby skip
-lib/hecksagain/facade/handle.rb      core, adapter-agnostic, used by bin/console too
+lib/hecks/facade/handle.rb      core, adapter-agnostic, used by bin/console too
   ↓ decorated once, at boot, for Rails specifically
 WebHandle (Rails-only)               ActiveModel::Conversion + a real ActiveModel::Errors
 WebDoor   (Rails-only)               wraps every Handle AggregateDoor hands out
@@ -70,7 +70,7 @@ helper, no symbol argument to misspell, and the form helper can take the object
 directly: `bluebook_form_for(@account.freeze)`.
 
 `command!` (bang) matches Rails' own `save!`/`update!` semantics exactly, not by
-convention — hecksagain's refusals already *raise* (`GivenNotMet`, `TypeMismatch`,
+convention — hecks's refusals already *raise* (`GivenNotMet`, `TypeMismatch`,
 etc.), never return false. Naming the non-raising form without a bang would be
 misleading; naming the raising form *with* one is just accurate.
 
@@ -223,7 +223,7 @@ class AccountsController < ApplicationController
   def open
     @account = Account.open!(open_params)
     redirect_to @account, notice: "Opened"
-  rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+  rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
     Account.errors.add(:base, e.message)
     render :new, status: :unprocessable_entity
   end
@@ -231,7 +231,7 @@ class AccountsController < ApplicationController
   def freeze
     @account.freeze!(freeze_params)
     redirect_to @account, notice: "Frozen"
-  rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+  rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
     render :show, status: :unprocessable_entity
   end
 
@@ -351,7 +351,7 @@ Two enrichments to `.find` were considered and rejected:
   else makes `redirect_to` work) — `index` and filtered/query-backed views are a
   separate, larger, still-undesigned piece.
 - **Authorization.** `command.role` is descriptive only — verified directly, zero
-  references anywhere in `lib/hecksagain/runtime`. Whether/how a Rails app enforces
+  references anywhere in `lib/hecks/runtime`. Whether/how a Rails app enforces
   "only a Compliance officer may Freeze" is undecided. Per the hexagonal reading, this
   almost certainly belongs on the driving-adapter side (Rails), not the domain — the
   domain shouldn't need to know who's allowed to call it any more than it needs to

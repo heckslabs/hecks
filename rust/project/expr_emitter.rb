@@ -11,11 +11,11 @@ module RustProjection
     module_function
 
     def emit_predicate(canonical)
-      emit_bool(Hecksagain::Bluebook::Expression::Evaluator.parse(canonical))
+      emit_bool(Hecks::Bluebook::Expression::Evaluator.parse(canonical))
     end
 
     def emit_bool(node)
-      ev = Hecksagain::Bluebook::Expression::Evaluator
+      ev = Hecks::Bluebook::Expression::Evaluator
       case node
       when ev::Or  then "Expr::Or(Box::new(#{emit_bool(node.left)}), Box::new(#{emit_bool(node.right)}))"
       when ev::And then "Expr::And(Box::new(#{emit_bool(node.left)}), Box::new(#{emit_bool(node.right)}))"
@@ -65,11 +65,11 @@ module RustProjection
     # A non-literal haystack (a real list-typed field, or a String) still
     # emits `Expr::Include` unchanged — this only rewrites the shape the
     # kernel cannot represent.
-    EQ = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS.find { |op| op.symbol == "==" }
+    EQ = Hecks::Bluebook::Expression::Evaluator::OPERATORS.find { |op| op.symbol == "==" }
     private_constant :EQ
 
     def emit_include(node)
-      r = Hecksagain::Bluebook::Expression::Resolver
+      r = Hecks::Bluebook::Expression::Resolver
       return "Expr::Include { haystack: Box::new(#{emit_resolver(node.haystack)}), needle: Box::new(#{emit_resolver(node.needle)}) }" \
         unless node.haystack.is_a?(r::ArrayLiteral)
 
@@ -81,7 +81,7 @@ module RustProjection
     end
 
     def emit_resolver(node)
-      r = Hecksagain::Bluebook::Expression::Resolver
+      r = Hecks::Bluebook::Expression::Resolver
       case node
       when r::IntegerLiteral then "Expr::Int(#{node.value})"
       when r::FloatLiteral   then "Expr::Float(#{node.value}f64)"

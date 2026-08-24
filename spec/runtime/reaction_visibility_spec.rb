@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "policy and process lexical visibility" do
   def boot_visibility_reaction
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -97,7 +97,7 @@ RSpec.describe "policy and process lexical visibility" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def recording_door
@@ -142,7 +142,7 @@ RSpec.describe "policy and process lexical visibility" do
   end
 
   it "resolves process mappings through current event, opening memory, then explicit correlation" do
-    resolved = Hecksagain::Runtime::ReactionInvocation.resolve_mapping(
+    resolved = Hecks::Runtime::ReactionInvocation.resolve_mapping(
       with_spec: {
         current:     :amount,
         remembered:  :destination,
@@ -166,15 +166,15 @@ RSpec.describe "policy and process lexical visibility" do
   it "uses Event.id as the same-aggregate receiver without adding it to explicit facts" do
     runtime = boot_visibility_reaction
     door = recording_door
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name:      "RaiseProposed",
       aggregate: "ReactionVisibility::Meter",
       id:        "meter-1",
       payload:   { reading: { value: 12 } }
     )
 
-    Hecksagain::Runtime::PolicyInterpreter.new(runtime.registry, door: door)
-                                          .react(event, "ReactionVisibility")
+    Hecks::Runtime::PolicyInterpreter.new(runtime.registry, door: door)
+                                     .react(event, "ReactionVisibility")
 
     expect(door.calls).to eq([
                                ["ReactionVisibility::Meter.RaiseReading", { to: "meter-1", with: { reading: { value: 12 } } }]
@@ -184,15 +184,15 @@ RSpec.describe "policy and process lexical visibility" do
   it "keeps a legacy same-aggregate policy functional with Event.id only in to:" do
     runtime = boot_visibility_reaction
     door = recording_door
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name:      "MeterObserved",
       aggregate: "ReactionVisibility::Meter",
       id:        "meter-1",
       payload:   {}
     )
 
-    Hecksagain::Runtime::PolicyInterpreter.new(runtime.registry, door: door)
-                                          .react(event, "ReactionVisibility")
+    Hecks::Runtime::PolicyInterpreter.new(runtime.registry, door: door)
+                                     .react(event, "ReactionVisibility")
 
     expect(door.calls).to eq([
                                ["ReactionVisibility::Meter.Touch", { to: "meter-1" }]
@@ -202,7 +202,7 @@ RSpec.describe "policy and process lexical visibility" do
   it "keeps an explicitly mapped receiver authoritative over Event.id" do
     runtime = boot_visibility_reaction
 
-    invocation = Hecksagain::Runtime::ReactionInvocation.build(
+    invocation = Hecks::Runtime::ReactionInvocation.build(
       registry:        runtime.registry,
       verb:            "ReactionVisibility::Meter.RaiseReading",
       projected:       { meter: "meter-2", reading: { value: 12 } },
@@ -216,7 +216,7 @@ RSpec.describe "policy and process lexical visibility" do
   it "does not inherit Event.id from another domain's same-named aggregate" do
     runtime = boot_visibility_reaction
 
-    invocation = Hecksagain::Runtime::ReactionInvocation.build(
+    invocation = Hecks::Runtime::ReactionInvocation.build(
       registry:        runtime.registry,
       verb:            "ReactionVisibility::Meter.Touch",
       projected:       {},
@@ -229,27 +229,27 @@ RSpec.describe "policy and process lexical visibility" do
 
   it "refuses a source that no reaction lexical scope declares" do
     expect do
-      Hecksagain::Runtime::ReactionInvocation.resolve_mapping(
+      Hecks::Runtime::ReactionInvocation.resolve_mapping(
         with_spec: { reading: :parent_reading },
         scopes:    [["event payload", { reading: { value: 12 } }]],
         label:     "ApplyProposal's trigger"
       )
     end.to raise_error(
-      Hecksagain::Runtime::UnknownArgument,
+      Hecks::Runtime::UnknownArgument,
       /ApplyProposal's trigger's with: reads :parent_reading, which is not visible in event payload/
     )
   end
 
   it "preserves an explicitly empty projection instead of reverting to legacy forwarding" do
-    policy, dispatch = Hecksagain::Bluebook::MetaValidator.while_shadow_parsing do
-      policy_builder = Hecksagain::Bluebook::DSL::PolicyBuilder.new("EmptyProjection")
+    policy, dispatch = Hecks::Bluebook::MetaValidator.while_shadow_parsing do
+      policy_builder = Hecks::Bluebook::DSL::PolicyBuilder.new("EmptyProjection")
       policy_builder.trigger("Meter.RaiseReading", with: {})
-      handler = Hecksagain::Bluebook::DSL::ProcessManagerBuilder::HandlerBuilder.new
+      handler = Hecks::Bluebook::DSL::ProcessManagerBuilder::HandlerBuilder.new
       handler.dispatch("Meter.RaiseReading", with: {})
       [policy_builder.build, handler.dispatches.first]
     end
 
-    expect(Hecksagain::Runtime::ReactionInvocation.projection_declared?(policy)).to be(true)
-    expect(Hecksagain::Runtime::ReactionInvocation.projection_declared?(dispatch)).to be(true)
+    expect(Hecks::Runtime::ReactionInvocation.projection_declared?(policy)).to be(true)
+    expect(Hecks::Runtime::ReactionInvocation.projection_declared?(dispatch)).to be(true)
   end
 end

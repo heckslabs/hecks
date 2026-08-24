@@ -4,7 +4,7 @@
 Words available inside `bluebook do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -15,7 +15,7 @@ carries every structural word; `examples/pizzas` is `supporting`.
 they get a chapter each:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Banking") do
@@ -160,7 +160,7 @@ runtime.registry.bluebook("Ledgering").attaches_to  # => []
 ```
 
 **The real, load-bearing use** (not synthetic, unlike the fixture
-above): `lib/hecksagain/language/bluebook/attaches/paging.bluebook`
+above): `lib/hecks/language/bluebook/attaches/paging.bluebook`
 declares `attaches_to "Query", "ReadModel"` for real — the Paging
 sub-language, whose own `Syntax` aggregate holds the seed rows for
 `limit`/`offset`/`cursor`/`nulls` (see `docs/implemented/reference/query.md`/

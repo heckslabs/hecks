@@ -25,7 +25,7 @@
 //!
 //! WHICH WIRE VALUES COUNT AS "ARGUMENT-SOURCED": `IR::Mutation#to_h`'s
 //! own `appended_fields` renders each append field's value through
-//! `Hecksagain::Literal.render` (`lib/hecksagain/literal.rb`) — the ONE
+//! `Hecks::Literal.render` (`lib/hecks/literal.rb`) — the ONE
 //! pinned spelling for every captured Ruby literal on the wire. Of its
 //! six cases, only `Symbol` (a command argument's own name) gets a
 //! leading colon (`:#{value}`); every other case (`nil`, `true`/`false`,

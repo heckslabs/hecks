@@ -227,7 +227,7 @@ rust/build/src/
 - Visibility hygiene: several `pub fn`/`pub struct` items in `rust/codegen/src/` are reachable
   only from within their own file (candidates for `pub` → `pub(crate)`/private tightening).
   Orthogonal to this plan.
-- `rust/build/src/lineage_pass.rs`'s `snake_case` duplicates `rust/codegen/src/hecksagain_naming.rs`'s
+- `rust/build/src/lineage_pass.rs`'s `snake_case` duplicates `rust/codegen/src/hecks_naming.rs`'s
   `snake` — unavoidable, since `build` and `codegen` are separate standalone bin crates with no
   shared lib target. Not an action item.
 

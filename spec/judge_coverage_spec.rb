@@ -28,8 +28,8 @@ RSpec.describe "the judge's coverage of the language" do
   # through a `Spy` double, never the real banking runtime, so nothing
   # here ever mutates and a shared boot is safe.
   before(:context) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -42,7 +42,7 @@ RSpec.describe "the judge's coverage of the language" do
     # real, so `Bluebook::Bluebook.Attach` needs a second bluebook judged
     # to be offered at all. Already loaded into the grammar registry
     # itself (MetaValidator::ATTACHED_GRAMMAR_DIR) — no separate boot.
-    @paging = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
+    @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
   end
 
   def banking = @banking
@@ -59,13 +59,13 @@ RSpec.describe "the judge's coverage of the language" do
 
   def offered_in_order(bluebook = banking)
     spy = Spy.new
-    judge = Hecksagain::Bluebook::MetaValidator::Judge.allocate
+    judge = Hecks::Bluebook::MetaValidator::Judge.allocate
     judge.instance_variable_set(:@bluebook, bluebook)
     judge.instance_variable_set(:@refusals, [])
     judge.instance_variable_set(:@runtime, spy)
     judge.instance_variable_set(
       :@plan,
-      Hecksagain::Bluebook::MetaValidator::Plan.for(Hecksagain::Bluebook::MetaValidator.grammar_registry)
+      Hecks::Bluebook::MetaValidator::Plan.for(Hecks::Bluebook::MetaValidator.grammar_registry)
     )
     judge.send(:judge!)
     spy.verbs
@@ -101,10 +101,10 @@ RSpec.describe "the judge's coverage of the language" do
   META_ONLY_AGGREGATES = %w[Vocabulary Syntax].freeze
 
   def declared_verbs
-    Hecksagain::Bluebook::MetaValidator.grammar_registry
-                                       .bluebook("Bluebook").aggregates
-                                       .reject { |aggregate| META_ONLY_AGGREGATES.include?(aggregate.hecks_name) }
-                                       .flat_map { |aggregate| aggregate_verbs(aggregate) }
+    Hecks::Bluebook::MetaValidator.grammar_registry
+                                  .bluebook("Bluebook").aggregates
+                                  .reject { |aggregate| META_ONLY_AGGREGATES.include?(aggregate.hecks_name) }
+                                  .flat_map { |aggregate| aggregate_verbs(aggregate) }
   end
 
   # S17, ADR 0026 — Member is a genuine entity now, nested under

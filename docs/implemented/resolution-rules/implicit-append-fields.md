@@ -98,7 +98,7 @@ work in a second pass" move `BluebookBuilder` already made one level up
 (build every aggregate in the chapter first, then validate query hops/
 projected fields/reference cycles against the complete set), extended one
 level down. `command "Handler"`/`command "Dispatch"`/`command "Member"` in
-the self-hosted meta-domain (`lib/hecksagain/language/bluebook/`,
+the self-hosted meta-domain (`lib/hecks/language/bluebook/`,
 `reaction.bluebook`/`shape.bluebook`) — declared before the `entity`
 they create — now resolve correctly, verified directly: with their
 explicit `attribute` lines removed, each imports the right attribute from
@@ -123,8 +123,8 @@ parser_parity_spec.rb`.
 
 ## Reference implementation
 
-`Hecksagain::Bluebook::DSL::CommandBuilder#resolve_append_fields!` and
-`#element_type_for` (`lib/hecksagain/bluebook/dsl/command_builder.rb`) — the
+`Hecks::Bluebook::DSL::CommandBuilder#resolve_append_fields!` and
+`#element_type_for` (`lib/hecks/bluebook/dsl/command_builder.rb`) — the
 owner's own constructs are threaded in as `owner_constructs:`, set by
 `AggregateBuilder#command` (`@value_objects + closed_sets + @entities`) and
 `EntityBuilder#command` (`@owner_value_objects + @entities`).

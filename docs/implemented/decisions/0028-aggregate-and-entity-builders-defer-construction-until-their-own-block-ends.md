@@ -22,7 +22,7 @@ parameter resolution, and (found only while scoping this change)
 specifically. All five shared one root cause: eager, inline construction.
 
 Three real cases in the self-hosted meta-domain
-(`lib/hecksagain/language/bluebook/`) violated the "declare before you
+(`lib/hecks/language/bluebook/`) violated the "declare before you
 reference" convention this depended on: `command "Handler"` before
 `entity "Handler"`, same for `Dispatch` (nested one level further in) and
 `Member` — the creator command lives on the OUTER construct by design (an

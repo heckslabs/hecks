@@ -13,9 +13,9 @@ require "spec_helper"
 # the activity most likely to produce it.
 RSpec.describe "the language's own rules" do
   def boot_meta
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain::Bluebook::MetaValidator.load_grammar_into(registry)
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    registry = Hecks::Runtime::Registry.new
+    Hecks::Bluebook::MetaValidator.load_grammar_into(registry)
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def v(text) = { value: text.to_s }
@@ -48,7 +48,7 @@ RSpec.describe "the language's own rules" do
 
   it "refuses a chapter whose vision says nothing" do
     expect { @runtime.dispatch("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /a vision says something/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a vision says something/)
   end
 
   it "refuses an aggregate whose description says nothing" do
@@ -56,12 +56,12 @@ RSpec.describe "the language's own rules" do
       @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v(""))
     }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /a description says something/)
   end
 
   it "refuses an attribute that is not named" do
     expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", to: @aggregate_id, with: { name: v(""), type: "T", list: v("false") }) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /an attribute is named/)
+      .to raise_error(Hecks::Runtime::InvariantViolation, /an attribute is named/)
   end
 
   # "attributes must use value-object types" is no longer a predicate — the
@@ -71,7 +71,7 @@ RSpec.describe "the language's own rules" do
       @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
                                                          with: { name: v("x"), type: "#{@aggregate_id}.Nonexistent", list: v("false") })
     }
-      .to raise_error(Hecksagain::Runtime::NotFound, /no ValueObject with/)
+      .to raise_error(Hecks::Runtime::NotFound, /no ValueObject with/)
   end
 
   it "refuses a value object that is not named" do
@@ -82,7 +82,7 @@ RSpec.describe "the language's own rules" do
     # that would otherwise slip past `!value.to_s.empty?` alone, but can no
     # longer be reached by a plain empty string.
     expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
-      .to raise_error(Hecksagain::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
+      .to raise_error(Hecks::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
   context "with a command declared" do
@@ -96,12 +96,12 @@ RSpec.describe "the language's own rules" do
 
     it "refuses a given with no description" do
       expect { @runtime.dispatch("Bluebook::Command.Rule", to: @command_id, with: { description: v(""), canonical: v("x > 1") }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule says what it means/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /a rule says what it means/)
     end
 
     it "refuses a rule that did not survive extraction" do
       expect { @runtime.dispatch("Bluebook::Command.Rule", to: @command_id, with: { description: v("a rule"), canonical: v("") }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule survives extraction/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /a rule survives extraction/)
     end
 
     it "refuses a mutation with no target" do
@@ -109,7 +109,7 @@ RSpec.describe "the language's own rules" do
         @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
                                                       with: { target: v(""), op: v("set"), field: v(""), kind: v("literal"), source: v('"x"') })
       }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /a mutation names a target/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
     # THE SAME REFUSAL, FROM A NAMED SET RATHER THAN A RESTATED ONE.
@@ -128,12 +128,12 @@ RSpec.describe "the language's own rules" do
         @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
                                                       with: { target: v("x"), op: v("frobnicate"), field: v(""), kind: v("literal"), source: v('"x"') })
       }
-        .to raise_error(Hecksagain::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
+        .to raise_error(Hecks::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 
     it "refuses an unnamed event" do
       expect { @runtime.dispatch("Bluebook::Command.Announce", to: @command_id, with: { announces: v("") }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /an event is named/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /an event is named/)
     end
 
     # ---- tier 2 : once-only, read from the instance's own state -------------
@@ -142,12 +142,12 @@ RSpec.describe "the language's own rules" do
       @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("A") })
 
       expect { @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("B") }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command acts on ONE root/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /a command acts on ONE root/)
     end
 
     it "refuses a reference that names nothing" do
       expect { @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("") }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command names what it acts on/)
+        .to raise_error(Hecks::Runtime::GivenNotMet, /a command names what it acts on/)
     end
   end
 
@@ -182,7 +182,7 @@ RSpec.describe "the language's own rules" do
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Seal", to: entity_id) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
+      .to raise_error(Hecks::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
   # AN IDENTITY NAMES A FIELD — but which SHAPE that field takes (a dotted
@@ -218,7 +218,7 @@ RSpec.describe "the language's own rules" do
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Identify", to: entity_id, with: { path: v("") }) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
+      .to raise_error(Hecks::Runtime::GivenNotMet, /an identity part names something/)
   end
 
   # Same split as Entity's, above : the per-part rule fires on Identify,
@@ -245,7 +245,7 @@ RSpec.describe "the language's own rules" do
                          name: v("F"), description: v("an aggregate"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", to: aggregate_id, with: { path: v("") }) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
+      .to raise_error(Hecks::Runtime::GivenNotMet, /an identity part names something/)
   end
 
   # `reference_to` written on a COMMAND, which the language records the same way
@@ -261,7 +261,7 @@ RSpec.describe "the language's own rules" do
       @runtime.dispatch("Bluebook::Command.Reference", to:   command_id,
                                                        with: { points_at: "#{@bluebook_id}::Nonexistent",
                                 name: v("customer_id"), list: v("false"), default: v("") })
-    end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
+    end.to raise_error(Hecks::Runtime::NotFound, /no Aggregate with/)
   end
 
   # S17, ADR 0026 — Member is a genuine entity now, nested under
@@ -278,7 +278,7 @@ RSpec.describe "the language's own rules" do
     expect do
       @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
                         position: { value: 0 }, key: v(""), value: v("q"))
-    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end
 
   # ---- tier 3 : whole-document, dispatched once everything is declared ------

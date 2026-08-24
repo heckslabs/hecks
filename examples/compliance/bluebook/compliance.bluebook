@@ -2,7 +2,7 @@ Hecks.bluebook "Compliance" do
   vision "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next."
   supporting
 
-  # LIVES HERE (lib/hecksagain/framework/bluebook/), NOT under some
+  # LIVES HERE (lib/hecks/framework/bluebook/), NOT under some
   # domain's own examples/ directory, but that's a statement about
   # SOURCE SHARING, not about how it's consumed — unlike Governance/
   # Identity (which every real attaching domain only ever wants IN-

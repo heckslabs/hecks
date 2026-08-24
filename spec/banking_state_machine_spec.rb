@@ -4,15 +4,15 @@ RSpec.describe "Banking's generated account machine" do
   STATE_MACHINE_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(STATE_MACHINE_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -42,7 +42,7 @@ RSpec.describe "Banking's generated account machine" do
           runtime.dispatch("Banking::Account.#{verb}", number: { value: "a#{seed}" }, amount: { cents: amount, currency: "USD" },
                                                         narrative: { text: "generated #{seed}" })
           model += verb == "Credit" ? amount : -amount
-        rescue Hecksagain::Runtime::GivenNotMet, Hecksagain::Runtime::InvariantViolation
+        rescue Hecks::Runtime::GivenNotMet, Hecks::Runtime::InvariantViolation
           model = before
         end
 

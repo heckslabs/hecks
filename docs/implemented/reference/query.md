@@ -4,7 +4,7 @@
 Words available inside `query do ... end`.
 
 *The tables on this page are generated from the language's own
-aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
@@ -15,7 +15,7 @@ boundary. `reference_to`, `offset` and `nulls` are written nowhere in
 the corpus, so they get a chapter of their own:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -480,7 +480,7 @@ There is no working example to write, and that is the documentation —
 the word refuses where it is written, before anything can boot:
 
 ```ruby
-Hecksagain::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
+Hecks::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
 ```
 
 **Written exemption (ADR 0025 principle 4)** — ADR 0025's own table

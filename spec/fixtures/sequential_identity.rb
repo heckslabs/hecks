@@ -1,4 +1,4 @@
-module Hecksagain
+module Hecks
   module Adapters
     # The deterministic `identity_generation` fulfillment — a plain
     # incrementing counter, not a real UUID, so a spec or a fuzz run

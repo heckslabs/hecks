@@ -23,16 +23,16 @@ RSpec.describe "a construct's identity" do
   # no example touches a data directory. `Hecks.boot` on a real example domain
   # would bind Heki and write to disk.
   def boot(bluebook)
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(bluebook)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -129,7 +129,7 @@ RSpec.describe "a construct's identity" do
       found.each do |owner, attribute|
         resolved = attribute.type.resolve
 
-        expect(resolved).to be_a(Hecksagain::Bluebook::Aggregate),
+        expect(resolved).to be_a(Hecks::Bluebook::Aggregate),
                             "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
         expect(resolved.hecks_name).to eq(attribute.type.target_name)
         expect(resolved.hecks_owner.hecks_name).to eq("Banking")
@@ -145,23 +145,23 @@ RSpec.describe "a construct's identity" do
                                                   number:      { value: "ACC-1" },
                                                   kind:        { name: "current" },
                                                   daily_limit: { cents: 100 })
-      }.to raise_error(Hecksagain::Runtime::NotFound, /no Customer with/)
+      }.to raise_error(Hecks::Runtime::NotFound, /no Customer with/)
     end
 
     it "refuses to resolve at all when it cannot say who declares it" do
       # A reference the stamping walk missed must go RED, not nil — nil is
       # indistinguishable from a legitimate cross-domain target.
-      orphan = Hecksagain::Bluebook::Reference.new("Customer")
+      orphan = Hecks::Bluebook::Reference.new("Customer")
 
       expect { orphan.resolve }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
     end
 
     it "keeps spelling the old reference string in the export, whose spelling is contract" do
       account = banking.registry.bluebook("Banking").aggregate("Account")
       customer = account.attribute(:customer)
 
-      expect(customer.type).to be_a(Hecksagain::Bluebook::Reference)
+      expect(customer.type).to be_a(Hecks::Bluebook::Reference)
       expect(customer.to_h[:type]).to eq("Reference<Customer>")
     end
   end
@@ -195,7 +195,7 @@ RSpec.describe "a construct's identity" do
     # either — identity is (KIND, FQN). The judge's ids collide the same way and
     # get away with it because each category has its own repository.
     it "shares its name with a value object, which is why it is not a constant" do
-      meta     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+      meta     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       command  = meta.aggregate("Command")
       verb     = command.command("Argument")
       shape    = command.value_object("Argument")
@@ -213,11 +213,11 @@ RSpec.describe "a construct's identity" do
       # every command. But a construct built by hand, or one a future builder
       # forgets to stamp, must go RED rather than answer a bare name that looks
       # right.
-      orphan = Hecksagain::Bluebook::Command.declare(name: "Unstamped")
+      orphan = Hecks::Bluebook::Command.declare(name: "Unstamped")
 
       expect(orphan.hecks_owner).to be_nil
       expect { orphan.hecks_fqn }
-        .to raise_error(Hecksagain::Construct::Unowned, /cannot say what declares it/)
+        .to raise_error(Hecks::Construct::Unowned, /cannot say what declares it/)
     end
   end
 
@@ -254,12 +254,12 @@ RSpec.describe "a construct's identity" do
     # and everything below it is traversal through the IR.
     it "cannot be indexed by Ruby's constants, because top-level names are not ours" do
       captured = StringIO.new
-      registry = Hecksagain::Runtime::Registry.new
+      registry = Hecks::Runtime::Registry.new
 
       begin
         was = $stderr
         $stderr = captured
-        Hecksagain.with_registry(registry) do
+        Hecks.with_registry(registry) do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Hecks.bluebook("Set") do
@@ -275,7 +275,7 @@ RSpec.describe "a construct's identity" do
         end
         # Installation happens at BIND, not at load — the door is a per-boot
         # projection, and this is the moment it meets Ruby's own `Set`.
-        Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+        Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       ensure
         $stderr = was
       end

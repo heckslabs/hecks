@@ -1,6 +1,6 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Projector::Exporter do
+RSpec.describe Hecks::Projector::Exporter do
   describe ".lineage" do
     # A REAL PostgresEra binding, not `boot_in_memory`'s own override to
     # Memory — `Exporter.lineage`'s whole job is answering "which
@@ -12,9 +12,9 @@ RSpec.describe Hecksagain::Projector::Exporter do
     # `lineage_capable?`'s `require "pg"` stays lazy, inside `PostgresEra.
     # connect_for` only, so this never needs a live database.
     def registry_with_pizzas_bound_to_postgres
-      require "hecksagain/adapters/driven/postgres_era"
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      require "hecks/adapters/driven/postgres_era"
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -42,10 +42,10 @@ RSpec.describe Hecksagain::Projector::Exporter do
     it "agrees with Runtime::EraCheck's own capability predicates, not a re-derived rule" do
       registry = registry_with_pizzas_bound_to_postgres
       order = registry.bluebooks.fetch("Pizzas").aggregate("Order")
-      adapter = Hecksagain::Runtime::EraCheck.adapter_for(registry, "Pizzas", order)
+      adapter = Hecks::Runtime::EraCheck.adapter_for(registry, "Pizzas", order)
 
       expect(adapter).to eq("PostgresEra")
-      expect(Hecksagain::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true
+      expect(Hecks::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true
     end
   end
 end

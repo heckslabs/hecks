@@ -1,8 +1,8 @@
-//! Port of `lib/hecksagain/literal.rb`'s `Literal.read` (the exact inverse
+//! Port of `lib/hecks/literal.rb`'s `Literal.read` (the exact inverse
 //! of `Literal.render`) — the "one spelling for a captured Ruby literal on
 //! the wire" this crate needs to invert wherever `rust/project/mutations.rb`
-//! /`reactions.rb`/`queries.rb` call `Hecksagain::Bluebook::Assembly::
-//! Marks.read`/`Hecksagain::Literal.read` on a Literal-rendered wire string
+//! /`reactions.rb`/`queries.rb` call `Hecks::Bluebook::Assembly::
+//! Marks.read`/`Hecks::Literal.read` on a Literal-rendered wire string
 //! (an append mutation's `fields` values, a process manager's `with_spec`
 //! values, a where-clause/limit's own value). NOT needed for
 //! `classified_source`'s own `literal.value` — that field is embedded RAW

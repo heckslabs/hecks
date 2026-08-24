@@ -61,8 +61,8 @@ violations one level down).
 
 ## Reference implementation
 
-`Hecksagain::Bluebook::DSL::CommandBuilder#resolve_bare_set!`
-(`lib/hecksagain/bluebook/dsl/command_builder.rb`) — the owner's own
+`Hecks::Bluebook::DSL::CommandBuilder#resolve_bare_set!`
+(`lib/hecks/bluebook/dsl/command_builder.rb`) — the owner's own
 attributes are threaded in as `owner_attributes:`, set by
 `AggregateBuilder#command` (passing its own `attributes`) and
 `EntityBuilder#command` (same).

@@ -1,4 +1,4 @@
-//! The `Lifecycle` construct (`lib/hecksagain/bluebook/ir/lifecycle.rb`).
+//! The `Lifecycle` construct (`lib/hecks/bluebook/ir/lifecycle.rb`).
 //! NOT a category of its own in `syntax.bluebook`'s `Keyword.opens` column
 //! — it's a DECLARED FOLD onto whichever of `Aggregate`/`Entity` opened it
 //! (`lifecycle`'s own row: `opens: ""`, `fills: "state_field"`); Stage 2+

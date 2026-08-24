@@ -12,7 +12,7 @@
 # LIVES BESIDE pizzas.hecksagon, DELIBERATELY — a `.hecksagon` file
 # declares a port; a `hecksagon/` folder beside it holds the driving
 # adapters that actually call one, the same pairing
-# `lib/hecksagain/adapters/driven/` already has with `.adapter` files,
+# `lib/hecks/adapters/driven/` already has with `.adapter` files,
 # mirrored for the opposite direction. Findable by walking there, not by
 # knowing this file's name in advance.
 #
@@ -24,7 +24,7 @@
 
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
 DOMAIN  = File.expand_path("../..", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)

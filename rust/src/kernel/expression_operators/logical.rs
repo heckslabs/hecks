@@ -1,5 +1,5 @@
 // Implements the Ruby grammar's "logical" expression-operator category
-// (lib/hecksagain/bluebook/expression/projection.json: `||`, `&&`, `!`)
+// (lib/hecks/bluebook/expression/projection.json: `||`, `&&`, `!`)
 // — `Bluebook::Expression::Evaluator`'s `Or`/`And`/`Not` node
 // interpretation (evaluator.rb), read directly: Rust's own `||`/`&&`
 // already short-circuit the identical way Ruby's do (the right side is

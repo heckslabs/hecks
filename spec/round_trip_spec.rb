@@ -27,8 +27,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   }.freeze
 
   def load_corpus(file)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -43,9 +43,9 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # bluebook and holding one. This used to be `Judge.allocate` and four
   # `instance_variable_set` calls, because the judge threw its runtime away.
   def read_back(bluebook)
-    judge = Hecksagain::Bluebook::MetaValidator::Judge.new(bluebook)
+    judge = Hecks::Bluebook::MetaValidator::Judge.new(bluebook)
 
-    [Hecksagain::Bluebook::MetaValidator::Reconstruction.of(judge.runtime, bluebook.hecks_name),
+    [Hecks::Bluebook::MetaValidator::Reconstruction.of(judge.runtime, bluebook.hecks_name),
      judge.refusals]
   end
 
@@ -131,7 +131,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as attaches_to aggregates read_models policies
                                process_managers])
-    expect(Hecksagain::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
+    expect(Hecks::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end
 
   # THE STRUCTURAL HALF OF "comes back exactly as the builder made it" —
@@ -175,13 +175,13 @@ RSpec.describe "a bluebook dispatched in and read back out" do
         expect(missing).to be_empty,
                            "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(', ')} " \
                            "(row #{row[:name].inspect})"
-        walk.call(row[:entities] || [], Hecksagain::Bluebook::Entity, chapter)
+        walk.call(row[:entities] || [], Hecks::Bluebook::Entity, chapter)
       end
     end
 
     ROUND_TRIP_CORPUS.each_key do |name|
       back, = read_back(load_corpus(ROUND_TRIP_CORPUS[name]).bluebook(name))
-      walk.call(back[:aggregates] || [], Hecksagain::Bluebook::Aggregate, name)
+      walk.call(back[:aggregates] || [], Hecks::Bluebook::Aggregate, name)
     end
   end
 

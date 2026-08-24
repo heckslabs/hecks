@@ -19,8 +19,8 @@ This is a research language: there is no gem. You clone the repository,
 and the repository is the tool:
 
 ```sh
-git clone https://github.com/chrisyoung/hecksagain
-cd hecksagain
+git clone https://github.com/chrisyoung/hecks
+cd hecks
 bundle install
 bin/console          # boots the pizzas example — try it first
 ```

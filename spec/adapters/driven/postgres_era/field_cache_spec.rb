@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 
@@ -19,8 +19,8 @@ require_relative "../../../support/postgres_probe"
 # explicit design; this proves a framework capability, not a real domain.
 RSpec.describe "PostgresEra field cache — Track C validation",
                io: true do
-  FIELD_CACHE_DB = "hecksagain_field_cache_spec".freeze
-  FIELD_CACHE_OWNER = "hecksagain_field_cache_owner".freeze
+  FIELD_CACHE_DB = "hecks_field_cache_spec".freeze
+  FIELD_CACHE_OWNER = "hecks_field_cache_owner".freeze
 
   def owner_url = "postgres://#{FIELD_CACHE_OWNER}@localhost/#{FIELD_CACHE_DB}"
 
@@ -101,7 +101,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
 
   def hash_of(source)
     registry = load_registry(source)
-    Hecksagain::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
+    Hecks::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
   end
 
   def label_of(source) = hash_of(source)[0, 6]
@@ -148,12 +148,12 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   end
 
   def load_registry(source, translation_source: nil)
-    registry = Hecksagain::Runtime::Registry.new
-    loading = Hecksagain::Ports::Loading.bootstrap
+    registry = Hecks::Runtime::Registry.new
+    loading = Hecks::Ports::Loading.bootstrap
     file = Tempfile.new(["field-cache-", ".bluebook"])
     file.write(source)
     file.flush
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
       eval(translation_source) if translation_source
@@ -166,7 +166,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url }
     )
     registry
@@ -176,11 +176,11 @@ RSpec.describe "PostgresEra field cache — Track C validation",
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
     settings = { database: owner_url, domain: "Cache" }
     settings[:era] = era if era
-    Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: settings)
+    Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: settings)
   end
 
   def instance_for(aggregate, id, status:, cents:)
-    Hecksagain::Runtime::Instance.new(
+    Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: id,
       state: { code: { "value" => id }, status: { "value" => status }, price: { "cents" => cents } }
     )
@@ -304,10 +304,10 @@ RSpec.describe "PostgresEra field cache — Track C validation",
     db.exec("TRUNCATE #{PG::Connection.quote_ident(name)}")
     db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
 
-    stub_const("Hecksagain::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
+    stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
 
     attempts = 0
-    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
     allow(lineage).to receive(:upsert_field_cache_rows!).and_wrap_original do |original, *args|
       attempts += 1
       raise "simulated crash mid-backfill" if attempts == 2
@@ -329,7 +329,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
     # Resume, unstubbed — must pick up from the persisted cursor, not
     # rescan/redo the chunks the first attempt already committed, and
     # must reach full, correct coverage.
-    fresh_lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(
+    fresh_lineage = Hecks::Adapters::PostgresEra::Lineage.new(
       adapter.instance_variable_get(:@db), "Cache"
     )
     fresh_lineage.ensure_field_cache!("widget", 1, "status", expression)
@@ -355,10 +355,10 @@ RSpec.describe "PostgresEra field cache — Track C validation",
     db.exec("DELETE FROM hecks_backfill_progress WHERE target = '#{name}'")
     db.close
 
-    stub_const("Hecksagain::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
+    stub_const("Hecks::Adapters::PostgresEra::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
 
     backfill_db = PG.connect(dbname: FIELD_CACHE_DB, user: FIELD_CACHE_OWNER)
-    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(backfill_db, "Cache")
     expression = "state #>> ARRAY['status']::text[]"
 
     # A slow chunk callback — long enough that, if ANY lock were held

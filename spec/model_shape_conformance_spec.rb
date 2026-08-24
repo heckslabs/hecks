@@ -16,15 +16,15 @@ require "spec_helper"
 # wire" had no home at all.
 RSpec.describe "the model's shape, held to the language" do
   MODEL_CONSTRUCTS = {
-    "Bluebook"       => Hecksagain::Bluebook::Chapter,
-    "Aggregate"      => Hecksagain::Bluebook::Aggregate,
-    "Command"        => Hecksagain::Bluebook::Command,
-    "Entity"         => Hecksagain::Bluebook::Entity,
-    "ValueObject"    => Hecksagain::Bluebook::ValueObject,
-    "Policy"         => Hecksagain::Bluebook::Policy,
-    "Query"          => Hecksagain::Bluebook::Query,
-    "ReadModel"      => Hecksagain::Bluebook::ReadModel,
-    "ProcessManager" => Hecksagain::Bluebook::ProcessManager
+    "Bluebook"       => Hecks::Bluebook::Chapter,
+    "Aggregate"      => Hecks::Bluebook::Aggregate,
+    "Command"        => Hecks::Bluebook::Command,
+    "Entity"         => Hecks::Bluebook::Entity,
+    "ValueObject"    => Hecks::Bluebook::ValueObject,
+    "Policy"         => Hecks::Bluebook::Policy,
+    "Query"          => Hecks::Bluebook::Query,
+    "ReadModel"      => Hecks::Bluebook::ReadModel,
+    "ProcessManager" => Hecks::Bluebook::ProcessManager
   }.freeze
 
   # THE DEVIATION TABLES LIVE IN lib, not here. They began as this
@@ -36,11 +36,11 @@ RSpec.describe "the model's shape, held to the language" do
   # claims that for Bluebook::DSL, and a top-level constant in a spec is
   # shared with every other spec in the run. Passing alone and failing in
   # the suite is exactly what that looks like.
-  DEVIATIONS = Hecksagain::Projections::Model::Deviations
+  DEVIATIONS = Hecks::Projections::Model::Deviations
 
   MODEL_CONSTRUCTS.each do |name, construct|
     context name do
-      let(:language) { Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
+      let(:language) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
       let(:declared) { language.aggregate(name).attributes.map(&:name) }
       let(:emitted)  { construct.ir_spec.keys }
 

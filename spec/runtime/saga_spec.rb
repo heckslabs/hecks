@@ -4,16 +4,16 @@ WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebo
 
 RSpec.describe "a process manager" do
   def boot_wire
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -120,7 +120,7 @@ RSpec.describe "a process manager" do
 
     # Every attempt actually ran — bounded retry, not a single shot before
     # giving up.
-    expect(attempts).to eq(Hecksagain::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
+    expect(attempts).to eq(Hecks::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
 
     # The money never left — the leg that would have taken it crashed on
     # every attempt.
@@ -166,7 +166,7 @@ RSpec.describe "a process manager" do
                        source: "left", destination: "right")
     }.to output(/Carry.*wire-crash.*Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
 
-    expect(attempts).to eq(Hecksagain::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
+    expect(attempts).to eq(Hecks::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
 
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
     expect(Wire::Wire.find("wire-crash").status).to eq("returned")
@@ -226,16 +226,16 @@ end
 
 RSpec.describe "a lifecycle" do
   def boot_wire
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
-      Hecksagain::Runtime::Loader.bind_runtime(
-        Hecksagain::Runtime::Dispatcher.new(registry)
+      Hecks::Runtime::Loader.bind_runtime(
+        Hecks::Runtime::Dispatcher.new(registry)
       )
     end
   end
@@ -261,7 +261,7 @@ RSpec.describe "a lifecycle" do
     runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" })
 
     expect { runtime.dispatch("Wire::Drawer.Shut", number: { value: "d" }) }
-      .to raise_error(Hecksagain::Runtime::LifecycleRefused,
+      .to raise_error(Hecks::Runtime::LifecycleRefused,
                       'Shut refused — status is "shut", and Shut moves it only from "open"')
   end
 
@@ -277,6 +277,6 @@ RSpec.describe "a lifecycle" do
     # head — more precise than the bare field name, and what `identity_reading`
     # quotes for every construct now, not something special-cased for Wire.
     expect { runtime.dispatch("Wire::Wire.Returned", wire: "missing") }
-      .to raise_error(Hecksagain::Runtime::NotFound, /no Wire with reference\.value "missing"/)
+      .to raise_error(Hecks::Runtime::NotFound, /no Wire with reference\.value "missing"/)
   end
 end

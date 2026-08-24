@@ -8,7 +8,7 @@ require_relative "doctest"
 # because they fail for different reasons and a reader chasing a red
 # example should land in the right one — but they are ONE namespace.
 #
-# `Facade::Surface.install` (lib/hecksagain/facade/surface.rb) installs a
+# `Facade::Surface.install` (lib/hecks/facade/surface.rb) installs a
 # chapter's name AND every one of its aggregates' bare names onto Object,
 # and nothing ever uninstalls them. Two files inventing the same chapter
 # would therefore rebind whichever booted last, and under randomized spec

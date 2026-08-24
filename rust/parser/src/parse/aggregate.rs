@@ -1,5 +1,5 @@
-//! The `Aggregate` construct (`lib/hecksagain/bluebook/ir/aggregate.rb`,
-//! built by `Hecksagain::Bluebook::DSL::AggregateBuilder`). STAGE 3 adds
+//! The `Aggregate` construct (`lib/hecks/bluebook/ir/aggregate.rb`,
+//! built by `Hecks::Bluebook::DSL::AggregateBuilder`). STAGE 3 adds
 //! the MULTI-PATH `identified_by do ... end`/`identified_by { ... }`
 //! source form (`build/identity.rs`'s own header explains why it needs no
 //! `build/*.rs` derivation at all — its body IS the identity, captured

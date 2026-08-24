@@ -38,7 +38,7 @@ RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
       name     = runtime.registry.bluebooks.keys.first
       bluebook = runtime.registry.bluebook(name)
 
-      projected = "#{JSON.pretty_generate(Hecksagain::Projector.call(:oidc, bluebook: bluebook))}\n"
+      projected = "#{JSON.pretty_generate(Hecks::Projector.call(:oidc, bluebook: bluebook))}\n"
       committed = File.read(path)
 
       expect(projected).to eq(committed), "#{relative} has drifted from #{domain}'s bluebook — run bin/project_oidc"

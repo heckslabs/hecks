@@ -9,7 +9,7 @@ require "open3"
 #      order — the whole framework loads with the wrappers reversed.
 #
 # Both used to be true only by accident of history: the flat require
-# list in lib/hecksagain.rb encoded the order files were added in, and
+# list in lib/hecks.rb encoded the order files were added in, and
 # nothing would have named the moment a class-body constant reference
 # quietly made that order load-bearing again. Now this spec names it,
 # and the file it names is the one that grew the dependency.
@@ -27,14 +27,14 @@ RSpec.describe "load hygiene", io: true do
   # Their namespace files carry those requires instead — so the wrappers
   # ARE held to the standard, and the internals are exempt.
   BLUEBOOK_WRAPPERS = %w[
-    hecksagain/bluebook hecksagain/bluebook/ir hecksagain/bluebook/dsl
-    hecksagain/bluebook/expression
+    hecks/bluebook hecks/bluebook/ir hecks/bluebook/dsl
+    hecks/bluebook/expression
   ].freeze
 
   it "loads every lib file standalone, in a fresh process" do
-    features = Dir[File.join(LIB, "hecksagain", "**", "*.rb")]
+    features = Dir[File.join(LIB, "hecks", "**", "*.rb")]
                .map { |file| file.sub("#{LIB}/", "").sub(/\.rb\z/, "") }
-               .reject { |f| f.start_with?("hecksagain/bluebook/") && !BLUEBOOK_WRAPPERS.include?(f) }
+               .reject { |f| f.start_with?("hecks/bluebook/") && !BLUEBOOK_WRAPPERS.include?(f) }
                .sort
 
     failures = Queue.new
@@ -92,8 +92,8 @@ RSpec.describe "load hygiene", io: true do
   end
 
   it "loads the whole framework with the subsystem wrappers in reverse order" do
-    wrappers = File.read(File.join(LIB, "hecksagain.rb"))
-                   .scan(%r{^require_relative "(hecksagain/[^"]+)"}).flatten
+    wrappers = File.read(File.join(LIB, "hecks.rb"))
+                   .scan(%r{^require_relative "(hecks/[^"]+)"}).flatten
 
     script = wrappers.reverse.map { |wrapper| "require #{wrapper.inspect}" }.join("; ")
     _out, err, status = Open3.capture3("ruby", "-I", LIB, "-e", script)

@@ -1,7 +1,7 @@
-// A DIRECT PORT of `Adapters::Lambda::Client` (lib/hecksagain/adapters/
+// A DIRECT PORT of `Adapters::Lambda::Client` (lib/hecks/adapters/
 // driven/lambda/client.rb) — read that file's own header first; this is
 // the same thin, single-purpose wrapper (one Lambda invoke, one JSON
-// round trip, the same "hecksagain-<domain>" function-name convention)
+// round trip, the same "hecks-<domain>" function-name convention)
 // for the ONE call site orchestrate.rs's own header names: a policy whose
 // `across:` target domain isn't the one THIS process's own compiled
 // `.wasm` module holds. That module runs inside wasmtime's sandbox
@@ -16,7 +16,7 @@
 // OWN domain name from `ENV["DOMAIN_NAME"] || File.basename(registry.
 // root)` specifically because `root` is always `/var/task` inside a
 // deployed Lambda (that class's own comment: "a real, live
-// AccessDeniedException on 'hecksagain-task' caught this"). This module
+// AccessDeniedException on 'hecks-task' caught this"). This module
 // has no equivalent guess to make: a cross-domain policy's target domain
 // is baked into the generated `CrossDomainPolicyRule` table at codegen
 // time, straight from its own `across "X"` declaration
@@ -65,15 +65,15 @@ pub trait LambdaInvoker: Send + Sync {
     async fn invoke(&self, function_name: &str, payload: &str) -> anyhow::Result<InvokeOutcome>;
 }
 
-/// `"hecksagain-#{domain.to_s.downcase}"` (Adapters::Lambda::Client's own
+/// `"hecks-#{domain.to_s.downcase}"` (Adapters::Lambda::Client's own
 /// constructor, read directly) — the identical string, same casing rule,
 /// same prefix, matching `bin/project_deploy`'s own `stack_name =
-/// "hecksagain-#{domain_name}"` this Ruby comment already cites. Pure and
+/// "hecks-#{domain_name}"` this Ruby comment already cites. Pure and
 /// synchronous on purpose: this is the one piece of `lambda_client.rs`
 /// that needs no mock and no `async` at all to prove — see this file's
 /// own `tests` module.
 pub fn function_name_for(domain: &str) -> String {
-    format!("hecksagain-{}", domain.to_lowercase())
+    format!("hecks-{}", domain.to_lowercase())
 }
 
 /// One `PendingCrossDomainReaction`, delivered — `Runtime::
@@ -131,7 +131,7 @@ impl CrossDomainDeliveryRecord {
 ///     mirrors `Runtime::PolicyInterpreter#deliver`'s own `rescue
 ///     *DOMAIN_REFUSALS` (which `RemoteRefusal` — the exception
 ///     `RemoteDispatcher#dispatch` raises for exactly this same
-///     condition — is a member of, per lib/hecksagain/runtime/errors.rb).
+///     condition — is a member of, per lib/hecks/runtime/errors.rb).
 ///     Recorded as `delivered: false`, non-fatal: the command that
 ///     triggered this reaction already committed and stays committed.
 ///   - A genuine INVOKE fault (`function_error` — the target function
@@ -275,7 +275,7 @@ pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
 
 /// THE REAL AWS SDK ADAPTER — the ONLY piece of this file `cargo test`
 /// cannot exercise, structurally: it needs a second real domain's own
-/// Lambda actually deployed under `hecksagain-<domain>` and reachable
+/// Lambda actually deployed under `hecks-<domain>` and reachable
 /// with real IAM credentials, neither of which this repository's own
 /// test environment has (this worktree has no live AWS access at all).
 /// Everything ABOVE this point — function-name computation, request
@@ -362,13 +362,13 @@ mod tests {
     use std::sync::Mutex;
 
     #[test]
-    fn function_name_matches_rubys_own_hecksagain_dash_domain_convention() {
-        assert_eq!(function_name_for("Compliance"), "hecksagain-compliance");
-        assert_eq!(function_name_for("Notifications"), "hecksagain-notifications");
+    fn function_name_matches_rubys_own_hecks_dash_domain_convention() {
+        assert_eq!(function_name_for("Compliance"), "hecks-compliance");
+        assert_eq!(function_name_for("Notifications"), "hecks-notifications");
         // Ruby's own `.downcase`, not a snake_case transform — a domain
         // spelled with an internal capital stays one lowercase word, the
-        // same string `"hecksagain-#{domain.to_s.downcase}"` would produce.
-        assert_eq!(function_name_for("Banking"), "hecksagain-banking");
+        // same string `"hecks-#{domain.to_s.downcase}"` would produce.
+        assert_eq!(function_name_for("Banking"), "hecks-banking");
     }
 
     /// Records every call it receives (function name + payload, for the
@@ -423,7 +423,7 @@ mod tests {
         let calls = invoker.calls.lock().unwrap();
         assert_eq!(calls.len(), 1);
         let (function_name, payload) = &calls[0];
-        assert_eq!(function_name, "hecksagain-compliance");
+        assert_eq!(function_name, "hecks-compliance");
         let sent: Value = serde_json::from_str(payload).unwrap();
         assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
         assert_eq!(sent["args"]["number"]["value"], "acct-1");

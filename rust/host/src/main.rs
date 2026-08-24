@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn parses_a_password_with_uri_reserved_characters() {
         let config = parse_database_url(
-            "postgres://postgres:EiP$wT3S9Gi?#rIAjSDii*>GHKPX@hecksagain-pizzas-pizzasdbcluster-pfblqfmbmpf2.cluster-cmvsoy8c6td2.us-east-1.rds.amazonaws.com:5432/pizzas",
+            "postgres://postgres:EiP$wT3S9Gi?#rIAjSDii*>GHKPX@hecks-pizzas-pizzasdbcluster-pfblqfmbmpf2.cluster-cmvsoy8c6td2.us-east-1.rds.amazonaws.com:5432/pizzas",
         )
         .expect("should parse despite ?/# in the password");
         assert_eq!(config.get_hosts().len(), 1);

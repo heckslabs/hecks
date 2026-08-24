@@ -1,5 +1,5 @@
 //! Mirrors `AttributeCollector#resolve_identity_field!`/
-//! `#resolve_identity_type!` (`lib/hecksagain/bluebook/dsl/attribute_collector.rb`)
+//! `#resolve_identity_type!` (`lib/hecks/bluebook/dsl/attribute_collector.rb`)
 //! — the two DERIVING forms of `identified_by`:
 //!
 //!   `identified_by :field, :field_two` — the LIVE form (ADR 0025,

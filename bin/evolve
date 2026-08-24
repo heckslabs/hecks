@@ -28,10 +28,10 @@
 # leaves a tree the suite has not accepted.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain/grammar/evolve"
+require "hecks/grammar/evolve"
 
 ROOT = File.expand_path("..", __dir__)
-Evolve = Hecksagain::Grammar::Evolve
+Evolve = Hecks::Grammar::Evolve
 
 SNAPSHOT_PATHS = (Evolve.syntax_paths + [File.join(ROOT, "spec/golden/ir/Bluebook.json")]).freeze
 

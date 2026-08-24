@@ -135,7 +135,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds", io: true do
     skip "no local Postgres reachable" unless PostgresProbe.available?
 
-    db = "hecksagain_tenant_isolation_fuzz_spec"
+    db = "hecks_tenant_isolation_fuzz_spec"
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")

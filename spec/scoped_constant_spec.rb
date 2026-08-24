@@ -23,7 +23,7 @@ require "tmpdir"
 # process across every spec file; a generic name ("Widget", "Thing")
 # risks colliding with some other file's own fixture.
 RSpec.describe "the scoped-constant bridge" do
-  ScopedConstant = Hecksagain::Bluebook::DSL::ConstShim::ScopedConstant
+  ScopedConstant = Hecks::Bluebook::DSL::ConstShim::ScopedConstant
 
   DOMAIN_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "ScopedBridgeDomain" do
@@ -52,19 +52,19 @@ RSpec.describe "the scoped-constant bridge" do
     FileUtils.mkdir_p(domain_dir)
     File.write(File.join(domain_dir, "scoped_bridge_domain.bluebook"), DOMAIN_SOURCE)
 
-    registry = Hecksagain::Runtime::Registry.new(root: root)
-    loading  = Hecksagain::Ports::Loading.bootstrap
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new(root: root)
+    loading  = Hecks::Ports::Loading.bootstrap
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.load(File.join(domain_dir, "scoped_bridge_domain.bluebook"))
     end
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     registry
   end
 
   def with_declaration_resolver
     resolver = ->(const) { ScopedConstant.for(const) }
-    Hecksagain::Bluebook::DSL::ConstShim.with(resolver) { yield }
+    Hecks::Bluebook::DSL::ConstShim.with(resolver) { yield }
   end
 
   describe "ScopedConstant itself" do
@@ -81,7 +81,7 @@ RSpec.describe "the scoped-constant bridge" do
       scoped = ScopedConstant.for("PizzaName")
 
       expect(scoped.to_sym).to eq(:PizzaName)
-      expect(Hecksagain::Naming.demodulise(scoped)).to eq("PizzaName")
+      expect(Hecks::Naming.demodulise(scoped)).to eq("PizzaName")
       expect(scoped.to_s[0]).to match(/[A-Z]/)
     end
   end

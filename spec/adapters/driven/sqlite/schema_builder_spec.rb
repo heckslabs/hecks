@@ -9,9 +9,9 @@ require "tmpdir"
 # NOT get an index. `schema_builder.rb`'s own header comment explains why
 # each of these resolves the way it does — this spec proves the SQL text,
 # not just that queries still return the right rows.
-RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
+RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-sqlite-indexing-")
+    @dir = Dir.mktmpdir("hecks-sqlite-indexing-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
@@ -21,7 +21,7 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
   let(:aggregate) { @aggregate }
 
   let(:adapter) do
-    Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
+    Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
   end
 
   def db = adapter.instance_variable_get(:@db)
@@ -31,8 +31,8 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
@@ -87,7 +87,7 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
     before_count = db.execute("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index'").first["n"]
 
     expect do
-      Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
+      Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "pizzas.db" }, root: @dir)
     end.not_to raise_error
 
     reopened_db = SQLite3::Database.new(File.join(@dir, "pizzas.db"))
@@ -100,17 +100,17 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
     adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 } }, status: "sold"))
     adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 500 } }, status: "available"))
 
-    available = Hecksagain::Bluebook::Query.new(
+    available = Hecks::Bluebook::Query.new(
       name:     "Available",
-      wheres:   [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "status", op: :eq, value: "available")],
-      order_by: Hecksagain::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
+      wheres:   [Hecks::QuerySpecification::Common::WhereClause.new(field: "status", op: :eq, value: "available")],
+      order_by: Hecks::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
     )
     expect(adapter.query(available, {}).map(&:id)).to eq(%w[p3 p1])
 
-    costing_less_than = Hecksagain::Bluebook::Query.new(
+    costing_less_than = Hecks::Bluebook::Query.new(
       name:     "CostingLessThan",
-      wheres:   [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "pizza.price_cents.cents", op: :lt, value: 1000)],
-      order_by: Hecksagain::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
+      wheres:   [Hecks::QuerySpecification::Common::WhereClause.new(field: "pizza.price_cents.cents", op: :lt, value: 1000)],
+      order_by: Hecks::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
     )
     expect(adapter.query(costing_less_than, {}).map(&:id)).to eq(%w[p3 p1])
   end
@@ -119,14 +119,14 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
     BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
     def boot_banking
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         load_bluebook_files(BANKING_BLUEBOOK)
-        Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+        Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
       end
     end
 
@@ -135,7 +135,7 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
 
       card_payment_adapter = nil
       expect do
-        card_payment_adapter = Hecksagain::Adapters::Sqlite.new(
+        card_payment_adapter = Hecks::Adapters::Sqlite.new(
           aggregate: card_payment, settings: { database: "card_payment.db" }, root: @dir
         )
       end.not_to raise_error

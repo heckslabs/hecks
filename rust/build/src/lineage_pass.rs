@@ -1,4 +1,4 @@
-//! A Rust port of `Exporter.lineage` (`lib/hecksagain/projector/exporter.rb`)
+//! A Rust port of `Exporter.lineage` (`lib/hecks/projector/exporter.rb`)
 //! by way of `rust/project_rust_pipeline.rb::derive_lineage` — the SECOND
 //! (and, as of this module, LAST) named gap `pipeline.rs`'s own header used
 //! to carry. Read `rust/project_rust_pipeline.rb`'s own header on
@@ -114,7 +114,7 @@ fn persistence_binds(text: &str) -> HashMap<String, String> {
 /// change here (mirrors `EraCheck.lineage_capable?`'s own "the
 /// capability is asked of the adapter, never of its name" design).
 fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
-    let dir = root.join("lib/hecksagain/adapters/driven");
+    let dir = root.join("lib/hecks/adapters/driven");
     let entries = std::fs::read_dir(&dir).map_err(|e| format!("reading {}: {e}", dir.display()))?;
 
     let mut names = Vec::new();
@@ -158,7 +158,7 @@ fn declares_lineage_capable_true(text: &str) -> bool {
 
 /// The first `class Name` line's own name — every adapter file in this
 /// corpus declares exactly one primary class this way (`class PostgresEra`
-/// under `module Hecksagain; module Adapters; ...; end; end`), so the
+/// under `module Hecks; module Adapters; ...; end; end`), so the
 /// first match is the adapter's own registration name, the same short
 /// spelling `persisted_by("PostgresEra")` itself uses.
 fn top_level_class_name(text: &str) -> Option<String> {
@@ -185,7 +185,7 @@ fn top_level_class_name(text: &str) -> Option<String> {
 /// by a lowercase letter gets an underscore inserted before the run's
 /// OWN LAST letter (`"ATMCard"` → `"ATM_Card"`: the run is `"ATMC"`,
 /// followed by `'a'`, so the underscore lands before `'C'` — verified
-/// against `Hecksagain::Naming.snake("ATMCard")` directly, a real
+/// against `Hecks::Naming.snake("ATMCard")` directly, a real
 /// corpus name (`Banking::ATMCard`) this exact shape needs). A run of
 /// exactly 1 uppercase letter never matches this pass at all (the regex
 /// needs 2 separate uppercase-letter matches minimum — one for each
@@ -305,6 +305,6 @@ mod tests {
 
     #[test]
     fn finds_the_top_level_class_name() {
-        assert_eq!(top_level_class_name("module Hecksagain\n  module Adapters\n    class Postgres\n      def x; end\n"), Some("Postgres".to_string()));
+        assert_eq!(top_level_class_name("module Hecks\n  module Adapters\n    class Postgres\n      def x; end\n"), Some("Postgres".to_string()));
     }
 }

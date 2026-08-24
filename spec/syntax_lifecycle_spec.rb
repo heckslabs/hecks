@@ -19,7 +19,7 @@ require "spec_helper"
 # language also declares its own VERSION now, on the chapter itself,
 # bumped when the admitted surface changes.
 RSpec.describe "the syntax lifecycle" do
-  def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.syntax = judged_meta.aggregates.find { |a| a.hecks_name == "Syntax" }
 
@@ -32,7 +32,7 @@ RSpec.describe "the syntax lifecycle" do
   # dispatched through a real lifecycle rather than merely declared —
   # `SyntaxBoot.call` reads them back post-dispatch, same shape `rows`
   # above still produces for Status (an ordinary closed set, unaffected).
-  SYNTAX_TABLE  = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call
+  SYNTAX_TABLE  = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
   WORD_ROWS     = SYNTAX_TABLE[:keywords]
   ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]
   DECLARED_LANGUAGE_VERSION = judged_meta.version

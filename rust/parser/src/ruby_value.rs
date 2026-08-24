@@ -1,4 +1,4 @@
-//! The Rust side of `Hecksagain::Literal` (lib/hecksagain/literal.rb) — the
+//! The Rust side of `Hecks::Literal` (lib/hecks/literal.rb) — the
 //! ONE pinned spelling for a captured Ruby literal on the wire, landed in
 //! Stage 0b specifically so this module would have a single, explicit,
 //! Ruby-version-independent format to match rather than `Hash#inspect`'s
@@ -362,7 +362,7 @@ fn read_array(raw: &str) -> Value {
 
 /// Split on the commas that are actually SEPARATORS — never one inside a
 /// quoted string or a nested brace/bracket/paren. The same algorithm
-/// `Hecksagain::Literal.split_items` uses for Hash/Array LITERAL bodies
+/// `Hecks::Literal.split_items` uses for Hash/Array LITERAL bodies
 /// (character-scanned rather than a naive `split(",")` that would tear a
 /// quoted `"a, b"` in half), WIDENED here to also track `(`/`)` depth —
 /// `Literal.split_items` itself never needs to, since Ruby parses its own

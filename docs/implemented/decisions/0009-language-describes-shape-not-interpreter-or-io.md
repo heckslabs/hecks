@@ -4,7 +4,7 @@
 
 ## Context
 
-`MetaValidator.call` dispatches every real bluebook through the self-hosted `Bluebook` meta-domain (`lib/hecksagain/language/bluebook/`), and the graph that judging hands back — not the one the Ruby builder produced — becomes the actual runtime object (see [0001](0001-canonical-ir-is-runtime-independent.md)). Given how load-bearing that is, it's a fair question whether the self-hosted language is meant to describe the *whole* runtime — including evaluating a `given`/`ensures` predicate against a real record, and talking to adapters — or only the shape of a domain's static declaration.
+`MetaValidator.call` dispatches every real bluebook through the self-hosted `Bluebook` meta-domain (`lib/hecks/language/bluebook/`), and the graph that judging hands back — not the one the Ruby builder produced — becomes the actual runtime object (see [0001](0001-canonical-ir-is-runtime-independent.md)). Given how load-bearing that is, it's a fair question whether the self-hosted language is meant to describe the *whole* runtime — including evaluating a `given`/`ensures` predicate against a real record, and talking to adapters — or only the shape of a domain's static declaration.
 
 The boundary is real, but it was previously stated in exactly one place: `bluebook.bluebook`'s own vision line — *"The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."* One sentence, in vision prose, in one of nine files that together declare the language. Nothing closer to where a reader would actually be reasoning about this (`meta_validator.rb`'s own header comment, this decisions directory, the roadmap) restated it.
 

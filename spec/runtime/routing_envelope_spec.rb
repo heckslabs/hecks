@@ -2,15 +2,15 @@ require "spec_helper"
 
 RSpec.describe "receiver routing outside the command payload" do
   def boot_banking
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
   end
 
@@ -51,7 +51,7 @@ RSpec.describe "receiver routing outside the command payload" do
         to:   { aggregate: "DOWNTOWN:12", entity: "2026-01-05:1" },
         with: { date: { value: "2026-01-05" }, note: { text: "Flagged" } }
       )
-    end.to raise_error(Hecksagain::Runtime::UnknownArgument, /Annotate does not declare date.*it takes note/)
+    end.to raise_error(Hecks::Runtime::UnknownArgument, /Annotate does not declare date.*it takes note/)
   end
 
   it "refuses an incomplete entity routing envelope before touching state" do
@@ -64,6 +64,6 @@ RSpec.describe "receiver routing outside the command payload" do
         to:   "DOWNTOWN:12",
         with: { note: { text: "Flagged" } }
       )
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch, /needs 1 entity identity.*got 0/)
+    end.to raise_error(Hecks::Runtime::TypeMismatch, /needs 1 entity identity.*got 0/)
   end
 end

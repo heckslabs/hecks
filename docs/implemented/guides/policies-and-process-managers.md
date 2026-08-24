@@ -87,7 +87,7 @@ the same failure.
 ## Wiring
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -177,7 +177,7 @@ stepping in. The runtime's own backstop sits well outside where this
 example ever reached it:
 
 ```ruby
-Hecksagain::Runtime::Dispatcher::MAX_REACTION_DEPTH  # => 5
+Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH  # => 5
 ```
 
 Four reactions from one `Fail` is comfortably inside five, and there is
@@ -612,9 +612,9 @@ policy's `on` or `trigger` naming something that isn't there). Run it
 against the same domain this page just walked:
 
 ```ruby
-require "hecksagain/bluebook/model_check"
+require "hecks/bluebook/model_check"
 
-findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
+findings = Hecks::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
 errors = findings.select { |f| f.severity == :error }
 
 errors.size  # => 0

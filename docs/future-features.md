@@ -1,6 +1,6 @@
 # Unbuilt
 
-Every planned, proposed, and not-yet-built feature collected across hecksagain's implementation plan, PRDs, work-slice plans, decision records, guides, and bug audits — with the shipped and the live left out.
+Every planned, proposed, and not-yet-built feature collected across hecks's implementation plan, PRDs, work-slice plans, decision records, guides, and bug audits — with the shipped and the live left out.
 
 **Sources:** 20+ docs across `docs/`, `docs/prds/`, `docs/decisions/`, `docs/guides/`, `docs/audits/` (as of the 2026-08-18 `docs/` split into `docs/implemented/` vs. active work — see that split for what's now shipped).
 **Compiled:** 2026-08-18
@@ -13,14 +13,14 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 1. **A universal dispatch MCP door** — `dispatch / query / state / catalog / describe / validate`, every call carrying a required `summary`. `bin/run` and the `Facade` already exist to project it from.
 2. **`follow` + `SourceTag`** — persist the dispatch stream already emitted (event log plus caller kind: process-manager / operator / hook / sidequest-agent / cascade / daemon), add a JSONL tail and a `bin/follow`.
-3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. The sibling `hecks` project is explicitly blocked on hecksagain for exactly this.
+3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. The sibling `hecks` project is explicitly blocked on hecks for exactly this.
 
 ### Highest-signal items from the rest of the corpus
 
 - **Reaction-depth race (PRD 01)** — `@reaction_depth` in `dispatcher.rb` is an unguarded thread-shared ivar: a live, already-diagnosed, unfixed concurrency bug. Small and ready now.
 - **Fuzzer against real adapters (PRD 02)** — the whole property-testing arc has only ever run against the Memory adapter, never Sqlite or Postgres. Largest PRD in scope; unblocks PRDs 03 and 08.
 - **Audit Tier 1, findings H3–H5** — open data-loss bugs in era-migration and rekey machinery. The most severe unresolved findings anywhere in the docs.
-- **Drivers / Gates / mailboxes / OutboundEvent / derivability gauge** — a coherent "operational surface around the bus" that `hecks` has built and hecksagain lacks entirely (survey items 3, 5, 6, 7, 8).
+- **Drivers / Gates / mailboxes / OutboundEvent / derivability gauge** — a coherent "operational surface around the bus" that `hecks` has built and hecks lacks entirely (survey items 3, 5, 6, 7, 8).
 - **ADR 0025's DSL cleanup** — a fully sequenced 15-step plan; the single largest concretely-scoped item among the decision records.
 - **Query-DSL aggregation** — `count / sum / avg / min / max` plus `group_by`. Flagged as the sharpest, most requested gap in the query language.
 
@@ -28,18 +28,18 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ## Wishlist survey
 
-`docs/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecksagain wishes it had.
+`docs/hecks-survey-what-we-wish-we-had.md` — a 2026-08-17 read of the sibling `hecks` project asking one question: what does it have — especially "Storehouse" — that hecks wishes it had.
 
 ### Storehouse, ranked
 
-1. **Universal MCP door, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. hecksagain has only a 3-tool query-IR MCP.
-2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. hecksagain has only after-the-fact `bin/history`.
-3. **Drivers.** Inbound clocks (`interval | cron | clock`) declared in the hecksagon, projected to a Procfile — out-of-process by construction, so a dead clock stalls only its own task. hecksagain's DSL has no inbound-scheduling concept at all.
+1. **Universal MCP door, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. hecks has only a 3-tool query-IR MCP.
+2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. hecks has only after-the-fact `bin/history`.
+3. **Drivers.** Inbound clocks (`interval | cron | clock`) declared in the hecksagon, projected to a Procfile — out-of-process by construction, so a dead clock stalls only its own task. hecks's DSL has no inbound-scheduling concept at all.
 4. **`SourceTag`.** A closed enum of dispatcher provenance. Cheap to add.
-5. **Gates.** Inbound middleware as bluebook records — `before/after` phase, a check that can be any bluebook query run read-only as a veto, ordered, hydrated at boot. hecksagain's authz today is one hardcoded file with no query-as-veto, ordering, or after-phase observers.
+5. **Gates.** Inbound middleware as bluebook records — `before/after` phase, a check that can be any bluebook query run read-only as a veto, ordered, hydrated at boot. hecks's authz today is one hardcoded file with no query-as-veto, ordering, or after-phase observers.
 6. **Actor mailboxes.** `poisoned` as a first-class status, plus `--json` and a `--fixture` deterministic demo mode for inspection tooling.
-7. **A standing derivability gauge.** A periodic driver that folds the full event log and records `derivable | drifted`, separating transient from persistent drift and tracking missing rows on their own. hecksagain has no continuous proof that the fold of its log equals its state.
-8. **`OutboundEvent`.** A durable outbox (`pending → claimed → delivered | failed`) for effect-port edges with idempotent delivery ids and a shared adapter-host protocol. hecksagain's effect ports drop on restart today.
+7. **A standing derivability gauge.** A periodic driver that folds the full event log and records `derivable | drifted`, separating transient from persistent drift and tracking missing rows on their own. hecks has no continuous proof that the fold of its log equals its state.
+8. **`OutboundEvent`.** A durable outbox (`pending → claimed → delivered | failed`) for effect-port edges with idempotent delivery ids and a shared adapter-host protocol. hecks's effect ports drop on restart today.
 9. **Honest-refusal tools.** Structured `{ok:false, supported:false, error:"…"}` instead of a crash, an ENOENT, or a silent no-op.
 10. **A two-tier bus design.** A local, free, eventually-consistent bus alongside a durable, governed, paid one, chosen per bluebook with domain-level default and aggregate-level override. Would collapse repeated `persisted_by` lines to one.
 
@@ -48,9 +48,9 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - A `Session.RebuildContext` plus a Stop-hook handoff gate that regenerates working context from durable state.
 - Inbox-card conventions: a `value:` field carrying the whole finding, a `closed_note:` recording what actually fixed it, mandatory "Where to look" and "Verification once fixed."
 - An antibody + lines-of-code ratchet with signed, retirement-conditioned exemptions and longest-prefix classification.
-- `ProducedField` — the typed *output* half of an adapter contract; hecksagain's `.port` files type inputs only.
+- `ProducedField` — the typed *output* half of an adapter contract; hecks's `.port` files type inputs only.
 - Family-owned `.world` schema validation that rejects unknown or missing keys and infers a field's source (`direct | env | secret`) from its declaration form.
-- Generated `.behaviors` tests from the IR, with a closed precondition taxonomy that fails loudly on any unhandled `given`. The authoring DSL exists on the hecksagain side; there's no interpreter under it yet.
+- Generated `.behaviors` tests from the IR, with a closed precondition taxonomy that fails loudly on any unhandled `given`. The authoring DSL exists on the hecks side; there's no interpreter under it yet.
 - A morphology promotion loop — a static fast path plus a dynamic learning path, promoting a candidate word at three rejections.
 - A tool-cache built from transcript JSONL, catalogued at session start.
 - Decentralized, opt-in registries via dropped descriptor files.
@@ -237,4 +237,4 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 ---
 
-*Compiled from `~/Projects/hecksagain/docs/` — worktree copies and build output excluded. Re-check open items against current state before acting; several of these plans are weeks old and `docs/` was split into `docs/implemented/` vs. active work on 2026-08-18, so file paths above may have moved.*
+*Compiled from `~/Projects/hecks/docs/` — worktree copies and build output excluded. Re-check open items against current state before acting; several of these plans are weeks old and `docs/` was split into `docs/implemented/` vs. active work on 2026-08-18, so file paths above may have moved.*

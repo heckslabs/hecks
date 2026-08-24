@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../support/postgres_probe"
 
 # Runs only when a Postgres server is reachable (any local default
@@ -7,9 +7,9 @@ require_relative "../../support/postgres_probe"
 # scratch database and needs no configuration at all. The reachability
 # probe itself lives in support/postgres_probe.rb, shared by every
 # Postgres spec — see that file for why.
-RSpec.describe Hecksagain::Adapters::PostgresEra,
+RSpec.describe Hecks::Adapters::PostgresEra,
                io: true do
-  SPEC_DB = "hecksagain_adapter_spec".freeze
+  SPEC_DB = "hecks_adapter_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -42,19 +42,19 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
   end
 
   def instance(id, **fields)
-    built = Hecksagain::Runtime::Instance.new(aggregate: aggregate, id: id)
-    fields.each { |name, value| built[name] = Hecksagain::Runtime::Value.for(aggregate, name, value) }
+    built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: id)
+    fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     built
   end
 
   it "refuses a binding that declares no database" do
     expect { described_class.new(aggregate: aggregate, settings: {}) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /declares no "database"/)
+      .to raise_error(Hecks::Runtime::WiringError, /declares no "database"/)
   end
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind PostgresEra at postgres:\/\/localhost:1\/nowhere for Order/)
+      .to raise_error(Hecks::Runtime::WiringError, /cannot bind PostgresEra at postgres:\/\/localhost:1\/nowhere for Order/)
   end
 
   it "saves and finds one back through the jsonb head" do
@@ -102,7 +102,7 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
   end
 
   it "records and reloads domain events" do
-    event = Hecksagain::Runtime::Event.new(
+    event = Hecks::Runtime::Event.new(
       name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
       payload: { customer: "c1" }, occurred_at: "2026-01-01T00:00:00Z"
     )
@@ -213,7 +213,7 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
     end
 
     it "compiles equality on the lifecycle field" do
-      declared = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Pizza").tap do |builder|
+      declared = Hecks::Bluebook::DSL::AggregateBuilder.new("Pizza").tap do |builder|
         # seal_query_targets holds a query to fields the aggregate declares,
         # so the throwaway builder declares the lifecycle the query asks about.
         builder.lifecycle(:status, default: "available") do
@@ -361,12 +361,12 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
       BLUEBOOK
 
       let(:numeric_registry) do
-        registry = Hecksagain::Runtime::Registry.new
-        loading  = Hecksagain::Ports::Loading.bootstrap
+        registry = Hecks::Runtime::Registry.new
+        loading  = Hecks::Ports::Loading.bootstrap
         file     = Tempfile.new(["numeric-pushdown-", ".bluebook"])
         file.write(NUMERIC_PUSHDOWN_SOURCE)
         file.flush
-        Hecksagain.with_registry(registry) do
+        Hecks.with_registry(registry) do
           loading.load_library
           Kernel.eval(NUMERIC_PUSHDOWN_SOURCE, TOPLEVEL_BINDING, file.path, 1)
         end
@@ -379,8 +379,8 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
       let(:numeric_adapter) { described_class.new(aggregate: widget, settings: { database: SPEC_DB, domain: "NumericPushdown" }) }
 
       def widget_instance(id, cents:)
-        Hecksagain::Runtime::Instance.new(aggregate: widget, id: id,
-                                          state: { sku: { value: id }, price: { cents: cents } })
+        Hecks::Runtime::Instance.new(aggregate: widget, id: id,
+                                     state: { sku: { value: id }, price: { cents: cents } })
       end
 
       before do
@@ -393,13 +393,13 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
         declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
           [Struct.new(:field, :op, :value).new("price.cents", "lt", 1400)],
           Struct.new(:field, :direction).new("price.cents", :desc),
-          Hecksagain::QuerySpecification::Common::LimitSpec.new(value: 5), nil, nil
+          Hecks::QuerySpecification::Common::LimitSpec.new(value: 5), nil, nil
         )
         expect(numeric_adapter.query(declared, {}).map(&:id)).to eq(%w[w1 w3])
       end
 
       it "compiles offset alongside limit" do
-        offset_spec = Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 1)
+        offset_spec = Hecks::QuerySpecification::Common::OffsetSpec.new(value: 1)
         declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
           [], Struct.new(:field, :direction).new("price.cents", :asc), nil, offset_spec, nil
         )
@@ -453,12 +453,12 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
     BLUEBOOK
 
     let(:refs_registry) do
-      registry = Hecksagain::Runtime::Registry.new
-      loading = Hecksagain::Ports::Loading.bootstrap
+      registry = Hecks::Runtime::Registry.new
+      loading = Hecks::Ports::Loading.bootstrap
       file = Tempfile.new(["refs-", ".bluebook"])
       file.write(REFS_SOURCE)
       file.flush
-      Hecksagain.with_registry(registry) do
+      Hecks.with_registry(registry) do
         loading.load_library
         Kernel.eval(REFS_SOURCE, TOPLEVEL_BINDING, file.path, 1)
       end
@@ -476,7 +476,7 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
     end
 
     it "stores the reference as a bare id" do
-      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+      refs_adapter.save(Hecks::Runtime::Instance.new(
                           aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
                         ))
 
@@ -487,10 +487,10 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
     end
 
     it "matches a where clause on the reference field" do
-      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+      refs_adapter.save(Hecks::Runtime::Instance.new(
                           aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
                         ))
-      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+      refs_adapter.save(Hecks::Runtime::Instance.new(
                           aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, team: "team-b" }
                         ))
 
@@ -510,10 +510,10 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
       expect(ticket.attribute(:invoices).list?).to be(false)
       expect(ticket.attribute(:invoices).type.to_s).to eq("Reference<Invoice>")
 
-      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+      refs_adapter.save(Hecks::Runtime::Instance.new(
                           aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, invoices: "inv-1" }
                         ))
-      refs_adapter.save(Hecksagain::Runtime::Instance.new(
+      refs_adapter.save(Hecks::Runtime::Instance.new(
                           aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, invoices: "inv-2" }
                         ))
 

@@ -6,25 +6,25 @@ RSpec.describe "Banking across persistence adapters" do
   ADAPTER_MATRIX_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
   ADAPTERS = {
     "Memory"            => InMemoryDomain::MEMORY_ADAPTER,
-    "Heki"              => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
-    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"),
-    "SqliteProjection"  => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
+    "Heki"              => File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/heki.adapter"),
+    "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"),
+    "SqliteProjection"  => File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
   }.freeze
   AUTHORITATIVE_ADAPTERS = %w[Memory Heki SqlitePersistence].freeze
 
   around do |example|
-    @dir = Dir.mktmpdir("hecksagain-banking-adapters-")
+    @dir = Dir.mktmpdir("hecks-banking-adapters-")
     example.run
   ensure
     FileUtils.remove_entry(@dir) if @dir
   end
 
   def boot(adapter, projected: false, root: @dir)
-    registry = Hecksagain::Runtime::Registry.new(root: root)
+    registry = Hecks::Runtime::Registry.new(root: root)
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports/projection.port"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(ADAPTERS.fetch(adapter)) unless adapter == "Memory"
@@ -73,7 +73,7 @@ RSpec.describe "Banking across persistence adapters" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   def replay_matrix(runtime)
@@ -156,7 +156,7 @@ daily_limit: { cents: 1_000 })
 
     before = runtime.query("Banking.customer_portfolio", customer: "c")
     workers = runtime.registry.bluebooks.fetch("Banking").aggregates.filter_map do |aggregate|
-      Hecksagain::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
+      Hecks::Ports::Projection.worker(runtime.registry, "Banking", aggregate)
     end
     workers.each(&:catch_up!)
     # WHICH REPOSITORY, not which methods. `read_repository` hands back the
@@ -165,7 +165,7 @@ daily_limit: { cents: 1_000 })
     # a projection silently declining to serve would have read as success.
     customer = runtime.registry.bluebook("Banking").aggregate("Customer")
     projection_repository = runtime.registry.read_repository("Banking", customer)
-    expect(projection_repository.adapter).to be_a(Hecksagain::Adapters::SqliteProjection)
+    expect(projection_repository.adapter).to be_a(Hecks::Adapters::SqliteProjection)
     expect(projection_repository).not_to be(runtime.registry.repository("Banking", customer))
     after = runtime.query("Banking.customer_portfolio", customer: "c")
     expect(after).to eq(before)

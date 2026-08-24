@@ -18,9 +18,9 @@
 # an example body — both deferred until the example actually runs — means
 # a default run (`io: true` excluded) never dials out at all.
 #
-# `require "pg"` HERE, explicitly — hecksagain's own require is lazy now
+# `require "pg"` HERE, explicitly — hecks's own require is lazy now
 # (loaded only where Postgres::connect_for actually connects), so this
-# probe can't lean on `require "hecksagain"` to have loaded it as a side
+# probe can't lean on `require "hecks"` to have loaded it as a side
 # effect.
 module PostgresProbe
   def self.available?

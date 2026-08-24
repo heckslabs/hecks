@@ -3,7 +3,7 @@ require "sqlite3"
 
 RSpec.describe "D1 execution-plan capabilities" do
   def item_aggregate
-    Hecksagain::Bluebook::DSL::BluebookBuilder.build("D1Planning") do
+    Hecks::Bluebook::DSL::BluebookBuilder.build("D1Planning") do
       vision "D1 implements the same atomic-put contract as Memory and SQLite"
 
       aggregate "Item" do
@@ -41,7 +41,7 @@ RSpec.describe "D1 execution-plan capabilities" do
   end
 
   def adapter_with(connection, aggregate)
-    Hecksagain::Adapters::D1.allocate.tap do |adapter|
+    Hecks::Adapters::D1.allocate.tap do |adapter|
       adapter.instance_variable_set(:@aggregate, aggregate)
       adapter.instance_variable_set(:@db, connection)
     end
@@ -50,14 +50,14 @@ RSpec.describe "D1 execution-plan capabilities" do
   it "uses one transactional batch and reports the database-classified insert or replacement outcome" do
     aggregate = item_aggregate
     connection = fake_batch_connection
-    repository = Hecksagain::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
 
-    first = Hecksagain::Runtime::Instance.new(
+    first = Hecks::Runtime::Instance.new(
       aggregate: aggregate,
       id:        "sku-1",
       state:     { identity: { sku: "sku-1" }, label: { value: "First" } }
     )
-    second = Hecksagain::Runtime::Instance.new(
+    second = Hecks::Runtime::Instance.new(
       aggregate: aggregate,
       id:        "sku-1",
       state:     { identity: { sku: "sku-1" }, label: { value: "Second" } }
@@ -122,12 +122,12 @@ RSpec.describe "D1 execution-plan capabilities" do
   it "insert_only: closes the round trip — one batch, and a real conflict blocks both writes" do
     aggregate = item_aggregate
     adapter = adapter_on_real_sqlite(aggregate)
-    repository = Hecksagain::Ports::Persistence::AppendOnly.new(adapter)
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
 
-    first = Hecksagain::Runtime::Instance.new(
+    first = Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
     )
-    second = Hecksagain::Runtime::Instance.new(
+    second = Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "Second" } }
     )
 
@@ -147,9 +147,9 @@ RSpec.describe "D1 execution-plan capabilities" do
   it "insert_only: still issues exactly one batch, no separate existence-check round trip" do
     aggregate = item_aggregate
     connection = fake_batch_connection
-    repository = Hecksagain::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
 
-    instance = Hecksagain::Runtime::Instance.new(
+    instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
     )
 
@@ -164,7 +164,7 @@ RSpec.describe "D1 execution-plan capabilities" do
   end
 
   it "encodes the connection batch as one REST request and returns each statement's rows in order" do
-    connection = Hecksagain::Adapters::D1::Connection.new(
+    connection = Hecks::Adapters::D1::Connection.new(
       account_id:  "account",
       database_id: "database",
       api_token:   "token"

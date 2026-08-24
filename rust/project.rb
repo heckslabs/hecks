@@ -1,11 +1,11 @@
 # THE RUST PROJECTION — a build-time code generator, not a runtime
 # interpreter. Reads canonical IR (the same shape bin/ir prints,
-# Hecksagain::Projector::Exporter.call) for one domain and emits native
+# Hecks::Projector::Exporter.call) for one domain and emits native
 # Rust source into rust/src/generated/. Nothing generated here is
 # read or interpreted by the compiled binary — parsing/codegen only ever
 # runs here, in Ruby, at build time. Lives alongside the Rust crate it
-# targets, not under lib/hecksagain/ — it's tooling FOR hecksagain, not
-# part of the library itself; nothing under lib/hecksagain.rb requires
+# targets, not under lib/hecks/ — it's tooling FOR hecks, not
+# part of the library itself; nothing under lib/hecks.rb requires
 # it, only bin/project_rust does.
 #
 #   bin/project_rust <domain>
@@ -100,7 +100,7 @@
 # NINTH SLICE (0019) — role checking (`refuse_role_mismatch`), the last
 # item from 0014's original two-item list. Needed a wire-contract
 # extension FIRST (a step's optional `role:` key, `Fuzzing::Replay`'s own
-# `Hecksagain.as_caller` wrap) to even be verifiable — Ruby's own caller
+# `Hecks.as_caller` wrap) to even be verifiable — Ruby's own caller
 # is 100% ambient thread-local state, never reachable through the
 # existing `spec/corpus/*.json` step format at all.
 #
@@ -125,7 +125,7 @@
 # only spelling a Rust-produced `ir.json` could ever hand this generator.
 #
 # THIRTEENTH SLICE — the refusal-wording table itself, GENERATED rather than
-# hand-typed per call site: `bin/project_refusal_wording` reads `Hecksagain
+# hand-typed per call site: `bin/project_refusal_wording` reads `Hecks
 # ::Runtime::RefusalWording::TEMPLATES` directly and writes `rust/src/
 # kernel/refusal_wording.rs` (`RefusalSite`, one variant per (class, site)
 # pair, all 39 entries — the full table, not just the ones a real Rust call

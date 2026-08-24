@@ -35,16 +35,16 @@ also a report from having tried the alternative first.
 
 ## Getting the IR
 
-The IR is `Hecksagain::Bluebook#to_h`, per aggregate, per bluebook —
+The IR is `Hecks::Bluebook#to_h`, per aggregate, per bluebook —
 the same shape `spec/golden/ir/*.json` pins and `bin/ir` prints.
-`Hecksagain::Projector::Exporter.call(registry)` returns it as a real
+`Hecks::Projector::Exporter.call(registry)` returns it as a real
 Ruby `Hash`, keyed by bluebook name; `.json(registry)` wraps it in
 `JSON.pretty_generate` for a file or a pipe. Boot the domain the same
 way any other guide does — `Kernel.load` the real bluebook file, wire
 every aggregate to `"Memory"` — and read it off `runtime.registry`:
 
 ```ruby boot
-Hecksagain::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
+Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
@@ -65,7 +65,7 @@ end
 ```
 
 ```ruby
-ir = Hecksagain::Projector::Exporter.call(runtime.registry).fetch("Banking")
+ir = Hecks::Projector::Exporter.call(runtime.registry).fetch("Banking")
 
 ir.keys # => [:ir_version, :name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :attaches_to, :canonical_form]
 ```
@@ -494,7 +494,7 @@ resolved to.
 already normalized at DSL-build time (whitespace collapsed, `.length`
 rewritten to `.size`), so the SAME text you see in the IR is exactly
 what a real dispatch evaluates, byte for byte. The grammar is small
-and closed, projected from `lib/hecksagain/bluebook/expression/projection.json`
+and closed, projected from `lib/hecks/bluebook/expression/projection.json`
 and held equal to it by `spec/operator_conformance_spec.rb`:
 
 | symbol | category | arity | notes |
@@ -516,7 +516,7 @@ six separate code paths: each operator's row says which primitive(s)
 OR together and whether the result negates.
 
 ```ruby
-ops = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS
+ops = Hecks::Bluebook::Expression::Evaluator::OPERATORS
 ops.map { |op| [op.symbol, op.compares_less_than, op.compares_equal, op.negated] }.sort
 # => [["!=", false, true, true], ["<", true, false, false], ["<=", true, true, false], ["==", false, true, false], [">", true, true, true], [">=", true, false, true]]
 ```
@@ -536,13 +536,13 @@ and `attrs` (the command's arguments). Every real leaf in this
 corpus's own commands, walked directly rather than invented:
 
 ```ruby
-Hecksagain::Bluebook::Expression::Evaluator.parse("status == \"open\"").class.name.split("::").last
+Hecks::Bluebook::Expression::Evaluator.parse("status == \"open\"").class.name.split("::").last
 # => "Compare"
 
-Hecksagain::Bluebook::Expression::Evaluator.parse("toppings.size < 10").class.name.split("::").last
+Hecks::Bluebook::Expression::Evaluator.parse("toppings.size < 10").class.name.split("::").last
 # => "Compare"
 
-Hecksagain::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents + amount.cents").class.name.split("::").last
+Hecks::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents + amount.cents").class.name.split("::").last
 # => "Compare"
 ```
 
@@ -556,7 +556,7 @@ into a `Resolve` node, whose value is checked for Ruby truthiness
 (`!nil? && != false`), not equality against literal `true`:
 
 ```ruby
-node = Hecksagain::Bluebook::Expression::Evaluator.parse("some_flag")
+node = Hecks::Bluebook::Expression::Evaluator.parse("some_flag")
 node.class.name.split("::").last # => "Resolve"
 ```
 
@@ -696,4 +696,4 @@ key) that this page does not walk — they're
 and [queries-and-read-models.md](queries-and-read-models.md)'s
 subjects, written for a domain author rather than a port author, but
 the IR shapes those pages describe are the same ones
-`Hecksagain::Projector::Exporter` emits, not a second format.
+`Hecks::Projector::Exporter` emits, not a second format.

@@ -5,7 +5,7 @@ source "https://rubygems.org"
 gem "pg", "~> 1.5"
 gem "sqlite3", "~> 2.0"
 
-# For testing GoogleAuthentication, lib/hecksagain/adapters/driven/
+# For testing GoogleAuthentication, lib/hecks/adapters/driven/
 # google_authentication.rb — lazily required there, same reasoning
 # `pg` above already holds itself to: a domain that never binds
 # `authentication` to this adapter should never need these installed.
@@ -13,13 +13,13 @@ gem "oauth2", "~> 2.0"
 gem "google-id-token", "~> 1.4"
 
 # For testing Adapters::Lambda / Runtime::RemoteDispatcher,
-# lib/hecksagain/adapters/driven/lambda/client.rb — lazily required
+# lib/hecks/adapters/driven/lambda/client.rb — lazily required
 # there, same reasoning as oauth2/google-id-token above: a domain
 # that never binds `dispatched_by("Lambda")`/`persisted_by("Lambda")`
 # should never need this installed.
 gem "aws-sdk-lambda", "~> 1.0"
 
-# For lib/hecksagain/forms/app.rb — lazily required there, same
+# For lib/hecks/forms/app.rb — lazily required there, same
 # reasoning as the adapters above: a domain that never boots the
 # forms surface should never need a Rack implementation
 # installed. rackup/webrick supply `bin/present`'s own dev server;

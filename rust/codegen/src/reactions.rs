@@ -219,7 +219,7 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
         .flat_map(|(domain_name, aggregate_names)| {
             aggregate_names.iter().map(move |name| {
                 let qualified = format!("{domain_name}::{name}");
-                let key = crate::hecksagain_naming::snake(name);
+                let key = crate::hecks_naming::snake(name);
                 format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(&key))
             })
         })
@@ -325,7 +325,7 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
 
 fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
     if command.get("references").map(Json::to_s).unwrap_or_default() == aggregate_name {
-        return Some(crate::hecksagain_naming::snake(aggregate_name));
+        return Some(crate::hecks_naming::snake(aggregate_name));
     }
 
     let wanted = format!("Reference<{aggregate_name}>");

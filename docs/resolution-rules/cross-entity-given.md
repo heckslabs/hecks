@@ -81,7 +81,7 @@ aggregate's own execution context and wrong in a piece's own command's.
   is what any caller reads — see `[[project_seam_agent_codemod_pilot]]`'s
   own note that object identity itself never survives a bluebook's own
   self-hosting build regardless).
-- `bin/query_ir duplicates`' own dedup (`Hecksagain::QueryIR#declaration_count`)
+- `bin/query_ir duplicates`' own dedup (`Hecks::QueryIR#declaration_count`)
   had to be taught this rule explicitly — an entity-owned `given` rule is
   now considered "covered" not just by an exact-owner `"(declared)"` match,
   but by ANY `"(declared)"` entry sharing the same ROOT aggregate. A query
@@ -90,14 +90,14 @@ aggregate's own execution context and wrong in a piece's own command's.
 
 ## Reference implementation
 
-- `lib/hecksagain/bluebook/dsl/aggregate_builder.rb` — `#entity` (comment),
+- `lib/hecks/bluebook/dsl/aggregate_builder.rb` — `#entity` (comment),
   `@entity_named_givens` (init), `#drain_pending!` (threads the pool into
   the first level of pieces).
-- `lib/hecksagain/bluebook/dsl/entity_builder.rb` — `#initialize`
+- `lib/hecks/bluebook/dsl/entity_builder.rb` — `#initialize`
   (`owner_named_givens:`), `#given` (write-through), `#drain_pending!`
   (threads the SAME pool into both nested pieces and this piece's own
   commands).
-- `lib/hecksagain/bluebook/dsl/command_builder.rb` — `#initialize`
+- `lib/hecks/bluebook/dsl/command_builder.rb` — `#initialize`
   (`entity_shared_givens:`), `#reference_named_given` (the fallback lookup).
 
 ## Reference mirror

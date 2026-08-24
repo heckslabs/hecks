@@ -1,6 +1,6 @@
-require "hecksagain/behaviors/expectations"
+require "hecks/behaviors/expectations"
 
-RSpec.describe Hecksagain::Behaviors::Expectations do
+RSpec.describe Hecks::Behaviors::Expectations do
   let(:root) { File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook") }
   let(:memory_hecksagon) { File.join(InMemoryDomain::ROOT, "examples/pizzas/pizzas_behaviors.hecksagon") }
   let(:runtime) { Hecks.boot_files([File.join(root, "pizzas.bluebook"), memory_hecksagon], install_facade: false) }
@@ -36,7 +36,7 @@ RSpec.describe Hecksagain::Behaviors::Expectations do
   describe ".normalize" do
     it "treats a bare scalar and a wrapped value object as equal" do
       value_object = runtime.registry.bluebook("Pizzas").aggregate("Order").value_object("PizzaName")
-      wrapped = Hecksagain::Runtime::Value.new(value_object, { value: "Margherita" })
+      wrapped = Hecks::Runtime::Value.new(value_object, { value: "Margherita" })
 
       expect(described_class.normalize(wrapped)).to eq(described_class.normalize({ value: "Margherita" }))
       expect(described_class.normalize({ value: "Margherita" })).to eq(described_class.normalize("Margherita"))
@@ -44,11 +44,11 @@ RSpec.describe Hecksagain::Behaviors::Expectations do
   end
 
   describe "refused: matching" do
-    let(:suite) { Hecksagain::Behaviors::BehaviorsSuite.new(loads: [File.join(root, "pizzas.bluebook"), memory_hecksagon]) }
+    let(:suite) { Hecks::Behaviors::BehaviorsSuite.new(loads: [File.join(root, "pizzas.bluebook"), memory_hecksagon]) }
 
     def test_case(tests_command:, on_aggregate:, input:, expect:, setups: [])
-      Hecksagain::Behaviors::TestCase.new(description: "t", tests_command: tests_command, on_aggregate: on_aggregate,
-                                          kind: :command, setups: setups, input: input, expect: expect)
+      Hecks::Behaviors::TestCase.new(description: "t", tests_command: tests_command, on_aggregate: on_aggregate,
+                                     kind: :command, setups: setups, input: input, expect: expect)
     end
 
     it "passes ok: true for a command that succeeds" do
@@ -60,7 +60,7 @@ RSpec.describe Hecksagain::Behaviors::Expectations do
 
     it "passes when the refusal message includes the expected substring" do
       test = test_case(tests_command: "AddTopping", on_aggregate: "Order",
-                       setups: [Hecksagain::Behaviors::TestSetup.new(
+                       setups: [Hecks::Behaviors::TestSetup.new(
                          command: "CreatePizza",
                          args:    { name: { value: "Sealed" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } }
                        )],
@@ -72,7 +72,7 @@ RSpec.describe Hecksagain::Behaviors::Expectations do
 
     it "fails when the refusal happened but the message doesn't match, showing both" do
       test = test_case(tests_command: "AddTopping", on_aggregate: "Order",
-                       setups: [Hecksagain::Behaviors::TestSetup.new(
+                       setups: [Hecks::Behaviors::TestSetup.new(
                          command: "CreatePizza",
                          args:    { name: { value: "Sealed2" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } }
                        )],

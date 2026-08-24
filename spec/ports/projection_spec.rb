@@ -1,13 +1,13 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Ports::Projection::Worker do
-  ProjectionEntry = Hecksagain::Ports::Persistence::Entry
+RSpec.describe Hecks::Ports::Projection::Worker do
+  ProjectionEntry = Hecks::Ports::Persistence::Entry
 
   it "does not create a worker when no projection binding exists" do
     registry = Object.new
     def registry.hecksagon(_domain) = nil
     aggregate = Struct.new(:name).new("Account")
-    expect(Hecksagain::Ports::Projection.worker(registry, "Banking", aggregate)).to be_nil
+    expect(Hecks::Ports::Projection.worker(registry, "Banking", aggregate)).to be_nil
   end
 
   class ProjectionStore
@@ -53,7 +53,7 @@ RSpec.describe Hecksagain::Ports::Projection::Worker do
                                      ])
 
     expect { described_class.new(authoritative, projection, policy: :strict).catch_up! }
-      .to raise_error(Hecksagain::Runtime::WiringError, /does not match/)
+      .to raise_error(Hecks::Runtime::WiringError, /does not match/)
   end
 
   it "refreshes a projection after a crash without duplicating entries" do

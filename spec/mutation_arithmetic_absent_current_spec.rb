@@ -17,8 +17,8 @@ require "spec_helper"
 # refusing on it.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   def boot(&binds)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -83,7 +83,7 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
       Hecks.hecksagon("ArithmeticAbsentCurrent", &binds)
     end
 
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   let(:runtime) { boot { ArithmeticAbsentCurrent::Wallet.persisted_by("Memory") } }
@@ -114,6 +114,6 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
 
     expect do
       runtime.dispatch("ArithmeticAbsentCurrent::Wallet.IncrementAmbiguous", label: "w1", pair: { a: 1, b: 2 })
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch)
+    end.to raise_error(Hecks::Runtime::TypeMismatch)
   end
 end

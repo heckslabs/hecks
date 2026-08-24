@@ -1,5 +1,5 @@
 // LAYER 2's REFERENCE IMPLEMENTATION — a direct, function-for-function
-// port of `Ports::Persistence::Lineage#translate` (lib/hecksagain/ports/
+// port of `Ports::Persistence::Lineage#translate` (lib/hecks/ports/
 // persistence/lineage.rb), the pure, portable interpreter over the five
 // PORTABLE rule kinds an edge can declare: rename, move, convert, drop,
 // backfill. `compute`/`rekey` have no reference here (their SQL is

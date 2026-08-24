@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecksagain/grammar/evolve"
+require "hecks/grammar/evolve"
 
 # The file surgery under bin/evolve, exercised against throwaway COPIES
 # of the aggregate-local syntax tables — never the tree's own. The tool's gates
@@ -10,7 +10,7 @@ require "hecksagain/grammar/evolve"
 # ceremony (absent status reads as admitted), and the region outside
 # Keyword's one_of block is never touched.
 RSpec.describe "the evolve surgery" do
-  EVOLVE = Hecksagain::Grammar::Evolve
+  EVOLVE = Hecks::Grammar::Evolve
 
   def syntax_source_for(context)
     EVOLVE.syntax_paths.find { |path| File.read(path).include?(%(context: "#{context}")) } or
@@ -57,9 +57,9 @@ RSpec.describe "the evolve surgery" do
 
   it "proposes a word as one row, proposed, at the table's foot" do
     with_copy("Aggregate") do |path|
-      Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate",
-                                          fills: "description", path: path)
-      rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
+      Hecks::Grammar::Evolve.propose(word: "annotate", context: "Aggregate",
+                                     fills: "description", path: path)
+      rows = Hecks::Grammar::Evolve.keyword_rows(path)
       row = rows.find { |candidate| candidate[:word] == "annotate" }
 
       expect(row).to eq(word: "annotate", context: "Aggregate", status: "proposed", was: nil)
@@ -69,41 +69,41 @@ RSpec.describe "the evolve surgery" do
 
   it "refuses a second row for the same word and context" do
     with_copy("Aggregate") do |path|
-      Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
+      Hecks::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
 
       expect do
-        Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /one row per/)
+        Hecks::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /one row per/)
     end
   end
 
   it "admits by removing the ceremony — an admitted row spells no status" do
     with_copy("Aggregate") do |path|
-      Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
-      Hecksagain::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
-                                             to: "admitted", path: path)
+      Hecks::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
+      Hecks::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
+                                        to: "admitted", path: path)
 
       line = File.read(path).lines.find { |l| l.include?('word: "annotate"') }
       expect(line).not_to include("status:")
-      expect(Hecksagain::Grammar::Evolve.keyword_rows(path)
+      expect(Hecks::Grammar::Evolve.keyword_rows(path)
                .find { |row| row[:word] == "annotate" }[:status]).to eq("admitted")
     end
   end
 
   it "deprecates and retires by spelling the station" do
     with_copy("Command") do |path|
-      Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
-                                             to: "deprecated", path: path)
-      row = Hecksagain::Grammar::Evolve.keyword_rows(path)
-                                       .find { |r| r[:word] == "given" && r[:context] == "Command" }
+      Hecks::Grammar::Evolve.set_status(word: "given", context: "Command",
+                                        to: "deprecated", path: path)
+      row = Hecks::Grammar::Evolve.keyword_rows(path)
+                                  .find { |r| r[:word] == "given" && r[:context] == "Command" }
       expect(row[:status]).to eq("deprecated")
     end
   end
 
   it "renames by respelling the row and holding the old spelling in was" do
     with_copy("Command") do |path|
-      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
-      rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
+      Hecks::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
+      rows = Hecks::Grammar::Evolve.keyword_rows(path)
 
       expect(rows.find { |r| r[:word] == "announces" && r[:context] == "Command" }[:was]).to eq("emits")
       expect(rows.none? { |r| r[:word] == "emits" && r[:context] == "Command" }).to be(true)
@@ -112,37 +112,37 @@ RSpec.describe "the evolve surgery" do
 
   it "refuses a second rename hop, and a rename onto a living word" do
     with_copy("Command") do |path|
-      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
+      Hecks::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
 
       expect do
-        Hecksagain::Grammar::Evolve.rename(word: "announces", context: "Command", to: "declares", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /one rename hop/)
+        Hecks::Grammar::Evolve.rename(word: "announces", context: "Command", to: "declares", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /one rename hop/)
 
       expect do
-        Hecksagain::Grammar::Evolve.rename(word: "given", context: "Command", to: "role", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /living word/)
+        Hecks::Grammar::Evolve.rename(word: "given", context: "Command", to: "role", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /living word/)
     end
   end
 
   it "refuses a station the language does not admit, and a word it does not hold" do
     with_copy("Command") do |path|
       expect do
-        Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
-                                               to: "banished", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not a station/)
+        Hecks::Grammar::Evolve.set_status(word: "given", context: "Command",
+                                          to: "banished", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /not a station/)
 
       expect do
-        Hecksagain::Grammar::Evolve.set_status(word: "imagined", context: "Command",
-                                               to: "retired", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not declared/)
+        Hecks::Grammar::Evolve.set_status(word: "imagined", context: "Command",
+                                          to: "retired", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /not declared/)
     end
   end
 
   it "touches nothing outside the Keyword one_of block" do
     with_copy("Aggregate") do |path, source|
-      Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
-      Hecksagain::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
-                                             to: "retired", path: path)
+      Hecks::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
+      Hecks::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
+                                        to: "retired", path: path)
 
       before_block = source[0...source.index(/^\s*value_object "KeywordSeed" do$/)]
       after = File.read(path)
@@ -166,9 +166,9 @@ RSpec.describe "the evolve surgery" do
 
   it "proposes an argument as one row, proposed, at the table's foot" do
     with_copy("Bluebook") do |path|
-      Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
-                                                   named: "locale", path: path)
-      rows = Hecksagain::Grammar::Evolve.argument_rows(path)
+      Hecks::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
+                                              named: "locale", path: path)
+      rows = Hecks::Grammar::Evolve.argument_rows(path)
       row  = rows.find { |candidate| candidate[:keyword] == "vision" && candidate[:named] == "locale" }
 
       expect(row).to eq(keyword: "vision", context: "Bluebook", at: "", named: "locale",
@@ -179,35 +179,35 @@ RSpec.describe "the evolve surgery" do
 
   it "refuses a second row for the same (keyword, context, at, named)" do
     with_copy("Bluebook") do |path|
-      Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
-                                                   named: "locale", path: path)
+      Hecks::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
+                                              named: "locale", path: path)
 
       expect do
-        Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "symbol",
-                                                     named: "locale", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /already declared/)
+        Hecks::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "symbol",
+                                                named: "locale", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /already declared/)
     end
   end
 
   it "admits an argument by removing the ceremony" do
     with_copy("Bluebook") do |path|
-      Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
-                                                   named: "locale", path: path)
-      Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "admitted",
-                                                      named: "locale", path: path)
+      Hecks::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
+                                              named: "locale", path: path)
+      Hecks::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "admitted",
+                                                 named: "locale", path: path)
 
-      row = Hecksagain::Grammar::Evolve.argument_rows(path)
-                                       .find { |r| r[:keyword] == "vision" && r[:named] == "locale" }
+      row = Hecks::Grammar::Evolve.argument_rows(path)
+                                  .find { |r| r[:keyword] == "vision" && r[:named] == "locale" }
       expect(row[:status]).to eq("admitted")
     end
   end
 
   it "deprecates and retires an argument by spelling the station" do
     with_copy("Aggregate") do |path|
-      Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                      to: "deprecated", named: "pattern", path: path)
-      row = Hecksagain::Grammar::Evolve.argument_rows(path)
-                                       .find { |r| r[:keyword] == "attribute" && r[:context] == "Aggregate" && r[:named] == "pattern" }
+      Hecks::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
+                                                 to: "deprecated", named: "pattern", path: path)
+      row = Hecks::Grammar::Evolve.argument_rows(path)
+                                  .find { |r| r[:keyword] == "attribute" && r[:context] == "Aggregate" && r[:named] == "pattern" }
       expect(row[:status]).to eq("deprecated")
     end
   end
@@ -215,21 +215,21 @@ RSpec.describe "the evolve surgery" do
   it "refuses a station or an argument the language does not hold" do
     with_copy("Aggregate") do |path|
       expect do
-        Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                        to: "banished", named: "pattern", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not a station/)
+        Hecks::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
+                                                   to: "banished", named: "pattern", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /not a station/)
 
       expect do
-        Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                        to: "retired", named: "imagined", path: path)
-      end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not declared/)
+        Hecks::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
+                                                   to: "retired", named: "imagined", path: path)
+      end.to raise_error(Hecks::Grammar::Evolve::Refusal, /not declared/)
     end
   end
 
   it "cascades a keyword rename onto that keyword's own argument rows, and no other's" do
     with_copies("Command", "PortOperation") do |paths|
-      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: paths)
-      rows = Hecksagain::Grammar::Evolve.argument_rows(paths)
+      Hecks::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: paths)
+      rows = Hecks::Grammar::Evolve.argument_rows(paths)
 
       # SCOPED TO THE RENAMED (keyword, context) PAIR, not the bare word —
       # "emits" legitimately still exists under "PortOperation" (a hecksagon
@@ -246,10 +246,10 @@ RSpec.describe "the evolve surgery" do
 
   it "touches nothing outside the Argument one_of block" do
     with_copy("Bluebook") do |path, source|
-      Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
-                                                   named: "locale", path: path)
-      Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "retired",
-                                                      named: "locale", path: path)
+      Hecks::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
+                                              named: "locale", path: path)
+      Hecks::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "retired",
+                                                 named: "locale", path: path)
 
       before_block = source[0...source.index(/^\s*value_object "ArgumentSeed" do$/)]
       after = File.read(path)

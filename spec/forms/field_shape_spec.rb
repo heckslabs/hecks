@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/forms/field_shape"
+require "hecks/forms/field_shape"
 
-RSpec.describe Hecksagain::Forms::FieldShape do
+RSpec.describe Hecks::Forms::FieldShape do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   # No persistence adapter, no hecksagon, no verify! — a Field is derived
@@ -12,8 +12,8 @@ RSpec.describe Hecksagain::Forms::FieldShape do
   # Booted ONCE per file, not per example — nothing below ever dispatches,
   # only reads the loaded IR back out, so a shared load is safe.
   before(:context) do
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(BANKING_BLUEBOOK)
@@ -78,7 +78,7 @@ RSpec.describe Hecksagain::Forms::FieldShape do
   end
 
   it "humanizes a dotted path by its last segment, and an underscored name by all its words" do
-    expect(Hecksagain::Forms::Humanize.label("daily_limit")).to eq("Daily limit")
-    expect(Hecksagain::Forms::Humanize.label("amount.cents")).to eq("Cents")
+    expect(Hecks::Forms::Humanize.label("daily_limit")).to eq("Daily limit")
+    expect(Hecks::Forms::Humanize.label("amount.cents")).to eq("Cents")
   end
 end

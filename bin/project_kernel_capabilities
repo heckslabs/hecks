@@ -13,14 +13,14 @@
 # Two ground truths, read rather than restated, exactly the way
 # bin/project_rust's own header insists on for the domain side:
 #
-#   attribute shapes  <- Hecksagain::Runtime::Value::Coercion::SHAPES
-#                        (lib/hecksagain/runtime/value/coercion.rb) — the
+#   attribute shapes  <- Hecks::Runtime::Value::Coercion::SHAPES
+#                        (lib/hecks/runtime/value/coercion.rb) — the
 #                        four branches `for_attribute` itself takes, named
 #                        once, right where the branching happens.
 #
-#   expression operators <- Hecksagain::Grammar.admitted_operators, the
+#   expression operators <- Hecks::Grammar.admitted_operators, the
 #                        SAME live-booted call bin/expression_projection
-#                        uses to write lib/hecksagain/bluebook/expression/
+#                        uses to write lib/hecks/bluebook/expression/
 #                        projection.json — replaying the real admission
 #                        ledger through the real Expression chapter, never
 #                        a hand-copied list. Grouped by `category`, the
@@ -45,8 +45,8 @@
 #
 # A THIRD CAPABILITY USED TO BE WRITTEN HERE TOO, AND NO LONGER IS —
 # WORTH RECORDING WHY, since its absence could otherwise look like an
-# oversight rather than a decision. `Hecksagain::QuerySpecification::
-# Common::COMPARATORS` (lib/hecksagain/query_specification/common/
+# oversight rather than a decision. `Hecks::QuerySpecification::
+# Common::COMPARATORS` (lib/hecks/query_specification/common/
 # comparators.rb) — `eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`/`contains`, the
 # same eight names `Vocabulary::QueryComparator` (language/bluebook/
 # vocabulary.bluebook) declares — used to have no kernel dispatch site at
@@ -84,9 +84,9 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
-require "hecksagain/grammar"
-require "hecksagain/runtime/value/coercion"
+require "hecks"
+require "hecks/grammar"
+require "hecks/runtime/value/coercion"
 require "fileutils"
 require "tempfile"
 
@@ -153,12 +153,12 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
 end
 
 # ── ATTRIBUTE SHAPES ──────────────────────────────────────────────────
-shape_names = Hecksagain::Runtime::Value::Coercion::SHAPES
+shape_names = Hecks::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),
   header:    <<~HEADER.strip,
-    // Ground truth: Hecksagain::Runtime::Value::Coercion::SHAPES
-    // (lib/hecksagain/runtime/value/coercion.rb) — the four branches
+    // Ground truth: Hecks::Runtime::Value::Coercion::SHAPES
+    // (lib/hecks/runtime/value/coercion.rb) — the four branches
     // `for_attribute` itself takes, read directly rather than
     // re-derived here.
   HEADER
@@ -171,11 +171,11 @@ emit_mod(
 # `category`, in FIRST-APPEARANCE order over the live admission ledger —
 # never alphabetized, so a re-run doesn't reshuffle variant order for no
 # reason and produce a no-op-but-noisy diff.
-operator_categories = Hecksagain::Grammar.admitted_operators.map { |op| op[:category] }.uniq
+operator_categories = Hecks::Grammar.admitted_operators.map { |op| op[:category] }.uniq
 emit_mod(
   File.join(ROOT, "rust/src/kernel/expression_operators/mod.rs"),
   header:    <<~HEADER.strip,
-    // Ground truth: Hecksagain::Grammar.admitted_operators (lib/hecksagain/
+    // Ground truth: Hecks::Grammar.admitted_operators (lib/hecks/
     // grammar.rb), the SAME live-booted call bin/expression_projection
     // uses — grouped by the `category` field Evaluator::PROJECTION already
     // partitions comparison operators by (evaluator.rb).

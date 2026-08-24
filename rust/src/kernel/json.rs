@@ -132,7 +132,7 @@ impl Json {
     /// field's raw JSON to its own `from_json`, whenever the target type
     /// has exactly one attribute. Mirrors `Value.for_attribute`/
     /// `fields_for`'s own `value_object.attributes.size == 1` branch
-    /// (lib/hecksagain/runtime/value/coercion.rb) — a caller's bare
+    /// (lib/hecks/runtime/value/coercion.rb) — a caller's bare
     /// `"large"` for a `Size { value }` field isn't a shape error, it's
     /// the sole field's own value, unwrapped. Already-object input
     /// passes through unchanged (the wrapped `{"value": "large"}`

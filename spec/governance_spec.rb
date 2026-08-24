@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 
 # A local boot, not `boot_in_memory` — that helper is Pizzas-specific by
 # design (spec_helper.rb's own comment). Same shape, Governance's own
@@ -6,14 +6,14 @@ require "hecksagain"
 # bind — the established rule for specs (see feedback memory on this).
 RSpec.describe "Governance" do
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/governance.bluebook"))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
       Hecks.hecksagon("Governance") do
         ::Governance::RoleAssignment.persisted_by("Memory")
         ::Governance::RoleTransition.persisted_by("Memory")
@@ -21,7 +21,7 @@ RSpec.describe "Governance" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   let(:runtime) { boot }

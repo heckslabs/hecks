@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecksagain/doc/reference"
+require "hecks/doc/reference"
 
 # The reference pages must equal what the language declares — the same
 # frozen-file discipline the golden IR carries, aimed at documentation.
@@ -20,11 +20,11 @@ RSpec.describe "the DSL reference" do
 
   it "matches what the language declares, page for page" do
     if ENV["GOLDEN"] == "rewrite"
-      Hecksagain::Doc::Reference.write!(REFERENCE_DIR)
+      Hecks::Doc::Reference.write!(REFERENCE_DIR)
       skip "rewrote docs/implemented/reference/"
     end
 
-    Hecksagain::Doc::Reference.pages(REFERENCE_DIR).each do |name, content|
+    Hecks::Doc::Reference.pages(REFERENCE_DIR).each do |name, content|
       path = File.join(REFERENCE_DIR, name)
       expect(File.exist?(path))
         .to be(true), "no #{name} — the language declares a context the reference does not carry; run bin/reference"
@@ -34,7 +34,7 @@ RSpec.describe "the DSL reference" do
   end
 
   it "lets no live word ship undocumented" do
-    missing = Hecksagain::Doc::Reference.undocumented(REFERENCE_DIR)
+    missing = Hecks::Doc::Reference.undocumented(REFERENCE_DIR)
     expect(missing).to be_empty,
                        "#{missing.size} live words carry no prose — write their sections:\n  " +
                        missing.join("\n  ")
@@ -52,7 +52,7 @@ RSpec.describe "the DSL reference" do
   # the other: a fence that has never run proves nothing, and a page of
   # passing fences can still leave half the language unexemplified.
   it "lets no live word ship unexemplified" do
-    missing = Hecksagain::Doc::Reference.unexemplified(REFERENCE_DIR)
+    missing = Hecks::Doc::Reference.unexemplified(REFERENCE_DIR)
     expect(missing).to be_empty,
                        "#{missing.size} live words carry no running example — write one in each " \
                        "word's own section:\n  " + missing.join("\n  ")
@@ -62,12 +62,12 @@ RSpec.describe "the DSL reference" do
     path = File.join(InMemoryDomain::ROOT, "README.md")
 
     if ENV["GOLDEN"] == "rewrite"
-      Hecksagain::Doc::Reference.write_readme!(InMemoryDomain::ROOT)
+      Hecks::Doc::Reference.write_readme!(InMemoryDomain::ROOT)
       skip "rewrote README.md"
     end
 
     expect(File.read(path))
-      .to eq(Hecksagain::Doc::Reference.render_readme(InMemoryDomain::ROOT, File.read(path))),
+      .to eq(Hecks::Doc::Reference.render_readme(InMemoryDomain::ROOT, File.read(path))),
           "README.md's generated regions (guides/reference/corpus/tools) disagree with what's on " \
           "disk — run bin/reference and review the diff"
   end

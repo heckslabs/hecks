@@ -1,7 +1,7 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Facade::JsonDoor do
-  # `described_class` reads exactly as `Hecksagain::Facade::JsonDoor`
+RSpec.describe Hecks::Facade::JsonDoor do
+  # `described_class` reads exactly as `Hecks::Facade::JsonDoor`
   # throughout this file — no separate alias needed.
   let(:json_door) { described_class }
 
@@ -28,14 +28,14 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       dispatcher = boot_in_memory
 
       expect { json_door.aggregate(dispatcher, "NoSuchDomain", "Order") }
-        .to raise_error(Hecksagain::Runtime::NotFound, /NoSuchDomain/)
+        .to raise_error(Hecks::Runtime::NotFound, /NoSuchDomain/)
     end
 
     it "raises Runtime::NotFound for an aggregate the domain never declared" do
       dispatcher = boot_in_memory
 
       expect { json_door.aggregate(dispatcher, "Pizzas", "Calzone") }
-        .to raise_error(Hecksagain::Runtime::NotFound, /Calzone/)
+        .to raise_error(Hecks::Runtime::NotFound, /Calzone/)
     end
   end
 
@@ -51,13 +51,13 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       # itself checks for it at boot) — so the "none" branch is proven
       # against a minimal stand-in shaped the same way `AggregateDoor`
       # shapes the real thing (`klass.ir.commands`, each answering
-      # `creates?`), not a mock of Hecksagain's own classes.
+      # `creates?`), not a mock of Hecks's own classes.
       non_creating_command = Struct.new(:hecks_name) { def creates? = false }.new("Rename")
       ir = Struct.new(:hecks_name, :commands).new("Widget", [non_creating_command])
       klass = Struct.new(:ir).new(ir)
 
       expect { json_door.creating_command(klass) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /Widget/)
+        .to raise_error(Hecks::Runtime::NotFound, /Widget/)
     end
   end
 
@@ -72,7 +72,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       boot_in_memory
 
       expect { json_door.validate_command!(Pizzas::Order, "cancel_order") }
-        .to raise_error(Hecksagain::Runtime::NotFound, /cancel_order/)
+        .to raise_error(Hecks::Runtime::NotFound, /cancel_order/)
     end
   end
 
@@ -90,7 +90,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       boot_in_memory
 
       expect { json_door.find!(Pizzas::Order, "no-such-id") }
-        .to raise_error(Hecksagain::Runtime::NotFound, /no-such-id/)
+        .to raise_error(Hecks::Runtime::NotFound, /no-such-id/)
     end
   end
 
@@ -131,7 +131,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       # two levels down (Order -> Pizza -> Price), which `#eq` alone
       # wouldn't catch since Runtime::Value defines `==` by content.
       expect(result[:pizza][:price_cents]).to be_a(Hash)
-      expect(result[:pizza][:price_cents]).not_to be_a(Hecksagain::Runtime::Value)
+      expect(result[:pizza][:price_cents]).not_to be_a(Hecks::Runtime::Value)
     end
 
     it "deep-unwraps a plain state hash the same way, without needing a Handle" do
@@ -167,7 +167,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
     it "refuses loose facts beside an explicit JSON envelope" do
       expect do
         json_door.command_request({ "to" => "one", "with" => {}, "extra" => true }, receiver: :aggregate)
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch, /facts in with.*loose extra/)
+      end.to raise_error(Hecks::Runtime::TypeMismatch, /facts in with.*loose extra/)
     end
   end
 

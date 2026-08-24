@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/fuzzing"
+require "hecks/fuzzing"
 
-RSpec.describe "Hecksagain::Fuzzing::Replay" do
+RSpec.describe "Hecks::Fuzzing::Replay" do
   ROOT_DIR = InMemoryDomain::ROOT
   REPLAY_PIZZAS = File.join(ROOT_DIR, "examples/pizzas")
 
@@ -19,7 +19,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
   end
 
   it "boots fresh, dispatches every step, and reports the same surface bin/run prints" do
-    history = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
+    history = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
 
     expect(history[:events].map { |e| e[:name] }).to eq(["PizzaCreated", "ToppingAdded"])
     expect(history[:instances].keys).to eq(["Pizzas::Order#Margherita"])
@@ -32,7 +32,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
             "args" => { "amount" => { "value" => 3 }, "topping" => { "value" => "Basil" },
                         "name" => "nobody-home" } }
 
-    history = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [bad])
+    history = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [bad])
 
     expect(history[:events]).to be_empty
     expect(history[:refusals].first[:verb]).to eq("Pizzas::Order.AddTopping")
@@ -41,22 +41,22 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
   it "propagates anything that is not a domain refusal — a broken step is a defect, not data" do
     malformed = { "verb" => "Pizzas::Order.CreatePizza", "args" => "not-a-hash" }
 
-    expect { Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [malformed]) }.to raise_error(StandardError)
+    expect { Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [malformed]) }.to raise_error(StandardError)
   end
 
   it "never touches the domain's own data/ — a fresh tmp copy every call" do
     real_data = File.join(REPLAY_PIZZAS, "data")
     before = Dir.exist?(real_data) ? Dir.children(real_data).sort : nil
 
-    Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step])
+    Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step])
 
     after = Dir.exist?(real_data) ? Dir.children(real_data).sort : nil
     expect(after).to eq(before)
   end
 
   it "is deterministic — the same steps replayed twice produce the same history" do
-    first  = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
-    second = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
+    first  = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
+    second = Hecks::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
 
     comparable = ->(h) { h.reject { |k, _| k == :bluebook || k == :bluebooks } }
     expect(comparable.call(first)).to eq(comparable.call(second))

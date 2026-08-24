@@ -28,10 +28,10 @@
 // unrecognized named query already does, never silently wrong.
 //
 // GROUND TRUTH: `Runtime::ReadModelInterpreter#project`
-// (lib/hecksagain/runtime/read_model_interpreter.rb) for the overall shape;
+// (lib/hecks/runtime/read_model_interpreter.rb) for the overall shape;
 // `Ports::Query::InMemory.execute`/`Ports::Query::Ordering`/
-// `QuerySpecification::Common::NullPolicy` (lib/hecksagain/ports/query/,
-// lib/hecksagain/query_specification/common/null_policy.rb) for exactly
+// `QuerySpecification::Common::NullPolicy` (lib/hecks/ports/query/,
+// lib/hecks/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
 use super::{query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
 
@@ -78,7 +78,7 @@ pub struct ReadModelHead {
 /// around would only invite the SAME drift `kernel/query_ordering.rs`'s
 /// own extraction exists to prevent one level down, in the functions that
 /// consume them. Ground truth: `QuerySpecification::Common::OrderBy`
-/// (lib/hecksagain/query_specification/common/order_by.rb) — `field`/
+/// (lib/hecks/query_specification/common/order_by.rb) — `field`/
 /// `direction`, read directly; `query_ordering::OrderBy`'s own header has
 /// the rest.
 pub type ReadModelOrderBy = query_ordering::OrderBy;
@@ -88,7 +88,7 @@ pub type ReadModelOrderBy = query_ordering::OrderBy;
 /// just above is one now, not a distinct shape: `query_ordering::Limit`'s
 /// own header has the full Literal/Arg argument (ground truth: `Ports::
 /// Query::InMemory.execute`'s own `resolve(declared.limit.value,
-/// args).to_i`, lib/hecksagain/ports/query/in_memory.rb).
+/// args).to_i`, lib/hecks/ports/query/in_memory.rb).
 pub type ReadModelLimit = query_ordering::Limit;
 
 /// ONE declared `report "X" do ... end` block, compiled — the read-model
@@ -105,7 +105,7 @@ pub type ReadModelLimit = query_ordering::Limit;
 ///
 /// `filtered_head`/`conditions`/`order_by`/`limit` are the ONE eligible
 /// many-side head's own where/order_by/limit — ground truth: `IR::
-/// ReadModel#filtered_head_name` (lib/hecksagain/bluebook/ir/read_model.rb):
+/// ReadModel#filtered_head_name` (lib/hecks/bluebook/ir/read_model.rb):
 /// "ReadModelBuilder#seal_query_options already refuses ambiguity (zero or
 /// several many-heads with options declared)... so any interpreter can ask
 /// this directly rather than re-deriving or re-checking it" — this generator

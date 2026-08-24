@@ -9,9 +9,9 @@ require "spec_helper"
 # triggers a real command exactly as it would for a command-emitted one.
 RSpec.describe "a port operation, dispatched" do
   def boot
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -48,7 +48,7 @@ RSpec.describe "a port operation, dispatched" do
     end
 
     registry.verify!
-    [Hecksagain::Runtime::Dispatcher.new(registry), registry]
+    [Hecks::Runtime::Dispatcher.new(registry), registry]
   end
 
   def open_payment(dispatcher, id: "P1", cents: 4200)
@@ -62,7 +62,7 @@ RSpec.describe "a port operation, dispatched" do
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
                                to: "P1", with: { amount: { cents: 4200 }, surprise: true })
-    }.to raise_error(Hecksagain::Runtime::UnknownArgument)
+    }.to raise_error(Hecks::Runtime::UnknownArgument)
   end
 
   it "gates absent arguments the same way a command does" do
@@ -71,7 +71,7 @@ RSpec.describe "a port operation, dispatched" do
 
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive", to: "P1", with: {})
-    }.to raise_error(Hecksagain::Runtime::AbsentArgument)
+    }.to raise_error(Hecks::Runtime::AbsentArgument)
   end
 
   it "refuses a reference to a payment that does not exist" do
@@ -80,7 +80,7 @@ RSpec.describe "a port operation, dispatched" do
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
                                to: "nonexistent", with: { amount: { cents: 4200 } })
-    }.to raise_error(Hecksagain::Runtime::NotFound)
+    }.to raise_error(Hecks::Runtime::NotFound)
   end
 
   it "emits an event carrying the operation's own attributes, addressed by the reference" do
@@ -145,7 +145,7 @@ RSpec.describe "a port operation, dispatched" do
 
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Nonsense", payment_id: "P1")
-    }.to raise_error(Hecksagain::Runtime::UnknownVerb)
+    }.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
   it "raises UnknownVerb for a port the aggregate does not declare" do
@@ -154,7 +154,7 @@ RSpec.describe "a port operation, dispatched" do
 
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", payment_id: "P1")
-    }.to raise_error(Hecksagain::Runtime::UnknownVerb)
+    }.to raise_error(Hecks::Runtime::UnknownVerb)
   end
 
   # THE SAME OPERATION, BY VERB — the wire spelling `Dispatcher#dispatch`
@@ -190,7 +190,7 @@ RSpec.describe "a port operation, dispatched" do
 
       expect {
         dispatcher.dispatch("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
-      }.to raise_error(Hecksagain::Runtime::UnknownVerb, /PaymentGateway has no operation "Nonsense"/)
+      }.to raise_error(Hecks::Runtime::UnknownVerb, /PaymentGateway has no operation "Nonsense"/)
     end
 
     it "falls through to entity-command handling for a dotted verb naming no port" do
@@ -199,7 +199,7 @@ RSpec.describe "a port operation, dispatched" do
 
       expect {
         dispatcher.dispatch("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
-      }.to raise_error(Hecksagain::Runtime::UnknownVerb, /Payment has no entity "NoSuchThing"/)
+      }.to raise_error(Hecks::Runtime::UnknownVerb, /Payment has no entity "NoSuchThing"/)
     end
   end
 end

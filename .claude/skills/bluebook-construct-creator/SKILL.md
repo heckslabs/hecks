@@ -41,8 +41,8 @@ in the commit message, don't invent a synthetic example.
 **Selection filter — reject a candidate if:**
 
 - It would need **new runtime enforcement semantics**, not just builder-
-  time desugaring. Check `lib/hecksagain/runtime/command_rules/
-  admissibility.rb` and `lib/hecksagain/runtime/entity_interpreter.rb`
+  time desugaring. Check `lib/hecks/runtime/command_rules/
+  admissibility.rb` and `lib/hecks/runtime/entity_interpreter.rb`
   first — if the runtime doesn't already generically iterate the field
   you're about to populate (the way `enforce_givens`/`enforce_invariants`
   already iterate `command.givens`/`aggregate.invariants` regardless of
@@ -75,7 +75,7 @@ in the commit message, don't invent a synthetic example.
 method already exists somewhere with a REQUIRED-block signature. Give it
 an optional block: `def word(description, &predicate); return
 reference_named_word(description) unless predicate; ...`. Mirror
-`CommandBuilder#given`'s own `reference_named_given` (`lib/hecksagain/
+`CommandBuilder#given`'s own `reference_named_given` (`lib/hecks/
 bluebook/dsl/command_builder.rb`) — that's the canonical shape every
 round since has copied.
 
@@ -97,15 +97,15 @@ builder is constructed.
 Smoke-test immediately, in-process, WITHOUT `Hecks.boot` (too heavy — it
 wires live adapters and will hang on a Postgres-backed domain like
 `compliance`). Use the lightweight path every round's smoke test and
-`Hecksagain::Codemod` both use:
+`Hecks::Codemod` both use:
 
 ```ruby
-registry = Hecksagain::Runtime::Registry.new
-Hecksagain.with_registry(registry) do
-  Kernel.load("lib/hecksagain/ports/persistence.port")
-  Kernel.load("lib/hecksagain/ports/extraction.port")
-  Kernel.load("lib/hecksagain/adapters/driven/memory.adapter")
-  Kernel.load("lib/hecksagain/adapters/driven/prism.adapter")
+registry = Hecks::Runtime::Registry.new
+Hecks.with_registry(registry) do
+  Kernel.load("lib/hecks/ports/persistence.port")
+  Kernel.load("lib/hecks/ports/extraction.port")
+  Kernel.load("lib/hecks/adapters/driven/memory.adapter")
+  Kernel.load("lib/hecks/adapters/driven/prism.adapter")
   Hecks.bluebook "Pilot" do
     # the exact real-corpus shape you found in step 1, minimal
   end
@@ -165,12 +165,12 @@ added a genuinely new field to a Ruby IR class's `emits_ir` (like `Entity
 running anything — this is the checklist that turned round 4's five
 reactive `rspec` loops into what should be one:
 
-1. **Grammar table** (`lib/hecksagain/language/bluebook/syntax.bluebook`)
+1. **Grammar table** (`lib/hecks/language/bluebook/syntax.bluebook`)
    — two rows: a Keyword row (`context:`, `body: "source"`, `fills:
    "yourfield"`) and an Argument row (`at: "1"`, `kind: "text"`, `fills:
    "description"`), copied from the sibling construct's own existing
    rows for the same word.
-2. **Meta-domain description** (`lib/hecksagain/language/bluebook/
+2. **Meta-domain description** (`lib/hecks/language/bluebook/
    <construct>.bluebook`) — `attribute :yourfield, list_of(Rule)` (reuse
    the sibling construct's own `Rule`-shaped value object pattern:
    `{description: String, canonical: String}`, declared fresh per
@@ -178,12 +178,12 @@ reactive `rspec` loops into what should be one:
    aggregates in this codebase), plus a `command "YourWord"` mirroring
    the sibling construct's own attach-command (e.g.
    `Aggregate.Precondition`) that `sets :yourfield, append: {...}`.
-3. **`Assembly::Contracts`** (`lib/hecksagain/bluebook/assembly/
+3. **`Assembly::Contracts`** (`lib/hecks/bluebook/assembly/
    contracts.rb`) — add `yourfield: [:yourfield, [:each, :given]]` to
    `fields:` and `yourfield: [:each, :rule]` to `reads:`, in the
    construct's own `Contract.new(...)` block.
 4. **`MetaValidator::Reconstruction`**'s hand-typed reader
-   (`lib/hecksagain/bluebook/meta_validator/reconstruction.rb`) — ONLY
+   (`lib/hecks/bluebook/meta_validator/reconstruction.rb`) — ONLY
    `aggregate(row)` and `entity(row)` are hand-typed today (everything
    else reads generically through Contracts' `declaration()`). If your
    construct is one of these two, add `yourfield: Array(row[:yourfield])
@@ -193,7 +193,7 @@ reactive `rspec` loops into what should be one:
    `spec/round_trip_spec.rb`'s "hand-typed reconstruction methods return
    every key their construct's own IR declares" test (added specifically
    to catch this — run it explicitly, see step 6).
-5. **Fuzzer claim** (`lib/hecksagain/fuzzing/properties.rb`) — add
+5. **Fuzzer claim** (`lib/hecks/fuzzing/properties.rb`) — add
    `"YourConstruct#yourfield"` to whichever `FEATURE_COVERAGE` property
    already claims the sibling construct's equivalent field (a bare
    reference just pushes the same struct onto the referencing command's
@@ -276,10 +276,10 @@ not discovery.
   not appending — round 2's `resolve_append_fields!` names the exact bug
   this caused when it was gotten wrong first.
 - **A process-lifetime cache can go stale if anything reloads an edited
-  file in-process** (`Hecksagain::Adapters::Prism`, if you're scripting a
+  file in-process** (`Hecks::Adapters::Prism`, if you're scripting a
   corpus migration rather than hand-editing) — use `Prism.forget(path)`/
   `Prism.forget_all`, not a bare re-`Kernel.load`.
-- **`Hecksagain::Codemod`** (`lib/hecksagain/codemod.rb`) already exists
+- **`Hecks::Codemod`** (`lib/hecks/codemod.rb`) already exists
   for scripted corpus migration when the yield is large enough to justify
   it (more than a handful of hand-edits) — extend it with two rule-
   specific procs (`find_candidates`, `apply_candidate`) rather than
@@ -312,7 +312,7 @@ not discovery.
   See `docs/resolution-rules/chapter-given.md`'s own "Known limitations"
   for the full real-corpus case this scoped around rather than got wrong.
 - **A "hoist un-shared local declarations to one shared point" codemod's
-  own safety net needs a DIFFERENT invariant than `Hecksagain::Codemod`'s
+  own safety net needs a DIFFERENT invariant than `Hecks::Codemod`'s
   default byte-identical-IR check.** That default is right for a rule
   that IMPORTS an already-existing value (round 2's append-fields) but
   WRONG for a hoist: converting N local declarations into one shared
@@ -326,7 +326,7 @@ not discovery.
   `bin/codemod_hoist_local_givens` is the reference implementation of
   this narrower check — copy it rather than reusing the default
   byte-identical comparison for the next hoist-shaped codemod.
-- **`bin/query_ir duplicates` (`lib/hecksagain/query_ir.rb`'s
+- **`bin/query_ir duplicates` (`lib/hecks/query_ir.rb`'s
   `declaration_count`) needs a matching update EVERY TIME a new sharing
   scope ships**, and it can only ever be a lagging structural snapshot —
   it reads the exported IR, which by design cannot distinguish "I

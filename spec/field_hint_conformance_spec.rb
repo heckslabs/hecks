@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecksagain/forms/field_shape"
+require "hecks/forms/field_shape"
 
 # FieldShape's own EMAIL_HINT/URL_HINT/TEL_HINT/TEXTAREA_HINT
-# (lib/hecksagain/forms/field_shape.rb) are the LIVE table
+# (lib/hecks/forms/field_shape.rb) are the LIVE table
 # `text_field` reads at dispatch time — the same split RefusalTemplate/
 # RefusalWording already established (refusal_wording_conformance_spec.rb):
 # declared once, in language/bluebook/vocabulary.bluebook's `FieldHint`,
@@ -11,7 +11,7 @@ require "hecksagain/forms/field_shape"
 # wording (pattern source) included, so neither side can drift without
 # this failing.
 RSpec.describe "the declared field hints" do
-  def self.meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.declared_hints
     vocabulary = meta.aggregates.find { |a| a.hecks_name == "Vocabulary" }
@@ -25,10 +25,10 @@ RSpec.describe "the declared field hints" do
   # write rust/host/src/field_hints.rs, so this spec and that generator
   # agree about what "the pattern" even means for a Ruby Regexp.
   FIELD_HINT_RUBY_TABLE = {
-    "email"    => Hecksagain::Forms::FieldShape::EMAIL_HINT,
-    "url"      => Hecksagain::Forms::FieldShape::URL_HINT,
-    "tel"      => Hecksagain::Forms::FieldShape::TEL_HINT,
-    "textarea" => Hecksagain::Forms::FieldShape::TEXTAREA_HINT,
+    "email"    => Hecks::Forms::FieldShape::EMAIL_HINT,
+    "url"      => Hecks::Forms::FieldShape::URL_HINT,
+    "tel"      => Hecks::Forms::FieldShape::TEL_HINT,
+    "textarea" => Hecks::Forms::FieldShape::TEXTAREA_HINT,
   }.freeze
 
   it "declares at least one hint, so a language regression doesn't silently empty this" do

@@ -155,7 +155,7 @@ pub fn body_gate<'a>(
 }
 
 /// A LIVE CROSS-CHECK against the self-hosted grammar table, mirroring
-/// Ruby's own `RuleReference#verify_resolves_via!` (lib/hecksagain/
+/// Ruby's own `RuleReference#verify_resolves_via!` (lib/hecks/
 /// bluebook/dsl/rule_reference.rb) — each of the three hand-written
 /// bare-reference resolvers (`parse::aggregate::
 /// try_reference_named_chapter_given`, `parse::command::
@@ -479,7 +479,7 @@ pub fn argument_gate(
 /// own case) OR — real, confirmed live by
 /// `spec/fixtures/payments.bluebook`'s `transition from: "pending", to:
 /// "received"` — Ruby's OWN `identifier: value` hash-literal shorthand for
-/// THE SAME PAIR: `LifecycleBuilder#transition` (`lib/hecksagain/bluebook/
+/// THE SAME PAIR: `LifecycleBuilder#transition` (`lib/hecks/bluebook/
 /// dsl/lifecycle_builder.rb`) receives one plain Hash and does not care how
 /// its entries were spelled — `{"Close" => "closed"}` and `{to:
 /// "received"}` are the identical Hash shape by the time Ruby's parser is
@@ -1001,7 +1001,7 @@ pub(crate) fn positional_constant<'a>(
 /// argument rows for the SAME `fills` slot (`trigger`'s own
 /// `trigger_command`, `dispatch`'s own `command_name`), so `argument_
 /// gate` already admits either lexical shape here; this just derives the
-/// same text `Hecksagain::Naming.command_ref` derives from whichever one
+/// same text `Hecks::Naming.command_ref` derives from whichever one
 /// was written.
 pub(crate) fn positional_command_ref(
     file: &str,

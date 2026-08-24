@@ -107,7 +107,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
         HECKSAGON
 
         expect { Hecks.boot(dir) }
-          .to raise_error(Hecksagain::Runtime::WiringError, /never uses_framework "Governance"/)
+          .to raise_error(Hecks::Runtime::WiringError, /never uses_framework "Governance"/)
       end
     end
   end
@@ -193,10 +193,10 @@ RSpec.describe "environment overlays and vendored bluebooks" do
     end
 
     it "refuses with a real registry that has no root to vendor from" do
-      registry = Hecksagain::Runtime::Registry.new
+      registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        expect { Hecksagain::EmbryonautBluebook.load!("payments") }
-          .to raise_error(Hecksagain::Runtime::WiringError, /needs a registry with a root to vendor from/)
+        expect { Hecks::EmbryonautBluebook.load!("payments") }
+          .to raise_error(Hecks::Runtime::WiringError, /needs a registry with a root to vendor from/)
       end
     end
   end

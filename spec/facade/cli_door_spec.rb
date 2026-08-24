@@ -3,7 +3,7 @@ require "spec_helper"
 # FLAT STRINGS IN, NESTED TYPED ARGUMENTS OUT — the translation a command line
 # needs and `JsonDoor` does not, because JSON arrives already nested and
 # already typed.
-RSpec.describe Hecksagain::Facade::CliDoor do
+RSpec.describe Hecks::Facade::CliDoor do
   let(:spec) do
     { arguments: [
       { path: "id",                      type: "String"  },
@@ -43,7 +43,7 @@ RSpec.describe Hecksagain::Facade::CliDoor do
 
     it "refuses a value the declared type cannot hold, naming the type" do
       expect { described_class.arguments(spec, ["sequence.value=soon"]) }
-        .to raise_error(Hecksagain::Runtime::TypeMismatch, /"soon" is not Integer/)
+        .to raise_error(Hecks::Runtime::TypeMismatch, /"soon" is not Integer/)
     end
   end
 
@@ -63,19 +63,19 @@ RSpec.describe Hecksagain::Facade::CliDoor do
     # here is a silently misplaced value.
     it "refuses to guess when more than one option shares the prefix" do
       expect { described_class.arguments(spec, ["pizza=1500"]) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /no argument "pizza"/)
+        .to raise_error(Hecks::Runtime::NotFound, /no argument "pizza"/)
     end
   end
 
   describe "refusals" do
     it "names an argument the verb does not take, and lists the ones it does" do
       expect { described_class.arguments(spec, ["hwo=x"]) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /no argument "hwo".*this verb takes .*id/m)
+        .to raise_error(Hecks::Runtime::NotFound, /no argument "hwo".*this verb takes .*id/m)
     end
 
     it "refuses a bare word that is not name=value" do
       expect { described_class.arguments(spec, ["reference"]) }
-        .to raise_error(Hecksagain::Runtime::NotFound, /is not name=value/)
+        .to raise_error(Hecks::Runtime::NotFound, /is not name=value/)
     end
 
     it "keeps an = inside the value" do

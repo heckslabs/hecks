@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "relationship cardinality and traversal" do
   def boot_relationship_semantics
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -77,7 +77,7 @@ RSpec.describe "relationship cardinality and traversal" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   let(:runtime) { boot_relationship_semantics }
@@ -124,7 +124,7 @@ RSpec.describe "relationship cardinality and traversal" do
         customers: []
       )
     end.to raise_error(
-      Hecksagain::Runtime::TypeMismatch,
+      Hecks::Runtime::TypeMismatch,
       /Team\.owner is a required belongs_to relationship.*one Owner identity.*nil/
     )
   end

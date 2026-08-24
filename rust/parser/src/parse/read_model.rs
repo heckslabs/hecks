@@ -1,4 +1,4 @@
-//! The `ReadModel` construct (`lib/hecksagain/bluebook/ir/read_model.rb`,
+//! The `ReadModel` construct (`lib/hecks/bluebook/ir/read_model.rb`,
 //! `read_model` the current spelling — ADR 0025 reverts `report`, `was:
 //! "report"`, still answered for frozen era text under the legacy
 //! grammar). STAGE 3: `description`/`include`/`group_by` —

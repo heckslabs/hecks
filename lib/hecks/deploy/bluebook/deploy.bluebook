@@ -1,0 +1,219 @@
+# A TOOLING-INTERNAL DOMAIN, not a business one — never attached via
+# `uses_framework`, never seen by an end-user domain. `bin/project_deploy`
+# boots this directory directly (Ports::Loading.bootstrap + load_domain,
+# the same pipeline lib/hecks/runtime/loader.rb uses, minus a
+# `.world`/`.hecksagon` this domain has no need for) and dispatches one
+# command against it before generating anything from a domain's own
+# `deployed_to("AwsLambda")` settings.
+#
+# WHY THIS EXISTS: `world.bluebook`'s `Wiring`/`Setting` is a DELIBERATELY
+# open, untyped map — "a verb's schema is not even contained in the file
+# being parsed" (syntax.bluebook's own header on this). That's the right
+# call for `Wiring` itself (an adapter verb's shape genuinely isn't the
+# world language's business), but it leaves `deployed_to`'s ACTUAL shape
+# validated nowhere — `bin/project_deploy` used to check it by hand
+# (`deploy_settings[:adapter] == "AwsLambda" or abort ...`,
+# `fetch(:region) { abort ... }`), the exact raw-Ruby-refusal pattern
+# every other kind of bluebook mistake in this codebase does NOT use.
+# This closes that gap the same way any other rule gets enforced here:
+# as a real command, real invariants, a real corpus-testable refusal —
+# not a hand-written abort string discovered only by running the script.
+Hecks.bluebook "Deploy" do
+  aggregate "LambdaTarget" do
+    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
+
+    identified_by :domain
+
+    attribute :domain,   DomainName
+    attribute :region,   Region
+    attribute :memory,   Memory
+    attribute :timeout,  Timeout
+    attribute :database, Database
+    attribute :web,      Web
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # "Postgres" (a plain AWS::RDS::DBInstance, Embryonaut's own live
+    # choice — bin/project_deploy's Ruby-side default when a domain's
+    # own deployed_to("AwsLambda") names none, so every domain
+    # declared before this attribute existed keeps generating the
+    # identical template it always has) or "Aurora" (Aurora Serverless
+    # v2, Postgres-compatible — the SAME `Adapters::Postgres`/
+    # `tokio_postgres` code on both the Ruby and rust/host sides
+    # either way; this only changes which CloudFormation resource
+    # bin/project_deploy emits, never a runtime adapter).
+    # "Shared" — no RDS/VPC of this domain's own at all; it borrows
+    # another already-deployed domain's instance instead (the
+    # storehouse), isolated from that domain's own data by a native
+    # Postgres SCHEMA (this domain's own lowercase name), not a
+    # separate database. Requires a sibling `owner "OtherDomain"`
+    # setting inside the SAME deployed_to("AwsLambda") block, naming
+    # which already-deployed domain owns the shared instance —
+    # bin/project_deploy checks for that setting itself (Ruby-level,
+    # the same as `pg_version`/`google_oauth_present` below it), not
+    # here: which domain owns the instance is a deploy-time fact, not
+    # a business invariant this validated aggregate's job to hold.
+    value_object "Database" do
+      attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
+    end
+
+    # "None" (the default — nothing changes for a domain that names
+    # neither this nor drops a `lambda_handler.rb`, e.g. Banking) or
+    # "Rust" — the domain's OWN Lambda (rust/host) also serves a public
+    # web UI in-process (rust/host/src/web.rs), reading HECKS_IR_PATH
+    # (a plain-JSON sidecar bin/project_wasm writes beside the .wasm
+    # artifact) and dispatching through the SAME in-process
+    # dispatch::handle/read the internal {"verb"}/{"read"} path already
+    # uses — no second Lambda, no VPC Interface Endpoint, no Ruby.
+    # Deliberately NOT "Ruby" as a third member here: a Ruby WebFunction
+    # is the pre-existing, SEPARATE `lambda_handler.rb`-file-presence
+    # mechanism (Embryonaut's own), untouched by this attribute —
+    # bin/project_deploy refuses generation outright if a domain
+    # declares `web "Rust"` AND has a `lambda_handler.rb`, rather than
+    # silently picking one.
+    value_object "Web" do
+      attribute :value, String, one_of: ["None", "Rust"]
+    end
+
+    # 128-10240 MB — AWS Lambda's own real ceiling and floor, not a
+    # number this domain invented. A typo here used to fail deep inside
+    # a real `sam deploy`, sometimes minutes in; now it refuses before
+    # a single file is generated.
+    value_object "Memory" do
+      attribute :value, Integer
+      invariant("memory is at least 128 MB") { value >= 128 }
+      invariant("memory is at most 10240 MB") { value <= 10240 }
+    end
+
+    # 900s — Lambda's own real ceiling.
+    value_object "Timeout" do
+      attribute :value, Integer
+      invariant("a timeout is positive") { value.positive? }
+      invariant("a timeout fits Lambda's own 900s ceiling") { value <= 900 }
+    end
+
+    # ALL FOUR REQUIRED — deliberately, not `optional: true` +
+    # `default:`. Confirmed directly against CommandInterpreter's own
+    # `normalize_args`/`coerce_declared_arguments` (interpreting.rb):
+    # `next unless normalized.key?(attribute.name)` skips coercion
+    # entirely for an absent key, so a command-level `default:` is
+    # honored ONLY at the JSON/Rust-codegen boundary (`scalar_from_json_
+    # expr`'s own domain), never by Ruby's own direct dispatch — a
+    # `default:` here would be quietly false advertising. "What memory
+    # defaults to when unspecified" stays exactly where it already
+    # lived (bin/project_deploy's own `fetch(:memory, 512)`); this
+    # command validates a FULLY-RESOLVED target, and bin/project_deploy
+    # resolves the default before ever dispatching.
+    command "Declare" do
+      goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
+
+      attribute :domain,   DomainName
+      attribute :region,   Region
+      attribute :memory,   Memory
+      attribute :timeout,  Timeout
+      attribute :database, Database
+      attribute :web,      Web
+
+      sets :domain
+      sets :region
+      sets :memory
+      sets :timeout
+      sets :database
+      sets :web
+
+      emits "LambdaTargetDeclared"
+    end
+  end
+
+  # `bin/project_tenant`'S OWN VALIDATED SHAPE — same split LambdaTarget
+  # draws with `bin/project_deploy`: this aggregate validates, that
+  # script GENERATES/ACTS (writes `environments/<slug>.world`, ensures
+  # the Postgres schema, boots once to prove it). Deliberately NOT a
+  # saga/process manager with durable runtime state — every step
+  # `bin/project_tenant` takes is already idempotent by construction
+  # (`CREATE SCHEMA IF NOT EXISTS` — PostgresEra#connect_for's own,
+  # File.write of the overlay — a plain overwrite, `Hecks.boot` itself),
+  # the same "generator script, not a business process" shape
+  # `bin/project_deploy` already is; a saga's own resumability earns
+  # its cost coordinating a real distributed transaction across
+  # multiple ports with real failure boundaries (Payments::Payment's
+  # own PaymentGateway, say) — three local, idempotent, single-process
+  # steps have no such boundary to resume across. A durable, reactable
+  # RUNTIME fact ("this tenant exists, is active, is suspended") is a
+  # different, later, business-facing thing — deliberately not built
+  # here, and deliberately not named Deploy::Tenant to avoid colliding
+  # with this validation-only aggregate should it ever land.
+  aggregate "Tenant" do
+    description "One tenant's validated identity — which realm and Postgres schema `bin/project_tenant` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
+
+    identified_by :slug
+
+    attribute :slug,   Slug
+    attribute :domain, DomainName
+    attribute :realm,  Realm
+    attribute :schema, Schema
+
+    # LOWERCASE, NO SPACES — a slug becomes both the `environments/
+    # <slug>.world` filename and (by convention, not enforced here —
+    # `schema` is its own, separately-declared field precisely so a
+    # tenant CAN choose a different schema name than its slug)
+    # ordinarily the schema name too.
+    value_object "Slug" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a tenant slug is named") { !value.to_s.empty? }
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a tenant names the domain it is for") { !value.to_s.empty? }
+    end
+
+    value_object "Realm" do
+      attribute :value, String
+      invariant("a tenant realm is named") { !value.to_s.empty? }
+    end
+
+    # POSTGRES'S OWN REAL IDENTIFIER RULES, loosely — lowercase (this
+    # adapter never quotes a mixed-case identifier back out consistently
+    # once created), letters/digits/underscores, starting with a letter.
+    # NOT a byte-length ceiling too (Postgres's own real 63-byte
+    # NAMEDATALEN limit) — the expression grammar invariants compile
+    # through admits a narrow arithmetic/comparison subset, not
+    # arbitrary method dispatch (`bytesize` included; found live,
+    # writing this: `Bluebook::Expression::Evaluator` tries to resolve
+    # a dotted chain as a FIELD lookup, not a method call, the same
+    # "admits + but not -, no parentheses" narrowness
+    # embryonaut_bluebooks/payments' own Refund command already
+    # documents). Postgres itself refuses a too-long identifier loudly
+    # on its own; not worth fighting the expression grammar for a
+    # corner case this rare.
+    value_object "Schema" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a schema is named") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      goal "Validate one tenant's shape before bin/project_tenant provisions its schema and overlay world"
+
+      attribute :slug,   Slug
+      attribute :domain, DomainName
+      attribute :realm,  Realm
+      attribute :schema, Schema
+
+      sets :slug
+      sets :domain
+      sets :realm
+      sets :schema
+
+      emits "TenantDeclared"
+    end
+  end
+end

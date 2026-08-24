@@ -2,9 +2,9 @@ require "spec_helper"
 
 RSpec.describe "relationship list runtime behavior" do
   def boot_relationships
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
 
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
@@ -54,7 +54,7 @@ RSpec.describe "relationship list runtime behavior" do
     end
 
     registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
   it "stores a has_many as a list and existence-checks every member" do
@@ -85,7 +85,7 @@ RSpec.describe "relationship list runtime behavior" do
         customer: "c-1",
         accounts: %w[a-1 missing]
       )
-    end.to raise_error(Hecksagain::Runtime::NotFound, /Account.*missing/)
+    end.to raise_error(Hecks::Runtime::NotFound, /Account.*missing/)
   end
 
   it "refuses a scalar where has_many promises a list" do
@@ -100,6 +100,6 @@ RSpec.describe "relationship list runtime behavior" do
         customer: "c-1",
         accounts: "a-1"
       )
-    end.to raise_error(Hecksagain::Runtime::TypeMismatch, /has_many relationship.*list of identities/)
+    end.to raise_error(Hecks::Runtime::TypeMismatch, /has_many relationship.*list of identities/)
   end
 end

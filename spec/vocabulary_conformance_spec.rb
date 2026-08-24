@@ -24,7 +24,7 @@ RSpec.describe "the declared vocabularies" do
   # tripwire : if the fixpoint swap ever regresses to the raw builder graph,
   # every typed-vs-string assertion below fails at once — exactly what
   # happened the one time this spec briefly read a raw chapter.
-  def self.judged_meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.judged_meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.vocabularies
     aggregate = judged_meta.aggregates.find { |a| a.name == "Vocabulary" }
@@ -56,17 +56,17 @@ RSpec.describe "the declared vocabularies" do
   end
 
   {
-    "Comparison"             => -> { Hecksagain::Bluebook::Expression::Evaluator::COMPARISONS },
-    "QueryComparator"        => -> { Hecksagain::QuerySpecification::Common::COMPARATORS },
-    "SignTest"               => -> { Hecksagain::Bluebook::Expression::Resolver::SIGN_TESTS },
-    "IncludeHaystack"        => -> { Hecksagain::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
-    "ToStringType"           => -> { Hecksagain::Bluebook::Expression::Resolver::TO_STRING_TYPES },
-    "SizedType"              => -> { Hecksagain::Bluebook::Expression::Resolver::SIZED_TYPES },
-    "Primitive"              => -> { Hecksagain::Bluebook::Attribute::PRIMITIVES },
-    "NormalisationStrategy"  => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
-    "LoadOrder"              => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
-    "DomainRefusal"          => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"                => -> { [Hecksagain::Bluebook::ProcessManager::REFUSED] },
+    "Comparison"             => -> { Hecks::Bluebook::Expression::Evaluator::COMPARISONS },
+    "QueryComparator"        => -> { Hecks::QuerySpecification::Common::COMPARATORS },
+    "SignTest"               => -> { Hecks::Bluebook::Expression::Resolver::SIGN_TESTS },
+    "IncludeHaystack"        => -> { Hecks::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
+    "ToStringType"           => -> { Hecks::Bluebook::Expression::Resolver::TO_STRING_TYPES },
+    "SizedType"              => -> { Hecks::Bluebook::Expression::Resolver::SIZED_TYPES },
+    "Primitive"              => -> { Hecks::Bluebook::Attribute::PRIMITIVES },
+    "NormalisationStrategy"  => -> { Hecks::Bluebook::Expression::CanonicalForm::STRATEGIES },
+    "LoadOrder"              => -> { Hecks::Adapters::Folder::DOMAIN_ORDER },
+    "DomainRefusal"          => -> { Hecks::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
+    "Trigger"                => -> { [Hecks::Bluebook::ProcessManager::REFUSED] },
     # AGGREGATE/ENTITY DISPATCH ORDER, THE SAME SPLIT AS EVERY VOCABULARY
     # ABOVE — CommandInterpreter/EntityInterpreter#DISPATCH_ORDER is a
     # hand-typed live table now (call is driven BY it), not read live off the
@@ -77,8 +77,8 @@ RSpec.describe "the declared vocabularies" do
     # what remains worth proving is coverage (every declared step resolves to
     # a real handler) and conditional correctness (the two conditional steps
     # actually fire/skip under the right preconditions), not the sequence.
-    "AggregateDispatchOrder" => -> { Hecksagain::Runtime::CommandInterpreter::DISPATCH_ORDER },
-    "EntityDispatchOrder"    => -> { Hecksagain::Runtime::EntityInterpreter::DISPATCH_ORDER }
+    "AggregateDispatchOrder" => -> { Hecks::Runtime::CommandInterpreter::DISPATCH_ORDER },
+    "EntityDispatchOrder"    => -> { Hecks::Runtime::EntityInterpreter::DISPATCH_ORDER }
   }.each do |vocabulary, live|
     it "#{vocabulary} matches the table the runtime uses" do
       expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
@@ -111,7 +111,7 @@ RSpec.describe "the declared vocabularies" do
     # but a member's fields decode back through typed literal decoding on the
     # way out of reconstruction (the same path Attribute#list uses), so what
     # comes back here is already a real Ruby boolean, not text.
-    live = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS.to_h do |op|
+    live = Hecks::Bluebook::Expression::Evaluator::OPERATORS.to_h do |op|
       [op.symbol, { compares_less_than: op.compares_less_than,
                     compares_equal:     op.compares_equal,
                     negated:            op.negated }]
@@ -132,7 +132,7 @@ RSpec.describe "the declared vocabularies" do
   # mapping (SIGN_TEST_OPERATORS) to what the language declares, the same
   # split Comparison's algebra check makes.
   it "SignTest declares the same operator Resolver::SIGN_TEST_OPERATORS uses" do
-    live = Hecksagain::Bluebook::Expression::Resolver::SIGN_TEST_OPERATORS
+    live = Hecks::Bluebook::Expression::Resolver::SIGN_TEST_OPERATORS
 
     expect(SIGN_TEST_ROWS.map { |row| row[:name] }).to match_array(live.keys)
 
@@ -152,11 +152,11 @@ RSpec.describe "the declared vocabularies" do
     expect(INCLUDE_HAYSTACK_ROWS.to_h { |row| [row[:type], row[:strategy]] })
       .to eq("Array" => "membership", "String" => "substring")
 
-    resolver = Hecksagain::Bluebook::Expression::Resolver
-    expect(Hecksagain::Bluebook::Expression::Evaluator.includes?(
+    resolver = Hecks::Bluebook::Expression::Resolver
+    expect(Hecks::Bluebook::Expression::Evaluator.includes?(
              [resolver.parse("list"), resolver.parse("wanted")], { list: [1, 2, 3] }, { wanted: 2 }
            )).to be(true), "Array membership should still use equal?, matching the declared strategy"
-    expect(Hecksagain::Bluebook::Expression::Evaluator.includes?(
+    expect(Hecks::Bluebook::Expression::Evaluator.includes?(
              [resolver.parse("text"), resolver.parse("wanted")], { text: "hello" }, { wanted: "ell" }
            )).to be(true), "String substring should still match, matching the declared strategy"
   end
@@ -168,7 +168,7 @@ RSpec.describe "the declared vocabularies" do
   # unlike Shapes#decode_literal elsewhere, so empty text does not become nil
   # here ; it is normalised to nil below to compare against MUTATION_OPS.
   it "MutationOp declares the same sign CommandRules::MUTATION_OPS computes with" do
-    live = Hecksagain::Runtime::CommandRules::MUTATION_OPS.to_h { |op| [op.name, op.sign] }
+    live = Hecks::Runtime::CommandRules::MUTATION_OPS.to_h { |op| [op.name, op.sign] }
 
     expect(MUTATION_OP_ROWS.map { |row| row[:name] }).to match_array(live.keys)
 
@@ -186,7 +186,7 @@ RSpec.describe "the declared vocabularies" do
     used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map { |path|
       JSON.parse(File.read(path)).fetch("steps", [])
     }
-    # Vendored addition, not (yet) upstream hecksagain (migration plan task
+    # Vendored addition, not (yet) upstream hecks (migration plan task
     # 4, i106 in-DSL math): multiply/clamp/remove joined set/append/
     # increment/decrement as real, declared MutationOp members — see
     # vocabulary.bluebook's own MutationOp comment for the arithmetic each
@@ -223,15 +223,15 @@ RSpec.describe "the declared vocabularies" do
   # false` exists to avoid — this spec predates that fix and had the
   # identical exposure).
   def boot(bluebook)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(bluebook)
     end
-    Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Dispatcher.new(registry)
   end
 
   # COVERAGE : every step DISPATCH_ORDER names must resolve to a real
@@ -240,8 +240,8 @@ RSpec.describe "the declared vocabularies" do
   # but only the FIRST time that step's preconditions were ever met) if a
   # declared step and its handler ever drifted apart.
   [
-    ["AggregateDispatchOrder", Hecksagain::Runtime::CommandInterpreter],
-    ["EntityDispatchOrder", Hecksagain::Runtime::EntityInterpreter]
+    ["AggregateDispatchOrder", Hecks::Runtime::CommandInterpreter],
+    ["EntityDispatchOrder", Hecks::Runtime::EntityInterpreter]
   ].each do |vocabulary, interpreter|
     it "every #{vocabulary} step resolves to a registered #{interpreter} handler" do
       declared(vocabulary).each do |step_name|
@@ -262,15 +262,15 @@ RSpec.describe "the declared vocabularies" do
   it "assign_creation_attributes fires only for a creating command" do
     runtime = boot(File.join(InMemoryDomain::ROOT, "spec/fixtures/dispatch_order.bluebook"))
 
-    Hecksagain::Runtime::CommandInterpreter.trace = []
+    Hecks::Runtime::CommandInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
-    creating_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
+    creating_trace = Hecks::Runtime::CommandInterpreter.trace.dup
 
-    Hecksagain::Runtime::CommandInterpreter.trace = []
+    Hecks::Runtime::CommandInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
-    acting_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
-    Hecksagain::Runtime::CommandInterpreter.trace = nil
+    acting_trace = Hecks::Runtime::CommandInterpreter.trace.dup
+    Hecks::Runtime::CommandInterpreter.trace = nil
 
     expect(creating_trace).to include(:assign_creation_attributes)
     expect(acting_trace).not_to include(:assign_creation_attributes)
@@ -281,21 +281,21 @@ RSpec.describe "the declared vocabularies" do
     runtime.dispatch("DispatchOrder::Widget.Open", label: { value: "x" }, amount: { value: 5 },
                       part_sequence: { value: 1 }, part_note: { value: "start" })
 
-    Hecksagain::Runtime::CommandInterpreter.trace = []
+    Hecks::Runtime::CommandInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Close", label: { value: "x" })
-    aggregate_trace = Hecksagain::Runtime::CommandInterpreter.trace.dup
-    Hecksagain::Runtime::CommandInterpreter.trace = nil
+    aggregate_trace = Hecks::Runtime::CommandInterpreter.trace.dup
+    Hecks::Runtime::CommandInterpreter.trace = nil
 
-    Hecksagain::Runtime::EntityInterpreter.trace = []
+    Hecks::Runtime::EntityInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "done note" })
-    entity_transitioning_trace = Hecksagain::Runtime::EntityInterpreter.trace.dup
+    entity_transitioning_trace = Hecks::Runtime::EntityInterpreter.trace.dup
 
-    Hecksagain::Runtime::EntityInterpreter.trace = []
+    Hecks::Runtime::EntityInterpreter.trace = []
     runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "x" }, sequence: { value: 1 },
                       note: { value: "touched" })
-    entity_acting_trace = Hecksagain::Runtime::EntityInterpreter.trace.dup
-    Hecksagain::Runtime::EntityInterpreter.trace = nil
+    entity_acting_trace = Hecks::Runtime::EntityInterpreter.trace.dup
+    Hecks::Runtime::EntityInterpreter.trace = nil
 
     expect(aggregate_trace).not_to include(:advance_lifecycle)
     expect(entity_transitioning_trace).to include(:advance_lifecycle)

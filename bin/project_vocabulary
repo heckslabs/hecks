@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# Projects the language's own closed sets into lib/hecksagain/vocabulary.rb.
+# Projects the language's own closed sets into lib/hecks/vocabulary.rb.
 #
 # A one-line wrapper over the projector registry, deliberately — the four
 # tools that came before this one (bin/project_parser_table, bin/reference,
@@ -12,11 +12,11 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-require "hecksagain"
+require "hecks"
 
-chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
-out     = File.expand_path("../lib/hecksagain/vocabulary.rb", __dir__)
+chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+out     = File.expand_path("../lib/hecks/vocabulary.rb", __dir__)
 
-puts "wrote #{Hecksagain::Projector.write(
-  Hecksagain::Projector.call(:vocabulary, bluebook: chapter), out
+puts "wrote #{Hecks::Projector.write(
+  Hecks::Projector.call(:vocabulary, bluebook: chapter), out
 )}"

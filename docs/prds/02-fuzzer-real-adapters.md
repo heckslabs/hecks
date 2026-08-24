@@ -4,14 +4,14 @@
 
 ## The problem
 
-`lib/hecksagain/fuzzing/isolated_boot.rb` copies a domain to a tmpdir, wipes
+`lib/hecks/fuzzing/isolated_boot.rb` copies a domain to a tmpdir, wipes
 `data/`, and rewrites **every** persistence binding to Memory before boot —
 unconditionally, for every fuzz run, every property check, every replay.
 That means the entire property-testing arc this session just built
 (`lifecycle_guard_and_given_violations_are_refused`,
 `mutations_match_recompute`, `stored_records_satisfy_declared_invariants`,
 `dispatch_binding_fidelity`, all fifteen properties in
-`lib/hecksagain/fuzzing/properties.rb`) has never once run against Sqlite,
+`lib/hecks/fuzzing/properties.rb`) has never once run against Sqlite,
 Postgres, or Heki. Every one of those checks could be silently
 Memory-adapter-specific and nothing today would know.
 

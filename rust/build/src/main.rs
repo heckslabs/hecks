@@ -41,11 +41,11 @@
 //! `examples/pizzas`, `examples/banking`), the same argument shape
 //! `bin/project_rust <domain>` already takes — resolved relative to the
 //! CURRENT DIRECTORY, exactly like the Ruby original (this crate's own
-//! `src/root.rs` separately locates the hecksagain REPO root, by walking
-//! up from the current directory looking for `hecksagain.gemspec`, for
+//! `src/root.rs` separately locates the hecks REPO root, by walking
+//! up from the current directory looking for `hecks.gemspec`, for
 //! everything else it needs: `rust/parser`, `rust/codegen`, `rust/src/
-//! generated`, `rust/Cargo.toml`, `lib/hecksagain/framework/bluebook`,
-//! `lib/hecksagain/language/bluebook`).
+//! generated`, `rust/Cargo.toml`, `lib/hecks/framework/bluebook`,
+//! `lib/hecks/language/bluebook`).
 //!
 //! `--wasm` additionally cross-compiles for `wasm32-wasip1` (mirroring
 //! `bin/project_wasm`'s own invocation) once the native build succeeds.

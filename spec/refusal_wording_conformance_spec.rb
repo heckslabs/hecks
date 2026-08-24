@@ -11,7 +11,7 @@ require "spec_helper"
 # declaring is the exact shape `role:` was for arguments ; a declared
 # template Ruby never reads is dead vocabulary nobody would notice drifting.
 RSpec.describe "the declared refusal wording" do
-  def self.meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  def self.meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def self.declared_templates
     vocabulary = meta.aggregates.find { |a| a.hecks_name == "Vocabulary" }
@@ -21,7 +21,7 @@ RSpec.describe "the declared refusal wording" do
 
   REFUSAL_TEMPLATES_DECLARED = declared_templates
 
-  REFUSAL_WORDING_RUBY_TABLE = Hecksagain::Runtime::RefusalWording::TEMPLATES
+  REFUSAL_WORDING_RUBY_TABLE = Hecks::Runtime::RefusalWording::TEMPLATES
                                .to_h { |(refusal, site), template| [[refusal, site], template] }
 
   it "declares at least one template, so a language regression doesn't silently empty this" do

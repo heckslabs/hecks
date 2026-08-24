@@ -4,11 +4,11 @@
 
 ## The problem
 
-`lib/hecksagain/runtime/dispatcher.rb` tracks `@reaction_depth` as a plain
+`lib/hecks/runtime/dispatcher.rb` tracks `@reaction_depth` as a plain
 thread-shared instance variable, incremented/checked with no lock, guarding
 against runaway reaction recursion (a policy or saga leg triggering another,
 without end). It is the *same class* of hazard `@saga_mutex`
-(`lib/hecksagain/runtime/registry.rb:55`) already exists to fix — and the
+(`lib/hecks/runtime/registry.rb:55`) already exists to fix — and the
 comment that introduced `@saga_mutex` names `@reaction_depth` explicitly:
 
 > "the same shape of hazard this codebase's own prior audit already flagged

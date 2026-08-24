@@ -1,14 +1,14 @@
-require "hecksagain"
+require "hecks"
 
-RSpec.describe Hecksagain::Ports::Authentication do
+RSpec.describe Hecks::Ports::Authentication do
   def registry_with(*adapter_paths, &extra)
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.expand_path("../../lib/hecksagain/ports/authentication.port", __dir__))
+      Kernel.load(File.expand_path("../../lib/hecks/ports/authentication.port", __dir__))
       adapter_paths.each { |path| Kernel.load(path) }
       extra&.call
     end
@@ -16,7 +16,7 @@ RSpec.describe Hecksagain::Ports::Authentication do
   end
 
   def google_authentication_adapter
-    File.expand_path("../../lib/hecksagain/adapters/driven/google_authentication.adapter", __dir__)
+    File.expand_path("../../lib/hecks/adapters/driven/google_authentication.adapter", __dir__)
   end
 
   describe "adapter resolution" do
@@ -24,14 +24,14 @@ RSpec.describe Hecksagain::Ports::Authentication do
       registry = registry_with
 
       expect { described_class.authorization_url(registry) }
-        .to raise_error(Hecksagain::Runtime::WiringError, /no adapter implements/)
+        .to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
     end
 
     it "refuses to choose between more than one bound adapter" do
       registry = registry_with(google_authentication_adapter) { Hecks.adapter("AlwaysAuthenticate") { port "authentication" } }
 
       expect { described_class.authorization_url(registry) }
-        .to raise_error(Hecksagain::Runtime::WiringError, /AlwaysAuthenticate, GoogleAuthentication/)
+        .to raise_error(Hecks::Runtime::WiringError, /AlwaysAuthenticate, GoogleAuthentication/)
     end
   end
 
@@ -61,12 +61,12 @@ RSpec.describe Hecksagain::Ports::Authentication do
 
     it "refuses a state mismatch before ever reaching Google, with no network call" do
       expect { described_class.verify(registry, code: "irrelevant", state: "wrong", expected_state: "right") }
-        .to raise_error(Hecksagain::Ports::Authentication::ValidationError, "state mismatch")
+        .to raise_error(Hecks::Ports::Authentication::ValidationError, "state mismatch")
     end
 
     it "refuses with no code/state at all the same way" do
       expect { described_class.verify(registry, code: "x", state: nil, expected_state: "right") }
-        .to raise_error(Hecksagain::Ports::Authentication::ValidationError, "state mismatch")
+        .to raise_error(Hecks::Ports::Authentication::ValidationError, "state mismatch")
     end
   end
 end

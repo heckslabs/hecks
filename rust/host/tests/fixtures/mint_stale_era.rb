@@ -16,7 +16,7 @@
 
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
-require "hecksagain"
+require "hecks"
 require "tempfile"
 
 db_name, owner_role, app_role = ARGV
@@ -90,12 +90,12 @@ BLUEBOOK
 # taking owner_url as an argument instead of a shared constant ──
 
 def load_registry(source, translation_source: nil)
-  registry = Hecksagain::Runtime::Registry.new
-  loading = Hecksagain::Ports::Loading.bootstrap
+  registry = Hecks::Runtime::Registry.new
+  loading = Hecks::Ports::Loading.bootstrap
   file = Tempfile.new(["mint-stale-era-", ".bluebook"])
   file.write(source)
   file.flush
-  Hecksagain.with_registry(registry) do
+  Hecks.with_registry(registry) do
     loading.load_library
     Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
     eval(translation_source) if translation_source
@@ -110,13 +110,13 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url }
   settings[:role] = role if role
-  Hecksagain::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
 end
 
 def label_of(source)
-  Hecksagain::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
+  Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
 end
 
 def edge_source(from:, to:)

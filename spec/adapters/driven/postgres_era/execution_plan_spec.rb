@@ -1,4 +1,4 @@
-require "hecksagain"
+require "hecks"
 require_relative "../../../support/postgres_probe"
 
 RSpec.describe "PostgresEra execution-plan capabilities", io: true do
@@ -6,7 +6,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", io: true do
   # at TOP LEVEL (load_hygiene_spec.rb's own "lets no two spec files
   # disagree about a top-level constant"), and postgres_era_spec.rb
   # already claims that name for a different database.
-  EXECUTION_PLAN_DB = "hecksagain_postgres_era_execution_plan_spec".freeze
+  EXECUTION_PLAN_DB = "hecks_postgres_era_execution_plan_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -33,7 +33,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", io: true do
   end
 
   def item_aggregate
-    Hecksagain::Bluebook::DSL::BluebookBuilder.build("PostgresEraPlanning") do
+    Hecks::Bluebook::DSL::BluebookBuilder.build("PostgresEraPlanning") do
       vision "PostgresEra implements the frozen atomic-put contract"
 
       aggregate "Item" do
@@ -49,18 +49,18 @@ RSpec.describe "PostgresEra execution-plan capabilities", io: true do
 
   it "atomically appends and projects while reporting insert versus replacement" do
     aggregate = item_aggregate
-    adapter = Hecksagain::Adapters::PostgresEra.new(
+    adapter = Hecks::Adapters::PostgresEra.new(
       aggregate: aggregate,
       settings:  { database: EXECUTION_PLAN_DB, domain: "PostgresEraPlanning" }
     )
-    repository = Hecksagain::Ports::Persistence::AppendOnly.new(adapter)
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
 
-    first = Hecksagain::Runtime::Instance.new(
+    first = Hecks::Runtime::Instance.new(
       aggregate: aggregate,
       id:        "sku-1",
       state:     { identity: { sku: "sku-1" }, label: { value: "First" } }
     )
-    second = Hecksagain::Runtime::Instance.new(
+    second = Hecks::Runtime::Instance.new(
       aggregate: aggregate,
       id:        "sku-1",
       state:     { identity: { sku: "sku-1" }, label: { value: "Second" } }

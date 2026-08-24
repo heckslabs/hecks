@@ -8,11 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /Users/christopheryoung/Projects/hecksagain/rust/host
+HOST_DIR := /Users/christopheryoung/Projects/hecks/rust/host
 # `domain_name`, matching bin/project_wasm's own target_mod_name
 # (a Rust-build-pipeline naming convention, not AWS resource
 # identity — see HECKS_WASM_PATH's own comment above).
-WASM     := /Users/christopheryoung/Projects/hecksagain/rust/dist/lifeadelics.wasm
+WASM     := /Users/christopheryoung/Projects/hecks/rust/dist/lifeadelics.wasm
 
 build-LifeadelicsDemoFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -27,7 +27,7 @@ build-LifeadelicsDemoFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /Users/christopheryoung/Projects/hecksagain && bin/project_wasm /Users/christopheryoung/.claude/jobs/ab113a84/tmp/lifeadelics
+	cd /Users/christopheryoung/Projects/hecks && bin/project_wasm /Users/christopheryoung/.claude/jobs/ab113a84/tmp/lifeadelics
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -39,7 +39,7 @@ build-LifeadelicsDemoFunction:
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/lifeadelics.wasm
-	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/lifeadelics.ir.json $(ARTIFACTS_DIR)/lifeadelics.ir.json
+	cp /Users/christopheryoung/Projects/hecks/rust/dist/lifeadelics.ir.json $(ARTIFACTS_DIR)/lifeadelics.ir.json
 
 # `sam build <resource>` WIPES .aws-sam/build/ entirely before
 # building just the one resource named -- confirmed live: building
@@ -64,10 +64,10 @@ restore-LifeadelicsDemoFunction-build:
 	@mkdir -p .aws-sam/build/LifeadelicsDemoFunction
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/LifeadelicsDemoFunction/bootstrap
 	cp $(WASM) .aws-sam/build/LifeadelicsDemoFunction/lifeadelics.wasm
-	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/lifeadelics.ir.json .aws-sam/build/LifeadelicsDemoFunction/lifeadelics.ir.json
+	cp /Users/christopheryoung/Projects/hecks/rust/dist/lifeadelics.ir.json .aws-sam/build/LifeadelicsDemoFunction/lifeadelics.ir.json
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "LifeadelicsDemoFunction:" } or raise "restore-LifeadelicsDemoFunction-build: LifeadelicsDemoFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-LifeadelicsDemoFunction-build: no CodeUri line found under LifeadelicsDemoFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: LifeadelicsDemoFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
-# `make mint-era` — takes hecksagain-lifeadelics-demo's RDS instance from freshly
+# `make mint-era` — takes hecks-lifeadelics-demo's RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
 # resolve" (template.yaml's own env vars already assume era 1 —
 # this is what makes that true). Run ONCE per fresh database, before
@@ -77,10 +77,10 @@ restore-LifeadelicsDemoFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /Users/christopheryoung/Projects/hecksagain
+ROOT      := /Users/christopheryoung/Projects/hecks
 DOMAIN    := /Users/christopheryoung/.claude/jobs/ab113a84/tmp/lifeadelics
-STACK     := hecksagain-lifeadelics-demo
-BASTION_STACK := hecksagain-lifeadelics-demo-bastion
+STACK     := hecks-lifeadelics-demo
+BASTION_STACK := hecks-lifeadelics-demo-bastion
 
 mint-era:
 # NOT AUTOMATED YET for a Shared-mode domain — it has no RDS/VPC
@@ -192,11 +192,11 @@ rename-schema:
 deploy:
 	sam build
 
-	@OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
-	OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
-	OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
-	OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
-	OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
-	OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
+	@OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
+	OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
+	OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
+	OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
+	OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
+	OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name hecks-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
 	sam deploy --parameter-overrides OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN
 	$(MAKE) mint-era

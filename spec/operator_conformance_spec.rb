@@ -3,7 +3,7 @@ require "json"
 
 # The grammar chapter's Operator domain, made load-bearing — BY CHECKING.
 #
-# lib/hecksagain/grammar/expression.bluebook has always declared what an
+# lib/hecks/grammar/expression.bluebook has always declared what an
 # operator IS: proposed until it reads in every target, admitted after,
 # retired when withdrawn. Nothing read it — a content-management domain
 # about operators, not the parser itself — and the evaluator's tables were
@@ -12,7 +12,7 @@ require "json"
 #
 # This spec closes the gap at this project's honest claim level,
 # agreement by checking: the admission ledger
-# (lib/hecksagain/grammar/expression_operators.json) is replayed through
+# (lib/hecks/grammar/expression_operators.json) is replayed through
 # the chapter's REAL commands — so every operator the evaluator runs
 # passed a live Admit, through the "reads in every target" guard, on
 # this very suite run — and the surviving admitted set is held equal to
@@ -29,27 +29,27 @@ require "json"
 # hence the checked-in projection (bin/expression_projection).
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT
-  LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecksagain/grammar/expression_operators.json"))).freeze
-  CHAPTER  = File.join(ROOT_DIR, "lib/hecksagain/grammar/expression.bluebook")
+  LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
+  CHAPTER  = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
 
-  Evaluator     = Hecksagain::Bluebook::Expression::Evaluator
-  Resolver      = Hecksagain::Bluebook::Expression::Resolver
-  CanonicalForm = Hecksagain::Bluebook::Expression::CanonicalForm
+  Evaluator     = Hecks::Bluebook::Expression::Evaluator
+  Resolver      = Hecks::Bluebook::Expression::Resolver
+  CanonicalForm = Hecks::Bluebook::Expression::CanonicalForm
 
   # The same boot corpus_spec proves — fresh registry, ports and adapters
   # loaded as data, the chapter itself, then a dispatcher over it. No
   # facade: the ledger dispatches by FQN, the same path MetaValidator
   # judges through.
   def self.boot_expression
-    registry = Hecksagain::Runtime::Registry.new
-    Hecksagain.with_registry(registry) do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(CHAPTER)
     end
-    Hecksagain::Runtime::Dispatcher.new(registry)
+    Hecks::Runtime::Dispatcher.new(registry)
   end
 
   def self.symbolize(value)
@@ -68,7 +68,7 @@ RSpec.describe "the operator domain" do
     begin
       DISPATCHER.dispatch(step["verb"], **symbolize(step["args"]))
       nil
-    rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => refusal
+    rescue *Hecks::Runtime::DOMAIN_REFUSALS => refusal
       "#{step['verb']} #{step['args']} — #{refusal.message}"
     end
   end.freeze
@@ -100,7 +100,7 @@ RSpec.describe "the operator domain" do
   end
 
   it "closes the triangle — the admitted comparisons are Vocabulary::Comparison's" do
-    judged     = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    judged     = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     vocabulary = judged.aggregates.find { |a| a.name == "Vocabulary" }
     declared   = vocabulary.value_objects.find { |vo| vo.hecks_name == "Comparison" }
                            .members.map { |row| row.to_h.values.first }
@@ -229,9 +229,9 @@ RSpec.describe "the operator domain" do
     # the chapter to fix itself. bin/expression_projection refuses to
     # write such a projection; this is the same refusal, in-suite, ahead
     # of any regeneration.
-    require "hecksagain/grammar"
-    stranded = Hecksagain::Grammar.self_bearing_operators
-                                  .reject { |symbol, _| symbols(ADMITTED).include?(symbol) }
+    require "hecks/grammar"
+    stranded = Hecks::Grammar.self_bearing_operators
+                             .reject { |symbol, _| symbols(ADMITTED).include?(symbol) }
 
     expect(stranded).to be_empty,
                         stranded.map { |symbol, sites|
@@ -249,7 +249,7 @@ RSpec.describe "the operator domain" do
                          position: { value: 9 })
 
       expect { throwaway.dispatch("Expression::Operator.Admit", symbol: { value: "**" }) }
-        .to raise_error(Hecksagain::Runtime::GivenNotMet,
+        .to raise_error(Hecks::Runtime::GivenNotMet,
                         /an operator must read in every target before it is admitted/)
     end
 
@@ -268,7 +268,7 @@ RSpec.describe "the operator domain" do
       expect do
         throwaway.dispatch("Expression::Operator.Render",
                            symbol: { value: "**" }, target: { value: "go" }, form: { value: "a ** b" })
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, /a retired operator takes no new renderings/)
+      end.to raise_error(Hecks::Runtime::GivenNotMet, /a retired operator takes no new renderings/)
     end
 
     it "gives a spelling the ledger never admitted the ordinary unknown refusal" do
@@ -276,7 +276,7 @@ RSpec.describe "the operator domain" do
       # refusal is the same one any unresolvable spelling gets; nothing
       # about the lifecycle invents a third wording.
       expect { Evaluator.call("a ** b", {}) }
-        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /cannot resolve/)
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot resolve/)
     end
   end
 end

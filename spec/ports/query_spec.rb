@@ -1,8 +1,8 @@
 require "spec_helper"
 
-RSpec.describe Hecksagain::Ports::Query do
+RSpec.describe Hecks::Ports::Query do
   let(:specification) do
-    Hecksagain::Bluebook::Query.new(name: "Accounts")
+    Hecks::Bluebook::Query.new(name: "Accounts")
   end
 
   it "uses an adapter's single native query hook" do
@@ -22,10 +22,10 @@ RSpec.describe Hecksagain::Ports::Query do
   end
 
   it "rejects contradictory pagination before an adapter is called" do
-    specification = Hecksagain::Bluebook::Query.new(
+    specification = Hecks::Bluebook::Query.new(
       name:   "Accounts",
-      offset: Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 5),
-      cursor: Hecksagain::QuerySpecification::Common::CursorSpec.new(value: "next")
+      offset: Hecks::QuerySpecification::Common::OffsetSpec.new(value: 5),
+      cursor: Hecks::QuerySpecification::Common::CursorSpec.new(value: "next")
     )
     adapter = Struct.new(:called) do
       def query(*) = self.called = true

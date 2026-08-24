@@ -119,12 +119,12 @@ RSpec.describe "the translation scaffold" do
   BLUEBOOK
 
   def parse(source)
-    registry = Hecksagain::Runtime::Registry.new
-    loading = Hecksagain::Ports::Loading.bootstrap
+    registry = Hecks::Runtime::Registry.new
+    loading = Hecks::Ports::Loading.bootstrap
     file = Tempfile.new(["scaffold-", ".bluebook"])
     file.write(source)
     file.flush
-    Hecksagain.with_registry(registry) do
+    Hecks.with_registry(registry) do
       loading.load_library
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
     end
@@ -133,7 +133,7 @@ RSpec.describe "the translation scaffold" do
     file&.close!
   end
 
-  let(:diffed) { Hecksagain::Translation::Scaffold.diff(parse(SCAFFOLD_HELD), parse(SCAFFOLD_CURRENT)) }
+  let(:diffed) { Hecks::Translation::Scaffold.diff(parse(SCAFFOLD_HELD), parse(SCAFFOLD_CURRENT)) }
 
   def order_rules
     diffed[:aggregates].find { |aggregate| aggregate.name == "Order" }.rules
@@ -209,60 +209,60 @@ RSpec.describe "the translation scaffold" do
   BLUEBOOK
 
   it "hints at a rekey rule when identified_by changed, even with every attribute otherwise unchanged" do
-    diffed = Hecksagain::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))
+    diffed = Hecks::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))
     rules = diffed[:aggregates].find { |aggregate| aggregate.name == "Person" }.rules
 
     expect(rules).to eq([{ kind: :unresolved, from: :identity, candidates: [] }])
   end
 
   it "renders the identity hint as an unresolved line that refuses toward rekey, not the generic message" do
-    edge = Hecksagain::Translation::Scaffold::Edge.new(
+    edge = Hecks::Translation::Scaffold::Edge.new(
       domain: "Roster", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
-      aggregates: Hecksagain::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))[:aggregates],
+      aggregates: Hecks::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))[:aggregates],
       retired: []
     )
-    rendered = Hecksagain::Translation::Scaffold.render(edge)
+    rendered = Hecks::Translation::Scaffold.render(edge)
     expect(rendered).to include("unresolved :identity, candidates: []")
 
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     expect do
-      Hecksagain.with_registry(registry) { eval(rendered) }
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /Declare a rekey rule/)
+      Hecks.with_registry(registry) { eval(rendered) }
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /Declare a rekey rule/)
   end
 
   it "renders a file that can only boot into a refusal while unresolved lines remain" do
-    edge = Hecksagain::Translation::Scaffold::Edge.new(
+    edge = Hecks::Translation::Scaffold::Edge.new(
       domain: "Orders", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
       aggregates: diffed[:aggregates], retired: diffed[:retired]
     )
-    rendered = Hecksagain::Translation::Scaffold.render(edge)
+    rendered = Hecks::Translation::Scaffold.render(edge)
     expect(rendered).to include("unresolved :pen, candidates: [:pencil, :stylus]")
 
-    registry = Hecksagain::Runtime::Registry.new
+    registry = Hecks::Runtime::Registry.new
     expect do
-      Hecksagain.with_registry(registry) { eval(rendered) }
-    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /unresolved/)
+      Hecks.with_registry(registry) { eval(rendered) }
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /unresolved/)
   end
 
   it "regenerates the file in place, matched by shape pair" do
     Dir.mktmpdir do |dir|
-      edge = Hecksagain::Translation::Scaffold::Edge.new(
+      edge = Hecks::Translation::Scaffold::Edge.new(
         domain: "Orders", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
         aggregates: [], retired: ["Shed"]
       )
-      first = Hecksagain::Translation::Scaffold.write!(dir, edge)
+      first = Hecks::Translation::Scaffold.write!(dir, edge)
       expect(File.basename(first)).to eq("2-b81d04.bluebook")
 
       edge.retired = []
-      second = Hecksagain::Translation::Scaffold.write!(dir, edge)
+      second = Hecks::Translation::Scaffold.write!(dir, edge)
       expect(second).to eq(first)
       expect(Dir[File.join(dir, "translations", "*.bluebook")].size).to eq(1)
 
-      other = Hecksagain::Translation::Scaffold::Edge.new(
+      other = Hecks::Translation::Scaffold::Edge.new(
         domain: "Orders", from: "b81d04", to: "c92e15", ordinal: 3, label: "c92e15",
         aggregates: [], retired: []
       )
-      Hecksagain::Translation::Scaffold.write!(dir, other)
+      Hecks::Translation::Scaffold.write!(dir, other)
       expect(Dir[File.join(dir, "translations", "*.bluebook")].size).to eq(2)
     end
   end

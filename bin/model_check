@@ -18,8 +18,8 @@
 # — the checker checks the language too.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require "hecksagain"
-require "hecksagain/bluebook/model_check"
+require "hecks"
+require "hecks/bluebook/model_check"
 
 ROOT = File.expand_path("..", __dir__)
 
@@ -31,13 +31,13 @@ def bluebook_in(domain)
 end
 
 def boot(source)
-  registry = Hecksagain::Runtime::Registry.new
-  Hecksagain.with_registry(registry) do
-    Kernel.load(File.join(ROOT, "lib/hecksagain/ports/persistence.port"))
-    Kernel.load(File.join(ROOT, "lib/hecksagain/ports/extraction.port"))
-    Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter"))
-    Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter"))
-    folder = Hecksagain::Adapters::Folder.new
+  registry = Hecks::Runtime::Registry.new
+  Hecks.with_registry(registry) do
+    Kernel.load(File.join(ROOT, "lib/hecks/ports/persistence.port"))
+    Kernel.load(File.join(ROOT, "lib/hecks/ports/extraction.port"))
+    Kernel.load(File.join(ROOT, "lib/hecks/adapters/driven/memory.adapter"))
+    Kernel.load(File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter"))
+    folder = Hecks::Adapters::Folder.new
     if File.directory?(source)
       folder.load_bluebooks(source)
     else
@@ -65,9 +65,9 @@ def examine(name, source)
   puts "── #{name}"
 
   chapters = boot(source)
-  findings = chapters.flat_map { |chapter| Hecksagain::Bluebook::ModelCheck.call(chapter) }
+  findings = chapters.flat_map { |chapter| Hecks::Bluebook::ModelCheck.call(chapter) }
 
-  allowed = Hecksagain::Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
+  allowed = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
   matched, findings = findings.partition { |f| allowed.include?([f.kind, f.subject]) }
   matched.each { |f| puts "   ALLOWLISTED  #{f}" }
 
@@ -97,11 +97,11 @@ end
 def examine_language
   ok = true
   %w[Bluebook World].each do |name|
-    chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook(name)
+    chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
     next unless chapter
 
     puts "── #{name} (the language itself)"
-    findings = Hecksagain::Bluebook::ModelCheck.call(chapter)
+    findings = Hecks::Bluebook::ModelCheck.call(chapter)
     if findings.empty?
       puts "   clean — no dead states, no unreachable protocol steps"
     else
@@ -116,7 +116,7 @@ end
 
 domain_arg = ARGV.shift
 example_domains = Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }
-grammar_chapters = Dir.glob("#{ROOT}/lib/hecksagain/grammar/*.bluebook").sort
+grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook").sort
 # THE FRAMEWORK MEMBERS, which spec/model_check_spec.rb has always walked
 # (its own MODEL_CHECK_FRAMEWORK_MEMBERS) and this script never did — so the
 # suite checked Governance and Identity while `bin/model_check` reported
@@ -124,7 +124,7 @@ grammar_chapters = Dir.glob("#{ROOT}/lib/hecksagain/grammar/*.bluebook").sort
 # EXAMPLE_ROOTS-shaped, for the reason corpus_spec.rb's own comment gives:
 # these are framework chapters, not teaching examples with a bluebook/
 # subfolder each.
-framework_members = Dir.glob("#{ROOT}/lib/hecksagain/framework/bluebook/*.bluebook").sort
+framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook").sort
 
 if domain_arg
   ok = examine(File.basename(domain_arg.chomp("/")), bluebook_in(domain_arg.chomp("/")) || domain_arg)

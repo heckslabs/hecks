@@ -195,7 +195,7 @@ mod tests {
 
     // THE REAL CROSS-CHECK — not a self-consistent Rust-only fixture
     // like the three tests below it, but Ruby's OWN literal output for
-    // a real compute+rekey edge (Hecksagain::Translation::Audit.
+    // a real compute+rekey edge (Hecks::Translation::Audit.
     // edge_digest, run for real against a bluebook matching mint_and_
     // seed_lineage_compute.rb's own shape), pasted in verbatim. If
     // Rust's edge_digest ever disagrees with Ruby's for identical

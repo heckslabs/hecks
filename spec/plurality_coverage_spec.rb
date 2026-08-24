@@ -33,7 +33,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   # entirely. A list that never reaches the wire cannot be counted on the wire,
   # and asking the contract is how this avoids a hand-kept translation table.
   def derived?(category, field)
-    contract = Hecksagain::Bluebook::Assembly.contract(category)
+    contract = Hecks::Bluebook::Assembly.contract(category)
     contract.derived.key?(field)
   rescue KeyError
     false
@@ -61,7 +61,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   # down rather than skipped.
   ALLOWED_SINGLETON = {
     # ADR 0026, S15 — genuinely filled with two, for real, on the one
-    # chapter that calls it: lib/hecksagain/language/bluebook/attaches/
+    # chapter that calls it: lib/hecks/language/bluebook/attaches/
     # paging.bluebook declares `attaches_to "Query", "ReadModel"`. Not
     # visible to THIS check because it walks spec/golden/ir/*.json, and
     # Paging carries no golden fixture of its own (it is a grammar
@@ -116,7 +116,7 @@ RSpec.describe "every list the language declares, filled more than once" do
 
   # Every `list_of` field on every category the language uses to describe itself.
   def declared_lists
-    language = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    language = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     language.aggregates.flat_map do |category|
       category.attributes.select(&:list?).map { |field| [category.hecks_name, field.name] }
     end
