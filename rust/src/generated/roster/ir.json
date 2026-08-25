@@ -23,6 +23,26 @@
           "relationship": null
         },
         {
+          "name": "motto",
+          "type": "Motto",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "mood",
+          "type": "Mood",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "seats",
           "type": "Seat",
           "list": true,
@@ -68,12 +88,88 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Motto",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Mood",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
           "members": [
-
+            [
+              [
+                "value",
+                "open"
+              ]
+            ],
+            [
+              [
+                "value",
+                "busy"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "Rank",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "hand"
+              ]
+            ],
+            [
+              [
+                "value",
+                "officer"
+              ]
+            ]
           ]
         },
         {
@@ -90,13 +186,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SeatNumber",
@@ -112,13 +204,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Age",
@@ -134,13 +222,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Row",
@@ -156,9 +240,7 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -199,13 +281,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Assignment",
@@ -231,13 +309,9 @@
               "relationship": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -258,14 +332,27 @@
               "relationship": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
-
+            {
+              "target": "motto",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "all hands"
+              }
+            },
+            {
+              "target": "mood",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "open"
+              }
+            }
           ],
           "emits": [
             "RosterOpened"
@@ -306,9 +393,7 @@
               "canonical": "seats.none? { |s| s.number.value == number.value }"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "seats",
@@ -363,9 +448,7 @@
               "canonical": "seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } }"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "crew",
@@ -373,7 +456,8 @@
               "sign": "",
               "fields": {
                 "id": ":id",
-                "age": ":age"
+                "age": ":age",
+                "rank": "\"hand\""
               }
             }
           ],
@@ -432,9 +516,7 @@
               "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\" || crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "assignments",
@@ -444,6 +526,15 @@
                 "member": ":member",
                 "number": ":number"
               }
+            },
+            {
+              "target": "mood",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "busy"
+              }
             }
           ],
           "emits": [
@@ -451,17 +542,44 @@
           ],
           "from": null,
           "provenance": null
+        },
+        {
+          "name": "Retire",
+          "role": null,
+          "goal": "Retire one member, on the caller's behalf",
+          "references": "Roster",
+          "attributes": [
+            {
+              "name": "id",
+              "type": "MemberId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "Member.Retire",
+              "op": "delegate",
+              "sign": "",
+              "fields": {
+                "id": ":id"
+              }
+            }
+          ],
+          "emits": [],
+          "from": null,
+          "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -490,47 +608,71 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "rank",
+              "type": "Rank",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "commands": [
-
+            {
+              "name": "Retire",
+              "role": null,
+              "goal": "Leave the crew — unless seated in the front row, and never as the last one serving",
+              "references": null,
+              "attributes": [],
+              "givens": [
+                {
+                  "description": "a front-row holder may not retire",
+                  "canonical": "parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == \"front\" } }"
+                }
+              ],
+              "ensures": [
+                {
+                  "description": "someone still serves",
+                  "canonical": "parent.crew.any? { |m| m.status == \"active\" }"
+                }
+              ],
+              "mutations": [],
+              "emits": [
+                "MemberRetired"
+              ],
+              "from": null,
+              "provenance": null
+            }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
-          "lifecycle": null
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
+          "lifecycle": {
+            "field": "status",
+            "default": "active",
+            "transitions": [
+              {
+                "command": "Retire",
+                "to_state": "retired",
+                "from_state": "active"
+              }
+            ]
+          }
         }
       ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "queries": [],
+      "ports": [],
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -555,8 +697,6 @@
       }
     ]
   },
-  "translations": [
-
-  ],
-  "source_text": "Hecks.bluebook \"Roster\" do\n  vision \"A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.\"\n  supporting\n\n  # THE ENUMERATION OPERATORS' OWN EXAMPLE. Every given below is a block\n  # predicate — `.none?`/`.any?`/`.all?`/`.find { |x| … }` — over one of\n  # three list attributes (a value-object list, an entity list, a\n  # value-object list holding references), including one block nested\n  # inside another that reads the outer block's own parameter. That is\n  # the shape the chess and shipping domains lean on for every occupancy,\n  # path-clearance, and itinerary rule, reduced to the fewest moving\n  # parts that still exercise each operator on each element kind — so\n  # `spec/corpus/rust_conformance/roster.json` can hold the Rust kernel's\n  # `expression_operators/enumeration.rs` to Ruby's own\n  # `Resolver#evaluate_block_predicate`/`#found_of`, dispatch for\n  # dispatch, refusal for refusal.\n  aggregate \"Roster\" do\n    description \"One roster: its seats, its crew, and who sits where.\"\n\n    attribute :name,        RosterName\n    attribute :seats,       list_of(Seat)\n    attribute :crew,        list_of(Member)\n    attribute :assignments, list_of(Assignment)\n\n    identified_by :name\n\n    value_object(\"RosterName\") { attribute :value, String }\n    value_object(\"MemberId\")   { attribute :value, String }\n    value_object(\"SeatNumber\") { attribute :value, Integer }\n    value_object(\"Age\")        { attribute :value, Integer }\n\n    value_object \"Row\" do\n      attribute :value, String, one_of: [\"front\", \"back\"]\n    end\n\n    value_object \"Seat\" do\n      attribute :number, SeatNumber\n      attribute :row,    Row\n    end\n\n    value_object \"Assignment\" do\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n    end\n\n    entity \"Member\" do\n      description \"One enlisted member — an entity, so the crew list's elements are entity records, not value objects.\"\n\n      attribute :id,  MemberId\n      attribute :age, Age\n\n      identified_by :id\n    end\n\n    command \"Open\" do\n      goal \"Start an empty roster\"\n\n      attribute :name, RosterName\n\n      emits \"RosterOpened\"\n    end\n\n    command \"AddSeat\" do\n      goal \"Add a numbered seat in the front or back row — numbers never repeat\"\n\n      reference_to Roster\n      attribute :number, SeatNumber\n      attribute :row,    Row\n\n      given(\"seat numbers are unique\") { seats.none? { |s| s.number.value == number.value } }\n\n      sets :seats, append: { number: :number, row: :row }\n\n      emits \"SeatAdded\"\n    end\n\n    command \"Enlist\" do\n      goal \"Enlist a member while a seat is still free for them — nobody enlists twice\"\n\n      reference_to Roster\n      attribute :id,  MemberId\n      attribute :age, Age\n\n      given(\"nobody enlists twice\") { crew.none? { |m| m.id.value == id.value } }\n      # A block INSIDE a block, the inner one reading the outer one's own\n      # parameter — \"some seat has no assignment naming its number\".\n      given(\"an open seat remains\") { seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } } }\n\n      sets :crew, append: { id: :id, age: :age }\n\n      emits \"MemberEnlisted\"\n    end\n\n    command \"Assign\" do\n      goal \"Seat an enlisted member in an existing, free seat — once; the front row is for members of age\"\n\n      reference_to Roster\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n\n      given(\"the member is enlisted\")       { crew.any? { |m| m.id.value == member.value } }\n      given(\"the seat exists\")              { seats.any? { |s| s.number.value == number.value } }\n      given(\"the seat is free\")             { assignments.none? { |a| a.number.value == number.value } }\n      given(\"the member sits nowhere else\") { assignments.none? { |a| a.member.value == member.value } }\n      # `.find { }` projected through a path, OR'd with an `.all?` whose\n      # predicate is an implication over the whole crew.\n      given(\"a front-row seat takes a member of age\") do\n        seats.find { |s| s.number.value == number.value }.row.value == \"back\" ||\n          crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }\n      end\n\n      sets :assignments, append: { member: :member, number: :number }\n\n      emits \"SeatAssigned\"\n    end\n  end\nend\n"
+  "translations": [],
+  "source_text": "Hecks.bluebook \"Roster\" do\n  vision \"A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.\"\n  supporting\n\n  # THE ENUMERATION OPERATORS' OWN EXAMPLE. Every given below is a block\n  # predicate — `.none?`/`.any?`/`.all?`/`.find { |x| … }` — over one of\n  # three list attributes (a value-object list, an entity list, a\n  # value-object list holding references), including one block nested\n  # inside another that reads the outer block's own parameter. That is\n  # the shape the chess and shipping domains lean on for every occupancy,\n  # path-clearance, and itinerary rule, reduced to the fewest moving\n  # parts that still exercise each operator on each element kind — so\n  # `spec/corpus/rust_conformance/roster.json` can hold the Rust kernel's\n  # `expression_operators/enumeration.rs` to Ruby's own\n  # `Resolver#evaluate_block_predicate`/`#found_of`, dispatch for\n  # dispatch, refusal for refusal.\n  aggregate \"Roster\" do\n    description \"One roster: its seats, its crew, and who sits where.\"\n\n    attribute :name,        RosterName\n    attribute :motto,       Motto\n    attribute :mood,        Mood\n    attribute :seats,       list_of(Seat)\n    attribute :crew,        list_of(Member)\n    attribute :assignments, list_of(Assignment)\n\n    identified_by :name\n\n    value_object(\"RosterName\") { attribute :value, String }\n    # SCALAR LITERALS INTO SINGLE-FIELD VALUE OBJECTS — `sets :motto, to:\n    # \"all hands\"` (a plain one-field VO), `sets :mood, to: \"open\"` and\n    # `to: \"busy\"` (a closed set), and Enlist's `rank: \"hand\"` appended\n    # into an entity's own closed-set field: the runtime's own rewrap of\n    # a bare literal into the sole field, which every projection has to\n    # bridge the same way (a chess rook's `sets :moved, to: \"moved\"`).\n    value_object(\"Motto\") { attribute :value, String }\n\n    value_object \"Mood\" do\n      attribute :value, String, one_of: [\"open\", \"busy\"]\n    end\n\n    value_object \"Rank\" do\n      attribute :value, String, one_of: [\"hand\", \"officer\"]\n    end\n    value_object(\"MemberId\")   { attribute :value, String }\n    value_object(\"SeatNumber\") { attribute :value, Integer }\n    value_object(\"Age\")        { attribute :value, Integer }\n\n    value_object \"Row\" do\n      attribute :value, String, one_of: [\"front\", \"back\"]\n    end\n\n    value_object \"Seat\" do\n      attribute :number, SeatNumber\n      attribute :row,    Row\n    end\n\n    value_object \"Assignment\" do\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n    end\n\n    entity \"Member\" do\n      description \"One enlisted member — an entity, so the crew list's elements are entity records, not value objects.\"\n\n      attribute :id,   MemberId\n      attribute :age,  Age\n      attribute :rank, Rank\n\n      identified_by :id\n\n      lifecycle :status, default: \"active\" do\n        transition \"Retire\" => \"retired\", from: \"active\"\n      end\n\n      # THE ENTITY COMMAND A DOOR DELEGATES TO — see `Roster.Retire` below.\n      # Its given and its ensures both read `parent`: the given the\n      # roster as it stands (a front-row holder may not leave), the\n      # ensures the roster AFTER this member's own status has changed\n      # (someone must still be serving) — the second is only right if the\n      # parent seen by the ensures already carries the mutated element.\n      command \"Retire\" do\n        goal \"Leave the crew — unless seated in the front row, and never as the last one serving\"\n\n        given(\"a front-row holder may not retire\") do\n          parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == \"front\" } }\n        end\n\n        ensures(\"someone still serves\") { parent.crew.any? { |m| m.status == \"active\" } }\n\n        emits \"MemberRetired\"\n      end\n    end\n\n    command \"Open\" do\n      goal \"Start an empty roster\"\n\n      attribute :name, RosterName\n\n      sets :motto, to: \"all hands\"\n      sets :mood,  to: \"open\"\n\n      emits \"RosterOpened\"\n    end\n\n    command \"AddSeat\" do\n      goal \"Add a numbered seat in the front or back row — numbers never repeat\"\n\n      reference_to Roster\n      attribute :number, SeatNumber\n      attribute :row,    Row\n\n      given(\"seat numbers are unique\") { seats.none? { |s| s.number.value == number.value } }\n\n      sets :seats, append: { number: :number, row: :row }\n\n      emits \"SeatAdded\"\n    end\n\n    command \"Enlist\" do\n      goal \"Enlist a member while a seat is still free for them — nobody enlists twice\"\n\n      reference_to Roster\n      attribute :id,  MemberId\n      attribute :age, Age\n\n      given(\"nobody enlists twice\") { crew.none? { |m| m.id.value == id.value } }\n      # A block INSIDE a block, the inner one reading the outer one's own\n      # parameter — \"some seat has no assignment naming its number\".\n      given(\"an open seat remains\") { seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } } }\n\n      sets :crew, append: { id: :id, age: :age, rank: \"hand\" }\n\n      emits \"MemberEnlisted\"\n    end\n\n    command \"Assign\" do\n      goal \"Seat an enlisted member in an existing, free seat — once; the front row is for members of age\"\n\n      reference_to Roster\n      attribute :member, MemberId\n      attribute :number, SeatNumber\n\n      given(\"the member is enlisted\")       { crew.any? { |m| m.id.value == member.value } }\n      given(\"the seat exists\")              { seats.any? { |s| s.number.value == number.value } }\n      given(\"the seat is free\")             { assignments.none? { |a| a.number.value == number.value } }\n      given(\"the member sits nowhere else\") { assignments.none? { |a| a.member.value == member.value } }\n      # `.find { }` projected through a path, OR'd with an `.all?` whose\n      # predicate is an implication over the whole crew.\n      given(\"a front-row seat takes a member of age\") do\n        seats.find { |s| s.number.value == number.value }.row.value == \"back\" ||\n          crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }\n      end\n\n      sets :assignments, append: { member: :member, number: :number }\n      sets :mood, to: \"busy\"\n\n      emits \"SeatAssigned\"\n    end\n\n    # THE DOOR — `delegates_to`: the roster-level command a caller\n    # dispatches, handing the SAME dispatch to one member's own Retire,\n    # atomically: the member's refusal is this command's refusal, its\n    # event is this command's event. `with:` names which door argument\n    # feeds which target argument (here the element's own identity).\n    command \"Retire\" do\n      goal \"Retire one member, on the caller's behalf\"\n\n      reference_to Roster\n      attribute :id, MemberId\n\n      delegates_to \"Member.Retire\", with: { id: :id }\n    end\n  end\nend\n"
 }
