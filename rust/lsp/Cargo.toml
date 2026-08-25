@@ -1,0 +1,33 @@
+[package]
+name = "hecks_lsp"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate — same reasoning rust/host's, rust/web's, and
+# rust/parser's own Cargo.toml already give for themselves: makes THIS
+# crate its own workspace root (own target/, own Cargo.lock) instead of
+# Cargo folding it into whatever workspace `rust` (the kernel crate, a
+# separate sibling directory) might belong to.
+[workspace]
+
+[[bin]]
+name = "hecks-lsp"
+path = "src/main.rs"
+
+# NO DEPENDENCIES beyond std. This is a judgment call, not a house rule —
+# rust/host takes on tokio/wasmtime/aws-sdk-* freely (its own Cargo.toml
+# explains why: it's a deployed service where those genuinely earn their
+# keep). This crate is closer to rust/parser/rust/build/rust/codegen:
+# a small, synchronous, one-request-at-a-time local tool. LSP's own
+# stdio framing (`Content-Length: N\r\n\r\n<N bytes>`) is a handful of
+# lines by hand, and src/json.rs vendors the same minimal parse/write
+# pair rust/build/src/json.rs already vendors rather than pulling in
+# serde_json for it — same rationale that file's own header gives:
+# restructuring any sibling crate into a shared library was already
+# rejected (see that file's header), and a fourth copy of ~450 lines
+# costs nothing a real dependency wouldn't also cost in a much less
+# auditable form. If this crate later needs real concurrency (serving
+# more than one editor request at a time) revisit this — nothing here
+# is a categorical objection to a dependency, just that none has earned
+# its way in yet.
+[dependencies]
