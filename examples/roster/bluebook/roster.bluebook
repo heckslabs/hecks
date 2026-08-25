@@ -18,6 +18,8 @@ Hecks.bluebook "Roster" do
     description "One roster: its seats, its crew, and who sits where."
 
     attribute :name,        RosterName
+    attribute :motto,       Motto
+    attribute :mood,        Mood
     attribute :seats,       list_of(Seat)
     attribute :crew,        list_of(Member)
     attribute :assignments, list_of(Assignment)
@@ -25,6 +27,21 @@ Hecks.bluebook "Roster" do
     identified_by :name
 
     value_object("RosterName") { attribute :value, String }
+    # SCALAR LITERALS INTO SINGLE-FIELD VALUE OBJECTS — `sets :motto, to:
+    # "all hands"` (a plain one-field VO), `sets :mood, to: "open"` and
+    # `to: "busy"` (a closed set), and Enlist's `rank: "hand"` appended
+    # into an entity's own closed-set field: the runtime's own rewrap of
+    # a bare literal into the sole field, which every projection has to
+    # bridge the same way (a chess rook's `sets :moved, to: "moved"`).
+    value_object("Motto") { attribute :value, String }
+
+    value_object "Mood" do
+      attribute :value, String, one_of: ["open", "busy"]
+    end
+
+    value_object "Rank" do
+      attribute :value, String, one_of: ["hand", "officer"]
+    end
     value_object("MemberId")   { attribute :value, String }
     value_object("SeatNumber") { attribute :value, Integer }
     value_object("Age")        { attribute :value, Integer }
@@ -46,8 +63,9 @@ Hecks.bluebook "Roster" do
     entity "Member" do
       description "One enlisted member — an entity, so the crew list's elements are entity records, not value objects."
 
-      attribute :id,  MemberId
-      attribute :age, Age
+      attribute :id,   MemberId
+      attribute :age,  Age
+      attribute :rank, Rank
 
       identified_by :id
 
@@ -79,6 +97,9 @@ Hecks.bluebook "Roster" do
 
       attribute :name, RosterName
 
+      sets :motto, to: "all hands"
+      sets :mood,  to: "open"
+
       emits "RosterOpened"
     end
 
@@ -108,7 +129,7 @@ Hecks.bluebook "Roster" do
       # parameter — "some seat has no assignment naming its number".
       given("an open seat remains") { seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } } }
 
-      sets :crew, append: { id: :id, age: :age }
+      sets :crew, append: { id: :id, age: :age, rank: "hand" }
 
       emits "MemberEnlisted"
     end
@@ -132,6 +153,7 @@ Hecks.bluebook "Roster" do
       end
 
       sets :assignments, append: { member: :member, number: :number }
+      sets :mood, to: "busy"
 
       emits "SeatAssigned"
     end

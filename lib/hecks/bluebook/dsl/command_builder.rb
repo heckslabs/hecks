@@ -481,7 +481,16 @@ module Hecks
         end
 
         def resolve_bare_set!(mutation)
-          return unless mutation.source.to_s == mutation.target.to_s
+          # A SYMBOL naming its own target — never a literal that merely
+          # spells the same word. `sets :moved, to: "moved"` (a chess rook
+          # recording that it has moved, into a closed set whose member is
+          # literally "moved") used to read as the shorthand and import
+          # the owner's `moved` attribute onto the command — a phantom
+          # argument nothing ever passes, harmless at runtime only
+          # because the owner's default filled it, and a real, silent
+          # divergence for every projection that reads the command's
+          # declared arguments.
+          return unless mutation.source.is_a?(Symbol) && mutation.source.to_s == mutation.target.to_s
           return if attributes.any? { |attr| attr.name == mutation.target }
 
           owner_attr = @owner_attributes.find { |attr| attr.name == mutation.target }

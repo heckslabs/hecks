@@ -229,7 +229,7 @@ module RustProjection
     def append_field_source(source) = Hecks::Bluebook::Assembly::Marks.read(source)
 
     def literal_problem(mutation, field_name, literal, field_attr, value_objects_by_name)
-      return nil if literal.is_a?(Hash) && literal_hash_bridgeable?(literal, field_attr[:type], value_objects_by_name)
+      return nil if literal_set_bridgeable?(literal, field_attr[:type], value_objects_by_name)
 
       "#{mutation[:target]}.#{field_name}: literal doesn't bridge to #{field_attr[:type]}"
     end
@@ -288,10 +288,7 @@ module RustProjection
     # `bridgeable_value_types?`/`value_rhs`'s shared job.
     def mutation_set_rhs(source, target_type, command, value_objects_by_name)
       if source[:kind] == "literal"
-        value = source[:value]
-        return literal_hash_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
-
-        return literal_rhs(value)
+        return literal_rhs_for(source[:value], target_type, value_objects_by_name)
       end
 
       source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
@@ -437,7 +434,7 @@ module RustProjection
     # unwraps instead.
     def append_field_rhs(source, field_attr, command, value_objects_by_name)
       parsed = append_field_source(source)
-      return literal_hash_rhs(parsed, field_attr[:type], value_objects_by_name) unless parsed.is_a?(Symbol)
+      return literal_rhs_for(parsed, field_attr[:type], value_objects_by_name) unless parsed.is_a?(Symbol)
 
       arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
       arg_expr = "args.#{rust_ident_field(arg_attr[:name])}"

@@ -77,10 +77,8 @@ pub fn append_field_source(source: &str) -> Literal {
 }
 
 pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
-    if let Literal::Hash(_) = lit {
-        if crate::bridging::literal_hash_bridgeable(lit, crate::attr::type_name(field_attr), value_objects_by_name) {
-            return None;
-        }
+    if crate::bridging::literal_set_bridgeable(lit, Some(crate::attr::type_name(field_attr)), value_objects_by_name) {
+        return None;
     }
     let target = mutation.get("target").map(Json::to_s).unwrap_or_default();
     Some(format!("{target}.{field_name}: literal doesn't bridge to {}", crate::attr::type_name(field_attr)))
@@ -207,10 +205,7 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
 pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     if source.get("kind").map(Json::to_s).unwrap_or_default() == "literal" {
         let value = source.get("value").unwrap_or(&Json::Null);
-        if let Json::Object(_) = value {
-            return crate::bridging::literal_hash_rhs(&Literal::from_json(value), target_type, value_objects_by_name);
-        }
-        return naming::literal_rhs(value);
+        return crate::bridging::literal_rhs_for(&Literal::from_json(value), Some(target_type), value_objects_by_name);
     }
 
     let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
@@ -294,7 +289,7 @@ pub fn build_identity_expr(components: &[IdentityComponent]) -> String {
 pub fn append_field_rhs(source: &str, field_attr: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     let parsed = append_field_source(source);
     let Literal::Symbol(arg_name) = &parsed else {
-        return crate::bridging::literal_hash_rhs(&parsed, crate::attr::type_name(field_attr), value_objects_by_name);
+        return crate::bridging::literal_rhs_for(&parsed, Some(crate::attr::type_name(field_attr)), value_objects_by_name);
     };
 
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);

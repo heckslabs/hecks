@@ -135,10 +135,33 @@ module RustProjection
     end
 
     def literal_set_bridgeable?(value, target_type, value_objects_by_name)
-      return true if value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
-      return false unless value.is_a?(Hash) && target_type
+      return literal_hash_bridgeable?(value, target_type, value_objects_by_name) if value.is_a?(Hash) && target_type
+      return false if value.is_a?(Hash)
+      return false unless value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
+      return true unless target_type && value_objects_by_name[target_type]
 
-      literal_hash_bridgeable?(value, target_type, value_objects_by_name)
+      # A SCALAR literal into a SINGLE-FIELD value object — `Value.
+      # for_attribute`'s own rewrap, the coercion every `sets :x, to:
+      # "literal"` onto a closed set (a chess rook's `moved: "moved"`)
+      # or a plain one-field VO relies on at runtime: the literal is the
+      # sole field's value, and bridges exactly as the hash it stands for.
+      sole = sole_field_of(target_type, value_objects_by_name)
+      return false unless sole
+
+      literal_hash_bridgeable?({ sole => value }, target_type, value_objects_by_name)
+    end
+
+    # The rendered right-hand side of ANY literal into a target type —
+    # a Hash through `literal_hash_rhs`, a scalar into a single-field
+    # value object through the same after the rewrap above, a scalar
+    # into a scalar as itself.
+    def literal_rhs_for(value, target_type, value_objects_by_name)
+      return literal_hash_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
+
+      sole = target_type && value_objects_by_name[target_type] && sole_field_of(target_type, value_objects_by_name)
+      return literal_hash_rhs({ sole => value }, target_type, value_objects_by_name) if sole
+
+      literal_rhs(value)
     end
 
     # A literal Hash's own bridgeability into a target type — either an
