@@ -6,9 +6,10 @@ require_relative "../runtime/reaction_invocation"
 
 # Hecks::Behaviors::Expectations
 #
-# One test case, start to finish: boot a fresh runtime scoped to exactly
-# what the suite's own `loads` names, replay `setup` dispatches, dispatch
-# (or query) the command under test, check `expect`. Split out of
+# One test case, start to finish: take the suite's own runtime (booted
+# once for exactly what its `loads` names, reset to nothing between
+# tests — `runtime_for`), replay `setup` dispatches, dispatch (or query)
+# the command under test, check `expect`. Split out of
 # runner.rb the same way the file-count/sweep concern is split from a
 # single test's own execution.
 #
@@ -42,8 +43,9 @@ module Hecks
       REFUSAL_CLASSES = Hecks::Runtime::DOMAIN_REFUSALS
       SPECIAL_KEYS = %i[ok refused emits count].freeze
 
-      def run_one(test, suite)
-        runtime = Hecks::Runtime::Loader.boot_files(suite.loads, install_facade: false)
+      def run_one(test, suite, runtime: nil)
+        runtime ||= runtime_for(suite)
+        runtime.registry.reset_runtime_state!
         bluebooks = runtime.registry.bluebooks.values
 
         current_setup = nil
@@ -59,6 +61,30 @@ module Hecks
         run_tested(test, runtime, bluebooks)
       rescue StandardError => e
         error_result(test, "#{e.class}: #{e.message}")
+      end
+
+      # ONE BOOT PER SUITE, NOT PER TEST. The isolation a test needs is a
+      # runtime with nothing in it — and a boot of the same files gives
+      # exactly that back for the price of `Registry#reset_runtime_state!`
+      # instead of ~2s of loading, verifying and era-checking the same
+      # bluebook again (chess: 76 behaviours, 155s of which was booting
+      # `chess.bluebook` 76 times). Keyed by the suite's own `loads` AND
+      # their mtimes, so an edited bluebook boots fresh on the next test
+      # rather than running against a stale one — the property a watch
+      # loop or a long rspec session actually relies on. `runtime:` lets
+      # a caller that already holds a booted runtime (a spec, a REPL)
+      # hand it in; it is reset the same way.
+      RUNTIMES      = {}
+      RUNTIMES_LOCK = Mutex.new
+      private_constant :RUNTIMES, :RUNTIMES_LOCK
+
+      def runtime_for(suite)
+        files = Array(suite.loads).map { |path| File.expand_path(path) }
+        key   = files.map { |file| [file, File.exist?(file) ? File.mtime(file).to_f : nil] }
+
+        RUNTIMES_LOCK.synchronize do
+          RUNTIMES[key] ||= Hecks::Runtime::Loader.boot_files(files, install_facade: false)
+        end
       end
 
       def run_tested(test, runtime, bluebooks)
