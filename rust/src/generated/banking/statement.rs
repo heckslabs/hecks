@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for StatementPeriod {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -97,6 +101,10 @@ impl crate::kernel::Fielded for StatementAmount {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -152,6 +160,10 @@ impl crate::kernel::Fielded for StatementDate {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -264,6 +276,10 @@ impl crate::kernel::Fielded for Statement {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Statement {
@@ -336,6 +352,10 @@ impl crate::kernel::Fielded for GenerateArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -396,14 +416,17 @@ pub fn dispatch_generate(
 
 impl GenerateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("period".to_string(), self.period.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("period".to_string(), self.period.to_json()),
         ("opening_balance".to_string(), self.opening_balance.to_json()),
         ("closing_balance".to_string(), self.closing_balance.to_json()),
         ("generated_on".to_string(), self.generated_on.to_json()),
         ("frequency".to_string(), self.frequency.to_json()),
-        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
-        ])
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

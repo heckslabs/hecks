@@ -32,6 +32,13 @@ fn target_type_for<'a>(target: &str, aggregate: &'a Json, lifecycle_field: Optio
 }
 
 pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    command_skip_reason_with(command, aggregate, value_objects_by_name, true)
+}
+
+/// `creating_possible` — false for an entity command, which never
+/// creates (commands.rb's own `entity_command_skip_reason`): its own
+/// optional identity argument is not an identity source.
+fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, creating_possible: bool) -> Option<String> {
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
 
     let mut unsupported_ops: Vec<String> = Vec::new();
@@ -119,7 +126,7 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
         return Some(format!("sets :{} increment/decrement amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
     }
 
-    let optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name);
+    let optional_problems = optional_source_mismatches_with(command, aggregate, value_objects_by_name, creating_possible);
     if !optional_problems.is_empty() {
         return Some(format!("optional argument feeds a non-optional target: {} — not generated yet", optional_problems.join("; ")));
     }
@@ -133,11 +140,15 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
 }
 
 pub fn optional_source_mismatches(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    optional_source_mismatches_with(command, aggregate, value_objects_by_name, true)
+}
+
+fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, creating_possible: bool) -> Vec<String> {
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
     let mut problems: Vec<String> = Vec::new();
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
 
-    if crate::shared::creates_owner(aggregate, command, value_objects_by_name) {
+    if creating_possible && crate::shared::creates_owner(aggregate, command, value_objects_by_name) {
         let identified_by = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]);
         for path in identified_by {
             let path = path.as_str().unwrap_or("");
@@ -558,7 +569,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it"));
 
     let element_record = naming::rust_ident(&entity_name);
-    let target_args_name = format!("{element_record}{}Args", naming::rust_ident(&target.get("name").map(Json::to_s).unwrap_or_default()));
+    let target_args_name = format!("{element_record}{}EntityArgs", naming::rust_ident(&target.get("name").map(Json::to_s).unwrap_or_default()));
     let aliases: Vec<String> = delegate_mapping(delegation).iter().map(|(t, s)| format!("({}, {})", naming::ruby_inspect_string(t), naming::ruby_inspect_string(s))).collect();
     let given_specs: Vec<String> = target
         .get("givens")
@@ -647,7 +658,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
 /// Handler.Dispatch`, a genuinely nested entity-list) compile and pass
 /// codegen_parity_spec against the Ruby-orchestrated generator.
 pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
-    command_skip_reason(command, entity, value_objects_by_name)
+    command_skip_reason_with(command, entity, value_objects_by_name, false)
 }
 
 /// AN ENTITY COMMAND.
@@ -675,7 +686,7 @@ pub fn emit_entity_command(
         .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
         .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it — unsupported_attribute_types should have caught this"));
     let list_field = naming::rust_ident_field(crate::attr::name(list_attr));
-    let args_struct_name = format!("{element_record}{cmd}Args");
+    let args_struct_name = format!("{element_record}{cmd}EntityArgs");
 
     let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
@@ -764,7 +775,7 @@ pub fn emit_entity_command(
     [
         crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
-        crate::json_codec::emit_to_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, false, &[], None),
+        crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
         crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, None),
         entity_dispatch_fn,
     ]

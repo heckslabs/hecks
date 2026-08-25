@@ -361,7 +361,10 @@ module RustProjection
                 # Matches commands.rb's `emit_entity_command` naming exactly:
                 # `dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}`.
                 fn: "#{entity[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
-                args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
+                # `EntityArgs`, not `Args` — an aggregate command named after the
+                # entity command it delegates to (chess: `RookCastleKingside` →
+                # `Rook.CastleKingside`) would otherwise share its args struct's name.
+                args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}EntityArgs",
                 reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
                 reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
                 role: command[:role],
@@ -440,7 +443,7 @@ module RustProjection
             # porting `sparse:` there too is real, separate work,
             # deliberately not attempted here. Left unwired so this
             # generator's own output stays exactly what it always was.
-            f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name)
+            f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name, sparse: true)
             f.puts
             allowlist = Projector.command_argument_allowlist(aggregate, command, ir[:process_managers])
             f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name, unknown_argument_allowlist: allowlist, command_name: command[:name].to_s)

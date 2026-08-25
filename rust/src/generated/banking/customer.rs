@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for CustomerNumber {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for CustomerStanding {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -169,6 +177,10 @@ impl crate::kernel::Fielded for PersonName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -259,6 +271,10 @@ impl crate::kernel::Fielded for EmailAddress {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -321,6 +337,10 @@ impl crate::kernel::Fielded for Customer {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -389,6 +409,10 @@ impl crate::kernel::Fielded for RegisterArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -445,11 +469,14 @@ pub fn dispatch_register(
 
 impl RegisterArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("reference".to_string(), self.reference.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("reference".to_string(), self.reference.to_json()),
         ("name".to_string(), self.name.to_json()),
-        ("email".to_string(), self.email.to_json()),
-        ])
+        ("email".to_string(), self.email.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -487,6 +514,10 @@ impl crate::kernel::Fielded for SuspendArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -530,9 +561,12 @@ pub fn dispatch_suspend(
 
 impl SuspendArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("standing".to_string(), self.standing.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("standing".to_string(), self.standing.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -568,6 +602,10 @@ impl crate::kernel::Fielded for ReinstateArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -610,9 +648,12 @@ pub fn dispatch_reinstate(
 
 impl ReinstateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -648,6 +689,10 @@ impl crate::kernel::Fielded for CloseArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -689,9 +734,12 @@ pub fn dispatch_close(
 
 impl CloseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

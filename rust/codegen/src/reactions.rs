@@ -26,11 +26,41 @@ pub fn policy_event_name(on_event: &str) -> String {
 
 /// ── THE POLICY TABLE.
 pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json], aggregates: &[Json]) -> String {
+    let fns = where_fns(policies);
     let rows = local_policy_rows(domain_name, policies, aggregates);
-    exemplar.render(
+    let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[] },", rows.join("\n"))],
-    )
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+    );
+    if fns.is_empty() {
+        table
+    } else {
+        format!("{table}\n\n{}", fns.join("\n\n"))
+    }
+}
+
+/// Port of reactions.rb's `where_fn_name`/`where_expr`/`where_fns` — a
+/// policy's `where { … }` as a generated function the kernel calls.
+fn where_fn_name(policy: &Json) -> String {
+    format!("where_{}", naming::dispatch_fn_name(&naming::rust_ident(&policy.get("name").map(Json::to_s).unwrap_or_default())))
+}
+
+fn where_expr(policy: &Json) -> String {
+    match policy.get("where").map(Json::to_s) {
+        Some(w) if !w.is_empty() => format!("Some({})", where_fn_name(policy)),
+        _ => "None".to_string(),
+    }
+}
+
+fn where_fns(policies: &[Json]) -> Vec<String> {
+    policies
+        .iter()
+        .filter(|policy| policy.get("where").map(Json::to_s).map(|w| !w.is_empty()).unwrap_or(false))
+        .map(|policy| {
+            let canonical = policy.get("where").map(Json::to_s).unwrap_or_default();
+            format!("fn {}() -> crate::kernel::Expr {{\n    use crate::kernel::Expr;\n    {}\n}}", where_fn_name(policy), crate::expr_emitter::emit_predicate(&canonical))
+        })
+        .collect()
 }
 
 fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) -> Vec<String> {
@@ -53,13 +83,14 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, with_spec: {} }},",
+                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, with_spec: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_verb),
                 fan_out_verb_expr(domain_name, policy),
                 fan_out_key_expr(policy, aggregates),
-                with_spec_expr(policy)
+                with_spec_expr(policy),
+                where_expr(policy)
             ))
         })
         .collect()
@@ -86,11 +117,12 @@ pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, po
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {} }},",
+                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_domain),
-                naming::ruby_inspect_string(&target_verb)
+                naming::ruby_inspect_string(&target_verb),
+                where_expr(policy)
             ))
         })
         .collect();
@@ -102,7 +134,7 @@ pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, po
     exemplar.render(
         "cross_domain_policy_table",
         &[(
-            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\" },",
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
             rows.join("\n"),
         )],
     )

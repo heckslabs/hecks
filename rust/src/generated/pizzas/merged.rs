@@ -236,7 +236,7 @@ if target == "Governance::RoleTransition" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { policy_name: "OnPizzaPaymentReceived", event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase", for_each: None, for_each_key: None, with_spec: &[] },
+    crate::kernel::PolicyRule { policy_name: "OnPizzaPaymentReceived", event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[

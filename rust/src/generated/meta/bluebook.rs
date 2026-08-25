@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for RuleText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -90,6 +94,10 @@ impl crate::kernel::Fielded for NormalisationRule {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -153,6 +161,10 @@ impl crate::kernel::Fielded for BluebookName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -224,6 +236,10 @@ impl crate::kernel::Fielded for Vision {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -293,6 +309,10 @@ impl crate::kernel::Fielded for Classification {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -364,6 +384,10 @@ impl crate::kernel::Fielded for Version {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -434,6 +458,10 @@ impl crate::kernel::Fielded for FormerlyKnownAs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -503,6 +531,10 @@ impl crate::kernel::Fielded for AttachesToContext {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -702,6 +734,10 @@ impl crate::kernel::Fielded for Bluebook {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Bluebook {
@@ -771,6 +807,10 @@ impl crate::kernel::Fielded for AttachArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -812,9 +852,12 @@ pub fn dispatch_attach(
 
 impl AttachArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("context".to_string(), self.context.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("context".to_string(), self.context.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -854,6 +897,10 @@ impl crate::kernel::Fielded for NormaliseArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -904,13 +951,16 @@ pub fn dispatch_normalise(
 
 impl NormaliseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("strategy".to_string(), self.strategy.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("strategy".to_string(), self.strategy.to_json()),
         ("source_token".to_string(), self.source_token.to_json()),
         ("replacement".to_string(), self.replacement.to_json()),
         ("boundary".to_string(), self.boundary.to_json()),
-        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

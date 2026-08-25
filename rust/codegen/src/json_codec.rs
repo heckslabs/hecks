@@ -255,6 +255,22 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
     format!("{}\n", exemplar.render("to_json_flat", &[("TmplFlatType2", struct_name.to_string()), ("tmpl_to_json_field_block()", field_block)]))
 }
 
+/// `emit_to_json_flat(..., sparse: true)` — COMMAND ARGS STRUCTS ONLY
+/// (json_codec.rb's own two call sites, domain_generator.rb + commands.rb):
+/// an absent optional argument is absent from the event payload, as
+/// Ruby's own `payload: args` never had the key (the exemplar's
+/// `to_json_flat_sparse` comment has the full argument). Same field
+/// block as the dense form, re-read off it so the two can never
+/// disagree about a field.
+pub fn emit_to_json_flat_sparse(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>) -> String {
+    let dense = emit_to_json_flat(exemplar, struct_name, attributes, value_objects_by_name, false, &[], None);
+    let open = "vec![\n";
+    let start = dense.find(open).map(|i| i + open.len()).expect("to_json_flat renders a vec! literal");
+    let end = dense[start..].find("        ])").map(|i| start + i).expect("to_json_flat closes its vec! literal");
+    let field_block = dense[start..end].trim_end_matches('\n').to_string();
+    format!("{}\n", exemplar.render("to_json_flat_sparse", &[("TmplFlatType3", struct_name.to_string()), ("tmpl_to_json_field_block_sparse()", field_block)]))
+}
+
 pub fn emit_from_json_state(
     exemplar: &Exemplar,
     struct_name: &str,

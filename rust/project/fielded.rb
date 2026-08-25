@@ -75,6 +75,7 @@ module RustProjection
         'TmplFlatType' => struct_name,
         '"tmpl_arms_placeholder" => tmpl_arms_block(),' => arms.join("\n"),
         '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(attributes, value_objects_by_name, [], optional: ->(attr) { attr[:optional] }).join("\n"),
+        "tmpl_as_scalar_placeholder()" => as_scalar_expr(attributes),
         'use crate::kernel::Value;' => (arms.any? { |arm| arm.include?('Value') } ? 'use crate::kernel::Value;' : '')
       )}\n"
     end
@@ -155,8 +156,17 @@ module RustProjection
         '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(
           aggregate[:attributes], value_objects_by_name, entity_names,
           optional: ->(attr) { list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name) }
-        ).join("\n")
+        ).join("\n"),
+        "tmpl_as_scalar_placeholder()" => as_scalar_expr(aggregate[:attributes])
       )}\n"
+    end
+
+    # `Resolver#unwrap_scalar` — a struct whose SOLE attribute is `value`
+    # reads as that value (see the exemplar's own `tmpl_as_scalar_
+    # placeholder` comment); anything else answers `None`.
+    def as_scalar_expr(attributes)
+      sole_value = attributes.size == 1 && attributes.first[:name].to_s == "value" && !attributes.first[:list]
+      sole_value ? 'match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }' : "None"
     end
   end
 end

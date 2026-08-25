@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for PolicyName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for PolicyText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -154,6 +162,10 @@ impl crate::kernel::Fielded for Binding {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -211,6 +223,10 @@ impl crate::kernel::Fielded for Position {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -392,6 +408,10 @@ impl crate::kernel::Fielded for Policy {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Policy {
@@ -469,6 +489,10 @@ impl crate::kernel::Fielded for BindArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -512,10 +536,13 @@ pub fn dispatch_bind(
 
 impl BindArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("key".to_string(), self.key.to_json()),
-        ("value".to_string(), self.value.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

@@ -27,6 +27,10 @@ impl crate::kernel::Fielded for SyntaxName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -107,6 +111,9 @@ impl crate::kernel::Fielded for Context {
             "value" => Some(Field::Value(Value::Str(match self { Context::File => "File".to_string(), Context::Bluebook => "Bluebook".to_string(), Context::Aggregate => "Aggregate".to_string(), Context::Entity => "Entity".to_string(), Context::Command => "Command".to_string(), Context::Query => "Query".to_string(), Context::Valueobject => "ValueObject".to_string(), Context::Oneof => "OneOf".to_string(), Context::Lifecycle => "Lifecycle".to_string(), Context::Policy => "Policy".to_string(), Context::Processmanager => "ProcessManager".to_string(), Context::Handler => "Handler".to_string(), Context::Readmodel => "ReadModel".to_string(), Context::Type => "Type".to_string(), Context::Hecksagon => "Hecksagon".to_string(), Context::World => "World".to_string(), Context::Domainport => "DomainPort".to_string(), Context::Portoperation => "PortOperation".to_string(), Context::Port => "Port".to_string(), Context::Adapter => "Adapter".to_string(), Context::Translation => "Translation".to_string(), Context::Translationaggregate => "TranslationAggregate".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -190,6 +197,9 @@ impl crate::kernel::Fielded for Body {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl Body {
@@ -236,6 +246,9 @@ impl crate::kernel::Fielded for Status {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl Status {
@@ -281,6 +294,9 @@ impl crate::kernel::Fielded for ResolutionScope {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl ResolutionScope {
@@ -321,6 +337,9 @@ impl crate::kernel::Fielded for Disambiguator {
             "value" => Some(Field::Value(Value::Str(match self { Disambiguator::DeclaredBy => "declared_by".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -365,6 +384,9 @@ impl crate::kernel::Fielded for ArgumentKind {
             "value" => Some(Field::Value(Value::Str(match self { ArgumentKind::Text => "text".to_string(), ArgumentKind::Symbol => "symbol".to_string(), ArgumentKind::Number => "number".to_string(), ArgumentKind::Flag => "flag".to_string(), ArgumentKind::Literal => "literal".to_string(), ArgumentKind::Constant => "constant".to_string(), ArgumentKind::Pairs => "pairs".to_string(), ArgumentKind::List => "list".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -420,6 +442,9 @@ impl crate::kernel::Fielded for PairsShape {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl PairsShape {
@@ -472,6 +497,10 @@ impl crate::kernel::Fielded for KeywordPosition {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -529,6 +558,10 @@ impl crate::kernel::Fielded for ArgumentPosition {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -585,6 +618,10 @@ impl crate::kernel::Fielded for KeywordSeedText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -640,6 +677,10 @@ impl crate::kernel::Fielded for ArgumentSeedText {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -719,6 +760,10 @@ impl crate::kernel::Fielded for Keyword {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Keyword {
@@ -790,7 +835,7 @@ impl Keyword {
     }
 }
 
-impl crate::kernel::Fielded for KeywordDeprecateArgs {
+impl crate::kernel::Fielded for KeywordDeprecateEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -808,23 +853,30 @@ impl crate::kernel::Fielded for KeywordDeprecateArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct KeywordDeprecateArgs {
-}
-
-impl KeywordDeprecateArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl KeywordDeprecateArgs {
+#[derive(Debug, Clone)]
+pub struct KeywordDeprecateEntityArgs {
+}
+
+impl KeywordDeprecateEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl KeywordDeprecateEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
 
@@ -834,7 +886,7 @@ impl KeywordDeprecateArgs {
 
 
 pub fn dispatch_entity_keyword_deprecate(
-    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: KeywordDeprecateArgs,
+    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: KeywordDeprecateEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
 
@@ -871,7 +923,7 @@ pub fn dispatch_entity_keyword_deprecate(
     )
 }
 
-impl crate::kernel::Fielded for KeywordRetireArgs {
+impl crate::kernel::Fielded for KeywordRetireEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -889,23 +941,30 @@ impl crate::kernel::Fielded for KeywordRetireArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct KeywordRetireArgs {
-}
-
-impl KeywordRetireArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl KeywordRetireArgs {
+#[derive(Debug, Clone)]
+pub struct KeywordRetireEntityArgs {
+}
+
+impl KeywordRetireEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl KeywordRetireEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
 
@@ -915,7 +974,7 @@ impl KeywordRetireArgs {
 
 
 pub fn dispatch_entity_keyword_retire(
-    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: KeywordRetireArgs,
+    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: KeywordRetireEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
 
@@ -1007,6 +1066,10 @@ impl crate::kernel::Fielded for Argument {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Argument {
@@ -1088,7 +1151,7 @@ impl Argument {
     }
 }
 
-impl crate::kernel::Fielded for ArgumentDeprecateArgs {
+impl crate::kernel::Fielded for ArgumentDeprecateEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -1106,23 +1169,30 @@ impl crate::kernel::Fielded for ArgumentDeprecateArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct ArgumentDeprecateArgs {
-}
-
-impl ArgumentDeprecateArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl ArgumentDeprecateArgs {
+#[derive(Debug, Clone)]
+pub struct ArgumentDeprecateEntityArgs {
+}
+
+impl ArgumentDeprecateEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl ArgumentDeprecateEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
 
@@ -1132,7 +1202,7 @@ impl ArgumentDeprecateArgs {
 
 
 pub fn dispatch_entity_argument_deprecate(
-    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: ArgumentDeprecateArgs,
+    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: ArgumentDeprecateEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
 
@@ -1169,7 +1239,7 @@ pub fn dispatch_entity_argument_deprecate(
     )
 }
 
-impl crate::kernel::Fielded for ArgumentRetireArgs {
+impl crate::kernel::Fielded for ArgumentRetireEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -1187,23 +1257,30 @@ impl crate::kernel::Fielded for ArgumentRetireArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct ArgumentRetireArgs {
-}
-
-impl ArgumentRetireArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl ArgumentRetireArgs {
+#[derive(Debug, Clone)]
+pub struct ArgumentRetireEntityArgs {
+}
+
+impl ArgumentRetireEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl ArgumentRetireEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
 
@@ -1213,7 +1290,7 @@ impl ArgumentRetireArgs {
 
 
 pub fn dispatch_entity_argument_retire(
-    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: ArgumentRetireArgs,
+    repo: &mut impl crate::kernel::Repository<Syntax>, parent_id: &str, element_id: &str, element_wants: &str, args: ArgumentRetireEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
 
@@ -1279,6 +1356,10 @@ impl crate::kernel::Fielded for Syntax {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Syntax {
@@ -1343,6 +1424,10 @@ impl crate::kernel::Fielded for DeclareArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -1395,10 +1480,13 @@ pub fn dispatch_declare(
 
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("bluebook".to_string(), self.bluebook.to_json()),
-        ("name".to_string(), self.name.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("bluebook".to_string(), self.bluebook.to_json()),
+        ("name".to_string(), self.name.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1445,6 +1533,10 @@ impl crate::kernel::Fielded for KeywordArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1511,8 +1603,8 @@ pub fn dispatch_keyword(
 
 impl KeywordArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("position".to_string(), self.position.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("position".to_string(), self.position.to_json()),
         ("word".to_string(), self.word.to_json()),
         ("context".to_string(), self.context.to_json()),
         ("body".to_string(), self.body.to_json()),
@@ -1522,8 +1614,11 @@ impl KeywordArgs {
         ("was".to_string(), self.was.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("resolves_via".to_string(), self.resolves_via.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("disambiguator".to_string(), self.disambiguator.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("calls".to_string(), self.calls.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("calls".to_string(), self.calls.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1584,6 +1679,10 @@ impl crate::kernel::Fielded for ArgumentArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1658,8 +1757,8 @@ pub fn dispatch_argument(
 
 impl ArgumentArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("position".to_string(), self.position.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("position".to_string(), self.position.to_json()),
         ("keyword".to_string(), self.keyword.to_json()),
         ("context".to_string(), self.context.to_json()),
         ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -1674,8 +1773,11 @@ impl ArgumentArgs {
         ("variadic".to_string(), self.variadic.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("minimum".to_string(), self.minimum.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("coerce".to_string(), self.coerce.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("blank_message".to_string(), self.blank_message.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("blank_message".to_string(), self.blank_message.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

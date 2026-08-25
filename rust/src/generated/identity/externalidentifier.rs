@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for ExternalIdentifierKey {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for Issuer {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -165,6 +173,10 @@ impl crate::kernel::Fielded for Subject {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -241,6 +253,10 @@ impl crate::kernel::Fielded for ExternalIdentifier {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl ExternalIdentifier {
@@ -307,6 +323,10 @@ impl crate::kernel::Fielded for LinkArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -361,12 +381,15 @@ pub fn dispatch_link(
 
 impl LinkArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("identity".to_string(), crate::kernel::Json::Str(self.identity.clone())),
+        crate::kernel::Json::Object(
+            vec![        ("identity".to_string(), crate::kernel::Json::Str(self.identity.clone())),
         ("key".to_string(), self.key.to_json()),
         ("issuer".to_string(), self.issuer.to_json()),
-        ("subject".to_string(), self.subject.to_json()),
-        ])
+        ("subject".to_string(), self.subject.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

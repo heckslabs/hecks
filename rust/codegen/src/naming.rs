@@ -148,7 +148,7 @@ pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
     }).collect::<Vec<_>>().join(" ");
 
     format!(
-        "impl crate::kernel::Fielded for {name} {{\n    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {{\n        use crate::kernel::{{Field, Value}};\n        match name {{\n            \"value\" => Some(Field::Value(Value::Str(match self {{ {arms} }}))),\n            _ => None,\n        }}\n    }}\n}}"
+        "impl crate::kernel::Fielded for {name} {{\n    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {{\n        use crate::kernel::{{Field, Value}};\n        match name {{\n            \"value\" => Some(Field::Value(Value::Str(match self {{ {arms} }}))),\n            _ => None,\n        }}\n    }}\n    fn as_scalar(&self) -> Option<crate::kernel::Value> {{\n        match self.field(\"value\") {{ Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }}\n    }}\n}}"
     )
 }
 

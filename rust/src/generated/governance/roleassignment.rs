@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for IdentityId {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -95,6 +99,10 @@ impl crate::kernel::Fielded for RoleName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -166,6 +174,10 @@ impl crate::kernel::Fielded for Scope {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -235,6 +247,10 @@ impl crate::kernel::Fielded for Timestamp {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -313,6 +329,10 @@ impl crate::kernel::Fielded for RoleAssignment {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl RoleAssignment {
@@ -383,6 +403,10 @@ impl crate::kernel::Fielded for AssignArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -439,12 +463,15 @@ pub fn dispatch_assign(
 
 impl AssignArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("actor_id".to_string(), self.actor_id.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("actor_id".to_string(), self.actor_id.to_json()),
         ("role_name".to_string(), self.role_name.to_json()),
         ("scope".to_string(), self.scope.to_json()),
-        ("starts_at".to_string(), self.starts_at.to_json()),
-        ])
+        ("starts_at".to_string(), self.starts_at.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -483,6 +510,10 @@ impl crate::kernel::Fielded for RevokeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -525,9 +556,12 @@ pub fn dispatch_revoke(
 
 impl RevokeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("ends_at".to_string(), self.ends_at.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("ends_at".to_string(), self.ends_at.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

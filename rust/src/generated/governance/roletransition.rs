@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for RoleName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -95,6 +99,10 @@ impl crate::kernel::Fielded for Timestamp {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -169,6 +177,10 @@ impl crate::kernel::Fielded for RoleTransition {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl RoleTransition {
@@ -232,6 +244,10 @@ impl crate::kernel::Fielded for GrantArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -282,10 +298,13 @@ pub fn dispatch_grant(
 
 impl GrantArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("from_role".to_string(), self.from_role.to_json()),
-        ("to_role".to_string(), self.to_role.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("from_role".to_string(), self.from_role.to_json()),
+        ("to_role".to_string(), self.to_role.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -322,6 +341,10 @@ impl crate::kernel::Fielded for RevokeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -364,9 +387,12 @@ pub fn dispatch_revoke(
 
 impl RevokeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("ends_at".to_string(), self.ends_at.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("ends_at".to_string(), self.ends_at.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

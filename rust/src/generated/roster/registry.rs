@@ -87,6 +87,39 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::roster::roster::dispatch_open(&mut store.roster, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Roster::Roster.Mark" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::roster::roster::dispatch_mark(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Roster::Roster.Notice" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::roster::roster::dispatch_notice(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Roster::Roster.Honor" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let args = crate::generated::roster::roster::HonorArgs::from_json(facts_json)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::roster::roster::dispatch_honor(&mut store.roster, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Roster::Roster.AddSeat" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -136,7 +169,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json)?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json)?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::roster::roster::MemberRetireArgs::from_json(facts_json)?;
+              let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -180,8 +213,15 @@ if target == "Roster::Roster" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-
+    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedMark", event_name: "SeatAssigned", event_qualifier: None, target_verb: "Roster::Roster.Mark", for_each: None, for_each_key: None, with_spec: &[("to", ":number")], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "OnSeatMarkedNotice", event_name: "SeatMarked", event_qualifier: None, target_verb: "Roster::Roster.Notice", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedHonorFront", event_name: "SeatAssigned", event_qualifier: None, target_verb: "Roster::Roster.Honor", for_each: None, for_each_key: None, with_spec: &[("rank", "\"officer\"")], where_expr: Some(where_on_seat_assigned_honor_front) },
 ];
+
+fn where_on_seat_assigned_honor_front() -> crate::kernel::Expr {
+    use crate::kernel::Expr;
+    Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("number.value")), right: Box::new(Expr::Int(1)) }
+}
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
 
@@ -203,6 +243,9 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
 pub fn command_creates(verb: &str) -> bool {
     match verb {
         "Roster::Roster.Open" => true,
+        "Roster::Roster.Mark" => false,
+        "Roster::Roster.Notice" => false,
+        "Roster::Roster.Honor" => false,
         "Roster::Roster.AddSeat" => false,
         "Roster::Roster.Enlist" => false,
         "Roster::Roster.Assign" => false,

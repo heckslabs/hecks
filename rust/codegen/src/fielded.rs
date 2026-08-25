@@ -75,6 +75,7 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
                 ("TmplFlatType", struct_name.to_string()),
                 ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
                 ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items_arms(exemplar, attributes, value_objects_by_name, &[], |attr| crate::attr::optional(attr)).join("\n")),
+                ("tmpl_as_scalar_placeholder()", as_scalar_expr(attributes)),
                 ("use crate::kernel::Value;", if uses_value { "use crate::kernel::Value;".to_string() } else { String::new() }),
             ],
         )
@@ -140,9 +141,21 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
                 ("TmplRecordType", name),
                 ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
                 ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items.join("\n")),
+                ("tmpl_as_scalar_placeholder()", as_scalar_expr(attributes)),
             ],
         )
     )
+}
+
+/// Port of fielded.rb's `as_scalar_expr` — `Resolver#unwrap_scalar`: a
+/// struct whose sole attribute is `value` reads as that value.
+fn as_scalar_expr(attributes: &[Json]) -> String {
+    let sole_value = attributes.len() == 1 && crate::attr::name(&attributes[0]) == "value" && !crate::attr::list(&attributes[0]);
+    if sole_value {
+        "match self.field(\"value\") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }".to_string()
+    } else {
+        "None".to_string()
+    }
 }
 
 /// Port of `fielded.rb`'s `items_arms` — `Fielded::items`, one arm per

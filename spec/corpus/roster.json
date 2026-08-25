@@ -3,7 +3,7 @@
   "note": "One roster through every command once \u2014 open, two seats, two members, one assignment, one retirement through the delegating door \u2014 every given a block predicate, all of them accepted.",
   "domain": "examples/roster",
   "expectations": {
-    "events": 7
+    "events": 11
   },
   "steps": [
     {
@@ -92,6 +92,17 @@
         },
         "id": {
           "value": "bob"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Honor",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "rank": {
+          "value": "officer"
         }
       }
     }

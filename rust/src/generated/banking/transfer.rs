@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for TransferReference {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -97,6 +101,10 @@ impl crate::kernel::Fielded for TransferMoney {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -166,6 +174,10 @@ impl crate::kernel::Fielded for Narrative {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -247,6 +259,10 @@ impl crate::kernel::Fielded for Transfer {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Transfer {
@@ -318,6 +334,10 @@ impl crate::kernel::Fielded for RequestArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -382,13 +402,16 @@ pub fn dispatch_request(
 
 impl RequestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("reference".to_string(), self.reference.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("reference".to_string(), self.reference.to_json()),
         ("amount".to_string(), self.amount.to_json()),
         ("narrative".to_string(), self.narrative.to_json()),
         ("source".to_string(), crate::kernel::Json::Str(self.source.clone())),
-        ("destination".to_string(), crate::kernel::Json::Str(self.destination.clone())),
-        ])
+        ("destination".to_string(), crate::kernel::Json::Str(self.destination.clone())),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -428,6 +451,10 @@ impl crate::kernel::Fielded for DebitedArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -471,9 +498,12 @@ pub fn dispatch_debited(
 
 impl DebitedArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -509,6 +539,10 @@ impl crate::kernel::Fielded for SettleArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -552,9 +586,12 @@ pub fn dispatch_settle(
 
 impl SettleArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -590,6 +627,10 @@ impl crate::kernel::Fielded for CreditedArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -633,9 +674,12 @@ pub fn dispatch_credited(
 
 impl CreditedArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -671,6 +715,10 @@ impl crate::kernel::Fielded for ReverseArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -714,9 +762,12 @@ pub fn dispatch_reverse(
 
 impl ReverseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -752,6 +803,10 @@ impl crate::kernel::Fielded for RejectArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -795,9 +850,12 @@ pub fn dispatch_reject(
 
 impl RejectArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

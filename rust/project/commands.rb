@@ -42,7 +42,7 @@ module RustProjection
       "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };"
     end
 
-    def command_skip_reason(command, aggregate, value_objects_by_name)
+    def command_skip_reason(command, aggregate, value_objects_by_name, creating_possible: true)
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement delegate].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/delegate are)" if unsupported_ops.any?
 
@@ -105,7 +105,7 @@ module RustProjection
       end.map { |m| m[:target] }
       return "sets :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
 
-      optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name)
+      optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name, creating_possible: creating_possible)
       return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
 
       constraint_problems = constraint_list_problems(command)
@@ -134,9 +134,16 @@ module RustProjection
     # "leave the target non-optional and lose the omission" and "generate
     # something this domain's OWN declarations never asked for" — skipped,
     # loudly, the same as every other ungenerable shape above.
-    def optional_source_mismatches(command, aggregate, value_objects_by_name)
+    def optional_source_mismatches(command, aggregate, value_objects_by_name, creating_possible: true)
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       problems = []
+
+      # An ENTITY command never creates — it acts on one already-addressed
+      # element — so its own (optional) identity argument (a chess
+      # `Pawn.Promote`'s `id`, declared optional so the crowning policy's
+      # projection may name it) is not an identity source at all, and
+      # `creates_owner?`'s bare-name heuristic must not read it as one:
+      # `creating_possible: false` from `entity_command_skip_reason`.
 
       # `identified_by` (creating commands only — `identity_components`,
       # mutations.rb, is never called for an acting command) is read
@@ -145,7 +152,7 @@ module RustProjection
       # no "identity absent" state. An optional argument feeding it
       # (`Member.Declare`'s own `position`) isn't a `sets` mutation at
       # all, so the checks below never see it; caught here instead.
-      if creates_owner?(aggregate, command, value_objects_by_name)
+      if creating_possible && creates_owner?(aggregate, command, value_objects_by_name)
         aggregate[:identified_by].each do |path|
           head, = path.split(".")
           source_attr = command[:attributes].find { |a| a[:name].to_s == head }
@@ -502,7 +509,7 @@ module RustProjection
       raise "#{entity[:name]}: no list attribute on #{aggregate[:name]} holds it" unless list_attr
 
       element_record   = rust_ident(entity[:name])
-      target_args_name = "#{element_record}#{rust_ident(target[:name])}Args"
+      target_args_name = "#{element_record}#{rust_ident(target[:name])}EntityArgs"
       aliases = delegate_mapping(delegation).map { |target_key, source_key| "(#{target_key.inspect}, #{source_key.inspect})" }
       given_specs = target[:givens].map do |given|
         "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
@@ -554,7 +561,7 @@ module RustProjection
     # a real, separate, still-open gap flagged loudly, not silently worked
     # around by the delegation below.
     def entity_command_skip_reason(command, entity, value_objects_by_name)
-      command_skip_reason(command, entity, value_objects_by_name)
+      command_skip_reason(command, entity, value_objects_by_name, creating_possible: false)
     end
 
     # ── AN ENTITY COMMAND — `EntityInterpreter#call`'s shorter
@@ -592,7 +599,9 @@ module RustProjection
       raise "#{entity[:name]}: no list attribute on #{parent_aggregate[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr
 
       list_field = rust_ident_field(list_attr[:name])
-      args_struct_name = "#{element_record}#{cmd}Args"
+      # `EntityArgs` — see domain_generator.rb's own routing entry: a door
+      # named after the entity command it delegates to must not collide.
+      args_struct_name = "#{element_record}#{cmd}EntityArgs"
 
       args_struct = ["pub struct #{args_struct_name} {"]
       command[:attributes].each do |attr|
@@ -658,7 +667,7 @@ module RustProjection
         # call site (domain_generator.rb's own comment): real, tested,
         # deliberately left unwired to avoid diverging from
         # `hecks-codegen`'s own separate reimplementation.
-        emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
         entity_dispatch_fn,
       ].join("\n\n")

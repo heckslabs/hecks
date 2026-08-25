@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for PizzaName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -97,6 +101,10 @@ impl crate::kernel::Fielded for Price {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -166,6 +174,10 @@ impl crate::kernel::Fielded for CustomerName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -238,6 +250,10 @@ impl crate::kernel::Fielded for ToppingName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -308,6 +324,10 @@ impl crate::kernel::Fielded for ToppingAmount {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -381,6 +401,10 @@ impl crate::kernel::Fielded for Topping {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -429,6 +453,9 @@ impl crate::kernel::Fielded for Size {
             "value" => Some(Field::Value(Value::Str(match self { Size::Small => "small".to_string(), Size::Large => "large".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -480,6 +507,10 @@ impl crate::kernel::Fielded for Pizza {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -545,6 +576,10 @@ impl crate::kernel::Fielded for Order {
             "toppings" => Some(self.toppings.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -612,6 +647,10 @@ impl crate::kernel::Fielded for CreatePizzaArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -664,10 +703,13 @@ pub fn dispatch_create_pizza(
 
 impl CreatePizzaArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
-        ("pizza".to_string(), self.pizza.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
+        ("pizza".to_string(), self.pizza.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -705,6 +747,10 @@ impl crate::kernel::Fielded for AddToppingArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -750,10 +796,13 @@ pub fn dispatch_add_topping(
 
 impl AddToppingArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("topping".to_string(), self.topping.to_json()),
-        ("amount".to_string(), self.amount.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("topping".to_string(), self.topping.to_json()),
+        ("amount".to_string(), self.amount.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -791,6 +840,10 @@ impl crate::kernel::Fielded for PurchaseArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -839,10 +892,13 @@ pub fn dispatch_purchase(
 
 impl PurchaseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ("customer_name".to_string(), self.customer_name.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),
+        ("customer_name".to_string(), self.customer_name.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

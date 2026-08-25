@@ -745,7 +745,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let element_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::processmanager::HandlerDispatchArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Dispatch", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -758,7 +758,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?; let element_id = crate::generated::meta::valueobject::Member::extract_id(facts_json)?; let element_wants = crate::generated::meta::valueobject::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::valueobject::MemberPairArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::valueobject::MemberPairEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Pair", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -771,7 +771,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::syntax::KeywordDeprecateArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::syntax::KeywordDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -784,7 +784,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::syntax::KeywordRetireArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::syntax::KeywordRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -797,7 +797,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::syntax::ArgumentDeprecateArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::syntax::ArgumentDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -810,7 +810,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::meta::syntax::ArgumentRetireArgs::from_json(facts_json)?;
+              let args = crate::generated::meta::syntax::ArgumentRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

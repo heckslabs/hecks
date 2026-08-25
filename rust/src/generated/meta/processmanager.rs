@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for ProcessManagerName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for ProcessManagerText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -151,6 +159,10 @@ impl crate::kernel::Fielded for SagaState {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -208,6 +220,10 @@ impl crate::kernel::Fielded for HandlerText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -263,6 +279,10 @@ impl crate::kernel::Fielded for DispatchText {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -322,6 +342,10 @@ impl crate::kernel::Fielded for Binding {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -379,6 +403,10 @@ impl crate::kernel::Fielded for Position {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -553,6 +581,10 @@ impl crate::kernel::Fielded for Handler {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Handler {
@@ -601,6 +633,10 @@ impl crate::kernel::Fielded for Dispatch {
             "with_spec" => Some(self.with_spec.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -653,7 +689,7 @@ impl Handler {
     }
 }
 
-impl crate::kernel::Fielded for HandlerDispatchArgs {
+impl crate::kernel::Fielded for HandlerDispatchEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -671,34 +707,41 @@ impl crate::kernel::Fielded for HandlerDispatchArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct HandlerDispatchArgs {
-    pub command_name: DispatchText,
-}
-
-impl HandlerDispatchArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("command_name".to_string(), self.command_name.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl HandlerDispatchArgs {
+#[derive(Debug, Clone)]
+pub struct HandlerDispatchEntityArgs {
+    pub command_name: DispatchText,
+}
+
+impl HandlerDispatchEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("command_name".to_string(), self.command_name.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl HandlerDispatchEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        command_name: DispatchText::from_json(&v.require("command_name", "HandlerDispatchArgs")?.coerce_single_field("value"))?,
+        command_name: DispatchText::from_json(&v.require("command_name", "HandlerDispatchEntityArgs")?.coerce_single_field("value"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_handler_dispatch(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, element_id: &str, element_wants: &str, args: HandlerDispatchArgs,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, element_id: &str, element_wants: &str, args: HandlerDispatchEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.command_name.check_invariants()?;
@@ -772,6 +815,10 @@ impl crate::kernel::Fielded for ProcessManager {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl ProcessManager {
@@ -844,6 +891,10 @@ impl crate::kernel::Fielded for StateArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -885,9 +936,12 @@ pub fn dispatch_state(
 
 impl StateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -925,6 +979,10 @@ impl crate::kernel::Fielded for HandlerArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -971,11 +1029,14 @@ pub fn dispatch_handler(
 
 impl HandlerArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("event_type".to_string(), self.event_type.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("event_type".to_string(), self.event_type.to_json()),
         ("from_state".to_string(), self.from_state.to_json()),
-        ("to_state".to_string(), self.to_state.to_json()),
-        ])
+        ("to_state".to_string(), self.to_state.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

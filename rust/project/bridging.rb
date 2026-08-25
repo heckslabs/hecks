@@ -58,15 +58,44 @@ module RustProjection
     # a hypothetical: both declare `cents`/`currency`, so every target
     # field is answered by name.
     def vo_field_bridgeable?(source_vo, target_vo)
-      return false unless source_vo && target_vo && !source_vo[:closed_set] && !target_vo[:closed_set]
+      return false unless source_vo && target_vo
+      return closed_sets_bridgeable?(source_vo, target_vo) if source_vo[:closed_set] || target_vo[:closed_set]
 
       target_vo[:attributes].all? do |t_attr|
         source_vo[:attributes].any? { |s_attr| s_attr[:name] == t_attr[:name] } || !t_attr[:default].nil?
       end
     end
 
+    # ONE CLOSED SET INTO ANOTHER — `sets :draw_offer, to: :side` (chess:
+    # a `Color`, white/black, into a `DrawOffer`, none/white/black).
+    # `Value.for_attribute` coerces through the sole scalar at runtime
+    # and refuses a non-member; here it is admitted only when it can
+    # NEVER refuse — both single-field, every source member also a
+    # target member — so the generated bridge is an infallible `match`,
+    # one arm per source member, usable inside a creating command's own
+    # record-building closure where nothing may fail.
+    def closed_set_bridge_members(source_vo, target_vo)
+      return nil unless source_vo[:closed_set] && target_vo[:closed_set]
+      return nil unless source_vo[:attributes].size == 1 && target_vo[:attributes].size == 1
+
+      target_values = target_vo[:members].map { |row| row.to_h.values.first.to_s }
+      source_rows   = source_vo[:members]
+      return nil unless source_rows.all? { |row| target_values.include?(row.to_h.values.first.to_s) }
+
+      source_rows
+    end
+
+    def closed_sets_bridgeable?(source_vo, target_vo)
+      !closed_set_bridge_members(source_vo, target_vo).nil?
+    end
+
     def vo_field_rhs(source_expr, source_vo, target_type, value_objects_by_name)
       target_vo = value_objects_by_name[target_type]
+      if (rows = closed_set_bridge_members(source_vo, target_vo))
+        arms = rows.map { |row| "#{rust_ident(source_vo[:name])}::#{closed_set_variant(row)} => #{rust_ident(target_type)}::#{closed_set_variant(row)}" }
+        return "match &#{source_expr} { #{arms.join(', ')} }"
+      end
+
       fields = target_vo[:attributes].map do |t_attr|
         field = rust_ident_field(t_attr[:name])
         if source_vo[:attributes].any? { |s_attr| s_attr[:name] == t_attr[:name] }

@@ -377,6 +377,28 @@
           "value": "zoe"
         }
       }
+    },
+    {
+      "verb": "Roster::Roster.Honor",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "rank": {
+          "value": "officer"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Member.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "eve"
+        }
+      }
     }
   ]
 }

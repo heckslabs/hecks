@@ -20,6 +20,8 @@ Hecks.bluebook "Roster" do
     attribute :name,        RosterName
     attribute :motto,       Motto
     attribute :mood,        Mood
+    attribute :standing,    Standing
+    attribute :last_marked, SeatNumber
     attribute :seats,       list_of(Seat)
     attribute :crew,        list_of(Member)
     attribute :assignments, list_of(Assignment)
@@ -41,6 +43,13 @@ Hecks.bluebook "Roster" do
 
     value_object "Rank" do
       attribute :value, String, one_of: ["hand", "officer"]
+    end
+
+    # ONE CLOSED SET INTO ANOTHER — `Honor` sets `standing` FROM a `Rank`
+    # argument: every Rank member is a Standing member, so the bridge can
+    # never refuse (chess: a `Color` into a `DrawOffer`, none/white/black).
+    value_object "Standing" do
+      attribute :value, String, one_of: ["none", "hand", "officer"]
     end
     value_object("MemberId")   { attribute :value, String }
     value_object("SeatNumber") { attribute :value, Integer }
@@ -82,6 +91,12 @@ Hecks.bluebook "Roster" do
       command "Retire" do
         goal "Leave the crew — unless seated in the front row, and never as the last one serving"
 
+        # An entity command naming its OWN identity as an optional
+        # argument — a chess `Pawn.Promote` declares `id` this way so the
+        # crowning policy's projection may read it. Not an identity
+        # source: the element is already addressed before this runs.
+        attribute :id, MemberId, optional: true
+
         given("a front-row holder may not retire") do
           parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == "front" } }
         end
@@ -97,10 +112,49 @@ Hecks.bluebook "Roster" do
 
       attribute :name, RosterName
 
-      sets :motto, to: "all hands"
-      sets :mood,  to: "open"
+      sets :motto,    to: "all hands"
+      sets :mood,     to: "open"
+      sets :standing, to: "none"
 
       emits "RosterOpened"
+    end
+
+    # TWO REACTION SHAPES A CHESS BOARD LEANS ON. `Mark` takes an argument
+    # named `to` — a policy projecting `with: { to: :number }` hands it a
+    # FACT named `to`, never a routing receiver (chess: OpenEnPassant's
+    # `with: { to: :to }`). `Notice` is reached by a policy with NO
+    # projection off an event whose payload carries `to`: the legacy
+    # forward lifts the receiver INTO `to`, so the payload's own `to` never
+    # reaches Notice as a fact (chess: every AdvancePly after a move).
+    command "Mark" do
+      goal "Remember the last seat handed out"
+
+      reference_to Roster
+      attribute :to, SeatNumber
+
+      sets :last_marked, to: :to
+
+      emits "SeatMarked"
+    end
+
+    command "Notice" do
+      goal "Take note that a seat was marked — nothing to record"
+
+      reference_to Roster
+      attribute :to, SeatNumber, optional: true
+
+      emits "MarkNoticed"
+    end
+
+    command "Honor" do
+      goal "Record the roster's standing as one member's rank"
+
+      reference_to Roster
+      attribute :rank, Rank
+
+      sets :standing, to: :rank
+
+      emits "RosterHonored"
     end
 
     command "AddSeat" do
@@ -171,5 +225,24 @@ Hecks.bluebook "Roster" do
 
       delegates_to "Member.Retire", with: { id: :id }
     end
+  end
+
+  policy "OnSeatAssignedMark" do
+    on "SeatAssigned"
+    trigger Roster::Mark, with: { to: :number }
+  end
+
+  policy "OnSeatMarkedNotice" do
+    on "SeatMarked"
+    trigger Roster::Notice
+  end
+
+  # A `where` — the reaction happens only when the payload says so
+  # (chess: four crowning policies on one PawnPromoted, each `where {
+  # piece == "…" }`); `with:` here carries a LITERAL, not a payload field.
+  policy "OnSeatAssignedHonorFront" do
+    on "SeatAssigned"
+    where { number.value == 1 }
+    trigger Roster::Honor, with: { rank: "officer" }
   end
 end
