@@ -60,6 +60,142 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Motto {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for Motto {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+}
+
+
+impl Motto {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Motto {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Motto {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Motto does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.require("value", "Motto")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Motto.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Mood {
+    Open,
+    Busy,
+}
+
+impl crate::kernel::Fielded for Mood {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Mood::Open => "open".to_string(), Mood::Busy => "busy".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
+impl Mood {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Mood::Open => "open",
+            Mood::Busy => "busy",
+        };
+        crate::kernel::Json::obj(vec![("value", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("value", "Mood")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Mood.value: expected string".to_string()))?;
+        match raw {
+            "open" => Ok(Mood::Open),
+            "busy" => Ok(Mood::Busy),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Mood"),
+                ("admitted", "\"open\", \"busy\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Rank {
+    Hand,
+    Officer,
+}
+
+impl crate::kernel::Fielded for Rank {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Rank::Hand => "hand".to_string(), Rank::Officer => "officer".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
+impl Rank {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Rank::Hand => "hand",
+            Rank::Officer => "officer",
+        };
+        crate::kernel::Json::obj(vec![("value", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("value", "Rank")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Rank.value: expected string".to_string()))?;
+        match raw {
+            "hand" => Ok(Rank::Hand),
+            "officer" => Ok(Rank::Officer),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Rank"),
+                ("admitted", "\"hand\", \"officer\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemberId {
     pub value: String,
 }
@@ -392,6 +528,7 @@ if !unknown.is_empty() {
 pub struct Member {
     pub id: MemberId,
     pub age: Age,
+    pub rank: Rank,
     pub status: String,
 }
 
@@ -402,6 +539,7 @@ impl crate::kernel::Fielded for Member {
         match name {
             "id" => Some(Field::Nested(&self.id)),
             "age" => Some(Field::Nested(&self.age)),
+            "rank" => Some(Field::Nested(&self.rank)),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -422,6 +560,7 @@ impl Member {
         crate::kernel::Json::Object(vec![
         ("id".to_string(), self.id.to_json()),
         ("age".to_string(), self.age.to_json()),
+        ("rank".to_string(), self.rank.to_json()),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -432,6 +571,7 @@ impl Member {
         Ok(Self {
         id: MemberId::from_json(&v.require("id", "Member")?.coerce_single_field("value"))?,
         age: Age::from_json(&v.require("age", "Member")?.coerce_single_field("value"))?,
+        rank: Rank::from_json(&v.require("rank", "Member")?.coerce_single_field("value"))?,
         status: v.require("status", "Member")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -552,6 +692,8 @@ pub fn dispatch_entity_member_retire(
 #[derive(Debug, Clone, PartialEq)]
 pub struct Roster {
     pub name: Option<RosterName>,
+    pub motto: Option<Motto>,
+    pub mood: Option<Mood>,
     pub seats: Vec<Seat>,
     pub crew: Vec<Member>,
     pub assignments: Vec<Assignment>,
@@ -562,6 +704,8 @@ impl crate::kernel::Fielded for Roster {
         use crate::kernel::{Field, Value};
         match name {
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "motto" => self.motto.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "mood" => self.mood.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "seats" => Some(Field::Value(Value::List(self.seats.len()))),
             "crew" => Some(Field::Value(Value::List(self.crew.len()))),
             "assignments" => Some(Field::Value(Value::List(self.assignments.len()))),
@@ -585,6 +729,8 @@ impl Roster {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("motto".to_string(), self.motto.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("mood".to_string(), self.mood.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("seats".to_string(), crate::kernel::Json::Array(self.seats.iter().map(|x| x.to_json()).collect())),
         ("crew".to_string(), crate::kernel::Json::Array(self.crew.iter().map(|x| x.to_json()).collect())),
         ("assignments".to_string(), crate::kernel::Json::Array(self.assignments.iter().map(|x| x.to_json()).collect())),
@@ -596,6 +742,8 @@ impl Roster {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RosterName::from_json(&x.coerce_single_field("value"))?), },
+        motto: match v.get("motto") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Motto::from_json(&x.coerce_single_field("value"))?), },
+        mood: match v.get("mood") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Mood::from_json(&x.coerce_single_field("value"))?), },
         seats: match v.get("seats").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Seat::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         crew: match v.get("crew").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Member::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         assignments: match v.get("assignments").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Assignment::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -662,6 +810,8 @@ pub fn dispatch_open(
         id: args.name.value.to_string(),
         build: Box::new(|| Roster {
             name: Some(args.name.clone()),
+            motto: None,
+            mood: None,
             seats: vec![],
             crew: vec![],
             assignments: vec![],
@@ -677,7 +827,8 @@ pub fn dispatch_open(
         ],
         None,
         |record| {
-        let _ = record;
+        record.motto = Some(Motto { value: "all hands".to_string() });
+        record.mood = Some(Mood::Open);
             Ok(())
         },
         &[
@@ -845,7 +996,7 @@ pub fn dispatch_enlist(
         ],
         None,
         |record| {
-        record.crew.push(Member { id: args.id.clone(), age: args.age.clone(), status: "active".to_string() });
+        record.crew.push(Member { id: args.id.clone(), age: args.age.clone(), rank: Rank::Hand, status: "active".to_string() });
             Ok(())
         },
         &[
@@ -935,6 +1086,7 @@ pub fn dispatch_assign(
         None,
         |record| {
         record.assignments.push(Assignment { member: args.member.clone(), number: args.number.clone() });
+        record.mood = Some(Mood::Busy);
             Ok(())
         },
         &[

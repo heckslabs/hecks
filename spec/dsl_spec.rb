@@ -2509,6 +2509,19 @@ RSpec.describe "the DSL surface" do
       expect(command.attribute(:balance).type).to eq("Tag")
     end
 
+    # A LITERAL THAT SPELLS THE FIELD'S OWN NAME IS NOT THE SHORTHAND —
+    # `sets :moved, to: "moved"` (a chess rook recording that it has
+    # moved, into a closed set whose member is literally "moved") used
+    # to read as `sets :moved` and import the owner's attribute as a
+    # phantom argument. Only a bare SYMBOL naming its own target is the
+    # sugar; a String is a value.
+    it "sets :field, to: \"field\" — a literal spelling the field's name — imports nothing" do
+      command = build_command("CmdLiteralSpellsName") { sets :balance, to: "balance" }
+
+      expect(command.attribute(:balance)).to be_nil
+      expect(command.mutations.first.to_h[:source]).to eq(kind: "literal", value: "balance")
+    end
+
     # THE NEGATIVE CASE — neither the command nor the owner declares the
     # field a bare `sets` names. `resolve_implicit_attributes!` finds no
     # owner attribute and adds nothing, so the command's own `attributes`

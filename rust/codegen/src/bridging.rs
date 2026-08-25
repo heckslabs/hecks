@@ -142,13 +142,41 @@ pub fn value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_
 
 pub fn literal_set_bridgeable(value: &Literal, target_type: Option<&str>, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     match value {
-        Literal::Str(_) | Literal::Int(_) | Literal::Float(_) | Literal::Bool(_) => true,
         Literal::Hash(_) => match target_type {
             Some(target_type) => literal_hash_bridgeable(value, target_type, value_objects_by_name),
             None => false,
         },
+        Literal::Str(_) | Literal::Int(_) | Literal::Float(_) | Literal::Bool(_) => {
+            let Some(target_type) = target_type else { return true };
+            if !value_objects_by_name.contains_key(target_type) {
+                return true;
+            }
+            // A SCALAR literal into a SINGLE-FIELD value object — see
+            // bridging.rb's own `literal_set_bridgeable?`: the literal is
+            // the sole field's value and bridges as the hash it stands for.
+            match crate::json_codec::sole_field_of(target_type, value_objects_by_name) {
+                Some(sole) => literal_hash_bridgeable(&Literal::Hash(vec![(sole, value.clone())]), target_type, value_objects_by_name),
+                None => false,
+            }
+        }
         _ => false,
     }
+}
+
+/// Port of bridging.rb's `literal_rhs_for` — the rendered right-hand
+/// side of ANY literal into a target type.
+pub fn literal_rhs_for(value: &Literal, target_type: Option<&str>, value_objects_by_name: &HashMap<String, &Json>) -> String {
+    if let Literal::Hash(_) = value {
+        return literal_hash_rhs(value, target_type.unwrap_or(""), value_objects_by_name);
+    }
+    if let Some(target_type) = target_type {
+        if value_objects_by_name.contains_key(target_type) {
+            if let Some(sole) = crate::json_codec::sole_field_of(target_type, value_objects_by_name) {
+                return literal_hash_rhs(&Literal::Hash(vec![(sole, value.clone())]), target_type, value_objects_by_name);
+            }
+        }
+    }
+    crate::literal::literal_rhs(value)
 }
 
 /// A literal Hash's own bridgeability into a target type — either an
