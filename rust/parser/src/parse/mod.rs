@@ -1023,6 +1023,14 @@ pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<
         .map(|(_, v)| v.as_str())
 }
 
+/// A NAMED CONSTANT argument — `to: Payment`. Same shape as
+/// `positional_constant`: raw captured text, trimmed, no further
+/// coercion — a bareword's target name is resolved downstream
+/// (`naming::demodulise`), never here.
+pub(crate) fn named_constant<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {
+    named_raw(args, name).map(|s| s.trim())
+}
+
 /// A NAMED SYMBOL argument, stripped of its leading colon — `as: :name`.
 /// See `positional_symbol`'s own comment on `symbol_text` — same
 /// bare-or-quoted handling, named-argument side.

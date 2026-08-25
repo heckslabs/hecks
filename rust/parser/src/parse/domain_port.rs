@@ -44,8 +44,9 @@ pub fn parse_body(
         match gated.row.word {
             "operation" => {
                 let op_name = super::positional_text(file, line, "operation", &gated.args, 1)?;
+                let to = super::named_constant(&gated.args, "to").map(naming::demodulise);
                 port.operations
-                    .push(parse_operation_body(file, lines, pos, &op_name)?);
+                    .push(parse_operation_body(file, lines, pos, &op_name, to)?);
             }
             _ => {
                 return Err(super::not_built_yet(
@@ -70,11 +71,13 @@ fn parse_operation_body(
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
+    to: Option<String>,
 ) -> ParseResult<ir::PortOperation> {
     let mut operation = ir::PortOperation {
         name: name.to_string(),
         attributes: Vec::new(),
         emits: Vec::new(),
+        to,
     };
 
     loop {

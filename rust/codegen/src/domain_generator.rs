@@ -615,6 +615,41 @@ pub fn generate(
                             == Some(agg_name)
                     })
                     .map(|attr| crate::attr::name(attr).to_string());
+                // `to:`-DECLARED OPERATIONS — mirrors
+                // Dispatcher#port_invocation's own second, additive
+                // branch (lib/hecks/runtime/dispatcher.rb): no
+                // Reference-typed attribute exists for these
+                // (legacy_receiver_field is always None), so the
+                // receiver instead comes from a PLAIN external-fact
+                // attribute named for the owning aggregate's own
+                // identified_by field. Kept as a genuinely separate
+                // field from legacy_receiver_field, not folded into it
+                // — the kernel side (split_aggregate_receiver) must NOT
+                // strip this one out of the payload the way it strips a
+                // legacy receiver, since it's a real declared fact, not
+                // routing-only synthetic state.
+                let to_receiver_field = if operation.get("to").and_then(Json::as_str) == Some(agg_name) {
+                    // `.split('.').next()` — `identified_by` in the IR is
+                    // identity_paths, not the plain declared name
+                    // (lib/hecks/bluebook/aggregate.rb's own
+                    // `emits_ir(identified_by: :identity_paths, ...)`) —
+                    // for a value-object-typed identity this resolves to
+                    // a dotted internal path ("reference.value"), not
+                    // the flat field name ("reference") the operation's
+                    // own plain attribute is actually named. Confirmed
+                    // the hard way against the Ruby mirror
+                    // (rust/project/domain_generator.rb) generating the
+                    // wrong, ungrepped field first.
+                    aggregate
+                        .get("identified_by")
+                        .map(Json::each)
+                        .unwrap_or(&[])
+                        .first()
+                        .map(Json::to_s)
+                        .and_then(|s| s.split('.').next().map(str::to_string))
+                } else {
+                    None
+                };
                 let operation_reference_checks =
                     reference_checks(operation, &aggregates_by_name, &unsupported_names)
                         .into_iter()
@@ -635,6 +670,7 @@ pub fn generate(
                     ),
                     reference_checks: operation_reference_checks,
                     legacy_receiver_field,
+                    to_receiver_field,
                 });
             }
         }

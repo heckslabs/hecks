@@ -60,6 +60,17 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
 
+      # THE RECEIVING AGGREGATE — PortOperationBuilder's own `reference_to`
+      # (inside the block) is refused (#335); this is the sanctioned
+      # replacement, named directly on the word that opens the block
+      # rather than a statement inside it. `kind: "constant"`, matching
+      # `reference_to`'s own first positional argument
+      # (port_operation.bluebook) — same bareword-constant resolution,
+      # just moved.
+      member keyword: "operation",       context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"
+      member keyword: "tells",           context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"
+      member keyword: "asks",            context: "DomainPort", at: "", named: "to", kind: "constant", required: "false", fills: "to"
+
     end
   end
 end

@@ -151,9 +151,22 @@ impl CommandInvocation {
     /// external facts. A migration-era operation may name its old self-
     /// reference field; that field is accepted as a legacy receiver source
     /// but is removed from the returned facts in both invocation forms.
+    /// `to_receiver_field` — the `to:`-declared operation counterpart to
+    /// `legacy_receiver_field` (Dispatcher#port_invocation's own second,
+    /// additive branch, lib/hecks/runtime/dispatcher.rb). A genuinely
+    /// separate parameter, not folded into `legacy_receiver_field`, for
+    /// exactly one reason: a legacy receiver is synthetic routing-only
+    /// state and gets stripped from the returned facts below; a `to:`
+    /// receiver is a REAL declared external fact (rust/parser's own
+    /// domain_port.rs header: "declare only external facts with
+    /// attribute") that the operation's own generated Args struct still
+    /// expects to find in its payload — stripping it the same way would
+    /// reproduce the exact AbsentArgument bug the Ruby side hit first
+    /// (dispatcher.rb's own comment on why `[]` replaced `delete` there).
     pub fn split_aggregate_receiver(
         &self,
         legacy_receiver_field: Option<&str>,
+        to_receiver_field: Option<&str>,
     ) -> Result<(String, Json), Refusal> {
         let receiver = if let Some(route) = self.route() {
             route.require_depth(0)?;
@@ -163,10 +176,17 @@ impl CommandInvocation {
                 .get(field)
                 .ok_or_else(|| routing_refusal("aggregate-scoped operation requires to"))?
                 .to_id_component()?
+        } else if let Some(field) = to_receiver_field {
+            self.facts
+                .get(field)
+                .ok_or_else(|| routing_refusal("aggregate-scoped operation requires to"))?
+                .to_id_component()?
         } else {
             return Err(routing_refusal("aggregate-scoped operation requires to"));
         };
 
+        // ONLY THE LEGACY FIELD IS STRIPPED — to_receiver_field stays in
+        // the returned facts (see this method's own header comment).
         let facts = match (&self.facts, legacy_receiver_field) {
             (Json::Object(fields), Some(field)) => Json::Object(
                 fields
@@ -315,7 +335,7 @@ mod tests {
             ),
         ]))
         .unwrap();
-        let (receiver, facts) = explicit.split_aggregate_receiver(Some("order")).unwrap();
+        let (receiver, facts) = explicit.split_aggregate_receiver(Some("order"), None).unwrap();
         assert_eq!(receiver, "ORDER-7");
         assert_eq!(facts, Json::obj(vec![("amount", Json::int(20))]));
 
@@ -324,16 +344,55 @@ mod tests {
             ("amount", Json::int(30)),
         ]))
         .unwrap();
-        let (receiver, facts) = legacy.split_aggregate_receiver(Some("order")).unwrap();
+        let (receiver, facts) = legacy.split_aggregate_receiver(Some("order"), None).unwrap();
         assert_eq!(receiver, "ORDER-8");
         assert_eq!(facts, Json::obj(vec![("amount", Json::int(30))]));
 
         let unrouted =
             CommandInvocation::from_json(&Json::obj(vec![("amount", Json::int(40))])).unwrap();
         assert!(unrouted
-            .split_aggregate_receiver(None)
+            .split_aggregate_receiver(None, None)
             .unwrap_err()
             .to_string()
             .contains("requires to"));
+    }
+
+    // `to:`-DECLARED OPERATIONS — the second, additive receiver field
+    // (domain_generator.rs's own comment on why it stays separate from
+    // legacy_receiver_field). The one behavioral difference that matters:
+    // unlike the legacy field just above, this one is a REAL declared
+    // fact and must survive in `facts`, not get stripped out — a real,
+    // live AbsentArgument on the Ruby side (dispatcher.rb's own comment)
+    // is exactly the bug this test exists to catch on the Rust side too.
+    #[test]
+    fn to_declared_receiver_is_found_but_not_stripped_from_facts() {
+        let invocation = CommandInvocation::from_json(&Json::obj(vec![
+            ("reference", Json::str("pay1")),
+            ("transaction_id", Json::str("txn_1")),
+        ]))
+        .unwrap();
+        let (receiver, facts) = invocation
+            .split_aggregate_receiver(None, Some("reference"))
+            .unwrap();
+        assert_eq!(receiver, "pay1");
+        assert_eq!(
+            facts,
+            Json::obj(vec![
+                ("reference", Json::str("pay1")),
+                ("transaction_id", Json::str("txn_1")),
+            ])
+        );
+
+        // An explicit `to:` still wins over either receiver field —
+        // unchanged precedence, same as the legacy field already has.
+        let explicit = CommandInvocation::from_json(&Json::obj(vec![
+            ("to", Json::str("pay2")),
+            ("with", Json::obj(vec![("reference", Json::str("pay1"))])),
+        ]))
+        .unwrap();
+        let (receiver, _) = explicit
+            .split_aggregate_receiver(None, Some("reference"))
+            .unwrap();
+        assert_eq!(receiver, "pay2");
     }
 }

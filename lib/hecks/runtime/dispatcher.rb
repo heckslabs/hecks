@@ -191,6 +191,29 @@ module Hecks
         identity = operation.identity_attribute(aggregate.hecks_name)
         if to.nil? && identity && legacy.key?(identity.name)
           to = legacy.delete(identity.name)
+        elsif to.nil? && operation.to == aggregate.hecks_name
+          # `to:`-DECLARED OPERATIONS carry no Reference-typed attribute at
+          # all (PortOperationBuilder#initialize's own comment on why —
+          # genuine routing metadata, not an attribute), so `identity`
+          # above is always nil for these; this is the second, purely
+          # additive lookup they need instead. The routing value sits in
+          # a PLAIN external-fact attribute, named for the owning
+          # aggregate's own identified_by field — the domain author's job
+          # to match, same discipline reference_to's own `as:` always
+          # required. Composite identity (more than one identified_by
+          # component) isn't attempted here — `.first` only, no domain in
+          # the real corpus has needed more for a port operation yet.
+          #
+          # READ, NOT deleted — unlike the Reference-attribute branch
+          # above, this is a genuine declared operation attribute (Rust's
+          # own comment: "declare only external facts with attribute"),
+          # not synthetic routing-only state; the operation's own
+          # attributes still expect to find it in the payload a few steps
+          # later (refuse_absent_arguments), and a real, live
+          # AbsentArgument confirmed this the hard way before `[]`
+          # replaced `delete`.
+          identity_name = Array(aggregate.identified_by).first
+          to = legacy[identity_name] if identity_name && legacy.key?(identity_name)
         end
 
         route = Routing.envelope(to)

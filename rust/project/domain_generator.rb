@@ -540,6 +540,35 @@ module RustProjection
               legacy_receiver_field = operation[:attributes]
                 .find { |attr| Projector.reference_target(attr[:type]) == aggregate[:name] }
                 &.dig(:name)
+              # `to:`-DECLARED OPERATIONS — mirrors Dispatcher
+              # #port_invocation's own second, additive branch
+              # (lib/hecks/runtime/dispatcher.rb): no Reference-typed
+              # attribute exists for these (legacy_receiver_field is
+              # always nil), so the receiver instead comes from a plain
+              # external-fact attribute named for the owning aggregate's
+              # own identified_by field. A genuinely separate field, not
+              # folded into legacy_receiver_field — registry.rb's own
+              # split_aggregate_receiver call must NOT strip this one
+              # out of the payload the way it strips a legacy receiver,
+              # since it's a real declared fact, not routing-only
+              # synthetic state (rust/src/kernel/routing.rs's own
+              # split_aggregate_receiver already carries this exact
+              # distinction, as a second parameter).
+              # `.split(".").first` — the SAME "just the head" extraction
+              # this file's own `heads` local already does elsewhere
+              # (line ~96): `aggregate[:identified_by]` is `identity_
+              # paths`, not the plain declared name (aggregate.rb's own
+              # `emits_ir(identified_by: :identity_paths, ...)`) — for a
+              # value-object-typed identity (Payment's own `identified_by
+              # :reference` where `reference` is itself a Reference value
+              # object), this resolves to the dotted internal path
+              # "reference.value", not the flat "reference" the
+              # operation's own plain attribute is actually named.
+              # Confirmed the hard way: the first draft generated
+              # `Some("reference.value")`, which `self.facts.get(...)`
+              # (a flat lookup, no nested-path traversal) would never
+              # find against a real `{"reference": "..."}` payload.
+              to_receiver_field = operation[:to] == aggregate[:name] ? aggregate[:identified_by]&.first&.split(".")&.first : nil
               operation_reference_checks = reference_checks(operation, aggregates_by_name, unsupported_names)
                 .reject { |check| check[:target_name] == aggregate[:name] }
               port_operations << {
@@ -549,6 +578,7 @@ module RustProjection
                 args_struct: operation_args_struct,
                 reference_checks: operation_reference_checks,
                 legacy_receiver_field: legacy_receiver_field,
+                to_receiver_field: to_receiver_field,
               }
             end
           end

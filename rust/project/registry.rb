@@ -303,10 +303,11 @@ module RustProjection
         a[:ports].map do |p|
           reference_lines = p[:reference_checks].map { |check| emit_reference_check(check) }
           legacy_receiver = p[:legacy_receiver_field] ? "Some(#{p[:legacy_receiver_field].to_s.inspect})" : "None"
+          to_receiver = p[:to_receiver_field] ? "Some(#{p[:to_receiver_field].to_s.inspect})" : "None"
           dispatch_call = "#{mod_path}::dispatch_operation_#{p[:fn]}(&id, args).map(|events| stamp_payload(events, &payload))"
 
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
-                  "let (id, port_facts) = invocation.split_aggregate_receiver(#{legacy_receiver})?;",
+                  "let (id, port_facts) = invocation.split_aggregate_receiver(#{legacy_receiver}, #{to_receiver})?;",
                   "let facts_json = &port_facts;",
                   "let _instance = store.#{a[:mod]}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"#{a[:name]} {:?} does not exist\", id)))?;",
                   "let args = #{mod_path}::#{p[:args_struct]}::from_json(facts_json)?;", *reference_lines,

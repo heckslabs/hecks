@@ -19,7 +19,7 @@ module Hecks
 
       emits_ir(name: :hecks_name, attributes: many(:attributes), emits: :emits)
 
-      attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses
+      attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
 
       # TWO DIRECTIONS THROUGH ONE DOOR.
       #
@@ -33,13 +33,14 @@ module Hecks
       # what the adapter came back with, `refuses` for what it said instead.
       # Naming only the happy one would put the failure somewhere the model
       # cannot see, which is the whole reason a boundary is worth modelling.
-      def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil)
+      def initialize(name:, attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil)
         @hecks_name = name.to_s
         @attributes = attributes
         @emits      = emits
         @direction  = direction.to_sym
         @answers    = answers
         @refuses    = refuses
+        @to         = to
         @attributes_by_name = attributes.to_h { |attribute| [attribute.name, attribute] }
       end
 
@@ -63,11 +64,19 @@ module Hecks
       # domain that never asked for the feature. Only a chapter that
       # actually declares `asks` (this extraction's own QualityControl
       # ledger, not yet in any Rust-parity corpus) pays for it.
+      # `to` — SAME "deliberately outside emits_ir, merged in only when
+      # present" treatment as direction/answers/refuses just above, and
+      # for the identical reason: an operation still spelled the old way
+      # (`reference_to` inside the block, shadow-parsing only — see
+      # reference_to_impl's own comment) or one that simply hasn't
+      # migrated yet keeps the EXACT prior IR shape, byte for byte,
+      # instead of an unconditional new key breaking parser_parity_spec
+      # for every domain that never touched this.
       def to_h
         shape = super
-        return shape if inbound?
-
-        shape.merge(direction: @direction.to_s, answers: @answers, refuses: @refuses)
+        shape = shape.merge(direction: @direction.to_s, answers: @answers, refuses: @refuses) unless inbound?
+        shape = shape.merge(to: @to) if @to
+        shape
       end
     end
 

@@ -25,8 +25,8 @@ module Hecks
         # — the routing between the two spellings now lives in the table,
         # not in a Ruby `alias`. Not bootstrap-reachable (checked
         # directly), so no BOOTSTRAP_CALLS_FALLBACK entry needed.
-        def tells_impl(name, &block)
-          @operations << PortOperationBuilder.build(name, owner: @owner, direction: :inbound, &block)
+        def tells_impl(name, to: nil, &block)
+          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :inbound, &block)
         end
 
         # WHAT WE ASK OF THE OUTSIDE — the direction this language did not
@@ -39,8 +39,8 @@ module Hecks
         #
         # RENAMED FROM `asks` — item #13's full metaprogrammed dispatch
         # (slice 4c), same reasoning as tells_impl above.
-        def asks_impl(name, &block)
-          @operations << PortOperationBuilder.build(name, owner: @owner, direction: :outbound, &block)
+        def asks_impl(name, to: nil, &block)
+          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &block)
         end
 
         # THE DRIVEN HALF OF THE SAME WORD. `operation`/`emits` translates an

@@ -810,14 +810,22 @@ fn domain_port_json(p: &ir::DomainPort) -> JsonValue {
 }
 
 fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         ("name".to_string(), JsonValue::str(op.name.clone())),
         (
             "attributes".to_string(),
             JsonValue::Array(op.attributes.iter().map(attribute_json).collect()),
         ),
         ("emits".to_string(), JsonValue::strings(&op.emits)),
-    ])
+    ];
+    // MERGED IN ONLY WHEN PRESENT — same "byte-identical IR for anyone
+    // who never touched this" treatment domain_port.rb's own Ruby to_h
+    // gives `to`, for the same reason: an unconditional key here would
+    // break parser_parity_spec for every domain that never declared one.
+    if let Some(to) = &op.to {
+        fields.push(("to".to_string(), JsonValue::str(to.clone())));
+    }
+    JsonValue::Object(fields)
 }
 
 /// `JSON.generate`'s own native encoding of a captured Ruby value — used
