@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for PizzaName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -79,6 +88,15 @@ impl crate::kernel::Fielded for Price {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -137,6 +155,15 @@ impl crate::kernel::Fielded for CustomerName {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -202,6 +229,15 @@ impl crate::kernel::Fielded for ToppingName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -261,6 +297,15 @@ impl crate::kernel::Fielded for ToppingAmount {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -324,6 +369,15 @@ impl crate::kernel::Fielded for Topping {
         match name {
             "name" => Some(Field::Value(Value::Str(self.name.clone()))),
             "amount" => Some(Field::Value(Value::Int(self.amount))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -418,6 +472,15 @@ impl crate::kernel::Fielded for Pizza {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -471,6 +534,15 @@ impl crate::kernel::Fielded for Order {
             "toppings" => Some(Field::Value(Value::List(self.toppings.len()))),
             "customer_name" => self.customer_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "toppings" => Some(self.toppings.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -528,6 +600,15 @@ impl crate::kernel::Fielded for CreatePizzaArgs {
         match name {
             "name" => Some(Field::Nested(&self.name)),
             "pizza" => Some(Field::Nested(&self.pizza)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -616,6 +697,15 @@ impl crate::kernel::Fielded for AddToppingArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -690,6 +780,15 @@ impl crate::kernel::Fielded for PurchaseArgs {
         match name {
             "amount" => Some(Field::Nested(&self.amount)),
             "customer_name" => Some(Field::Nested(&self.customer_name)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }

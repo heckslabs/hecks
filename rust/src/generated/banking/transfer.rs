@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for TransferReference {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -79,6 +88,15 @@ impl crate::kernel::Fielded for TransferMoney {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -137,6 +155,15 @@ impl crate::kernel::Fielded for Narrative {
         use crate::kernel::Value;
         match name {
             "text" => Some(Field::Value(Value::Str(self.text.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -211,6 +238,15 @@ impl crate::kernel::Fielded for Transfer {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl Transfer {
@@ -270,6 +306,15 @@ impl crate::kernel::Fielded for RequestArgs {
             "narrative" => Some(Field::Nested(&self.narrative)),
             "source" => Some(Field::Value(Value::Str(self.source.clone()))),
             "destination" => Some(Field::Value(Value::Str(self.destination.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -375,6 +420,15 @@ impl crate::kernel::Fielded for DebitedArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -442,6 +496,15 @@ impl crate::kernel::Fielded for SettleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -519,6 +582,15 @@ impl crate::kernel::Fielded for CreditedArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -591,6 +663,15 @@ impl crate::kernel::Fielded for ReverseArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -658,6 +739,15 @@ impl crate::kernel::Fielded for RejectArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,

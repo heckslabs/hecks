@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for InstructionReference {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -61,6 +70,15 @@ impl crate::kernel::Fielded for ScheduledAmount {
         use crate::kernel::Value;
         match name {
             "cents" => Some(Field::Value(Value::Int(self.cents))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -122,6 +140,15 @@ impl crate::kernel::Fielded for PaymentRecipient {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -187,6 +214,15 @@ impl crate::kernel::Fielded for PaymentDueDate {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -249,6 +285,15 @@ impl crate::kernel::Fielded for RetryCount {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -307,6 +352,15 @@ impl crate::kernel::Fielded for RetryLimit {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -384,6 +438,15 @@ impl crate::kernel::Fielded for ScheduledPayment {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl ScheduledPayment {
@@ -447,6 +510,15 @@ impl crate::kernel::Fielded for ScheduleArgs {
             "amount" => Some(Field::Nested(&self.amount)),
             "recipient" => Some(Field::Nested(&self.recipient)),
             "due_on" => Some(Field::Nested(&self.due_on)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -552,6 +624,15 @@ impl crate::kernel::Fielded for ExecuteArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -619,6 +700,15 @@ impl crate::kernel::Fielded for CancelArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -696,6 +786,15 @@ impl crate::kernel::Fielded for FailArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -763,6 +862,15 @@ impl crate::kernel::Fielded for RetryArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -837,6 +945,15 @@ impl crate::kernel::Fielded for AbandonArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,

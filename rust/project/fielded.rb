@@ -74,8 +74,35 @@ module RustProjection
         'fielded_flat',
         'TmplFlatType' => struct_name,
         '"tmpl_arms_placeholder" => tmpl_arms_block(),' => arms.join("\n"),
+        '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(attributes, value_objects_by_name, [], optional: ->(attr) { attr[:optional] }).join("\n"),
         'use crate::kernel::Value;' => (arms.any? { |arm| arm.include?('Value') } ? 'use crate::kernel::Value;' : '')
       )}\n"
+    end
+
+    # `Fielded::items` — one arm per list attribute whose ELEMENT this
+    # generator can hand the kernel: a scalar (through `scalar_to_value`,
+    # the same reading the scalar field arms use) or a nested value
+    # object/entity that has a `Fielded` impl of its own. A list of
+    # anything else gets no arm and stays a length-only field, exactly
+    # as before the enumeration operators existed. `optional` decides
+    # per attribute whether the list is `Option`-wrapped — the flat and
+    # record emitters answer that differently (see each caller).
+    def items_arms(attributes, value_objects_by_name, entity_names, optional:)
+      attributes.filter_map do |attr|
+        next nil unless attr[:list]
+
+        key    = rust_field(attr[:name])
+        ident  = rust_ident_field(attr[:name])
+        scalar = effective_scalar_type(attr[:type])
+        nested = value_objects_by_name[attr[:type]]
+        fielded_element = scalar || (nested && fielded_capable_nested?(nested)) || entity_names.include?(attr[:type])
+        next nil unless fielded_element
+
+        shape = "fielded_items_arm_list_#{optional.call(attr) ? 'optional_' : ''}#{scalar ? 'scalar' : 'nested'}"
+        subs = { '"tmpl_field"' => key.inspect, "tmpl_ident" => ident }
+        subs["tmpl_value_expr_placeholder(v)"] = scalar_to_value(scalar, "v") if scalar
+        "            #{Exemplar.render(shape, subs)}"
+      end
     end
 
     # Aggregate records differ from value objects/args structs in one main
@@ -120,10 +147,15 @@ module RustProjection
       arms = arms.map { |a| "            #{a}" }
 
       # Trailing "\n" — see `emit_fielded_flat`'s own comment on why.
+      entity_names = (aggregate[:entities] || []).map { |e| e[:name] }
       "#{Exemplar.render(
         'fielded_record',
         'TmplRecordType' => name,
-        '"tmpl_arms_placeholder" => tmpl_arms_block(),' => arms.join("\n")
+        '"tmpl_arms_placeholder" => tmpl_arms_block(),' => arms.join("\n"),
+        '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(
+          aggregate[:attributes], value_objects_by_name, entity_names,
+          optional: ->(attr) { list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name) }
+        ).join("\n")
       )}\n"
     end
   end

@@ -177,6 +177,83 @@ fn tmpl_arms_block() -> Option<crate::kernel::Field<'static>> {
     None
 }
 
+// THE ITEMS HALF — `Fielded::items` (kernel/expr.rs), the elements of a
+// list-typed field for the enumeration operators (`.any?`/`.none?`/
+// `.all?`/`.find { |x| … }`), beside `field`'s own `Value::List(len)`
+// reading of the same attribute. Four arm shapes: the element is either
+// a nested value object/entity (`Field::Nested`) or a scalar
+// (`Field::Value`, through the same `scalar_to_value` the scalar field
+// arms use), crossed with the list being plain or `Option`-wrapped.
+// Every `Fielded` impl carries the method; a struct with no list
+// attribute renders it with no arms at all, just the `_ => None` floor.
+fn tmpl_items_block() -> Option<Vec<crate::kernel::Field<'static>>> {
+    None
+}
+
+struct TmplItemsNestedHost {
+    tmpl_ident: Vec<TmplNestedInner>,
+}
+impl TmplItemsNestedHost {
+    fn arm(&self) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match "x" {
+            // TMPL:fielded_items_arm_list_nested BEGIN
+            "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Nested(v)).collect()),
+            // TMPL:fielded_items_arm_list_nested END
+            _ => None,
+        }
+    }
+}
+
+struct TmplItemsScalarHost {
+    tmpl_ident: Vec<i64>,
+}
+impl TmplItemsScalarHost {
+    fn arm(&self) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match "x" {
+            // TMPL:fielded_items_arm_list_scalar BEGIN
+            "tmpl_field" => Some(self.tmpl_ident.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
+            // TMPL:fielded_items_arm_list_scalar END
+            _ => None,
+        }
+    }
+}
+
+struct TmplItemsOptionalNestedHost {
+    tmpl_ident: Option<Vec<TmplNestedInner>>,
+}
+impl TmplItemsOptionalNestedHost {
+    fn arm(&self) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match "x" {
+            // TMPL:fielded_items_arm_list_optional_nested BEGIN
+            "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Nested(v)).collect()),
+            // TMPL:fielded_items_arm_list_optional_nested END
+            _ => None,
+        }
+    }
+}
+
+struct TmplItemsOptionalScalarHost {
+    tmpl_ident: Option<Vec<i64>>,
+}
+impl TmplItemsOptionalScalarHost {
+    fn arm(&self) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match "x" {
+            // TMPL:fielded_items_arm_list_optional_scalar BEGIN
+            "tmpl_field" => self.tmpl_ident.as_ref().map(|items| items.iter().map(|v| Field::Value(tmpl_value_expr_placeholder(v))).collect()),
+            // TMPL:fielded_items_arm_list_optional_scalar END
+            _ => None,
+        }
+    }
+}
+
 struct TmplFlatType;
 struct TmplRecordType;
 
@@ -210,6 +287,15 @@ impl crate::kernel::Fielded for TmplFlatType {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+"tmpl_items_placeholder" => tmpl_items_block(),
+            _ => None,
+        }
+    }
 }
 // TMPL:fielded_flat END
 
@@ -220,6 +306,15 @@ impl crate::kernel::Fielded for TmplRecordType {
         use crate::kernel::{Field, Value};
         match name {
 "tmpl_arms_placeholder" => tmpl_arms_block(),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+"tmpl_items_placeholder" => tmpl_items_block(),
             _ => None,
         }
     }

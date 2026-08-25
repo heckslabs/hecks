@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for AccountNumber {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -79,6 +88,15 @@ impl crate::kernel::Fielded for AccountFreezeReview {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl AccountFreezeReview {
@@ -126,6 +144,15 @@ impl crate::kernel::Fielded for OpenArgs {
         
         match name {
             "number" => Some(Field::Nested(&self.number)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -206,6 +233,15 @@ impl crate::kernel::Fielded for ClearArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -271,6 +307,15 @@ impl crate::kernel::Fielded for EscalateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,

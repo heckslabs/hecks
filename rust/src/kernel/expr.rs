@@ -103,6 +103,57 @@ pub trait Fielded {
     fn as_scalar(&self) -> Option<Value> {
         None
     }
+
+    /// THE ELEMENTS of a list-typed field, for the enumeration operators
+    /// (`expression_operators/enumeration.rs` — `.any?`/`.none?`/`.all?`/
+    /// `.find { |x| ... }`). `field` answers a list as `Value::List(len)`
+    /// — the length, which is all `.size`/`.empty?` ever asked (see
+    /// `Value`'s own header) — and stays that way; this is the SECOND
+    /// reading of the same field, its members one by one, each a
+    /// `Field` exactly as a nested lookup would see it (`Nested` for a
+    /// value object or entity element, `Value` for a scalar list). The
+    /// default answers `None` for every name, the same "refuse — nothing
+    /// generated does this" reading `as_scalar` takes; `fielded.rb`/
+    /// `rust/codegen/src/fielded.rs` generate an override with one arm
+    /// per real list attribute (exemplar `fielded_items_arm_*`).
+    fn items(&self, _name: &str) -> Option<Vec<Field<'_>>> {
+        None
+    }
+}
+
+/// `attrs.merge(node.param.to_sym => element)` — `Resolver::
+/// interpret_with_element` (resolver/block_predicates.rb), read
+/// directly: a block's own parameter is bound by MERGING it into the
+/// args side for the predicate's evaluation, so it is checked before
+/// every real argument and every instance field, and an argument that
+/// happens to share the parameter's name is shadowed the identical way
+/// in both runtimes. `rest` is whatever `args` was outside the block —
+/// nested blocks chain a `Bound` inside a `Bound`, exactly as Ruby's
+/// nested `merge` does.
+pub struct Bound<'a> {
+    pub name: &'a str,
+    pub value: Field<'a>,
+    pub rest: &'a dyn Fielded,
+}
+
+impl<'a> Fielded for Bound<'a> {
+    fn field(&self, name: &str) -> Option<Field<'_>> {
+        if name == self.name {
+            return Some(match &self.value {
+                Field::Value(v) => Field::Value(v.clone()),
+                Field::Nested(obj) => Field::Nested(*obj),
+            });
+        }
+        self.rest.field(name)
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        if name == self.name {
+            // A bound element is one member, never itself a list.
+            return None;
+        }
+        self.rest.items(name)
+    }
 }
 
 /// A `Fielded` with nothing in it — used where Ruby's own `attrs` is `{}`
@@ -144,11 +195,34 @@ impl<'a> Fielded for WithOld<'a> {
 // working unchanged.
 pub use comparison::Comparison;
 
+/// `BLOCK_PREDICATE_MODES` (resolver/block_predicates.rb): the three
+/// spellings of one Array-aggregation family, kept as one node with a
+/// mode exactly as Ruby keeps them (`BlockPredicate#mode`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockMode {
+    All,
+    Any,
+    None,
+}
+
+impl BlockMode {
+    /// The operator's own spelling, for the "expects a list" wording
+    /// Ruby renders from `"#{node.mode}?"`.
+    pub fn ruby_name(&self) -> &'static str {
+        match self {
+            BlockMode::All => "all?",
+            BlockMode::Any => "any?",
+            BlockMode::None => "none?",
+        }
+    }
+}
+
 // ── EXPR — the full Evaluator + Resolver AST as one recursive Rust enum.
 // Every variant corresponds to exactly one real Ruby node type:
 // Evaluator::{Or,And,Not,Compare,Include,Resolve} and Resolver::
 // {IntegerLiteral,FloatLiteral,StringLiteral,BoolLiteral,NilLiteral,
-// Addition,SignTest,Empty,ToS,Modulo,Size,Lookup}. `Resolve` itself
+// Addition,SignTest,Empty,ToS,Modulo,Size,Lookup,BlockPredicate,Find}.
+// `Resolve` itself
 // doesn't need its own variant — Ruby's `Resolve` is just "interpret the
 // wrapped Resolver node, then check truthiness," and every `Expr` variant
 // below already produces a `Value` that `interpret`'s callers can check
@@ -176,6 +250,15 @@ pub enum Expr {
     Modulo { receiver: Box<Expr>, divisor: Box<Expr> },
     Size(Box<Expr>),
     Lookup(&'static str),
+    /// `receiver.any? { |param| predicate }` and its `.none?`/`.all?`
+    /// siblings — `Resolver::BlockPredicate`. `predicate` is a whole
+    /// Evaluator-level expression (`Evaluator.parse` of the block body),
+    /// evaluated once per element with `param` bound (see `Bound`).
+    BlockPredicate { mode: BlockMode, receiver: Box<Expr>, param: &'static str, predicate: Box<Expr> },
+    /// `receiver.find { |param| predicate }.a.b` — `Resolver::Find`: the
+    /// first element the predicate accepts, projected through `path`
+    /// (empty for a bare `.find { }`), or nil when nothing matches.
+    Find { receiver: Box<Expr>, param: &'static str, predicate: Box<Expr>, path: &'static [&'static str] },
 }
 
 /// `state`/`attrs` from `Evaluator.call(expr, state, attrs)` — `args` is
@@ -222,6 +305,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         SignTest { .. } => OperatorCategory::SignTest,
         Empty(..) | Size(..) => OperatorCategory::Sized,
         ToS(..) => OperatorCategory::ToString,
+        BlockPredicate { .. } | Find { .. } => OperatorCategory::Enumeration,
         Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) => {
             unreachable!("interpret's own leaf arms handle these before category_of is ever called")
         }
@@ -253,6 +337,7 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
             _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Sized, ..) called with {expr:?} — a router bug"))),
         },
         OperatorCategory::ToString => to_string::interpret(expr, ctx),
+        OperatorCategory::Enumeration => enumeration::interpret(expr, ctx),
     }
 }
 
@@ -280,6 +365,52 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
     }
 
     composite::finish(current, path)
+}
+
+/// The list-elements reading of a `Lookup` path, for the enumeration
+/// operators: the same args-then-instance head resolution and
+/// `composite::step` walk `lookup` does for every segment but the last,
+/// then `Fielded::items` for the last one — a list is the end of a
+/// path, never the middle of it. `op` is only for the wording
+/// (`Resolver#evaluate_block_predicate`: "any? expects a list, got …").
+pub(crate) fn lookup_items<'a>(path: &str, ctx: &EvalContext<'a>, op: &str) -> Result<Vec<Field<'a>>, Refusal> {
+    let segments: Vec<&str> = path.split('.').collect();
+    let (head, rest) = segments.split_first().unwrap();
+
+    if rest.is_empty() {
+        // `Resolver#fetch`: attrs first when the key exists there, state
+        // second — decided by the FIELD's presence, so an argument that
+        // is not a list refuses rather than silently falling through to
+        // a same-named instance list.
+        let side: &'a dyn Fielded = if ctx.args.field(head).is_some() { ctx.args } else { ctx.instance };
+        return side
+            .items(head)
+            .ok_or_else(|| eval_error(format!("{op} expects a list, got {}", describe_field(side.field(head)))));
+    }
+
+    let (last, middle) = rest.split_last().unwrap();
+    let mut current = ctx
+        .args
+        .field(head)
+        .or_else(|| ctx.instance.field(head))
+        .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
+    for seg in middle {
+        current = composite::step(current, seg, head, path)?;
+    }
+    match current {
+        Field::Nested(obj) => obj
+            .items(last)
+            .ok_or_else(|| eval_error(format!("{op} expects a list, got {}", describe_field(obj.field(last))))),
+        Field::Value(v) => Err(eval_error(format!("{path} — cannot look up {last:?} on scalar {v:?}"))),
+    }
+}
+
+fn describe_field(field: Option<Field<'_>>) -> String {
+    match field {
+        None => "nothing".to_string(),
+        Some(Field::Value(v)) => format!("{v:?}"),
+        Some(Field::Nested(_)) => "an object".to_string(),
+    }
 }
 
 pub(crate) fn eval_error(message: String) -> Refusal {

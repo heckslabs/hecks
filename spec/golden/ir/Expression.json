@@ -170,7 +170,7 @@
               "description": "an operator belongs to the outer or the inner grammar"
             },
             {
-              "canonical": "strategy.value == \"top_level_split\" || strategy.value == \"prefix_match\" || strategy.value == \"suffix_match\" || strategy.value == \"call_pattern_match\"",
+              "canonical": "strategy.value == \"top_level_split\" || strategy.value == \"prefix_match\" || strategy.value == \"suffix_match\" || strategy.value == \"call_pattern_match\" || strategy.value == \"block_pattern_match\"",
               "description": "an operator's check strategy is one the parser actually has"
             }
           ],

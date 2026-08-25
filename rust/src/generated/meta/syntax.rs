@@ -18,6 +18,15 @@ impl crate::kernel::Fielded for SyntaxName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -455,6 +464,15 @@ impl crate::kernel::Fielded for KeywordPosition {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -499,6 +517,15 @@ impl crate::kernel::Fielded for ArgumentPosition {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -549,6 +576,15 @@ impl crate::kernel::Fielded for KeywordSeedText {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -593,6 +629,15 @@ impl crate::kernel::Fielded for ArgumentSeedText {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -662,6 +707,15 @@ impl crate::kernel::Fielded for Keyword {
             "disambiguator" => self.disambiguator.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "calls" => self.calls.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -745,6 +799,15 @@ impl crate::kernel::Fielded for KeywordDeprecateArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -812,6 +875,15 @@ impl crate::kernel::Fielded for KeywordRetireArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -926,6 +998,15 @@ impl crate::kernel::Fielded for Argument {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl Argument {
@@ -1016,6 +1097,15 @@ impl crate::kernel::Fielded for ArgumentDeprecateArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -1083,6 +1173,15 @@ impl crate::kernel::Fielded for ArgumentRetireArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -1170,6 +1269,16 @@ impl crate::kernel::Fielded for Syntax {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "keywords" => Some(self.keywords.iter().map(|v| Field::Nested(v)).collect()),
+            "arguments" => Some(self.arguments.iter().map(|v| Field::Nested(v)).collect()),
+            _ => None,
+        }
+    }
 }
 
 impl Syntax {
@@ -1222,6 +1331,15 @@ impl crate::kernel::Fielded for DeclareArgs {
         match name {
             "bluebook" => Some(Field::Nested(&self.bluebook)),
             "name" => Some(Field::Nested(&self.name)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -1316,6 +1434,15 @@ impl crate::kernel::Fielded for KeywordArgs {
             "resolves_via" => self.resolves_via.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "disambiguator" => self.disambiguator.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "calls" => self.calls.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -1446,6 +1573,15 @@ impl crate::kernel::Fielded for ArgumentArgs {
             "minimum" => self.minimum.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "coerce" => self.coerce.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "blank_message" => self.blank_message.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }

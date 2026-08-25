@@ -509,6 +509,7 @@ and held equal to it by `spec/operator_conformance_spec.rb`:
 | `.positive?`, `.negative?`, `.zero?` | sign_test | 1 | sugar for comparing the receiver against literal `0` |
 | `.empty?`, `.size` | sized | 1 | `Array`, `String`, `Hash` only |
 | `.to_s` | to_string | 1 | `String`, `Integer`, `Float`, `Boolean`, `nil` only — raises `EvaluationError` on anything else |
+| `.any?`, `.none?`, `.all?`, `.find` | enumeration | 2 | `list.any? { \|x\| predicate }` — the block's parameter is bound for the predicate (a whole boolean expression, blocks nest freely); `.find { }` may carry a dotted path, `list.find { \|x\| … }.a.b`, and is nil when nothing matches. Braces only, never `do…end` |
 
 Every one of the six comparison operators reduces to two primitives —
 `less_than` and `equal` — combined with a boolean algebra rather than
@@ -549,7 +550,9 @@ Hecks::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents
 Below `Compare`, the left and right sides are `Resolver` leaves — a
 smaller grammar for the non-boolean part: integer/float/string/bool/nil
 literals, `+` addition, `.modulo`, a sign test, `.empty?`/`.size`,
-`.to_s`, and the true leaf, `Lookup` — a bare or dotted name resolved
+`.to_s`, the block-taking enumeration operators (`.any?`/`.none?`/
+`.all?`/`.find { |x| … }`, whose body is a whole boolean expression
+parsed by `Evaluator` again), and the true leaf, `Lookup` — a bare or dotted name resolved
 against `attrs` then `state`, per `fetch` above. A `given` that only
 ever reads a bare instance field, no operator at all, still parses —
 into a `Resolve` node, whose value is checked for Ruby truthiness

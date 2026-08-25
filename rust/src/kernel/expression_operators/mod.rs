@@ -13,6 +13,7 @@ pub mod arithmetic;
 pub mod sign_test;
 pub mod sized;
 pub mod to_string;
+pub mod enumeration;
 
 /// One variant per real expression-operator category the Ruby
 /// grammar admits, in the order Grammar.admitted_operators's own `category` field declares them. Every match
@@ -30,6 +31,7 @@ pub enum OperatorCategory {
     SignTest,
     Sized,
     ToString,
+    Enumeration,
 }
 
 impl OperatorCategory {
@@ -46,8 +48,9 @@ impl OperatorCategory {
             OperatorCategory::SignTest => "sign_test",
             OperatorCategory::Sized => "sized",
             OperatorCategory::ToString => "to_string",
+            OperatorCategory::Enumeration => "enumeration",
         }
     }
 
-    pub const ALL: &'static [OperatorCategory] = &[OperatorCategory::Logical, OperatorCategory::Membership, OperatorCategory::Comparison, OperatorCategory::Arithmetic, OperatorCategory::SignTest, OperatorCategory::Sized, OperatorCategory::ToString];
+    pub const ALL: &'static [OperatorCategory] = &[OperatorCategory::Logical, OperatorCategory::Membership, OperatorCategory::Comparison, OperatorCategory::Arithmetic, OperatorCategory::SignTest, OperatorCategory::Sized, OperatorCategory::ToString, OperatorCategory::Enumeration];
 }

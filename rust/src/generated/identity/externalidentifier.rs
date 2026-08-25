@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for ExternalIdentifierKey {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -78,6 +87,15 @@ impl crate::kernel::Fielded for Issuer {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -136,6 +154,15 @@ impl crate::kernel::Fielded for Subject {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -205,6 +232,15 @@ impl crate::kernel::Fielded for ExternalIdentifier {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl ExternalIdentifier {
@@ -259,6 +295,15 @@ impl crate::kernel::Fielded for LinkArgs {
             "key" => Some(Field::Nested(&self.key)),
             "issuer" => Some(Field::Nested(&self.issuer)),
             "subject" => Some(Field::Nested(&self.subject)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }

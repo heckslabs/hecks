@@ -1,0 +1,3 @@
+Hecks.hecksagon "Roster" do
+  Roster::Roster.persisted_by("PostgresEra")
+end

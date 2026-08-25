@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for OnboardingReference {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -76,6 +85,15 @@ impl crate::kernel::Fielded for AccountNumber {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -146,6 +164,15 @@ impl crate::kernel::Fielded for OnboardingCase {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl OnboardingCase {
@@ -199,6 +226,15 @@ impl crate::kernel::Fielded for OpenArgs {
             "customer" => Some(Field::Value(Value::Str(self.customer.clone()))),
             "reference" => Some(Field::Nested(&self.reference)),
             "account_number" => Some(Field::Nested(&self.account_number)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -290,6 +326,15 @@ impl crate::kernel::Fielded for ClearArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -356,6 +401,15 @@ impl crate::kernel::Fielded for DeclineArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,

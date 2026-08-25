@@ -74,6 +74,7 @@ pub fn emit_fielded_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             &[
                 ("TmplFlatType", struct_name.to_string()),
                 ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
+                ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items_arms(exemplar, attributes, value_objects_by_name, &[], |attr| crate::attr::optional(attr)).join("\n")),
                 ("use crate::kernel::Value;", if uses_value { "use crate::kernel::Value;".to_string() } else { String::new() }),
             ],
         )
@@ -120,5 +121,53 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
 
     let arms: Vec<String> = arms.iter().map(|a| format!("            {a}")).collect();
 
-    format!("{}\n", exemplar.render("fielded_record", &[("TmplRecordType", name), ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n"))]))
+    let entity_names: Vec<String> = aggregate
+        .get("entities")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|e| e.get("name").and_then(Json::as_str).map(str::to_string))
+        .collect();
+    let items = items_arms(exemplar, attributes, value_objects_by_name, &entity_names, |attr| {
+        crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name)
+    });
+
+    format!(
+        "{}\n",
+        exemplar.render(
+            "fielded_record",
+            &[
+                ("TmplRecordType", name),
+                ("\"tmpl_arms_placeholder\" => tmpl_arms_block(),", arms.join("\n")),
+                ("\"tmpl_items_placeholder\" => tmpl_items_block(),", items.join("\n")),
+            ],
+        )
+    )
+}
+
+/// Port of `fielded.rb`'s `items_arms` — `Fielded::items`, one arm per
+/// list attribute whose element is a scalar or a `Fielded` value object/
+/// entity; anything else stays a length-only field with no arm.
+fn items_arms(exemplar: &Exemplar, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>, entity_names: &[String], optional: impl Fn(&Json) -> bool) -> Vec<String> {
+    let mut arms = Vec::new();
+    for attr in attributes {
+        if !crate::attr::list(attr) {
+            continue;
+        }
+        let key = naming::rust_field(crate::attr::name(attr));
+        let ident = naming::rust_ident_field(crate::attr::name(attr));
+        let type_name = crate::attr::type_name(attr);
+        let scalar = naming::effective_scalar_type(type_name);
+        let fielded_element = scalar.is_some() || is_fielded_nested(type_name, value_objects_by_name) || entity_names.iter().any(|e| e == type_name);
+        if !fielded_element {
+            continue;
+        }
+        let shape = format!("fielded_items_arm_list_{}{}", if optional(attr) { "optional_" } else { "" }, if scalar.is_some() { "scalar" } else { "nested" });
+        let mut subs: Vec<(&str, String)> = vec![("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)];
+        if let Some(scalar) = scalar {
+            subs.push(("tmpl_value_expr_placeholder(v)", naming::scalar_to_value(scalar, "v").unwrap()));
+        }
+        arms.push(format!("            {}", exemplar.render(&shape, &subs)));
+    }
+    arms
 }

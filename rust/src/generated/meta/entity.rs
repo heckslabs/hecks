@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for EntityName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -78,6 +87,15 @@ impl crate::kernel::Fielded for EntityText {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -127,6 +145,15 @@ impl crate::kernel::Fielded for Rule {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -173,6 +200,15 @@ impl crate::kernel::Fielded for IdentityPath {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -234,6 +270,15 @@ impl crate::kernel::Fielded for PieceField {
             "default" => self.default.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "admits" => self.admits.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "relationship" => self.relationship.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -302,6 +347,15 @@ impl crate::kernel::Fielded for PieceTransition {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -350,6 +404,15 @@ impl crate::kernel::Fielded for Position {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -563,6 +626,19 @@ impl crate::kernel::Fielded for Entity {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "identified_by" => Some(self.identified_by.iter().map(|v| Field::Nested(v)).collect()),
+            "attributes" => Some(self.attributes.iter().map(|v| Field::Nested(v)).collect()),
+            "preconditions" => Some(self.preconditions.iter().map(|v| Field::Nested(v)).collect()),
+            "invariants" => Some(self.invariants.iter().map(|v| Field::Nested(v)).collect()),
+            "transitions" => Some(self.transitions.iter().map(|v| Field::Nested(v)).collect()),
+            _ => None,
+        }
+    }
 }
 
 impl Entity {
@@ -634,6 +710,15 @@ impl crate::kernel::Fielded for IdentifyArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -700,6 +785,15 @@ impl crate::kernel::Fielded for SealArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
         match name {
 
             _ => None,
@@ -779,6 +873,15 @@ impl crate::kernel::Fielded for AttributeArgs {
             "default" => self.default.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "admits" => self.admits.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "relationship" => self.relationship.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -882,6 +985,15 @@ impl crate::kernel::Fielded for PreconditionArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -956,6 +1068,15 @@ impl crate::kernel::Fielded for InvariantArgs {
         match name {
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "canonical" => Some(Field::Nested(&self.canonical)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -1036,6 +1157,15 @@ impl crate::kernel::Fielded for LifecycleArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -1111,6 +1241,15 @@ impl crate::kernel::Fielded for TransitionArgs {
             "command" => Some(Field::Nested(&self.command)),
             "from_state" => self.from_state.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "to_state" => Some(Field::Nested(&self.to_state)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }

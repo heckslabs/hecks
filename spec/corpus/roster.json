@@ -1,0 +1,88 @@
+{
+  "name": "roster-parity",
+  "note": "One roster through every command once \u2014 open, two seats, two members, one assignment \u2014 every given a block predicate, all of them accepted.",
+  "domain": "examples/roster",
+  "expectations": {
+    "events": 6
+  },
+  "steps": [
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.AddSeat",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "number": {
+          "value": 1
+        },
+        "row": {
+          "value": "front"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.AddSeat",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "number": {
+          "value": 2
+        },
+        "row": {
+          "value": "back"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Enlist",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "ada"
+        },
+        "age": {
+          "value": 34
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Enlist",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "bob"
+        },
+        "age": {
+          "value": 19
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Assign",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "member": {
+          "value": "ada"
+        },
+        "number": {
+          "value": 1
+        }
+      }
+    }
+  ]
+}

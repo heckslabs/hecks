@@ -1,0 +1,117 @@
+Hecks.bluebook "Roster" do
+  vision "A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST."
+  supporting
+
+  # THE ENUMERATION OPERATORS' OWN EXAMPLE. Every given below is a block
+  # predicate — `.none?`/`.any?`/`.all?`/`.find { |x| … }` — over one of
+  # three list attributes (a value-object list, an entity list, a
+  # value-object list holding references), including one block nested
+  # inside another that reads the outer block's own parameter. That is
+  # the shape the chess and shipping domains lean on for every occupancy,
+  # path-clearance, and itinerary rule, reduced to the fewest moving
+  # parts that still exercise each operator on each element kind — so
+  # `spec/corpus/rust_conformance/roster.json` can hold the Rust kernel's
+  # `expression_operators/enumeration.rs` to Ruby's own
+  # `Resolver#evaluate_block_predicate`/`#found_of`, dispatch for
+  # dispatch, refusal for refusal.
+  aggregate "Roster" do
+    description "One roster: its seats, its crew, and who sits where."
+
+    attribute :name,        RosterName
+    attribute :seats,       list_of(Seat)
+    attribute :crew,        list_of(Member)
+    attribute :assignments, list_of(Assignment)
+
+    identified_by :name
+
+    value_object("RosterName") { attribute :value, String }
+    value_object("MemberId")   { attribute :value, String }
+    value_object("SeatNumber") { attribute :value, Integer }
+    value_object("Age")        { attribute :value, Integer }
+
+    value_object "Row" do
+      attribute :value, String, one_of: ["front", "back"]
+    end
+
+    value_object "Seat" do
+      attribute :number, SeatNumber
+      attribute :row,    Row
+    end
+
+    value_object "Assignment" do
+      attribute :member, MemberId
+      attribute :number, SeatNumber
+    end
+
+    entity "Member" do
+      description "One enlisted member — an entity, so the crew list's elements are entity records, not value objects."
+
+      attribute :id,  MemberId
+      attribute :age, Age
+
+      identified_by :id
+    end
+
+    command "Open" do
+      goal "Start an empty roster"
+
+      attribute :name, RosterName
+
+      emits "RosterOpened"
+    end
+
+    command "AddSeat" do
+      goal "Add a numbered seat in the front or back row — numbers never repeat"
+
+      reference_to Roster
+      attribute :number, SeatNumber
+      attribute :row,    Row
+
+      given("seat numbers are unique") { seats.none? { |s| s.number.value == number.value } }
+
+      sets :seats, append: { number: :number, row: :row }
+
+      emits "SeatAdded"
+    end
+
+    command "Enlist" do
+      goal "Enlist a member while a seat is still free for them — nobody enlists twice"
+
+      reference_to Roster
+      attribute :id,  MemberId
+      attribute :age, Age
+
+      given("nobody enlists twice") { crew.none? { |m| m.id.value == id.value } }
+      # A block INSIDE a block, the inner one reading the outer one's own
+      # parameter — "some seat has no assignment naming its number".
+      given("an open seat remains") { seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } } }
+
+      sets :crew, append: { id: :id, age: :age }
+
+      emits "MemberEnlisted"
+    end
+
+    command "Assign" do
+      goal "Seat an enlisted member in an existing, free seat — once; the front row is for members of age"
+
+      reference_to Roster
+      attribute :member, MemberId
+      attribute :number, SeatNumber
+
+      given("the member is enlisted")       { crew.any? { |m| m.id.value == member.value } }
+      given("the seat exists")              { seats.any? { |s| s.number.value == number.value } }
+      given("the seat is free")             { assignments.none? { |a| a.number.value == number.value } }
+      given("the member sits nowhere else") { assignments.none? { |a| a.member.value == member.value } }
+      # `.find { }` projected through a path, OR'd with an `.all?` whose
+      # predicate is an implication over the whole crew.
+      given("a front-row seat takes a member of age") do
+        seats.find { |s| s.number.value == number.value }.row.value == "back" ||
+          crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }
+      end
+
+      sets :assignments, append: { member: :member, number: :number }
+
+      emits "SeatAssigned"
+    end
+  end
+end

@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for ReadModelName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -78,6 +87,15 @@ impl crate::kernel::Fielded for ReadModelText {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -122,6 +140,15 @@ impl crate::kernel::Fielded for ProjectionPurpose {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -190,6 +217,15 @@ impl crate::kernel::Fielded for Head {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -247,6 +283,15 @@ impl crate::kernel::Fielded for ProjectionOption {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -297,6 +342,15 @@ impl crate::kernel::Fielded for GroupByField {
         use crate::kernel::Value;
         match name {
             "field" => Some(Field::Value(Value::Str(self.field.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -358,6 +412,15 @@ impl crate::kernel::Fielded for Position {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -548,6 +611,17 @@ impl crate::kernel::Fielded for ReadModel {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "aggregate_heads" => Some(self.aggregate_heads.iter().map(|v| Field::Nested(v)).collect()),
+            "options" => Some(self.options.iter().map(|v| Field::Nested(v)).collect()),
+            "group_by" => Some(self.group_by.iter().map(|v| Field::Nested(v)).collect()),
+            _ => None,
+        }
+    }
 }
 
 impl ReadModel {
@@ -618,6 +692,15 @@ impl crate::kernel::Fielded for GatherArgs {
             "aggregate" => Some(Field::Nested(&self.aggregate)),
             "as" => Some(Field::Nested(&self.r#as)),
             "many" => Some(Field::Nested(&self.many)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -700,6 +783,15 @@ impl crate::kernel::Fielded for GroupByArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -768,6 +860,15 @@ impl crate::kernel::Fielded for CountArgs {
         use crate::kernel::Value;
         match name {
             "count" => self.count.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -842,6 +943,15 @@ impl crate::kernel::Fielded for MedianArgs {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -913,6 +1023,15 @@ impl crate::kernel::Fielded for OptionArgs {
             "key" => Some(Field::Nested(&self.key)),
             "value" => self.value.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "at" => self.at.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
