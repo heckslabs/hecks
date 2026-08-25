@@ -463,6 +463,19 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
         return Json::Object(source);
     }
 
+    // THE EMITTING RECORD'S OWN IDENTITY IS A FACT A PROJECTION MAY READ
+    // — `PolicyInterpreter#emitter_identity`: offered under the emitting
+    // aggregate's own identity head, to an EXPLICIT projection only, never
+    // over a value the payload itself carries. A cross-aggregate reaction
+    // (chess's per-game Graveyard, fed from every piece's own Captured
+    // event) names its receiver this way — `with: { label: :label }` —
+    // and `split_routed_args` below routes it as `to`.
+    if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
+        if !event.id.is_empty() && !source.iter().any(|(name, _)| name == head) {
+            source.push((head.to_string(), Json::str(event.id.clone())));
+        }
+    }
+
     let projected = policy
         .with_spec
         .iter()

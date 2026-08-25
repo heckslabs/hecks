@@ -238,6 +238,8 @@ module Hecks
         payload = event.payload.transform_keys(&:to_sym).merge(extra)
         return payload unless ReactionInvocation.projection_declared?(policy)
 
+        payload = emitter_identity(event).merge(payload)
+
         args = ReactionInvocation.resolve_mapping(
           with_spec: policy.with_spec,
           scopes:    [["event payload and fan-out row", payload]],
@@ -255,6 +257,41 @@ module Hecks
         @registry.policy_dispatch_log << { policy: policy.name, on: event.name, payload: payload,
                                             with_spec: policy.with_spec, args: args }
         args
+      end
+
+      # THE EMITTING RECORD'S OWN IDENTITY IS A FACT A PROJECTION MAY READ
+      # — the same reasoning `for_each_query_args` gives one method up,
+      # extended from the fan-out's QUERY to the trigger's own `with:`.
+      # Routing separated from payload (`to:`/`with:`) stopped carrying
+      # the emitting aggregate's identity in the payload, which is right
+      # for the event (a KnightCaptured is a fact about a knight, not a
+      # re-statement of which game) but left a CROSS-aggregate reaction
+      # with no way to say which record to address: chess's Graveyard is
+      # one-per-game, fed by policy from every piece's own Captured
+      # event, and its burials had no way to name the game — the
+      # dispatcher fell through to the captured piece's `id` as the
+      # graveyard's identity and refused every one ("no Graveyard with
+      # label.value \"bb\""). Same-aggregate targets were already covered
+      # (`ReactionInvocation.source_receiver_for` lifts Event.id), so
+      # this is the OTHER aggregate's half of that.
+      #
+      # Offered under the emitting aggregate's own identity heads, only
+      # to an EXPLICIT projection (a legacy wholesale forward keeps its
+      # exact old payload), and never over a value the payload itself
+      # carries. `event.id` is the scalar the identity resolves to, so a
+      # projection naming it as the target's own identity head routes it
+      # as the receiver (`Identity.of` coerces a scalar against a
+      # single-field VO head), and one naming it as a declared attribute
+      # carries it as a fact. The build-time validator admits the same
+      # names (`BluebookBuilder.check_with_spec!`).
+      def emitter_identity(event)
+        return {} if event.id.nil? || event.id.to_s.empty?
+
+        domain, bare_name = event.aggregate.to_s.split("::", 2)
+        construct = bare_name && @registry.bluebook(domain)&.aggregate(bare_name)
+        return {} unless construct
+
+        construct.identity_heads.to_h { |head| [head.to_sym, event.id] }
       end
 
       # RESOLVES `target` ("Domain::Aggregate.Command", the same shape
