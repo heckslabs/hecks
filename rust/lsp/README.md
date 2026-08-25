@@ -22,9 +22,33 @@ is setup + roadmap.
   ...` list, at `severity: Warning` when the cause is
   `not_yet_implemented` (a real Stage 1 gap, not a bug in your file) and
   `severity: Error` otherwise.
+- `textDocument/documentSymbol` — an outline of every
+  `aggregate`/`entity`/`value_object`/`command`/`query`/`policy`/
+  `process_manager`/`read_model` in the open file, nested by `do`/`end`
+  depth. Sourced from a text scan of the buffer (`outline.rs`), not from
+  `hecks-parse`'s own IR — see that file's header for why (short version:
+  the IR carries no source line for anything, and often fails to build
+  at all under Stage 1's still-partial coverage, so this needed to work
+  independently of a parse succeeding).
+- `textDocument/definition` — resolves the bare identifier under the
+  cursor (a `reference_to Customer` / `belongs_to Account` usage) to
+  wherever that aggregate/entity/value_object is actually declared,
+  first in the same file, then across sibling `.bluebook`/`.hecksagon`
+  files in the same directory (a chapter routinely spans several files —
+  `parse::chapter`'s own header — and the declaration is often in one of
+  them, not the file doing the referencing).
 
 ## What it doesn't do yet
 
+- **`documentSymbol`/`definition` are text-scanned, not grammar-verified.**
+  Real, but a second, unverified idea of the grammar rather than a
+  projection of `syntax.bluebook` the way `rust/parser`'s own
+  `keywords.rs` is — see `outline.rs`'s header for the reasoning and its
+  one real failure mode (a buffer with unbalanced `do`/`end` mid-edit).
+  Only `aggregate`/`entity`/`value_object` names are valid `definition`
+  targets (`outline::is_reference_target`) — a `command`/`query` name
+  is never referenced by a bare identifier elsewhere in the corpus the
+  way a type name is, so it isn't one.
 - **No column info.** `rust/parser`'s own `Diagnostic` only tracks a
   line, so every diagnostic underlines the whole line. Real squiggle
   precision needs `rust/parser` to track columns first — nothing to fix
@@ -92,13 +116,12 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 ```
 
-**VS Code**: there's no packaged extension yet. The generic-LSP-client
-extensions on the marketplace (e.g. one that runs an arbitrary command
-over stdio for a configured file glob) work against this binary as-is —
-point them at `rust/lsp/target/debug/hecks-lsp` for `**/*.bluebook` and
-`**/*.hecksagon`. A real extension would just be that config plus a
-`languages`/`grammars` contribution (see the top-level tooling report
-for the syntax-highlighting gap this would also want to close).
+**VS Code**: `editors/vscode/` (repo root) is a minimal real extension —
+see its own README for build/install steps. Not published to the
+marketplace; installed locally (copy into your extensions directory, or
+F5 an Extension Development Host). It contributes no syntax highlighting
+grammar (a separate gap — see the top-level tooling report), just the
+language client wiring.
 
 ## Testing it without an editor
 

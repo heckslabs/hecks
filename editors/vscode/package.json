@@ -1,0 +1,53 @@
+{
+  "name": "hecks-lsp-client",
+  "displayName": "Hecks Language Support",
+  "description": "Diagnostics, outline, and go-to-definition for .bluebook/.hecksagon files, via rust/lsp's hecks-lsp",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "hecks",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:hecks-bluebook"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "hecks-bluebook",
+        "extensions": [
+          ".bluebook",
+          ".hecksagon"
+        ],
+        "aliases": [
+          "Hecks Bluebook"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Hecks Language Support",
+      "properties": {
+        "hecks.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the hecks-lsp binary (rust/lsp). Leave empty to search $PATH, then rust/lsp/target/{debug,release}/hecks-lsp relative to the first workspace folder."
+        },
+        "hecks.parse.binaryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the hecks-parse binary (rust/parser), passed to hecks-lsp as HECKS_PARSE_BIN. Leave empty to let hecks-lsp locate it itself — see rust/lsp/README.md's own lookup order."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}

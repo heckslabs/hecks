@@ -67,6 +67,13 @@ impl Json {
         }
     }
 
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            Json::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
     pub fn as_array(&self) -> Option<&[Json]> {
         match self {
             Json::Array(items) => Some(items.as_slice()),

@@ -17,12 +17,13 @@
 
 mod diagnostics;
 mod json;
+mod outline;
 mod rpc;
 
 use json::Json;
 use std::collections::HashMap;
 use std::io::{self, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 struct Server {
     hecks_parse: Option<PathBuf>,
@@ -81,6 +82,8 @@ impl Server {
                                 // — no incremental-patch bookkeeping to get
                                 // wrong for a scaffold this size.
                                 ("textDocumentSync", Json::Number(1)),
+                                ("documentSymbolProvider", Json::Bool(true)),
+                                ("definitionProvider", Json::Bool(true)),
                             ]),
                         ),
                         (
@@ -140,6 +143,28 @@ impl Server {
                     .and_then(Json::as_str)
                 {
                     self.check_document(uri, out);
+                }
+            }
+            "textDocument/documentSymbol" => {
+                if let Some(id) = id {
+                    let uri = message
+                        .get("params")
+                        .and_then(|p| p.get("textDocument"))
+                        .and_then(|t| t.get("uri"))
+                        .and_then(Json::as_str);
+                    let result = match uri.and_then(|u| self.documents.get(u)) {
+                        Some(text) => {
+                            Json::Array(outline::outline(text).iter().map(document_symbol_json).collect())
+                        }
+                        None => Json::Array(Vec::new()),
+                    };
+                    let _ = rpc::write_message(out, &rpc::response(id, result));
+                }
+            }
+            "textDocument/definition" => {
+                if let Some(id) = id {
+                    let result = self.find_definition(message).unwrap_or(Json::Null);
+                    let _ = rpc::write_message(out, &rpc::response(id, result));
                 }
             }
             "textDocument/didClose" => {
@@ -207,6 +232,149 @@ impl Server {
             Err(e) => log(out, 1, &format!("hecks-lsp: {e}")),
         }
     }
+
+    /// `textDocument/definition`: resolve the bare identifier under the
+    /// cursor (a `reference_to Customer`/`belongs_to Account`-style
+    /// usage) to wherever that aggregate/entity/value_object is
+    /// declared — first in the buffer itself, then across sibling
+    /// `.bluebook`/`.hecksagon` files in the same directory, since a
+    /// chapter routinely spans several files (`parse::chapter`'s own
+    /// header) and the thing being referenced is frequently declared in
+    /// one of them, not the file doing the referencing.
+    fn find_definition(&self, message: &Json) -> Option<Json> {
+        let params = message.get("params")?;
+        let uri = params.get("textDocument")?.get("uri")?.as_str()?;
+        let position = params.get("position")?;
+        let line = position.get("line")?.as_i64()? as usize;
+        let character = position.get("character")?.as_i64()? as usize;
+
+        let text = self.documents.get(uri)?;
+        let line_text = text.lines().nth(line)?;
+        let identifier = identifier_at(line_text, character)?;
+
+        let local_roots = outline::outline(text);
+        if let Some(symbol) = outline::find_by_name(&local_roots, &identifier) {
+            return Some(location(uri, symbol.start_line));
+        }
+
+        let path = uri_to_path(uri)?;
+        let dir = path.parent()?;
+        let mut siblings: Vec<PathBuf> = std::fs::read_dir(dir)
+            .ok()?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                *p != path
+                    && matches!(p.extension().and_then(|e| e.to_str()), Some("bluebook") | Some("hecksagon"))
+            })
+            .collect();
+        // Sorted for determinism — a name genuinely declared in more
+        // than one sibling would otherwise resolve to whichever order
+        // `read_dir` happened to hand back.
+        siblings.sort();
+
+        for sibling in siblings {
+            let Ok(sibling_text) = std::fs::read_to_string(&sibling) else { continue };
+            let roots = outline::outline(&sibling_text);
+            if let Some(symbol) = outline::find_by_name(&roots, &identifier) {
+                return Some(location(&path_to_uri(&sibling), symbol.start_line));
+            }
+        }
+        None
+    }
+}
+
+/// The identifier touching character offset `character` (0-indexed, LSP
+/// convention) on `line_text` — extends in both directions over
+/// `[A-Za-z0-9_]` so a cursor anywhere inside or at either edge of a
+/// word resolves it, matching how every real LSP client already
+/// positions the cursor for a "go to definition" request.
+fn identifier_at(line_text: &str, character: usize) -> Option<String> {
+    let chars: Vec<char> = line_text.chars().collect();
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+
+    let mut start = character;
+    if start >= chars.len() || !is_ident(chars[start]) {
+        if start > 0 && is_ident(chars[start - 1]) {
+            start -= 1;
+        } else {
+            return None;
+        }
+    }
+    while start > 0 && is_ident(chars[start - 1]) {
+        start -= 1;
+    }
+    let mut end = start;
+    while end < chars.len() && is_ident(chars[end]) {
+        end += 1;
+    }
+    Some(chars[start..end].iter().collect())
+}
+
+/// A zero-width `Location` at a symbol's declaring line — like
+/// `lsp_diagnostic`, there's no column to be more precise with (this
+/// crate's own outline is line-based; see `outline.rs`'s header), and a
+/// zero-width range still lands the cursor on the right line in every
+/// client that matters here.
+fn location(uri: &str, line_1_indexed: usize) -> Json {
+    let line0 = line_1_indexed.saturating_sub(1) as i64;
+    let point = Json::object(vec![("line", Json::Number(line0)), ("character", Json::Number(0))]);
+    Json::object(vec![
+        ("uri", Json::string(uri)),
+        ("range", Json::object(vec![("start", point.clone()), ("end", point)])),
+    ])
+}
+
+fn document_symbol_json(symbol: &outline::Symbol) -> Json {
+    let start0 = symbol.start_line.saturating_sub(1) as i64;
+    let end0 = symbol.end_line.max(symbol.start_line).saturating_sub(1) as i64;
+    let range = Json::object(vec![
+        ("start", Json::object(vec![("line", Json::Number(start0)), ("character", Json::Number(0))])),
+        ("end", Json::object(vec![("line", Json::Number(end0)), ("character", Json::Number(0))])),
+    ]);
+    Json::object(vec![
+        ("name", Json::string(symbol.name.clone())),
+        ("kind", Json::Number(lsp_symbol_kind(symbol.kind))),
+        ("range", range.clone()),
+        ("selectionRange", range),
+        ("children", Json::Array(symbol.children.iter().map(document_symbol_json).collect())),
+    ])
+}
+
+/// LSP `SymbolKind` (the spec's own fixed numeric enum) — picked for
+/// how each construct reads to a developer skimming an outline, not for
+/// any deeper claim of equivalence: `Struct` for the three constructs
+/// that are pure data shapes (`value_object`/`entity`/`read_model`),
+/// `Class` for the two that hold behavior an outline groups other
+/// things under (`aggregate`/`process_manager`), `Method`/`Function`
+/// for the two callable-shaped constructs, `Interface` for `policy`
+/// (it reacts to an event the way a handler implementation would).
+fn lsp_symbol_kind(kind: outline::Kind) -> i64 {
+    use outline::Kind::*;
+    match kind {
+        Aggregate => 5,      // Class
+        ProcessManager => 5, // Class
+        Entity => 23,        // Struct
+        ValueObject => 23,   // Struct
+        ReadModel => 23,     // Struct
+        Command => 6,        // Method
+        Query => 12,         // Function
+        Policy => 11,        // Interface
+    }
+}
+
+/// Only handles a plain `file://` URI with no percent-escapes — every
+/// real URI this server is ever handed (this repo's own checkout paths
+/// have no spaces or non-ASCII characters), and the one thing that
+/// actually matters here (`find_definition`'s sibling-file search) only
+/// needs the DIRECTORY, which survives even if the filename portion
+/// were escaped.
+fn uri_to_path(uri: &str) -> Option<PathBuf> {
+    uri.strip_prefix("file://").map(PathBuf::from)
+}
+
+fn path_to_uri(path: &Path) -> String {
+    format!("file://{}", path.display())
 }
 
 fn publish_diagnostics(out: &mut impl Write, uri: &str, diagnostics: Vec<Json>) {
