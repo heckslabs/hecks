@@ -36,6 +36,10 @@ module Hecks
     #   roles.mmd             flowchart        every role that issues a
     #                                          command, wired to every
     #                                          command it issues
+    #   ports.mmd             flowchart        every port operation, which
+    #                                          aggregate exposes it, which
+    #                                          aggregate it routes to: (if
+    #                                          any), and what it emits
     #
     # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
     # UNSANITIZED, as Mermaid node/entity ids — safe because this
@@ -71,6 +75,10 @@ module Hecks
 
         if (diagram = roles_diagram(bluebook))
           files["roles.mmd"] = diagram
+        end
+
+        if (diagram = ports_diagram(bluebook))
+          files["ports.mmd"] = diagram
         end
 
         files
@@ -243,6 +251,56 @@ module Hecks
       # real string still appears as the node's own label
       # (`role_node`); only the id is mangled.
       def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, '_')}"
+
+      # ── ports -> flowchart ───────────────────────────────────────────
+
+      # A PORT OPERATION IS A BOUNDARY TRANSLATION, NOT A VERB OR A FACT —
+      # its own reference page says so plainly ("the builder behind it
+      # defines no `given` or `sets`, so an operation cannot read
+      # aggregate state or mutate a record itself"), so it gets a third
+      # shape, a trapezoid, beside `dispatch.mmd`'s stadium/hexagon
+      # vocabulary. An aggregate drawn as a `to:` target is a cylinder —
+      # state landing somewhere, the same reason a data store gets one
+      # in an ordinary flowchart.
+      #
+      # TWO EDGE KINDS PER OPERATION: a dotted "exposes" edge from the
+      # aggregate the port hangs off (always present — a port always
+      # belongs to exactly one aggregate), and a solid "to:" edge to
+      # whichever aggregate the operation itself names as its receiver
+      # (present only when `to:` is declared — PR #351's own real
+      # addition; before it, this data didn't exist to draw at all).
+      # `emits` reuses `dispatch.mmd`'s own `event_node` unchanged — the
+      # same fact, reached from a different direction.
+      #
+      # `bluebook.aggregates`, NOT the shared `holders` — unlike a
+      # lifecycle/relationship/command, a port belongs to an AGGREGATE
+      # only; an entity has no `ports` method at all (confirmed: calling
+      # it raises, it isn't just always empty), so walking entities here
+      # the way every other diagram in this file does would crash on
+      # the first entity-bearing domain.
+      def ports_diagram(bluebook)
+        lines = bluebook.aggregates.flat_map do |holder|
+          holder.ports.flat_map { |port| port.operations.map { |operation| port_edges(holder, port, operation) } }
+        end.flatten
+
+        return nil if lines.empty?
+
+        subject = "#{bluebook.name}'s own declared port operations (which aggregate exposes each, its to:, and its emits)"
+        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      end
+
+      def port_edges(holder, port, operation)
+        op = port_operation_node(holder.hecks_name, port.name, operation.hecks_name)
+        edges = ["    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|exposes| #{op}"]
+        edges << "    #{op} -->|to: #{operation.to}| #{operation.to}[(#{operation.to})]" if operation.to
+        operation.emits.each { |event| edges << "    #{op} -->|emits| #{event_node(event)}" }
+        edges
+      end
+
+      def port_operation_node(aggregate_name, port_name, operation_name)
+        id = "op_#{aggregate_name}_#{port_name}_#{operation_name}"
+        %(#{id}[/"#{port_name}.#{operation_name}"/])
+      end
     end
   end
 end

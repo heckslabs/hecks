@@ -20,8 +20,54 @@ RSpec.describe "the generated diagrams" do
     registry
   end
 
-  let(:pizzas_chapter)  { boot_in_memory.registry.bluebook("Pizzas") }
+  # A `to:`-DECLARING PORT OPERATION, IN-MEMORY — no domain in the real
+  # corpus uses `to:` yet (PR #351's own real motivating case,
+  # lifeadelics' vendored PaymentGateway, lives outside this repo; the
+  # corpus's one real port, pizzas' own PaymentGateway.Receive, doesn't
+  # happen to need a receiver reference at all). Built the same way
+  # other specs cover a real grammar feature the shipped corpus hasn't
+  # reached yet (`spec/one_of_spec.rb`'s own `boot_banking` fixture is
+  # the precedent).
+  def boot_scratch_with_port_routing
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.bluebook "Scratch" do
+        aggregate "Payment" do
+          identified_by :reference
+          attribute :reference, PaymentReference
+          value_object "PaymentReference" do
+            attribute :value, String
+          end
+          command "Create" do
+            attribute :reference, PaymentReference
+            sets :reference
+            emits "PaymentCreated"
+          end
+        end
+      end
+      Hecks.hecksagon "Scratch" do
+        Scratch::Payment.port "PaymentGateway" do
+          operation "Succeeded", to: Payment do
+            attribute :reference, PaymentReference
+            emits "PaymentSucceeded"
+          end
+        end
+      end
+    end
+    registry
+  end
+
+  # A REAL FILE BOOT, NOT `boot_in_memory` — that helper's own inline
+  # hecksagon fixture (spec_helper.rb) only declares `persisted_by`,
+  # never the real `pizzas.hecksagon`'s own `port "PaymentGateway"`
+  # block, so it silently has no ports at all. Harmless for every check
+  # that never touched a port; a real gap the moment `ports.mmd` exists
+  # — this spec's own job is "matches what bin/project_diagrams would
+  # really generate", and that script boots the real file tree, not a
+  # reduced double.
+  let(:pizzas_chapter) { Hecks.boot(File.expand_path("../examples/pizzas", __dir__)).registry.bluebook("Pizzas") }
   let(:banking_chapter) { boot_banking.bluebook("Banking") }
+  let(:scratch_chapter) { boot_scratch_with_port_routing.bluebook("Scratch") }
   let(:order)           { pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" } }
 
   # ── drift, across both real domains ────────────────────────────────
@@ -137,21 +183,42 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("role_Chef((Chef))")
   end
 
+  # ── ports -> flowchart ───────────────────────────────────────────────
+
+  it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["ports.mmd"]
+    expect(diagram).to include('Order[(Order)] -.->|exposes| op_Order_PaymentGateway_Receive[/"PaymentGateway.Receive"/]')
+    expect(diagram).to include("op_Order_PaymentGateway_Receive[/\"PaymentGateway.Receive\"/] -->|emits| evt_PizzaPaymentReceived{{\"PizzaPaymentReceived\"}}")
+    expect(diagram).not_to include("|to:")
+  end
+
+  it "draws no ports.mmd for banking at all — the real corpus declares no port there" do
+    expect(Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["ports.mmd"]).to be_nil
+  end
+
+  it "draws a to: edge to the exact aggregate a port operation names, once PR #351's grammar is actually used" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: scratch_chapter)["ports.mmd"]
+    expect(diagram).to include('op_Payment_PaymentGateway_Succeeded[/"PaymentGateway.Succeeded"/] -->|to: Payment| Payment[(Payment)]')
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 19, across both real domains) WAS run through
-  # the real mermaid.parse() engine once, by hand, to confirm this exact
-  # shape is valid Mermaid — this just guards the one structural fact
-  # that made that true for each kind: the diagram type declaration is
-  # the first non-comment line.
+  # currently produce (all 20, across both real domains plus the one
+  # in-memory to: fixture) WAS run through the real mermaid.parse()
+  # engine once, by hand, to confirm this exact shape is valid Mermaid
+  # — this just guards the one structural fact that made that true for
+  # each kind: the diagram type declaration is the first non-comment
+  # line.
   it "is shaped like real Mermaid in every generated file — the diagram type declared first" do
     expectations = {
       [:pizzas_chapter, "Order_lifecycle.mmd"] => "stateDiagram-v2",
       [:pizzas_chapter, "dispatch.mmd"]        => "flowchart LR",
       [:pizzas_chapter, "roles.mmd"]           => "flowchart LR",
+      [:pizzas_chapter, "ports.mmd"]           => "flowchart LR",
       [:banking_chapter, "relationships.mmd"]  => "erDiagram",
       [:banking_chapter, "dispatch.mmd"]       => "flowchart LR",
-      [:banking_chapter, "roles.mmd"]          => "flowchart LR"
+      [:banking_chapter, "roles.mmd"]          => "flowchart LR",
+      [:scratch_chapter, "ports.mmd"]          => "flowchart LR"
     }
 
     expectations.each do |(chapter_method, filename), expected_first_line|
