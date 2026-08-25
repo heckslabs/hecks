@@ -18,7 +18,7 @@ pub trait Repository<T: Clone> {
     fn count(&self) -> usize;
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InMemoryRepository<T: Clone> {
     records: BTreeMap<String, T>,
 }

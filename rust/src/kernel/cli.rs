@@ -108,6 +108,11 @@ pub fn run(input: &str) -> String {
     // command does, and contributes nothing here — matching Ruby, which
     // never pushes a `rows:`-bearing entry for a question that raised.
     let mut query_results: Vec<Json> = Vec::new();
+    // One entry per "dry_run" step, in step order — `Dispatcher#dry_run?`
+    // (Ruby): the command evaluated hypothetically, givens/mutations/
+    // ensures for real, nothing saved, nothing emitted, no reaction. Here:
+    // the same dispatch against a throwaway clone of the store.
+    let mut dry_runs: Vec<Json> = Vec::new();
 
     for step in steps {
         // Read once, ahead of the "query"/"verb" branch below — a query
@@ -266,9 +271,18 @@ pub fn run(input: &str) -> String {
             continue;
         }
 
+        if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
+            let caller_role = step.get("role").and_then(Json::as_str);
+            let command_input = command_input(step, args);
+            dry_runs.push(dry_run(&store, verb, command_input, caller_role));
+            mutations_per_step.push(Vec::new());
+            cross_domain_per_step.push(Vec::new());
+            continue;
+        }
+
         let verb = match step.get("verb").and_then(Json::as_str) {
             Some(v) => v,
-            None => return error_output("step missing \"verb\" or \"query\""),
+            None => return error_output("step missing \"verb\", \"dry_run\", or \"query\""),
         };
 
         // `role:` — the SAME optional per-step key `Fuzzing::Replay.call`
@@ -356,6 +370,7 @@ pub fn run(input: &str) -> String {
         ("instances".to_string(), Json::Object(store.instances())),
         ("events".to_string(), events_json),
         ("refusals".to_string(), refusals_json),
+        ("dry_runs".to_string(), Json::Array(dry_runs)),
         ("mutations".to_string(), mutations_json),
         ("queries".to_string(), Json::Array(query_results)),
         ("cross_domain_reactions".to_string(), cross_domain_json),
@@ -391,6 +406,106 @@ pub fn run(input: &str) -> String {
 /// number for a numeric comparator, a string, `null` for a genuine nil
 /// check) all the way into `repository::filter_entries`, which is the
 /// one place it's actually interpreted.
+/// `Dispatcher#dry_run?` — evaluate a command against a throwaway copy
+/// of the store. `{"verb", "ok"}` or `{"verb", "ok": false, "error"}`,
+/// the error being the very refusal a real dispatch would have raised.
+fn dry_run(store: &Store, verb: &str, command_input: &Json, caller_role: Option<&str>) -> Json {
+    let mut scratch = store.clone();
+    match dispatch_by_name(&mut scratch, verb, command_input, caller_role, &mut Vec::new()) {
+        Ok(_) => Json::obj(vec![("verb", Json::str(verb.to_string())), ("ok", Json::Bool(true))]),
+        Err(refusal) => Json::obj(vec![("verb", Json::str(verb.to_string())), ("ok", Json::Bool(false)), ("error", Json::str(refusal.to_string()))]),
+    }
+}
+
+fn tables() -> Tables<'static> {
+    Tables {
+        policies: POLICIES,
+        cross_domain_policies: CROSS_DOMAIN_POLICIES,
+        process_managers: PROCESS_MANAGERS,
+        reference_key_fn: reference_key_for_aggregate,
+        queries: QUERIES,
+        command_creates_fn: command_creates,
+        identity_head_fn: identity_head_for_aggregate,
+    }
+}
+
+/// THE STREAMING MODE — `rust --serve`: one JSON step per stdin line, one
+/// JSON answer per stdout line, the store alive across them. What a
+/// move CHOOSER needs from a referee (hecks_ai_training's bin/selfplay):
+/// propose with `{"dry_run": verb, "args": …}` as many times as it likes,
+/// commit with `{"verb": …}`, read the board with `{"instances": true}`,
+/// and try a multi-dispatch sequence (a capture is two) between
+/// `{"snapshot": true}` and `{"restore": true}` — the same throwaway-copy
+/// idea as a dry run, held open across steps. Reactions run on commits
+/// exactly as in `run`; answers carry the events each commit produced.
+pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
+    let mut store = Store::new();
+    let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+    let mut reaction_log: Vec<Json> = Vec::new();
+    let mut saga_log: Vec<Json> = Vec::new();
+    let mut snapshot: Option<(Store, HashMap<(String, String), SagaInstance>)> = None;
+    let ok = || Json::obj(vec![("ok", Json::Bool(true))]);
+
+    for line in input.lines() {
+        let Ok(line) = line else { break };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let answer = match Json::parse(&line) {
+            Err(e) => Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::str(format!("invalid JSON: {e}")))]),
+            Ok(step) => {
+                let empty_args = Json::Object(vec![]);
+                let args = step.get("args").unwrap_or(&empty_args);
+                let caller_role = step.get("role").and_then(Json::as_str);
+                if step.get("snapshot").is_some() {
+                    snapshot = Some((store.clone(), sagas.clone()));
+                    ok()
+                } else if step.get("restore").is_some() {
+                    match &snapshot {
+                        Some((s, g)) => {
+                            store = s.clone();
+                            sagas = g.clone();
+                            ok()
+                        }
+                        None => Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::str("no snapshot to restore"))]),
+                    }
+                } else if step.get("instances").is_some() {
+                    Json::obj(vec![("ok", Json::Bool(true)), ("instances", Json::Object(store.instances()))])
+                } else if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
+                    dry_run(&store, verb, command_input(&step, args), caller_role)
+                } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
+                    let mut events: Vec<Event> = Vec::new();
+                    let outcome = orchestrate(
+                        &mut store,
+                        dispatch_by_name,
+                        tables(),
+                        &mut sagas,
+                        verb,
+                        command_input(&step, args),
+                        caller_role,
+                        None,
+                        0,
+                        &mut events,
+                        &mut Vec::new(),
+                        &mut Vec::new(),
+                        &mut reaction_log,
+                        &mut saga_log,
+                    );
+                    match outcome {
+                        Ok(()) => Json::obj(vec![("ok", Json::Bool(true)), ("events", Json::Array(events.iter().map(event_to_json).collect()))]),
+                        Err(refusal) => Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::str(refusal.to_string()))]),
+                    }
+                } else {
+                    Json::obj(vec![("ok", Json::Bool(false)), ("error", Json::str("step needs verb, dry_run, snapshot, restore, or instances"))])
+                }
+            }
+        };
+        if writeln!(output, "{}", answer.to_json_string()).is_err() || output.flush().is_err() {
+            break;
+        }
+    }
+}
+
 fn run_filter(store: &Store, filter: &Json) -> Result<Vec<Json>, Refusal> {
     let aggregate = required_str(filter, "aggregate")?;
     let field = required_str(filter, "field")?;

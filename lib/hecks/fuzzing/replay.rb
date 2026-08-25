@@ -67,6 +67,7 @@ module Hecks
 
           refusals        = []
           queries         = []
+          dry_runs        = []
           fan_outs        = []
           guard_checks    = []
           mutation_traces = []
@@ -126,6 +127,19 @@ module Hecks
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
                 queries << { query: question, args: args, error: e.message }
                 refusals << { verb: question, error: e.message, kind: e.class.name }
+              end
+              next
+            end
+
+            # `{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`: the command
+            # evaluated hypothetically, nothing saved or emitted, no reaction.
+            # Recorded, never a refusal: a refused dry run is an ANSWER.
+            if (hypothetical = step["dry_run"])
+              begin
+                runtime.dry_run?(hypothetical, **args)
+                dry_runs << { verb: hypothetical, ok: true }
+              rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
+                dry_runs << { verb: hypothetical, ok: false, error: e.message }
               end
               next
             end
@@ -288,7 +302,7 @@ module Hecks
           # "the" bluebook — reads this instead.
           { instances: instances, events: events, refusals: refusals,
             reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-            queries: queries, fan_outs: fan_outs, guard_checks: guard_checks,
+            queries: queries, dry_runs: dry_runs, fan_outs: fan_outs, guard_checks: guard_checks,
             mutation_traces: mutation_traces,
             saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
             bluebook: runtime.registry.bluebooks.values.first,

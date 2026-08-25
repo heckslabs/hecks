@@ -188,6 +188,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       expect(rust_output["queries"].reject { |q| known_refusal_gap?(q) })
         .to eq(ruby_queries.reject { |q| known_refusal_gap?(q) })
       expect(rust_output["sagas"]).to eq(ruby_sagas)
+      expect(rust_output["dry_runs"]).to eq(JSON.parse(JSON.generate(ruby_result[:dry_runs])))
 
       cross_domain = cross_domain_policy_names(rust_output)
       ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
