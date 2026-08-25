@@ -951,7 +951,7 @@ pub fn dispatch_entity_member_pair(
         |r: &ValueObject| &r.members,
         |r: &mut ValueObject| &mut r.members,
         |el: &Member| el.identity() == element_id,
-        "Member.Pair",
+        "Pair",
         "Bluebook::ValueObject",
         "ValueObject",
         "aggregate, name.value",

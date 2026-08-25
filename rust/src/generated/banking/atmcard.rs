@@ -587,7 +587,7 @@ pub fn dispatch_entity_withdrawal_dispute(
         |r: &ATMCard| &r.withdrawals,
         |r: &mut ATMCard| &mut r.withdrawals,
         |el: &Withdrawal| el.identity() == element_id,
-        "Withdrawal.Dispute",
+        "Dispute",
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",

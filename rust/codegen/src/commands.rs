@@ -629,7 +629,11 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
             ("TmplRecord", naming::rust_ident(&aggregate_name)),
             ("tmpl_list_field", naming::rust_ident_field(crate::attr::name(list_attr))),
             ("TmplElement", element_record),
-            ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&format!("{entity_name}.{}", target.get("name").map(Json::to_s).unwrap_or_default()))),
+            // BARE, not "{entity_name}.{target name}" — mirrors
+            // rust/project/commands.rb's own identical fix: this feeds
+            // straight into refusal-message text, and Ruby's own
+            // `command.hecks_name` is never entity-qualified.
+            ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&target.get("name").map(Json::to_s).unwrap_or_default())),
             ("\"TmplAggregateName\"", naming::ruby_inspect_string(&aggregate_name)),
             ("\"TmplEntityName\"", naming::ruby_inspect_string(&entity_name)),
             ("\"TmplEntityIdentityReading\"", naming::ruby_inspect_string(&identity_reading)),
@@ -742,7 +746,9 @@ pub fn emit_entity_command(
         mutation_lines = vec!["        let _ = record;".to_string()];
     }
 
-    let qualified_command_name = format!("{entity_name}.{}", command.get("name").and_then(Json::as_str).unwrap_or(""));
+    // BARE, not entity-qualified — same reasoning as delegate_apply's own
+    // identical fix above.
+    let qualified_command_name = command.get("name").and_then(Json::as_str).unwrap_or("").to_string();
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
     let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
 
