@@ -417,23 +417,40 @@ google_oauth_present = (web_handler_present || rust_web) &&
   File.exist?(File.join(domain, ".env.local")) &&
   File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
 
-# BOTH REFUSED, DELIBERATELY NOT SILENTLY IGNORED — a shared-instance
-# Ruby WebFunction needs its own cross-stack DATABASE_URL wiring this
-# generator doesn't build yet (web_handler_present's own Member-style
-# direct-Postgres binding), and Google OAuth needs a NAT Gateway this
-# domain has none of in Shared mode (it borrows the owner's VPC
-# instead) — wiring OAuth's own public-subnet/NAT requirements through
-# a cross-stack lookup is real, unbuilt design, not a small addition.
-# Neither combination is needed by the real migration this mode exists
-# for (Banking/Pizzas — plain dispatch-only domains, no web app, no
-# OAuth of their own) — refusing loudly here beats generating a
-# template that fails only once someone actually deploys it.
+# THE RUBY CASE STAYS REFUSED — a shared-instance Ruby WebFunction
+# needs its own cross-stack DATABASE_URL wiring this generator doesn't
+# build yet (web_handler_present's own Member-style direct-Postgres
+# binding), real, unbuilt design, not a small addition. This check
+# alone is why the google_oauth_present check below can assume
+# web_handler_present is already false by the time it runs — it always
+# aborts first when both are true.
 if shared && web_handler_present
   abort "#{domain} declares both database \"Shared\" and a lambda_handler.rb — a shared-instance Ruby WebFunction isn't supported yet."
 end
-if shared && google_oauth_present
-  abort "#{domain} declares both database \"Shared\" and Google OAuth (#{domain}/.env.local) — a shared-instance domain's own OAuth wiring isn't supported yet."
-end
+
+# THE RUST CASE IS NOT REFUSED — rust_web's own OAuth wiring (the main
+# dispatch function's own Environment/VpcConfig, generated below) needs
+# no NAT Gateway of its own in Shared mode: it already runs inside the
+# OWNER's borrowed private subnets (OwningSubnetAId/OwningSubnetBId)
+# and borrowed security group (OwningSecurityGroupId) — the SAME ones
+# this domain's own dispatch traffic already uses — and the owner's own
+# template already routes those subnets through its NAT Gateway and
+# already permits 443-to-internet egress on that security group (added
+# there for the owner's own WebFunction's real, live OAuth
+# token-exchange bug — see that stack's own
+# `#{owner_domain_name}FunctionEgressToInternet` resource). Nothing new
+# to provision for this combination; the Parameters section below just
+# has to declare BOTH the Owning* set (Shared mode) and
+# WebRedirectBaseUrl (OAuth) together, not as alternatives — see its
+# own comment on why that used to be an if/elsif.
+#
+# STILL A REAL GAP, left refused: rust_web isn't checked here
+# explicitly because shared && web_handler_present already aborted
+# above whenever web_handler_present is true — so by construction, if
+# `shared && google_oauth_present` is ever true at this point,
+# web_handler_present must be false, meaning google_oauth_present's own
+# `(web_handler_present || rust_web)` can only have been satisfied by
+# rust_web. Nothing left to refuse here.
 
 # THE STACK↔BASTION CONTRACT — ONE shared table each of template.yaml's
 # Outputs, bastion.yaml's Parameters, and the Makefile's own eval/
@@ -532,9 +549,28 @@ template_yaml = <<~YAML
     wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
     journal (docs/decisions/0018), backed by its own private RDS
     Postgres instance. PackageType Zip, no container.
-  #{if google_oauth_present
-      <<~PARAMS
-      Parameters:
+  #{
+    # TWO INDEPENDENT REASONS a Parameters section might be needed --
+    # google_oauth_present (any web mode) and shared (any domain
+    # borrowing an owner's VPC) -- USED TO be an if/elsif/else here,
+    # treating them as mutually exclusive alternatives. Real bug for
+    # the one combination both can be true at once (a Shared-mode
+    # rust_web domain with real Google OAuth, the case the refusal
+    # above used to block outright): the elsif branch never ran, so
+    # OwningSubnetAId/OwningSecurityGroupId/etc. never got declared as
+    # Parameters at all, even though VpcConfig below (`shared ?
+    # "SubnetIds: [!Ref OwningSubnetAId, ...]" : ...`) already
+    # references them unconditionally whenever `shared` is true --
+    # exactly the CloudFormation-references-an-undeclared-Parameter
+    # break BASTION_PARAMETERS' own generation-time assertion (above)
+    # exists to catch for A DIFFERENT table, but nothing was catching
+    # it for this one. Collecting both blocks into one array and
+    # joining them under a single `Parameters:` header (YAML permits
+    # exactly one) fixes this for both the "either" and the "both"
+    # case, not just the one this bug was found through.
+    param_blocks = []
+    if google_oauth_present
+      param_blocks << <<~OAUTHPARAMS.rstrip
         # Lambda Function URLs get a random, un-derivable hostname at
         # creation -- #{web_logical_id}'s own GOOGLE_REDIRECT_URI can't
         # reference `!GetAtt #{web_logical_id}Url.FunctionUrl` from inside
@@ -548,10 +584,10 @@ template_yaml = <<~YAML
         WebRedirectBaseUrl:
           Type: String
           Default: ""
-      PARAMS
-    elsif shared
-      <<~SHAREDPARAMS
-      Parameters:
+      OAUTHPARAMS
+    end
+    if shared
+      param_blocks << <<~SHAREDPARAMS.rstrip
         # THE STOREHOUSE — #{owner_domain_name}'s own live stack Outputs,
         # looked up at deploy time (Makefile's own `deploy:`/`mint-era`
         # targets, below) via the SAME `aws cloudformation describe-stacks`
@@ -586,9 +622,24 @@ template_yaml = <<~YAML
         OwningDatabaseSecretArn:
           Type: String
       SHAREDPARAMS
-    else
+    end
+    if param_blocks.empty?
       ""
-    end}
+    else
+      # EVERY LINE INDENTED 2, not just appended flush-left — each
+      # heredoc above squiggly-dedents to column 0 (its own
+      # least-indented line, matching every other heredoc's own
+      # convention in this file), but these are Parameters: CHILDREN,
+      # which YAML requires indented under it. Confirmed the hard way:
+      # without this, `ruby -ryaml` parses the file without raising
+      # (it's still syntactically valid YAML) but
+      # `doc["Parameters"]["OwningVpcId"]` is nil — WebRedirectBaseUrl/
+      # OwningVpcId/etc. land as their own top-level document keys,
+      # siblings of Parameters/Resources, not children of Parameters
+      # at all.
+      "Parameters:\n" + param_blocks.join("\n").each_line.map { |l| "  #{l}" }.join
+    end
+  }
   Resources:
     #{shared ? "" : <<~OWNDB.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip}
     #{db_id}Vpc:
