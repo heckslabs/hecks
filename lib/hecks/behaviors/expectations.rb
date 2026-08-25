@@ -245,7 +245,7 @@ module Hecks
       end
 
       def pass_result(test) = Result.new(description: test.description, status: :pass, message: nil)
-      def fail_result(test, message)  = Result.new(description: test.description, status: :fail,  message: message)
+      def fail_result(test, message)  = Result.new(description: test.description, status: :fail, message: message)
       def error_result(test, message) = Result.new(description: test.description, status: :error, message: message)
 
       Result = Struct.new(:description, :status, :message, keyword_init: true)

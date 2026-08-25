@@ -96,8 +96,8 @@ module Hecks
 
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
     def port(name, &block) = collect(:add_port, Bluebook::DSL::PortBuilder.build(name, &block))
-    def adapter(name, &block)   = collect(:add_adapter,   Bluebook::DSL::AdapterBuilder.build(name, &block))
-    def world(name, &block)     = collect(:add_world,     Bluebook::DSL::WorldBuilder.build(name, &block))
+    def adapter(name, &block)   = collect(:add_adapter, Bluebook::DSL::AdapterBuilder.build(name, &block))
+    def world(name, &block)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &block))
 
     def data_translation(name, from:, to:, &block)
       collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &block))
