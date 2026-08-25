@@ -398,12 +398,24 @@ module Hecks
           source_shape  = event_name && event_shape_for(event_name, aggregates)
           memory_shape  = pm && event_shape_for(pm.starts_on, aggregates)
           correlation   = pm && pm.correlates_by && pm.correlation_head
+          # A POLICY'S SOURCE ALSO CARRIES THE EMITTER'S OWN IDENTITY —
+          # `PolicyInterpreter#emitter_identity`, the runtime half of this.
+          # An entity command's event never declares its aggregate's
+          # identity (it arrives through `reference_to`, not an
+          # `attribute`), so before this a policy on `KnightCaptured` could
+          # not spell `with: { label: :label }` at all — "reads :label off
+          # KnightCaptured, which does not declare it" — and chess's
+          # AdvancePly grew optional, unread attributes just to survive a
+          # wholesale forward. Policies only: a saga leg's own source is
+          # `SagaInterpreter#dispatch_args`, which merges no such thing.
+          identity_sources = pm.nil? && event_name ? event_identity_heads_for(event_name, aggregates) : []
 
           with_spec.each do |field, source|
             raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare" if target && !command_declares?(target, field, aggregates, correlation_heads)
 
             next unless source.is_a?(::Symbol)
             next if source == correlation
+            next if identity_sources.include?(source)
             next unless source_shape || memory_shape
 
             found = [source_shape, memory_shape].compact.any? { |shape| shape.any? { |name, *| name == source } }
@@ -538,6 +550,29 @@ module Hecks
 
           owner_name, command = pairs.first
           event_shape(command, owner_aggregate(owner_name, aggregates))
+        end
+
+        # The identity heads of the aggregate that emits `event_name` — an
+        # entity's event is stamped with its OWNING aggregate's identity
+        # (`Event#id` is the parent's), so an owner spelled "Game.Knight"
+        # answers Game's heads.
+        def self.event_identity_heads_for(event_name, aggregates)
+          pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
+          return [] if pairs.empty?
+
+          owner_name, = pairs.first
+          aggregate = owner_aggregate(owner_name, aggregates)
+          return [] unless aggregate
+
+          heads = aggregate.identity_heads.map(&:to_sym)
+          # AN ENTITY'S EVENT ALSO CARRIES THE PIECE'S OWN IDENTITY — the
+          # args a piece was addressed by are the args its event announces
+          # (`Emission#emit`: `payload: args`), so `id`-shaped heads are
+          # genuinely there at runtime even though no `attribute` line on
+          # the entity command declares them.
+          entity_names = owner_name.to_s.split(".").drop(1)
+          entity = entity_names.reduce(aggregate) { |owner, name| owner&.entities&.find { |e| e.hecks_name == name } }
+          heads + (entity ? entity.identity_heads.map(&:to_sym) : [])
         end
 
         def self.command_lookup(aggregates)
