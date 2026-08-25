@@ -76,6 +76,10 @@ fn tmpl_dispatch_arm_placeholder() -> Result<Vec<crate::kernel::Event>, crate::k
 // header — `emit_registry` (registry.rb) keeps building it as a plain
 // Ruby constant, prepended in front of this shape's own rendered text.
 // TMPL:registry_file BEGIN
+// `Clone` — a DRY RUN (`cli::run`'s `{"dry_run": …}` step, `cli::serve`'s
+// `snapshot`/`restore`) dispatches against a throwaway copy of the whole
+// store: givens, mutations, ensures all run for real, nothing is kept.
+#[derive(Clone)]
 pub struct TmplStore2 {
     pub tmpl_field: crate::kernel::InMemoryRepository<i64>,
 }

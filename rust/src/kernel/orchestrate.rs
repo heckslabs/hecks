@@ -200,6 +200,7 @@ pub const REFUSED: &str = "refused";
 /// by whoever owns the map (`kernel/cli.rs` — deliberately NOT a `Store`
 /// field: process managers are domain-level, not per-aggregate, and
 /// nothing about `Store`'s own generated shape needs to know they exist).
+#[derive(Clone)]
 pub struct SagaInstance {
     pub state: String,
     pub memory: Json,

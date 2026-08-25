@@ -8,6 +8,10 @@
 // by instances()) need no import, but save() does.
 use crate::kernel::Repository;
 
+// `Clone` — a DRY RUN (`cli::run`'s `{"dry_run": …}` step, `cli::serve`'s
+// `snapshot`/`restore`) dispatches against a throwaway copy of the whole
+// store: givens, mutations, ensures all run for real, nothing is kept.
+#[derive(Clone)]
 pub struct Store {
     pub customer: crate::kernel::InMemoryRepository<crate::generated::banking::customer::Customer>,
     pub account: crate::kernel::InMemoryRepository<crate::generated::banking::account::Account>,

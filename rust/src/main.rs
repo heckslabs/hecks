@@ -13,6 +13,14 @@
 use std::io::Read;
 
 fn main() {
+    // `--serve`: the streaming mode (kernel/cli.rs's own `serve` header) —
+    // one step per line in, one answer per line out, store kept alive.
+    if std::env::args().any(|a| a == "--serve") {
+        let stdin = std::io::stdin();
+        let stdout = std::io::stdout();
+        rust::kernel::cli::serve(stdin.lock(), stdout.lock());
+        return;
+    }
     let mut input = String::new();
     std::io::stdin().read_to_string(&mut input).expect("failed to read stdin");
     println!("{}", rust::kernel::cli::run(&input));

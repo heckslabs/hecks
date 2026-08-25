@@ -1,6 +1,6 @@
 {
   "domain": "examples/roster",
-  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate \u2014 .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication \u2014 and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch. The Retire steps drive `delegates_to` (Roster.Retire \u2192 Member.Retire): the entity's own given and ensures both read `parent` \u2014 the given before the element changes, the ensures after \u2014 so crew-2's lone member retiring is refused by the ensures only if the parent the ensures sees already carries the retired element.",
+  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate \u2014 .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication \u2014 and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch. The Retire steps drive `delegates_to` (Roster.Retire \u2192 Member.Retire): the entity's own given and ensures both read `parent` \u2014 the given before the element changes, the ensures after \u2014 so crew-2's lone member retiring is refused by the ensures only if the parent the ensures sees already carries the retired element. The dry_run steps are Dispatcher#dry_run? \u2014 hypothetical dispatches (a refused seat, an accepted Honor that must leave `standing` untouched, a refused delegating door) answered identically by both runtimes and persisting nothing.",
   "steps": [
     {
       "verb": "Roster::Roster.Open",
@@ -397,6 +397,53 @@
         },
         "id": {
           "value": "eve"
+        }
+      }
+    },
+    {
+      "dry_run": "Roster::Roster.AddSeat",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "number": {
+          "value": 1
+        },
+        "row": {
+          "value": "back"
+        }
+      }
+    },
+    {
+      "dry_run": "Roster::Roster.Honor",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "rank": {
+          "value": "hand"
+        }
+      }
+    },
+    {
+      "dry_run": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "eve"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Honor",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "rank": {
+          "value": "officer"
         }
       }
     }
