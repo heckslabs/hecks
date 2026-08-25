@@ -201,9 +201,51 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include('op_Payment_PaymentGateway_Succeeded[/"PaymentGateway.Succeeded"/] -->|to: Payment| Payment[(Payment)]')
   end
 
+  # ── read models -> flowchart ─────────────────────────────────────────
+
+  it "draws exactly one edge per aggregate_head across every real read_model in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
+    declared = banking_chapter.read_models.sum { |rm| Array(rm.to_h[:aggregate_heads]).size }
+    drawn = diagram.lines.count { |line| line.include?("-->") }
+    expect(drawn).to eq(declared)
+  end
+
+  it "merges the same aggregate into one node across several read_models — Account feeds five in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
+    account_edges = diagram.lines.count { |line| line.start_with?("    Account[(Account)]") }
+    expect(account_edges).to eq(5) # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian, AccountsByKind
+  end
+
+  it "labels a count read_model and a median read_model with the shape of their own answer" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
+    expect(diagram).to include('rm_DisputedPaymentCount[["DisputedPaymentCount (count)"]]')
+    expect(diagram).to include('rm_DisputedPaymentMedian[["DisputedPaymentMedian (median: amount)"]]')
+  end
+
+  it "leaves an ordinary read_model's label bare — no parenthetical for a plain row-returning view" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
+    expect(diagram).to include('rm_CustomerPortfolio[["CustomerPortfolio"]]')
+  end
+
+  # THE BUG THIS TYPE ACTUALLY HAD: an unquoted "many" label
+  # (`accounts[]`) broke Mermaid's own `|label|` parser outright — the
+  # `[` reads as the START OF A NEW NODE SHAPE, not text. Caught by
+  # actually running the real generated output through mermaid.parse(),
+  # not by eye. Pinned here so a future edit can't drop the quoting
+  # without this failing.
+  it "quotes a many-side edge label so its own [] doesn't break Mermaid's edge-label syntax" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
+    expect(diagram).to include('Account[(Account)] -->|"accounts[]"| rm_AccountsByKind[["AccountsByKind"]]')
+    expect(diagram).not_to include("-->|accounts[]|") # the unquoted form that actually broke
+  end
+
+  it "draws no read_models.mmd for pizzas — the real corpus declares no read_model there" do
+    expect(Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["read_models.mmd"]).to be_nil
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 20, across both real domains plus the one
+  # currently produce (all 21, across both real domains plus the one
   # in-memory to: fixture) WAS run through the real mermaid.parse()
   # engine once, by hand, to confirm this exact shape is valid Mermaid
   # — this just guards the one structural fact that made that true for
@@ -218,6 +260,7 @@ RSpec.describe "the generated diagrams" do
       [:banking_chapter, "relationships.mmd"]  => "erDiagram",
       [:banking_chapter, "dispatch.mmd"]       => "flowchart LR",
       [:banking_chapter, "roles.mmd"]          => "flowchart LR",
+      [:banking_chapter, "read_models.mmd"]    => "flowchart LR",
       [:scratch_chapter, "ports.mmd"]          => "flowchart LR"
     }
 

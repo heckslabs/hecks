@@ -40,6 +40,10 @@ module Hecks
     #                                          aggregate exposes it, which
     #                                          aggregate it routes to: (if
     #                                          any), and what it emits
+    #   read_models.mmd       flowchart        every read_model, and every
+    #                                          aggregate it's assembled
+    #                                          from — the read-side
+    #                                          complement to relationships.mmd
     #
     # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
     # UNSANITIZED, as Mermaid node/entity ids — safe because this
@@ -79,6 +83,10 @@ module Hecks
 
         if (diagram = ports_diagram(bluebook))
           files["ports.mmd"] = diagram
+        end
+
+        if (diagram = read_model_diagram(bluebook))
+          files["read_models.mmd"] = diagram
         end
 
         files
@@ -300,6 +308,66 @@ module Hecks
       def port_operation_node(aggregate_name, port_name, operation_name)
         id = "op_#{aggregate_name}_#{port_name}_#{operation_name}"
         %(#{id}[/"#{port_name}.#{operation_name}"/])
+      end
+
+      # ── read models -> flowchart ─────────────────────────────────────
+
+      # THE READ-SIDE COMPLEMENT TO `relationships.mmd` — that diagram
+      # shows how aggregates reference each other for WRITES
+      # (`has_many`/`belongs_to`/`reference_to`); this shows how a
+      # `read_model` ASSEMBLES data for READS, from
+      # `aggregate_heads` — the same list `where`/`group_by`/`order_by`
+      # all operate over, and the one fact every read_model has
+      # regardless of whether it's rooted (`reference_target`) or
+      # gathers heads with no root at all (a rootless read model, real
+      # in the corpus: `AccountsByKind`).
+      #
+      # A READ MODEL IS A SUBROUTINE SHAPE (`[[...]]`, "a predefined
+      # process") — a fourth shape, beside `ports.mmd`'s trapezoid and
+      # `dispatch.mmd`'s stadium/hexagon: not a verb, not a fact, not a
+      # boundary translation, but a standing, reusable view. Every
+      # aggregate it draws from is a cylinder — the same "state lands
+      # somewhere" shape `ports.mmd`'s `to:` target already uses, and
+      # the same bare id, so an aggregate feeding several read_models
+      # (real in banking: `Account` feeds four) merges into one node
+      # across the whole diagram.
+      #
+      # THE LABEL NAMES THE SHAPE OF THE ANSWER, NOT JUST THE NAME —
+      # `(count)`/`(median: field)` for the two real aggregations in the
+      # corpus, nothing appended for an ordinary row-returning
+      # read_model. Still MVP scope: `where`/`group_by`/`order_by`
+      # aren't drawn at all yet — real facts, not invented, just not
+      # this diagram's job yet.
+      def read_model_diagram(bluebook)
+        lines = bluebook.read_models.flat_map { |read_model| read_model_edges(read_model) }
+        return nil if lines.empty?
+
+        subject = "#{bluebook.name}'s own declared read_models and the aggregates each is assembled from"
+        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      end
+
+      def read_model_edges(read_model)
+        shape = read_model.to_h
+        node = %(rm_#{shape[:name]}[["#{read_model_label(shape)}"]])
+        Array(shape[:aggregate_heads]).map do |head|
+          # QUOTED, NOT BARE — an edge label containing `[` or `]`
+          # (`accounts[]`, marking the "many" side) breaks Mermaid's own
+          # `|label|` parser outright if left unquoted: it reads the
+          # `[` as the START OF A NEW NODE SHAPE mid-label, not text.
+          # Confirmed live against the real parser before this quoting
+          # existed — every OTHER edge label in this file happens to be
+          # a bare word or already-quoted string, so this is the one
+          # spot that needed it.
+          label = head[:many] ? "#{head[:as]}[]" : head[:as]
+          %(    #{head[:aggregate]}[(#{head[:aggregate]})] -->|"#{label}"| #{node})
+        end
+      end
+
+      def read_model_label(shape)
+        return "#{shape[:name]} (count)" if shape[:count]
+        return "#{shape[:name]} (median: #{shape[:median_field]})" if shape[:median_field]
+
+        shape[:name]
       end
     end
   end
