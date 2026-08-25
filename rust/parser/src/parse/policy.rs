@@ -10,6 +10,7 @@
 //! exercised either — left to fall through to `not_built_yet` if ever
 //! encountered.
 
+use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::SourceLine;
@@ -86,8 +87,19 @@ pub fn parse_body(
             // field and the `for_each` JSON key; only this arm was
             // missing, so nothing about the wire format changes.
             //
-            // `where` stays unbuilt: it is a BLOCK, not a positional
-            // text, and no corpus member declares one.
+            // STAGE 5: `where` — confirmed real: roster.bluebook's own
+            // `OnSeatAssignedHonorFront` (`where { number.value == 1 }`,
+            // a literal `with:`, not a payload field — see roster's own
+            // comment). Same extraction/canonicalization
+            // `parse::command`'s own `given`/`ensures` already use
+            // (`source_body_text` + `canonical::apply`) — `where` just
+            // carries no description the way a `given` does
+            // (`PolicyBuilder#where`'s own signature takes only a
+            // block), so there is no positional text to read first.
+            "where" => {
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                policy.where_clause = Some(canonical::apply(&raw));
+            }
             "for_each" => {
                 policy.for_each_query = Some(super::positional_text(
                     file,
