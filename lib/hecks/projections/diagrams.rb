@@ -44,6 +44,11 @@ module Hecks
     #                                          aggregate it's assembled
     #                                          from — the read-side
     #                                          complement to relationships.mmd
+    #   <Name>_surface.mmd    flowchart        one per aggregate/entity that
+    #                                          declares at least one command
+    #                                          or query — everything you can
+    #                                          DO to it and ASK about it,
+    #                                          in one place
     #
     # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
     # UNSANITIZED, as Mermaid node/entity ids — safe because this
@@ -87,6 +92,12 @@ module Hecks
 
         if (diagram = read_model_diagram(bluebook))
           files["read_models.mmd"] = diagram
+        end
+
+        holders(bluebook).each do |holder|
+          next if holder.commands.empty? && holder.queries.empty?
+
+          files["#{holder.hecks_name}_surface.mmd"] = surface_diagram(bluebook, holder)
         end
 
         files
@@ -368,6 +379,34 @@ module Hecks
         return "#{shape[:name]} (median: #{shape[:median_field]})" if shape[:median_field]
 
         shape[:name]
+      end
+
+      # ── surface -> flowchart ─────────────────────────────────────────
+
+      # "WHAT CAN I DO TO THIS, WHAT CAN I ASK ABOUT IT" — one file per
+      # holder, unlike every other diagram here: `dispatch.mmd` already
+      # shows a command's own onward reaction chain, but never an
+      # aggregate's own FULL command/query menu in one place, and
+      # `roles.mmd` shows who issues a command without saying what else
+      # that same aggregate answers. This is the one diagram meant to
+      # be read starting from the aggregate, not from a verb or a fact.
+      #
+      # A QUERY IS A DIAMOND — a fifth shape, beside `dispatch.mmd`'s
+      # stadium/hexagon, `ports.mmd`'s trapezoid, and `read_models.mmd`'s
+      # subroutine: a question with an answer, not a verb that changes
+      # anything. Command edges are solid ("does"); query edges are
+      # dotted ("asks") — the same solid/dotted split `ports.mmd`
+      # already uses for "routes to:" versus "exposes".
+      def surface_diagram(bluebook, holder)
+        lines = holder.commands.map { |command| "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}" }
+        lines += holder.queries.map { |query| "    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|asks| #{query_node(holder.hecks_name, query.hecks_name)}" }
+
+        subject = "#{holder.hecks_name}'s own declared commands and queries"
+        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      end
+
+      def query_node(aggregate_name, query_name)
+        %(qry_#{aggregate_name}_#{query_name}{"#{aggregate_name}.#{query_name}"})
       end
     end
   end

@@ -243,9 +243,44 @@ RSpec.describe "the generated diagrams" do
     expect(Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["read_models.mmd"]).to be_nil
   end
 
+  # ── surface -> flowchart ─────────────────────────────────────────────
+
+  it "draws every one of Order's own real commands and queries in pizzas, no more and no fewer" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    does = diagram.lines.count { |line| line.include?("|does|") }
+    asks = diagram.lines.count { |line| line.include?("|asks|") }
+    expect(does).to eq(order.commands.size)
+    expect(asks).to eq(order.queries.size)
+  end
+
+  it "draws a command edge solid and a query edge dotted" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    expect(diagram).to include('Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])')
+    expect(diagram).to include('Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}')
+  end
+
+  # A REAL, INTERESTING CASE FOUND WHILE VERIFYING, NOT INVENTED: banking's
+  # own Account declares both a command AND a query named "Open" — two
+  # genuinely different things (a verb versus a question) that happen to
+  # share a name. The diamond/stadium shape split is what keeps that from
+  # reading as one node twice.
+  it "keeps a same-named command and query as two distinct nodes, distinguished by shape" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Account_surface.mmd"]
+    expect(diagram).to include('cmd_Account_Open(["Account.Open"])')
+    expect(diagram).to include('qry_Account_Open{"Account.Open"}')
+  end
+
+  it "generates one surface diagram per holder that declares at least one command or query, across all of banking" do
+    holders_with_surface = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
+                                          .reject { |h| h.commands.empty? && h.queries.empty? }
+    files = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)
+    surface_files = files.keys.select { |name| name.end_with?("_surface.mmd") }
+    expect(surface_files.size).to eq(holders_with_surface.size)
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 21, across both real domains plus the one
+  # currently produce (all 36, across both real domains plus the one
   # in-memory to: fixture) WAS run through the real mermaid.parse()
   # engine once, by hand, to confirm this exact shape is valid Mermaid
   # — this just guards the one structural fact that made that true for
@@ -253,15 +288,17 @@ RSpec.describe "the generated diagrams" do
   # line.
   it "is shaped like real Mermaid in every generated file — the diagram type declared first" do
     expectations = {
-      [:pizzas_chapter, "Order_lifecycle.mmd"] => "stateDiagram-v2",
-      [:pizzas_chapter, "dispatch.mmd"]        => "flowchart LR",
-      [:pizzas_chapter, "roles.mmd"]           => "flowchart LR",
-      [:pizzas_chapter, "ports.mmd"]           => "flowchart LR",
-      [:banking_chapter, "relationships.mmd"]  => "erDiagram",
-      [:banking_chapter, "dispatch.mmd"]       => "flowchart LR",
-      [:banking_chapter, "roles.mmd"]          => "flowchart LR",
-      [:banking_chapter, "read_models.mmd"]    => "flowchart LR",
-      [:scratch_chapter, "ports.mmd"]          => "flowchart LR"
+      [:pizzas_chapter, "Order_lifecycle.mmd"]  => "stateDiagram-v2",
+      [:pizzas_chapter, "dispatch.mmd"]         => "flowchart LR",
+      [:pizzas_chapter, "roles.mmd"]            => "flowchart LR",
+      [:pizzas_chapter, "ports.mmd"]            => "flowchart LR",
+      [:pizzas_chapter, "Order_surface.mmd"]    => "flowchart LR",
+      [:banking_chapter, "relationships.mmd"]   => "erDiagram",
+      [:banking_chapter, "dispatch.mmd"]        => "flowchart LR",
+      [:banking_chapter, "roles.mmd"]           => "flowchart LR",
+      [:banking_chapter, "read_models.mmd"]     => "flowchart LR",
+      [:banking_chapter, "Account_surface.mmd"] => "flowchart LR",
+      [:scratch_chapter, "ports.mmd"]           => "flowchart LR"
     }
 
     expectations.each do |(chapter_method, filename), expected_first_line|
