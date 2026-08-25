@@ -12,9 +12,7 @@ Gem::Specification.new do |spec|
     hecks reads a .bluebook file — a business domain's aggregates,
     value objects, commands, and invariants — and boots it directly.
     Nothing is scripted: no handler body, no class you write, no schema
-    you migrate. Not published to rubygems.org; installed as a git or
-    path dependency by projects that build on it, the way this
-    gemspec exists to let Bundler do.
+    you migrate.
   DESC
   spec.homepage = "https://github.com/chrisyoung/hecks"
   spec.license  = "Apache-2.0"
@@ -27,7 +25,8 @@ Gem::Specification.new do |spec|
   spec.files = Dir.chdir(__dir__) { Dir.glob("lib/**/*", File::FNM_DOTMATCH).select { |f| File.file?(f) } }
   spec.require_paths = ["lib"]
 
-  spec.metadata["allowed_push_host"] = "https://this.gem.is.not.published"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
+  spec.metadata["source_code_uri"]   = spec.homepage
 
   # UNLIKE Postgres/Sqlite (ADAPTERS, reached only if a domain's
   # .hecksagon wires one — declaring them here would force a database
