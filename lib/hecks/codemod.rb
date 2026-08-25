@@ -221,7 +221,7 @@ module Hecks
       # loop for why it can't batch) — splitting it across methods just
       # to satisfy the line count would scatter state four ways for no
       # readability gain.
-      # rubocop:disable Metrics/BlockLength
+      # rubocop:disable-next Metrics/BlockLength
       def run_example_domains(results, dry_run)
         Codemod::EXAMPLE_ROOTS.each do |domain_dir|
           bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
@@ -274,7 +274,6 @@ module Hecks
           end
         end
       end
-      # rubocop:enable Metrics/BlockLength
 
       # PER-CANDIDATE, not one batched write-then-verify — the
       # meta-domain is ONE shared registry (SyntaxBoot DISPATCHES it

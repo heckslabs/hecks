@@ -25,7 +25,7 @@ RSpec.describe "an entity" do
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
 narrative: { text: "Opening" })
-    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },  amount: { cents: 2_500, currency: "USD" },
+    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" }, amount: { cents: 2_500, currency: "USD" },
 narrative: { text: "Groceries" })
   end
 
