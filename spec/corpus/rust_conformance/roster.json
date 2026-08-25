@@ -1,6 +1,6 @@
 {
   "domain": "examples/roster",
-  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate \u2014 .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication \u2014 and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch.",
+  "note": "spec/rust_conformance_spec.rb's own fixture for the enumeration operators (rust/src/kernel/expression_operators/enumeration.rs): every given in examples/roster is a block predicate \u2014 .none?/.any? over a value-object list and over an entity list, a block nested in a block reading the outer parameter, .find { } projected through a path, .all? as an implication \u2014 and this script drives each one to BOTH verdicts, so the Rust kernel's refusals, wording included, are held to Ruby's dispatch for dispatch. The Retire steps drive `delegates_to` (Roster.Retire \u2192 Member.Retire): the entity's own given and ensures both read `parent` \u2014 the given before the element changes, the ensures after \u2014 so crew-2's lone member retiring is refused by the ensures only if the parent the ensures sees already carries the retired element.",
   "steps": [
     {
       "verb": "Roster::Roster.Open",
@@ -273,6 +273,108 @@
         },
         "age": {
           "value": 50
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "ada"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "bob"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "bob"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "nobody"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "dan"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": {
+          "value": "crew-2"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.AddSeat",
+      "args": {
+        "name": {
+          "value": "crew-2"
+        },
+        "number": {
+          "value": 1
+        },
+        "row": {
+          "value": "back"
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Enlist",
+      "args": {
+        "name": {
+          "value": "crew-2"
+        },
+        "id": {
+          "value": "zoe"
+        },
+        "age": {
+          "value": 30
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-2"
+        },
+        "id": {
+          "value": "zoe"
         }
       }
     }

@@ -37,12 +37,16 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
-        if !["append", "set", "increment", "decrement"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
+        if !["append", "set", "increment", "decrement", "delegate"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
             unsupported_ops.push(op);
         }
     }
     if !unsupported_ops.is_empty() {
-        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement are)", unsupported_ops.join(", ")));
+        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/delegate are)", unsupported_ops.join(", ")));
+    }
+
+    if let Some(problem) = delegate_skip_reason(command, aggregate, value_objects_by_name) {
+        return Some(problem);
     }
 
     let append_problems = mutations::append_field_problems(command, aggregate, value_objects_by_name);
@@ -326,11 +330,20 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, aggregate, command, value_objects_by_name, true)).collect();
     if let Some(t) = &transition {
-        mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        if !t.to_state.is_empty() {
+            mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        }
     }
     if mutation_lines.is_empty() {
         mutation_lines = vec!["        let _ = record;".to_string()];
     }
+    let delegation = delegation_of(exemplar, command, aggregate, value_objects_by_name);
+    if let Some(d) = &delegation {
+        assert!(!creates, "{cmd}: a creating command cannot delegate — nothing exists to delegate to");
+        mutation_lines = vec![d.apply.clone()];
+    }
+    let prelude = delegation.as_ref().map(|d| d.prelude.clone()).unwrap_or_default();
+    let payload = if delegation.is_some() { "delegate_facts.clone()," } else { "args.to_json()," }.to_string();
 
     let (hydrate, fn_signature);
     let record_agg_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -410,8 +423,10 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         fn_signature = sig_parts.join(", ");
     }
 
-    let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
-    let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
+    let emits_expr = match &delegation {
+        Some(d) => d.emits.iter().map(|e| naming::ruby_inspect_string(e)).collect::<Vec<_>>().join(", "),
+        None => command.get("emits").map(Json::each).unwrap_or(&[]).iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", "),
+    };
 
     let dispatch_fn = exemplar.render(
         "dispatch_fn",
@@ -423,6 +438,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             ("let tmpl_eval_fielded = tmpl_with_references_placeholder();", with_references_binding()),
             ("&tmpl_eval_fielded,", "&with_references,".to_string()),
             ("tmpl_hydrate_placeholder()", hydrate),
+            ("tmpl_prelude_placeholder();", prelude),
             ("\"TmplCmdName\"", naming::ruby_inspect_string(&cmd)),
             ("\"TmplQualifiedName\"", naming::ruby_inspect_string(&format!("{domain_name}::{}", aggregate.get("name").and_then(Json::as_str).unwrap_or("")))),
             ("\"TmplAggregateName\"", naming::ruby_inspect_string(&aggregate_name)),
@@ -432,10 +448,191 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             ("tmpl_mutation_lines_placeholder(record);", mutation_lines.join("\n")),
             ("tmpl_ensures_spec_placeholder(),", ensures_specs.join("\n")),
             ("tmpl_emit_placeholder()", emits_expr),
+            ("args.to_json(),", payload),
         ],
     );
 
     format!("{}\n\n#[derive(Debug, Clone)]\n{}\n\n{dispatch_fn}", crate::fielded::emit_fielded_flat(exemplar, &format!("{cmd}Args"), attrs, value_objects_by_name, &[]), args_struct.join("\n"))
+}
+
+/// Port of commands.rb's `delegate_of`/`delegate_mapping`/
+/// `delegate_target`/`delegate_skip_reason`/`delegation_of` — the
+/// `:delegate` mutation (`delegates_to`), see the exemplar's own
+/// `delegate_prelude`/`delegate_apply` comment for the shape.
+fn delegate_of(command: &Json) -> Option<&Json> {
+    command.get("mutations").map(Json::each).unwrap_or(&[]).iter().find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "delegate")
+}
+
+fn delegate_mapping(delegation: &Json) -> Vec<(String, String)> {
+    match delegation.get("fields") {
+        Some(Json::Object(pairs)) => pairs.iter().map(|(k, v)| (k.clone(), v.to_s().trim_start_matches(':').to_string())).collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn delegate_target<'a>(delegation: &Json, aggregate: &'a Json) -> (Option<&'a Json>, Option<&'a Json>) {
+    let target = delegation.get("target").map(Json::to_s).unwrap_or_default();
+    let (entity_name, command_name) = match target.rfind('.') {
+        Some(dot) => (&target[..dot], &target[dot + 1..]),
+        None => ("", target.as_str()),
+    };
+    let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").map(Json::to_s).unwrap_or_default() == entity_name);
+    let command = entity.and_then(|e| e.get("commands").map(Json::each).unwrap_or(&[]).iter().find(|c| c.get("name").map(Json::to_s).unwrap_or_default() == command_name));
+    (entity, command)
+}
+
+pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let delegation = delegate_of(command)?;
+    let label = format!("delegates_to {}", delegation.get("target").map(Json::to_s).unwrap_or_default());
+    if command.get("mutations").map(Json::each).unwrap_or(&[]).len() > 1 {
+        return Some(format!("{label} alongside other sets — not generated yet"));
+    }
+    let (entity, target) = delegate_target(delegation, aggregate);
+    let Some(entity) = entity else {
+        return Some(format!("{label}: {} has no such entity", aggregate.get("name").map(Json::to_s).unwrap_or_default()));
+    };
+    let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
+    let Some(target) = target else {
+        return Some(format!("{label}: {entity_name} declares no such command"));
+    };
+    if !crate::json_codec::extract_id_supported(entity) {
+        return Some(format!("{label}: {entity_name} cannot be addressed by identity"));
+    }
+    if let Some(problem) = entity_command_skip_reason(target, entity, value_objects_by_name) {
+        return Some(format!("{label}: {problem}"));
+    }
+    let mapping = delegate_mapping(delegation);
+    let source_name_for = |name: &str| mapping.iter().find(|(t, _)| t == name).map(|(_, s)| s.clone()).unwrap_or_else(|| name.to_string());
+    let door_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    for attr in target.get("attributes").map(Json::each).unwrap_or(&[]) {
+        let name = crate::attr::name(attr);
+        let source_name = source_name_for(name);
+        let source = door_attrs.iter().find(|a| crate::attr::name(a) == source_name);
+        let Some(source) = source else {
+            if crate::attr::optional(attr) {
+                continue;
+            }
+            return Some(format!("{label}: target argument {name} has no source on the door"));
+        };
+        if crate::attr::type_name(source) != crate::attr::type_name(attr) || crate::attr::list(source) != crate::attr::list(attr) {
+            return Some(format!("{label}: door argument {source_name} is {}, target wants {} — not generated yet", crate::attr::type_name(source), crate::attr::type_name(attr)));
+        }
+        if crate::attr::optional(source) && !crate::attr::optional(attr) {
+            return Some(format!("{label}: optional door argument {source_name} feeds required {name}"));
+        }
+    }
+    for path in entity.get("identified_by").map(Json::each).unwrap_or(&[]) {
+        let path = path.to_s();
+        let head = path.split('.').next().unwrap_or("").to_string();
+        let source_name = source_name_for(&head);
+        if door_attrs.iter().any(|a| crate::attr::name(a) == source_name && !crate::attr::optional(a)) {
+            continue;
+        }
+        return Some(format!("{label}: the element's identity {head} has no source on the door"));
+    }
+    None
+}
+
+struct Delegation {
+    prelude: String,
+    apply: String,
+    emits: Vec<String>,
+}
+
+fn indent_block(text: &str, indent: &str) -> String {
+    text.lines().map(|l| format!("{indent}{l}")).collect::<Vec<_>>().join("\n").trim_end().to_string()
+}
+
+fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<Delegation> {
+    let delegation = delegate_of(command)?;
+    let (entity, target) = delegate_target(delegation, aggregate);
+    let (entity, target) = (entity.expect("delegate_skip_reason admitted the entity"), target.expect("delegate_skip_reason admitted the target"));
+    let entity_name = entity.get("name").map(Json::to_s).unwrap_or_default();
+    let aggregate_name = aggregate.get("name").map(Json::to_s).unwrap_or_default();
+    let list_attr = aggregate
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity_name)
+        .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it"));
+
+    let element_record = naming::rust_ident(&entity_name);
+    let target_args_name = format!("{element_record}{}Args", naming::rust_ident(&target.get("name").map(Json::to_s).unwrap_or_default()));
+    let aliases: Vec<String> = delegate_mapping(delegation).iter().map(|(t, s)| format!("({}, {})", naming::ruby_inspect_string(t), naming::ruby_inspect_string(s))).collect();
+    let given_specs: Vec<String> = target
+        .get("givens")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|g| {
+            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
+            let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
+            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+        })
+        .collect();
+    let ensures_specs: Vec<String> = target
+        .get("ensures")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|e| {
+            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
+            let canonical = e.get("canonical").and_then(Json::as_str).unwrap_or("");
+            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+        })
+        .collect();
+    let transition = mutations::lifecycle_transition_for(target, entity);
+    let transition_arg = match &transition {
+        Some(t) => format!(
+            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
+            naming::ruby_inspect_string(&t.field),
+            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
+        ),
+        None => "None".to_string(),
+    };
+    let mut mutation_lines: Vec<String> = target
+        .get("mutations")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|m| mutations::emit_mutation_line(exemplar, m, entity, target, value_objects_by_name, false))
+        .collect();
+    if let Some(t) = &transition {
+        if !t.to_state.is_empty() {
+            mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        }
+    }
+    if mutation_lines.is_empty() {
+        mutation_lines = vec!["        let _ = record;".to_string()];
+    }
+    let identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+
+    let prelude = exemplar.render(
+        "delegate_prelude",
+        &[("tmpl_aliases_placeholder()", aliases.join(", ")), ("TmplTargetArgs", target_args_name), ("TmplElement", element_record.clone())],
+    );
+    let apply = exemplar.render(
+        "delegate_apply",
+        &[
+            ("TmplRecord", naming::rust_ident(&aggregate_name)),
+            ("tmpl_list_field", naming::rust_ident_field(crate::attr::name(list_attr))),
+            ("TmplElement", element_record),
+            ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&format!("{entity_name}.{}", target.get("name").map(Json::to_s).unwrap_or_default()))),
+            ("\"TmplAggregateName\"", naming::ruby_inspect_string(&aggregate_name)),
+            ("\"TmplEntityName\"", naming::ruby_inspect_string(&entity_name)),
+            ("\"TmplEntityIdentityReading\"", naming::ruby_inspect_string(&identity_reading)),
+            ("tmpl_given_spec_placeholder(),", given_specs.join("\n")),
+            ("tmpl_transition_placeholder()", transition_arg),
+            ("tmpl_entity_mutation_lines_placeholder(record);", mutation_lines.join("\n")),
+            ("tmpl_ensures_spec_placeholder(),", ensures_specs.join("\n")),
+        ],
+    );
+    Some(Delegation {
+        prelude: indent_block(&prelude, "    "),
+        apply: indent_block(&apply, "        "),
+        emits: target.get("emits").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
+    })
 }
 
 /// `entity_command_skip_reason` — `command_skip_reason` with `entity`
@@ -526,7 +723,9 @@ pub fn emit_entity_command(
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, entity, command, value_objects_by_name, false)).collect();
     if let Some(t) = &transition {
-        mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        if !t.to_state.is_empty() {
+            mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        }
     }
     if mutation_lines.is_empty() {
         mutation_lines = vec!["        let _ = record;".to_string()];

@@ -1,9 +1,9 @@
 {
   "name": "roster-parity",
-  "note": "One roster through every command once \u2014 open, two seats, two members, one assignment \u2014 every given a block predicate, all of them accepted.",
+  "note": "One roster through every command once \u2014 open, two seats, two members, one assignment, one retirement through the delegating door \u2014 every given a block predicate, all of them accepted.",
   "domain": "examples/roster",
   "expectations": {
-    "events": 6
+    "events": 7
   },
   "steps": [
     {
@@ -81,6 +81,17 @@
         },
         "number": {
           "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": {
+          "value": "crew-1"
+        },
+        "id": {
+          "value": "bob"
         }
       }
     }

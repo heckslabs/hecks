@@ -168,7 +168,25 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
     let transitions = lifecycle.get("transitions").map(Json::each).unwrap_or(&[]);
     let rows: Vec<&Json> = transitions.iter().filter(|t| t.get("command").map(Json::to_s).unwrap_or_default() == command_name).collect();
     if rows.is_empty() {
-        return None;
+        // `from:` WITHOUT a transition — see mutations.rb's own
+        // `lifecycle_transition_for`: a guard on the current state that
+        // moves nothing; `to_state` empty is that "moves nothing".
+        let froms: Vec<String> = match command.get("from") {
+            Some(Json::Null) | None => Vec::new(),
+            Some(Json::String(s)) => vec![s.clone()],
+            Some(list) => list.each().iter().map(Json::to_s).collect(),
+        };
+        if froms.is_empty() {
+            return None;
+        }
+        let mut from_states: Vec<String> = Vec::new();
+        for from in froms {
+            if !from_states.contains(&from) {
+                from_states.push(from);
+            }
+        }
+        let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();
+        return Some(Transition { field, to_state: String::new(), from_states });
     }
 
     let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("").to_string();

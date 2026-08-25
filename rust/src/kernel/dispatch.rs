@@ -17,7 +17,7 @@
 // `registry.rs` (`reactions.rb`'s `emit_reference_check`), the one place
 // with access to every OTHER aggregate's repo, not just this command's own.
 
-use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
+use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld, WithParent};
 use super::refusal_wording::RefusalSite;
 use super::{Event, Json, MutationRecord, Refusal, Repository, ToJson};
 
@@ -274,71 +274,49 @@ where
 /// collapsed to one string comparison because both sides already agree on
 /// the SAME dotted-path-join-by-":" convention `extract_id`/`identity()`
 /// (json_codec.rb) use everywhere else.
+/// THE ELEMENT HALF OF AN ENTITY COMMAND, on a parent record already in
+/// hand and nothing saved — `EntityInterpreter`'s locate → givens →
+/// transition → mutate → ensures, exactly the steps
+/// `CommandInterpreter#step_delegate_to_entity` runs INSIDE a
+/// delegating aggregate command (docs/implemented/guides/entities.md,
+/// `delegates_to`) and `dispatch_entity`, below, runs before its own
+/// save. One body, two callers, so a refusal reads identically whether
+/// the entity command was dispatched directly or through its door.
+///
+/// `parent_in_args`: `Admissibility#enforce_givens`/`#enforce_ensures`
+/// merge `parent:` — the OWNING record — into the args every entity
+/// given and ensures evaluates against. A direct entity dispatch gets
+/// that from the routing layer (`parent_deref`, a snapshot fetched
+/// before the command ran, pushed into `command_deref` as `"parent"`);
+/// a delegating door has no such layer, so with `parent_in_args` this
+/// reads the parent off the LIVE record instead — before the mutation
+/// for the givens, after it for the ensures, which is what Ruby's own
+/// in-place element mutation gives it: a chess king's "not left in
+/// check" ensures reads the board with the piece already moved.
 #[allow(clippy::too_many_arguments)]
-pub fn dispatch_entity<'a, T, E, R>(
-    repo: &mut R,
+pub fn apply_entity_command<'a, T, E>(
+    record: &mut T,
     parent_id: &str,
     get_list: impl Fn(&T) -> &Vec<E>,
     get_list_mut: impl FnOnce(&mut T) -> &mut Vec<E>,
     matches: impl Fn(&E) -> bool,
     command_name: &'static str,
-    aggregate_qualified_name: &'static str,
-    // `aggregate_name`/`parent_identity_reading` — the SAME split `dispatch`
-    // above makes, for the SAME reason: the parent lookup below raises the
-    // identical `record_missing` site `EntityInterpreter#parent`
-    // (entity_interpreter.rb) raises for its own failed `repository.find`,
-    // quoting the PARENT aggregate's bare name and its own declared
-    // identity reading, never the domain-qualified form.
     aggregate_name: &'static str,
-    parent_identity_reading: &'static str,
-    // `entity_name`/`entity_identity_reading` — `entity_element_missing`'s
-    // own `{entity}`/`{identity}`, codegen-time-static off the ENTITY's
-    // own `identified_by` (`element_of`, entity_interpreter.rb: `entity.
-    // hecks_name`/`Identity.reading(entity)`), distinct from the parent
-    // aggregate's above.
     entity_name: &'static str,
     entity_identity_reading: &'static str,
-    // `wants` — the one genuinely RUNTIME piece: `element_of`'s own
-    // `wants.map { |_h, path, want| Identity.scalar(path, want) }.join(",
-    // ")`, the caller-OFFERED scalar identity VALUES (not names), built by
-    // the generated registry call site alongside `element_id` and handed
-    // in already-joined — see `rust/project/registry.rb`'s entity-command
-    // arm and `json_codec.rb`'s `emit_extract_wants` for how.
     wants: &str,
     args: &'a dyn Fielded,
     givens: &[GivenSpec],
     transition: Option<TransitionCheck>,
     apply_mutations: impl FnOnce(&mut E) -> Result<(), Refusal> + 'a,
     ensures: &[EnsuresSpec],
-    emits: &[&'static str],
-    payload: Json,
-    mutations: &mut Vec<MutationRecord>,
-) -> Result<(T, Vec<Event>), Refusal>
+    parent_in_args: bool,
+) -> Result<(), Refusal>
 where
-    T: Fielded + Clone + ToJson,
+    T: Fielded + Clone,
     E: Fielded + Clone,
-    R: Repository<T>,
 {
-    // `NotFound`/`record_missing` — the parent half of `EntityInterpreter
-    // #parent`, read directly: the SAME site/wording `dispatch`'s own
-    // `Hydrate::Act` arm raises above, because Ruby raises it from the
-    // identical `RefusalWording.render("NotFound", "record_missing", ...)`
-    // call, just against the entity's OWNING aggregate instead of the
-    // aggregate acting on itself.
-    let mut record = repo.find(parent_id).ok_or_else(|| {
-        Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
-            ("aggregate", aggregate_name),
-            ("identity", parent_identity_reading),
-            ("offered", &format!("{parent_id:?}")),
-        ]))
-    })?;
-
-    // `NotFound`/`entity_element_missing` — `element_of`'s own final guard
-    // (entity_interpreter.rb), read directly: `parent_id` reuses the
-    // ALREADY-quoted `{parent_id:?}` form Ruby's own `instance.id.inspect`
-    // produces (both a plain `.inspect` on a String), and `wants` arrives
-    // pre-joined by the caller exactly the way `identity`/`aggregate` do.
-    let position = get_list(&record).iter().position(|el| matches(el)).ok_or_else(|| {
+    let position = get_list(record).iter().position(|el| matches(el)).ok_or_else(|| {
         Refusal::NotFound(RefusalSite::NotFoundEntityElementMissing.render(&[
             ("entity", entity_name),
             ("identity", entity_identity_reading),
@@ -347,21 +325,17 @@ where
             ("parent_id", &format!("{parent_id:?}")),
         ]))
     })?;
+    let mut element = get_list(record)[position].clone();
 
-    // COPY-ON-WRITE, same guarantee `element_of`'s own comment names: never
-    // alias the stored element until every check has passed. `element` is
-    // what `given`/`ensures` see as `instance` (Ruby's `ctx.view`/`ctx.
-    // element`) — the WHOLE parent is never exposed to entity-command
-    // expression evaluation, only its one addressed element.
-    let mut element = get_list(&record)[position].clone();
-
-    for given in givens {
-        let ctx = EvalContext { args, instance: &element };
-        if !interpret(&given.expr, &ctx)?.truthy() {
-            // `CommandRules::Admissibility#enforce_givens`, read directly:
-            // `"#{command.hecks_name} refused — #{given.description}"` —
-            // the prefix this field-only message used to be missing.
-            return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
+    {
+        let parent_before = record.clone();
+        let with_parent = WithParent { args, parent: &parent_before };
+        let given_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
+        for given in givens {
+            let ctx = EvalContext { args: given_args, instance: &element };
+            if !interpret(&given.expr, &ctx)?.truthy() {
+                return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
+            }
         }
     }
 
@@ -369,11 +343,6 @@ where
         match element.field(check.field) {
             Some(Field::Value(Value::Str(current))) => {
                 if !check.from_states.contains(&current.as_str()) {
-                    // Same site/wording as `dispatch`'s own transition
-                    // check above — the entity's OWN lifecycle field, per
-                    // `admissible_transition(declaring, ...)` taking either
-                    // an aggregate OR an entity as `declaring` (read
-                    // directly, command_rules/admissibility.rb).
                     let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
                     return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
                         ("command", command_name),
@@ -393,23 +362,82 @@ where
     }
 
     let old_snapshot = if ensures.is_empty() { None } else { Some(element.clone()) };
-
     apply_mutations(&mut element)?;
+    get_list_mut(record)[position] = element;
 
     if let Some(old) = &old_snapshot {
-        let with_old = WithOld { args, old };
+        let parent_after = record.clone();
+        let with_parent = WithParent { args, parent: &parent_after };
+        let ensures_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
+        let with_old = WithOld { args: ensures_args, old };
+        let settled = &get_list(record)[position];
         for rule in ensures {
-            let ctx = EvalContext { args: &with_old, instance: &element };
+            let ctx = EvalContext { args: &with_old, instance: settled };
             if !interpret(&rule.expr, &ctx)?.truthy() {
-                // Same prefix, same source: `CommandRules::Admissibility
-                // #enforce_ensures` — `"#{command.hecks_name} refused —
-                // #{rule.description}"`.
                 return Err(Refusal::EnsuresNotMet(format!("{command_name} refused — {}", rule.description)));
             }
         }
     }
+    Ok(())
+}
 
-    get_list_mut(&mut record)[position] = element;
+#[allow(clippy::too_many_arguments)]
+pub fn dispatch_entity<'a, T, E, R>(
+    repo: &mut R,
+    parent_id: &str,
+    get_list: impl Fn(&T) -> &Vec<E>,
+    get_list_mut: impl FnOnce(&mut T) -> &mut Vec<E>,
+    matches: impl Fn(&E) -> bool,
+    command_name: &'static str,
+    aggregate_qualified_name: &'static str,
+    aggregate_name: &'static str,
+    parent_identity_reading: &'static str,
+    entity_name: &'static str,
+    entity_identity_reading: &'static str,
+    wants: &str,
+    args: &'a dyn Fielded,
+    givens: &[GivenSpec],
+    transition: Option<TransitionCheck>,
+    apply_mutations: impl FnOnce(&mut E) -> Result<(), Refusal> + 'a,
+    ensures: &[EnsuresSpec],
+    emits: &[&'static str],
+    payload: Json,
+    mutations: &mut Vec<MutationRecord>,
+) -> Result<(T, Vec<Event>), Refusal>
+where
+    T: Fielded + Clone + ToJson,
+    E: Fielded + Clone,
+    R: Repository<T>,
+{
+    // Same `record_missing` site `EntityInterpreter#parent` raises —
+    // see `dispatch` above for the aggregate-level twin.
+    let mut record = repo.find(parent_id).ok_or_else(|| {
+        Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
+            ("aggregate", aggregate_name),
+            ("identity", parent_identity_reading),
+            ("offered", &format!("{parent_id:?}")),
+        ]))
+    })?;
+
+    apply_entity_command(
+        &mut record,
+        parent_id,
+        get_list,
+        get_list_mut,
+        matches,
+        command_name,
+        aggregate_name,
+        entity_name,
+        entity_identity_reading,
+        wants,
+        args,
+        givens,
+        transition,
+        apply_mutations,
+        ensures,
+        false,
+    )?;
+
     repo.save(parent_id, record.clone());
     mutations.push(MutationRecord {
         aggregate: aggregate_qualified_name.to_string(),
@@ -417,11 +445,6 @@ where
         operation: "save",
         state: record.to_json(),
     });
-
-    // SAVE AND EMIT BOTH OPERATE ON THE PARENT — docs/implemented/guides/entities.md:
-    // "announces onto the SAME event log the parent's own commands write
-    // to, because there is only ever one identity in play here, the
-    // parent's." The element's own identity never appears on the Event.
     let events = emits
         .iter()
         .map(|name| Event {
@@ -432,6 +455,5 @@ where
             correlation: None,
         })
         .collect();
-
     Ok((record, events))
 }

@@ -43,8 +43,11 @@ module RustProjection
     end
 
     def command_skip_reason(command, aggregate, value_objects_by_name)
-      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
-      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
+      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement delegate].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
+      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/delegate are)" if unsupported_ops.any?
+
+      delegate_problem = delegate_skip_reason(command, aggregate, value_objects_by_name)
+      return delegate_problem if delegate_problem
 
       append_problems = append_field_problems(command, aggregate, value_objects_by_name)
       return "sets append field(s): #{append_problems.join('; ')}" if append_problems.any?
@@ -333,8 +336,17 @@ module RustProjection
       # dispatch() step. Covers commands with no explicit sets on the
       # lifecycle field (Banking's Freeze/Unfreeze have none) — Purchase's
       # own explicit sets above already covers itself, redundantly.
-      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
+      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
+      delegation = delegation_of(command, aggregate, value_objects_by_name)
+      if delegation
+        raise "#{command[:name]}: a creating command cannot delegate — nothing exists to delegate to" if creates
+
+        mutation_lines = [delegation[:apply]]
+      end
+      prelude   = delegation ? delegation[:prelude] : ""
+      payload   = delegation ? "delegate_facts.clone()," : "args.to_json(),"
+      emits_out = delegation ? delegation[:emits] : command[:emits]
 
       if creates
         record_fields = aggregate[:attributes].map do |attr|
@@ -406,6 +418,7 @@ module RustProjection
         "let tmpl_eval_fielded = tmpl_with_references_placeholder();" => with_references_binding,
         "&tmpl_eval_fielded," => "&with_references,",
         "tmpl_hydrate_placeholder()" => hydrate,
+        "tmpl_prelude_placeholder();" => prelude,
         '"TmplCmdName"' => cmd.inspect,
         '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
         '"TmplAggregateName"' => aggregate_name.inspect,
@@ -414,10 +427,117 @@ module RustProjection
         "tmpl_transition_placeholder()" => transition_arg,
         "tmpl_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
         "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n"),
-        "tmpl_emit_placeholder()" => command[:emits].map(&:inspect).join(", ")
+        "tmpl_emit_placeholder()" => emits_out.map(&:inspect).join(", "),
+        "args.to_json()," => payload
       )
 
       "#{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}\n\n#[derive(Debug, Clone)]\n#{args_struct.join("\n")}\n\n#{dispatch_fn}"
+    end
+
+    # `delegates_to "Entity.Command", with: { … }` — the `:delegate`
+    # mutation (`CommandInterpreter#step_delegate_to_entity`, read
+    # directly; the exemplar's own `delegate_prelude`/`delegate_apply`
+    # comment has the shape). One per command, and the command's only
+    # mutation: the door's entire effect IS the target entity command,
+    # run on the record inside the door's own `dispatch` closure.
+    def delegate_of(command) = command[:mutations].find { |m| m[:op].to_s == "delegate" }
+
+    def delegate_mapping(delegation)
+      (delegation[:fields] || {}).to_h { |target_key, source_key| [target_key.to_s, source_key.to_s.delete_prefix(":")] }
+    end
+
+    def delegate_target(delegation, aggregate)
+      entity_name, _dot, command_name = delegation[:target].to_s.rpartition(".")
+      entity = (aggregate[:entities] || []).find { |e| e[:name].to_s == entity_name }
+      target = entity && entity[:commands].find { |c| c[:name].to_s == command_name }
+      [entity, target]
+    end
+
+    def delegate_skip_reason(command, aggregate, value_objects_by_name)
+      delegation = delegate_of(command)
+      return nil unless delegation
+
+      label = "delegates_to #{delegation[:target]}"
+      return "#{label} alongside other sets — not generated yet" if command[:mutations].size > 1
+
+      entity, target = delegate_target(delegation, aggregate)
+      return "#{label}: #{aggregate[:name]} has no such entity" unless entity
+      return "#{label}: #{entity[:name]} declares no such command" unless target
+      return "#{label}: #{entity[:name]} cannot be addressed by identity" unless extract_id_supported?(entity)
+
+      target_problem = entity_command_skip_reason(target, entity, value_objects_by_name)
+      return "#{label}: #{target_problem}" if target_problem
+
+      mapping = delegate_mapping(delegation)
+      target[:attributes].each do |attr|
+        source_name = mapping.fetch(attr[:name].to_s, attr[:name].to_s)
+        source = command[:attributes].find { |a| a[:name].to_s == source_name }
+        next if source.nil? && attr[:optional]
+        return "#{label}: target argument #{attr[:name]} has no source on the door" unless source
+        unless source[:type].to_s == attr[:type].to_s && !!source[:list] == !!attr[:list]
+          return "#{label}: door argument #{source_name} is #{source[:type]}, target wants #{attr[:type]} — not generated yet"
+        end
+        return "#{label}: optional door argument #{source_name} feeds required #{attr[:name]}" if source[:optional] && !attr[:optional]
+      end
+      entity[:identified_by].each do |path|
+        head = path.to_s.split(".").first
+        source_name = mapping.fetch(head, head)
+        next if command[:attributes].any? { |a| a[:name].to_s == source_name && !a[:optional] }
+
+        return "#{label}: the element's identity #{head} has no source on the door"
+      end
+      nil
+    end
+
+    # The three rendered pieces a delegating door needs: the prelude
+    # (before `dispatch`), the apply block (its whole closure body), and
+    # the events it emits — the TARGET's, exactly as `step_emit` answers
+    # `ctx.delegated_events` in place of the door's own.
+    def delegation_of(command, aggregate, value_objects_by_name)
+      delegation = delegate_of(command)
+      return nil unless delegation
+
+      entity, target = delegate_target(delegation, aggregate)
+      list_attr = aggregate[:attributes].find { |a| a[:list] && a[:type] == entity[:name] }
+      raise "#{entity[:name]}: no list attribute on #{aggregate[:name]} holds it" unless list_attr
+
+      element_record   = rust_ident(entity[:name])
+      target_args_name = "#{element_record}#{rust_ident(target[:name])}Args"
+      aliases = delegate_mapping(delegation).map { |target_key, source_key| "(#{target_key.inspect}, #{source_key.inspect})" }
+      given_specs = target[:givens].map do |given|
+        "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+      end
+      ensures_specs = target[:ensures].map do |rule|
+        "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
+      end
+      transition = lifecycle_transition_for(target, entity)
+      mutation_lines = target[:mutations].map { |m| emit_mutation_line(m, entity, target, value_objects_by_name, optional: false) }
+      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
+      mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
+
+      {
+        prelude: Exemplar.render(
+          "delegate_prelude",
+          "tmpl_aliases_placeholder()" => aliases.join(", "),
+          "TmplTargetArgs" => target_args_name,
+          "TmplElement" => element_record
+        ).lines.map { |l| "    #{l}" }.join.rstrip,
+        apply: Exemplar.render(
+          "delegate_apply",
+          "TmplRecord" => rust_ident(aggregate[:name]),
+          "tmpl_list_field" => rust_ident_field(list_attr[:name]),
+          "TmplElement" => element_record,
+          '"TmplQualifiedCommandName"' => "#{entity[:name]}.#{target[:name]}".inspect,
+          '"TmplAggregateName"' => aggregate[:name].to_s.inspect,
+          '"TmplEntityName"' => entity[:name].to_s.inspect,
+          '"TmplEntityIdentityReading"' => entity[:identified_by].join(", ").inspect,
+          "tmpl_given_spec_placeholder()," => given_specs.join("\n"),
+          "tmpl_transition_placeholder()" => transition_check_arg(transition),
+          "tmpl_entity_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
+          "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n")
+        ).lines.map { |l| "        #{l}" }.join.rstrip,
+        emits: target[:emits]
+      }
     end
 
     # `entity_command_skip_reason` — deliberately just `command_skip_reason`
@@ -502,7 +622,7 @@ module RustProjection
         transition_check_arg(transition)
 
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
-      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
+      mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
 
       qualified_command_name = "#{entity[:name]}.#{command[:name]}"
