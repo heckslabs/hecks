@@ -127,17 +127,17 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
        OwningDatabaseEndpoint OwningDatabaseSecretArn].each do |param|
       expect(recipe).to include("#{param}=$$OWNER_"), "deploy: never passes #{param} to sam deploy"
     end
-    expect(recipe.scan(/WebRedirectBaseUrl="\$\$WEB_URL"/).size).to eq(1),
-                                                                     "deploy: should pass WebRedirectBaseUrl in its one real sam deploy call (the WEB_URL-present branch)"
+    expect(recipe.scan('WebRedirectBaseUrl="$$WEB_URL"').size).to eq(1),
+                                                                  "deploy: should pass WebRedirectBaseUrl in its one real sam deploy call (the WEB_URL-present branch)"
   end
 
   it "deploy:'s own multi-line shell chain has exactly one Make '@' (echo-suppress) prefix, at its true first line" do
     lines = self.class.deploy_recipe_lines(@makefile)
     at_prefixed = lines.select { |l| l.lstrip.start_with?("@") }
     expect(at_prefixed.size).to eq(1),
-                                 "expected exactly one '@'-prefixed recipe line (a SECOND one mid-chain stops being a Make " \
-                                 "directive and becomes literal, invalid shell text once backslash-continuation joins " \
-                                 "everything into one command) — got #{at_prefixed.size}: #{at_prefixed.inspect}"
+                                "expected exactly one '@'-prefixed recipe line (a SECOND one mid-chain stops being a Make " \
+                                "directive and becomes literal, invalid shell text once backslash-continuation joins " \
+                                "everything into one command) — got #{at_prefixed.size}: #{at_prefixed.inspect}"
   end
 
   it "deploy:'s own generated shell chain is syntactically valid shell" do
