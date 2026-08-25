@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for InstructionReference {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -81,6 +85,10 @@ impl crate::kernel::Fielded for ScheduledAmount {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -151,6 +159,10 @@ impl crate::kernel::Fielded for PaymentRecipient {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -223,6 +235,10 @@ impl crate::kernel::Fielded for PaymentDueDate {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -294,6 +310,10 @@ impl crate::kernel::Fielded for RetryCount {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -363,6 +383,10 @@ impl crate::kernel::Fielded for RetryLimit {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -447,6 +471,10 @@ impl crate::kernel::Fielded for ScheduledPayment {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl ScheduledPayment {
@@ -522,6 +550,10 @@ impl crate::kernel::Fielded for ScheduleArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -586,13 +618,16 @@ pub fn dispatch_schedule(
 
 impl ScheduleArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("instruction".to_string(), self.instruction.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("instruction".to_string(), self.instruction.to_json()),
         ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("amount".to_string(), self.amount.to_json()),
         ("recipient".to_string(), self.recipient.to_json()),
-        ("due_on".to_string(), self.due_on.to_json()),
-        ])
+        ("due_on".to_string(), self.due_on.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -632,6 +667,10 @@ impl crate::kernel::Fielded for ExecuteArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -675,9 +714,12 @@ pub fn dispatch_execute(
 
 impl ExecuteArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -713,6 +755,10 @@ impl crate::kernel::Fielded for CancelArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -756,9 +802,12 @@ pub fn dispatch_cancel(
 
 impl CancelArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -794,6 +843,10 @@ impl crate::kernel::Fielded for FailArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -837,9 +890,12 @@ pub fn dispatch_fail(
 
 impl FailArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -875,6 +931,10 @@ impl crate::kernel::Fielded for RetryArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -920,9 +980,12 @@ pub fn dispatch_retry(
 
 impl RetryArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -958,6 +1021,10 @@ impl crate::kernel::Fielded for AbandonArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1002,9 +1069,12 @@ pub fn dispatch_abandon(
 
 impl AbandonArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

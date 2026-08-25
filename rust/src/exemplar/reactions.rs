@@ -24,7 +24,7 @@ fn tmpl_with_value_literal_fn_host() {
 // ... }` (json.rs's `closed_set_table_row_field`) already is.
 // TMPL:policy_table BEGIN
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },
+crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
 ];
 // TMPL:policy_table END
 
@@ -37,7 +37,7 @@ crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_e
 // call" reasoning as `policy_table` above — `const` context.
 // TMPL:cross_domain_policy_table BEGIN
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
-crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb" },
+crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", where_expr: None },
 ];
 // TMPL:cross_domain_policy_table END
 

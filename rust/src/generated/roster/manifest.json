@@ -23,6 +23,24 @@
   },
   {
     "kind": "command",
+    "id": "Roster::Roster.Mark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Notice",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Honor",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Roster::Roster.AddSeat",
     "generated": true,
     "routed": true
@@ -42,6 +60,24 @@
   {
     "kind": "command",
     "id": "Roster::Roster.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Roster::OnSeatAssignedMark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Roster::OnSeatMarkedNotice",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Roster::OnSeatAssignedHonorFront",
     "generated": true,
     "routed": true
   },

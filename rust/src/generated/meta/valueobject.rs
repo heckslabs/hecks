@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for RowCount {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -81,6 +85,10 @@ impl crate::kernel::Fielded for ValueObjectName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -166,6 +174,10 @@ impl crate::kernel::Fielded for ShapeField {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -286,6 +298,10 @@ impl crate::kernel::Fielded for Assertion {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -375,6 +391,10 @@ impl crate::kernel::Fielded for MemberPosition {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -430,6 +450,10 @@ impl crate::kernel::Fielded for MemberText {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -488,6 +512,10 @@ impl crate::kernel::Fielded for Pair {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -562,6 +590,10 @@ impl crate::kernel::Fielded for Position {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -617,6 +649,10 @@ impl crate::kernel::Fielded for ValueObjectText {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -791,6 +827,10 @@ impl crate::kernel::Fielded for Member {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Member {
@@ -842,7 +882,7 @@ impl Member {
     }
 }
 
-impl crate::kernel::Fielded for MemberPairArgs {
+impl crate::kernel::Fielded for MemberPairEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -861,37 +901,44 @@ impl crate::kernel::Fielded for MemberPairArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct MemberPairArgs {
-    pub key: MemberText,
-    pub value: MemberText,
-}
-
-impl MemberPairArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("key".to_string(), self.key.to_json()),
-        ("value".to_string(), self.value.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl MemberPairArgs {
+#[derive(Debug, Clone)]
+pub struct MemberPairEntityArgs {
+    pub key: MemberText,
+    pub value: MemberText,
+}
+
+impl MemberPairEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl MemberPairEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        key: MemberText::from_json(&v.require("key", "MemberPairArgs")?.coerce_single_field("value"))?,
-        value: MemberText::from_json(&v.require("value", "MemberPairArgs")?.coerce_single_field("value"))?,
+        key: MemberText::from_json(&v.require("key", "MemberPairEntityArgs")?.coerce_single_field("value"))?,
+        value: MemberText::from_json(&v.require("value", "MemberPairEntityArgs")?.coerce_single_field("value"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_member_pair(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, parent_id: &str, element_id: &str, element_wants: &str, args: MemberPairArgs,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, parent_id: &str, element_id: &str, element_wants: &str, args: MemberPairEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.key.check_invariants()?;
@@ -964,6 +1011,10 @@ impl crate::kernel::Fielded for ValueObject {
             "members" => Some(self.members.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1042,6 +1093,10 @@ impl crate::kernel::Fielded for FieldArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -1097,16 +1152,19 @@ pub fn dispatch_field(
 
 impl FieldArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
         ("type".to_string(), self.r#type.to_json()),
         ("list".to_string(), self.list.to_json()),
         ("optional".to_string(), self.optional.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("pattern".to_string(), self.pattern.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), self.default.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("admits".to_string(), self.admits.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("relationship".to_string(), self.relationship.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("relationship".to_string(), self.relationship.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1150,6 +1208,10 @@ impl crate::kernel::Fielded for CloseArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -1191,9 +1253,12 @@ pub fn dispatch_close(
 
 impl CloseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("rows".to_string(), self.rows.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("rows".to_string(), self.rows.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1230,6 +1295,10 @@ impl crate::kernel::Fielded for AssertArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1275,10 +1344,13 @@ pub fn dispatch_assert(
 
 impl AssertArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("canonical".to_string(), self.canonical.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("canonical".to_string(), self.canonical.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1315,6 +1387,10 @@ impl crate::kernel::Fielded for MemberArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1357,9 +1433,12 @@ pub fn dispatch_member(
 
 impl MemberArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("position".to_string(), self.position.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("position".to_string(), self.position.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

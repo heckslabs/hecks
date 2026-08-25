@@ -784,7 +784,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::banking::account::LedgerEntryAmendArgs::from_json(facts_json)?;
+              let args = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Amend", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -797,7 +797,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::banking::account::LedgerEntryReverseArgs::from_json(facts_json)?;
+              let args = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -810,7 +810,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(facts_json)?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::banking::atmcard::WithdrawalDisputeArgs::from_json(facts_json)?;
+              let args = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -823,7 +823,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::banking::safedepositbox::VisitAnnotateArgs::from_json(facts_json)?;
+              let args = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -836,7 +836,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
-              let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnArgs::from_json(facts_json)?;
+              let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -917,15 +917,15 @@ if target == "Banking::ScheduledPayment" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry", for_each: None, for_each_key: None, with_spec: &[] },
-    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.FreezeAccount", for_each: Some("Banking::Account.OpenForCustomer"), for_each_key: Some("account"), with_spec: &[("account", ":account")] },
+    crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.FreezeAccount", for_each: Some("Banking::Account.OpenForCustomer"), for_each_key: Some("account"), with_spec: &[("account", ":account")], where_expr: None },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
-    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance::AccountFreezeReview.Open" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance::BoxSurrenderReview.Open" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance::AccountFreezeReview.Open", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance::BoxSurrenderReview.Open", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
 ];
 
 fn pm_literal_0() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("name".to_string(), crate::kernel::Json::Str("current".to_string()))]) }

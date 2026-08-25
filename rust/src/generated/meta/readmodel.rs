@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for ReadModelName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for ReadModelText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -151,6 +159,10 @@ impl crate::kernel::Fielded for ProjectionPurpose {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -226,6 +238,10 @@ impl crate::kernel::Fielded for Head {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -292,6 +308,10 @@ impl crate::kernel::Fielded for ProjectionOption {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -353,6 +373,10 @@ impl crate::kernel::Fielded for GroupByField {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -423,6 +447,10 @@ impl crate::kernel::Fielded for Position {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -622,6 +650,10 @@ impl crate::kernel::Fielded for ReadModel {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl ReadModel {
@@ -704,6 +736,10 @@ impl crate::kernel::Fielded for GatherArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -749,11 +785,14 @@ pub fn dispatch_gather(
 
 impl GatherArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("aggregate".to_string(), self.aggregate.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("aggregate".to_string(), self.aggregate.to_json()),
         ("as".to_string(), self.r#as.to_json()),
-        ("many".to_string(), self.many.to_json()),
-        ])
+        ("many".to_string(), self.many.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -791,6 +830,10 @@ impl crate::kernel::Fielded for GroupByArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -833,9 +876,12 @@ pub fn dispatch_group_by(
 
 impl GroupByArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("field".to_string(), self.field.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("field".to_string(), self.field.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -871,6 +917,10 @@ impl crate::kernel::Fielded for CountArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -913,9 +963,12 @@ pub fn dispatch_count(
 
 impl CountArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("count".to_string(), self.count.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("count".to_string(), self.count.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -951,6 +1004,10 @@ impl crate::kernel::Fielded for MedianArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -993,9 +1050,12 @@ pub fn dispatch_median(
 
 impl MedianArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("median_field".to_string(), self.median_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("median_field".to_string(), self.median_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1034,6 +1094,10 @@ impl crate::kernel::Fielded for OptionArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1082,12 +1146,15 @@ pub fn dispatch_option(
 
 impl OptionArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("option".to_string(), self.option.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("option".to_string(), self.option.to_json()),
         ("key".to_string(), self.key.to_json()),
         ("value".to_string(), self.value.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

@@ -190,6 +190,17 @@ fn tmpl_items_block() -> Option<Vec<crate::kernel::Field<'static>>> {
     None
 }
 
+// `Fielded::as_scalar` — `Resolver#unwrap_scalar`, read directly: an
+// object whose `to_h` has exactly one key, `value`, READS AS that value
+// (a chess piece's `color == "white"`, its Color a single-field closed
+// set). Rendered as the `value` field's own scalar for exactly that
+// shape — a struct whose sole attribute is `value` — and `None` for
+// every other, the kernel's existing "refuse — nothing generated does
+// this" reading.
+fn tmpl_as_scalar_placeholder() -> Option<crate::kernel::Value> {
+    None
+}
+
 struct TmplItemsNestedHost {
     tmpl_ident: Vec<TmplNestedInner>,
 }
@@ -296,6 +307,10 @@ impl crate::kernel::Fielded for TmplFlatType {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        tmpl_as_scalar_placeholder()
+    }
 }
 // TMPL:fielded_flat END
 
@@ -317,6 +332,10 @@ impl crate::kernel::Fielded for TmplRecordType {
 "tmpl_items_placeholder" => tmpl_items_block(),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        tmpl_as_scalar_placeholder()
     }
 }
 // TMPL:fielded_record END

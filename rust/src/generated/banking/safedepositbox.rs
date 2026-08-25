@@ -27,6 +27,10 @@ impl crate::kernel::Fielded for BranchCode {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -98,6 +102,10 @@ impl crate::kernel::Fielded for BoxNumber {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -168,6 +176,10 @@ impl crate::kernel::Fielded for VisitSequence {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -237,6 +249,10 @@ impl crate::kernel::Fielded for VisitDate {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -309,6 +325,10 @@ impl crate::kernel::Fielded for VisitNote {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -364,6 +384,10 @@ impl crate::kernel::Fielded for KeySerial {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -428,6 +452,9 @@ impl crate::kernel::Fielded for Size {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl Size {
@@ -484,6 +511,10 @@ impl crate::kernel::Fielded for Visit {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -542,7 +573,7 @@ impl Visit {
     }
 }
 
-impl crate::kernel::Fielded for VisitAnnotateArgs {
+impl crate::kernel::Fielded for VisitAnnotateEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -560,34 +591,41 @@ impl crate::kernel::Fielded for VisitAnnotateArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct VisitAnnotateArgs {
-    pub note: VisitNote,
-}
-
-impl VisitAnnotateArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("note".to_string(), self.note.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl VisitAnnotateArgs {
+#[derive(Debug, Clone)]
+pub struct VisitAnnotateEntityArgs {
+    pub note: VisitNote,
+}
+
+impl VisitAnnotateEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("note".to_string(), self.note.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl VisitAnnotateEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        note: VisitNote::from_json(&v.require("note", "VisitAnnotateArgs")?.coerce_single_field("text"))?,
+        note: VisitNote::from_json(&v.require("note", "VisitAnnotateEntityArgs")?.coerce_single_field("text"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_visit_annotate(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: VisitAnnotateArgs,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: VisitAnnotateEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.note.check_invariants()?;
@@ -599,7 +637,7 @@ pub fn dispatch_entity_visit_annotate(
         |r: &SafeDepositBox| &r.visits,
         |r: &mut SafeDepositBox| &mut r.visits,
         |el: &Visit| el.identity() == element_id,
-        "Visit.Annotate",
+        "Annotate",
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
@@ -652,6 +690,10 @@ impl crate::kernel::Fielded for KeyIssuance {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl KeyIssuance {
@@ -703,7 +745,7 @@ impl KeyIssuance {
     }
 }
 
-impl crate::kernel::Fielded for KeyIssuanceReturnArgs {
+impl crate::kernel::Fielded for KeyIssuanceReturnEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -721,34 +763,41 @@ impl crate::kernel::Fielded for KeyIssuanceReturnArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct KeyIssuanceReturnArgs {
-    pub serial: KeySerial,
-}
-
-impl KeyIssuanceReturnArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("serial".to_string(), self.serial.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl KeyIssuanceReturnArgs {
+#[derive(Debug, Clone)]
+pub struct KeyIssuanceReturnEntityArgs {
+    pub serial: KeySerial,
+}
+
+impl KeyIssuanceReturnEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("serial".to_string(), self.serial.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl KeyIssuanceReturnEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        serial: KeySerial::from_json(&v.require("serial", "KeyIssuanceReturnArgs")?.coerce_single_field("value"))?,
+        serial: KeySerial::from_json(&v.require("serial", "KeyIssuanceReturnEntityArgs")?.coerce_single_field("value"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_keyissuance_return(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: KeyIssuanceReturnArgs,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: KeyIssuanceReturnEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
@@ -760,7 +809,7 @@ pub fn dispatch_entity_keyissuance_return(
         |r: &SafeDepositBox| &r.keys,
         |r: &mut SafeDepositBox| &mut r.keys,
         |el: &KeyIssuance| el.identity() == element_id,
-        "KeyIssuance.Return",
+        "Return",
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
@@ -821,6 +870,10 @@ impl crate::kernel::Fielded for SafeDepositBox {
             "keys" => Some(self.keys.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -895,6 +948,10 @@ impl crate::kernel::Fielded for RentArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -956,12 +1013,15 @@ pub fn dispatch_rent(
 
 impl RentArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("customer".to_string(), self.customer.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("customer".to_string(), self.customer.to_json()),
         ("branch_code".to_string(), self.branch_code.to_json()),
         ("box_number".to_string(), self.box_number.to_json()),
-        ("size".to_string(), self.size.to_json()),
-        ])
+        ("size".to_string(), self.size.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1000,6 +1060,10 @@ impl crate::kernel::Fielded for SurrenderArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1042,9 +1106,12 @@ pub fn dispatch_surrender(
 
 impl SurrenderArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1082,6 +1149,10 @@ impl crate::kernel::Fielded for LogVisitArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1129,11 +1200,14 @@ pub fn dispatch_log_visit(
 
 impl LogVisitArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("date".to_string(), self.date.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("date".to_string(), self.date.to_json()),
         ("sequence".to_string(), self.sequence.to_json()),
-        ("note".to_string(), self.note.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("note".to_string(), self.note.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1171,6 +1245,10 @@ impl crate::kernel::Fielded for IssueKeyArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1214,9 +1292,12 @@ pub fn dispatch_issue_key(
 
 impl IssueKeyArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("serial".to_string(), self.serial.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("serial".to_string(), self.serial.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

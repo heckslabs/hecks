@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for QueryName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for QueryText {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -155,6 +163,10 @@ impl crate::kernel::Fielded for Filter {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -229,6 +241,10 @@ impl crate::kernel::Fielded for AskArgument {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -306,6 +322,10 @@ impl crate::kernel::Fielded for AskOption {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -367,6 +387,10 @@ impl crate::kernel::Fielded for Position {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -565,6 +589,10 @@ impl crate::kernel::Fielded for Query {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Query {
@@ -645,6 +673,10 @@ impl crate::kernel::Fielded for FilterArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -691,11 +723,14 @@ pub fn dispatch_filter(
 
 impl FilterArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("field".to_string(), self.field.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("field".to_string(), self.field.to_json()),
         ("op".to_string(), self.op.to_json()),
-        ("value".to_string(), self.value.to_json()),
-        ])
+        ("value".to_string(), self.value.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -736,6 +771,10 @@ impl crate::kernel::Fielded for OptionArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -784,12 +823,15 @@ pub fn dispatch_option(
 
 impl OptionArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("option".to_string(), self.option.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("option".to_string(), self.option.to_json()),
         ("key".to_string(), self.key.to_json()),
         ("value".to_string(), self.value.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -835,6 +877,10 @@ impl crate::kernel::Fielded for ArgumentArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -891,16 +937,19 @@ pub fn dispatch_argument(
 
 impl ArgumentArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("name".to_string(), self.name.to_json()),
         ("type".to_string(), self.r#type.to_json()),
         ("list".to_string(), self.list.to_json()),
         ("optional".to_string(), self.optional.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("pattern".to_string(), self.pattern.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), self.default.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("admits".to_string(), self.admits.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("relationship".to_string(), self.relationship.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
+        ("relationship".to_string(), self.relationship.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for VocabularyName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -187,6 +191,9 @@ impl crate::kernel::Fielded for ToStringType {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl ToStringType {
@@ -236,6 +243,9 @@ impl crate::kernel::Fielded for SizedType {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl SizedType {
@@ -280,6 +290,9 @@ impl crate::kernel::Fielded for Primitive {
             "value" => Some(Field::Value(Value::Str(match self { Primitive::String => "String".to_string(), Primitive::Integer => "Integer".to_string(), Primitive::Float => "Float".to_string(), Primitive::Trueclass => "TrueClass".to_string(), Primitive::Falseclass => "FalseClass".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -326,6 +339,9 @@ impl crate::kernel::Fielded for NormalisationStrategy {
             "value" => Some(Field::Value(Value::Str(match self { NormalisationStrategy::CollapseWhitespace => "collapse_whitespace".to_string(), NormalisationStrategy::Replace => "replace".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -409,6 +425,9 @@ impl crate::kernel::Fielded for QueryComparator {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl QueryComparator {
@@ -466,6 +485,9 @@ impl crate::kernel::Fielded for LoadOrder {
             "value" => Some(Field::Value(Value::Str(match self { LoadOrder::Port => "*.port".to_string(), LoadOrder::Adapter => "*.adapter".to_string(), LoadOrder::Bluebook => "*.bluebook".to_string(), LoadOrder::TranslationsBluebook => "translations/*.bluebook".to_string(), LoadOrder::Hecksagon => "*.hecksagon".to_string(), LoadOrder::World => "*.world".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -528,6 +550,9 @@ impl crate::kernel::Fielded for AggregateDispatchOrder {
             "value" => Some(Field::Value(Value::Str(match self { AggregateDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), AggregateDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), AggregateDispatchOrder::NormalizeArgs => "normalize_args".to_string(), AggregateDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), AggregateDispatchOrder::ResolveReferences => "resolve_references".to_string(), AggregateDispatchOrder::Hydrate => "hydrate".to_string(), AggregateDispatchOrder::EnforceGivens => "enforce_givens".to_string(), AggregateDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), AggregateDispatchOrder::AssignCreationAttributes => "assign_creation_attributes".to_string(), AggregateDispatchOrder::ApplyMutations => "apply_mutations".to_string(), AggregateDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), AggregateDispatchOrder::DelegateToEntity => "delegate_to_entity".to_string(), AggregateDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), AggregateDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), AggregateDispatchOrder::Save => "save".to_string(), AggregateDispatchOrder::Emit => "emit".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -608,6 +633,9 @@ impl crate::kernel::Fielded for EntityDispatchOrder {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl EntityDispatchOrder {
@@ -681,6 +709,9 @@ impl crate::kernel::Fielded for DomainRefusal {
             "value" => Some(Field::Value(Value::Str(match self { DomainRefusal::Absentargument => "AbsentArgument".to_string(), DomainRefusal::Alreadyexists => "AlreadyExists".to_string(), DomainRefusal::Attributeabsent => "AttributeAbsent".to_string(), DomainRefusal::Ensuresnotmet => "EnsuresNotMet".to_string(), DomainRefusal::Givennotmet => "GivenNotMet".to_string(), DomainRefusal::Invariantviolation => "InvariantViolation".to_string(), DomainRefusal::Lifecyclerefused => "LifecycleRefused".to_string(), DomainRefusal::Notfound => "NotFound".to_string(), DomainRefusal::Projectionabsent => "ProjectionAbsent".to_string(), DomainRefusal::Remoterefusal => "RemoteRefusal".to_string(), DomainRefusal::Typemismatch => "TypeMismatch".to_string(), DomainRefusal::Unauthorized => "Unauthorized".to_string(), DomainRefusal::Unknownargument => "UnknownArgument".to_string(), DomainRefusal::Unknownverb => "UnknownVerb".to_string(), }))),
             _ => None,
         }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -816,6 +847,9 @@ impl crate::kernel::Fielded for Trigger {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl Trigger {
@@ -894,6 +928,10 @@ impl crate::kernel::Fielded for Vocabulary {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 

@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for BranchCode {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -95,6 +99,10 @@ impl crate::kernel::Fielded for BoxNumber {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -169,6 +177,10 @@ impl crate::kernel::Fielded for BoxSurrenderReview {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl BoxSurrenderReview {
@@ -232,6 +244,10 @@ impl crate::kernel::Fielded for OpenArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -283,10 +299,13 @@ pub fn dispatch_open(
 
 impl OpenArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("branch_code".to_string(), self.branch_code.to_json()),
-        ("box_number".to_string(), self.box_number.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("branch_code".to_string(), self.branch_code.to_json()),
+        ("box_number".to_string(), self.box_number.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -323,6 +342,10 @@ impl crate::kernel::Fielded for ClearArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -364,9 +387,12 @@ pub fn dispatch_clear(
 
 impl ClearArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -402,6 +428,10 @@ impl crate::kernel::Fielded for EscalateArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -443,9 +473,12 @@ pub fn dispatch_escalate(
 
 impl EscalateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

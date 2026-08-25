@@ -25,6 +25,62 @@ pub enum Json {
     Null,
 }
 
+/// A `Json` value AS a `Fielded` — what a policy's own `where { … }`
+/// evaluates against: `Evaluator.call(policy.where, {}, event.payload)`
+/// (`PolicyInterpreter#where_holds?`, read directly), the payload being a
+/// plain Hash there. An object answers its keys, an array its length (and
+/// its elements through `items`), a scalar itself; `as_scalar` is
+/// `Resolver#unwrap_scalar` — an object with the sole key `value` reads
+/// as that value.
+impl super::Fielded for Json {
+    fn field(&self, name: &str) -> Option<super::Field<'_>> {
+        use super::{Field, Value};
+        let Json::Object(pairs) = self else { return None };
+        let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
+        Some(match found {
+            Json::Object(_) => Field::Nested(found),
+            Json::Array(items) => Field::Value(Value::List(items.len())),
+            Json::Str(s) => Field::Value(Value::Str(s.clone())),
+            Json::Num(n) if n.fract() == 0.0 => Field::Value(Value::Int(*n as i64)),
+            Json::Num(n) => Field::Value(Value::Float(*n)),
+            Json::Bool(b) => Field::Value(Value::Bool(*b)),
+            Json::Null => Field::Value(Value::Nil),
+        })
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<super::Field<'_>>> {
+        use super::{Field, Value};
+        let Json::Object(pairs) = self else { return None };
+        let (_, found) = pairs.iter().find(|(k, _)| k == name)?;
+        let Json::Array(items) = found else { return None };
+        Some(
+            items
+                .iter()
+                .map(|item| match item {
+                    Json::Object(_) => Field::Nested(item),
+                    Json::Array(inner) => Field::Value(Value::List(inner.len())),
+                    Json::Str(s) => Field::Value(Value::Str(s.clone())),
+                    Json::Num(n) if n.fract() == 0.0 => Field::Value(Value::Int(*n as i64)),
+                    Json::Num(n) => Field::Value(Value::Float(*n)),
+                    Json::Bool(b) => Field::Value(Value::Bool(*b)),
+                    Json::Null => Field::Value(Value::Nil),
+                })
+                .collect(),
+        )
+    }
+
+    fn as_scalar(&self) -> Option<super::Value> {
+        let Json::Object(pairs) = self else { return None };
+        if pairs.len() != 1 || pairs[0].0 != "value" {
+            return None;
+        }
+        match self.field("value") {
+            Some(super::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl Json {
     pub fn obj(fields: Vec<(&str, Json)>) -> Json {
         Json::Object(fields.into_iter().map(|(k, v)| (k.to_string(), v)).collect())

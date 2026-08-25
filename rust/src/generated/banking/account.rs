@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for AccountNumber {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -97,6 +101,10 @@ impl crate::kernel::Fielded for DailyLimit {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -167,6 +175,10 @@ impl crate::kernel::Fielded for LedgerSequence {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -228,6 +240,9 @@ impl crate::kernel::Fielded for LedgerDirection {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl LedgerDirection {
@@ -278,6 +293,10 @@ impl crate::kernel::Fielded for Money {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -352,6 +371,10 @@ impl crate::kernel::Fielded for PositiveMoney {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -432,6 +455,9 @@ impl crate::kernel::Fielded for AccountKind {
             _ => None,
         }
     }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 impl AccountKind {
@@ -482,6 +508,10 @@ impl crate::kernel::Fielded for Narrative {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -562,6 +592,10 @@ impl crate::kernel::Fielded for LedgerEntry {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl LedgerEntry {
@@ -619,7 +653,7 @@ impl LedgerEntry {
     }
 }
 
-impl crate::kernel::Fielded for LedgerEntryAmendArgs {
+impl crate::kernel::Fielded for LedgerEntryAmendEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -638,37 +672,44 @@ impl crate::kernel::Fielded for LedgerEntryAmendArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct LedgerEntryAmendArgs {
-    pub adjustment: Money,
-    pub narrative: Narrative,
-}
-
-impl LedgerEntryAmendArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("adjustment".to_string(), self.adjustment.to_json()),
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl LedgerEntryAmendArgs {
+#[derive(Debug, Clone)]
+pub struct LedgerEntryAmendEntityArgs {
+    pub adjustment: Money,
+    pub narrative: Narrative,
+}
+
+impl LedgerEntryAmendEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("adjustment".to_string(), self.adjustment.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl LedgerEntryAmendEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        adjustment: Money::from_json(v.require("adjustment", "LedgerEntryAmendArgs")?)?,
-        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryAmendArgs")?.coerce_single_field("text"))?,
+        adjustment: Money::from_json(v.require("adjustment", "LedgerEntryAmendEntityArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryAmendEntityArgs")?.coerce_single_field("text"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_ledgerentry_amend(
-    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryAmendArgs,
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryAmendEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Account> {
         args.adjustment.check_invariants()?;
@@ -681,7 +722,7 @@ pub fn dispatch_entity_ledgerentry_amend(
         |r: &Account| &r.ledger,
         |r: &mut Account| &mut r.ledger,
         |el: &LedgerEntry| el.identity() == element_id,
-        "LedgerEntry.Amend",
+        "Amend",
         "Banking::Account",
         "Account",
         "number.value",
@@ -711,7 +752,7 @@ pub fn dispatch_entity_ledgerentry_amend(
     )
 }
 
-impl crate::kernel::Fielded for LedgerEntryReverseArgs {
+impl crate::kernel::Fielded for LedgerEntryReverseEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -729,34 +770,41 @@ impl crate::kernel::Fielded for LedgerEntryReverseArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct LedgerEntryReverseArgs {
-    pub narrative: Narrative,
-}
-
-impl LedgerEntryReverseArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl LedgerEntryReverseArgs {
+#[derive(Debug, Clone)]
+pub struct LedgerEntryReverseEntityArgs {
+    pub narrative: Narrative,
+}
+
+impl LedgerEntryReverseEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl LedgerEntryReverseEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryReverseArgs")?.coerce_single_field("text"))?,
+        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryReverseEntityArgs")?.coerce_single_field("text"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_ledgerentry_reverse(
-    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryReverseArgs,
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryReverseEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Account> {
         args.narrative.check_invariants()?;
@@ -768,7 +816,7 @@ pub fn dispatch_entity_ledgerentry_reverse(
         |r: &Account| &r.ledger,
         |r: &mut Account| &mut r.ledger,
         |el: &LedgerEntry| el.identity() == element_id,
-        "LedgerEntry.Reverse",
+        "Reverse",
         "Banking::Account",
         "Account",
         "number.value",
@@ -833,6 +881,10 @@ impl crate::kernel::Fielded for Account {
             "ledger" => Some(self.ledger.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -910,6 +962,10 @@ impl crate::kernel::Fielded for OpenArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -971,12 +1027,15 @@ pub fn dispatch_open(
 
 impl OpenArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
+        crate::kernel::Json::Object(
+            vec![        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
         ("number".to_string(), self.number.to_json()),
         ("kind".to_string(), self.kind.to_json()),
-        ("daily_limit".to_string(), self.daily_limit.to_json()),
-        ])
+        ("daily_limit".to_string(), self.daily_limit.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1016,6 +1075,10 @@ impl crate::kernel::Fielded for CreditArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1061,10 +1124,13 @@ pub fn dispatch_credit(
 
 impl CreditArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1102,6 +1168,10 @@ impl crate::kernel::Fielded for DebitArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1150,10 +1220,13 @@ pub fn dispatch_debit(
 
 impl DebitArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1190,6 +1263,10 @@ impl crate::kernel::Fielded for FreezeAccountArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1231,9 +1308,12 @@ pub fn dispatch_freeze_account(
 
 impl FreezeAccountArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1269,6 +1349,10 @@ impl crate::kernel::Fielded for UnfreezeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1310,9 +1394,12 @@ pub fn dispatch_unfreeze(
 
 impl UnfreezeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1348,6 +1435,10 @@ impl crate::kernel::Fielded for CloseAccountArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1390,9 +1481,12 @@ pub fn dispatch_close_account(
 
 impl CloseAccountArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1429,6 +1523,10 @@ impl crate::kernel::Fielded for ApplyFeeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1475,10 +1573,13 @@ pub fn dispatch_apply_fee(
 
 impl ApplyFeeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1515,6 +1616,10 @@ impl crate::kernel::Fielded for CorrectFeeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1559,9 +1664,12 @@ pub fn dispatch_correct_fee(
 
 impl CorrectFeeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1597,6 +1705,10 @@ impl crate::kernel::Fielded for AccrueInterestArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1640,9 +1752,12 @@ pub fn dispatch_accrue_interest(
 
 impl AccrueInterestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1678,6 +1793,10 @@ impl crate::kernel::Fielded for CorrectInterestArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1723,9 +1842,12 @@ pub fn dispatch_correct_interest(
 
 impl CorrectInterestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("amount".to_string(), self.amount.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("amount".to_string(), self.amount.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

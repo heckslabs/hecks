@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for AuthorisationCode {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -81,6 +85,10 @@ impl crate::kernel::Fielded for PaymentAmount {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -152,6 +160,10 @@ impl crate::kernel::Fielded for MerchantName {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -222,6 +234,10 @@ impl crate::kernel::Fielded for Tag {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -305,6 +321,10 @@ impl crate::kernel::Fielded for CardPayment {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl CardPayment {
@@ -378,6 +398,10 @@ impl crate::kernel::Fielded for AuthorizeArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -441,13 +465,16 @@ pub fn dispatch_authorize(
 
 impl AuthorizeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("authorisation".to_string(), self.authorisation.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("authorisation".to_string(), self.authorisation.to_json()),
         ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
         ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("amount".to_string(), self.amount.to_json()),
-        ("merchant".to_string(), self.merchant.to_json()),
-        ])
+        ("merchant".to_string(), self.merchant.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -487,6 +514,10 @@ impl crate::kernel::Fielded for CaptureArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -530,9 +561,12 @@ pub fn dispatch_capture(
 
 impl CaptureArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -568,6 +602,10 @@ impl crate::kernel::Fielded for VoidArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -611,9 +649,12 @@ pub fn dispatch_void(
 
 impl VoidArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -649,6 +690,10 @@ impl crate::kernel::Fielded for RefundArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -692,9 +737,12 @@ pub fn dispatch_refund(
 
 impl RefundArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -730,6 +778,10 @@ impl crate::kernel::Fielded for ReverseArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -773,9 +825,12 @@ pub fn dispatch_reverse(
 
 impl ReverseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -811,6 +866,10 @@ impl crate::kernel::Fielded for DisputeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -856,9 +915,12 @@ pub fn dispatch_dispute(
 
 impl DisputeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("disputed_by".to_string(), crate::kernel::Json::Str(self.disputed_by.clone())),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("disputed_by".to_string(), crate::kernel::Json::Str(self.disputed_by.clone())),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -894,6 +956,10 @@ impl crate::kernel::Fielded for ChargebackArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -937,9 +1003,12 @@ pub fn dispatch_chargeback(
 
 impl ChargebackArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -975,6 +1044,10 @@ impl crate::kernel::Fielded for RejectDisputeArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1018,9 +1091,12 @@ pub fn dispatch_reject_dispute(
 
 impl RejectDisputeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

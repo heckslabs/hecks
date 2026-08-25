@@ -442,7 +442,7 @@ pub fn generate(
                         ))
                     ),
                     args_struct: format!(
-                        "{entity_name_ident}{}Args",
+                        "{entity_name_ident}{}EntityArgs",
                         crate::naming::rust_ident(entity_command_name)
                     ),
                     reference_checks: reference_checks(
@@ -535,7 +535,7 @@ pub fn generate(
             let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
             puts_str(
                 &mut out,
-                &json_codec::emit_to_json_flat(exemplar, &args_struct, cmd_attrs, &value_objects_by_name, false, &[], None),
+                &json_codec::emit_to_json_flat_sparse(exemplar, &args_struct, cmd_attrs, &value_objects_by_name),
             );
             puts_blank(&mut out);
             let allowlist =

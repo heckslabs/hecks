@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for CardSerial {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -97,6 +101,10 @@ impl crate::kernel::Fielded for CardNickname {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -152,6 +160,10 @@ impl crate::kernel::Fielded for DailyFee {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -223,6 +235,10 @@ impl crate::kernel::Fielded for WithdrawalSequence {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -293,6 +309,10 @@ impl crate::kernel::Fielded for WithdrawalAmount {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -362,6 +382,10 @@ impl crate::kernel::Fielded for Narrative {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -440,6 +464,10 @@ impl crate::kernel::Fielded for Withdrawal {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Withdrawal {
@@ -495,7 +523,7 @@ impl Withdrawal {
     }
 }
 
-impl crate::kernel::Fielded for WithdrawalDisputeArgs {
+impl crate::kernel::Fielded for WithdrawalDisputeEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -513,34 +541,41 @@ impl crate::kernel::Fielded for WithdrawalDisputeArgs {
             _ => None,
         }
     }
-}
 
-
-#[derive(Debug, Clone)]
-pub struct WithdrawalDisputeArgs {
-    pub narrative: Narrative,
-}
-
-impl WithdrawalDisputeArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
 
-impl WithdrawalDisputeArgs {
+#[derive(Debug, Clone)]
+pub struct WithdrawalDisputeEntityArgs {
+    pub narrative: Narrative,
+}
+
+impl WithdrawalDisputeEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl WithdrawalDisputeEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        narrative: Narrative::from_json(&v.require("narrative", "WithdrawalDisputeArgs")?.coerce_single_field("text"))?,
+        narrative: Narrative::from_json(&v.require("narrative", "WithdrawalDisputeEntityArgs")?.coerce_single_field("text"))?,
         })
     }
 }
 
 
 pub fn dispatch_entity_withdrawal_dispute(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, element_wants: &str, args: WithdrawalDisputeArgs,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, element_wants: &str, args: WithdrawalDisputeEntityArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.narrative.check_invariants()?;
@@ -552,7 +587,7 @@ pub fn dispatch_entity_withdrawal_dispute(
         |r: &ATMCard| &r.withdrawals,
         |r: &mut ATMCard| &mut r.withdrawals,
         |el: &Withdrawal| el.identity() == element_id,
-        "Withdrawal.Dispute",
+        "Dispute",
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
@@ -612,6 +647,10 @@ impl crate::kernel::Fielded for ATMCard {
             "withdrawals" => Some(self.withdrawals.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -682,6 +721,10 @@ impl crate::kernel::Fielded for IssueArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -739,11 +782,14 @@ pub fn dispatch_issue(
 
 impl IssueArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
+        crate::kernel::Json::Object(
+            vec![        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("serial".to_string(), self.serial.to_json()),
-        ("daily_fee".to_string(), self.daily_fee.to_json()),
-        ])
+        ("daily_fee".to_string(), self.daily_fee.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -781,6 +827,10 @@ impl crate::kernel::Fielded for RenameArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -824,9 +874,12 @@ pub fn dispatch_rename(
 
 impl RenameArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("nickname".to_string(), self.nickname.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("nickname".to_string(), self.nickname.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -863,6 +916,10 @@ impl crate::kernel::Fielded for WithdrawArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -908,10 +965,13 @@ pub fn dispatch_withdraw(
 
 impl WithdrawArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("cents".to_string(), self.cents.to_json()),
-        ("narrative".to_string(), self.narrative.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("cents".to_string(), self.cents.to_json()),
+        ("narrative".to_string(), self.narrative.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -948,6 +1008,10 @@ impl crate::kernel::Fielded for ActivateArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -990,9 +1054,12 @@ pub fn dispatch_activate(
 
 impl ActivateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -1028,6 +1095,10 @@ impl crate::kernel::Fielded for RetireArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -1070,9 +1141,12 @@ pub fn dispatch_retire(
 
 impl RetireArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

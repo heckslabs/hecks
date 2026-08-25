@@ -59,6 +59,7 @@
 // §8 has the fuller account of exactly what is and isn't proven about
 // the live-delivery half.
 
+use super::expr::{interpret, EvalContext, Expr, NoFields};
 use super::named_query;
 use super::repository::AggregateScan;
 use super::{Event, Json, MutationRecord, Refusal};
@@ -81,6 +82,12 @@ pub struct PolicyRule {
     pub event_name: &'static str,
     pub event_qualifier: Option<&'static str>,
     pub target_verb: &'static str,
+    /// `where { … }` — `PolicyInterpreter#where_holds?`: the policy's own
+    /// predicate over the event payload, the reaction simply not happening
+    /// (no log entry, exactly Ruby's `return nil`) when it does not hold.
+    /// A function, not an `Expr` — an `Expr` owns boxes and cannot sit in
+    /// this `const` table; the generated fn builds it on demand.
+    pub where_expr: Option<fn() -> Expr>,
     /// `PolicyInterpreter#deliver_for_each` — the query verb a fan-out
     /// runs, ALREADY domain-qualified by the generator (Ruby's own
     /// `Behaviour::Policy#for_each_route` resolves the bare
@@ -123,6 +130,8 @@ pub struct CrossDomainPolicyRule {
     pub policy_name: &'static str,
     pub event_name: &'static str,
     pub event_qualifier: Option<&'static str>,
+    /// See `PolicyRule::where_expr`.
+    pub where_expr: Option<fn() -> Expr>,
     pub target_domain: &'static str,
     pub target_verb: &'static str,
 }
@@ -401,6 +410,15 @@ pub fn orchestrate<S: AggregateScan>(
 /// `extra` is a fan-out's row key, merged into the SOURCE before the
 /// projection rather than onto its result — which is what lets a
 /// `for_each` trigger name the row and be given nothing else.
+/// `PolicyInterpreter#where_holds?` — true with no `where`, else the
+/// predicate over the payload (`Json` is `Fielded`, json.rs); an
+/// evaluation that cannot resolve reads as not holding.
+fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
+    let Some(build) = where_expr else { return true };
+    let ctx = EvalContext { args: &event.payload, instance: &NoFields };
+    matches!(interpret(&build(), &ctx), Ok(v) if v.truthy())
+}
+
 fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, target_verb: &str, tables: &Tables) -> Json {
     let mut source: Vec<(String, Json)> = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
@@ -432,6 +450,11 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
         if extra.is_none() && !(tables.command_creates_fn)(target_verb) {
             if let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) {
                 if aggregate_name == event.aggregate {
+                    // `args.merge(to: inherited_receiver)` — the lifted receiver
+                    // REPLACES any `to` the payload itself carried (a chess
+                    // move's own destination square), so that fact never reaches
+                    // the target as a fact. Read directly off `build`.
+                    source.retain(|(name, _)| name != "to");
                     return Json::obj(vec![("to", Json::str(event.id.clone())), ("with", Json::Object(source))]);
                 }
             }
@@ -458,7 +481,27 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
     // .build`'s own `explicit` gate exactly (an undeclared projection keeps
     // forwarding the event's whole payload verbatim, above, unsplit, the
     // behaviour every policy had before `with:` existed at all).
-    split_routed_args(Json::Object(projected), target_verb, tables)
+    let routed = split_routed_args(Json::Object(projected), target_verb, tables);
+    // `aggregate_identity ||= inherited_receiver` — the explicit path's own
+    // fallback (`build`, read directly): nothing in the projection named
+    // the target's identity, so the receiver is the SOURCE's own when the
+    // target is the same aggregate and not creating (`source_receiver_
+    // for`). Every projected fact — a `to` among them (chess:
+    // OpenEnPassant's `with: { to: :to }`, the double-stepped pawn's own
+    // square) — stays a fact under `with:`; it was never a receiver.
+    if extra.is_none() && !(tables.command_creates_fn)(target_verb) {
+        if let Json::Object(pairs) = &routed {
+            let already_routed = pairs.iter().any(|(k, _)| k == "to") && pairs.iter().any(|(k, _)| k == "with");
+            if !already_routed {
+                if let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) {
+                    if aggregate_name == event.aggregate {
+                        return Json::obj(vec![("to", Json::str(event.id.clone())), ("with", routed)]);
+                    }
+                }
+            }
+        }
+    }
+    routed
 }
 
 /// `ReactionInvocation.build`'s own routing split (`{to:, with:}`), ported
@@ -537,6 +580,9 @@ fn react_policies<S: AggregateScan>(
             if qualifier != emitting {
                 continue;
             }
+        }
+        if !where_holds(policy.where_expr, event) {
+            continue;
         }
 
         // `PolicyInterpreter#deliver`'s own `record = { policy: policy.
@@ -658,6 +704,9 @@ fn react_policies<S: AggregateScan>(
             if qualifier != emitting {
                 continue;
             }
+        }
+        if !where_holds(policy.where_expr, event) {
+            continue;
         }
         cross_domain.push(PendingCrossDomainReaction {
             policy_name: policy.policy_name.to_string(),

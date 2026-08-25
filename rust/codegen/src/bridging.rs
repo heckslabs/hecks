@@ -49,7 +49,7 @@ pub fn cross_aggregate_vo_imports(aggregate: &Json, domain_value_object_owner: &
 pub fn vo_field_bridgeable(source_vo: Option<&Json>, target_vo: Option<&Json>) -> bool {
     let (Some(source_vo), Some(target_vo)) = (source_vo, target_vo) else { return false };
     if source_vo.get("closed_set").map(Json::as_bool).unwrap_or(false) || target_vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
-        return false;
+        return closed_set_bridge_members(source_vo, target_vo).is_some();
     }
 
     let source_attrs = source_vo.get("attributes").map(Json::each).unwrap_or(&[]);
@@ -60,8 +60,43 @@ pub fn vo_field_bridgeable(source_vo: Option<&Json>, target_vo: Option<&Json>) -
     })
 }
 
+/// Port of bridging.rb's `closed_set_bridge_members` — one closed set
+/// into another, admitted only when every source member is a target
+/// member (both single-field), so the bridge is an infallible `match`.
+fn closed_set_bridge_members<'a>(source_vo: &'a Json, target_vo: &Json) -> Option<&'a [Json]> {
+    let closed = |vo: &Json| vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
+    if !closed(source_vo) || !closed(target_vo) {
+        return None;
+    }
+    let single = |vo: &Json| vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1;
+    if !single(source_vo) || !single(target_vo) {
+        return None;
+    }
+    let target_values: Vec<String> = target_vo.get("members").map(Json::each).unwrap_or(&[]).iter().map(closed_set_row_value).collect();
+    let source_rows = source_vo.get("members").map(Json::each).unwrap_or(&[]);
+    if source_rows.iter().all(|row| target_values.contains(&closed_set_row_value(row))) {
+        Some(source_rows)
+    } else {
+        None
+    }
+}
+
+fn closed_set_row_value(row: &Json) -> String {
+    let pairs = row.as_array().unwrap_or(&[]);
+    let first = pairs.first().and_then(Json::as_array).unwrap_or(&[]);
+    first.get(1).map(Json::to_s).unwrap_or_default()
+}
+
 pub fn vo_field_rhs(source_expr: &str, source_vo: &Json, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> String {
     let target_vo = value_objects_by_name[target_type];
+    if let Some(rows) = closed_set_bridge_members(source_vo, target_vo) {
+        let source_type = source_vo.get("name").map(Json::to_s).unwrap_or_default();
+        let arms: Vec<String> = rows
+            .iter()
+            .map(|row| format!("{}::{} => {}::{}", naming::rust_ident(&source_type), closed_set_variant_of_row(row), naming::rust_ident(target_type), closed_set_variant_of_row(row)))
+            .collect();
+        return format!("match &{source_expr} {{ {} }}", arms.join(", "));
+    }
     let source_attrs = source_vo.get("attributes").map(Json::each).unwrap_or(&[]);
     let target_attrs = target_vo.get("attributes").map(Json::each).unwrap_or(&[]);
 

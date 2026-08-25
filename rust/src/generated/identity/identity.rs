@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for IdentityId {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -95,6 +99,10 @@ impl crate::kernel::Fielded for Identity {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl Identity {
@@ -152,6 +160,10 @@ impl crate::kernel::Fielded for RegisterArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -198,9 +210,12 @@ pub fn dispatch_register(
 
 impl RegisterArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("identity_id".to_string(), self.identity_id.to_json()),
-        ])
+        crate::kernel::Json::Object(
+            vec![        ("identity_id".to_string(), self.identity_id.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

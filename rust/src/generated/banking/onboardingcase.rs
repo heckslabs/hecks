@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for OnboardingReference {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -96,6 +100,10 @@ impl crate::kernel::Fielded for AccountNumber {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -173,6 +181,10 @@ impl crate::kernel::Fielded for OnboardingCase {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl OnboardingCase {
@@ -238,6 +250,10 @@ impl crate::kernel::Fielded for OpenArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -292,11 +308,14 @@ pub fn dispatch_open(
 
 impl OpenArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
+        crate::kernel::Json::Object(
+            vec![        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
         ("reference".to_string(), self.reference.to_json()),
-        ("account_number".to_string(), self.account_number.to_json()),
-        ])
+        ("account_number".to_string(), self.account_number.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -334,6 +353,10 @@ impl crate::kernel::Fielded for ClearArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -376,9 +399,12 @@ pub fn dispatch_clear(
 
 impl ClearArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -414,6 +440,10 @@ impl crate::kernel::Fielded for DeclineArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -456,9 +486,12 @@ pub fn dispatch_decline(
 
 impl DeclineArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 

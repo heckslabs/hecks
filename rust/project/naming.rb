@@ -147,6 +147,9 @@ module RustProjection
         "            _ => None,\n" \
         "        }\n" \
         "    }\n" \
+        "    fn as_scalar(&self) -> Option<crate::kernel::Value> {\n" \
+        "        match self.field(\"value\") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }\n" \
+        "    }\n" \
         "}"
     end
 

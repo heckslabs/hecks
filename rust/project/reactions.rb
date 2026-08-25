@@ -42,12 +42,13 @@ module RustProjection
     # `target_verb` to dispatch, only a domain+verb pair for rust/host's
     # `lambda_client.rs` to invoke remotely) instead of dropping them.
     def emit_policy_table(domain_name, policies, aggregates = [])
+      fns  = where_fns(policies)
       rows = local_policy_rows(domain_name, policies, aggregates)
 
       Exemplar.render(
         "policy_table",
-        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },' => rows.join("\n")
-      )
+        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },' => rows.join("\n")
+      ).then { |table| fns.empty? ? table : "#{table}\n\n#{fns.join("\n\n")}" }
     end
 
     # ── THE MERGED POLICY TABLE — bin/project_rust's own `merged.rs`,
@@ -79,11 +80,12 @@ module RustProjection
     # ITS OWN domain_name/aggregates, never the target's.
     def emit_merged_policy_table(sources)
       rows = sources.flat_map { |source| local_policy_rows(source[:domain_name], source[:policies], source[:aggregates]) }
+      fns  = sources.flat_map { |source| where_fns(source[:policies]) }
 
       Exemplar.render(
         "policy_table",
-        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },' => rows.join("\n")
-      )
+        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },' => rows.join("\n")
+      ).then { |table| fns.empty? ? table : "#{table}\n\n#{fns.join("\n\n")}" }
     end
 
     def local_policy_rows(domain_name, policies, aggregates = [])
@@ -107,7 +109,27 @@ module RustProjection
           "event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect}, " \
           "for_each: #{fan_out_verb_expr(domain_name, policy)}, " \
           "for_each_key: #{fan_out_key_expr(domain_name, policy, aggregates)}, " \
-          "with_spec: #{with_spec_expr(policy)} },"
+          "with_spec: #{with_spec_expr(policy)}, where_expr: #{where_expr(policy)} },"
+      end
+    end
+
+    # `where { … }` — the policy's own predicate over the event payload
+    # (`PolicyInterpreter#where_holds?`). A `PolicyRule` is a `const` row,
+    # and an `Expr` owns boxes, so the predicate is a generated FUNCTION
+    # the kernel calls when the event arrives — `where_expr: Some(fn)` in
+    # the row, the fn itself emitted beside the table (`where_fns`).
+    def where_fn_name(policy) = "where_#{dispatch_fn_name(rust_ident(policy[:name].to_s))}"
+
+    def where_expr(policy)
+      policy[:where].to_s.empty? ? "None" : "Some(#{where_fn_name(policy)})"
+    end
+
+    def where_fns(policies)
+      policies.reject { |policy| policy[:where].to_s.empty? }.map do |policy|
+        "fn #{where_fn_name(policy)}() -> crate::kernel::Expr {\n" \
+          "    use crate::kernel::Expr;\n" \
+          "    #{ExprEmitter.emit_predicate(policy[:where])}\n" \
+          "}"
       end
     end
 
@@ -207,7 +229,8 @@ module RustProjection
         target_verb = "#{target_domain}::#{policy[:trigger_command]}"
 
         "    crate::kernel::CrossDomainPolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
-          "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{target_verb.inspect} },"
+          "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{target_verb.inspect}, " \
+          "where_expr: #{where_expr(policy)} },"
       end
     end
 
@@ -218,7 +241,7 @@ module RustProjection
 
       Exemplar.render(
         "cross_domain_policy_table",
-        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb" },' =>
+        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", where_expr: None },' =>
           rows.join("\n")
       )
     end
@@ -238,7 +261,7 @@ module RustProjection
 
       Exemplar.render(
         "cross_domain_policy_table",
-        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb" },' =>
+        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", where_expr: None },' =>
           rows.join("\n")
       )
     end

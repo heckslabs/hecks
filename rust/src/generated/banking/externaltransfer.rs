@@ -26,6 +26,10 @@ impl crate::kernel::Fielded for EndToEndReference {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -82,6 +86,10 @@ impl crate::kernel::Fielded for MovementDirection {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
 }
 
 
@@ -137,6 +145,10 @@ impl crate::kernel::Fielded for ExternalAmount {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -207,6 +219,10 @@ impl crate::kernel::Fielded for BeneficiaryName {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -288,6 +304,10 @@ impl crate::kernel::Fielded for ExternalTransfer {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 impl ExternalTransfer {
@@ -359,6 +379,10 @@ impl crate::kernel::Fielded for RequestArgs {
             _ => None,
         }
     }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
 }
 
 
@@ -422,13 +446,16 @@ pub fn dispatch_request(
 
 impl RequestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("end_to_end".to_string(), self.end_to_end.to_json()),
+        crate::kernel::Json::Object(
+            vec![        ("end_to_end".to_string(), self.end_to_end.to_json()),
         ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("amount".to_string(), self.amount.to_json()),
         ("beneficiary".to_string(), self.beneficiary.to_json()),
-        ("direction".to_string(), self.direction.to_json()),
-        ])
+        ("direction".to_string(), self.direction.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -468,6 +495,10 @@ impl crate::kernel::Fielded for SendTransferArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -511,9 +542,12 @@ pub fn dispatch_send_transfer(
 
 impl SendTransferArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -549,6 +583,10 @@ impl crate::kernel::Fielded for RecallArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -592,9 +630,12 @@ pub fn dispatch_recall(
 
 impl RecallArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
@@ -630,6 +671,10 @@ impl crate::kernel::Fielded for ReturnArgs {
 
             _ => None,
         }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
     }
 }
 
@@ -673,9 +718,12 @@ pub fn dispatch_return(
 
 impl ReturnArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-
-        ])
+        crate::kernel::Json::Object(
+            vec![]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
     }
 }
 
