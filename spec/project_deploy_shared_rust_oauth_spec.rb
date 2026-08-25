@@ -21,18 +21,18 @@ require "yaml"
 # spec/project_deploy_contract_spec.rb's own fixture-generation
 # pattern.
 RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAuth", io: true do
-  FIXTURE_BASENAME = "project_deploy_shared_rust_oauth_spec_fixture"
+  SHARED_RUST_OAUTH_FIXTURE_BASENAME = "project_deploy_shared_rust_oauth_spec_fixture"
 
   before(:context) do
     root = File.expand_path("..", __dir__)
-    @generated_dir = File.join(root, "deploy", FIXTURE_BASENAME)
+    @generated_dir = File.join(root, "deploy", SHARED_RUST_OAUTH_FIXTURE_BASENAME)
 
     Dir.mktmpdir do |dir|
-      domain_dir = File.join(dir, FIXTURE_BASENAME)
+      domain_dir = File.join(dir, SHARED_RUST_OAUTH_FIXTURE_BASENAME)
       bluebook_dir = File.join(domain_dir, "bluebook")
       FileUtils.mkdir_p(bluebook_dir)
 
-      File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
+      File.write(File.join(bluebook_dir, "#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
         Hecks.bluebook "Scratch" do
           aggregate "Thing" do
             identified_by :name
@@ -50,7 +50,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
         end
       BLUEBOOK
 
-      File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), <<~WORLD)
+      File.write(File.join(bluebook_dir, "#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}.world"), <<~WORLD)
         Hecks.world "Scratch" do
           deployed_to("AwsLambda") do
             region "us-east-1"
@@ -95,7 +95,7 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   end
 
   it "wires the main function's own real Google OAuth Environment variables" do
-    expect(@raw).to match(/GOOGLE_CLIENT_ID: !Sub "\{\{resolve:secretsmanager:hecks-#{FIXTURE_BASENAME}-web-google-oauth:SecretString:client_id\}\}"/)
+    expect(@raw).to match(/GOOGLE_CLIENT_ID: !Sub "\{\{resolve:secretsmanager:hecks-#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}-web-google-oauth:SecretString:client_id\}\}"/)
     expect(@raw).to include('GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"')
   end
 end

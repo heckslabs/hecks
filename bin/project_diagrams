@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+# Projects a booted domain's own shape into Mermaid diagrams — one
+# stateDiagram-v2 per lifecycle-bearing aggregate/entity, one
+# erDiagram for the whole domain's has_many/has_one/belongs_to/
+# reference_to relationships, one flowchart for the whole domain's
+# command-emits-event-triggers-policy dispatch chains. The projection
+# itself is Projections::Diagrams (see its own header for why
+# Mermaid); this boots the given domain, finds its one real chapter,
+# and asks the registry for it. spec/diagrams_spec.rb re-projects
+# through the same call and refuses a diff, so any of these changing
+# without regenerating fails the ordinary suite, the same way
+# rust/parser/src/keywords.rs already does for the grammar.
+#
+#   bin/project_diagrams <domain-path> <ChapterName>
+#   bin/project_diagrams examples/pizzas Pizzas
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "fileutils"
+
+domain_path  = ARGV[0] or abort "usage: bin/project_diagrams <domain-path> <ChapterName>"
+chapter_name = ARGV[1] or abort "usage: bin/project_diagrams <domain-path> <ChapterName>"
+
+runtime   = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
+chapter   = runtime.registry.bluebook(chapter_name)
+directory = File.expand_path("../docs/generated/diagrams/#{Hecks::Naming.snake(chapter_name)}", __dir__)
+
+written = Hecks::Projector.write(
+  Hecks::Projector.call(:diagrams, bluebook: chapter),
+  directory, as: :files
+)
+
+if written.empty?
+  puts "#{chapter_name} declares no lifecycle, relationship, or dispatch to project yet"
+else
+  puts "wrote #{written.size} diagram(s) to #{directory}:"
+  written.each { |path| puts "  #{path}" }
+end
