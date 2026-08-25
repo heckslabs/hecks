@@ -159,7 +159,8 @@ module RustProjection
 
       [
         struct_part,
-        emit_fielded_flat(name, vo[:attributes], value_objects_by_name),
+        emit_fielded_flat(name, vo[:attributes], value_objects_by_name,
+                          entity_names: aggregates_by_name.values.flat_map { |a| a[:entities].map { |e| e[:name] } }),
         emit_check_invariants(vo, value_objects_by_name, aggregates_by_name),
       ].join("\n\n")
     end

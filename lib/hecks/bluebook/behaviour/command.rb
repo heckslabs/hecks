@@ -104,6 +104,8 @@ module Hecks
         def classified_source
           if source.is_a?(Symbol)
             { kind: "argument", name: source.to_s }
+          elsif source.is_a?(StateRef)
+            { kind: "state", name: source.name.to_s }
           else
             { kind: "literal", value: source }
           end

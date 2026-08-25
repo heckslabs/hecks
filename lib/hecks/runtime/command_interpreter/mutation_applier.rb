@@ -21,7 +21,7 @@ module Hecks
         def apply(instance, aggregate, mutation, args)
           case mutation.op
           when :set
-            value = @rules.resolve_source(mutation.source, args)
+            value = mutation.source.is_a?(StateRef) ? instance[mutation.source.name] : @rules.resolve_source(mutation.source, args)
             instance[mutation.target] = Value.for(aggregate, mutation.target, value)
           when :append
             instance[mutation.target] = appended(instance, aggregate, mutation, args)
@@ -97,6 +97,9 @@ module Hecks
         # return, no behavior change) alongside `remove`'s own addition
         # below, purely for readability at this point in the file.
         def resolve_append_source(source, instance, args)
+          # `state(:field)` — the record's own value, never an argument
+          # (`Literal::StateRef`'s own comment).
+          return instance[source.name] if source.is_a?(StateRef)
           return source unless source.is_a?(Symbol)
           return args[source] if args.key?(source)
 
@@ -109,7 +112,14 @@ module Hecks
           value_object = aggregate.value_object(element_type)
           if value_object
             value_object.attributes.each do |attribute|
-              fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
+              held = fields[attribute.name]
+              # A SINGLE-FIELD VALUE unwraps to its scalar so it bridges
+              # into the element's own (differently named) wrapper; a
+              # MULTI-FIELD one (a `state(:en_passant_square)` Square
+              # copied off the record) has no scalar to stand in for it
+              # and is handed across whole — `Value.for_attribute` keeps a
+              # value of the element field's own type as it is.
+              fields[attribute.name] = Value.scalar(held) if held.is_a?(Value) && held.to_h.size == 1
             end
           end
           element = value_object ? Value.build(value_object, fields,

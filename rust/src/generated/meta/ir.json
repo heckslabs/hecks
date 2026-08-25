@@ -6010,6 +6010,32 @@
             [
               [
                 "word",
+                "state"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mutations"
+              ]
+            ],
+            [
+              [
+                "word",
                 "attribute"
               ],
               [
@@ -7130,6 +7156,36 @@
               [
                 "fills",
                 "emits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "state"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "source"
               ]
             ],
             [

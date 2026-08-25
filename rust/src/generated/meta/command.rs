@@ -1003,6 +1003,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "then_set", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "deprecated", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "delegates_to", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "emits", context: "Command", body: "none", inner: "", opens: "", fills: "emits", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "state", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "attribute", context: "Command", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
@@ -1081,6 +1082,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "delegates_to", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "delegates_to", context: "Command", at: "", named: "with", kind: "literal", required: "false", fills: "source", selects: "op=delegate", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "emits", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "emits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "state", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "source", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Command", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },

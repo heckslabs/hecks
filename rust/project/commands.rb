@@ -51,6 +51,8 @@ module RustProjection
 
       append_problems = append_field_problems(command, aggregate, value_objects_by_name)
       return "sets append field(s): #{append_problems.join('; ')}" if append_problems.any?
+      state_problems = state_source_problems(command, aggregate, value_objects_by_name)
+      return "sets state source(s): #{state_problems.join('; ')}" if state_problems.any?
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
