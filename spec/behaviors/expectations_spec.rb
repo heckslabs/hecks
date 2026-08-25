@@ -1,3 +1,5 @@
+require "tmpdir"
+require "fileutils"
 require "hecks/behaviors/expectations"
 
 RSpec.describe Hecks::Behaviors::Expectations do
@@ -40,6 +42,49 @@ RSpec.describe Hecks::Behaviors::Expectations do
 
       expect(described_class.normalize(wrapped)).to eq(described_class.normalize({ value: "Margherita" }))
       expect(described_class.normalize({ value: "Margherita" })).to eq(described_class.normalize("Margherita"))
+    end
+  end
+
+  describe "one boot per suite" do
+    let(:suite) { Hecks::Behaviors::BehaviorsSuite.new(loads: [File.join(root, "pizzas.bluebook"), memory_hecksagon]) }
+
+    def create(name)
+      Hecks::Behaviors::TestCase.new(description: name, tests_command: "CreatePizza", on_aggregate: "Order",
+                                     kind: :command, setups: [], expect: { ok: true },
+                                     input: { name: { value: name }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
+    end
+
+    it "reuses the suite's runtime across tests" do
+      first = described_class.runtime_for(suite)
+      expect(described_class.runtime_for(suite)).to be(first)
+    end
+
+    # THE ISOLATION THE PER-TEST BOOT USED TO BUY: nothing the first test
+    # dispatched is visible to the second — not its events, not its
+    # records.
+    it "resets everything a test wrote before the next one runs" do
+      expect(described_class.run_one(create("First"), suite).status).to eq(:pass)
+      runtime = described_class.runtime_for(suite)
+      expect(runtime.registry.event_log).not_to be_empty
+
+      expect(described_class.run_one(create("Second"), suite).status).to eq(:pass)
+      expect(runtime.registry.event_log.map { |e| e.payload[:name] }.map { |n| Hecks::Runtime::Value.materialize(n) })
+        .to eq([{ value: "Second" }])
+      order = runtime.registry.bluebook("Pizzas").aggregate("Order")
+      expect(runtime.registry.repository("Pizzas", order).all.map(&:id)).to eq(["Second"])
+    end
+
+    it "boots fresh when a loaded file changes" do
+      Dir.mktmpdir do |dir|
+        files = suite.loads.map { |path|
+          FileUtils.cp(path, dir)
+          File.join(dir, File.basename(path))
+        }
+        copy = Hecks::Behaviors::BehaviorsSuite.new(loads: files)
+        before = described_class.runtime_for(copy)
+        FileUtils.touch(files.first, mtime: Time.now + 5)
+        expect(described_class.runtime_for(copy)).not_to be(before)
+      end
     end
   end
 

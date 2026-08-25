@@ -116,6 +116,36 @@ module Hecks
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end
 
+      # EVERYTHING A DISPATCH WROTE, CLEARED; NOTHING A BOOT DECLARED,
+      # TOUCHED. Bluebooks, hecksagons, ports, adapters, worlds and the
+      # resolved eras are what loading the files produced and stay as
+      # they are; the logs, the saga instances and the repositories are
+      # what running commands against them produced, and go back to
+      # exactly what a fresh boot of the same files hands out. Dropping
+      # the repositories (rather than emptying each) is deliberate: a
+      # fresh boot's own repositories are new adapter instances too, so
+      # a Memory adapter starts empty and a durable one sees whatever
+      # it persisted — the same reading either way. Sagas rehydrate off
+      # that store again, the way `Loader.boot_files` does after
+      # `verify!`.
+      #
+      # What this is for: a test runner that used to boot a runtime per
+      # test to get isolation (`Behaviors::Expectations.run_one`) — ~2s a
+      # boot, 76 chess behaviours = two and a half minutes of booting the
+      # same two files — can now boot once and reset between tests.
+      def reset_runtime_state!
+        @event_log.clear
+        @reaction_log.clear
+        @saga_log.clear
+        @saga_dispatch_log.clear
+        @policy_dispatch_log.clear
+        @saga_instances.clear
+        @repositories = {}
+        @projection_repositories = {}
+        rehydrate_sagas!
+        self
+      end
+
       def capability_graph
         @capability_graph ||= CapabilityGraph.new(self)
       end
