@@ -29,6 +29,13 @@ module Hecks
             Projector.call(:docs, bluebook: bluebook, options: options)
           end
 
+          # THE CHAPTER, READ BACK IN ENGLISH — `Projector::NarrateProjector`
+          # beside `:docs`, for the reader who needs to confirm the domain is
+          # right rather than call it: `QualityControl.narrate` in a console.
+          chapter.define_singleton_method(:narrate) do |**options|
+            Projector.call(:narrate, bluebook: bluebook, options: options)
+          end
+
           # THE DOMAIN'S OWN IR, PROJECTED. `Projector` has taken
           # `call(name, bluebook:, options:)` since §30, but nothing could
           # reach it from a booted domain — this module already closes

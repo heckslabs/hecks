@@ -1,0 +1,69 @@
+#!/usr/bin/env ruby
+
+# A domain, read back in English — projected from its own bluebook.
+#
+#   bin/narrate                             # list every domain in this checkout
+#   bin/narrate examples/banking            # the whole chapter, to stdout
+#   bin/narrate examples/banking Account    # one aggregate
+#   bin/narrate qa > qa-for-review.md       # on disk, if you want it there
+#
+# Same idea as `bin/docs`, different reader: this one is for the subject-
+# matter expert who can say whether "Debit only goes through if the balance
+# would stay non-negative" is actually right, and has no reason to read a
+# markdown table of argument shapes to get there. See
+# `Hecks::Projector::NarrateProjector` for what it does and does not do.
+#
+# EVERY FAILURE IS A SENTENCE, NOT A BACKTRACE, and not silence — same
+# reasoning as `bin/docs`: a misspelled aggregate refuses by name instead of
+# quietly answering with nothing.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks"
+
+ROOT = File.expand_path("..", __dir__)
+
+IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
+
+def domains
+  Dir.glob(File.join(ROOT, "**/*.hecksagon"))
+     .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }
+     .map    { |path| path.delete_prefix("#{ROOT}/") }
+     .grep_v(IGNORED)
+     .uniq.sort
+end
+
+here = Hecks::Adapters::Folder.new.domain_root
+
+path, aggregate =
+  if ARGV.empty?              then [here, nil]
+  elsif ARGV.length > 1       then [ARGV[0], ARGV[1]]
+  elsif File.directory?(ARGV[0]) then [ARGV[0], nil]
+  else [here, ARGV[0]]
+  end
+
+unless path
+  warn "usage: bin/narrate [domain-path] [aggregate]"
+  warn ""
+  warn "No bluebook here — #{Dir.pwd} is not inside a domain. Name one:"
+  domains.each { |candidate| warn "  #{candidate}" }
+  exit 1
+end
+
+begin
+  runtime = Hecks.boot(path, install_facade: false)
+rescue StandardError => e
+  abort "cannot read #{path}: #{e.message.lines.first.strip}"
+end
+
+bluebook = runtime.registry.bluebooks.values.first
+abort "#{path} loaded no bluebook" unless bluebook
+
+begin
+  puts Hecks::Projector.call(
+    :narrate,
+    bluebook: bluebook,
+    options:  aggregate ? { aggregate: aggregate } : {}
+  )
+rescue Hecks::Runtime::NotFound => e
+  abort e.message
+end

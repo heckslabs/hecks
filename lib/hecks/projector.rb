@@ -170,10 +170,12 @@ require_relative "projector/target"
 # Neither of these requires this file back — they need `Naming` and nothing
 # else — so unlike a target they are safe to pull in from here.
 require_relative "projector/docs_projector"
+require_relative "projector/narrate_projector"
 require_relative "projector/cli_projector"
 
 Hecks::Projector.register(:ir, Hecks::Projector::IRProjector)
 Hecks::Projector.register(:docs, Hecks::Projector::DocsProjector)
+Hecks::Projector.register(:narrate, Hecks::Projector::NarrateProjector)
 Hecks::Projector.register(:cli, Hecks::Projector::CliProjector)
 
 # The TARGETS are required from lib/hecks.rb, immediately after this
