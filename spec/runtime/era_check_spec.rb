@@ -44,6 +44,29 @@ RSpec.describe "the era check at boot" do
     registry
   end
 
+  it "reads source containing non-ASCII bytes even when the process default external encoding is US-ASCII" do
+    # The tebako-packaged production container runs with no locale set,
+    # so Ruby's default external encoding is US-ASCII — a real prose
+    # comment (an em-dash, say) in a domain's own .bluebook file made
+    # File.foreach/File.read here raise ArgumentError: invalid byte
+    # sequence in US-ASCII the moment a regex touched it, well before
+    # this spec suite (which always runs under a UTF-8 locale) could
+    # ever observe it.
+    previous_external = Encoding.default_external
+    Encoding.default_external = Encoding::US_ASCII
+    begin
+      Dir.mktmpdir do |root|
+        source = "Hecks.bluebook \"Shaped\" do\n  vision \"an em dash — right here\"\nend\n"
+        File.write(File.join(root, "a.bluebook"), source)
+
+        bluebook = Struct.new(:name).new("Shaped")
+        expect(Hecks::Runtime::EraCheck.source_text_for(bluebook, root)).to eq(source)
+      end
+    ensure
+      Encoding.default_external = previous_external
+    end
+  end
+
   it "snapshots every concept file for one chapter, in deterministic order" do
     Dir.mktmpdir do |root|
       second = "Hecks.bluebook \"Shaped\" do\n  aggregate \"Second\" do\n  end\nend\n"

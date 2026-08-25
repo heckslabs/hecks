@@ -41,7 +41,7 @@ module Hecks
           return
         end
 
-        held_bluebook = shadow_parse(File.read(held_path), held_path)
+        held_bluebook = shadow_parse(File.read(held_path, encoding: "UTF-8"), held_path)
         drifted = false
 
         bluebook.aggregates.each do |aggregate|
