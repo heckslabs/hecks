@@ -17,6 +17,15 @@ impl crate::kernel::Fielded for ProcessManagerName {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -78,6 +87,15 @@ impl crate::kernel::Fielded for ProcessManagerText {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -122,6 +140,15 @@ impl crate::kernel::Fielded for SagaState {
         use crate::kernel::Value;
         match name {
             "name" => Some(Field::Value(Value::Str(self.name.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -172,6 +199,15 @@ impl crate::kernel::Fielded for HandlerText {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -216,6 +252,15 @@ impl crate::kernel::Fielded for DispatchText {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -268,6 +313,15 @@ impl crate::kernel::Fielded for Binding {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 
@@ -314,6 +368,15 @@ impl crate::kernel::Fielded for Position {
         use crate::kernel::Value;
         match name {
             "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -481,6 +544,15 @@ impl crate::kernel::Fielded for Handler {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
 }
 
 impl Handler {
@@ -518,6 +590,15 @@ impl crate::kernel::Fielded for Dispatch {
         match name {
             "command_name" => Some(Field::Nested(&self.command_name)),
             "with_spec" => Some(Field::Value(Value::List(self.with_spec.len()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "with_spec" => Some(self.with_spec.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -578,6 +659,15 @@ impl crate::kernel::Fielded for HandlerDispatchArgs {
         
         match name {
             "command_name" => Some(Field::Nested(&self.command_name)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -672,6 +762,16 @@ impl crate::kernel::Fielded for ProcessManager {
             _ => None,
         }
     }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            "states" => Some(self.states.iter().map(|v| Field::Nested(v)).collect()),
+            "handlers" => Some(self.handlers.iter().map(|v| Field::Nested(v)).collect()),
+            _ => None,
+        }
+    }
 }
 
 impl ProcessManager {
@@ -732,6 +832,15 @@ impl crate::kernel::Fielded for StateArgs {
         
         match name {
             "name" => Some(Field::Nested(&self.name)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }
@@ -805,6 +914,15 @@ impl crate::kernel::Fielded for HandlerArgs {
             "event_type" => Some(Field::Nested(&self.event_type)),
             "from_state" => Some(Field::Nested(&self.from_state)),
             "to_state" => Some(Field::Nested(&self.to_state)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
             _ => None,
         }
     }

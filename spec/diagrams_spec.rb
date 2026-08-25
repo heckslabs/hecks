@@ -111,9 +111,35 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("-->|triggers in Compliance|")
   end
 
+  # ── roles -> flowchart ───────────────────────────────────────────────
+
+  it "draws exactly one edge per real command whose role is declared, in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["roles.mmd"]
+    with_role = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
+                               .flat_map(&:commands).count(&:role)
+
+    drawn = diagram.lines.count { |line| line.include?("|issues|") }
+    expect(drawn).to eq(with_role)
+  end
+
+  it "draws nothing for a command with no declared role" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["roles.mmd"]
+    expect(diagram).not_to include("CardPayment.Authorize") # a real command in the corpus with role: nil
+  end
+
+  it "sanitizes a multi-word role into a legal id while keeping the real name as the label" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["roles.mmd"]
+    expect(diagram).to include("role_Back_office((Back office))")
+  end
+
+  it "generates a real, non-empty roles.mmd for pizzas too, not just banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["roles.mmd"]
+    expect(diagram).to include("role_Chef((Chef))")
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 17, across both real domains) WAS run through
+  # currently produce (all 19, across both real domains) WAS run through
   # the real mermaid.parse() engine once, by hand, to confirm this exact
   # shape is valid Mermaid — this just guards the one structural fact
   # that made that true for each kind: the diagram type declaration is
@@ -122,8 +148,10 @@ RSpec.describe "the generated diagrams" do
     expectations = {
       [:pizzas_chapter, "Order_lifecycle.mmd"] => "stateDiagram-v2",
       [:pizzas_chapter, "dispatch.mmd"]        => "flowchart LR",
+      [:pizzas_chapter, "roles.mmd"]           => "flowchart LR",
       [:banking_chapter, "relationships.mmd"]  => "erDiagram",
-      [:banking_chapter, "dispatch.mmd"]       => "flowchart LR"
+      [:banking_chapter, "dispatch.mmd"]       => "flowchart LR",
+      [:banking_chapter, "roles.mmd"]          => "flowchart LR"
     }
 
     expectations.each do |(chapter_method, filename), expected_first_line|

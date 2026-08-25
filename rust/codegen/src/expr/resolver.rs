@@ -1,7 +1,28 @@
 //! Port of `resolver.rb`'s `parse` step only — see `expr/mod.rs`'s own
 //! header.
 
+use super::evaluator::Evaluator;
 use super::{find_operator, top_level_index, Operator};
+
+/// `BLOCK_PREDICATE_MODES` (resolver/block_predicates.rb) — one node,
+/// three spellings, exactly as Ruby keeps them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BlockMode {
+    All,
+    Any,
+    None,
+}
+
+impl BlockMode {
+    /// The `crate::kernel::BlockMode` variant name the emitter writes.
+    pub fn rust_name(&self) -> &'static str {
+        match self {
+            BlockMode::All => "All",
+            BlockMode::Any => "Any",
+            BlockMode::None => "None",
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Resolver {
@@ -25,6 +46,12 @@ pub enum Resolver {
     /// alongside it, same commit family) — see that file's own header on
     /// why this exists at all.
     ArrayLiteral(Vec<Resolver>),
+    /// `receiver.any? { |param| predicate }` and siblings — port of
+    /// `Resolver::BlockPredicate`; the predicate is a whole
+    /// Evaluator-level parse of the block body.
+    BlockPredicate { mode: BlockMode, receiver: Box<Resolver>, param: String, predicate: Box<Evaluator> },
+    /// `receiver.find { |param| predicate }.a.b` — port of `Resolver::Find`.
+    Find { receiver: Box<Resolver>, param: String, predicate: Box<Evaluator>, path: Vec<String> },
 }
 
 const SIGN_TESTS: [(&str, &str); 3] = [("positive?", ">"), ("negative?", "<"), ("zero?", "==")];
@@ -82,7 +109,123 @@ pub fn parse(expr: &str) -> Resolver {
         return Resolver::Size(Box::new(parse(inner)));
     }
 
+    // Last before the `Lookup` catch-all, exactly where `resolver.rb`'s
+    // own `parse` tries `parse_block_opener`.
+    if let Some(node) = parse_block_opener(expr) {
+        return node;
+    }
+
     Resolver::Lookup(expr.to_string())
+}
+
+/// The block-opener suffixes, in the alternation order Ruby's pattern
+/// lists them (`BLOCK_OPENER_SUFFIXES`: the three modes, then `find`).
+const BLOCK_OPENERS: [(&str, Option<BlockMode>); 4] =
+    [("all?", Some(BlockMode::All)), ("any?", Some(BlockMode::Any)), ("none?", Some(BlockMode::None)), ("find", None)];
+
+/// Port of `Resolver::parse_block_opener` — Ruby's
+/// `/\A(.+?)\.(all?|any?|none?|find)\s*\{\s*\|(\w+)\|\s*/m`, matched
+/// by hand: the EARLIEST `.suffix` (receiver at least one character,
+/// the non-greedy `.+?`) that is followed by `{ |param| `, then the
+/// brace-balanced body, then whatever trails the closing brace — which
+/// for `find` may be a dotted projection path and for the three modes
+/// must be nothing at all, or this is not a block opener.
+fn parse_block_opener(expr: &str) -> Option<Resolver> {
+    let bytes = expr.as_bytes();
+    let mut best: Option<(usize, Option<BlockMode>, usize, String)> = None;
+
+    for (suffix, mode) in BLOCK_OPENERS {
+        let marker = format!(".{suffix}");
+        let mut from = 0;
+        while let Some(rel) = expr[from..].find(marker.as_str()) {
+            let at = from + rel;
+            from = at + 1;
+            if at == 0 {
+                continue;
+            }
+            let mut i = at + marker.len();
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= bytes.len() || bytes[i] != b'{' {
+                continue;
+            }
+            i += 1;
+            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            if i >= bytes.len() || bytes[i] != b'|' {
+                continue;
+            }
+            let start = i + 1;
+            let mut j = start;
+            while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if j == start || j >= bytes.len() || bytes[j] != b'|' {
+                continue;
+            }
+            let mut body_start = j + 1;
+            while body_start < bytes.len() && bytes[body_start].is_ascii_whitespace() {
+                body_start += 1;
+            }
+            if best.as_ref().is_none_or(|(best_at, ..)| at < *best_at) {
+                best = Some((at, mode, body_start, expr[start..j].to_string()));
+            }
+            break;
+        }
+    }
+
+    let (at, mode, body_start, param) = best?;
+    let body_end = matching_brace(expr, body_start)?;
+    let receiver = Box::new(parse(&expr[..at]));
+    let predicate = Box::new(super::evaluator::parse(expr[body_start..body_end].trim()));
+    let trailing = expr[body_end + 1..].trim();
+
+    match mode {
+        None => {
+            if !(trailing.is_empty() || trailing.starts_with('.')) {
+                return None;
+            }
+            let path = if trailing.is_empty() { Vec::new() } else { trailing[1..].split('.').map(str::to_string).collect() };
+            Some(Resolver::Find { receiver, param, predicate, path })
+        }
+        Some(mode) => {
+            if !trailing.is_empty() {
+                return None;
+            }
+            Some(Resolver::BlockPredicate { mode, receiver, param, predicate })
+        }
+    }
+}
+
+/// Port of `Resolver::matching_brace` — the index of the `}` closing the
+/// block whose body starts at `start` (depth already one), quotes
+/// respected, `None` if the text runs out first.
+fn matching_brace(expr: &str, start: usize) -> Option<usize> {
+    let bytes = expr.as_bytes();
+    let mut depth = 1;
+    let mut quote: Option<u8> = None;
+    let mut index = start;
+    while index < bytes.len() {
+        let ch = bytes[index];
+        if let Some(q) = quote {
+            if ch == q {
+                quote = None;
+            }
+        } else if ch == b'"' || ch == b'\'' {
+            quote = Some(ch);
+        } else if ch == b'{' {
+            depth += 1;
+        } else if ch == b'}' {
+            depth -= 1;
+            if depth == 0 {
+                return Some(index);
+            }
+        }
+        index += 1;
+    }
+    None
 }
 
 /// `expr =~ /\A(.+)\.SUFFIX\z/` — strips a literal `.suffix` off the end,

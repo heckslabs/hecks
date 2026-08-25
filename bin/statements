@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+# Prints a booted domain's own declared facts as plain English
+# sentences — the projection itself is Projections::Statements (see
+# its own header for the "never invent a sentence" discipline). A thin
+# convenience over `Pizzas.project(Projections::Statements)`, which
+# already works with no extra wiring — this just reaches it from a
+# shell instead of a console, the same relationship bin/ir has to
+# `Pizzas.project(Projections::IR)`.
+#
+#   bin/statements <domain-path> <ChapterName>
+#   bin/statements examples/pizzas Pizzas
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+
+domain_path  = ARGV[0] or abort "usage: bin/statements <domain-path> <ChapterName>"
+chapter_name = ARGV[1] or abort "usage: bin/statements <domain-path> <ChapterName>"
+
+runtime = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
+chapter = runtime.registry.bluebook(chapter_name)
+
+Hecks::Projector.call(:statements, bluebook: chapter).each { |statement| puts statement }

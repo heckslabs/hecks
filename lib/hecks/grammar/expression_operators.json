@@ -1,6 +1,6 @@
 {
   "name": "expression-operators",
-  "note": "The admission ledger — every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives — an operator absent here is not a slow operator, it is not an operator.",
+  "note": "The admission ledger \u2014 every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives \u2014 an operator absent here is not a slow operator, it is not an operator.",
   "steps": [
     {
       "verb": "Expression::Operator.Propose",
@@ -863,6 +863,198 @@
       "args": {
         "symbol": {
           "value": ".size"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".any?"
+        },
+        "category": {
+          "value": "enumeration"
+        },
+        "precedence": {
+          "value": 10
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "block_pattern_match"
+        },
+        "position": {
+          "value": 9
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".any?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.any? { |x| p }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".any?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".none?"
+        },
+        "category": {
+          "value": "enumeration"
+        },
+        "precedence": {
+          "value": 10
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "block_pattern_match"
+        },
+        "position": {
+          "value": 10
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".none?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.none? { |x| p }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".none?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".all?"
+        },
+        "category": {
+          "value": "enumeration"
+        },
+        "precedence": {
+          "value": 10
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "block_pattern_match"
+        },
+        "position": {
+          "value": 11
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".all?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.all? { |x| p }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".all?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".find"
+        },
+        "category": {
+          "value": "enumeration"
+        },
+        "precedence": {
+          "value": 10
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "block_pattern_match"
+        },
+        "position": {
+          "value": 12
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".find"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.find { |x| p }"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".find"
         }
       }
     },

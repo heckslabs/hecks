@@ -70,6 +70,20 @@ pub fn emit_resolver(node: &Resolver) -> String {
         Resolver::ToS(receiver) => format!("Expr::ToS(Box::new({}))", emit_resolver(receiver)),
         Resolver::Modulo { receiver, divisor } => format!("Expr::Modulo {{ receiver: Box::new({}), divisor: Box::new({}) }}", emit_resolver(receiver), emit_resolver(divisor)),
         Resolver::Size(receiver) => format!("Expr::Size(Box::new({}))", emit_resolver(receiver)),
+        Resolver::BlockPredicate { mode, receiver, param, predicate } => format!(
+            "Expr::BlockPredicate {{ mode: crate::kernel::BlockMode::{}, receiver: Box::new({}), param: {}, predicate: Box::new({}) }}",
+            mode.rust_name(),
+            emit_resolver(receiver),
+            ruby_inspect_string(param),
+            emit_bool(predicate)
+        ),
+        Resolver::Find { receiver, param, predicate, path } => format!(
+            "Expr::Find {{ receiver: Box::new({}), param: {}, predicate: Box::new({}), path: &[{}] }}",
+            emit_resolver(receiver),
+            ruby_inspect_string(param),
+            emit_bool(predicate),
+            path.iter().map(|segment| ruby_inspect_string(segment)).collect::<Vec<_>>().join(", ")
+        ),
         // Never reached in practice — `emit_include`, above, intercepts
         // an `ArrayLiteral` haystack before it would ever recurse in
         // here (the only shape the real grammar ever builds one for; see

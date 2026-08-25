@@ -6,6 +6,7 @@ pub mod embryonaut;
 pub mod governance;
 pub mod identity;
 pub mod pizzas;
+pub mod roster;
 
 // `active` is whichever ONE domain's own merged Store/dispatch table
 // is selected by Cargo feature (rust/Cargo.toml, kept in sync with this
@@ -22,3 +23,5 @@ pub use embryonaut::merged as active;
 pub use meta::merged as active;
 #[cfg(feature = "pizzas")]
 pub use pizzas::merged as active;
+#[cfg(feature = "roster")]
+pub use roster::merged as active;

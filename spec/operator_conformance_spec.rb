@@ -137,7 +137,7 @@ RSpec.describe "the operator domain" do
     # terminal productions, not operators — same exclusion. This is rules
     # 6-11, in order.
     expect(symbols(by_grammar("inner"))).to eq(
-      ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size"]
+      ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find"]
     )
   end
 
@@ -169,7 +169,11 @@ RSpec.describe "the operator domain" do
     ".zero?"     => -> { Resolver.parse("a.zero?").is_a?(Resolver::SignTest) },
     ".empty?"    => -> { Resolver.parse("a.empty?").is_a?(Resolver::Empty) },
     ".to_s"      => -> { Resolver.parse("a.to_s").is_a?(Resolver::ToS) },
-    ".size"      => -> { Resolver.parse("a.size").is_a?(Resolver::Size) }
+    ".size"      => -> { Resolver.parse("a.size").is_a?(Resolver::Size) },
+    ".any?"      => -> { Resolver.parse("a.any? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :any } },
+    ".none?"     => -> { Resolver.parse("a.none? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :none } },
+    ".all?"      => -> { Resolver.parse("a.all? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :all } },
+    ".find"      => -> { Resolver.parse("a.find { |x| x }.b").is_a?(Resolver::Find) }
   }.freeze
 
   it "implements every admitted structural operator, and no other" do

@@ -1,0 +1,43 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Roster::Roster",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Roster::Roster.Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.AddSeat",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Enlist",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Assign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Roster::Roster",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"roster\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  }
+]

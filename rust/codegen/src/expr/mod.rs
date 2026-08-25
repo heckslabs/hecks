@@ -60,9 +60,14 @@ pub fn top_level_index(expr: &str, operator: &str, accept: impl Fn(usize) -> boo
             }
         } else if ch == b'"' || ch == b'\'' {
             quote = Some(ch);
-        } else if ch == b'(' {
+        } else if ch == b'(' || ch == b'{' {
+            // `{`/`}` count toward depth exactly as `(`/`)` do — Ruby's
+            // own `top_level_index` grew that the day the resolver grew
+            // block-taking `.any?`/`.none?`/`.all?`/`.find { |x| … }`,
+            // so an operator INSIDE a block's predicate is never a
+            // top-level split of the whole expression.
             depth += 1;
-        } else if ch == b')' {
+        } else if ch == b')' || ch == b'}' {
             depth -= 1;
         } else if depth == 0 && index + op_bytes.len() <= bytes.len() && &bytes[index..index + op_bytes.len()] == op_bytes {
             if accept(index) {

@@ -23,7 +23,7 @@ module Hecks
     # dependency earns its way past std") would rather not take just to
     # draw a diagram.
     #
-    # THREE DIAGRAM KINDS, one file each per domain except lifecycles
+    # FOUR DIAGRAM KINDS, one file each per domain except lifecycles
     # (one per lifecycle-bearing construct, since that's how a reader
     # actually reaches for it — looking at ONE aggregate's states, not
     # every aggregate's at once):
@@ -33,12 +33,20 @@ module Hecks
     #                                          has_one/belongs_to/reference_to
     #   dispatch.mmd          flowchart        the whole domain's command
     #                                          emits -> policy trigger chains
+    #   roles.mmd             flowchart        every role that issues a
+    #                                          command, wired to every
+    #                                          command it issues
     #
-    # NAMES ARE USED BARE, UNSANITIZED, as Mermaid node/entity ids — safe
-    # because this language's own word grammar only ever admits simple
-    # CamelCase/snake_case identifiers here (confirmed: no space or
-    # punctuation appears in any real aggregate/command/event name across
-    # the corpus this projects from), not because arbitrary text would be.
+    # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
+    # UNSANITIZED, as Mermaid node/entity ids — safe because this
+    # language's own word grammar only ever admits simple CamelCase/
+    # snake_case identifiers there (confirmed: no space or punctuation
+    # appears in any real aggregate/command/event name across the corpus
+    # this projects from). A `role:` STRING IS FREE TEXT, though — the
+    # real corpus already has "Back office"/"Vault officer"/"Branch
+    # clerk" — so `roles.mmd` is the one diagram here that sanitizes a
+    # name into an id (`role_id`) while keeping the real string as the
+    # node's own displayed label.
     module Diagrams
       extend Hecks::Projector::Target
 
@@ -59,6 +67,10 @@ module Hecks
 
         if (diagram = dispatch_diagram(bluebook))
           files["dispatch.mmd"] = diagram
+        end
+
+        if (diagram = roles_diagram(bluebook))
+          files["roles.mmd"] = diagram
         end
 
         files
@@ -199,6 +211,38 @@ module Hecks
       end
 
       def event_node(event_name) = %(evt_#{event_name}{{"#{event_name}"}})
+
+      # ── roles -> flowchart ────────────────────────────────────────────
+
+      # WHO ISSUES WHAT, ACROSS THE WHOLE DOMAIN — data no existing
+      # projection draws at all today (the reference pages' own
+      # `command_entry` only ever prints a command's role as a single
+      # line of prose, never assembled across commands). A command with
+      # no declared `role` draws nothing — there is no fact to state.
+      # Circle-shaped so a role reads as "who" beside `dispatch.mmd`'s
+      # stadium ("what someone does") and hexagon ("what happened").
+      def roles_diagram(bluebook)
+        lines = holders(bluebook).flat_map do |holder|
+          holder.commands.select(&:role).map { |command| role_edge(holder, command) }
+        end
+        return nil if lines.empty?
+
+        subject = "#{bluebook.name}'s own declared command roles"
+        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      end
+
+      def role_edge(holder, command)
+        %(    #{role_node(command.role)} -->|issues| #{command_node(holder.hecks_name, command.hecks_name)})
+      end
+
+      def role_node(role_name) = %(#{role_id(role_name)}((#{role_name})))
+
+      # A ROLE NAME IS FREE TEXT ("Back office", "Vault officer") —
+      # unlike every other name this file uses as a bare id, this one
+      # has to be sanitized to become a legal Mermaid identifier. The
+      # real string still appears as the node's own label
+      # (`role_node`); only the id is mangled.
+      def role_id(role_name) = "role_#{role_name.to_s.gsub(/[^A-Za-z0-9]+/, '_')}"
     end
   end
 end
