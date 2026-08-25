@@ -186,8 +186,20 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # line, and a bare trailing-comma argument-list continuation with no
   # enclosing bracket at all — both genuinely new, both real corpus
   # syntax (vocabulary.bluebook's own long `RefusalTemplate` wording).
+  #
+  # "roster" — a LATER bonus, the same shape as "compliance"'s own
+  # above: a concurrently-landed real corpus member
+  # (`examples/roster/`, literally written AS the block-predicates'
+  # own worked example — `.none?`/`.any?`/`.all?`/`.find { |x| … }`
+  # over a value-object list, an entity list, and a value-object list
+  # holding references, including one block nested inside another) that
+  # the block-predicates construction work made fully round-trip. Same
+  # discipline as every other promotion here: confirmed byte-exact
+  # against Ruby's own `ir.json` before moving out of PENDING_MEMBERS,
+  # not left stale — the safety net doing exactly its job, catching a
+  # PENDING member that stopped failing the way its own reason claimed.
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     %w[pizzas identity governance console_settings expression translation banking compliance bluebook_language] -
+                     %w[pizzas identity governance console_settings expression translation banking compliance roster bluebook_language] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -212,7 +224,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
-  REAL_PARITY_MEMBERS = %w[pizzas banking compliance].to_h { |stem|
+  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster].to_h { |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebooks = bluebooks_in(domain)
     raise "#{domain} has no .bluebook" if bluebooks.empty?
