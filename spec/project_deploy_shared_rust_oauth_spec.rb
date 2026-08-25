@@ -72,6 +72,17 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
 
     @template = YAML.unsafe_load_file(File.join(@generated_dir, "template.yaml"))
     @raw = File.read(File.join(@generated_dir, "template.yaml"))
+    @makefile = File.read(File.join(@generated_dir, "Makefile"))
+  end
+
+  # `deploy:`'s own recipe, lines only — line-based (not a single regex)
+  # because the recipe has a genuine BLANK line inside it (between
+  # `sam build` and `$(MAKE) sync-google-oauth`), which a naive
+  # `(?:\t.*\n)+` line-of-recipe pattern stops matching at.
+  def self.deploy_recipe_lines(makefile)
+    lines = makefile.lines
+    start = lines.index { |l| l == "deploy:\n" } or raise "no deploy: target found in the generated Makefile"
+    lines[(start + 1)..].take_while { |l| l == "\n" || l.start_with?("\t") }
   end
 
   after(:context) { FileUtils.rm_rf(@generated_dir) }
@@ -97,5 +108,42 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   it "wires the main function's own real Google OAuth Environment variables" do
     expect(@raw).to match(/GOOGLE_CLIENT_ID: !Sub "\{\{resolve:secretsmanager:hecks-#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}-web-google-oauth:SecretString:client_id\}\}"/)
     expect(@raw).to include('GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"')
+  end
+
+  # The Parameters SECTION declaring both sets together (above) is
+  # necessary but not sufficient — `deploy:`'s own `sam deploy` call is
+  # a SEPARATE piece of generated code that has to actually PASS both
+  # sets of values, or the stack it declared them for refuses at
+  # deploy time with "Parameters: [...] must have values" no matter
+  # how correct template.yaml itself is. The `if google_oauth_present
+  # ... elsif shared ...` bug this file's own header describes was
+  # fixed here first (Parameters section, #347) and left unfixed in
+  # THIS sibling code for a full deploy cycle before being caught live
+  # — this coverage is what should have caught it the first time.
+  it "passes both the Owning* and WebRedirectBaseUrl overrides together in deploy:'s own sam deploy call" do
+    recipe = self.class.deploy_recipe_lines(@makefile).join
+
+    %w[OwningVpcId OwningSubnetAId OwningSubnetBId OwningSecurityGroupId
+       OwningDatabaseEndpoint OwningDatabaseSecretArn].each do |param|
+      expect(recipe).to include("#{param}=$$OWNER_"), "deploy: never passes #{param} to sam deploy"
+    end
+    expect(recipe.scan(/WebRedirectBaseUrl="\$\$WEB_URL"/).size).to eq(1),
+                                                                     "deploy: should pass WebRedirectBaseUrl in its one real sam deploy call (the WEB_URL-present branch)"
+  end
+
+  it "deploy:'s own multi-line shell chain has exactly one Make '@' (echo-suppress) prefix, at its true first line" do
+    lines = self.class.deploy_recipe_lines(@makefile)
+    at_prefixed = lines.select { |l| l.lstrip.start_with?("@") }
+    expect(at_prefixed.size).to eq(1),
+                                 "expected exactly one '@'-prefixed recipe line (a SECOND one mid-chain stops being a Make " \
+                                 "directive and becomes literal, invalid shell text once backslash-continuation joins " \
+                                 "everything into one command) — got #{at_prefixed.size}: #{at_prefixed.inspect}"
+  end
+
+  it "deploy:'s own generated shell chain is syntactically valid shell" do
+    lines = self.class.deploy_recipe_lines(@makefile)
+    script = lines.map { |l| l.sub(/\A\t/, "") }.join.gsub("$$", "$")
+    _stdout, stderr, status = Open3.capture3("bash", "-n", stdin_data: script)
+    expect(status.success?).to be(true), "deploy:'s own recipe is not valid shell:\n#{stderr}\n---\n#{script}"
   end
 end
