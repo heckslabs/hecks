@@ -527,7 +527,17 @@ module RustProjection
           "TmplRecord" => rust_ident(aggregate[:name]),
           "tmpl_list_field" => rust_ident_field(list_attr[:name]),
           "TmplElement" => element_record,
-          '"TmplQualifiedCommandName"' => "#{entity[:name]}.#{target[:name]}".inspect,
+          # BARE, not "#{entity[:name]}.#{target[:name]}" — this feeds
+          # straight into refusal-message TEXT (`dispatch_entity`'s own
+          # `"{command_name} refused — ..."`), and Ruby's own message
+          # construction (`CommandRules::Admissibility#enforce_givens`,
+          # `"#{command.hecks_name} refused — ..."`) reads a bare
+          # `hecks_name` — never entity-qualified (`Command#hecks_name =
+          # name.to_s`, `lib/hecks/bluebook/command.rb`). The placeholder
+          # is misnamed (never actually "qualified" on the Ruby side) but
+          # left as-is to avoid an unrelated rename churning both codegen
+          # paths' templates.
+          '"TmplQualifiedCommandName"' => target[:name].to_s.inspect,
           '"TmplAggregateName"' => aggregate[:name].to_s.inspect,
           '"TmplEntityName"' => entity[:name].to_s.inspect,
           '"TmplEntityIdentityReading"' => entity[:identified_by].join(", ").inspect,
@@ -625,7 +635,10 @@ module RustProjection
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
 
-      qualified_command_name = "#{entity[:name]}.#{command[:name]}"
+      # BARE, not entity-qualified — same reasoning as delegation_of's own
+      # identical fix above: feeds straight into refusal-message text,
+      # which Ruby's own `command.hecks_name` never qualifies.
+      qualified_command_name = command[:name].to_s
 
       entity_dispatch_fn = Exemplar.render(
         "entity_dispatch_fn",

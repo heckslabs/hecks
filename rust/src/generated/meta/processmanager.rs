@@ -710,7 +710,7 @@ pub fn dispatch_entity_handler_dispatch(
         |r: &ProcessManager| &r.handlers,
         |r: &mut ProcessManager| &mut r.handlers,
         |el: &Handler| el.identity() == element_id,
-        "Handler.Dispatch",
+        "Dispatch",
         "Bluebook::ProcessManager",
         "ProcessManager",
         "bluebook, name.value",
