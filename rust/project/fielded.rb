@@ -27,7 +27,7 @@ module RustProjection
     # `compose`'s auto-reindent (see `closed_set_table_codec`'s own
     # header, json_codec.rb, for why plain `render` is the right choice
     # when a leaf is reused across more than one outer shape).
-    def emit_fielded_flat(struct_name, attributes, value_objects_by_name, extra_arms: [])
+    def emit_fielded_flat(struct_name, attributes, value_objects_by_name, extra_arms: [], entity_names: [])
       arms = attributes.filter_map do |attr|
         key   = rust_field(attr[:name])
         ident = rust_ident_field(attr[:name])
@@ -74,7 +74,10 @@ module RustProjection
         'fielded_flat',
         'TmplFlatType' => struct_name,
         '"tmpl_arms_placeholder" => tmpl_arms_block(),' => arms.join("\n"),
-        '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(attributes, value_objects_by_name, [], optional: ->(attr) { attr[:optional] }).join("\n"),
+        # `entity_names` — a value object that holds a LIST OF ENTITIES
+        # (chess's `Position`, one snapshot of the board's own piece
+        # lists) enumerates them the same way the record does.
+        '"tmpl_items_placeholder" => tmpl_items_block(),' => items_arms(attributes, value_objects_by_name, entity_names, optional: ->(attr) { attr[:optional] }).join("\n"),
         "tmpl_as_scalar_placeholder()" => as_scalar_expr(attributes),
         'use crate::kernel::Value;' => (arms.any? { |arm| arm.include?('Value') } ? 'use crate::kernel::Value;' : '')
       )}\n"

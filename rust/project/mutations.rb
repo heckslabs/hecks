@@ -201,6 +201,7 @@ module RustProjection
           # distinction the wire spelling carries (Hecks::Literal), read
           # rather than sniffed off the first character.
           parsed = append_field_source(source)
+          next nil if parsed.is_a?(Hecks::StateRef) # checked by state_source_problems
           next literal_problem(m, field_name, parsed, field_attr, value_objects_by_name) unless parsed.is_a?(Symbol)
 
           arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
@@ -291,8 +292,48 @@ module RustProjection
         return literal_rhs_for(source[:value], target_type, value_objects_by_name)
       end
 
+      # `state(:field)` — the record's own value, cloned across. Both
+      # sides are record fields of the SAME declared type (checked by
+      # `state_source_problems`), so they share one representation and
+      # no rewrap is needed.
+      return "record.#{rust_ident_field(source[:name])}.clone()" if source[:kind] == "state"
+
       source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
       value_rhs("args.#{rust_ident_field(source[:name])}", source_attr[:type], target_type, value_objects_by_name)
+    end
+
+    # A `state(:field)` source reads one of the owner's own fields into a
+    # target (a `set`) or an appended element's field (an `append`) of
+    # the SAME declared type and list-ness — that is the one shape that
+    # clones straight across; anything else is a real bridge this
+    # generator has no data for, and says so rather than guessing.
+    def state_source_problems(command, aggregate, value_objects_by_name)
+      command[:mutations].flat_map do |m|
+        case m[:op].to_s
+        when "set"
+          next [] unless m[:source][:kind] == "state"
+          [state_source_problem(m[:target], m[:source][:name], aggregate, aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s })].compact
+        when "append"
+          target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
+          element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
+          next [] unless element
+          m[:fields].filter_map do |field_name, source|
+            parsed = append_field_source(source)
+            next unless parsed.is_a?(Hecks::StateRef)
+            state_source_problem("#{m[:target]}.#{field_name}", parsed.name, aggregate, element[:attributes].find { |a| a[:name].to_s == field_name.to_s })
+          end
+        else
+          []
+        end
+      end
+    end
+
+    def state_source_problem(label, state_name, aggregate, target_attr)
+      state_attr = aggregate[:attributes].find { |a| a[:name].to_s == state_name.to_s }
+      return "#{label}: sources state(:#{state_name}), which #{aggregate[:name]} does not declare" unless state_attr
+      return "#{label}: no such target field" unless target_attr
+      same = state_attr[:type] == target_attr[:type] && !!state_attr[:list] == !!target_attr[:list]
+      "#{label}: state(:#{state_name}) is #{state_attr[:list] ? 'a list of ' : ''}#{state_attr[:type]}, the target wants #{target_attr[:list] ? 'a list of ' : ''}#{target_attr[:type]} — not generated yet" unless same
     end
 
     # `:append` and `:set` — the two `sets` ops this slice generates.
@@ -432,8 +473,9 @@ module RustProjection
     # never cross-type — cannot run directly against it; `optional_value_
     # rhs` runs that identical bridge against the value a `.map` closure
     # unwraps instead.
-    def append_field_rhs(source, field_attr, command, value_objects_by_name)
+    def append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate = nil)
       parsed = append_field_source(source)
+      return state_field_rhs(parsed, field_attr, aggregate) if parsed.is_a?(Hecks::StateRef)
       return literal_rhs_for(parsed, field_attr[:type], value_objects_by_name) unless parsed.is_a?(Symbol)
 
       arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
@@ -473,6 +515,21 @@ module RustProjection
     # `Option<TargetType>`, matching the field it feeds exactly — see
     # `append_field_rhs`'s own header for why the field is guaranteed to
     # already be that shape whenever this runs.
+    # `state(:field)` into an appended element's field. A record's
+    # non-list field is `Option`-wrapped (`emit_record`'s own shape —
+    # `Order.name: Option<PizzaName>`), an element's non-optional field
+    # is not, so a scalar/value-object copy unwraps (the record holds
+    # it: an acting command's record is complete) and a list clones as
+    # is. Same declared type on both sides (`state_source_problems`).
+    def state_field_rhs(parsed, field_attr, aggregate)
+      expr = "record.#{rust_ident_field(parsed.name)}.clone()"
+      state_attr = aggregate && aggregate[:attributes].find { |a| a[:name].to_s == parsed.name.to_s }
+      return expr if state_attr && state_attr[:list]
+      return expr if field_attr[:optional]
+
+      "#{expr}.unwrap()"
+    end
+
     def optional_value_rhs(source_expr, source_type, target_type, value_objects_by_name)
       "#{source_expr}.clone().map(|v| #{value_rhs('v', source_type, target_type, value_objects_by_name)})"
     end
@@ -558,7 +615,7 @@ module RustProjection
 
         fields_assignment = mutation[:fields].map do |field_name, source|
           field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
-          "#{rust_ident_field(field_name)}: #{append_field_rhs(source, field_attr, command, value_objects_by_name)}"
+          "#{rust_ident_field(field_name)}: #{append_field_rhs(source, field_attr, command, value_objects_by_name, aggregate)}"
         end
 
         # An ENTITY element carries two fields no `append: { ... }` binding

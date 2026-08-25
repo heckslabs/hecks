@@ -142,7 +142,11 @@ module Hecks
         def classified(source)
           return nil if source.nil?
 
-          source[:kind].to_s == "argument" ? source[:name].to_sym : source[:value]
+          case source[:kind].to_s
+          when "argument" then source[:name].to_sym
+          when "state"    then StateRef.new(source[:name].to_sym)
+          else source[:value]
+          end
         end
 
         # EVERY LITERAL FIELD ON THE WIRE, read back — one spelling, one reader.

@@ -74,9 +74,20 @@ Hecks.bluebook "CommandReference" do
     value_object("Square")    { attribute :file, Integer; attribute :rank, Integer }
     value_object("PieceId")   { attribute :value, String }
 
+    # THE `state` WORD'S OWN LIST — one snapshot of the board's pieces
+    # per `Snapshot`, copied off the record itself.
+    attribute :positions, list_of(Position)
+    value_object("Position") { attribute :pieces, list_of(Piece) }
+
     command "Open" do
       sets :name
       emits "BoardOpened"
+    end
+
+    command "Snapshot" do
+      reference_to Board
+      sets :positions, append: { pieces: state(:pieces) }
+      emits "BoardSnapshotted"
     end
 
     command "PlacePiece" do
@@ -381,6 +392,30 @@ created this box is still in the list — the last two are `Surrender`'s.)
 box = Banking::SafeDepositBox.rent!(customer: "cm-1", branch_code: { value: "DT" },
                                    box_number: { value: 4 }, size: { value: "small" })
 box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
+```
+
+## state
+
+<!-- generated:begin word=state -->
+`state source` — fills `mutations`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | source |
+<!-- generated:end -->
+
+A mutation source that reads the RECORD'S OWN FIELD rather than an argument — `sets :positions, append: { pieces: state(:pieces) }` copies the pieces as they stand into the new element; `sets :last, to: state(:current)` copies one field onto another. A bare Symbol in a source always names an argument (and imports it as one when the element's field carries the same name), so before this word a command could not snapshot its own record at all: the caller would have had to hand the snapshot in, and nothing could verify it. The field must be one the aggregate declares; a name it does not is refused at build.
+
+`Board.Snapshot` above declares no argument and records the board as it stands. A later move does not rewrite what was recorded — the copy is by value.
+
+```ruby
+board = CommandReference::Board.open!(name: { value: "b-1" })
+board.place_piece!(id: { value: "p1" }, square: { file: 1, rank: 1 })
+board.snapshot!
+board.move_piece!(id: { value: "p1" }, to: { file: 2, rank: 2 })
+
+board[:positions].first[:pieces].first[:square].to_h  # => {:file=>1, :rank=>1}
+board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 ```
 
 ## attribute

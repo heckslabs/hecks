@@ -2460,6 +2460,27 @@ RSpec.describe "the DSL surface" do
       }.to raise_error(Hecks::Bluebook::DSL::Malformed, /pure passthrough/)
     end
 
+    # `state(:field)` — the record's own value as a source, never an
+    # argument: nothing is imported onto the command, and the wire
+    # spelling round-trips (`Literal::StateRef`).
+    it "sets append: state(:field) copies the owner's own field into the element" do
+      command  = build_command("Snapshot") { sets :parts, append: { value: state(:lives) } }
+      mutation = command.mutations.first
+      expect(mutation.source[:value]).to eq(Hecks::StateRef.new(:lives))
+      expect(command.attributes.map(&:name)).to be_empty
+      expect(Hecks::Literal.read(Hecks::Literal.render(mutation.source[:value]))).to eq(Hecks::StateRef.new(:lives))
+    end
+
+    it "sets to: state(:field) classifies as a state source on the wire" do
+      mutation = build_command("Copy") { sets :status, to: state(:balance) }.mutations.first
+      expect(mutation.to_h[:source]).to eq(kind: "state", name: "balance")
+    end
+
+    it "refuses state(:field) naming a field the owner does not declare" do
+      expect { build_command("Ghost") { sets :parts, append: { value: state(:nope) } } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /reads state\(:nope\), which the owner does not declare/)
+    end
+
     it "sets append: pushes a built value object onto a list" do
       mutation = build_command("CmdAppend") { sets :parts, append: { size: :size } }.mutations.first
 

@@ -368,6 +368,11 @@ Hecks.bluebook "Bluebook" do
       # reasoning) — a new word, not a migrated one.
       member word: "delegates_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "delegates_to_impl"
       member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
+      # A VALUE, NOT A DECLARATION — `state(:field)` is written INSIDE a
+      # `sets` (`append: { knights: state(:knights) }`, `to: state(:ply)`)
+      # and names the record's own field as that mutation's source; it
+      # fills nothing of its own, the `sets` it sits in fills `mutations`.
+      member word: "state",           context: "Command", body: "none",   inner: "", opens: "", fills: "mutations"
       member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
       member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
 
@@ -418,6 +423,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "delegates_to",    context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "target"
       member keyword: "delegates_to",    context: "Command", at: "",  named: "with",      kind: "literal",  required: "false", fills: "source", selects: "op=delegate"
       member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
+      member keyword: "state",           context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "source"
       member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
       member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "true",  fills: "type"
       member keyword: "attribute",       context: "Command", at: "",  named: "default",   kind: "literal",  required: "false", fills: "default"

@@ -53,7 +53,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # CommandBuilder#delegates_to_impl's own comment gives the full
       # reasoning — but reached the same `calls:`-forwarded way.
       %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl
-         delegates_to_impl emits attribute list_of attributes]
+         delegates_to_impl emits state attribute list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecks::Bluebook::DSL::PortBuilder,

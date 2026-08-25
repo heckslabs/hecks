@@ -236,7 +236,7 @@ module Hecks
           kind  = text(binding[:kind])
           value = text(binding[:source])
 
-          return { kind: kind, name: value } if kind == "argument"
+          return { kind: kind, name: value } if %w[argument state].include?(kind)
 
           { kind: "literal", value: decode_literal(value) }
         end

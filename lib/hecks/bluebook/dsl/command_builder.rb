@@ -323,6 +323,15 @@ module Hecks
           @emits << event_name.to_s
         end
 
+        # THE RECORD'S OWN VALUE AS A MUTATION SOURCE — `sets :positions,
+        # append: { ply: state(:ply), knights: state(:knights) }` copies
+        # what the record holds NOW into the new element; `sets :last,
+        # to: state(:current)` copies one field onto another. A bare
+        # Symbol always names an argument (see `resolve_append_fields!`),
+        # so without this a command could not snapshot its own state at
+        # all. `Literal::StateRef`'s own comment has the wire spelling.
+        def state(name) = StateRef.new(name.to_sym)
+
         # THE SYNCHRONOUS COUSIN OF `trigger` — an AGGREGATE-level command
         # that hands its own dispatch to ONE nested entity command, checked
         # and applied within the SAME atomic dispatch rather than a second
@@ -477,6 +486,21 @@ module Hecks
             when :set    then resolve_bare_set!(mutation)
             when :append then resolve_append_fields!(mutation)
             end
+            refuse_unknown_state_sources!(mutation)
+          end
+        end
+
+        # `state(:name)` names one of the OWNER'S OWN fields — a snapshot
+        # of something the record actually holds. Refused at build, by
+        # name, the way an unknown `given` reference is; nothing here can
+        # read a field the aggregate never declared.
+        def refuse_unknown_state_sources!(mutation)
+          sources = mutation.source.is_a?(Hash) ? mutation.source.values : [mutation.source]
+          sources.grep(StateRef).each do |ref|
+            next if @owner_attributes.any? { |attr| attr.name == ref.name }
+
+            raise Malformed, "#{@name}'s sets :#{mutation.target} reads state(:#{ref.name}), " \
+                             "which the owner does not declare"
           end
         end
 

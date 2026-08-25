@@ -23,12 +23,27 @@ module Hecks
   # its quotes, a hash wears `{key: value}` braces, a list wears its brackets,
   # and a number, a boolean and nil are bare. `read` is the exact inverse, and
   # is the only thing that should ever take one of these strings apart.
+  # A MUTATION SOURCE THAT READS THE RECORD'S OWN STATE — `sets :positions,
+  # append: { knights: state(:knights) }`. A bare Symbol in a mutation
+  # source always names a command ARGUMENT (and imports it as one when
+  # the target's own field carries the same name — `CommandBuilder
+  # #resolve_append_fields!`); before this there was no way to say "the
+  # value this field already holds", so a command could not snapshot its
+  # own record — chess's threefold repetition needs exactly that, a
+  # position copied off the board every ply. Spelled `state(:name)` on
+  # the wire, read back by `Literal.read`; classified `kind: "state"` in
+  # a set's own source (`Behaviour::Mutation#classified_source`).
+  StateRef = Struct.new(:name) do
+    def to_s = "state(:#{name})"
+  end
+
   module Literal
     module_function
 
     def render(value)
       case value
       when nil            then "nil"
+      when StateRef       then value.to_s
       when true, false    then value.to_s
       when Symbol         then ":#{value}"
       when Integer, Float then value.to_s
@@ -52,6 +67,7 @@ module Hecks
       return raw.to_i if raw.match?(/\A-?\d+\z/)
       return raw.to_f if raw.match?(/\A-?\d+\.\d+\z/)
       return raw[1..].to_sym if raw.start_with?(":")
+      return StateRef.new(raw[7..-2].to_sym) if raw.match?(/\Astate\(:[A-Za-z_][A-Za-z0-9_]*\)\z/)
       return unquote(raw) if quoted?(raw)
       return read_hash(raw) if raw.start_with?("{") && raw.end_with?("}")
       return read_array(raw) if raw.start_with?("[") && raw.end_with?("]")
