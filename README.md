@@ -296,7 +296,9 @@ and bounded by what the interpreter floor can evaluate:
 ```
 
 Leaves are literals, dotted value-object paths, `.size`/`.length`,
-`.positive?`/`.negative?`/`.zero?`, and `.modulo(n)`. An operator is admitted
+`.positive?`/`.negative?`/`.zero?`, `.modulo(n)`, and the block-taking
+enumeration operators over a list — `.any?`/`.none?`/`.all?`/`.find { |x|
+… }`, the block's body a whole predicate of its own. An operator is admitted
 only once it reads as a real rendering — an operator with no rendering is
 not a slow operator, it is not an operator. That sentence is checked, not
 aspired to: every operator the evaluator runs passes through the grammar
@@ -374,6 +376,7 @@ Every domain this repository's own tests and docs draw examples from:
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
+- **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
 
 ## The tools

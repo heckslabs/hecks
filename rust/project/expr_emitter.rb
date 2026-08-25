@@ -96,6 +96,12 @@ module RustProjection
       when r::ToS    then "Expr::ToS(Box::new(#{emit_resolver(node.receiver)}))"
       when r::Modulo then "Expr::Modulo { receiver: Box::new(#{emit_resolver(node.receiver)}), divisor: Box::new(#{emit_resolver(node.divisor)}) }"
       when r::Size   then "Expr::Size(Box::new(#{emit_resolver(node.receiver)}))"
+      when r::BlockPredicate
+        "Expr::BlockPredicate { mode: crate::kernel::BlockMode::#{node.mode.to_s.capitalize}, receiver: Box::new(#{emit_resolver(node.receiver)}), " \
+          "param: #{node.param.inspect}, predicate: Box::new(#{emit_bool(node.predicate)}) }"
+      when r::Find
+        "Expr::Find { receiver: Box::new(#{emit_resolver(node.receiver)}), param: #{node.param.inspect}, " \
+          "predicate: Box::new(#{emit_bool(node.predicate)}), path: &[#{node.path.map(&:inspect).join(', ')}] }"
       else
         raise "unhandled resolver node #{node.class} — the real grammar has no such node; this generator is stale"
       end

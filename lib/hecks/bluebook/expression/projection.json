@@ -125,6 +125,30 @@
       "category": "sized",
       "precedence": 8,
       "arity": 1
+    },
+    {
+      "symbol": ".any?",
+      "category": "enumeration",
+      "precedence": 10,
+      "arity": 2
+    },
+    {
+      "symbol": ".none?",
+      "category": "enumeration",
+      "precedence": 10,
+      "arity": 2
+    },
+    {
+      "symbol": ".all?",
+      "category": "enumeration",
+      "precedence": 10,
+      "arity": 2
+    },
+    {
+      "symbol": ".find",
+      "category": "enumeration",
+      "precedence": 10,
+      "arity": 2
     }
   ],
   "normalisations": [

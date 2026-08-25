@@ -59,7 +59,7 @@ pub mod repository;
 pub mod routing;
 
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
-pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
+pub use expr::{interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
 pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
