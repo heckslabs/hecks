@@ -128,6 +128,9 @@ impl Fielded for DerefNode {
     fn as_scalar(&self) -> Option<Value> {
         Some(Value::Str(self.id.clone()))
     }
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        self.base.items(name)
+    }
 }
 
 /// `CommandRules::References#dereference`'s own recursive body, read
@@ -243,5 +246,8 @@ impl<'a> Fielded for WithReferences<'a> {
             return Some(Field::Nested(node));
         }
         None
+    }
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        self.args.items(name)
     }
 }

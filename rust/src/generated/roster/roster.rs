@@ -392,15 +392,17 @@ if !unknown.is_empty() {
 pub struct Member {
     pub id: MemberId,
     pub age: Age,
+    pub status: String,
 }
 
 impl crate::kernel::Fielded for Member {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "id" => Some(Field::Nested(&self.id)),
             "age" => Some(Field::Nested(&self.age)),
+            "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
     }
@@ -420,6 +422,7 @@ impl Member {
         crate::kernel::Json::Object(vec![
         ("id".to_string(), self.id.to_json()),
         ("age".to_string(), self.age.to_json()),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
 }
@@ -429,6 +432,7 @@ impl Member {
         Ok(Self {
         id: MemberId::from_json(&v.require("id", "Member")?.coerce_single_field("value"))?,
         age: Age::from_json(&v.require("age", "Member")?.coerce_single_field("value"))?,
+        status: v.require("status", "Member")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member.status: expected a string".to_string()))?.to_string(),
         })
     }
 }
@@ -462,6 +466,87 @@ impl Member {
     pub fn identity(&self) -> String {
         self.id.value.to_string()
     }
+}
+
+impl crate::kernel::Fielded for MemberRetireArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MemberRetireArgs {
+}
+
+impl MemberRetireArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+
+        ])
+    }
+}
+
+
+impl MemberRetireArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+
+        })
+    }
+}
+
+
+pub fn dispatch_entity_member_retire(
+    repo: &mut impl crate::kernel::Repository<Roster>, parent_id: &str, element_id: &str, element_wants: &str, args: MemberRetireArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Roster> {
+
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &Roster| &r.crew,
+        |r: &mut Roster| &mut r.crew,
+        |el: &Member| el.identity() == element_id,
+        "Member.Retire",
+        "Roster::Roster",
+        "Roster",
+        "name.value",
+        "Member",
+        "id.value",
+        element_wants,
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) } },
+        ],
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
+        |record| {
+        record.status = "retired".to_string();
+            Ok(())
+        },
+        &[
+            crate::kernel::EnsuresSpec { description: "someone still serves", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.status")), right: Box::new(Expr::Str("active".to_string())) }) } },
+        ],
+        &["MemberRetired"],
+        args.to_json(),
+        mutations,
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -760,7 +845,7 @@ pub fn dispatch_enlist(
         ],
         None,
         |record| {
-        record.crew.push(Member { id: args.id.clone(), age: args.age.clone() });
+        record.crew.push(Member { id: args.id.clone(), age: args.age.clone(), status: "active".to_string() });
             Ok(())
         },
         &[
@@ -882,6 +967,114 @@ if !unknown.is_empty() {
         Ok(Self {
         member: MemberId::from_json(&v.require("member", "AssignArgs")?.coerce_single_field("value"))?,
         number: SeatNumber::from_json(&v.require("number", "AssignArgs")?.coerce_single_field("value"))?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for RetireArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "id" => Some(Field::Nested(&self.id)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct RetireArgs {
+    pub id: MemberId,
+}
+
+pub fn dispatch_retire(
+    repo: &mut impl crate::kernel::Repository<Roster>, id: &str, args: RetireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Roster> {
+        args.id.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let delegate_facts = args.to_json().with_aliases(&[("id", "id")]);
+    let target_args = MemberRetireArgs::from_json(&delegate_facts)?;
+    let element_id = Member::extract_id(&delegate_facts)?;
+    let element_wants = Member::extract_wants(&delegate_facts);
+    let target_with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &target_args, owner_deref: &owner_deref };
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Retire",
+        "Roster::Roster",
+        "Roster",
+        "name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+                crate::kernel::apply_entity_command(
+                    record,
+                    id,
+                    |r: &Roster| &r.crew,
+                    |r: &mut Roster| &mut r.crew,
+                    |el: &Member| el.identity() == element_id,
+                    "Member.Retire",
+                    "Roster",
+                    "Member",
+                    "id.value",
+                    &element_wants,
+                    &target_with_references,
+                    &[
+                    crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) } },
+                    ],
+                    Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
+                    |record| {
+                record.status = "retired".to_string();
+                        Ok(())
+                    },
+                    &[
+                    crate::kernel::EnsuresSpec { description: "someone still serves", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.status")), right: Box::new(Expr::Str("active".to_string())) }) } },
+                    ],
+                    true,
+                )?;
+            Ok(())
+        },
+        &[
+
+        ],
+        &["MemberRetired"],
+        delegate_facts.clone(),
+        mutations,
+    )
+}
+
+impl RetireArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("id".to_string(), self.id.to_json()),
+        ])
+    }
+}
+
+impl RetireArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes id",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        id: MemberId::from_json(&v.require("id", "RetireArgs")?.coerce_single_field("value"))?,
         })
     }
 }

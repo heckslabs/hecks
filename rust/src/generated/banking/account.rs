@@ -1044,7 +1044,7 @@ pub fn dispatch_credit(
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
         record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Credit, sequence: LedgerSequence { value: (record.ledger.len() as i64) + 1 }, state: "posted".to_string() });
@@ -1132,7 +1132,7 @@ pub fn dispatch_debit(
             crate::kernel::GivenSpec { description: "the balance covers it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
             crate::kernel::GivenSpec { description: "the daily limit allows it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("daily_limit.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
         record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Debit, sequence: LedgerSequence { value: (record.ledger.len() as i64) + 1 }, state: "posted".to_string() });
@@ -1458,7 +1458,7 @@ pub fn dispatch_apply_fee(
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
             crate::kernel::GivenSpec { description: "the balance covers a fee", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
         { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
@@ -1542,7 +1542,7 @@ pub fn dispatch_correct_fee(
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
             crate::kernel::GivenSpec { description: "a correction cannot exceed collected fees", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("fees_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
         { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
@@ -1623,7 +1623,7 @@ pub fn dispatch_accrue_interest(
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
         { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
@@ -1706,7 +1706,7 @@ pub fn dispatch_correct_interest(
             crate::kernel::GivenSpec { description: "a correction cannot exceed accrued interest", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("interest_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
             crate::kernel::GivenSpec { description: "the balance covers an interest correction", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
         { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }

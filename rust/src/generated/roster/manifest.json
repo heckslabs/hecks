@@ -10,6 +10,12 @@
     "generated": true
   },
   {
+    "kind": "entity_command",
+    "id": "Roster::Roster.Member.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "command",
     "id": "Roster::Roster.Open",
     "generated": true,
@@ -30,6 +36,12 @@
   {
     "kind": "command",
     "id": "Roster::Roster.Assign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Roster::Roster.Retire",
     "generated": true,
     "routed": true
   },

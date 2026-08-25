@@ -185,6 +185,41 @@ impl<'a> Fielded for WithOld<'a> {
         }
         self.args.field(name)
     }
+
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        if name == "old" {
+            return None;
+        }
+        self.args.items(name)
+    }
+}
+
+/// `attrs.merge(parent: parent.state …)` — `Admissibility#enforce_givens`
+/// and `#enforce_ensures`, read directly: an ENTITY command's own
+/// predicates read the owning record under one name, `parent`, on the
+/// args side. Built by `dispatch::apply_entity_command` for a
+/// delegating door (see its own header for why the routing layer's
+/// `parent_deref` snapshot is not enough there); merged AFTER `old`
+/// exactly as Ruby's own `merge` order gives `old` precedence.
+pub struct WithParent<'a> {
+    pub args: &'a dyn Fielded,
+    pub parent: &'a dyn Fielded,
+}
+
+impl<'a> Fielded for WithParent<'a> {
+    fn field(&self, name: &str) -> Option<Field<'_>> {
+        if name == "parent" {
+            return Some(Field::Nested(self.parent));
+        }
+        self.args.field(name)
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        if name == "parent" {
+            return None;
+        }
+        self.args.items(name)
+    }
 }
 
 // `Comparison` used to be defined here; it now lives in

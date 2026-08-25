@@ -50,6 +50,28 @@ Hecks.bluebook "Roster" do
       attribute :age, Age
 
       identified_by :id
+
+      lifecycle :status, default: "active" do
+        transition "Retire" => "retired", from: "active"
+      end
+
+      # THE ENTITY COMMAND A DOOR DELEGATES TO — see `Roster.Retire` below.
+      # Its given and its ensures both read `parent`: the given the
+      # roster as it stands (a front-row holder may not leave), the
+      # ensures the roster AFTER this member's own status has changed
+      # (someone must still be serving) — the second is only right if the
+      # parent seen by the ensures already carries the mutated element.
+      command "Retire" do
+        goal "Leave the crew — unless seated in the front row, and never as the last one serving"
+
+        given("a front-row holder may not retire") do
+          parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == "front" } }
+        end
+
+        ensures("someone still serves") { parent.crew.any? { |m| m.status == "active" } }
+
+        emits "MemberRetired"
+      end
     end
 
     command "Open" do
@@ -112,6 +134,20 @@ Hecks.bluebook "Roster" do
       sets :assignments, append: { member: :member, number: :number }
 
       emits "SeatAssigned"
+    end
+
+    # THE DOOR — `delegates_to`: the roster-level command a caller
+    # dispatches, handing the SAME dispatch to one member's own Retire,
+    # atomically: the member's refusal is this command's refusal, its
+    # event is this command's event. `with:` names which door argument
+    # feeds which target argument (here the element's own identity).
+    command "Retire" do
+      goal "Retire one member, on the caller's behalf"
+
+      reference_to Roster
+      attribute :id, MemberId
+
+      delegates_to "Member.Retire", with: { id: :id }
     end
   end
 end

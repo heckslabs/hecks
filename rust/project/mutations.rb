@@ -243,7 +243,18 @@ module RustProjection
       return nil unless aggregate[:lifecycle]
 
       rows = aggregate[:lifecycle][:transitions].select { |t| t[:command] == command[:name] }
-      return nil if rows.empty?
+      # `from:` WITHOUT a transition — `Admissibility#enforce_lifecycle_
+      # guard`, read directly: a command that only guards on the current
+      # state (a chess door's `from: "in_play"`) refuses with the same
+      # transition_blocked wording a transition does and moves nothing.
+      # `to_state: nil` is that "moves nothing"; every caller pushes the
+      # state-setting line only when it is present.
+      if rows.empty?
+        froms = Array(command[:from]).compact.map(&:to_s)
+        return nil if froms.empty?
+
+        return { field: aggregate[:lifecycle][:field], to_state: nil, from_states: froms.uniq, unconstrained: false }
+      end
 
       # `from: nil` — an UNCONSTRAINED transition, admitting from any
       # state (a creating command has no prior state to come from).

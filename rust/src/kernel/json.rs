@@ -212,6 +212,30 @@ impl Json {
         Json::Object(merged)
     }
 
+    /// `ctx.args.merge(delegation.source.to_h { |target_key, source_key|
+    /// [target_key, ctx.args[source_key]] })` —
+    /// `CommandInterpreter#step_delegate_to_entity`, read directly: the
+    /// facts a delegating door hands its entity command are the door's
+    /// OWN args plus, under each target name the `with:` mapping
+    /// declares, the door arg that mapping names. Same-named pairs are
+    /// harmless re-assignments; a pair whose source the door never
+    /// declared adds nothing, exactly as Ruby's `args[source_key]` is
+    /// nil there. Non-`Object` receivers pass through unchanged.
+    pub fn with_aliases(&self, pairs: &[(&str, &str)]) -> Json {
+        let Json::Object(fields) = self else {
+            return self.clone();
+        };
+        let mut merged = fields.clone();
+        for (target_key, source_key) in pairs {
+            let Some(value) = fields.iter().find(|(k, _)| k == source_key).map(|(_, v)| v.clone()) else { continue };
+            match merged.iter_mut().find(|(k, _)| k == target_key) {
+                Some(entry) => entry.1 = value,
+                None => merged.push((target_key.to_string(), value)),
+            }
+        }
+        Json::Object(merged)
+    }
+
     /// Stringifies a scalar leaf for identity-component joining —
     /// `extract_id`'s job (rust/project/json_codec.rb), the same "whatever
     /// it resolved to, make an id component out of it" coercion

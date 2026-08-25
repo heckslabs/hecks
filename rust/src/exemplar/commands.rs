@@ -36,6 +36,35 @@ impl TmplElement {
     fn identity(&self) -> String {
         String::new()
     }
+    fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let _ = v;
+        Ok(String::new())
+    }
+    fn extract_wants(v: &crate::kernel::Json) -> String {
+        let _ = v;
+        String::new()
+    }
+}
+
+// The entity command's own args struct, as `delegate_prelude` builds it
+// from the door's facts — see that shape's own comment below.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TmplTargetArgs {
+    tmpl_field: i64,
+}
+impl crate::kernel::Fielded for TmplTargetArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        None
+    }
+}
+impl TmplTargetArgs {
+    fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Null
+    }
+    fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let _ = v;
+        Ok(TmplTargetArgs { tmpl_field: 0 })
+    }
 }
 
 // A real, minimal type satisfying `kernel::dispatch`'s own bounds
@@ -84,7 +113,7 @@ pub fn dispatch_tmpl(
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
     let tmpl_eval_fielded = tmpl_with_references_placeholder();
-
+tmpl_prelude_placeholder();
     crate::kernel::dispatch(
         repo,
         tmpl_hydrate_placeholder(),
@@ -114,6 +143,14 @@ tmpl_ensures_spec_placeholder(),
 fn tmpl_invariant_check_placeholder() -> Result<(), crate::kernel::Refusal> {
     Ok(())
 }
+// `tmpl_prelude_placeholder` — the line between the references binding
+// and the `dispatch` call. Every ordinary command substitutes it away
+// to nothing (so the shape keeps its one blank line there, unchanged);
+// a DELEGATING command (`delegates_to`, `commands.rb`'s own
+// `emit_delegation`) substitutes the rendered `delegate_prelude`
+// shape, below — bindings the closure and the payload both need
+// before `dispatch` is entered.
+fn tmpl_prelude_placeholder() {}
 // `tmpl_with_references_placeholder` — the real substitution is a
 // `crate::kernel::WithReferences` literal (`commands.rb`'s own
 // `with_references_binding`), the SAME cross-aggregate-dereference
@@ -137,6 +174,86 @@ fn tmpl_ensures_spec_placeholder() -> crate::kernel::EnsuresSpec {
 }
 fn tmpl_emit_placeholder() -> &'static str {
     ""
+}
+
+// A DELEGATING COMMAND — `delegates_to "Entity.Command", with: { … }`
+// (docs/implemented/guides/entities.md; `CommandInterpreter#step_
+// delegate_to_entity`, read directly). The door is an ordinary
+// aggregate command as far as `dispatch_fn` is concerned — its own
+// givens, its own `from:` guard, save, emit — and its ENTIRE mutation
+// is `kernel::apply_entity_command` run on the record inside the
+// closure: the target entity command's locate → givens → transition →
+// mutate → ensures, with `parent` read off the live record (see that
+// function's own header). Two shapes, rendered into two of
+// `dispatch_fn`'s own placeholders:
+//
+// `delegate_prelude` (into `tmpl_prelude_placeholder();`): the facts
+// the target sees are the door's own args plus the `with:` mapping
+// (`Json::with_aliases`); the target's args struct is read from them
+// the same way the routing layer reads an entity command's own; the
+// element is addressed by the entity's own `extract_id`/`extract_wants`
+// over the same facts — the identical NotFound wording a direct
+// dispatch renders.
+//
+// `delegate_apply` (into `tmpl_mutation_lines_placeholder(record);`):
+// the call itself. The inner `|record|` closure is the TARGET's own
+// mutation lines over the element and deliberately shadows the door's
+// `record` — an entity command's `sets` only ever reach the element.
+fn tmpl_aliases_placeholder() -> (&'static str, &'static str) {
+    ("", "")
+}
+
+fn tmpl_delegate_prelude_host(
+    args: TmplArgs,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> Result<(), crate::kernel::Refusal> {
+    // TMPL:delegate_prelude BEGIN
+    let delegate_facts = args.to_json().with_aliases(&[tmpl_aliases_placeholder()]);
+    let target_args = TmplTargetArgs::from_json(&delegate_facts)?;
+    let element_id = TmplElement::extract_id(&delegate_facts)?;
+    let element_wants = TmplElement::extract_wants(&delegate_facts);
+    let target_with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &target_args, owner_deref: &owner_deref };
+    // TMPL:delegate_prelude END
+    let _ = (element_id, element_wants, target_with_references);
+    Ok(())
+}
+
+fn tmpl_delegate_apply_host(
+    record: &mut TmplRecord,
+    id: &str,
+    element_id: String,
+    element_wants: String,
+    target_with_references: TmplArgs,
+) -> Result<(), crate::kernel::Refusal> {
+        // TMPL:delegate_apply BEGIN
+        crate::kernel::apply_entity_command(
+            record,
+            id,
+            |r: &TmplRecord| &r.tmpl_list_field,
+            |r: &mut TmplRecord| &mut r.tmpl_list_field,
+            |el: &TmplElement| el.identity() == element_id,
+            "TmplQualifiedCommandName",
+            "TmplAggregateName",
+            "TmplEntityName",
+            "TmplEntityIdentityReading",
+            &element_wants,
+            &target_with_references,
+            &[
+tmpl_given_spec_placeholder(),
+            ],
+            tmpl_transition_placeholder(),
+            |record| {
+tmpl_entity_mutation_lines_placeholder(record);
+                Ok(())
+            },
+            &[
+tmpl_ensures_spec_placeholder(),
+            ],
+            true,
+        )?;
+        // TMPL:delegate_apply END
+    Ok(())
 }
 
 // `entity_dispatch_fn` — `dispatch_fn`'s own sibling for an ENTITY
