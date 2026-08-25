@@ -184,7 +184,7 @@ pub fn dispatch_by_name(
           }
           "Pizzas::Order.PaymentGateway.Receive" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let (id, port_facts) = invocation.split_aggregate_receiver(None)?;
+              let (id, port_facts) = invocation.split_aggregate_receiver(None, None)?;
               let facts_json = &port_facts;
               let _instance = store.order.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Order {:?} does not exist", id)))?;
               let args = crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(facts_json)?;

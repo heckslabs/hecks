@@ -453,6 +453,11 @@ pub struct PortOperation {
     pub name: String,
     pub attributes: Vec<Attribute>,
     pub emits: Vec<String>,
+    /// The receiving aggregate, as routing metadata — `to: Payment`, not
+    /// an attribute (domain_port.rs's own header comment). `None` for an
+    /// operation still spelled the migration-era way (`reference_to`
+    /// inside the block) or one with no receiver declared at all.
+    pub to: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

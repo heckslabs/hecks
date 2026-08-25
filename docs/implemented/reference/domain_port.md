@@ -87,11 +87,12 @@ runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-rem
 ## operation
 
 <!-- generated:begin word=operation -->
-`operation name do ... end` — opens a `PortOperation` body
+`operation name, to: do ... end` — opens a `PortOperation` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `to:` | constant | false | to |
 <!-- generated:end -->
 
 Opens one translation from an external fact into this domain's own event vocabulary — `reference_to`, `attribute`, and `emits`, nothing else: the builder behind it defines no `given` or `sets`, so an operation cannot read aggregate state or mutate a record itself. A `port` declares `operation`s or a `verb` (below) — never both, and never neither. Pizzas' `PaymentGateway` port and its `Receive` operation (`examples/pizzas/bluebook/pizzas.hecksagon`) are the worked example — it only emits `PizzaPaymentReceived`; the actual rules (must have a topping, must still be available) stay on `Order`'s own `Purchase` command, reached through the `OnPizzaPaymentReceived` policy beside it. See the PortOperation reference page for the vocabulary inside.
@@ -108,11 +109,12 @@ shipment.ports.find { |port| port.name == "Carrier" }.operations.map(&:hecks_nam
 ## tells
 
 <!-- generated:begin word=tells -->
-`tells name do ... end` — opens a `PortOperation` body
+`tells name, to: do ... end` — opens a `PortOperation` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `to:` | constant | false | to |
 <!-- generated:end -->
 
 What the outside TELLS this domain — an external fact arriving, translated
@@ -156,11 +158,12 @@ delivered.answers  # => nil
 ## asks
 
 <!-- generated:begin word=asks -->
-`asks name do ... end` — opens a `PortOperation` body
+`asks name, to: do ... end` — opens a `PortOperation` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `to:` | constant | false | to |
 <!-- generated:end -->
 
 What this domain ASKS of the outside — the direction the language did not

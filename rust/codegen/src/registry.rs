@@ -64,6 +64,13 @@ pub struct PortEntry {
     /// Compatibility-only self-reference field from older port IR. New
     /// operations receive their owner solely through the routing envelope.
     pub legacy_receiver_field: Option<String>,
+    /// `to:`-declared operations' own receiver field — a plain, real
+    /// attribute (never stripped from the payload the way
+    /// legacy_receiver_field is), named for the owning aggregate's own
+    /// identified_by field. See domain_generator.rs's own comment on
+    /// why this stays a separate field rather than folding into
+    /// legacy_receiver_field.
+    pub to_receiver_field: Option<String>,
 }
 
 pub struct AggregateEntry {
@@ -386,10 +393,16 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(naming::ruby_inspect_string)
                 .map(|field| format!("Some({field})"))
                 .unwrap_or_else(|| "None".to_string());
+            let to_receiver = p
+                .to_receiver_field
+                .as_deref()
+                .map(naming::ruby_inspect_string)
+                .map(|field| format!("Some({field})"))
+                .unwrap_or_else(|| "None".to_string());
 
             let mut body: Vec<String> = vec![
                 "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
-                format!("let (id, port_facts) = invocation.split_aggregate_receiver({legacy_receiver})?;"),
+                format!("let (id, port_facts) = invocation.split_aggregate_receiver({legacy_receiver}, {to_receiver})?;"),
                 "let facts_json = &port_facts;".to_string(),
                 format!(
                     "let _instance = store.{}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"{} {{:?}} does not exist\", id)))?;",
@@ -543,6 +556,7 @@ mod tests {
                 args_struct: "PaymentGatewayReceiveArgs".to_string(),
                 reference_checks: Vec::new(),
                 legacy_receiver_field: None,
+                to_receiver_field: None,
             }],
             chapter_mod: "banking".to_string(),
             domain_name: "Banking".to_string(),
@@ -563,7 +577,7 @@ mod tests {
         assert!(generated.contains("Json::overlay(facts_json, &args.to_json())"));
         assert!(!generated.contains("VisitAnnotateArgs::from_json(args_json)?"));
         assert!(generated
-            .contains("let (id, port_facts) = invocation.split_aggregate_receiver(None)?;"));
+            .contains("let (id, port_facts) = invocation.split_aggregate_receiver(None, None)?;"));
         assert!(generated.contains("store.safedepositbox.find(&id)"));
         assert!(generated.contains("PaymentGatewayReceiveArgs::from_json(facts_json)?"));
         assert!(generated.contains("dispatch_operation_paymentgateway_receive(&id, args)"));
