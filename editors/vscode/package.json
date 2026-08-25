@@ -25,7 +25,15 @@
         ],
         "aliases": [
           "Hecks Bluebook"
-        ]
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "hecks-bluebook",
+        "scopeName": "source.hecks-bluebook",
+        "path": "./syntaxes/hecks-bluebook.tmLanguage.json"
       }
     ],
     "configuration": {

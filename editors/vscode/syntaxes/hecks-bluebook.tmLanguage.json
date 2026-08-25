@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "_comment": "hecks-bluebook is real Ruby (.bluebook/.hecksagon files are literal Ruby, executed via instance_eval — README.md's own opening: 'a .bluebook file IS the running system'). Rather than write and maintain a second grammar, this one just includes VS Code's own built-in Ruby grammar (source.ruby, bundled with every standard VS Code install — extensions/ruby/syntaxes/ruby.tmLanguage.json) under our own scope name, so every real Ruby token (do/end, strings, symbols, comments, numbers, string interpolation, heredocs) colors correctly for free, with nothing here to fall out of sync as Ruby's own grammar improves upstream.",
+  "name": "Hecks Bluebook",
+  "scopeName": "source.hecks-bluebook",
+  "patterns": [
+    {
+      "include": "source.ruby"
+    }
+  ]
+}

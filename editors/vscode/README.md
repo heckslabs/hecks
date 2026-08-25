@@ -3,9 +3,25 @@
 A thin client that wires VS Code to `rust/lsp`'s `hecks-lsp` for
 `.bluebook`/`.hecksagon` files. All the real behavior — diagnostics,
 `documentSymbol`, `definition` — lives server-side; see
-`rust/lsp/README.md` for what it does and doesn't support yet (there's
-no syntax highlighting grammar contributed here either — files open as
-plain text, just with live diagnostics/outline/go-to-definition).
+`rust/lsp/README.md` for what it does and doesn't support yet.
+
+**Syntax highlighting is real Ruby's**, not a second, hand-maintained
+grammar: `.bluebook`/`.hecksagon` files are literal Ruby, so
+`syntaxes/hecks-bluebook.tmLanguage.json` just includes VS Code's own
+built-in `source.ruby` grammar under our own scope name. Every real
+Ruby token (`do`/`end`, strings, symbols, comments, string
+interpolation) colors correctly with nothing here to fall out of sync
+as Ruby's own grammar improves upstream. `language-configuration.json`
+(bracket matching, comment toggling, `do`/`end`-aware indentation) is
+copied from VS Code's own bundled Ruby extension for the same reason.
+
+**If files still open in a different language mode** (most likely
+Ruby) — check your own `files.associations` setting
+(`Cmd+,` → search "file associations", or global `settings.json`
+directly). A `"*.bluebook": "ruby"` entry from before this extension
+existed will always beat this extension's own language contribution;
+either remove it or switch the language mode per file (bottom-right
+status bar, or `Cmd+K M`).
 
 ## 1. Build the server
 
