@@ -16,11 +16,16 @@ require "spec_helper"
 # names as already closed by the two remodels it commissions (S17, S14)
 # — this spec is what makes "closed" a checked fact rather than a claim
 # in a commit message. The rest — `policy`/`process_manager`/`ensures`/
-# `provenance`/`group_by`/`authorize` — are the ADR's own remaining
-# list, ADOPTED where a real, non-decorative use exists (S16 added one:
-# `ensures` on `Bluebook.Attach`) and NAMED where it does not — the ADR
-# itself warns against the alternative ("Forcing every construct into
-# the language... is decoration... modelling to satisfy a tool").
+# `provenance`/`group_by`/`authorize`/`generic` — are the ADR's own
+# remaining list, ADOPTED where a real, non-decorative use exists (S16
+# added one: `ensures` on `Bluebook.Attach`) and NAMED where it does
+# not — the ADR itself warns against the alternative ("Forcing every
+# construct into the language... is decoration... modelling to satisfy
+# a tool"). `generic` is the ADR's own Consequences section, named
+# explicitly there ("a candidate for demotion rather than adoption")
+# rather than in its main table, which is why it was missing here until
+# this session verified it against the live grammar and found the same
+# zero the ADR predicted.
 #
 # SCOPED TO THE CORE, NOT EVERY ATTACHED SUB-LANGUAGE — the ADR leaves
 # this open ("Whether the self-use gate applies to each sub-language
@@ -89,7 +94,14 @@ RSpec.describe "the language uses everything the core grammar declares" do
     "ensures"                => -> { every_command.sum { |c| c.ensures.to_a.size } },
     "provenance"             => -> { every_command.count { |c| c.provenance } },
     "group_by"               => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },
-    "authorize"              => -> { every_query.count(&:authorization) }
+    "authorize"              => -> { every_query.count(&:authorization) },
+    # ADR 0026's own Consequences section, verbatim: "`generic` is a
+    # candidate for demotion rather than adoption... a subdomain
+    # classification the language itself never applies." The language
+    # declares itself `core` (`SELF_USE_LANGUAGE.classification`), the
+    # sibling word in the same closed set — never `generic` — so this
+    # counts real self-classification, not a grammar row.
+    "generic"                => -> { SELF_USE_LANGUAGE.classification == "generic" ? 1 : 0 }
   }.freeze
 
   # NAMED, REASONED — never a silent exclusion. Each entry is the ADR's
@@ -132,7 +144,16 @@ RSpec.describe "the language uses everything the core grammar declares" do
                          "authorize gates a query behind a tenant/policy boundary — the " \
                          "language has no multi-tenant concept of its own; a grammar row is " \
                          "not scoped to a caller, and inventing a tenant for the language's " \
-                         "own records to be walled off by would be pure decoration."
+                         "own records to be walled off by would be pure decoration.",
+    "generic"         =>
+                         "generic marks a bluebook as NOT a real business domain, so that " \
+                         "Expression/Translation/Paging can classify themselves that way — " \
+                         "the language's own chapter IS the canonical grammar, declared " \
+                         "`core`, and applying `generic` reflexively to the definition that " \
+                         "does the classifying would be the sub-language demotion test " \
+                         "turned on itself. ADR 0025 already names it as zero-corpus-use " \
+                         "everywhere, not just here; ADR 0026's own Consequences section " \
+                         "names this exact gap by hand."
   }.freeze
 
   it "uses every construct it declares, or names why not" do
