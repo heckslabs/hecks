@@ -52,8 +52,16 @@ module Hecks
                     visible = normalized_scopes.find { |scope| scope.facts.key?(source) }
                     unless visible
                       names = normalized_scopes.map(&:name).join(" then ")
+                      # WHAT IS VISIBLE, NAMED. A refusal that only says which name is
+                      # missing sent a modeler guessing field after field
+                      # (`number`, `reference`…) at a fan-out row that is addressed
+                      # by ONE key — `account`, the lowercase aggregate — which
+                      # nothing else in the domain spells out. The names each scope
+                      # actually offers are the whole diagnosis; the refusal now
+                      # lists them, scope by scope.
+                      offered = normalized_scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(', ')}" }.join("; ")
                       raise UnknownArgument,
-                            "#{label}'s with: reads :#{source}, which is not visible in #{names}"
+                            "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
                     end
                     visible.facts.fetch(source)
                   end

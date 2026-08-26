@@ -236,7 +236,7 @@ RSpec.describe "policy and process lexical visibility" do
       )
     end.to raise_error(
       Hecks::Runtime::UnknownArgument,
-      /ApplyProposal's trigger's with: reads :parent_reading, which is not visible in event payload/
+      /ApplyProposal's trigger's with: reads :parent_reading, which is not visible in event payload.*\(visible — /
     )
   end
 
