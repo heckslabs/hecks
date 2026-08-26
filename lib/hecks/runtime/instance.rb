@@ -5,11 +5,23 @@ module Hecks
     class Instance
       attr_reader :aggregate, :id
       attr_accessor :state
+      # OUT-OF-BAND ADAPTER BOOKKEEPING, NOT DOMAIN STATE — the optimistic-
+      # concurrency version a CAS-capable adapter (Postgres today) stamps
+      # on a record it reads/writes, so a later `save` can assert "commit
+      # only if nobody has written since". Deliberately absent from
+      # `to_h`/`[]`/`[]=`/`method_missing` : a domain author never declares
+      # this, a `given`/`ensures`/`invariant` can never read it, and no
+      # adapter that doesn't understand it (Memory, Heki) ever sets it —
+      # `nil` there just means "no CAS attempted", which is exactly what a
+      # plain `save` already does. See docs/decisions/ (concurrency-control
+      # ADR) for the full mechanism.
+      attr_accessor :version
 
       def initialize(aggregate:, id:, state: nil)
         @aggregate = aggregate
         @id        = id
         @state     = state ? self.class.hydrate_with_defaults(aggregate, state) : self.class.defaults(aggregate)
+        @version   = nil
         materialize_identity!
       end
 

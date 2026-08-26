@@ -123,6 +123,25 @@ module Hecks
       def reading(construct)
         construct.identity_paths.join(", ")
       end
+
+      # BEST-EFFORT, FOR A LOCK KEY ONLY — `Runtime::AggregateLock`'s own
+      # per-record striping needs SOME id to key on before dispatch has run
+      # far enough to hydrate for real, so this walks the identical chain
+      # `CommandInterpreter#hydrate_existing`/`#hydrate_prior_or_initial`
+      # and `EntityInterpreter#parent` already use to locate the real
+      # record — but wrapped to never raise. Choosing which Mutex to hold
+      # must never itself become a crash. `nil` means "could not resolve
+      # from the raw, pre-normalized payload this runs against" — the
+      # caller locks by aggregate type alone in that case (coarser, still
+      # correct, just less concurrent).
+      def best_effort(construct, args, route = nil, reference_key: nil)
+        route&.aggregate ||
+          of(construct, args) ||
+          from(construct, args, :id) ||
+          (reference_key && from(construct, args, reference_key))
+      rescue StandardError
+        nil
+      end
     end
   end
 end

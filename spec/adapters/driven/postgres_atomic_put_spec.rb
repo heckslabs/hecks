@@ -84,7 +84,7 @@ RSpec.describe "Postgres atomic_put persistence", io: true do
     aggregate = item_aggregate
     stored = repository(aggregate)
 
-    expect(stored.capabilities).to eq([:atomic_put])
+    expect(stored.capabilities).to eq(%i[atomic_put optimistic_concurrency])
     expect(stored.atomic_put(item(aggregate, "First")).status).to eq(:inserted)
     expect(stored.atomic_put(item(aggregate, "Second")).status).to eq(:replaced)
     expect(stored.entries.size).to eq(2)

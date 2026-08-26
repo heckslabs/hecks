@@ -49,7 +49,7 @@ module Hecks
 
       attr_reader :aggregate
 
-      def persistence_capabilities = [:atomic_put]
+      def persistence_capabilities = [:atomic_put, :optimistic_concurrency]
 
       def self.connect_for(name, settings)
         # LAZY, ON PURPOSE — same reasoning as PostgresEra's own
@@ -110,7 +110,7 @@ module Hecks
         result = @db.exec_params("SELECT * FROM #{quoted_table} WHERE id = $1", [id.to_s])
         return nil if result.ntuples.zero?
 
-        Runtime::Instance.new(aggregate: @aggregate, id: result[0]["id"], state: decode(result[0]))
+        instance_from_row(result[0])
       end
 
       # order_by IS A RUNTIME VALUE — see Sqlite#all's own reasoning;
@@ -126,9 +126,7 @@ module Hecks
           order_sql = "ORDER BY #{order_clause(spec, nil)}"
         end
 
-        @db.exec("SELECT * FROM #{quoted_table} #{order_sql}").map do |row|
-          Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
-        end
+        @db.exec("SELECT * FROM #{quoted_table} #{order_sql}").map { |row| instance_from_row(row) }
       end
 
       def count = @db.exec("SELECT COUNT(*) FROM #{quoted_table}")[0]["count"].to_i
@@ -141,20 +139,44 @@ module Hecks
         entry
       end
 
-      def project(entry)
+      # `expected_version:` requests optimistic-concurrency CAS (see
+      # `persistence_capabilities`/`Ports::Persistence::AppendOnly#save`).
+      # `hecks_version` is ADAPTER BOOKKEEPING — never in `persisted_fields`
+      # (Codec), so it never reaches `decode`'s domain-state hash. It goes
+      # in the INSERT column list at `1` (a genuinely new row) and bumps by
+      # one in the `ON CONFLICT DO UPDATE` branch; when `expected_version`
+      # is given, that UPDATE branch additionally requires
+      # `hecks_version = expected_version` to apply at all — Postgres's own
+      # `INSERT ... ON CONFLICT DO UPDATE ... WHERE`, which gates only
+      # whether the CONFLICT branch's update applies. A genuinely new row
+      # never reaches that branch at all, so it always inserts regardless
+      # of this WHERE. `RETURNING hecks_version` plus `ntuples.zero?` is
+      # how a real version mismatch is told apart from an ordinary write:
+      # zero rows back means the conflict branch's WHERE excluded the row
+      # entirely — the version had already moved — so `nil` is returned
+      # for the caller (`AppendOnly#save`) to treat as "stale, no-op".
+      def project(entry, expected_version: nil)
         return @db.exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
-        columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s })
-        values   = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) }
-        updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" }
+        columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
+        values   = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
+        updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
+                   ["hecks_version = #{quoted_table}.hecks_version + 1"]
 
-        @db.exec_params(
-          "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
-          "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
-          "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}",
-          values
-        )
+        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
+              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
+              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
+        if expected_version
+          values += [expected_version]
+          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
+        end
+        sql += " RETURNING hecks_version"
+
+        result = @db.exec_params(sql, values)
+        return nil if result.ntuples.zero?
+
+        instance.version = result[0]["hecks_version"].to_i
         instance
       end
 
@@ -332,9 +354,18 @@ module Hecks
       end
 
       def execute_query(sql, binds)
-        @db.exec_params(sql, binds).map do |row|
-          Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
-        end
+        @db.exec_params(sql, binds).map { |row| instance_from_row(row) }
+      end
+
+      # Stamps `.version` (adapter bookkeeping, never domain state — see
+      # `Instance`'s own comment) from the row's `hecks_version` column on
+      # every Instance this adapter builds from a real stored row, so a
+      # later `save`'s optimistic-concurrency CAS has something to check
+      # against.
+      def instance_from_row(row)
+        instance = Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
+        instance.version = row["hecks_version"].to_i
+        instance
       end
 
       # ── the rest of the dialect ─────────────────────────────────────

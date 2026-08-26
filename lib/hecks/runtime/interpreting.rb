@@ -1,4 +1,5 @@
 require_relative "value"
+require_relative "aggregate_lock"
 
 module Hecks
   module Runtime
@@ -41,6 +42,26 @@ module Hecks
       # see CommandInterpreter#step_assign_creation_attributes.
       def run_dispatch_order(order, ctx)
         order.each { |name| send(:"step_#{name}", ctx) }
+      end
+
+      # THE CONCURRENCY-CONTROL SPLIT — see docs/decisions/ (concurrency
+      # control ADR) for the full mechanism. A repository that declares
+      # `:optimistic_concurrency` (Postgres today) already closes the
+      # lost-update gap itself, via `step_save`'s CAS + `#call`'s own
+      # `StaleWrite` retry loop — an extra in-process lock here would be
+      # pointless overhead, not incorrect, so it's skipped for clarity.
+      # Every other repository (Heki, Memory — confirmed process-local
+      # data, never a second process writing the same store) gets a
+      # striped `Mutex` held for the WHOLE dispatch-order run, so a second
+      # thread's own hydrate can't start until the first thread's save has
+      # landed. `lock_key_id` is best-effort (`Identity.best_effort`) —
+      # `nil` still locks correctly, just coarser (by aggregate type).
+      def run_dispatch_order_with_isolation(order, ctx, lock_key_id:)
+        if ctx.repository.capabilities.include?(:optimistic_concurrency)
+          run_dispatch_order(order, ctx)
+        else
+          AggregateLock.for(ctx.domain, ctx.aggregate, lock_key_id).synchronize { run_dispatch_order(order, ctx) }
+        end
       end
 
       # Every declared attribute present in the payload passes the reference

@@ -30,6 +30,10 @@ module Hecks
       # path).
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("EntityDispatchOrder")
 
+      # Same safety valve as `CommandInterpreter::MAX_STALE_WRITE_RETRIES` —
+      # see that constant's own comment.
+      MAX_STALE_WRITE_RETRIES = 5
+
       # `instance` is the PARENT aggregate record (what gets saved and
       # returned) ; `element`/`view` are the entity piece itself — `view`
       # wraps `element` as it stood at `locate_element`, pre-mutation, and
@@ -56,6 +60,10 @@ module Hecks
       # comment for the shared reasoning (Dispatcher#dry_run?'s own entry
       # point). `step_save`/`step_emit` are the only two steps here that
       # read it either.
+      # RETRIES THE WHOLE METHOD BODY on `StaleWrite` — same reasoning as
+      # `CommandInterpreter#call`'s own retry: a fresh `ctx`, a fresh
+      # `step_hydrate_parent`/`step_locate_element` re-reading current
+      # state.
       def call(domain, aggregate, dotted, legacy_args, route: nil, with: nil, dry_run: false)
         *entity_names, command_name = dotted.to_s.split(".")
         if entity_names.empty?
@@ -70,13 +78,24 @@ module Hecks
                                                            entity: entity.hecks_name, command: command_name.inspect))
 
         args = Routing.payload(command, with: with, legacy: legacy_args)
-        ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
-        ctx.chain = chain
-        ctx.route = route
-        ctx.dry_run = dry_run
-        ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command)
-        run_dispatch_order(DISPATCH_ORDER, ctx)
-        [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+        attempt = 0
+        begin
+          ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
+          ctx.chain = chain
+          ctx.route = route
+          ctx.dry_run = dry_run
+          ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command)
+          # RESOLVED HERE, ONCE — see CommandInterpreter#call's own comment;
+          # `step_hydrate_parent` reads `ctx.repository` without re-fetching.
+          ctx.repository = @registry.repository(domain, aggregate)
+          lock_id = Identity.best_effort(aggregate, args, route)
+          run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
+          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+        rescue StaleWrite
+          attempt += 1
+          retry if attempt < MAX_STALE_WRITE_RETRIES
+          raise
+        end
       end
 
       private
@@ -113,7 +132,8 @@ module Hecks
       end
 
       def step_hydrate_parent(ctx)
-        ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
+        # `ctx.repository` is resolved once, in `#call`, before the
+        # isolation decision — not here any more.
         ctx.instance = step(:hydrate_parent) {
           parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args, ctx.route)
         }
@@ -184,8 +204,20 @@ module Hecks
 
         step(:save) do
           @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
-          ctx.repository.save(ctx.instance)
-          ctx.persistence_outcome = Ports::Persistence::Outcome.new(status: :saved, instance: ctx.instance)
+          # `expected_version:` — see CommandInterpreter#step_save's own
+          # comment: nil for a repository that isn't CAS-capable, or an
+          # instance never read from storage, either of which falls
+          # through to a plain save inside `AppendOnly#save`.
+          ctx.persistence_outcome = ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
+          if ctx.persistence_outcome.status == :stale
+            # NOT a `RefusalWording.render` call — see
+            # `CommandInterpreter#step_save`'s identical branch and
+            # `Runtime::StaleWrite`'s own comment.
+            raise(StaleWrite,
+                  "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
+                  "(#{Identity.reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
+                  "another write committed against this record after it was read")
+          end
         end
       end
 

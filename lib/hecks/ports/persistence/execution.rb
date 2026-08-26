@@ -3,7 +3,12 @@ module Hecks
     module Persistence
       # Adapter outcomes are runtime facts, never command lifecycle.
       Outcome = Struct.new(:status, :instance, keyword_init: true) do
-        STATUSES = %i[inserted replaced updated conflicted missing saved].freeze
+        # `:stale` is an optimistic-concurrency conflict on a plain `save`
+        # (someone else committed since this instance was read) — never a
+        # domain refusal, distinct from `:conflicted` (a `creates?`
+        # command's identity already exists, `AlreadyExists`). See
+        # `Runtime::StaleWrite` (runtime/errors.rb) and `AppendOnly#save`.
+        STATUSES = %i[inserted replaced updated conflicted missing saved stale].freeze
 
         def initialize(status:, instance: nil)
           normalized = status.to_sym
