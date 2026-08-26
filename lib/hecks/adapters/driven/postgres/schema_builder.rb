@@ -19,6 +19,15 @@ module Hecks
           @db.exec(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{columns.empty? ? '' : ', '}#{columns.join(', ')})"
           )
+          # SELF-HEALING, SAME IDIOM AS `ensure_indexes!` BELOW —
+          # `CREATE TABLE IF NOT EXISTS` above does NOT retroactively add a
+          # column to an already-existing table (a committed database from
+          # before optimistic-concurrency CAS existed), so this runs
+          # unconditionally on every boot and no-ops once the column is
+          # there. ADAPTER BOOKKEEPING ONLY — never listed in
+          # `persisted_fields` (Codec), so it never appears in `decode`'s
+          # domain-state hash or `Instance#to_h`.
+          @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
           # RIGHT HERE, NOT A SEPARATE STEP IN `Postgres#initialize` —
           # same idiom Sqlite::SchemaBuilder's own `create_aggregate_table!`
           # uses: index creation runs unconditionally, right after the

@@ -52,6 +52,20 @@ module Hecks
     # Runtime::TenantScope.
     class Unauthorized < StandardError; end
 
+    # A RUNTIME FAULT, NOT A DOMAIN REFUSAL — deliberately absent from
+    # `DOMAIN_REFUSALS` below and from `vocabulary.bluebook`'s own
+    # `DomainRefusal` list. Raised when an optimistic-concurrency CAS write
+    # (`AppendOnly#save`'s `expected_version:`) finds the stored version has
+    # moved since this instance was read — someone else's write committed
+    # in between. `CommandInterpreter#call`/`EntityInterpreter#call` catch
+    # this themselves and retry the whole dispatch from a fresh hydrate, so
+    # `enforce_givens` re-evaluates against the now-current state; a caller
+    # only ever sees this escape when every retry is exhausted under
+    # sustained contention — an operational condition (many concurrent
+    # writers hammering one aggregate), not a business rule a domain author
+    # declared. See docs/decisions/ (concurrency-control ADR).
+    class StaleWrite < StandardError; end
+
     # A Lambda-routed domain's own refusal (rust/host, `Runtime::
     # RemoteDispatcher`), carrying Rust's own refusal text verbatim —
     # NOT yet mapped back to the specific matching class above

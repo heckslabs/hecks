@@ -64,11 +64,32 @@ module Hecks
         def append(entry) = @adapter.append(entry)
         def project(entry) = @adapter.project(entry)
 
-        def save(instance)
+        # Returns an `Outcome`, not a bare `Instance` — every call site
+        # (`CommandInterpreter`/`EntityInterpreter`'s own `step_save`,
+        # `RebuildSweep#refresh`) reads it that way.
+        #
+        # `expected_version:` requests optimistic-concurrency CAS — commit
+        # only if the stored record's version still matches what THIS
+        # instance was read at. It is `nil` both when a caller explicitly
+        # doesn't want CAS (`RebuildSweep#refresh`'s own projection-field
+        # touch-up, which has no `given` to protect) and when the instance
+        # is brand new (never read from storage, so `instance.version` is
+        # nil) — both cases fall through to the plain, unconditional
+        # `project(entry)` below, byte-for-byte today's behavior. Only an
+        # adapter that both receives a non-nil `expected_version` AND
+        # declares `:optimistic_concurrency` gets CAS treatment; every
+        # other adapter/call site is unaffected.
+        def save(instance, expected_version: nil)
           entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
           append(entry)
-          project(entry)
-          instance
+          if expected_version && capabilities.include?(:optimistic_concurrency)
+            saved = @adapter.project(entry, expected_version: expected_version)
+            return Outcome.new(status: :stale, instance: instance) if saved.nil?
+
+            return Outcome.new(status: :saved, instance: saved)
+          end
+          saved = @adapter.project(entry)
+          Outcome.new(status: :saved, instance: saved || instance)
         end
 
         def atomic_put(instance, insert_only: false)

@@ -31,6 +31,16 @@ module Hecks
       # Runtime::RefusalWording's own doc comment gives the same reason.
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("AggregateDispatchOrder")
 
+      # A LAST-RESORT SAFETY VALVE, NOT THE NORMAL OUTCOME PATH — see
+      # `Runtime::StaleWrite`'s own comment. Two concurrent writers
+      # against one aggregate resolve through exactly one retry in the
+      # ordinary case (the loser's retried hydrate reads the winner's now-
+      # committed state and its own `given` refuses for real, raising
+      # `GivenNotMet`, not `StaleWrite`) — this cap exists for pathological
+      # contention (many concurrent writers on one hot aggregate), not the
+      # two-writer case.
+      MAX_STALE_WRITE_RETRIES = 5
+
       # EVERY CROSS-STEP LOCAL `call` used to thread through its own literal
       # sequence, held in one place now that the sequence is data-driven —
       # `result` and `transition`/`old_state` default to nil until the step
@@ -49,14 +59,34 @@ module Hecks
       # dispatch would (givens checked, mutations applied to `ctx.instance`
       # in memory); `step_save`/`step_emit` are the only two that read this
       # flag, each skipping its own real work — see their own comments.
+      # RETRIES THE WHOLE METHOD BODY on `StaleWrite` — a fresh `ctx`, a
+      # fresh `step_hydrate` re-reading current state, so `enforce_givens`
+      # re-evaluates against reality rather than the snapshot that just
+      # went stale. See `MAX_STALE_WRITE_RETRIES`/`Runtime::StaleWrite`
+      # for why exhaustion is a pathological-contention signal, not the
+      # expected shape of a two-writer race.
       def call(domain, aggregate, command, args, correlation = nil, route: nil, dry_run: false)
-        ctx = Context.new(domain, aggregate, command, args)
-        ctx.correlation = correlation
-        ctx.route = route
-        ctx.dry_run = dry_run
-        ctx.plan = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
-        run_dispatch_order(DISPATCH_ORDER, ctx)
-        [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+        attempt = 0
+        begin
+          ctx = Context.new(domain, aggregate, command, args)
+          ctx.correlation = correlation
+          ctx.route = route
+          ctx.dry_run = dry_run
+          ctx.plan = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
+          # RESOLVED HERE, ONCE, BEFORE HYDRATION — `Registry#repository`
+          # memoizes, so this and `step_hydrate`'s own read of `ctx.repository`
+          # (no second fetch there any more) always name the same instance;
+          # the isolation decision below (lock vs. CAS+retry) needs the
+          # repository's capabilities before a single step runs.
+          ctx.repository = @registry.repository(domain, aggregate)
+          lock_id = Identity.best_effort(aggregate, args, route, reference_key: reference_key(command))
+          run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
+          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+        rescue StaleWrite
+          attempt += 1
+          retry if attempt < MAX_STALE_WRITE_RETRIES
+          raise
+        end
       end
 
       private
@@ -82,7 +112,8 @@ module Hecks
       end
 
       def step_hydrate(ctx)
-        ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
+        # `ctx.repository` is resolved once, in `#call`, before the
+        # isolation decision (lock vs. CAS+retry) — not here any more.
         ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.repository.capabilities)
         ctx.instance = step(:hydrate) {
           if ctx.plan.complete_state? && ctx.plan.state_independent?
@@ -233,14 +264,26 @@ module Hecks
                                       # this strategy exists to skip.
                                       ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
                                     else
-                                      ctx.repository.save(ctx.instance)
-                                      Ports::Persistence::Outcome.new(status: :saved, instance: ctx.instance)
+                                      # `expected_version:` is `ctx.instance.version` — nil for a
+                                      # brand-new record (never read from storage) or when the
+                                      # repository isn't CAS-capable, either of which falls straight
+                                      # through to a plain, unconditional save inside `AppendOnly#save`.
+                                      ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
                                     end
           if ctx.persistence_outcome.status == :conflicted
             raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
                                                        command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
                                                        identity: identity_reading(ctx.aggregate),
                                                        offered: Rendering.describe(ctx.instance.id)))
+          elsif ctx.persistence_outcome.status == :stale
+            # NOT a `RefusalWording.render` call — this is not a declared
+            # vocabulary refusal, just a plain, informative message. See
+            # `Runtime::StaleWrite`'s own comment: caught by `#call`'s
+            # retry loop, re-raised only once retries are exhausted.
+            raise(StaleWrite,
+                  "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
+                  "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
+                  "another write committed against this record after it was read")
           end
         end
       end

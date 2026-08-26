@@ -156,15 +156,27 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate",
   # of `hydrate_existing` — before EITHER reaches its own `save`. `find` is
   # not a fabricated seam; it is the one real method every state-dependent
   # dispatch already calls at exactly this point.
+  #
+  # ONLY THE FIRST `find` PER ADAPTER PAUSES. The fix under test retries a
+  # losing dispatch's whole `#call` on `StaleWrite` (CommandInterpreter's
+  # own optimistic-concurrency CAS) — a real, correct SECOND `find` inside
+  # that retry, re-reading the FIRST debit's now-committed balance. That
+  # second read must run free, not queue up waiting for a `release` token
+  # this helper only ever hands out once per adapter; only the INITIAL
+  # read is the one this test needs to force into the race window.
   def synchronize_after_find(*adapters)
     ready = Queue.new
     release = Queue.new
     adapters.each do |adapter|
       original_find = adapter.method(:find)
+      gated_once = false
       adapter.define_singleton_method(:find) do |id|
         result = original_find.call(id)
-        ready << true
-        release.pop
+        unless gated_once
+          gated_once = true
+          ready << true
+          release.pop
+        end
         result
       end
     end
@@ -172,19 +184,6 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate",
   end
 
   it "admits two concurrent Debits that together overdraw the account, instead of refusing the second" do
-    # KNOWN, NAMED GAP — not an accidental failure. This example documents a
-    # real lost-update bug in CommandInterpreter's unlocked read-modify-write
-    # path (hydrate_existing's `find` and step_save's `save` are two
-    # independent steps with no lock/transaction/version check between them
-    # — see command_interpreter.rb). `pending` keeps it running on every CI
-    # build instead of merely existing as inert prose: the day a fix lands
-    # (optimistic version column, per-key serialized dispatch, or similar)
-    # this example starts passing, RSpec reports it as an unexpected fix,
-    # and that failure is the signal to delete this `pending` line.
-    pending "lost-update gap in unlocked read-modify-write dispatch — no lock, transaction span, or " \
-            "version check sits between hydrate_existing's find and step_save's save (see " \
-            "command_interpreter.rb); tracked pending an optimistic-version or serialized-dispatch fix"
-
     seed = boot
     seed.dispatch("ConcurrencyGap::Account.Open", number: { value: "a" }, balance: { cents: 10_000 })
 
