@@ -1,66 +1,33 @@
-require "fileutils"
 require_relative "era_guard/shape_diff"
 require_relative "../bluebook/dsl/malformed"
 require_relative "../bluebook/meta_validator"
-require_relative "../naming"
 require_relative "../ports/loading"
-require_relative "../ports/persistence/lineage"
-require_relative "era_check"
 require_relative "registry"
 
 module Hecks
   module Runtime
-    # Detects when a bluebook's storage shape has drifted from what its data
-    # was written under — a rename or restructure with nothing to explain
-    # it. Refuses at boot, before a command can run into the gap and raise
-    # something that only makes sense once you already suspect a rename.
+    # The shape-drift coverage primitives — ADR 0032. Not a driver: nothing
+    # here walks a registry or reads/writes a held snapshot on its own.
+    # `PostgresEra::LineageManager::CoverageCheck` calls `uncovered_
+    # attributes`/`unsafe_additions`/`refuse_uncovered!`/`refuse_unsafe_
+    # addition!`/`check_vanished_aggregates!` directly, per translation
+    # edge, over its own DB-held shapes; `Translation::Reattest` and
+    # `PostgresEra::LineageManager` call `shadow_parse` directly, to read
+    # historical bluebook text under old grammar defaults. Both are real,
+    # independent, currently-shipped consumers.
     #
-    # The held source is a snapshot of the bluebook text as it stood the
-    # last time its shape was accepted. It updates only when a drift is
-    # seen AND covered by a translation — never on every boot, and never
-    # silently when a rename has nothing to explain it.
+    # A prior version of this module ALSO drove its own top-level check —
+    # `check!`/`check_bluebook!`, walking a registry and reading/writing a
+    # held snapshot under `data/eras/*.bluebook` — duplicating, on its own,
+    # the same per-aggregate walk `CoverageCheck` already performs against
+    # `PostgresEra`'s own DB-held shapes. Nothing in production ever called
+    # it (only a direct unit spec did); deleted rather than kept unwired,
+    # per ADR 0032. Wanted again, it's rebuilt informed by `CoverageCheck`'s
+    # real orchestration, not resurrected from here.
     module EraGuard
       extend ShapeDiff
 
       module_function
-
-      def check!(registry, directory)
-        registry.bluebooks.each_value { |bluebook| check_bluebook!(registry, bluebook, directory) }
-      end
-
-      def check_bluebook!(registry, bluebook, directory)
-        current_text = EraCheck.source_text_for(bluebook, directory)
-        return unless current_text
-
-        era_dir   = File.join(registry.root, "data", "eras")
-        held_path = File.join(era_dir, "#{Naming.snake(bluebook.name)}.bluebook")
-
-        FileUtils.mkdir_p(era_dir)
-        unless File.exist?(held_path)
-          File.write(held_path, current_text)
-          return
-        end
-
-        held_bluebook = shadow_parse(File.read(held_path, encoding: "UTF-8"), held_path)
-        drifted = false
-
-        bluebook.aggregates.each do |aggregate|
-          lineage = Ports::Persistence::Lineage.for(registry, bluebook.name, aggregate)
-          held_aggregate = held_bluebook.aggregate(lineage&.ancestor_name || aggregate.name)
-          next unless held_aggregate
-          next if shape(aggregate) == shape(held_aggregate)
-
-          drifted = true
-          uncovered = uncovered_attributes(aggregate, held_aggregate, lineage)
-          refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
-
-          unsafe = unsafe_additions(aggregate, held_aggregate, lineage)
-          refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
-        end
-
-        check_vanished_aggregates!(registry, bluebook, held_bluebook)
-        File.write(held_path, current_text) if drifted
-      end
 
       # An aggregate that existed in the held text and answers to no
       # current name — renamed silently, with nothing declaring `was:` to
@@ -87,8 +54,9 @@ module Hecks
         end
       end
 
-      # The Layer-1 coverage refusal — one wording, whoever detects the
-      # gap (the file-store boot check here, or Postgres's mint path).
+      # The Layer-1 coverage refusal — one wording, shared with whoever
+      # calls it (today, `PostgresEra::LineageManager::CoverageCheck`'s
+      # own mint-time coverage check).
       def refuse_uncovered!(bluebook, aggregate, uncovered)
         raise WiringError,
               "cannot boot #{bluebook.name}::#{aggregate.name}: its shape changed and " \

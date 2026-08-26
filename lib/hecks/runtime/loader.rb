@@ -3,6 +3,7 @@ require_relative "../ports/loading"
 require_relative "dispatcher"
 require_relative "remote_dispatcher"
 require_relative "era_check"
+require_relative "boot_gates"
 require_relative "registry"
 
 module Hecks
@@ -42,20 +43,7 @@ module Hecks
           loading.load_domain(directory, environment: environment)
         end
 
-        # The era gate runs BEFORE verify! builds repositories: minting an
-        # era (Postgres) must have created its partition and head views
-        # before any adapter opens them, and a refused era must refuse
-        # before any adapter touches data.
-        EraCheck.check!(registry, directory)
-        registry.verify!
-        # AFTER verify! (conservative — any wiring error surfaces first,
-        # not strictly required since resolution only needs the
-        # hecksagon binds, already loaded), BEFORE the dispatcher is
-        # built — repopulates `saga_instances` from whatever durable
-        # store each domain's own adapter answers with (§2-§4), so a
-        # process manager mid-flight at the last shutdown/crash/cold-
-        # start doesn't start this boot looking like it never began.
-        registry.rehydrate_sagas!
+        run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
@@ -95,11 +83,37 @@ module Hecks
           loading.load_selected(files, environment: environment)
         end
 
-        EraCheck.check!(registry, directory)
-        registry.verify!
-        registry.rehydrate_sagas!
+        run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
         install_facade ? bind_runtime(dispatcher) : dispatcher
+      end
+
+      # ADR 0031 — replaces the two previously-hardcoded, unconditional
+      # calls (`EraCheck.check!`, `registry.rehydrate_sagas!`) with a
+      # per-boot `BootGates` instance holding exactly the gates THIS
+      # registry's own bound adapters have a capability for. Ordering is
+      # preserved exactly: era-checking still runs before `verify!` (an
+      # era must mint/refuse before any adapter opens the shape it
+      # implies), saga rehydration still runs after (conservative — see
+      # `SagaPersistence#rehydrate_sagas!`'s own comment).
+      #
+      # `check_compute_rules_for_registry!` stays a third, unconditional
+      # call, alongside `verify!` — it is domain-agnostic (a compute rule
+      # requires Postgres whatever adapter is actually bound), not a
+      # capability the boot-gate registry exists to make optional.
+      def self.run_boot_gates!(registry, directory)
+        gates = BootGates.new
+        gates.register(:era_check, EraCheck.method(:check_lineage!), phase: :pre_verify) if
+          EraCheck.lineage_capable_registry?(registry)
+
+        EraCheck.check_compute_rules_for_registry!(registry)
+        gates.run!(:pre_verify, registry, directory)
+        registry.verify!
+
+        gates.register(:saga_rehydration, ->(reg, _dir) { reg.rehydrate_sagas! }, phase: :post_verify) if
+          registry.hecksagons.each_key.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
+        gates.run!(:post_verify, registry, directory)
+        gates
       end
 
       # `RemoteDispatcher` for a domain routed through Lambda,

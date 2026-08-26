@@ -44,8 +44,43 @@ module Hecks
       # the first refuses toward a scaffold that was never the real
       # drift.
       def check!(registry, directory)
+        check_compute_rules_for_registry!(registry)
+        check_lineage!(registry, directory)
+      end
+
+      # The domain-agnostic half, split out for ADR 0031's boot-gate
+      # registry: a compute rule requires Postgres whatever adapter is
+      # actually bound, so this must run for EVERY registry, the same way
+      # `registry.verify!` does — it is not conditional on any adapter
+      # being lineage-capable, and must never be skipped by
+      # `check_lineage!`'s own capability gate below.
+      def check_compute_rules_for_registry!(registry)
+        registry.bluebooks.each_value { |bluebook| check_compute_rules!(registry, bluebook) }
+      end
+
+      # The capability-gated half — ADR 0031's registered `:era_check`
+      # gate. Registration is conditional on `lineage_capable_registry?`;
+      # `check_bluebook!` below still carries its own per-bluebook
+      # `lineage_capable?` return-early, unchanged, for a registry with a
+      # mix of lineage-capable and plain-adapter bluebooks.
+      def check_lineage!(registry, directory)
         registry.bluebooks.each_value do |bluebook|
           check_bluebook!(registry, bluebook, source_text_for(bluebook, directory), directory: directory)
+        end
+      end
+
+      # The `:era_check` gate's own registration predicate: true iff at
+      # least one bluebook's own anchor (first) aggregate resolves to a
+      # lineage-capable adapter — mirrors `check_bluebook!`'s existing
+      # per-bluebook anchor check, just asked once, up front, of the
+      # whole registry, so a registry with nothing lineage-capable bound
+      # anywhere never registers the gate at all.
+      def lineage_capable_registry?(registry)
+        registry.bluebooks.each_value.any? do |bluebook|
+          first = bluebook.aggregates.first
+          next false unless first
+
+          lineage_capable?(registry, adapter_for(registry, bluebook.name, first))
         end
       end
 
@@ -80,8 +115,6 @@ module Hecks
       end
 
       def check_bluebook!(registry, bluebook, current_text, directory: nil)
-        check_compute_rules!(registry, bluebook)
-
         first = bluebook.aggregates.first
         return unless first
 

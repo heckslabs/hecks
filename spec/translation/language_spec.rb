@@ -1,5 +1,4 @@
 require "spec_helper"
-require "tmpdir"
 
 # Layer 0 of the translation language's validation story: a written rule
 # means what its author intended, or refuses loudly at load. Every
@@ -292,24 +291,38 @@ RSpec.describe "the translation language" do
       end
     BLUEBOOK
 
+    # Rewritten under ADR 0032: `EraGuard.check!`/`check_bluebook!` (the
+    # file-based `data/eras/*.bluebook` driver this used to round-trip
+    # through) is gone — it had no production caller, `PostgresEra` never
+    # used it, and it duplicated the same per-aggregate walk `CoverageCheck`
+    # already performs against its own DB-held shapes. This calls the
+    # surviving primitives directly, the same shape `CoverageCheck` does,
+    # over two in-memory registries — no file I/O, no `shadow_parse` round-
+    # trip needed, since both sources here are plain strings this test
+    # already controls (nothing historical to shadow-parse around).
     def check_era!(source, translation_source: nil)
-      Dir.mktmpdir do |dir|
-        domain_dir = File.join(dir, "bluebook")
-        FileUtils.mkdir_p(domain_dir)
-        File.write(File.join(domain_dir, "guarded.bluebook"), GUARDED_V1)
+      held = Hecks::Runtime::Registry.new
+      eval_bluebook(held, GUARDED_V1, "guarded_v1.bluebook")
+      held_bluebook = held.bluebook("Guarded")
 
-        registry = Hecks::Runtime::Registry.new(root: dir)
-        eval_bluebook(registry, GUARDED_V1, File.join(domain_dir, "guarded.bluebook"))
-        Hecks::Runtime::EraGuard.check!(registry, domain_dir)
+      drifted = Hecks::Runtime::Registry.new
+      eval_bluebook(drifted, source, "guarded_v2.bluebook")
+      Hecks.with_registry(drifted) { eval(translation_source) } if translation_source
 
-        File.write(File.join(domain_dir, "guarded.bluebook"), source)
-        drifted = Hecks::Runtime::Registry.new(root: dir)
-        eval_bluebook(drifted, source, File.join(domain_dir, "guarded.bluebook"))
-        if translation_source
-          Hecks.with_registry(drifted) { eval(translation_source) }
-        end
-        Hecks::Runtime::EraGuard.check!(drifted, domain_dir)
+      bluebook = drifted.bluebook("Guarded")
+      bluebook.aggregates.each do |aggregate|
+        lineage = Hecks::Ports::Persistence::Lineage.for(drifted, bluebook.name, aggregate)
+        held_aggregate = held_bluebook.aggregate(lineage&.ancestor_name || aggregate.name)
+        next unless held_aggregate
+
+        uncovered = Hecks::Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, lineage)
+        Hecks::Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
+
+        unsafe = Hecks::Runtime::EraGuard.unsafe_additions(aggregate, held_aggregate, lineage)
+        Hecks::Runtime::EraGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
       end
+
+      Hecks::Runtime::EraGuard.check_vanished_aggregates!(drifted, bluebook, held_bluebook)
     end
 
     it "a bare type rename refuses, and names retype among the remedies" do
