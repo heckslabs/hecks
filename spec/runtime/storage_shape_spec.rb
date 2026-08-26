@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 
 # What bumps an era and what does not — a contract-critical boundary.
 # The fixtures under spec/fixtures/eras/ each carry their own expected

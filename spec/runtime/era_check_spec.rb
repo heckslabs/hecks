@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
 # The boot-time gate for adapters that HAVE eras. Eras are facts about

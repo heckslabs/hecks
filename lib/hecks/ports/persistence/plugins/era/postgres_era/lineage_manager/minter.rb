@@ -1,7 +1,7 @@
-require_relative "../../../../runtime/registry"
-require_relative "../../../../runtime/storage_shape"
-require_relative "../../../../translation/audit"
-require_relative "../../../../translation/scaffold"
+require_relative "../../../../../../runtime/registry"
+require_relative "../../storage_shape"
+require_relative "../../translation/audit"
+require_relative "../../translation/scaffold"
 
 module Hecks
   module Adapters

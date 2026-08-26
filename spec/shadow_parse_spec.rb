@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
 # ADR 0025's own prerequisite (docs/dsl-work-slices.md, slice S0a): no

@@ -112,7 +112,7 @@ RSpec.describe Hecks::Runtime::BootGates do
       # `lineage_capable?`'s own `require "pg"` stays lazy — see
       # spec/exporter_spec.rb's identical registry-construction comment —
       # so asking the REGISTRATION question never needs a live Postgres.
-      require "hecks/adapters/driven/postgres_era"
+      require InMemoryDomain::ERA_PLUGIN
       registry = boot_registry do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)

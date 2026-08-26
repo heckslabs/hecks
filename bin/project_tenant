@@ -31,6 +31,10 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
+# ADR 0033 — provisioning a tenant against `PostgresEra` (this script's
+# own documented `--adapter=PostgresEra` option) needs the era
+# persistence plugin loaded; core no longer carries it unconditionally.
+require "hecks/ports/persistence/plugins/era"
 require "fileutils"
 require "optparse"
 

@@ -1,8 +1,8 @@
 require_relative "../facade/surface"
 require_relative "../ports/loading"
+require_relative "../ports/persistence"
 require_relative "dispatcher"
 require_relative "remote_dispatcher"
-require_relative "era_check"
 require_relative "boot_gates"
 require_relative "registry"
 
@@ -88,25 +88,26 @@ module Hecks
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
-      # ADR 0031 — replaces the two previously-hardcoded, unconditional
-      # calls (`EraCheck.check!`, `registry.rehydrate_sagas!`) with a
-      # per-boot `BootGates` instance holding exactly the gates THIS
+      # ADR 0031 — replaces two previously-hardcoded, unconditional calls
+      # with a per-boot `BootGates` instance holding exactly the gates THIS
       # registry's own bound adapters have a capability for. Ordering is
-      # preserved exactly: era-checking still runs before `verify!` (an
-      # era must mint/refuse before any adapter opens the shape it
-      # implies), saga rehydration still runs after (conservative — see
-      # `SagaPersistence#rehydrate_sagas!`'s own comment).
+      # preserved: era-checking (when a persistence plugin contributes one)
+      # still runs before `verify!`, saga rehydration still runs after
+      # (conservative — see `SagaPersistence#rehydrate_sagas!`'s own
+      # comment).
       #
-      # `check_compute_rules_for_registry!` stays a third, unconditional
-      # call, alongside `verify!` — it is domain-agnostic (a compute rule
-      # requires Postgres whatever adapter is actually bound), not a
-      # capability the boot-gate registry exists to make optional.
+      # ADR 0033 — this loader no longer names `EraCheck`, or any other
+      # era-specific class, at all. Every LOADED persistence plugin
+      # (`Ports::Persistence.each_plugin` — nothing here if nothing was
+      # ever `require`d) is asked to contribute its own `:pre_verify`/
+      # `:post_verify` gates generically; `:saga_rehydration` is the one
+      # gate core still registers directly, because ADR 0031 already
+      # proved it's not era-specific.
       def self.run_boot_gates!(registry, directory)
         gates = BootGates.new
-        gates.register(:era_check, EraCheck.method(:check_lineage!), phase: :pre_verify) if
-          EraCheck.lineage_capable_registry?(registry)
+        Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
+        check_compute_rules_backstop!(registry)
 
-        EraCheck.check_compute_rules_for_registry!(registry)
         gates.run!(:pre_verify, registry, directory)
         registry.verify!
 
@@ -114,6 +115,32 @@ module Hecks
           registry.hecksagons.each_key.any? { |domain| registry.saga_persistence(domain) != Ports::Persistence::NULL_SAGA_STORE }
         gates.run!(:post_verify, registry, directory)
         gates
+      end
+
+      # The one piece of the old, era-owned `check_compute_rules!` core
+      # still carries — deliberately thinner. `registry.translations` is
+      # plain `Bluebook::Translation`/`TranslationAggregate`/
+      # `TranslationCompute`/`TranslationRekey` data (`bluebook/
+      # translation.rb`, core, no era-specific class involved), so this
+      # needs nothing plugin-specific to ask "does anything declare a
+      # compute/rekey rule at all." A LOADED persistence plugin (e.g. the
+      # era plugin's own `:era_compute_rules` gate, registered above) runs
+      # the real, adapter-aware version of this check and refuses by name
+      # ("...is bound to Memory") long before this ever would; this only
+      # fires when nothing did, because nothing was loaded to.
+      def self.check_compute_rules_backstop!(registry)
+        return if Ports::Persistence.plugins_loaded?
+
+        registry.translations.each do |translation|
+          translation.aggregates.each do |aggregate|
+            next if aggregate.computes.empty? && aggregate.rekeys.empty?
+
+            raise WiringError,
+                  "cannot boot #{translation.domain}::#{aggregate.name}: a compute/rekey rule is declared, but no " \
+                  "persistence plugin that can interpret it is loaded (e.g. require " \
+                  "\"hecks/ports/persistence/plugins/era\")"
+          end
+        end
       end
 
       # `RemoteDispatcher` for a domain routed through Lambda,

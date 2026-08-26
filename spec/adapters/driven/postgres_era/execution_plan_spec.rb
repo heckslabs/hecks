@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 
 RSpec.describe "PostgresEra execution-plan capabilities", io: true do

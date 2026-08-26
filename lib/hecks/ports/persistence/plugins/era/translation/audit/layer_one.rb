@@ -1,6 +1,6 @@
-require_relative "../../runtime/errors"
-require_relative "../../runtime/instance"
-require_relative "../../runtime/value/invariant_violation"
+require_relative "../../../../../../runtime/errors"
+require_relative "../../../../../../runtime/instance"
+require_relative "../../../../../../runtime/value/invariant_violation"
 
 module Hecks
   module Translation

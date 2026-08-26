@@ -1,8 +1,8 @@
 require_relative "era_guard/shape_diff"
-require_relative "../bluebook/dsl/malformed"
-require_relative "../bluebook/meta_validator"
-require_relative "../ports/loading"
-require_relative "registry"
+require_relative "../../../../bluebook/dsl/malformed"
+require_relative "../../../../bluebook/meta_validator"
+require_relative "../../../../ports/loading"
+require_relative "../../../../runtime/registry"
 
 module Hecks
   module Runtime

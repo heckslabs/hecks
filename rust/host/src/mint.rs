@@ -1256,7 +1256,7 @@ mod tests {
         let aggregate = Aggregate { name: "Widget".to_string(), storage_name: "widget".to_string() };
         hold_first(&client, domain, "v1 source text (opaque to this crate)", &v1_ir, &[aggregate.clone()], None).await.expect("hold_first");
 
-        let config = journal::LineageConfig { domain: domain.to_string(), era: 1 };
+        let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1) };
         journal::append_lineage_mutation(
             &client,
             &config,
@@ -1372,7 +1372,7 @@ mod tests {
 
         async fn seed_era_one(client: &tokio_postgres::Client, domain: &str, v1_ir: &Value, aggregate: &Aggregate) {
             hold_first(client, domain, "v1 source text", v1_ir, std::slice::from_ref(aggregate), None).await.expect("hold_first");
-            let config = journal::LineageConfig { domain: domain.to_string(), era: 1 };
+            let config = journal::LineageConfig { domain: domain.to_string(), era: Some(1) };
             journal::append_lineage_mutation(
                 client,
                 &config,

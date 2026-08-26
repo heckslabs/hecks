@@ -1,6 +1,7 @@
 require "tmpdir"
 require "fileutils"
 require "open3"
+require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 
 # bin/project_tenant is a SCRIPT, not a library — same reasoning

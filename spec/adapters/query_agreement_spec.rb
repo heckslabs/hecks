@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 # `pg` is required explicitly — the adapter only requires it lazily,

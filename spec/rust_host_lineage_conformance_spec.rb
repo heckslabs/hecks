@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "securerandom"
+require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 
 # THE LINEAGE DIFFERENTIAL HARNESS — ADR 0029's step 4/5, `rust/host`'s

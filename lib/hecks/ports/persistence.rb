@@ -9,7 +9,7 @@ module Hecks
 end
 
 require_relative "persistence/binding_policy"
-require_relative "persistence/lineage"
+require_relative "persistence/plugin"
 require_relative "persistence/repository_factory"
 require_relative "persistence/append_only"
 require_relative "persistence/execution"

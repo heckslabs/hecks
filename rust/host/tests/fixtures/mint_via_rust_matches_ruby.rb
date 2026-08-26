@@ -33,6 +33,7 @@
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require "json"
 require "tempfile"
 require "open3"

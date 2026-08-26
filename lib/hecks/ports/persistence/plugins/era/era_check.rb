@@ -1,9 +1,9 @@
-require_relative "../ports/persistence"
-require_relative "../ports/persistence/binding_policy"
-require_relative "../ports/persistence/lineage"
-require_relative "../naming"
-require_relative "../framework"
-require_relative "registry"
+require_relative "../../../../ports/persistence"
+require_relative "../../../../ports/persistence/binding_policy"
+require_relative "lineage"
+require_relative "../../../../naming"
+require_relative "../../../../framework"
+require_relative "../../../../runtime/registry"
 
 module Hecks
   module Runtime

@@ -1,3 +1,14 @@
+# ADR 0033 — the `PostgresEra` Ruby CLASS moved into the loadable era
+# persistence plugin (`lib/hecks/ports/persistence/plugins/era/`); this
+# declaration stays here, unmoved. `Adapters::Folder#load_library` globs
+# `.adapter` files by DIRECTORY, not by require path, on every boot,
+# regardless of which adapters a given domain actually binds — the same
+# reason every other adapter's own `.adapter` file lives beside this one.
+# Pure metadata (which port, which fields) — no era-specific code, and
+# harmless for a domain that never binds `persisted_by "PostgresEra"`.
+# `registry.adapter_class("PostgresEra")` is only ever resolved for a
+# domain that actually binds to it, at which point the plugin must
+# already be `require`d for the class to exist.
 Hecks.adapter "PostgresEra" do
   port  "persistence"
   field :database

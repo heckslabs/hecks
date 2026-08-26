@@ -1,5 +1,5 @@
-require_relative "../../ports/persistence/append_only"
-require_relative "../../ports/persistence/lineage"
+require_relative "../../../../../../ports/persistence/append_only"
+require_relative "../../lineage"
 
 module Hecks
   module Translation

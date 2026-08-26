@@ -1,5 +1,5 @@
 require "digest"
-require_relative "../../projector/exporter"
+require_relative "../../../../../../projector/exporter"
 
 module Hecks
   module Translation

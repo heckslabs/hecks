@@ -1,4 +1,4 @@
-require_relative "../../../../runtime/registry"
+require_relative "../../../../../../runtime/registry"
 
 module Hecks
   module Adapters

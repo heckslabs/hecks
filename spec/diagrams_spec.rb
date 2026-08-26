@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 
 # docs/generated/diagrams/ is GENERATED from each domain's own declared
 # lifecycles, relationships, and dispatch chains by bin/project_diagrams

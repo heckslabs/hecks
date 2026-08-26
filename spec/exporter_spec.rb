@@ -7,12 +7,13 @@ RSpec.describe Hecks::Projector::Exporter do
     # adapter is this aggregate actually bound to," so a spec that
     # rebinds Order to Memory first would only ever prove the empty
     # case. `POSTGRES_ERA_ADAPTER` (the DSL declaration, InMemoryDomain's
-    # own constant) plus a plain `require` of the Ruby class — the same
+    # own constant) plus requiring the era plugin (ADR 0033 — `Exporter.
+    # lineage` refuses to answer at all unless it's loaded) — the same
     # pairing bin/project_rust's own header explains — is enough:
     # `lineage_capable?`'s `require "pg"` stays lazy, inside `PostgresEra.
     # connect_for` only, so this never needs a live database.
     def registry_with_pizzas_bound_to_postgres
-      require "hecks/adapters/driven/postgres_era"
+      require InMemoryDomain::ERA_PLUGIN
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)

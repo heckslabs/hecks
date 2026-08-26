@@ -1,8 +1,8 @@
-require_relative "../../../../ports/persistence/lineage"
-require_relative "../../../../runtime/era_guard"
-require_relative "../../../../runtime/identity"
-require_relative "../../../../runtime/registry"
-require_relative "../../../../translation/audit"
+require_relative "../../lineage"
+require_relative "../../era_guard"
+require_relative "../../../../../../runtime/identity"
+require_relative "../../../../../../runtime/registry"
+require_relative "../../translation/audit"
 
 module Hecks
   module Adapters

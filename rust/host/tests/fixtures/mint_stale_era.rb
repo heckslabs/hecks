@@ -17,6 +17,7 @@
 require "pg"
 $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require "tempfile"
 
 db_name, owner_role, app_role = ARGV

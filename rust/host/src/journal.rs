@@ -369,13 +369,20 @@ pub async fn delete_saga<C: GenericClient>(
 // reads `hecks_eras` once and compares an ordinal; the RLS policy is a
 // row-level Postgres CHECK this crate never evaluates itself.
 
-/// Which domain journal and era this deployed binary writes as —
+/// Which domain journal this deployed binary writes as, and which era —
 /// operational facts, like Ruby's own `settings[:domain]`/`settings[:era]`,
-/// never computed or embedded by this crate itself (main.rs reads them
-/// from `HECKS_DOMAIN`/`HECKS_ERA`).
+/// never computed or embedded by this crate itself (main.rs reads/derives
+/// them from `HECKS_DOMAIN` and its own boot-time mint decision).
+///
+/// `domain` is ALWAYS present — `dispatch::handle`'s own advisory lock
+/// (dispatch.rs's own header) needs it regardless of lineage capability,
+/// every deployed domain has exactly one. `era` is `None` for a domain
+/// with nothing lineage-capable bound and no Google auth configured
+/// (ADR 0034) — `main.rs`'s boot gate never touches `hecks_eras` at all
+/// in that case, so there is genuinely no era to name.
 pub struct LineageConfig {
     pub domain: String,
-    pub era: i32,
+    pub era: Option<i32>,
 }
 
 /// `Naming.snake` (lib/hecks/naming.rb:30-35), ported verbatim — a
@@ -516,6 +523,24 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     config: &LineageConfig,
     mutation: &Mutation<'_>,
 ) -> anyhow::Result<()> {
+    // ADR 0034 — the one chokepoint every lineage write passes through,
+    // so it's the one place that needs to know `era` might be absent.
+    // `dispatch::handle`'s own call site (dispatch.rs) already checks
+    // `config.era.is_some()` before ever reaching here, for an ordinary
+    // business mutation on a lineage-free domain — this `bail!` is the
+    // defensive backstop for any OTHER caller (today, only `auth.rs`,
+    // which never calls this unless Google auth is configured, and
+    // configuring it is exactly what makes `main.rs`'s own boot gate
+    // guarantee `era` is `Some` in the first place).
+    let Some(era) = config.era else {
+        anyhow::bail!(
+            "cannot append a lineage mutation for {}::{}: no era is active — the lineage subsystem was never \
+             initialized for this domain",
+            config.domain,
+            mutation.aggregate
+        );
+    };
+
     if mutation.operation != "save" {
         anyhow::bail!(
             "hecks_journal_{}: unsupported operation {:?} — only \"save\" is generated today",
@@ -525,7 +550,7 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     }
 
     let journal = journal_table(&config.domain);
-    let snapshot = head_snapshot_table(mutation.aggregate, config.era);
+    let snapshot = head_snapshot_table(mutation.aggregate, era);
     let storage = storage_name(mutation.aggregate);
 
     let row = client
@@ -535,7 +560,7 @@ pub async fn append_lineage_mutation<C: GenericClient>(
                  VALUES ($1, $2, $3, $4, $5) RETURNING ordinal",
                 quote_ident(&journal)
             ),
-            &[&config.era, &storage, &mutation.id, &mutation.operation, &mutation.state],
+            &[&era, &storage, &mutation.id, &mutation.operation, &mutation.state],
         )
         .await?;
     let ordinal: i64 = row.get(0);
@@ -776,7 +801,7 @@ mod lineage_tests {
         let state = serde_json::json!({ "cents": 100 });
 
         // The era this checkout speaks -- allowed.
-        let current_era = LineageConfig { domain: "Ledger".to_string(), era: 2 };
+        let current_era = LineageConfig { domain: "Ledger".to_string(), era: Some(2) };
         let accepted = append_lineage_mutation(
             &client,
             &current_era,
@@ -786,7 +811,7 @@ mod lineage_tests {
         assert!(accepted.is_ok(), "writing under the CURRENT era should succeed: {accepted:?}");
 
         // The SUPERSEDED era -- refused by Postgres's own RLS policy.
-        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: 1 };
+        let stale_era = LineageConfig { domain: "Ledger".to_string(), era: Some(1) };
         let refused = append_lineage_mutation(
             &client,
             &stale_era,
@@ -965,7 +990,7 @@ mod lineage_tests {
             .await
             .unwrap();
 
-        let config = LineageConfig { domain: "Fixtures".to_string(), era: 1 };
+        let config = LineageConfig { domain: "Fixtures".to_string(), era: Some(1) };
         client
             .batch_execute("CREATE TABLE IF NOT EXISTS hecks_journal_fixtures (ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)")
             .await

@@ -20,7 +20,6 @@ require_relative "hecks/bluebook"
 require_relative "hecks/router"
 
 require_relative "hecks/runtime"
-require_relative "hecks/translation"
 require_relative "hecks/adapters"
 require_relative "hecks/projector"
 # AFTER the projector registry and its `Target` mixin are both real —

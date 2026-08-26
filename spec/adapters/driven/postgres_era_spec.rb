@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
 
 # Runs only when a Postgres server is reachable (any local default

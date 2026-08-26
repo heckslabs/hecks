@@ -9,6 +9,9 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
+# ADR 0033 — the translation/scaffold machinery lives in the era
+# persistence plugin now; this tool has no reason to exist without it.
+require "hecks/ports/persistence/plugins/era"
 
 domain_path = ARGV.shift or abort "usage: bin/scaffold_translation <domain>"
 

@@ -13,6 +13,9 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
+# ADR 0033 — the translation/audit machinery lives in the era
+# persistence plugin now; this tool has no reason to exist without it.
+require "hecks/ports/persistence/plugins/era"
 require "json"
 
 approve = ARGV.delete("--approve")
