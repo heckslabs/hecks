@@ -31,7 +31,7 @@ require_relative "hecks/projections"
 # `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
 require_relative "hecks/facade/cli_door"
 require_relative "hecks/facade/cli_runner"
-require_relative "hecks/facade/mcp_door"
+require_relative "hecks/storehouse"
 require_relative "hecks/framework"
 require_relative "hecks/embryonaut_bluebook"
 

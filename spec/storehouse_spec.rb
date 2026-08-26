@@ -1,11 +1,12 @@
 require "spec_helper"
 
-# THE UNIVERSAL MCP DOOR — dispatch/query/state/catalog/describe/validate,
-# projected off the SAME machinery `CliRunner`/`JsonDoor` already use, so
-# these specs prove composition rather than re-deriving verb resolution or
-# JSON materialization from scratch.
-RSpec.describe Hecks::Facade::McpDoor do
-  # THE DOOR'S OWN AUDIT LOG IS REAL DISK STATE, keyed only by domain name
+# THE STOREHOUSE BUS — dispatch/query/state/catalog/describe/validate/...,
+# projected off the SAME machinery `CliRunner`/`Facade::JsonDoor` already
+# use, so these specs prove composition rather than re-deriving verb
+# resolution or JSON materialization from scratch. `bin/hecks_mcp_door`
+# is one MCP-over-stdio door onto this bus, not the bus itself.
+RSpec.describe Hecks::Storehouse do
+  # THE BUS'S OWN AUDIT LOG IS REAL DISK STATE, keyed only by domain name
   # ("Pizzas") — every example in this file that dispatches/queries/reads
   # state against `runtime` writes to the SAME file regardless of which
   # example it is, since a fresh in-memory `runtime` per example is not a

@@ -1,21 +1,26 @@
 #!/usr/bin/env ruby
 
-# THE UNIVERSAL MCP DOOR — one MCP server for EVERY booted domain, not one
-# per command. `docs/hecks-survey-what-we-wish-we-had.md` and
-# `docs/future-features.md`'s own "if we build three" #1 pick, extended
-# past the original six tools with the rest of that same survey's ranked
-# wishlist: `dispatch` (with `dry_run`/`steps`/`source`), `query`, `state`,
-# `catalog`, `describe`, `validate` (with `deep`), `domains`, `history`,
-# `behaviors`, `follow`. All the logic and the JSON shape it answers with
-# live in `Hecks::Facade::McpDoor` (lib/hecks/facade/mcp_door.rb) — this
-# file is JSON-RPC plumbing only, hand-rolled over stdio exactly the way
+# AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted
+# domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md`
+# and `docs/future-features.md`'s own "if we build three" #1 pick,
+# extended past the original six tools with the rest of that same
+# survey's ranked wishlist: `dispatch` (with `dry_run`/`steps`/`source`),
+# `query`, `state`, `catalog`, `describe`, `validate` (with `deep`),
+# `domains`, `history`, `behaviors`, `follow`. ALL the logic and the JSON
+# shape it answers with live in `Hecks::Storehouse` (lib/hecks/
+# storehouse.rb) — the bus itself, transport-blind. This file is JSON-RPC
+# plumbing ONLY, hand-rolled over stdio exactly the way
 # `bin/hecks_query_ir_mcp` already is (no gem dependency; newline-delimited
-# JSON, flushed after every write).
+# JSON, flushed after every write) — ONE projection of the bus, not the
+# whole thing. A second door of a different shape (a plain CLI, an HTTP
+# door) would sit beside this one, calling `Hecks::Storehouse` the exact
+# same way, sharing its audit log and caller-identity handling without
+# ever speaking MCP.
 #
 # `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a real caller
 # identity, bound for the call's duration via `Hecks.as_caller`, so a
-# role-gated command's authorization is actually CHECKED through this
-# door rather than merely documented by `describe`.
+# role-gated command's authorization is actually CHECKED through the bus
+# rather than merely documented by `describe`.
 #
 # EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
 # `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
@@ -58,7 +63,7 @@ ARGS_PROPERTY = {
 
 SOURCE_PROPERTY = {
   type:        "string",
-  enum:        Hecks::Facade::McpDoor::SOURCE_TAGS,
+  enum:        Hecks::Storehouse::SOURCE_TAGS,
   description: "Optional: who is calling, for the audit log `follow` reads back."
 }.freeze
 
@@ -250,47 +255,48 @@ def call_tool(name, a)
   when "dispatch"
     runtime = boot(a["domain"])
     if a["steps"]
-      Hecks::Facade::McpDoor.dispatch_batch(runtime: runtime, steps: a["steps"], summary: a["summary"],
-                                            source: a["source"], role: a["role"], actor_id: a["actor_id"])
+      Hecks::Storehouse.dispatch_batch(runtime: runtime, steps: a["steps"], summary: a["summary"],
+                                       source: a["source"], role: a["role"], actor_id: a["actor_id"])
     else
-      Hecks::Facade::McpDoor.dispatch(runtime: runtime, command: a["command"], summary: a["summary"],
-                                      args: a["args"] || {}, source: a["source"],
-                                      dry_run: a["dry_run"] == true, role: a["role"], actor_id: a["actor_id"])
+      Hecks::Storehouse.dispatch(runtime: runtime, command: a["command"], summary: a["summary"],
+                                 args: a["args"] || {}, source: a["source"],
+                                 dry_run: a["dry_run"] == true, role: a["role"], actor_id: a["actor_id"])
     end
   when "query"
-    Hecks::Facade::McpDoor.query(runtime: boot(a["domain"]), question: a["question"],
-                                 summary: a["summary"], args: a["args"] || {}, source: a["source"],
-                                 role: a["role"], actor_id: a["actor_id"])
+    Hecks::Storehouse.query(runtime: boot(a["domain"]), question: a["question"],
+                            summary: a["summary"], args: a["args"] || {}, source: a["source"],
+                            role: a["role"], actor_id: a["actor_id"])
   when "events"
-    Hecks::Facade::McpDoor.events(runtime: boot(a["domain"]), aggregate: a["aggregate"], id: a["id"],
-                                  limit: a["limit"])
+    Hecks::Storehouse.events(runtime: boot(a["domain"]), aggregate: a["aggregate"], id: a["id"],
+                             limit: a["limit"])
   when "state"
-    Hecks::Facade::McpDoor.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
-                                 summary: a["summary"], id: a["id"])
+    Hecks::Storehouse.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
+                            summary: a["summary"], id: a["id"])
   when "catalog"
-    Hecks::Facade::McpDoor.catalog(runtime: boot(a["domain"]))
+    Hecks::Storehouse.catalog(runtime: boot(a["domain"]))
   when "describe"
-    Hecks::Facade::McpDoor.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
+    Hecks::Storehouse.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
   when "validate"
-    Hecks::Facade::McpDoor.validate(domain: a["domain"], deep: a["deep"] == true)
+    Hecks::Storehouse.validate(domain: a["domain"], deep: a["deep"] == true)
   when "domains"
-    Hecks::Facade::McpDoor.domains(under: a["under"] || "examples")
+    Hecks::Storehouse.domains(under: a["under"] || "examples")
   when "history"
-    Hecks::Facade::McpDoor.history(runtime: boot(a["domain"]))
+    Hecks::Storehouse.history(runtime: boot(a["domain"]))
   when "behaviors"
-    Hecks::Facade::McpDoor.behaviors(target: a["target"])
+    Hecks::Storehouse.behaviors(target: a["target"])
   when "follow"
-    Hecks::Facade::McpDoor.follow(runtime: boot(a["domain"]), limit: a["limit"] || 20)
+    Hecks::Storehouse.follow(runtime: boot(a["domain"]), limit: a["limit"] || 20)
   else
     { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
   end
 rescue StandardError => e
   # A DEFECT, NOT A REFUSAL — every DOMAIN refusal is already caught inside
-  # `McpDoor` itself and answered as `{ok: false, error: "..."}`. Reaching
-  # here means something this door did not anticipate (a bad domain path,
-  # a malformed argument shape `JsonDoor` couldn't symbolize) — still
-  # answered as structured content rather than an MCP-level `isError`, so
-  # a calling agent reads one shape for every outcome.
+  # `Hecks::Storehouse` itself and answered as `{ok: false, error: "..."}`.
+  # Reaching here means something this door did not anticipate (a bad
+  # domain path, a malformed argument shape `Facade::JsonDoor` couldn't
+  # symbolize) — still answered as structured content rather than an
+  # MCP-level `isError`, so a calling agent reads one shape for every
+  # outcome.
   { ok: false, error: "#{e.class}: #{e.message}" }
 end
 
