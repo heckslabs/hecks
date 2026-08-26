@@ -1,20 +1,24 @@
 #!/usr/bin/env ruby
 
 # THE UNIVERSAL MCP DOOR — one MCP server for EVERY booted domain, not one
-# per command. `docs/hecks-survey-what-we-wish-we-had.md` #1 and
-# `docs/future-features.md`'s own "if we build three" #1 pick: `dispatch /
-# query / state / catalog / describe / validate`, six tools instead of a
-# hand-registered wrapper per verb. All the logic and the JSON shape it
-# answers with live in `Hecks::Facade::McpDoor` (lib/hecks/facade/
-# mcp_door.rb) — this file is JSON-RPC plumbing only, hand-rolled over
-# stdio exactly the way `bin/hecks_query_ir_mcp` already is (no gem
-# dependency; newline-delimited JSON, flushed after every write).
+# per command. `docs/hecks-survey-what-we-wish-we-had.md` and
+# `docs/future-features.md`'s own "if we build three" #1 pick, extended
+# past the original six tools with the rest of that same survey's ranked
+# wishlist: `dispatch` (with `dry_run`/`steps`/`source`), `query`, `state`,
+# `catalog`, `describe`, `validate` (with `deep`), `domains`, `history`,
+# `behaviors`, `follow`. All the logic and the JSON shape it answers with
+# live in `Hecks::Facade::McpDoor` (lib/hecks/facade/mcp_door.rb) — this
+# file is JSON-RPC plumbing only, hand-rolled over stdio exactly the way
+# `bin/hecks_query_ir_mcp` already is (no gem dependency; newline-delimited
+# JSON, flushed after every write).
 #
-# EVERY TOOL TAKES `domain:` — a directory containing a `.hecksagon`
-# (`examples/banking`, `examples/pizzas`, …), the same argument `bin/run`
-# takes. An MCP server's cwd is wherever the client launched it from, not
-# necessarily inside a domain, so there is no walking-up-for-.hecksagon
-# default the way `bin/run` has for a human sitting in one already.
+# EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
+# `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
+# argument `bin/run` takes. An MCP server's cwd is wherever the client
+# launched it from, not necessarily inside a domain, so there is no
+# walking-up-for-.hecksagon default the way `bin/run` has for a human
+# sitting in one already — `domains` exists precisely so a caller who
+# doesn't already know a path can find one.
 #
 # ONE BOOT PER CALL — `Hecks.boot(domain, install_facade: false)` is cheap
 # (a bluebook is a few hundred lines of Ruby DSL, not a network round
@@ -37,7 +41,8 @@ SUMMARY_PROPERTY = {
 
 DOMAIN_PROPERTY = {
   type:        "string",
-  description: "The domain directory, containing a .hecksagon (e.g. \"examples/banking\")."
+  description: "The domain directory, containing a .hecksagon (e.g. \"examples/banking\"). The `domains` tool " \
+               "lists what's available."
 }.freeze
 
 ARGS_PROPERTY = {
@@ -46,21 +51,43 @@ ARGS_PROPERTY = {
                "(e.g. {\"reference\":{\"value\":\"BUG#1\"}})."
 }.freeze
 
+SOURCE_PROPERTY = {
+  type:        "string",
+  enum:        Hecks::Facade::McpDoor::SOURCE_TAGS,
+  description: "Optional: who is calling, for the audit log `follow` reads back."
+}.freeze
+
 TOOLS = [
   {
     name:        "dispatch",
-    description: "Issue a command against a booted domain. `command` is the short or qualified verb name " \
-                 "(bin/docs or the catalog/describe tools show what's available). Answers the record's id, " \
-                 "its resulting state, and the events it announced — or a structured refusal, never a crash.",
+    description: "Issue a command against a booted domain — or, with `steps`, several in one call. `command` is " \
+                 "the short or qualified verb name (the catalog/describe tools show what's available). Set " \
+                 "`dry_run: true` to check whether it WOULD succeed without committing anything. Answers the " \
+                 "record's id, its resulting state, and the events it announced — or a structured refusal, " \
+                 "never a crash.",
     inputSchema: {
       type:       "object",
       properties: {
         domain:  DOMAIN_PROPERTY,
-        command: { type: "string", description: "The command's short or qualified name, e.g. \"open_account\"." },
+        command: { type: "string", description: "The command's short or qualified name, e.g. \"open_account\". " \
+                                                "Ignored when `steps` is given." },
         args:    ARGS_PROPERTY,
-        summary: SUMMARY_PROPERTY
+        summary: SUMMARY_PROPERTY,
+        source:  SOURCE_PROPERTY,
+        dry_run: { type: "boolean", description: "Preview only — check the command would succeed, commit nothing. " \
+                                                 "Ignored when `steps` is given." },
+        steps:   {
+          type:        "array",
+          description: "Run several commands in one call, in order. Each item: {command, args}. When given, " \
+                       "`command`/`args`/`dry_run` above are ignored.",
+          items:       {
+            type:       "object",
+            properties: { command: { type: "string" }, args: ARGS_PROPERTY },
+            required:   %w[command]
+          }
+        }
       },
-      required:   %w[domain command summary]
+      required:   %w[domain summary]
     }
   },
   {
@@ -73,7 +100,8 @@ TOOLS = [
         domain:   DOMAIN_PROPERTY,
         question: { type: "string", description: "The query's short or qualified name." },
         args:     ARGS_PROPERTY,
-        summary:  SUMMARY_PROPERTY
+        summary:  SUMMARY_PROPERTY,
+        source:   SOURCE_PROPERTY
       },
       required:   %w[domain question summary]
     }
@@ -120,10 +148,57 @@ TOOLS = [
     name:        "validate",
     description: "Zoom level three: is this domain's wiring sound — every bind names a declared aggregate, " \
                  "every adapter satisfies its port, the default adapter is usable. {valid:false, error:…} " \
-                 "on a real wiring defect, never a bare crash.",
+                 "on a real wiring defect, never a bare crash. Set `deep: true` to also model-check the IR " \
+                 "for dead lifecycle transitions, unreachable saga states, and dispatches to nowhere.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain: DOMAIN_PROPERTY,
+        deep:   { type: "boolean", description: "Also run the static model checker (lifecycle/saga/policy IR)." }
+      },
+      required:   %w[domain]
+    }
+  },
+  {
+    name:        "domains",
+    description: "Zoom level zero: every domain directory found under a root (default \"examples\"), so a " \
+                 "caller who doesn't already know a path can find one.",
+    inputSchema: {
+      type:       "object",
+      properties: { under: { type: "string", description: "Root directory to scan. Defaults to \"examples\"." } }
+    }
+  },
+  {
+    name:        "history",
+    description: "The full write history for every aggregate in a domain — every operation an append-only " \
+                 "adapter ever recorded, not just current state. An aggregate on a non-append-only adapter " \
+                 "answers an empty history honestly.",
     inputSchema: {
       type:       "object",
       properties: { domain: DOMAIN_PROPERTY },
+      required:   %w[domain]
+    }
+  },
+  {
+    name:        "behaviors",
+    description: "Run a domain's hand-curated `.behaviors` example tests and report pass/fail/error per test. " \
+                 "`target` is a single `.behaviors` file or a directory to sweep.",
+    inputSchema: {
+      type:       "object",
+      properties: { target: { type: "string", description: "A .behaviors file, or a directory to sweep." } },
+      required:   %w[target]
+    }
+  },
+  {
+    name:        "follow",
+    description: "Tail this door's own audit log for a domain — the last `limit` dispatch/query/state/dry-run " \
+                 "calls made through it, each carrying its summary, source, and outcome.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain: DOMAIN_PROPERTY,
+        limit:  { type: "integer", description: "How many recent entries to return. Defaults to 20." }
+      },
       required:   %w[domain]
     }
   }
@@ -134,11 +209,17 @@ def boot(domain) = Hecks.boot(domain, install_facade: false)
 def call_tool(name, a)
   case name
   when "dispatch"
-    Hecks::Facade::McpDoor.dispatch(runtime: boot(a["domain"]), command: a["command"],
-                                    summary: a["summary"], args: a["args"] || {})
+    runtime = boot(a["domain"])
+    if a["steps"]
+      Hecks::Facade::McpDoor.dispatch_batch(runtime: runtime, steps: a["steps"], summary: a["summary"],
+                                            source: a["source"])
+    else
+      Hecks::Facade::McpDoor.dispatch(runtime: runtime, command: a["command"], summary: a["summary"],
+                                      args: a["args"] || {}, source: a["source"], dry_run: !a["dry_run"].nil?)
+    end
   when "query"
     Hecks::Facade::McpDoor.query(runtime: boot(a["domain"]), question: a["question"],
-                                 summary: a["summary"], args: a["args"] || {})
+                                 summary: a["summary"], args: a["args"] || {}, source: a["source"])
   when "state"
     Hecks::Facade::McpDoor.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
                                  summary: a["summary"], id: a["id"])
@@ -147,7 +228,15 @@ def call_tool(name, a)
   when "describe"
     Hecks::Facade::McpDoor.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
   when "validate"
-    Hecks::Facade::McpDoor.validate(domain: a["domain"])
+    Hecks::Facade::McpDoor.validate(domain: a["domain"], deep: !!a["deep"])
+  when "domains"
+    Hecks::Facade::McpDoor.domains(under: a["under"] || "examples")
+  when "history"
+    Hecks::Facade::McpDoor.history(runtime: boot(a["domain"]))
+  when "behaviors"
+    Hecks::Facade::McpDoor.behaviors(target: a["target"])
+  when "follow"
+    Hecks::Facade::McpDoor.follow(runtime: boot(a["domain"]), limit: a["limit"] || 20)
   else
     { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
   end
@@ -183,7 +272,7 @@ def handle(request)
     send_response(id, {
                     protocolVersion: PROTOCOL_VERSION,
                     capabilities:    { tools: {} },
-                    serverInfo:      { name: "hecks-mcp-door", version: "1.0.0" }
+                    serverInfo:      { name: "hecks-mcp-door", version: "1.1.0" }
                   })
   when "notifications/initialized"
     nil # a notification — no id, no response

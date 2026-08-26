@@ -552,7 +552,7 @@ replace.
 | `bin/follow` | Live-tails a domain's append-only journal — the same data bin/history dumps statically, streamed as new entries land instead of read once... |
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
-| `bin/hecks_mcp_door` | THE UNIVERSAL MCP DOOR — one MCP server for EVERY booted domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md` #1 and `... |
+| `bin/hecks_mcp_door` | THE UNIVERSAL MCP DOOR — one MCP server for EVERY booted domain, not one per command. `docs/hecks-survey-what-we-wish-we-had.md` and `doc... |
 | `bin/hecks_query_ir_mcp` | AN MCP SERVER exposing Hecks::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/query... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
