@@ -1,15 +1,17 @@
 #!/usr/bin/env ruby
 
-# Live-tails a domain's append-only journal — the same data bin/history
-# dumps statically, streamed as new entries land instead of read once.
+# Live-tails a domain's own persisted event log — the declared `emits`
+# every command reports, durably recorded (not `registry.event_log`,
+# which is an in-process array gone at exit).
 #
-# AppendOnly (lib/hecks/ports/persistence/append_only.rb) has no
-# subscribe/notify hook — every adapter (Postgres/Sqlite/D1/Memory/heki)
-# only supports pull (`entries`, `count`). So this polls: each aggregate's
-# `entries` array is append-only and ordered, so a per-aggregate "entries
-# seen so far" count is enough to diff without re-printing anything —
-# the same mtime-diff-on-a-poll-loop shape as any file watcher, just
-# diffing an array length instead of an mtime.
+# `events`/`record_event` are ONE table per domain, not per aggregate
+# (see lib/hecks/adapters/driven/postgres.rb's own `events` table) — so
+# unlike bin/history's per-aggregate walk, this polls a single
+# repository (whichever aggregate's adapter answers `:events` first)
+# and filters client-side when `--aggregate` narrows it. AppendOnly has
+# no subscribe/notify hook, only pull, so this diffs `events.size`
+# against a last-seen count each tick — the same shape as any
+# mtime-diffing file watcher, just diffing an array length instead.
 #
 # One JSON object per line (JSONL), so this composes with jq/grep the
 # way bin/history's single blob deliberately does not.
@@ -28,45 +30,34 @@ options = { interval: 0.5, from_now: false }
 
 OptionParser.new do |parser|
   parser.banner = "usage: bin/follow <domain> [options]"
-  parser.on("-a", "--aggregate=NAME", "Only follow this aggregate (storage name)") { |v| options[:aggregate] = v }
+  parser.on("-a", "--aggregate=NAME", "Only follow events for this aggregate (e.g. Order)") { |v| options[:aggregate] = v }
   parser.on("-i", "--interval=SECONDS", Float, "Poll interval in seconds (default: 0.5)") { |v| options[:interval] = v }
-  parser.on("--from-now", "Skip existing entries; only print ones appended from now on") { options[:from_now] = true }
+  parser.on("--from-now", "Skip existing events; only print ones emitted from now on") { options[:from_now] = true }
 end.parse!(ARGV)
 
 runtime = Hecks.boot(domain_name)
 
-# storage_name => [repository, entries already printed]
-watched = runtime.registry.bluebooks.each_with_object({}) do |(bluebook_domain, bluebook), all|
-  bluebook.aggregates.each do |aggregate|
-    next if options[:aggregate] && aggregate.storage_name != options[:aggregate]
+repositories = runtime.registry.bluebooks.flat_map do |bluebook_domain, bluebook|
+  bluebook.aggregates.map { |aggregate| runtime.registry.repository(bluebook_domain, aggregate) }
+end
+repository = repositories.find { |repo| repo.respond_to?(:events) }
 
-    repository = runtime.registry.repository(bluebook_domain, aggregate)
-    next unless repository.is_a?(Hecks::Ports::Persistence::AppendOnly)
+abort "bin/follow: no adapter in #{domain_name} persists an event log" unless repository
 
-    seen = options[:from_now] ? repository.entries.size : 0
-    all[aggregate.storage_name] = [repository, seen]
-  end
+def matches?(event, filter)
+  filter.nil? || event.aggregate.to_s.split("::").last.casecmp?(filter) || event.aggregate == filter
 end
 
-abort "bin/follow: no matching append-only aggregates in #{domain_name}" if watched.empty?
+seen = options[:from_now] ? repository.events.size : 0
 
 $stdout.sync = true
 trap("INT") { exit }
 
 loop do
-  watched.each do |storage_name, (repository, seen)|
-    entries = repository.entries
-    next if entries.size <= seen
-
-    entries[seen..].each do |entry|
-      puts JSON.generate(
-        "aggregate" => storage_name,
-        "operation" => entry.operation,
-        "id"        => entry.id,
-        "state"     => entry.state
-      )
-    end
-    watched[storage_name][1] = entries.size
+  events = repository.events
+  if events.size > seen
+    events[seen..].each { |event| puts JSON.generate(event.to_h) if matches?(event, options[:aggregate]) }
+    seen = events.size
   end
 
   sleep options[:interval]

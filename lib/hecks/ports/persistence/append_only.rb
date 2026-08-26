@@ -90,7 +90,22 @@ module Hecks
           true
         end
 
-        def record_event(event) = @adapter.record_event(event) if @adapter.respond_to?(:record_event)
+        # NOT an endless `def record_event = ... if ...` — same gotcha as
+        # `events` above, and it bit for real here: this guard evaluated
+        # against `@adapter` at class-body time (nil, always false), so
+        # `record_event` was never defined at all. `emission.rb`'s own
+        # `repository.record_event(event) if repository.respond_to?(:record_event)`
+        # therefore never fired for any adapter, ever — every declared
+        # `emits` was computed and reported in `registry.event_log` (an
+        # in-process array, gone at exit) but never durably recorded.
+        # Caught because a live tail of a domain's own persisted events
+        # found nothing to tail. `sqlite_spec.rb`/`postgres_spec.rb`/
+        # `postgres_era_spec.rb` all call `adapter.record_event` directly,
+        # bypassing this wrapper — which is exactly why no spec noticed.
+        def record_event(event)
+          @adapter.record_event(event) if @adapter.respond_to?(:record_event)
+        end
+
         def query_read_model(domain, model, args, bluebook = nil)
           return unless @adapter.respond_to?(:query_read_model)
 

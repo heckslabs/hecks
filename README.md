@@ -550,7 +550,7 @@ replace.
 | `bin/docs` | A domain's usage document, projected from its own bluebook. bin/docs # list every domain in this checkout bin/docs examples/banking # the... |
 | `bin/evolve` | The language-change convention, made executable. Adding a word to the bluebook surface has always been a many-file walk — syntax row, Rub... |
 | `bin/expression_projection` | The expression machinery's tables, projected from the grammar chapter's admitted set and checked in, so the evaluator and the canonical f... |
-| `bin/follow` | Live-tails a domain's append-only journal — the same data bin/history dumps statically, streamed as new entries land instead of read once... |
+| `bin/follow` | Live-tails a domain's own persisted event log — the declared `emits` every command reports, durably recorded (not `registry.event_log`, w... |
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecks::Fuzzing::SequenceGenerator) and checks each one the way... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
 | `bin/hecks_mcp_door` | AN MCP DOOR ONTO THE STOREHOUSE BUS — one MCP server for EVERY booted domain, not one per command. `docs/hecks-survey-what-we-wish-we-had... |
