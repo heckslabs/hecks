@@ -46,3 +46,6 @@ you're not.
 14. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
     is used, in its own vocabulary, run as tests: `bin/behaviors`, the
     rspec shim, and what `emits:` sees through a real policy cascade.
+15. **[Language versioning](language-versioning.md)** — how the bluebook
+    surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
+    and what `bin/evolve` does with a rename.

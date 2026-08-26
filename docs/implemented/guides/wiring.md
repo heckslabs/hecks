@@ -13,17 +13,40 @@ will listen to it, and which values differ from one deployment to the
 next. The domain says WHAT: the wiring says
 WHERE, and neither file is allowed to say the other's part.
 
-## The folder convention, briefly
+## The folder convention
 
-`README.md`'s own **folder convention** section is the source of
-truth here and is not repeated in full below; read it first if it has not been read yet.
-The shape it settles: a domain's own `bluebook/` folder holds exactly
-three files with three different jobs — `.bluebook` (what the domain
-IS), `.hecksagon` (how THIS deployment wires it), `.world` (what
-values THIS deployment uses) — and ports/adapters live with the
-library or a project's own `ports/`/`adapters/` folder, never inside a
-domain's own folder. Everything below is what actually goes inside the
-second and third of those three files.
+A domain's own `bluebook/` folder holds exactly three files with three
+different jobs — `.bluebook` (what the domain IS), `.hecksagon` (how
+THIS deployment wires it), `.world` (what values THIS deployment
+uses) — and nothing else:
+
+```ruby skip
+examples/pizzas/
+  bluebook/
+    pizzas.bluebook        the domain
+    pizzas.hecksagon       the wiring
+    pizzas.world           the per-deployment values
+  data/
+```
+
+Ports and adapters ship with the library instead, beside their own
+implementation, never inside a domain's folder:
+
+```ruby skip
+lib/hecks/ports/            the PORT — the how-verb and the signal
+lib/hecks/adapters/driven/
+  sqlite.adapter                 the DECLARATION
+  sqlite.rb                      the IMPLEMENTATION
+  memory.* heki.* postgres.* folder.* prism.*
+```
+
+A project bringing its own port or adapter puts them in a `ports/` or
+`adapters/` folder above its domains, found by walking up — the
+library's own load runs first, so a project's can only add, never
+replace.
+
+Everything below is what actually goes inside the second and third of
+those three files.
 
 ## The declaration
 
@@ -234,6 +257,40 @@ Hecks.world "Pizzas" do
   end
 end
 ```
+
+A `.world` block can carry more than one adapter binding, plus a
+deployment target. `examples/banking/bluebook/banking.world`, quoted
+verbatim:
+
+```ruby skip
+Hecks.world "Banking" do
+  realm "Examples"
+  latest "v1"
+  persisted_by("Heki") do
+    dir "data"
+  end
+
+  projected_by("SqliteProjection") do
+    database "data/banking_projection.sqlite3"
+  end
+
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+    database "Shared"    # no RDS of Banking's own
+    owner "ExampleTeam"  # isolated by its own native Postgres schema
+  end
+end
+```
+
+`deployed_to("AwsLambda")` is read by `bin/project_deploy` (see
+[Projections: Rust and
+WebAssembly](../../../README.md#projections-rust-and-webassembly) in
+the README, and [architecture-map.md](../../architecture-map.md) for
+the projector inventory) to generate a self-contained SAM template,
+build Makefile, and bastion config — its own VPC and RDS Postgres
+instance, no secret typed anywhere.
 
 ## Writing your own port or adapter
 

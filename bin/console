@@ -10,6 +10,13 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 require "irb"
 
+# ADR 0033 — the era/lineage subsystem (including `PostgresEra`) moved
+# behind a loadable persistence plugin core no longer requires by
+# default. The pizzas example this script boots by default wires
+# `PostgresEra`, so this console needs the plugin explicitly, same as
+# bin/project_rust and every other consumer that boots a real domain.
+require "hecks/ports/persistence/plugins/era"
+
 DOMAIN  = ARGV.shift || File.expand_path("../examples/pizzas", __dir__)
 RUNTIME = Hecks.boot(DOMAIN)
 

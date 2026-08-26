@@ -1,6 +1,11 @@
 # Ruby is the reference implementation; other runtimes validate against it, continuously
 
-**Status:** Accepted — not yet implemented. Supersedes the "wait for IR stability" entry criterion in [0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md)'s original Phase 5 placement.
+**Status:** Accepted — implemented. The differential harness this ADR
+specifies is real and runs in CI: `spec/rust_conformance_spec.rb`,
+`spec/codegen_parity_spec.rb`, and `spec/parser_parity_spec.rb`.
+Supersedes the "wait for IR stability" entry criterion in
+[0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md)'s
+original Phase 5 placement.
 
 ## Context
 

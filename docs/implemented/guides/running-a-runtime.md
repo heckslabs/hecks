@@ -490,6 +490,23 @@ resolved to.
 
 ## The expression grammar
 
+A command's predicate is Ruby, parsed by Prism (Ruby's own parser gem,
+not a second grammar written by hand) and reduced to this canonical
+text at DSL-build time — the same reason a domain as a whole is data
+rather than code:
+
+```ruby skip
+given("at most 10 toppings") { toppings.size < 10 }
+                     ↓
+            "toppings.size < 10"
+```
+
+An operator is admitted to this grammar only once it reads as a real
+rendering of a real rule already in the corpus — an operator with no
+rendering is not a slow operator, it is not an operator. Every operator
+the evaluator runs passes through this admission gate on each suite
+run, checked, not aspired to.
+
 `given`, `ensures`, and every value-object `invariant` are strings —
 already normalized at DSL-build time (whitespace collapsed, `.length`
 rewritten to `.size`), so the SAME text you see in the IR is exactly

@@ -10,6 +10,9 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
+# ADR 0033 — a domain wired to PostgresEra needs this plugin loaded
+# explicitly; the era/lineage subsystem no longer loads with core.
+require "hecks/ports/persistence/plugins/era"
 
 if ARGV.delete("--meta")
   # THE LANGUAGE'S OWN IR — Bluebook, Aggregate, Command, ValueObject,

@@ -16,6 +16,15 @@ documents the other answer: the shape change is declared, the same way
 everything else here is declared, and a real tool tells you — before
 you boot — whether every old record survives it.
 
+This is `PostgresEra`'s job specifically, not Postgres's in general.
+Plain `Postgres` has no era tracking — it boots whatever text it is
+handed, the same as `Memory`, `Sqlite`, and `Heki`, none of which carry
+a translation system either. `PostgresEra` is the one binding that
+holds the source text a booted domain was born from, refuses on drift
+between held text and booting text, and requires a deliberate
+`translations/*.bluebook` file the moment a shape change would
+otherwise silently reinterpret old rows.
+
 ## It already happened here
 
 This is not a hypothetical. `examples/pizzas` lived through exactly this,
