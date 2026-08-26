@@ -278,6 +278,72 @@ RSpec.describe "the generated diagrams" do
     expect(surface_files.size).to eq(holders_with_surface.size)
   end
 
+  # ── surface -> what each command writes ───────────────────────────────
+
+  it "draws exactly one edge per real mutation Order's own commands declare, no more and no fewer" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    declared = order.commands.sum { |c| c.mutations.size }
+    drawn = diagram.lines.count { |line| line.include?("attr_Order_") }
+    expect(drawn).to eq(declared)
+  end
+
+  it "names the real argument a set/increment/decrement pulls from, in pizzas" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    expect(diagram).to include('cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| attr_Order_customer_name[customer_name]')
+  end
+
+  it "states a literal source verbatim, quoted, distinct from an argument source" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    expect(diagram).to include("cmd_Order_Purchase([\"Order.Purchase\"]) -->|\"sets: 'sold'\"| attr_Order_status[status]")
+  end
+
+  it "names an append's own field names, not a single source, since it has none" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    expect(diagram).to include('cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| attr_Order_toppings[toppings]')
+  end
+
+  # THE REAL, INTERESTING CASE: an increment/decrement's own argument
+  # name does NOT always match its target — banking's own Account.Credit
+  # increments `balance` from an `amount` argument, and LedgerEntry.Amend
+  # increments `amount` from an `adjustment` argument. Naming the real
+  # argument, not just the verb, is what makes that visible at all.
+  it "names a real argument that doesn't share its target's own name, in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Account_surface.mmd"]
+    expect(diagram).to include('cmd_Account_Credit(["Account.Credit"]) -->|"increments: amount"| attr_Account_balance[balance]')
+  end
+
+  # MERGES ACROSS COMMANDS THE SAME WAY read_models.mmd MERGES ACROSS
+  # read_models — real in banking: six different Account commands all
+  # write `balance`, and the node merges into one rather than drawing six.
+  it "merges the same attribute into one node across every command that writes it, in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Account_surface.mmd"]
+    balance_edges = diagram.lines.count { |line| line.include?("attr_Account_balance[balance]") }
+    expect(balance_edges).to eq(6) # Credit, Debit, ApplyFee, CorrectFee, AccrueInterest, CorrectInterest
+  end
+
+  # THE BUG THIS TYPE ACTUALLY HAD: a literal value that is itself a
+  # rendered value-object hash (banking's own Customer.Reinstate sets
+  # `standing` to `{:value=>"good"}`) carries a double quote of its own,
+  # which broke this label's outer `|"..."|` quoting outright. Caught by
+  # running the real generated output through mermaid.parse(), not by
+  # eye — pinned here so a future edit can't drop the fix without this
+  # failing.
+  it "swaps an embedded double quote in a literal value for a single quote, so it can't break the label's own quoting" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Customer_surface.mmd"]
+    expect(diagram).to include("cmd_Customer_Reinstate([\"Customer.Reinstate\"]) -->|\"sets: '{:value=>'good'}'\"| attr_Customer_standing[standing]")
+  end
+
+  # A REAL, GENUINE ZERO — Order.CreatePizza declares no `sets`/
+  # `increment`/`decrement`/`append` of its own at all (its own record
+  # comes into being from the command's own arguments at construction,
+  # not a mutation); it still gets its ordinary "does" edge, just no
+  # write edge alongside it.
+  it "draws no mutation edges at all for a command that genuinely declares none" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
+    expect(diagram).to include('Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])')
+    expect(diagram).not_to include('cmd_Order_CreatePizza(["Order.CreatePizza"]) -->|"')
+  end
+
   # ── sagas -> stateDiagram-v2 ───────────────────────────────────────────
 
   # Settlement IS THE RICH REAL CASE: a self-loop (TransferRequested fires

@@ -48,6 +48,7 @@ module Hecks
     #                                          declares at least one command
     #                                          or query — everything you can
     #                                          DO to it and ASK about it,
+    #                                          AND what each command WRITES,
     #                                          in one place
     #   <Name>_saga.mmd       stateDiagram-v2  one per process_manager —
     #                                          its own states, and what
@@ -405,16 +406,81 @@ module Hecks
       # anything. Command edges are solid ("does"); query edges are
       # dotted ("asks") — the same solid/dotted split `ports.mmd`
       # already uses for "routes to:" versus "exposes".
+      #
+      # A WRITE TARGET IS A PLAIN RECTANGLE — a sixth shape, the first
+      # here with no special bracket at all: an attribute is the
+      # smallest, most passive thing this vocabulary names, a single
+      # field living INSIDE the cylinder rather than a bounded thing of
+      # its own. `command.mutations` (`sets`/`increment`/`decrement`/
+      # `append`) was invisible everywhere before this — not just in a
+      # diagram, in ANY projection, including the prose ones — despite
+      # being the single densest fact in the whole IR (53 real
+      # mutations across pizzas + banking). `dispatch.mmd` draws what a
+      # command EMITS; this draws what it WRITES, the other half of
+      # "what actually happens" a command never showed before.
+      #
+      # THE SAME ATTRIBUTE NODE MERGES ACROSS COMMANDS — real in
+      # banking: `Account.Credit` and `Account.Debit` both point at the
+      # same `balance` node, the same "one node, several incoming
+      # edges" merge `read_models.mmd` already does for an aggregate
+      # fed by several read_models.
+      #
+      # THE LABEL NAMES THE REAL SOURCE, NOT JUST THE VERB — an
+      # increment/decrement/set almost always takes its value from an
+      # argument, but not always the SAME-NAMED one: real in banking,
+      # `Account.Credit`'s own `balance` is incremented by its
+      # `amount` argument, and `LedgerEntry.Amend`'s own `amount` is
+      # incremented by its `adjustment` argument. A literal source
+      # (pizzas' own `Order.Purchase` sets `status` to the literal
+      # `"sold"`, not an argument at all) is named as verbatim as
+      # every other fact in this file. `append`'s own fields carry no
+      # single source at all — its own field NAMES are the fact worth
+      # stating (real: `Order.AddTopping` appends `name, amount`).
       def surface_diagram(bluebook, holder)
         lines = holder.commands.map { |command| "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}" }
+        lines += holder.commands.flat_map { |command| command.mutations.map { |mutation| mutation_edge(holder, command, mutation) } }
         lines += holder.queries.map { |query| "    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|asks| #{query_node(holder.hecks_name, query.hecks_name)}" }
 
-        subject = "#{holder.hecks_name}'s own declared commands and queries"
+        subject = "#{holder.hecks_name}'s own declared commands (and what each writes) and queries"
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
       end
 
       def query_node(aggregate_name, query_name)
         %(qry_#{aggregate_name}_#{query_name}{"#{aggregate_name}.#{query_name}"})
+      end
+
+      def mutation_edge(holder, command, mutation)
+        shape = mutation.to_h
+        label = mutation_label(shape)
+        target = attribute_node(holder.hecks_name, shape[:target])
+        %(    #{command_node(holder.hecks_name, command.hecks_name)} -->|"#{label}"| #{target})
+      end
+
+      def mutation_label(shape)
+        verb = "#{shape[:op]}s"
+        detail = shape[:op] == :append ? shape[:fields].keys.join(", ") : mutation_source_detail(shape[:source])
+        "#{verb}: #{detail}"
+      end
+
+      # A LITERAL VALUE CAN CONTAIN A DOUBLE QUOTE OF ITS OWN — real in
+      # banking: `Customer.Reinstate` sets `standing` to a rendered
+      # value-object literal, `{:value=>"good"}`, whose own embedded `"`
+      # broke this label's outer `|"..."|` quoting outright (caught by
+      # running the real generated output through mermaid.parse(), not
+      # by eye — the same way `read_models.mmd`'s own unquoted `[]` bug
+      # was caught). Swapped for a single quote here rather than
+      # escaped, the same "state it, don't invent it, just make it
+      # legal Mermaid" trade `read_models.mmd`'s own quoting fix made.
+      def mutation_source_detail(source)
+        case source[:kind]
+        when "literal"  then "'#{source[:value].to_s.tr('"', "'")}'"
+        when "argument" then source[:name]
+        else source[:kind] # a source kind this file has no real corpus example of yet — named, not hidden
+        end
+      end
+
+      def attribute_node(holder_name, attribute_name)
+        %(attr_#{holder_name}_#{attribute_name}[#{attribute_name}])
       end
 
       # ── sagas -> stateDiagram-v2 ─────────────────────────────────────
