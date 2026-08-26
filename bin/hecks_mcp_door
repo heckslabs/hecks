@@ -12,6 +12,11 @@
 # `bin/hecks_query_ir_mcp` already is (no gem dependency; newline-delimited
 # JSON, flushed after every write).
 #
+# `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a real caller
+# identity, bound for the call's duration via `Hecks.as_caller`, so a
+# role-gated command's authorization is actually CHECKED through this
+# door rather than merely documented by `describe`.
+#
 # EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
 # `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
 # argument `bin/run` takes. An MCP server's cwd is wherever the client
@@ -57,6 +62,18 @@ SOURCE_PROPERTY = {
   description: "Optional: who is calling, for the audit log `follow` reads back."
 }.freeze
 
+ROLE_PROPERTY = {
+  type:        "string",
+  description: "Optional: bind a real caller identity for the call's duration, so a role-gated command's " \
+               "authorization is actually checked rather than merely documented. Required if `actor_id` is given."
+}.freeze
+
+ACTOR_ID_PROPERTY = {
+  type:        "string",
+  description: "Optional, alongside `role`: WHO holds that role — once the domain attaches Governance, checked " \
+               "against a real Governance::RoleAssignment instead of a bare string match. Requires `role`."
+}.freeze
+
 TOOLS = [
   {
     name:        "dispatch",
@@ -68,15 +85,17 @@ TOOLS = [
     inputSchema: {
       type:       "object",
       properties: {
-        domain:  DOMAIN_PROPERTY,
-        command: { type: "string", description: "The command's short or qualified name, e.g. \"open_account\". " \
-                                                "Ignored when `steps` is given." },
-        args:    ARGS_PROPERTY,
-        summary: SUMMARY_PROPERTY,
-        source:  SOURCE_PROPERTY,
-        dry_run: { type: "boolean", description: "Preview only — check the command would succeed, commit nothing. " \
+        domain:   DOMAIN_PROPERTY,
+        command:  { type: "string", description: "The command's short or qualified name, e.g. \"open_account\". " \
                                                  "Ignored when `steps` is given." },
-        steps:   {
+        args:     ARGS_PROPERTY,
+        summary:  SUMMARY_PROPERTY,
+        source:   SOURCE_PROPERTY,
+        role:     ROLE_PROPERTY,
+        actor_id: ACTOR_ID_PROPERTY,
+        dry_run:  { type: "boolean", description: "Preview only — check the command would succeed, commit nothing. " \
+                                                  "Ignored when `steps` is given." },
+        steps:    {
           type:        "array",
           description: "Run several commands in one call, in order. Each item: {command, args}. When given, " \
                        "`command`/`args`/`dry_run` above are ignored.",
@@ -101,9 +120,29 @@ TOOLS = [
         question: { type: "string", description: "The query's short or qualified name." },
         args:     ARGS_PROPERTY,
         summary:  SUMMARY_PROPERTY,
-        source:   SOURCE_PROPERTY
+        source:   SOURCE_PROPERTY,
+        role:     ROLE_PROPERTY,
+        actor_id: ACTOR_ID_PROPERTY
       },
       required:   %w[domain question summary]
+    }
+  },
+  {
+    name:        "events",
+    description: "What actually HAPPENED, with payloads, to one aggregate/record — events THIS DOOR witnessed " \
+                 "(every real dispatch ever routed through it, sourced from its own audit log — not a full " \
+                 "domain-wide event-sourcing replay). Distinct from `state` (what's stored now) and `history` " \
+                 "(append-only operation snapshots, no payload). Narrow with `aggregate` and (requires " \
+                 "`aggregate`) `id`; `limit` keeps only the most recent.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain:    DOMAIN_PROPERTY,
+        aggregate: { type: "string", description: "Narrow to one aggregate, e.g. \"Account\"." },
+        id:        { type: "string", description: "Narrow to one record's own events. Requires `aggregate`." },
+        limit:     { type: "integer", description: "Keep only the most recent N events. Omit for all of them." }
+      },
+      required:   %w[domain]
     }
   },
   {
@@ -212,14 +251,19 @@ def call_tool(name, a)
     runtime = boot(a["domain"])
     if a["steps"]
       Hecks::Facade::McpDoor.dispatch_batch(runtime: runtime, steps: a["steps"], summary: a["summary"],
-                                            source: a["source"])
+                                            source: a["source"], role: a["role"], actor_id: a["actor_id"])
     else
       Hecks::Facade::McpDoor.dispatch(runtime: runtime, command: a["command"], summary: a["summary"],
-                                      args: a["args"] || {}, source: a["source"], dry_run: !a["dry_run"].nil?)
+                                      args: a["args"] || {}, source: a["source"],
+                                      dry_run: a["dry_run"] == true, role: a["role"], actor_id: a["actor_id"])
     end
   when "query"
     Hecks::Facade::McpDoor.query(runtime: boot(a["domain"]), question: a["question"],
-                                 summary: a["summary"], args: a["args"] || {}, source: a["source"])
+                                 summary: a["summary"], args: a["args"] || {}, source: a["source"],
+                                 role: a["role"], actor_id: a["actor_id"])
+  when "events"
+    Hecks::Facade::McpDoor.events(runtime: boot(a["domain"]), aggregate: a["aggregate"], id: a["id"],
+                                  limit: a["limit"])
   when "state"
     Hecks::Facade::McpDoor.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
                                  summary: a["summary"], id: a["id"])
@@ -228,7 +272,7 @@ def call_tool(name, a)
   when "describe"
     Hecks::Facade::McpDoor.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
   when "validate"
-    Hecks::Facade::McpDoor.validate(domain: a["domain"], deep: !!a["deep"])
+    Hecks::Facade::McpDoor.validate(domain: a["domain"], deep: a["deep"] == true)
   when "domains"
     Hecks::Facade::McpDoor.domains(under: a["under"] || "examples")
   when "history"

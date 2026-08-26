@@ -346,4 +346,110 @@ RSpec.describe Hecks::Facade::McpDoor do
       expect(result[:entries].last[:error]).to be_a(String)
     end
   end
+
+  describe ".dispatch with role:/actor_id:" do
+    it "checks a role-gated command against the bound caller, by string equality" do
+      wrong = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                       args: pizza_args, role: "Visitor")
+      right = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                       args: pizza_args, role: "Chef")
+
+      expect(wrong[:ok]).to be false
+      expect(wrong[:error]).to match(/role/i)
+      expect(right[:ok]).to be true
+    end
+
+    it "leaves a command that declares no role unaffected by an unrelated role binding" do
+      result = described_class.query(runtime: runtime, question: "available", summary: "spec", role: "Chef")
+
+      expect(result[:ok]).to be true
+    end
+
+    it "refuses actor_id given without role" do
+      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                        args: pizza_args, actor_id: "u1")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include("actor_id")
+      expect(runtime.events).to be_empty
+    end
+
+    it "records role/actor_id on the audit log line, win or refuse" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                               args: pizza_args, role: "Chef")
+
+      entry = described_class.follow(runtime: runtime)[:entries].first
+      expect(entry[:role]).to eq("Chef")
+    end
+
+    # `boot_in_memory`'s fixture attaches Governance but binds no real
+    # authorization ADAPTER — an `actor_id` alongside `role` reaches for
+    # a live `Governance::RoleAssignment` lookup through one
+    # (`CommandRules::Authorization`'s own header), which is genuinely
+    # unanswerable here. `Runtime::WiringError` is the honest result;
+    # this proves it comes back as a structured refusal — role/actor_id
+    # STILL recorded on the log line — never a raised error crossing
+    # this door, the same promise every other refusal here keeps.
+    it "answers a structured refusal, not a raised error, when no authorization adapter can answer actor_id" do
+      result = described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec",
+                                        args: pizza_args, role: "Chef", actor_id: "u1")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to be_a(String)
+
+      entry = described_class.follow(runtime: runtime)[:entries].first
+      expect(entry[:role]).to eq("Chef")
+      expect(entry[:actor_id]).to eq("u1")
+      expect(entry[:ok]).to be false
+    end
+  end
+
+  describe ".events" do
+    it "answers no events for a domain nothing has dispatched against yet" do
+      result = described_class.events(runtime: runtime)
+
+      expect(result).to eq(ok: true, domain: "Pizzas", events: [])
+    end
+
+    it "answers the events a real dispatch announced, sourced from this door's own audit log" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args)
+
+      result = described_class.events(runtime: runtime, aggregate: "Order", id: "Margherita")
+
+      expect(result[:ok]).to be true
+      expect(result[:events].map { |e| e[:name] }).to eq(["PizzaCreated"])
+      expect(result[:events].first[:id]).to eq("Margherita")
+    end
+
+    it "answers nothing for a dry run — nothing was actually announced" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args,
+                               dry_run: true)
+
+      result = described_class.events(runtime: runtime, aggregate: "Order")
+
+      expect(result[:events]).to eq([])
+    end
+
+    it "answers nothing for an id that named no dispatch" do
+      described_class.dispatch(runtime: runtime, command: "create_pizza", summary: "spec", args: pizza_args)
+
+      result = described_class.events(runtime: runtime, aggregate: "Order", id: "Nope")
+
+      expect(result[:events]).to eq([])
+    end
+
+    it "refuses id: without aggregate:" do
+      result = described_class.events(runtime: runtime, id: "Margherita")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include("aggregate")
+    end
+
+    it "refuses an aggregate the domain never declared" do
+      result = described_class.events(runtime: runtime, aggregate: "Calzone")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include("declares no aggregate")
+    end
+  end
 end

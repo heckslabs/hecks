@@ -24,6 +24,9 @@ module Hecks
     #   dispatch — issue a command (dry_run: preview, steps: batch)
     #   query    — ask a question
     #   state    — read what is actually stored, no verb involved
+    #   events   — what HAPPENED, with payloads, to one record — not just its
+    #              current state; events THIS DOOR witnessed, sourced from
+    #              its own audit log, not a full event-sourcing replay
     #   history  — the full append-only journal, not just current state
     #   behaviors — run a domain's hand-curated `.behaviors` examples
     #   follow   — tail this door's own dispatch/query/state audit log
@@ -31,10 +34,14 @@ module Hecks
     # `dispatch`/`query`/`state` EACH TAKE A `summary` — the survey's "every
     # audit row carries human intent for free" — and `dispatch`/`query`
     # additionally take an optional `source:` (`SOURCE_TAGS`, the survey's
-    # `SourceTag`: who is calling). Every call through those three, plus a
-    # dry run, is appended to a per-domain JSONL audit log (`record!`)
-    # `follow` tails back. `catalog`/`describe`/`validate`/`domains`/
-    # `history`/`behaviors` need neither — they change nothing and commit
+    # `SourceTag`: who is calling) AND an optional `role:`/`actor_id:` —
+    # a real caller identity, bound for the call's duration via `Hecks.
+    # as_caller`, the one thing that makes a `role`-gated command's
+    # authorization actually checkable through this door rather than merely
+    # documented by `describe`. Every call through those three, plus a dry
+    # run, is appended to a per-domain JSONL audit log (`record!`) `follow`
+    # tails back. `catalog`/`describe`/`validate`/`domains`/`history`/
+    # `behaviors`/`events` need neither — they change nothing and commit
     # nothing to any log.
     #
     # A CALLER HANDS IN AN ALREADY-BOOTED `runtime`, the same division of
@@ -119,6 +126,36 @@ module Hecks
         raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{SOURCE_TAGS.join(', ')}"
       end
 
+      # `actor_id` NAMES WHO, `role` NAMES WHAT THEY HOLD — `Hecks.
+      # as_caller` requires the latter always, the former is additive
+      # (`Runtime::Caller::Current`'s own shape). An `actor_id` with no
+      # `role` would silently do nothing rather than bind a real caller,
+      # which is worse than refusing: a caller who thinks they've
+      # identified themselves and haven't deserves to be told.
+      def valid_caller!(role, actor_id)
+        return unless actor_id && role.nil?
+
+        raise Runtime::TypeMismatch, "actor_id: requires role: too — a caller names WHO through WHICH role they hold"
+      end
+
+      # BOUND FOR THE DURATION OF ONE CALL, THEN GONE — `Hecks.as_caller`
+      # is itself a `Thread.current`-scoped `ensure`-guarded block, so
+      # nothing here needs its own cleanup. `role: nil` (the default,
+      # every caller before this) yields unbound, exactly as before:
+      # `CommandRules::Authorization#refuse_role_mismatch` is OPT-IN on
+      # both sides — no caller bound, no role declared, both unchecked.
+      # Query authorization runs on a wholly separate mechanism
+      # (`authorize policy, tenant: :field`, checked against an explicit
+      # `tenant:` argument — see `Runtime::TenantScope`), so binding a
+      # caller around a query has no effect on it TODAY; it is still
+      # accepted here, for symmetry and for the audit log, against the
+      # day a read model does check `Caller.current`.
+      def with_caller(role, actor_id, &block)
+        return block.call if role.nil?
+
+        Hecks.as_caller(role: role, actor_id: actor_id, &block)
+      end
+
       # `dry_run?` (Runtime::Dispatcher) understands only the OLD flat
       # legacy args shape — no to:/with: envelope, `route:` never passed
       # (its own header explains why: built directly against
@@ -153,11 +190,12 @@ module Hecks
       # WRITTEN — a full disk or a permissions problem is a `follow`
       # feature going dark, not a reason to refuse the dispatch/query/
       # state call that was actually asked for.
-      def record!(domain_name, tool:, summary:, source:, outcome:, verb: nil)
+      def record!(domain_name, tool:, summary:, source:, outcome:, verb: nil, role: nil, actor_id: nil)
         return unless domain_name
 
         entry = { time: Time.now.utc.iso8601, tool: tool, verb: verb, summary: summary, source: source,
-                  ok: outcome[:ok], id: outcome[:id], error: outcome[:error] }.compact
+                  role: role, actor_id: actor_id,
+                  ok: outcome[:ok], id: outcome[:id], error: outcome[:error], events: outcome[:events] }.compact
         FileUtils.mkdir_p(LOG_ROOT)
         File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(entry)) }
       rescue StandardError
@@ -172,29 +210,34 @@ module Hecks
       # would_succeed: false`), not a failed call. A malformed request
       # (unknown command, a bad args shape) is still a failed call
       # (`ok: false`) either way — it never reached the domain to be asked.
-      def dispatch(runtime:, command:, summary:, args: {}, source: nil, dry_run: false)
+      def dispatch(runtime:, command:, summary:, args: {}, source: nil, dry_run: false, role: nil, actor_id: nil)
         bluebook = bluebook_for(runtime)
         tool     = dry_run ? "dry_run" : "dispatch"
-        outcome  = perform_dispatch(runtime, bluebook, command, summary, args, source, dry_run)
+        outcome  = perform_dispatch(runtime, bluebook, command, summary, args, source, dry_run, role, actor_id)
 
-        record!(bluebook.name, tool: tool, verb: outcome[:verb], summary: summary, source: source, outcome: outcome)
+        record!(bluebook.name, tool: tool, verb: outcome[:verb], summary: summary, source: source,
+                outcome: outcome, role: role, actor_id: actor_id)
         outcome.except(:verb)
       rescue *refusal_classes => e
         outcome = refused(e, summary: summary)
-        record!(bluebook&.name, tool: tool, summary: summary, source: source, outcome: outcome)
+        record!(bluebook&.name, tool: tool, summary: summary, source: source, outcome: outcome,
+                role: role, actor_id: actor_id)
         outcome
       end
 
-      def perform_dispatch(runtime, bluebook, command, summary, args, source, dry_run)
+      def perform_dispatch(runtime, bluebook, command, summary, args, source, dry_run, role, actor_id)
         require_summary!(summary)
         valid_source!(source)
+        valid_caller!(role, actor_id)
         cli      = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
         spec     = resolve!(cli, command, asking: false)
         envelope = CommandRequest.normalize(JsonDoor.deep_symbolize(args),
                                             receiver:        spec[:receiver],
                                             legacy_receiver: spec[:legacy_receiver])
 
-        result = dry_run ? dry_run_outcome(runtime, spec, envelope, summary: summary) : real_dispatch(runtime, spec, envelope, summary)
+        result = with_caller(role, actor_id) do
+          dry_run ? dry_run_outcome(runtime, spec, envelope, summary: summary) : real_dispatch(runtime, spec, envelope, summary)
+        end
         result.merge(verb: spec[:verb])
       end
 
@@ -224,36 +267,39 @@ module Hecks
       # refusing — a later step naming a record an earlier step never
       # created will refuse honestly on its own account, which is more
       # informative than silently dropping the rest of the batch.
-      def dispatch_batch(runtime:, steps:, summary:, source: nil)
+      def dispatch_batch(runtime:, steps:, summary:, source: nil, role: nil, actor_id: nil)
         require_summary!(summary)
         results = Array(steps).map do |raw|
           step = JsonDoor.deep_symbolize(raw)
           dispatch(runtime: runtime, command: step[:command], args: step[:args] || {},
-                   summary: summary, source: source)
+                   summary: summary, source: source, role: role, actor_id: actor_id)
         end
         { ok: results.all? { |r| r[:ok] }, summary: summary, results: results }
       rescue *refusal_classes => e
         refused(e, summary: summary)
       end
 
-      def query(runtime:, question:, summary:, args: {}, source: nil)
+      def query(runtime:, question:, summary:, args: {}, source: nil, role: nil, actor_id: nil)
         bluebook = bluebook_for(runtime)
-        outcome  = perform_query(bluebook, runtime, question, summary, args, source)
+        outcome  = perform_query(bluebook, runtime, question, summary, args, source, role, actor_id)
 
-        record!(bluebook.name, tool: "query", verb: outcome[:verb], summary: summary, source: source, outcome: outcome)
+        record!(bluebook.name, tool: "query", verb: outcome[:verb], summary: summary, source: source,
+                outcome: outcome, role: role, actor_id: actor_id)
         outcome.except(:verb)
       rescue *refusal_classes => e
         outcome = refused(e, summary: summary)
-        record!(bluebook&.name, tool: "query", summary: summary, source: source, outcome: outcome)
+        record!(bluebook&.name, tool: "query", summary: summary, source: source, outcome: outcome,
+                role: role, actor_id: actor_id)
         outcome
       end
 
-      def perform_query(bluebook, runtime, question, summary, args, source)
+      def perform_query(bluebook, runtime, question, summary, args, source, role, actor_id)
         require_summary!(summary)
         valid_source!(source)
+        valid_caller!(role, actor_id)
         cli  = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
         spec = resolve!(cli, question, asking: true)
-        rows = runtime.query(spec[:verb], **JsonDoor.deep_symbolize(args))
+        rows = with_caller(role, actor_id) { runtime.query(spec[:verb], **JsonDoor.deep_symbolize(args)) }
 
         ok(summary: summary, rows: rows.map { |row| JsonDoor.materialize(row) }).merge(verb: spec[:verb])
       end
@@ -444,17 +490,67 @@ module Hecks
       # pull instead of push.
       def follow(runtime:, limit: 20)
         bluebook = bluebook_for(runtime)
-        path     = log_path(bluebook.name)
-        entries  = File.exist?(path) ? File.readlines(path).last([limit.to_i, 1].max).map { |line| JSON.parse(line, symbolize_names: true) } : []
+        entries  = log_lines(bluebook.name).last([limit.to_i, 1].max)
 
         ok(domain: bluebook.name, entries: entries)
       rescue *refusal_classes => e
         refused(e)
       end
 
+      def log_lines(domain_name)
+        path = log_path(domain_name)
+        return [] unless File.exist?(path)
+
+        File.readlines(path).map { |line| JSON.parse(line, symbolize_names: true) }
+      end
+
+      # WHAT ACTUALLY HAPPENED, with payloads — distinct from `state`
+      # (what's stored NOW) and `history` (append-only operation
+      # SNAPSHOTS, no payload). NOT a domain-wide event-sourcing replay:
+      # "one boot per call" means `runtime.events` is always empty except
+      # during the very call that populated it, discarded the moment that
+      # call returns — there is no cross-call in-memory log to read here.
+      # So this reads the SAME durable audit log `follow` already tails
+      # (`record!` now stamps a successful dispatch's own announced
+      # events onto its log line), reshaped: `follow` answers "what was
+      # CALLED, in order, across every tool"; this answers "what HAPPENED
+      # to one aggregate/record" — events THIS DOOR witnessed, which is
+      # every real dispatch ever routed through it, but no more than that.
+      # `aggregate:` narrows to one aggregate; `id:` (requires
+      # `aggregate:` — an id alone is not unique across aggregates)
+      # narrows to one record's own events.
+      def events(runtime:, aggregate: nil, id: nil, limit: nil)
+        raise Runtime::TypeMismatch, "id: requires aggregate: too — an id alone is not unique across aggregates" if id && !aggregate
+
+        bluebook = bluebook_for(runtime)
+        fqn      = aggregate ? "#{bluebook.name}::#{aggregate_ir!(bluebook, aggregate).hecks_name}" : nil
+
+        found = log_lines(bluebook.name).filter_map do |entry|
+          next unless entry[:tool] == "dispatch" && entry[:ok] && entry[:events]
+          next if fqn && !entry[:verb].to_s.start_with?("#{fqn}.")
+          next if id && entry[:id] != id
+
+          entry[:events].map { |event| event.merge(time: entry[:time], verb: entry[:verb], id: entry[:id]) }
+        end.flatten(1)
+
+        found = found.last(limit.to_i) if limit
+
+        ok(domain: bluebook.name, events: found)
+      rescue *refusal_classes => e
+        refused(e)
+      end
+
       # ── shared shape ────────────────────────────────────────────────────
 
-      def refusal_classes = [Runtime::NotFound, Runtime::TypeMismatch, *Runtime::DOMAIN_REFUSALS]
+      # `Runtime::WiringError` BELONGS HERE TOO, alongside the true domain
+      # refusals — not because it IS one (it's a structural defect, not a
+      # rule the caller broke), but because "this domain isn't wired to
+      # answer what you're asking" (a `role:`+`actor_id:` caller reaching
+      # an authorization port nothing implements, a dry run against a
+      # port verb) is exactly the shape this door promises never crashes
+      # through it. `dry_run_outcome` already treats it this way locally;
+      # this makes every OTHER caller of `refusal_classes` do the same.
+      def refusal_classes = [Runtime::NotFound, Runtime::TypeMismatch, Runtime::WiringError, *Runtime::DOMAIN_REFUSALS]
 
       def ok(**fields) = { ok: true }.merge(fields)
 
