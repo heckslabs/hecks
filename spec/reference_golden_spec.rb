@@ -68,7 +68,7 @@ RSpec.describe "the DSL reference" do
 
     expect(File.read(path))
       .to eq(Hecks::Doc::Reference.render_readme(InMemoryDomain::ROOT, File.read(path))),
-          "README.md's generated regions (guides/reference/corpus/tools) disagree with what's on " \
+          "README.md's generated regions (guides/reference/corpus/tools/diagrams) disagree with what's on " \
           "disk — run bin/reference and review the diff"
   end
 end

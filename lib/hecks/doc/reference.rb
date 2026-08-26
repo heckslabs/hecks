@@ -257,7 +257,8 @@ module Hecks
           "guides"    => guide_index(root),
           "reference" => reference_index(root),
           "tools"     => tool_table(root),
-          "corpus"    => corpus_roster(root)
+          "corpus"    => corpus_roster(root),
+          "diagrams"  => diagram_showcase(root)
         }
       end
 
@@ -309,6 +310,26 @@ module Hecks
 
         text = comment_lines.join(" ").squeeze(" ")
         text.length > 140 ? "#{text[0, 137]}..." : text
+      end
+
+      # ONE REAL, COMMITTED FILE, READ FRESH — not re-derived from a boot
+      # (this module never requires `hecks/projections/diagrams`, and
+      # shouldn't just to draw one example). `docs/generated/diagrams/`
+      # is already held to the declaration by `spec/diagrams_spec.rb`'s
+      # own drift check; this just quotes its own output, so the two
+      # can't independently drift from each other either — a stale
+      # Order_lifecycle.mmd fails THAT spec long before this one runs.
+      def diagram_showcase(root)
+        lifecycle = File.read(File.join(root, "docs/generated/diagrams/pizzas/Order_lifecycle.mmd")).strip
+        <<~MARKDOWN.strip
+          `bin/project_diagrams` reads a booted domain's own declaration and draws it as Mermaid — nine kinds so far: `<Name>_lifecycle.mmd`, `relationships.mmd`, `dispatch.mmd`, `roles.mmd`, `ports.mmd`, `read_models.mmd`, `<Name>_surface.mmd` (what a command does, and what it writes), `<Name>_saga.mmd`, and `frameworks.mmd`. Nothing hand-drawn — the same reason a domain is data at all. Order's own lifecycle, straight off the bluebook above:
+
+          ```mermaid
+          #{lifecycle}
+          ```
+
+          The full set for every domain in this checkout — `examples/pizzas`, `examples/banking` — lives in [`docs/generated/diagrams/`](docs/generated/diagrams/), held to the declaration by `spec/diagrams_spec.rb` the same drift-refusing way this page is held to its own source.
+        MARKDOWN
       end
 
       def corpus_roster(root)
