@@ -91,6 +91,29 @@ RSpec.describe "load hygiene", io: true do
                          colliding.map { |name, files| "  #{name}: #{files.uniq.join(', ')}" }.join("\n")
   end
 
+  # ADR 0033's own contract, exercised the one way that can catch it: a
+  # domain bound to a loadable persistence plugin (PostgresEra) has to
+  # boot with NOTHING pre-required, in a genuinely fresh process — every
+  # spec in this suite shares one process with `spec_helper.rb`'s own
+  # eager `require "hecks/ports/persistence/plugins/era"`, so a
+  # `Hecks.boot` call inside an ordinary example can never actually
+  # observe the plugin unloaded, no matter what regresses in
+  # `adapters/driven.rb`'s own `Adapters.autoload(:PostgresEra, ...)`.
+  # Found live: exactly that autoload missing (a plain `require_relative`
+  # comment with no code behind it) broke every one of ~15 generic
+  # `bin/*` tools against every PostgresEra-bound example domain, with
+  # the whole suite green throughout.
+  it "boots a domain bound to a lazily-loaded persistence plugin (PostgresEra) with nothing pre-required" do
+    domain = File.join(ROOT_DIR, "examples/pizzas")
+    script = "require 'hecks'; Hecks.boot(#{domain.inspect})"
+    _out, err, status = Open3.capture3("ruby", "-I", LIB, "-e", script)
+
+    expect(status.success?).to be(true),
+                               "a fresh process could not boot a PostgresEra-bound domain with " \
+                               "nothing pre-required — Adapters.autoload(:PostgresEra, ...) in " \
+                               "adapters/driven.rb regressed:\n#{err.lines.first(10).join}"
+  end
+
   it "loads the whole framework with the subsystem wrappers in reverse order" do
     wrappers = File.read(File.join(LIB, "hecks.rb"))
                    .scan(%r{^require_relative "(hecks/[^"]+)"}).flatten
