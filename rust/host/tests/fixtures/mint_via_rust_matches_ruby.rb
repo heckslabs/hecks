@@ -150,8 +150,24 @@ def export_ir(source, translation_source:)
   )
 end
 
-v1_ir_path = Tempfile.new(["mvr-v1-", ".json"]).tap { |f| f.write(JSON.generate(export_ir(V1, translation_source: nil))); f.flush }.path
-v2_ir_path = Tempfile.new(["mvr-v2-", ".json"]).tap { |f| f.write(JSON.generate(export_ir(V2, translation_source: edge_src))); f.flush }.path
+# Kept as `Tempfile` objects, not just their `.path` strings: a Tempfile
+# with no live reference is eligible for GC at any point, and its
+# finalizer unlinks the underlying file — exactly the flake this fixture
+# hit in CI ("reading /tmp/mvr-v1-*.json: No such file or directory"),
+# nondeterministically on either file depending on GC timing, because
+# `.tap { |f| ... }.path` discards the only reference to `f` on this
+# same line. `v1_ir_file`/`v2_ir_file` stay reachable as top-level
+# locals for the rest of this script, so the file can't be unlinked out
+# from under `run!(mint_harness_binary, ..., v1_ir_path)` below.
+v1_ir_file = Tempfile.new(["mvr-v1-", ".json"])
+v1_ir_file.write(JSON.generate(export_ir(V1, translation_source: nil)))
+v1_ir_file.flush
+v1_ir_path = v1_ir_file.path
+
+v2_ir_file = Tempfile.new(["mvr-v2-", ".json"])
+v2_ir_file.write(JSON.generate(export_ir(V2, translation_source: edge_src)))
+v2_ir_file.flush
+v2_ir_path = v2_ir_file.path
 
 def run!(*cmd, stdin_data: nil)
   stdout, status = Open3.capture2(*cmd, stdin_data: stdin_data)
