@@ -79,17 +79,25 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
     admin.close
   end
 
+  # `capture3`, NOT `capture2`, HERE AND BELOW — a real CI failure
+  # (2026-08-26, three merges in a row) raised from `mint_via_rust_
+  # matches_ruby.rb failed` with an EMPTY message: `capture2` only ever
+  # captured stdout, and a crashing script's own reporting goes to
+  # stderr. Reproduced clean locally on the same commit (real Postgres,
+  # a correctly-versioned toolchain) — whatever failed in CI wasn't
+  # this script's own logic, but `capture2`'s own silence left no way
+  # to tell. Whoever hits this next gets the real reason.
   def seed(db_name, owner_role, app_role, script: SEED_SCRIPT)
-    stdout, status = Open3.capture2("ruby", script, db_name, owner_role, app_role)
-    raise "#{File.basename(script)} failed:\n#{stdout}" unless status.success?
+    stdout, stderr, status = Open3.capture3("ruby", script, db_name, owner_role, app_role)
+    raise "#{File.basename(script)} failed:\nstdout:\n#{stdout}\nstderr:\n#{stderr}" unless status.success?
 
     JSON.parse(stdout)
   end
 
   def run_harness(binary, db_name, app_role, domain, era, operations)
     stdin = JSON.generate({ "operations" => operations })
-    stdout, status = Open3.capture2(binary, db_name, app_role, domain, era.to_s, stdin_data: stdin)
-    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+    stdout, stderr, status = Open3.capture3(binary, db_name, app_role, domain, era.to_s, stdin_data: stdin)
+    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\nstdout:\n#{stdout}\nstderr:\n#{stderr}"
 
     JSON.parse(stdout).fetch("results")
   end
@@ -308,8 +316,8 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
     read_binary = self.class.lineage_harness_binary
     skip "cargo build --bin lineage_harness failed" unless read_binary
 
-    stdout, status = Open3.capture2("ruby", MINT_VIA_RUST_SCRIPT, mint_binary, read_binary)
-    raise "#{File.basename(MINT_VIA_RUST_SCRIPT)} failed:\n#{stdout}" unless status.success?
+    stdout, stderr, status = Open3.capture3("ruby", MINT_VIA_RUST_SCRIPT, mint_binary, read_binary)
+    raise "#{File.basename(MINT_VIA_RUST_SCRIPT)} failed:\nstdout:\n#{stdout}\nstderr:\n#{stderr}" unless status.success?
 
     result = JSON.parse(stdout)
     begin
