@@ -1,0 +1,3 @@
+Hecks.hecksagon "Chess" do
+  Chess::Game.persisted_by("PostgresEra")
+end

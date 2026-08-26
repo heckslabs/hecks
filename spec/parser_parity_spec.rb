@@ -198,8 +198,22 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # against Ruby's own `ir.json` before moving out of PENDING_MEMBERS,
   # not left stale — the safety net doing exactly its job, catching a
   # PENDING member that stopped failing the way its own reason claimed.
+  #
+  # "chess" — a new real corpus member (`examples/chess/`, ADR 0026's
+  # own named gap: `entity`, `lifecycle`/`transition`, `policy`, and
+  # `ensures` given real, non-contrived work — a piece with no life
+  # outside the game that holds it, a status that refuses every illegal
+  # jump, turn order and check announced by a policy reacting to a move
+  # having happened, and a move whose own postcondition is checked after
+  # the fact). Built entirely out of constructs `delegates_to`/`entity`/
+  # `lifecycle`/`policy`/`ensures`'s own existing byte-matched users
+  # (roster, banking) already exercise, so it round-trips the same way
+  # they do — confirmed byte-exact against Ruby's own `ir.json` before
+  # being added here rather than left in PENDING_MEMBERS to claim a
+  # parser gap this domain does not actually have.
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     %w[pizzas identity governance console_settings expression translation banking compliance roster bluebook_language] -
+                     %w[pizzas identity governance console_settings expression translation banking compliance roster
+                        chess bluebook_language] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -224,7 +238,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
-  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster].to_h { |stem|
+  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess].to_h { |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebooks = bluebooks_in(domain)
     raise "#{domain} has no .bluebook" if bluebooks.empty?

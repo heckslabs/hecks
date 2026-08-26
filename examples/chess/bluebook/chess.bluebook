@@ -1,0 +1,377 @@
+Hecks.bluebook "Chess" do
+  vision "A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine."
+  supporting
+
+  # WHY THIS DOMAIN EXISTS (ADR 0026) — `entity`, `lifecycle`/`transition`,
+  # `policy`, and `ensures` are all declared by the language and only
+  # thinly exercised by the rest of the corpus. A chess game gives each
+  # one real, non-contrived work: a piece has no identity or lifecycle
+  # apart from the game it belongs to (entity); a game's own status moves
+  # in_progress -> check -> checkmate/stalemate/resigned/draw and refuses
+  # every illegal jump (lifecycle); turn order and check are announced by
+  # a policy reacting to a move actually having happened, not computed
+  # inline (policy); and a move has to leave the board in a state its own
+  # postcondition can still vouch for after the fact (ensures).
+  #
+  # DELIBERATELY SIMPLIFIED, on purpose, per this domain's own charter:
+  # this is not a chess engine. Move-shape legality (can a bishop
+  # actually reach that square) is trusted from the caller, the same way
+  # a real client would already have computed it before ever sending the
+  # command. What this domain enforces structurally is everything a rules
+  # engine cannot get away with skipping: whose turn it is, whether the
+  # game is still being played at all, that a square is not already
+  # occupied by a piece of the same color, and that the game's own status
+  # can only ever take one of its declared, legal transitions.
+  aggregate "Game" do
+    description "One game: its pieces, whose turn it is, and how the game currently stands."
+
+    identified_by :label
+
+    attribute :label,       GameLabel
+    attribute :turn,        Color
+    attribute :draw_offer,  DrawOffer
+    attribute :ply,         Ply
+    attribute :pieces,      list_of(Piece)
+
+    value_object "GameLabel" do
+      attribute :value, String
+      invariant("a game is labeled") { !value.to_s.empty? }
+    end
+
+    value_object "PieceId" do
+      attribute :value, String
+      invariant("a piece has an id") { !value.to_s.empty? }
+    end
+
+    # FILE/RANK, ZERO-INDEXED — file 0 is the a-file, rank 0 is white's
+    # own back rank and rank 7 is black's, the same orientation a real
+    # client's own board representation would already use.
+    value_object "Square" do
+      attribute :file, Integer
+      attribute :rank, Integer
+      invariant("a square sits on the board") { file >= 0 && file <= 7 && rank >= 0 && rank <= 7 }
+    end
+
+    value_object "Color" do
+      attribute :value, String, one_of: ["white", "black"]
+    end
+
+    value_object "PieceKind" do
+      attribute :value, String, one_of: ["pawn", "knight", "bishop", "rook", "queen", "king"]
+    end
+
+    # WHETHER A PIECE HAS EVER MOVED — a real rule (castling and a pawn's
+    # own first-move double-step both depend on it) kept as a bare fact
+    # this domain records rather than a legality check it enforces, the
+    # same simplification this file's own header names.
+    value_object "MovedFlag" do
+      attribute :value, String, one_of: ["unmoved", "moved"]
+    end
+
+    # THE FACT A MOVER DECLARES ABOUT THE OPPONENT'S OWN SIDE, immediately
+    # after the move — this domain trusts it the same way it trusts move
+    # shape, and the two policies below are what turn a true declaration
+    # into the game's own recorded status.
+    value_object "GameOutcome" do
+      attribute :value, String, one_of: ["ongoing", "check", "checkmate", "stalemate"]
+    end
+
+    # A CLOSED SET ONE MEMBER WIDER THAN Color — "none" is the state
+    # nobody has offered a draw, which Color itself has no member for.
+    # `OfferDraw`, below, bridges a Color argument straight into this
+    # field (`sets :draw_offer, to: :by`): every Color member is also a
+    # DrawOffer member, so the bridge can never refuse.
+    value_object "DrawOffer" do
+      attribute :value, String, one_of: ["none", "white", "black"]
+    end
+
+    value_object "Ply" do
+      attribute :value, Integer
+      invariant("ply never goes negative") { value >= 0 }
+    end
+
+    entity "Piece" do
+      description "One piece — no identity, no lifecycle, no query of its own outside the game that holds it. A captured piece is never a standalone record: it stays exactly where it always lived, in this same list, marked captured."
+
+      attribute :id,     PieceId
+      attribute :kind,   PieceKind
+      attribute :color,  Color
+      attribute :square, Square
+      attribute :moved,  MovedFlag
+
+      identified_by :id
+
+      # DECLARED ONCE, ON THE PIECE (the same shape banking's own
+      # LedgerEntry uses for "customer is active"/"account is open") —
+      # Move and Capture both need the identical fact about the GAME they
+      # belong to, read through `parent` rather than retyped on each.
+      given("only an active game may be played") { parent.status == "in_progress" || parent.status == "check" }
+
+      lifecycle :status, default: "on_board" do
+        transition "Capture" => "captured", from: "on_board"
+      end
+
+      command "Move", from: "on_board" do
+        goal "Move this piece to a new square, on its own color's turn"
+
+        attribute :id,          PieceId
+        attribute :destination, Square
+        attribute :by,          Color
+        attribute :outcome,     GameOutcome
+
+        given("only an active game may be played")
+        given("only the color to move may move a piece") { parent.turn.value == by.value }
+        given("a piece may only be moved by its own color") { by.value == color.value }
+        given("the destination differs from the current square") { square.file != destination.file || square.rank != destination.rank }
+        given("no piece of the same color already stands on the destination") do
+          parent.pieces.none? { |p| p.status == "on_board" && p.color.value == color.value && p.square.file == destination.file && p.square.rank == destination.rank }
+        end
+
+        sets :square, to: :destination
+        sets :moved,  to: "moved"
+
+        ensures("the piece is exactly where it was told to move") { square.file == destination.file && square.rank == destination.rank }
+
+        emits "PieceMoved"
+      end
+
+      command "Capture", from: "on_board" do
+        goal "Remove this piece from play, taken by the opposing side"
+
+        attribute :id, PieceId
+        attribute :by, Color
+
+        given("only an active game may be played")
+        given("only the color to move may capture") { parent.turn.value == by.value }
+        given("a side may only capture the opposing color's piece") { by.value != color.value }
+
+        emits "PieceCaptured"
+      end
+
+      query "OnBoard" do
+        description "Every piece still on the board, whichever game it belongs to."
+        where(status: "on_board")
+      end
+    end
+
+    # A draw offer only ever came from one side or nobody — declared once
+    # so AcceptDraw and DeclineDraw read the identical fact rather than
+    # retyping it.
+    given("a draw was actually offered, by the other side") { draw_offer.value != "none" && draw_offer.value != by.value }
+
+    lifecycle :status, default: "in_progress" do
+      # ORDER MATTERS HERE — every policy below reacting to "PieceMoved"
+      # fires in the order its own `policy` block is declared (Runtime::
+      # PolicyInterpreter#policies_for reads a bluebook's own array in
+      # declaration order), and `AdvanceTurn` is declared, and therefore
+      # runs, BEFORE the three Declare* policies further down. AdvanceTurn
+      # unconditionally clears a stale "check" back to "in_progress" every
+      # time a piece moves; only after that does a genuine new check,
+      # checkmate, or stalemate get declared on top of it. Reverse that
+      # declaration order and a freshly-declared check would be wiped the
+      # instant the turn advances.
+      transition "AdvanceTurn"      => "in_progress", from: ["in_progress", "check"]
+      transition "DeclareCheck"     => "check",       from: "in_progress"
+      transition "DeclareCheckmate" => "checkmate",   from: ["in_progress", "check"]
+      transition "DeclareStalemate" => "stalemate",   from: "in_progress"
+      transition "Resign"           => "resigned",    from: ["in_progress", "check"]
+      transition "AcceptDraw"       => "draw",        from: ["in_progress", "check"]
+    end
+
+    command "Start" do
+      goal "Begin a new, empty game"
+
+      attribute :label, GameLabel
+
+      sets :turn,       to: "white"
+      sets :draw_offer, to: "none"
+      sets :ply,        to: 0
+
+      emits "GameStarted"
+    end
+
+    command "PlacePiece" do
+      goal "Set a piece down on the board — used to build the starting position, or any position a test needs"
+
+      reference_to Game
+      attribute :id,     PieceId
+      attribute :kind,   PieceKind
+      attribute :color,  Color
+      attribute :square, Square
+
+      given("only an active game accepts new pieces") { status == "in_progress" || status == "check" }
+      given("a piece id is not reused") { pieces.none? { |p| p.id.value == id.value } }
+      given("no two pieces already share a square") do
+        pieces.none? { |p| p.status == "on_board" && p.square.file == square.file && p.square.rank == square.rank }
+      end
+
+      sets :pieces, append: { id: :id, kind: :kind, color: :color, square: :square, moved: "unmoved" }
+
+      emits "PiecePlaced"
+    end
+
+    # THE ONLY DOOR A CALLER USES TO MOVE A PIECE — Piece.Move itself is
+    # never dispatched directly here. `delegates_to` makes the entity's
+    # own refusal this command's refusal, synchronously, in the same
+    # dispatch, rather than a reaction a caller would have to poll a log
+    # to see the result of.
+    command "MovePiece" do
+      goal "Move one of your own pieces, on your turn, on the caller's behalf"
+
+      reference_to Game
+      attribute :id,          PieceId
+      attribute :destination, Square
+      attribute :by,          Color
+      attribute :outcome,     GameOutcome
+
+      ensures("the mover's own king remains on the board after the move") do
+        pieces.any? { |p| p.kind.value == "king" && p.color.value == by.value && p.status == "on_board" }
+      end
+
+      delegates_to "Piece.Move", with: { id: :id, destination: :destination, by: :by, outcome: :outcome }
+    end
+
+    command "CapturePiece" do
+      goal "Capture an opposing piece, on the caller's behalf — dispatched before the capturing piece's own MovePiece onto the vacated square"
+
+      reference_to Game
+      attribute :id, PieceId
+      attribute :by, Color
+
+      delegates_to "Piece.Capture", with: { id: :id, by: :by }
+    end
+
+    command "AdvanceTurn" do
+      goal "Pass the move to the other color and clear any prior check, after a piece has moved"
+
+      reference_to Game
+      attribute :turn, Color
+
+      given("only an active game continues") { status == "in_progress" || status == "check" }
+
+      sets :turn
+      sets :ply, increment: 1
+
+      emits "TurnAdvanced"
+    end
+
+    command "DeclareCheck" do
+      goal "Record that the side now to move stands in check"
+
+      reference_to Game
+      attribute :by, Color
+
+      emits "CheckDeclared"
+    end
+
+    command "DeclareCheckmate" do
+      goal "End the game — the side to move has no way out of check"
+
+      reference_to Game
+      attribute :by, Color
+
+      emits "GameEnded"
+    end
+
+    command "DeclareStalemate" do
+      goal "End the game — the side to move has no legal move and is not in check"
+
+      reference_to Game
+      attribute :by, Color
+
+      emits "GameEnded"
+    end
+
+    command "Resign" do
+      goal "Give up the game, ending it immediately"
+
+      reference_to Game
+      attribute :by, Color
+
+      emits "GameResigned"
+    end
+
+    command "OfferDraw" do
+      goal "Offer a draw to the other side"
+
+      reference_to Game
+      attribute :by, Color
+
+      given("only an active game accepts a draw offer") { status == "in_progress" || status == "check" }
+      given("a side does not re-offer a draw already on the table") { draw_offer.value == "none" }
+
+      sets :draw_offer, to: :by
+
+      emits "DrawOffered"
+    end
+
+    command "AcceptDraw" do
+      goal "Accept the other side's outstanding draw offer"
+
+      reference_to Game
+      attribute :by, Color
+
+      given("a draw was actually offered, by the other side")
+
+      sets :draw_offer, to: "none"
+
+      emits "DrawAgreed"
+    end
+
+    command "DeclineDraw" do
+      goal "Turn down the other side's draw offer"
+
+      reference_to Game
+      attribute :by, Color
+
+      given("a draw was actually offered, by the other side")
+
+      sets :draw_offer, to: "none"
+
+      emits "DrawDeclined"
+    end
+
+    query "InProgress" do
+      description "Every game still being played, check included."
+      where(status: "in_progress")
+    end
+  end
+
+  # TURN ALTERNATION — declared FIRST, see the lifecycle's own comment on
+  # why declaration order matters here. Exactly one of these two ever
+  # matches a given "PieceMoved" event, since `by` is always exactly one
+  # Color.
+  policy "OnWhiteMovedAdvanceTurn" do
+    on "PieceMoved"
+    where { by.value == "white" }
+    trigger Game::AdvanceTurn, with: { turn: "black" }
+  end
+
+  policy "OnBlackMovedAdvanceTurn" do
+    on "PieceMoved"
+    where { by.value == "black" }
+    trigger Game::AdvanceTurn, with: { turn: "white" }
+  end
+
+  # CHECK DETECTION — reacting to a move having actually happened, not
+  # computed inline inside `Piece.Move` itself. Each `where` reads the
+  # `outcome` the mover declared on the very event `AdvanceTurn`, above,
+  # already reacted to.
+  policy "OnCheckDeclaredAfterMove" do
+    on "PieceMoved"
+    where { outcome.value == "check" }
+    trigger Game::DeclareCheck, with: { by: :by }
+  end
+
+  policy "OnCheckmateDeclaredAfterMove" do
+    on "PieceMoved"
+    where { outcome.value == "checkmate" }
+    trigger Game::DeclareCheckmate, with: { by: :by }
+  end
+
+  policy "OnStalemateDeclaredAfterMove" do
+    on "PieceMoved"
+    where { outcome.value == "stalemate" }
+    trigger Game::DeclareStalemate, with: { by: :by }
+  end
+end

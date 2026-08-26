@@ -1,0 +1,82 @@
+{
+  "name": "chess-parity",
+  "note": "One game through most of the domain — start, four pieces placed, a move each side, a draw offered and accepted — exercising the entity's own lifecycle, the turn-alternation policy, and the aggregate's own lifecycle all in one pass.",
+  "domain": "examples/chess",
+  "expectations": {
+    "events": 11
+  },
+  "steps": [
+    {
+      "verb": "Chess::Game.Start",
+      "args": { "label": { "value": "g1" } }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "wk" },
+        "kind": { "value": "king" },
+        "color": { "value": "white" },
+        "square": { "file": 4, "rank": 0 }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "wr1" },
+        "kind": { "value": "rook" },
+        "color": { "value": "white" },
+        "square": { "file": 0, "rank": 0 }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "bk" },
+        "kind": { "value": "king" },
+        "color": { "value": "black" },
+        "square": { "file": 4, "rank": 7 }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "bn1" },
+        "kind": { "value": "knight" },
+        "color": { "value": "black" },
+        "square": { "file": 1, "rank": 7 }
+      }
+    },
+    {
+      "verb": "Chess::Game.MovePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "wr1" },
+        "destination": { "file": 0, "rank": 3 },
+        "by": { "value": "white" },
+        "outcome": { "value": "ongoing" }
+      }
+    },
+    {
+      "verb": "Chess::Game.MovePiece",
+      "args": {
+        "label": { "value": "g1" },
+        "id": { "value": "bn1" },
+        "destination": { "file": 2, "rank": 5 },
+        "by": { "value": "black" },
+        "outcome": { "value": "ongoing" }
+      }
+    },
+    {
+      "verb": "Chess::Game.OfferDraw",
+      "args": { "label": { "value": "g1" }, "by": { "value": "white" } }
+    },
+    {
+      "verb": "Chess::Game.AcceptDraw",
+      "args": { "label": { "value": "g1" }, "by": { "value": "black" } }
+    }
+  ]
+}

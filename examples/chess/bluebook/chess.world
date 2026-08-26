@@ -1,0 +1,7 @@
+Hecks.world "Chess" do
+  realm "Examples"
+
+  persisted_by("PostgresEra") do
+    database "postgres://localhost/hecks_chess"
+  end
+end

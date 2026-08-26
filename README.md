@@ -529,6 +529,7 @@ replace.
 
 <!-- generated:begin id=corpus -->
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
+- **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
