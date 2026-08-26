@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 
 # THE ANTI-DRIFT GATE for every checked-in `oidc.json` — the same shape
 # spec/vocabulary_table_spec.rb and spec/parser_table_spec.rb already use

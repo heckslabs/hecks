@@ -715,7 +715,7 @@ mod tests {
     #[tokio::test]
     async fn append_member_state_writes_the_journal_and_advances_the_head_snapshot() {
         let db = scratch_member_db("hecks_host_auth_test_append_member").await;
-        let config = LineageConfig { domain: "Embryonaut".to_string(), era: 1 };
+        let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1) };
         {
             let guard = db.lock().await;
             // ordinal 0 -- BELOW anything the fresh journal's own

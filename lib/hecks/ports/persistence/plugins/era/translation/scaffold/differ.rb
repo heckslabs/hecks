@@ -1,4 +1,4 @@
-require_relative "../../runtime/storage_shape"
+require_relative "../../storage_shape"
 
 module Hecks
   module Translation

@@ -1,6 +1,6 @@
 require_relative "../lineage"
-require_relative "../../../../runtime/registry"
-require_relative "../../../../translation/audit"
+require_relative "../../../../../../runtime/registry"
+require_relative "../../translation/audit"
 
 module Hecks
   module Adapters

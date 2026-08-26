@@ -1835,7 +1835,7 @@ mod tests {
     }
 
     fn lifeadelics_config(era: i32) -> LineageConfig {
-        LineageConfig { domain: "Lifeadelics".to_string(), era }
+        LineageConfig { domain: "Lifeadelics".to_string(), era: Some(era) }
     }
 
     fn lifeadelics_wasm_path() -> std::path::PathBuf {

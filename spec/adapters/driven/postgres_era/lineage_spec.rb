@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 
 # Lineage in the PostgresEra adapter: the partitioned journal, the

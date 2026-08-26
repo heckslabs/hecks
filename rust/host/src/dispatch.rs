@@ -292,13 +292,27 @@ pub async fn handle(
         // same transaction, same advisory lock already held — see
         // journal.rs's own header for why this doesn't replace the
         // hecks_lambda_journal append just above, only supplements it.
-        let step_mutations = result
-            .get("mutations")
-            .and_then(|m| m.as_array())
-            .and_then(|steps| steps.last())
-            .and_then(|last| last.as_array())
-            .cloned()
-            .unwrap_or_default();
+        //
+        // ADR 0034 — skipped ENTIRELY when `config.era` is `None`: a
+        // domain with nothing lineage-capable bound (and no Google auth
+        // configured) never provisions `hecks_eras` or any per-aggregate
+        // head-snapshot table at boot (main.rs's own boot gate), so
+        // there is nothing here to write into. `dispatch::read`'s own
+        // rehydrate-replay path (journal.rs's own header) already covers
+        // ordinary reads/writes completely without this — head-snapshot
+        // journaling is a lineage-only optimization, never load-bearing
+        // for a domain that doesn't have one.
+        let step_mutations = if config.era.is_some() {
+            result
+                .get("mutations")
+                .and_then(|m| m.as_array())
+                .and_then(|steps| steps.last())
+                .and_then(|last| last.as_array())
+                .cloned()
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
         for mutation in &step_mutations {
             let aggregate = mutation
@@ -571,7 +585,7 @@ mod tests {
     }
 
     fn test_config(domain: &str, era: i32) -> LineageConfig {
-        LineageConfig { domain: domain.to_string(), era }
+        LineageConfig { domain: domain.to_string(), era: Some(era) }
     }
 
     fn wasm_path() -> std::path::PathBuf {

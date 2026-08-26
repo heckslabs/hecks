@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 
 # `formerly_known_as` — a domain's own declared identity can change, and

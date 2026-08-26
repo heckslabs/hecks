@@ -1,4 +1,9 @@
 require "spec_helper"
+# ADR 0033 — schema-evolution.md's own runnable examples bind PostgresEra
+# and exercise bin/scaffold_translation; the era persistence plugin isn't
+# core-loaded anymore, so doctests need it explicitly, same as any other
+# consumer.
+require "hecks/ports/persistence/plugins/era"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
 

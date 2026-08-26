@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/ports/persistence/plugins/era"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 

@@ -260,7 +260,7 @@ Naming/PredicateMethod:
     - 'lib/hecks/adapters/driven/d1.rb'
     - 'lib/hecks/adapters/driven/heki.rb'
     - 'lib/hecks/adapters/driven/postgres.rb'
-    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era.rb'
     - 'lib/hecks/adapters/driven/sqlite.rb'
     - 'lib/hecks/bluebook/meta_validator/reconstruction.rb'
     - 'lib/hecks/forms/params.rb'
@@ -516,7 +516,7 @@ Style/CollectionCompact:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/CollectionQuerying:
   Exclude:
-    - 'lib/hecks/translation/scaffold/differ.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/scaffold/differ.rb'
 
 # Offense count: 3
 # This cop supports unsafe autocorrection (--autocorrect-all).
@@ -596,7 +596,7 @@ Style/EvalWithLocation:
 # This cop supports safe autocorrection (--autocorrect).
 Style/ExplicitBlockArgument:
   Exclude:
-    - 'lib/hecks/adapters/driven/postgres_era/lineage/head_compiler.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/head_compiler.rb'
     - 'lib/hecks/runtime/read_model_interpreter.rb'
     - 'spec/dsl_spec.rb'
     - 'spec/oidc_projection_spec.rb'
@@ -645,7 +645,7 @@ Style/HashExcept:
     - 'bin/expression_projection'
     - 'lib/hecks/forms/app.rb'
     - 'lib/hecks/query_specification/common/options.rb'
-    - 'lib/hecks/translation/audit/layer_two.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/audit/layer_two.rb'
     - 'spec/codegen_parity_spec.rb'
     - 'spec/operator_conformance_spec.rb'
     - 'spec/round_trip_spec.rb'
@@ -678,7 +678,7 @@ Style/HashTransformValues:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/IdenticalConditionalBranches:
   Exclude:
-    - 'lib/hecks/translation/scaffold/renderer.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/scaffold/renderer.rb'
 
 # Offense count: 38
 # This cop supports safe autocorrection (--autocorrect).
@@ -694,7 +694,7 @@ Style/InverseMethods:
     - 'lib/hecks/adapters/driven/sqlite/codec.rb'
     - 'lib/hecks/adapters/driven/sqlite/projection.rb'
     - 'lib/hecks/bluebook/meta_validator/reconstruction.rb'
-    - 'lib/hecks/translation/audit/layer_two.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/audit/layer_two.rb'
 
 # Offense count: 2
 # This cop supports safe autocorrection (--autocorrect).
@@ -744,7 +744,7 @@ Style/ModuleMemberExistenceCheck:
 # Offense count: 4
 Style/MultilineBlockChain:
   Exclude:
-    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era.rb'
     - 'lib/hecks/doc/reference.rb'
     - 'lib/hecks/query_specification/common/options.rb'
     - 'lib/hecks/runtime/value/coercion.rb'
@@ -873,7 +873,7 @@ Style/RedundantAssignment:
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantBegin:
   Exclude:
-    - 'lib/hecks/translation/audit/layer_one.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/translation/audit/layer_one.rb'
     - 'spec/operator_conformance_spec.rb'
 
 # Offense count: 73
@@ -904,7 +904,7 @@ Style/RedundantInterpolation:
 # This cop supports safe autocorrection (--autocorrect).
 Style/RedundantInterpolationUnfreeze:
   Exclude:
-    - 'lib/hecks/adapters/driven/postgres_era.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era.rb'
     - 'lib/hecks/adapters/driven/sql_query_builder.rb'
 
 # Offense count: 1
@@ -949,9 +949,9 @@ Style/RegexpLiteral:
 Style/RescueModifier:
   Exclude:
     - 'bin/translation_audit'
-    - 'lib/hecks/adapters/driven/postgres_era/lineage/mint_transaction.rb'
-    - 'lib/hecks/adapters/driven/postgres_era/lineage/provisioning.rb'
-    - 'lib/hecks/adapters/driven/postgres_era/lineage/tail_merge.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/mint_transaction.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/provisioning.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/postgres_era/lineage/tail_merge.rb'
     - 'spec/dsl_spec.rb'
 
 # Offense count: 1
@@ -982,7 +982,7 @@ Style/SafeNavigation:
     - 'lib/hecks/query_specification/common/authorization_spec.rb'
     - 'lib/hecks/runtime/command_interpreter/mutation_applier.rb'
     - 'lib/hecks/runtime/entity_interpreter.rb'
-    - 'lib/hecks/runtime/era_guard/shape_diff.rb'
+    - 'lib/hecks/ports/persistence/plugins/era/era_guard/shape_diff.rb'
     - 'lib/hecks/runtime/instance.rb'
 
 # Offense count: 1

@@ -15,16 +15,20 @@ require_relative "../rust/project"
 require "fileutils"
 require "json"
 
-# A plain Ruby `require`, not a DSL `Kernel.load` below — this only
+# ADR 0033 — the era/lineage subsystem (including `PostgresEra`) moved
+# behind a loadable persistence plugin core no longer requires. This
+# generator has to handle whatever domain it's pointed at, lineage-capable
+# or not, so it requires the plugin directly and unconditionally — a
+# legitimate, explicit consumer, not a core-boundary violation. This also
 # defines the `Hecks::Adapters::PostgresEra` CLASS constant
 # (`lineage_capable?`'s own singleton method lives there — the plain,
 # non-era `Postgres` class does NOT declare it at all), so `registry.
 # adapter_class("PostgresEra")` (Runtime::EraCheck's own capability
-# lookup, reused below) can resolve it. Safe at generator time and
-# every other time: `require "pg"` is lazy, inside `PostgresEra.
-# connect_for` only (that file's own comment) — nothing here opens or
-# even attempts a database connection.
-require "hecks/adapters/driven/postgres_era"
+# lookup, reused below) can resolve it. Safe at generator time and every
+# other time: `require "pg"` is lazy, inside `PostgresEra.connect_for`
+# only (that file's own comment) — nothing here opens or even attempts a
+# database connection.
+require "hecks/ports/persistence/plugins/era"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 

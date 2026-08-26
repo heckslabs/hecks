@@ -1,6 +1,6 @@
-require_relative "../../naming"
-require_relative "append_only"
-require_relative "../../runtime/registry"
+require_relative "../../../../naming"
+require_relative "../../append_only"
+require_relative "../../../../runtime/registry"
 
 module Hecks
   module Ports

@@ -1,14 +1,14 @@
 require "json"
 
-require_relative "sql_query_builder"
+require_relative "../../../../adapters/driven/sql_query_builder"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
-require_relative "../../ports/persistence/append_only"
-require_relative "../../query_specification/common/order_by"
-require_relative "../../runtime/errors"
-require_relative "../../runtime/event"
-require_relative "../../runtime/instance"
-require_relative "../../runtime/registry"
+require_relative "../../../../ports/persistence/append_only"
+require_relative "../../../../query_specification/common/order_by"
+require_relative "../../../../runtime/errors"
+require_relative "../../../../runtime/event"
+require_relative "../../../../runtime/instance"
+require_relative "../../../../runtime/registry"
 
 module Hecks
   module Adapters

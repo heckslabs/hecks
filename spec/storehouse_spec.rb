@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 
 # THE STOREHOUSE BUS — dispatch/query/state/catalog/describe/validate/...,
 # projected off the SAME machinery `CliRunner`/`Facade::JsonDoor` already

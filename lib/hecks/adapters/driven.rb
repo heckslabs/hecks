@@ -11,7 +11,12 @@ end
 require_relative "driven/memory"
 require_relative "driven/sqlite"
 require_relative "driven/postgres"
-require_relative "driven/postgres_era"
+# `PostgresEra` — NOT required here on purpose, same reasoning as
+# `SequentialIdentity` below: ADR 0033 moved it, and the rest of the
+# era/lineage/translation subsystem, behind a loadable persistence plugin
+# (`hecks/ports/persistence/plugins/era`) rather than requiring every app
+# to carry it whether or not anything ever binds `persisted_by
+# "PostgresEra"`. An app that wants it requires the plugin explicitly.
 require_relative "driven/lambda"
 require_relative "driven/heki"
 require_relative "driven/prism"

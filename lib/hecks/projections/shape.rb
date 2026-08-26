@@ -1,4 +1,4 @@
-require_relative "../runtime/storage_shape"
+require_relative "../ports/persistence"
 require_relative "../projector"
 
 module Hecks
@@ -25,7 +25,20 @@ module Hecks
 
       module_function
 
-      def call(bluebook:, options: {}) = Runtime::StorageShape.project(bluebook)
+      # ADR 0033 — `Runtime::StorageShape` lives in the era persistence
+      # plugin now; the `:shape` projection itself stays registered
+      # unconditionally (the seam `spec/projector_seam_spec.rb` enforces
+      # is "every file here registers," not "every projection always
+      # succeeds") but refuses clearly if asked to run with the plugin
+      # unloaded, rather than raising on an undefined constant.
+      def call(bluebook:, options: {})
+        unless Ports::Persistence.plugin?(:era)
+          raise "the :shape projection needs the era persistence plugin loaded " \
+                "(require \"hecks/ports/persistence/plugins/era\")"
+        end
+
+        Runtime::StorageShape.project(bluebook)
+      end
     end
   end
 end

@@ -1,7 +1,7 @@
 require "tempfile"
-require_relative "../runtime/era_guard"
-require_relative "../runtime/registry"
-require_relative "../runtime/storage_shape"
+require_relative "../era_guard"
+require_relative "../../../../../runtime/registry"
+require_relative "../storage_shape"
 
 module Hecks
   module Translation

@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let config = journal::LineageConfig { domain: domain.clone(), era };
+    let config = journal::LineageConfig { domain: domain.clone(), era: Some(era) };
     let mut results = Vec::with_capacity(operations.len());
 
     for operation in operations {

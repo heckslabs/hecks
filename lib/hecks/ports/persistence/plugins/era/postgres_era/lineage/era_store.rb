@@ -1,6 +1,6 @@
-require_relative "../../../../runtime/era_tamper"
-require_relative "../../../../runtime/registry"
-require_relative "../../../../runtime/storage_shape"
+require_relative "../../era_tamper"
+require_relative "../../../../../../runtime/registry"
+require_relative "../../storage_shape"
 
 module Hecks
   module Adapters

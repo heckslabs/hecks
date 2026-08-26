@@ -1,5 +1,5 @@
-require_relative "../../../../naming"
-require_relative "../../../../translation/rule_compiler"
+require_relative "../../../../../../naming"
+require_relative "../../translation/rule_compiler"
 
 module Hecks
   module Adapters

@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
 # The scaffold writes translations; humans resolve ambiguity. Confident

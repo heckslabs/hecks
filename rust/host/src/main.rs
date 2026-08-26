@@ -156,34 +156,6 @@ async fn main() -> Result<(), Error> {
         .await
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
 
-    // `hecks_eras`/`hecks_approvals`/the six `hecks_tr_*` functions —
-    // idempotent, gated by `provisioner?` on the connecting role's own
-    // ownership (mint.rs's own header), so calling this every boot is
-    // exactly as cheap and safe as `journal::ensure_schema` above.
-    // MUST run before the very first `journal::held_eras` call below —
-    // on a truly fresh Postgres instance (no domain has ever minted
-    // anything yet), `hecks_eras` itself doesn't exist until this runs;
-    // found live, by `mint_harness` (ADR-0030-in-progress step 8's own
-    // differential harness) hitting exactly that on a scratch database
-    // no prior test had ever exercised this boot path against.
-    mint::ensure_base(&client, &domain).await.map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
-
-    // THE BOOT GATE — no longer a bare `HECKS_ERA` ordinal comparison.
-    // This binary computes ITS OWN shape hash (`storage_shape`, over
-    // `ir::ir()` — the same `ir.json` sidecar this crate already loads
-    // generically) and decides for itself: does a held era already
-    // name this exact shape (boot at it, whichever ordinal — RLS
-    // refuses a write if it turns out to be superseded, the same
-    // guarantee `journal::lineage_tests::
-    // a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`
-    // already proves), is this domain brand new (mint era 1 itself,
-    // `mint::hold_first`), or has it drifted (find the ONE translation
-    // edge leaving the latest held era, mint the next one itself,
-    // `mint::mint_era` — refusing by name toward `bin/scaffold_
-    // translation` if none covers it, or `bin/translation_audit
-    // --approve` if one does but needs a human's sample review first,
-    // `approval::check`). `HECKS_ERA` is gone entirely — an operator
-    // no longer declares what era to run as; this binary decides.
     let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
     let my_hash = storage_shape::mint_hash(ir);
     let my_label = storage_shape::mint_label(ir);
@@ -196,78 +168,125 @@ async fn main() -> Result<(), Error> {
         })
         .collect();
 
-    let held = journal::held_eras(&client, &domain).await.map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
+    // ADR 0034 — the era-partitioned lineage subsystem (hecks_eras, the
+    // mint/hold/audit sequence below, per-aggregate head-snapshot
+    // journaling) is only provisioned when something actually needs it:
+    // at least one aggregate this domain's own ir.json marks lineage-
+    // capable, OR Google auth is configured at all (`GOOGLE_CLIENT_ID`
+    // set) — `auth.rs`'s own Member sessions always require the lineage
+    // subsystem present, by design (ADR 0034's own Decision), regardless
+    // of what any OTHER aggregate in this domain binds to. A domain with
+    // neither never touches `hecks_eras`, never mints, never partitions —
+    // structurally absent from this boot's own call graph, the same
+    // "conditional on real capability, not a no-op" shape ADR 0031
+    // already established Ruby-side for `Runtime::BootGates`.
+    let needs_lineage = !aggregates.is_empty() || std::env::var("GOOGLE_CLIENT_ID").is_ok();
 
-    // The actual decision is a pure function (`mint::decide_boot_action`,
-    // directly unit-tested) — everything below is just carrying out
-    // whichever of its four outcomes came back, the only part that
-    // genuinely needs `client`/`ir`.
-    let era: i32 = match mint::decide_boot_action(&held, &my_label) {
-        mint::BootDecision::UseExisting { ordinal } => ordinal,
-        mint::BootDecision::HoldFirst => {
-            let source_text =
-                ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
-            mint::hold_first(&client, &domain, source_text, ir, &aggregates, None).await.map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
-            1
-        }
-        mint::BootDecision::LatestUnnamed { ordinal } => {
-            return Err(format!(
-                "cannot boot: {domain}'s latest held era (ordinal {ordinal}) has no name yet -- this crate can't \
-                 name it itself (no bluebook parser, ADR 0012's own boundary) -- boot Ruby once against this \
-                 database to name it (Runtime::EraCheck's own lazy-naming path), then redeploy",
-            )
-            .into());
-        }
-        mint::BootDecision::Mint { ordinal, from_ordinal, from_label } => {
-            let mut labels: Vec<String> = held.iter().map(|held_era| held_era.label.clone().unwrap_or_default()).collect();
-            labels.push(my_label.clone());
-            let edges = mint::parse_edges(ir, &domain);
-            let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
-                format!(
-                    "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
-                     ({my_label}) no translation edge covers -- {e} -- run bin/scaffold_translation, review it \
-                     with bin/translation_audit, then redeploy",
-                )
-            })?;
+    let era: Option<i32> = if needs_lineage {
+        // `hecks_eras`/`hecks_approvals`/the six `hecks_tr_*` functions —
+        // idempotent, gated by `provisioner?` on the connecting role's own
+        // ownership (mint.rs's own header), so calling this every boot is
+        // exactly as cheap and safe as `journal::ensure_schema` above.
+        // MUST run before the very first `journal::held_eras` call below —
+        // on a truly fresh Postgres instance (no domain has ever minted
+        // anything yet), `hecks_eras` itself doesn't exist until this runs;
+        // found live, by `mint_harness` (ADR-0030-in-progress step 8's own
+        // differential harness) hitting exactly that on a scratch database
+        // no prior test had ever exercised this boot path against.
+        mint::ensure_base(&client, &domain).await.map_err(|e| format!("provisioning hecks_eras for {domain}: {e:#}"))?;
 
-            // The approval gate — every edge in the chain that carries a
-            // compute/rekey rule, not just the newest link (a chain built
-            // from a domain that skipped several boots in a row could
-            // carry more than one). `approval::check` needs the RAW
-            // ir.json Value for each edge (the digest-relevant shape,
-            // never `mint::Edge`'s own already-compiled-SQL-bearing
-            // struct), found by the same from/to pair `edge_chain` just
-            // matched.
-            let raw_edges = ir.get("translations").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
-            for edge in &chain {
-                let Some(raw_edge) = raw_edges.iter().find(|candidate| {
-                    candidate.get("domain").and_then(serde_json::Value::as_str) == Some(domain.as_str())
-                        && candidate.get("from").and_then(serde_json::Value::as_str) == Some(edge.from.as_str())
-                        && candidate.get("to").and_then(serde_json::Value::as_str) == Some(edge.to.as_str())
-                }) else {
-                    return Err(format!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to).into());
-                };
-                approval::check(&client, &domain, raw_edge, ordinal).await.map_err(|e| format!("{e:#}"))?;
+        // THE BOOT GATE — no longer a bare `HECKS_ERA` ordinal comparison.
+        // This binary computes ITS OWN shape hash (`storage_shape`, over
+        // `ir::ir()` — the same `ir.json` sidecar this crate already loads
+        // generically) and decides for itself: does a held era already
+        // name this exact shape (boot at it, whichever ordinal — RLS
+        // refuses a write if it turns out to be superseded, the same
+        // guarantee `journal::lineage_tests::
+        // a_stale_era_write_is_refused_by_postgres_rls_not_this_crate`
+        // already proves), is this domain brand new (mint era 1 itself,
+        // `mint::hold_first`), or has it drifted (find the ONE translation
+        // edge leaving the latest held era, mint the next one itself,
+        // `mint::mint_era` — refusing by name toward `bin/scaffold_
+        // translation` if none covers it, or `bin/translation_audit
+        // --approve` if one does but needs a human's sample review first,
+        // `approval::check`). `HECKS_ERA` is gone entirely — an operator
+        // no longer declares what era to run as; this binary decides.
+        let held = journal::held_eras(&client, &domain).await.map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?;
+
+        // The actual decision is a pure function (`mint::decide_boot_action`,
+        // directly unit-tested) — everything below is just carrying out
+        // whichever of its four outcomes came back, the only part that
+        // genuinely needs `client`/`ir`.
+        let ordinal: i32 = match mint::decide_boot_action(&held, &my_label) {
+            mint::BootDecision::UseExisting { ordinal } => ordinal,
+            mint::BootDecision::HoldFirst => {
+                let source_text =
+                    ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                mint::hold_first(&client, &domain, source_text, ir, &aggregates, None).await.map_err(|e| format!("minting era 1 of {domain}: {e:#}"))?;
+                1
             }
+            mint::BootDecision::LatestUnnamed { ordinal } => {
+                return Err(format!(
+                    "cannot boot: {domain}'s latest held era (ordinal {ordinal}) has no name yet -- this crate can't \
+                     name it itself (no bluebook parser, ADR 0012's own boundary) -- boot Ruby once against this \
+                     database to name it (Runtime::EraCheck's own lazy-naming path), then redeploy",
+                )
+                .into());
+            }
+            mint::BootDecision::Mint { ordinal, from_ordinal, from_label } => {
+                let mut labels: Vec<String> = held.iter().map(|held_era| held_era.label.clone().unwrap_or_default()).collect();
+                labels.push(my_label.clone());
+                let edges = mint::parse_edges(ir, &domain);
+                let chain = mint::edge_chain(&edges, &labels).map_err(|e| {
+                    format!(
+                        "cannot boot: {domain} has drifted from era {from_ordinal} ({from_label}) to a shape \
+                         ({my_label}) no translation edge covers -- {e} -- run bin/scaffold_translation, review it \
+                         with bin/translation_audit, then redeploy",
+                    )
+                })?;
 
-            // Layer 2 of the live audit — CoverageCheck#audit!'s own
-            // ordering: BEFORE anything is minted, over the live
-            // compiled chain (plain SELECTs, never a persisted matview),
-            // so a refusal leaves no half-born era. `watermarks` uses
-            // `held` exactly as fetched above — era `ordinal` genuinely
-            // has no row yet, matching what Ruby's own audit sees at
-            // this same pre-mint moment.
-            let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|held_era| (held_era.ordinal, held_era.watermark)).collect();
-            mint::audit_before_mint(&client, &domain, ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks)
-                .await
-                .map_err(|e| format!("{e:#}"))?;
+                // The approval gate — every edge in the chain that carries a
+                // compute/rekey rule, not just the newest link (a chain built
+                // from a domain that skipped several boots in a row could
+                // carry more than one). `approval::check` needs the RAW
+                // ir.json Value for each edge (the digest-relevant shape,
+                // never `mint::Edge`'s own already-compiled-SQL-bearing
+                // struct), found by the same from/to pair `edge_chain` just
+                // matched.
+                let raw_edges = ir.get("translations").and_then(serde_json::Value::as_array).cloned().unwrap_or_default();
+                for edge in &chain {
+                    let Some(raw_edge) = raw_edges.iter().find(|candidate| {
+                        candidate.get("domain").and_then(serde_json::Value::as_str) == Some(domain.as_str())
+                            && candidate.get("from").and_then(serde_json::Value::as_str) == Some(edge.from.as_str())
+                            && candidate.get("to").and_then(serde_json::Value::as_str) == Some(edge.to.as_str())
+                    }) else {
+                        return Err(format!("cannot boot: {domain}'s edge {} -> {} vanished between parsing and approval-checking it", edge.from, edge.to).into());
+                    };
+                    approval::check(&client, &domain, raw_edge, ordinal).await.map_err(|e| format!("{e:#}"))?;
+                }
 
-            let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
-            mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None)
-                .await
-                .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
-            ordinal
-        }
+                // Layer 2 of the live audit — CoverageCheck#audit!'s own
+                // ordering: BEFORE anything is minted, over the live
+                // compiled chain (plain SELECTs, never a persisted matview),
+                // so a refusal leaves no half-born era. `watermarks` uses
+                // `held` exactly as fetched above — era `ordinal` genuinely
+                // has no row yet, matching what Ruby's own audit sees at
+                // this same pre-mint moment.
+                let watermarks: std::collections::HashMap<i32, Option<i64>> = held.iter().map(|held_era| (held_era.ordinal, held_era.watermark)).collect();
+                mint::audit_before_mint(&client, &domain, ir, &aggregates, ordinal, &chain, &raw_edges, &watermarks)
+                    .await
+                    .map_err(|e| format!("{e:#}"))?;
+
+                let held_text = ir.get("source_text").and_then(serde_json::Value::as_str).ok_or("ir.json is missing source_text — regenerate with bin/project_rust")?;
+                mint::mint_era(&client, &domain, ordinal, &my_hash, &my_label, held_text, &aggregates, &chain, None)
+                    .await
+                    .map_err(|e| format!("minting era {ordinal} of {domain}: {e:#}"))?;
+                ordinal
+            }
+        };
+        Some(ordinal)
+    } else {
+        None
     };
 
     let lineage_config = Arc::new(journal::LineageConfig { domain, era });

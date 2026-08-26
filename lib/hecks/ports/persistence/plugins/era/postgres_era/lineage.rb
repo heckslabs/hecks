@@ -9,7 +9,7 @@ require_relative "lineage/resumable_backfill"
 require_relative "lineage/head_compiler"
 require_relative "lineage/field_cache"
 require_relative "lineage/transform_installer"
-require_relative "../../../naming"
+require_relative "../../../../../naming"
 
 module Hecks
   module Adapters

@@ -1,6 +1,5 @@
 require "json"
-require_relative "../runtime/era_check"
-require_relative "../translation/rule_compiler"
+require_relative "../ports/persistence"
 
 module Hecks
   module Projector
@@ -30,7 +29,15 @@ module Hecks
       # Reuses `Runtime::EraCheck`'s own capability predicates rather than
       # re-deriving them — the boot-time gate and this export must never
       # answer differently for the same aggregate.
+      #
+      # ADR 0033 — `Runtime::EraCheck` lives in the (optional) era
+      # persistence plugin now; unloaded, this answers exactly what it
+      # already answers for a domain with nothing lineage-capable bound —
+      # `capable_aggregates: []` — rather than raising on an undefined
+      # constant.
       def lineage(registry, domain_name)
+        return { capable_aggregates: [] } unless Ports::Persistence.plugin?(:era)
+
         bluebook = registry.bluebooks.fetch(domain_name)
         capable = bluebook.aggregates.select do |aggregate|
           adapter_name = Runtime::EraCheck.adapter_for(registry, domain_name, aggregate)
@@ -130,7 +137,17 @@ module Hecks
       # expression` is nil unless this edge rekeys — the bare
       # `aggregate_id` passthrough head_compiler.rb itself falls back to
       # for the overwhelming common case.
+      # ADR 0033 — `Translation::RuleCompiler` lives in the era plugin;
+      # unloaded, there is nothing that can compile this SQL, so this
+      # falls back to the bare declared fields (`translation_aggregate`
+      # alone) rather than raising on an undefined constant. A consumer
+      # embedding this JSON without the era plugin loaded gets the same
+      # declared-rules shape, just without precompiled SQL to execute —
+      # consistent with there being no mint/audit machinery to run it
+      # against either.
       def compiled_translation_aggregate(aggregate)
+        return translation_aggregate(aggregate) unless Ports::Persistence.plugin?(:era)
+
         translation_aggregate(aggregate).merge(
           compiled_state_expression: Translation::RuleCompiler.compile_rules(aggregate),
           compiled_id_expression:    Translation::RuleCompiler.rekeyed?(aggregate) ? Translation::RuleCompiler.compile_id_expression(aggregate) : nil

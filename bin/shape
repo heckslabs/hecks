@@ -20,6 +20,10 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
+# ADR 0033 — the `:shape` projection needs the era persistence plugin
+# loaded (Runtime::StorageShape lives there now); this tool has no
+# reason to exist without it.
+require "hecks/ports/persistence/plugins/era"
 require "json"
 
 path = ARGV.shift or abort "usage: bin/shape <bluebook>"

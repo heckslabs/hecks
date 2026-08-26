@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 
 # The SAME end-to-end proof `saga_durability_spec.rb` runs against
