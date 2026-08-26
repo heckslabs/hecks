@@ -2,6 +2,9 @@
   "mcpServers": {
     "hecks-query-ir": {
       "command": "bin/hecks_query_ir_mcp"
+    },
+    "hecks-door": {
+      "command": "bin/hecks_mcp_door"
     }
   }
 }

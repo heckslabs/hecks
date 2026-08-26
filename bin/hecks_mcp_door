@@ -1,0 +1,217 @@
+#!/usr/bin/env ruby
+
+# THE UNIVERSAL MCP DOOR — one MCP server for EVERY booted domain, not one
+# per command. `docs/hecks-survey-what-we-wish-we-had.md` #1 and
+# `docs/future-features.md`'s own "if we build three" #1 pick: `dispatch /
+# query / state / catalog / describe / validate`, six tools instead of a
+# hand-registered wrapper per verb. All the logic and the JSON shape it
+# answers with live in `Hecks::Facade::McpDoor` (lib/hecks/facade/
+# mcp_door.rb) — this file is JSON-RPC plumbing only, hand-rolled over
+# stdio exactly the way `bin/hecks_query_ir_mcp` already is (no gem
+# dependency; newline-delimited JSON, flushed after every write).
+#
+# EVERY TOOL TAKES `domain:` — a directory containing a `.hecksagon`
+# (`examples/banking`, `examples/pizzas`, …), the same argument `bin/run`
+# takes. An MCP server's cwd is wherever the client launched it from, not
+# necessarily inside a domain, so there is no walking-up-for-.hecksagon
+# default the way `bin/run` has for a human sitting in one already.
+#
+# ONE BOOT PER CALL — `Hecks.boot(domain, install_facade: false)` is cheap
+# (a bluebook is a few hundred lines of Ruby DSL, not a network round
+# trip) and it means one long-lived server process can answer calls
+# against two different domains back to back with no shared, staling
+# state between them.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks"
+require "json"
+
+$stdout.sync = true
+
+PROTOCOL_VERSION = "2024-11-05"
+
+SUMMARY_PROPERTY = {
+  type:        "string",
+  description: "One line: why this call is happening. Required — it is what makes the audit trail legible later."
+}.freeze
+
+DOMAIN_PROPERTY = {
+  type:        "string",
+  description: "The domain directory, containing a .hecksagon (e.g. \"examples/banking\")."
+}.freeze
+
+ARGS_PROPERTY = {
+  type:        "object",
+  description: "The command/query's declared arguments, nested value-object literals included " \
+               "(e.g. {\"reference\":{\"value\":\"BUG#1\"}})."
+}.freeze
+
+TOOLS = [
+  {
+    name:        "dispatch",
+    description: "Issue a command against a booted domain. `command` is the short or qualified verb name " \
+                 "(bin/docs or the catalog/describe tools show what's available). Answers the record's id, " \
+                 "its resulting state, and the events it announced — or a structured refusal, never a crash.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain:  DOMAIN_PROPERTY,
+        command: { type: "string", description: "The command's short or qualified name, e.g. \"open_account\"." },
+        args:    ARGS_PROPERTY,
+        summary: SUMMARY_PROPERTY
+      },
+      required:   %w[domain command summary]
+    }
+  },
+  {
+    name:        "query",
+    description: "Ask a declared question of a booted domain. `question` is the short or qualified query name. " \
+                 "Answers the row array the query itself declares.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain:   DOMAIN_PROPERTY,
+        question: { type: "string", description: "The query's short or qualified name." },
+        args:     ARGS_PROPERTY,
+        summary:  SUMMARY_PROPERTY
+      },
+      required:   %w[domain question summary]
+    }
+  },
+  {
+    name:        "state",
+    description: "Read what an aggregate actually has stored, no verb involved. Pass `id` for one record; " \
+                 "omit it to list every record the aggregate currently holds.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain:    DOMAIN_PROPERTY,
+        aggregate: { type: "string", description: "The aggregate's name, e.g. \"Account\"." },
+        id:        { type: "string", description: "A specific record's id. Omit to list every record." },
+        summary:   SUMMARY_PROPERTY
+      },
+      required:   %w[domain aggregate summary]
+    }
+  },
+  {
+    name:        "catalog",
+    description: "Zoom level one: every aggregate a domain declares, and every command/query name each " \
+                 "answers to. No summary needed — this changes nothing and commits nothing to any log.",
+    inputSchema: {
+      type:       "object",
+      properties: { domain: DOMAIN_PROPERTY },
+      required:   %w[domain]
+    }
+  },
+  {
+    name:        "describe",
+    description: "Zoom level two: one aggregate's full contract — every command's arguments, the states it " \
+                 "may be issued from, and every way it can refuse. Omit `aggregate` for the whole domain.",
+    inputSchema: {
+      type:       "object",
+      properties: {
+        domain:    DOMAIN_PROPERTY,
+        aggregate: { type: "string", description: "Narrow to one aggregate. Omit for the whole domain." }
+      },
+      required:   %w[domain]
+    }
+  },
+  {
+    name:        "validate",
+    description: "Zoom level three: is this domain's wiring sound — every bind names a declared aggregate, " \
+                 "every adapter satisfies its port, the default adapter is usable. {valid:false, error:…} " \
+                 "on a real wiring defect, never a bare crash.",
+    inputSchema: {
+      type:       "object",
+      properties: { domain: DOMAIN_PROPERTY },
+      required:   %w[domain]
+    }
+  }
+].freeze
+
+def boot(domain) = Hecks.boot(domain, install_facade: false)
+
+def call_tool(name, a)
+  case name
+  when "dispatch"
+    Hecks::Facade::McpDoor.dispatch(runtime: boot(a["domain"]), command: a["command"],
+                                    summary: a["summary"], args: a["args"] || {})
+  when "query"
+    Hecks::Facade::McpDoor.query(runtime: boot(a["domain"]), question: a["question"],
+                                 summary: a["summary"], args: a["args"] || {})
+  when "state"
+    Hecks::Facade::McpDoor.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
+                                 summary: a["summary"], id: a["id"])
+  when "catalog"
+    Hecks::Facade::McpDoor.catalog(runtime: boot(a["domain"]))
+  when "describe"
+    Hecks::Facade::McpDoor.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
+  when "validate"
+    Hecks::Facade::McpDoor.validate(domain: a["domain"])
+  else
+    { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
+  end
+rescue StandardError => e
+  # A DEFECT, NOT A REFUSAL — every DOMAIN refusal is already caught inside
+  # `McpDoor` itself and answered as `{ok: false, error: "..."}`. Reaching
+  # here means something this door did not anticipate (a bad domain path,
+  # a malformed argument shape `JsonDoor` couldn't symbolize) — still
+  # answered as structured content rather than an MCP-level `isError`, so
+  # a calling agent reads one shape for every outcome.
+  { ok: false, error: "#{e.class}: #{e.message}" }
+end
+
+def tool_result(payload)
+  { content: [{ type: "text", text: JSON.pretty_generate(payload) }], isError: payload[:ok] == false }
+end
+
+def send_response(id, result)
+  puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+end
+
+def send_error(id, code, message)
+  puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
+end
+
+def handle(request)
+  id     = request["id"]
+  method = request["method"]
+  params = request["params"] || {}
+
+  case method
+  when "initialize"
+    send_response(id, {
+                    protocolVersion: PROTOCOL_VERSION,
+                    capabilities:    { tools: {} },
+                    serverInfo:      { name: "hecks-mcp-door", version: "1.0.0" }
+                  })
+  when "notifications/initialized"
+    nil # a notification — no id, no response
+  when "tools/list"
+    send_response(id, { tools: TOOLS })
+  when "tools/call"
+    send_response(id, tool_result(call_tool(params["name"], params["arguments"] || {})))
+  when "ping"
+    send_response(id, {})
+  else
+    send_error(id, -32_601, "Method not found: #{method}") unless id.nil?
+  end
+end
+
+$stdin.each_line do |line|
+  line = line.strip
+  next if line.empty?
+
+  begin
+    request = JSON.parse(line)
+  rescue JSON::ParserError => e
+    send_error(nil, -32_700, "Parse error: #{e.message}")
+    next
+  end
+
+  begin
+    handle(request)
+  rescue StandardError => e
+    send_error(request["id"], -32_603, "Internal error: #{e.class}: #{e.message}")
+  end
+end
