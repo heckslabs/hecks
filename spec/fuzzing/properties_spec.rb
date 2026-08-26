@@ -345,6 +345,23 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
 
+    # A `delegates_to` DOOR refuses with its TARGET's own given, in the
+    # door's name — `Roster.Retire` is a pure passthrough to
+    # `Member.Retire`, and "a front-row holder may not retire" is Retire's.
+    # Found live mining chess's history: every refused move through a
+    # door read as undeclared, and no pre-state was admitted.
+    it "guard_refusals_are_declared follows a door's delegates_to to the guards that actually refused" do
+      history = { bluebooks: bluebooks_for(File.join(ROOT_DIR, "examples/roster")),
+                  refusals:  [{ verb:  "Roster::Roster.Retire",
+                                error: "Retire refused — a front-row holder may not retire",
+                                kind:  "Hecks::Runtime::GivenNotMet" }] }
+
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+
+      history[:refusals].first[:error] = "Retire refused — a made up reason"
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to include("a made up reason")
+    end
+
     it "guard_refusals_are_declared resolves a refusal against ITS OWN domain, not just the first-loaded one" do
       # THE REAL REGRESSION, pinned exactly as bin/fuzz found it: a
       # domain under fuzz commonly composes more than one bluebook

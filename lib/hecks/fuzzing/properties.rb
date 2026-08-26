@@ -462,10 +462,12 @@ module Hecks
 
           command = command_for_verb(bluebooks, refusal[:verb])
           next "#{refusal[:verb]} raised #{refusal[:kind]}, but no declared command resolves that verb" unless command
-          next if command.guard_descriptions.include?(match[2])
+
+          declared = effective_guard_descriptions(bluebooks, refusal[:verb], command)
+          next if declared.include?(match[2])
 
           "#{refusal[:verb]} refused — #{match[2].inspect} — but #{command.hecks_name} declares no given " \
-            "or ensures with that description (it declares #{command.guard_descriptions.inspect})"
+            "or ensures with that description (it declares #{declared.inspect})"
         end
 
         offenders.empty? || offenders.join("; ")
@@ -488,6 +490,25 @@ module Hecks
       # refusal read as "no declared command resolves that verb" purely
       # because `history[:bluebook]` was Expression, not Translation; the
       # refusal was real, this property's own domain resolution was not.
+      # A DELEGATING DOOR REFUSES WITH ITS TARGET'S OWN WORDS. `delegates_to`
+      # (CommandBuilder#delegates_to_impl) hands the whole dispatch to one
+      # entity command, and that command's given is what refuses — raised
+      # back through the door, in the door's name (chess: `Game.MoveKnight
+      # refused — "it is that color's turn"`, a given Knight.Move declares
+      # and MoveKnight, a pure passthrough, never could). Read the door's
+      # own guards first, then every delegation target's; an offence is
+      # only a description NEITHER declares. Found live mining chess's
+      # history: every refused move through a door read as undeclared.
+      def effective_guard_descriptions(bluebooks, verb, command)
+        own = command.guard_descriptions
+        delegated = command.mutations.select { |m| m.op == :delegate }.flat_map do |delegation|
+          domain, aggregate_name, = Naming.split_verb(verb)
+          target = command_for_verb(bluebooks, "#{domain}::#{aggregate_name}.#{delegation.target}")
+          target ? target.guard_descriptions : []
+        end
+        own + delegated
+      end
+
       def command_for_verb(bluebooks, verb)
         domain, aggregate_name, command_path = Naming.split_verb(verb)
         return nil unless command_path
