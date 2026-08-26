@@ -278,9 +278,61 @@ RSpec.describe "the generated diagrams" do
     expect(surface_files.size).to eq(holders_with_surface.size)
   end
 
+  # ── sagas -> stateDiagram-v2 ───────────────────────────────────────────
+
+  # Settlement IS THE RICH REAL CASE: a self-loop (TransferRequested fires
+  # while still "requested"), a transition that dispatches TWO commands at
+  # once (AccountDebited dispatches both Transfer.Debited and
+  # Account.Credit), and a real compensating leg (the literal "refused"
+  # trigger, not an event any aggregate announces).
+  it "draws exactly one edge per real handler Settlement declares, no more and no fewer" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Settlement_saga.mmd"]
+    settlement = banking_chapter.process_managers.find { |pm| pm.hecks_name == "Settlement" }
+
+    drawn_edges = diagram.lines.map(&:strip).select { |line| line.include?("-->") && !line.start_with?("[*]") }
+    expect(drawn_edges.size).to eq(settlement.handlers.size)
+  end
+
+  it "starts at the saga's own first declared state" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Settlement_saga.mmd"]
+    expect(diagram).to include("[*] --> requested")
+  end
+
+  it "draws a self-loop when a handler's own from and to state are the same" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Settlement_saga.mmd"]
+    expect(diagram).to include("requested --> requested: TransferRequested / dispatches Account.Debit")
+  end
+
+  it "names every command a transition dispatches, joined, when it fires more than one" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Settlement_saga.mmd"]
+    expect(diagram).to include("requested --> awaiting_credit: AccountDebited / dispatches Transfer.Debited, Account.Credit")
+  end
+
+  it "states the compensating refused leg exactly as verbatim as any other trigger" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Settlement_saga.mmd"]
+    expect(diagram).to include("awaiting_credit --> reversed: refused / dispatches Account.Credit, Transfer.Reverse")
+  end
+
+  it "appends no dispatches suffix when a handler dispatches nothing, in Onboarding" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Onboarding_saga.mmd"]
+    expect(diagram).to include("screening --> declined: OnboardingDeclined")
+    expect(diagram).not_to include("OnboardingDeclined /")
+  end
+
+  it "generates one saga diagram per real process_manager, across all of banking" do
+    files = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)
+    saga_files = files.keys.select { |name| name.end_with?("_saga.mmd") }
+    expect(saga_files).to contain_exactly("Onboarding_saga.mmd", "Settlement_saga.mmd", "ExternalSettlement_saga.mmd")
+  end
+
+  it "draws no saga diagram at all for pizzas — the real corpus declares no process_manager there" do
+    files = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)
+    expect(files.keys).not_to include(a_string_ending_with("_saga.mmd"))
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 36, across both real domains plus the one
+  # currently produce (all 39, across both real domains plus the one
   # in-memory to: fixture) WAS run through the real mermaid.parse()
   # engine once, by hand, to confirm this exact shape is valid Mermaid
   # — this just guards the one structural fact that made that true for
@@ -298,6 +350,7 @@ RSpec.describe "the generated diagrams" do
       [:banking_chapter, "roles.mmd"]           => "flowchart LR",
       [:banking_chapter, "read_models.mmd"]     => "flowchart LR",
       [:banking_chapter, "Account_surface.mmd"] => "flowchart LR",
+      [:banking_chapter, "Settlement_saga.mmd"] => "stateDiagram-v2",
       [:scratch_chapter, "ports.mmd"]           => "flowchart LR"
     }
 

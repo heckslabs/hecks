@@ -49,6 +49,10 @@ module Hecks
     #                                          or query — everything you can
     #                                          DO to it and ASK about it,
     #                                          in one place
+    #   <Name>_saga.mmd       stateDiagram-v2  one per process_manager —
+    #                                          its own states, and what
+    #                                          each transition dispatches
+    #                                          elsewhere in the domain
     #
     # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
     # UNSANITIZED, as Mermaid node/entity ids — safe because this
@@ -98,6 +102,10 @@ module Hecks
           next if holder.commands.empty? && holder.queries.empty?
 
           files["#{holder.hecks_name}_surface.mmd"] = surface_diagram(bluebook, holder)
+        end
+
+        bluebook.process_managers.each do |saga|
+          files["#{saga.hecks_name}_saga.mmd"] = saga_diagram(bluebook, saga)
         end
 
         files
@@ -407,6 +415,57 @@ module Hecks
 
       def query_node(aggregate_name, query_name)
         %(qry_#{aggregate_name}_#{query_name}{"#{aggregate_name}.#{query_name}"})
+      end
+
+      # ── sagas -> stateDiagram-v2 ─────────────────────────────────────
+
+      # A SAGA HAS A LIFECYCLE TOO — the same `stateDiagram-v2` shape
+      # `lifecycle_diagram` already draws, one file per process_manager
+      # the same way lifecycle is one file per lifecycle-bearing holder.
+      # What's different is the label: a lifecycle's own edge is labeled
+      # by the COMMAND that causes it (an aggregate transitions because
+      # something was DONE to it); a saga's edge is labeled by the EVENT
+      # that causes it (a saga advances because something HAPPENED,
+      # possibly nowhere near the saga itself) — the same command/event
+      # split `dispatch.mmd`'s own stadium/hexagon vocabulary already
+      # draws, here spent on which noun labels a stateDiagram-v2 edge
+      # instead.
+      #
+      # THE LABEL ALSO NAMES WHAT THE TRANSITION DISPATCHES — a fact no
+      # existing diagram states for a saga at all: a lifecycle's own
+      # edge only ever names the one command that caused it; a saga's
+      # edge can fire several commands at once (real in banking:
+      # Settlement's own AccountDebited handler dispatches both
+      # Transfer.Debited and Account.Credit). Confirmed real in the
+      # corpus: no saga dispatch ever declares a `to:`/`target_domain`
+      # of its own (unlike a policy's `across`) — every command a saga
+      # fires lands inside its own bluebook chapter, so this never needs
+      # `dispatch.mmd`'s own "triggers in X" cross-domain label.
+      #
+      # THE COMPENSATING LEG READS LIKE ANY OTHER — its own trigger is
+      # the literal string "refused" (`ProcessManager::REFUSED`, this
+      # language's own Trigger vocabulary), not invented text: a
+      # dispatch declined is exactly as real a cause of a state
+      # transition as an event announced, and the diagram states it
+      # exactly as verbatim as every other edge here does.
+      def saga_diagram(bluebook, saga)
+        edges = saga.handlers.map { |handler| saga_edge(handler) }
+
+        subject = "#{saga.hecks_name}'s own declared states and what each transition dispatches " \
+                  "(starts on #{saga.starts_on}, ends on #{saga.ends_on})"
+        <<~MERMAID
+          #{header(bluebook.name, subject)}stateDiagram-v2
+              [*] --> #{saga.states.first}
+          #{edges.join("\n")}
+        MERMAID
+      end
+
+      def saga_edge(handler)
+        label = handler.event_type
+        dispatched = handler.dispatches.map(&:command_name)
+        label += " / dispatches #{dispatched.join(', ')}" unless dispatched.empty?
+
+        "    #{handler.from_state} --> #{handler.to_state}: #{label}"
       end
     end
   end
