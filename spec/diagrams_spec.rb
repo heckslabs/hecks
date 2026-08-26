@@ -65,16 +65,34 @@ RSpec.describe "the generated diagrams" do
   # — this spec's own job is "matches what bin/project_diagrams would
   # really generate", and that script boots the real file tree, not a
   # reduced double.
-  let(:pizzas_chapter) { Hecks.boot(File.expand_path("../examples/pizzas", __dir__)).registry.bluebook("Pizzas") }
-  let(:banking_chapter) { boot_banking.bluebook("Banking") }
+  let(:pizzas_registry)  { Hecks.boot(File.expand_path("../examples/pizzas", __dir__)).registry }
+  let(:pizzas_chapter)   { pizzas_registry.bluebook("Pizzas") }
+  let(:pizzas_hecksagon) { pizzas_registry.hecksagon("Pizzas") }
+  let(:banking_registry) { boot_banking }
+  let(:banking_chapter)  { banking_registry.bluebook("Banking") }
+
+  # A SEPARATE, REAL FILE BOOT, JUST FOR THE HECKSAGON — `boot_banking`
+  # above only ever `load_bluebook_files`s (the same reduced fixture
+  # `pizzas_chapter`'s own header comment already warns about), so it
+  # never loads `banking.hecksagon` at all and `banking_registry.
+  # hecksagon("Banking")` is always nil. `bluebook`-shaped assertions
+  # stay on the fast in-memory `banking_chapter` — this repo's own
+  # drift-detection test already proves that chapter byte-matches a
+  # full boot's for every other diagram kind — only the hecksagon needs
+  # this heavier real boot to exist at all.
+  let(:banking_hecksagon) { Hecks.boot(File.expand_path("../examples/banking", __dir__)).registry.hecksagon("Banking") }
   let(:scratch_chapter) { boot_scratch_with_port_routing.bluebook("Scratch") }
   let(:order)           { pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" } }
 
   # ── drift, across both real domains ────────────────────────────────
 
-  def assert_undrifted(domain, chapter)
+  # `hecksagon:` IS ONLY EVER NEEDED FOR frameworks.mmd — `bin/project_
+  # diagrams` always has one in hand (`registry.hecksagon(chapter_name)`),
+  # so drift detection has to hand it in too or a real frameworks.mmd on
+  # disk would never match what an options-less call regenerates.
+  def assert_undrifted(domain, chapter, hecksagon: nil)
     committed_dir = File.expand_path("../docs/generated/diagrams/#{domain}", __dir__)
-    regenerated = Hecks::Projector.call(:diagrams, bluebook: chapter)
+    regenerated = Hecks::Projector.call(:diagrams, bluebook: chapter, options: { hecksagon: hecksagon })
     expect(regenerated).not_to be_empty
 
     regenerated.each do |relative, contents|
@@ -90,11 +108,11 @@ RSpec.describe "the generated diagrams" do
   end
 
   it "is exactly what bin/project_diagrams would regenerate for pizzas right now" do
-    assert_undrifted("pizzas", pizzas_chapter)
+    assert_undrifted("pizzas", pizzas_chapter, hecksagon: pizzas_hecksagon)
   end
 
   it "is exactly what bin/project_diagrams would regenerate for banking right now" do
-    assert_undrifted("banking", banking_chapter)
+    assert_undrifted("banking", banking_chapter, hecksagon: banking_hecksagon)
   end
 
   # ── lifecycle -> stateDiagram-v2 ────────────────────────────────────
@@ -396,9 +414,50 @@ RSpec.describe "the generated diagrams" do
     expect(files.keys).not_to include(a_string_ending_with("_saga.mmd"))
   end
 
+  # ── frameworks -> flowchart ────────────────────────────────────────
+
+  # THE REAL, RICH CASE: banking attaches two frameworks AND reaches
+  # across into two more domains — Compliance (twice, from two separate
+  # policies) and Notifications, a domain that isn't a framework member
+  # at all, proving this draws every real cross-domain dependency, not
+  # just the three named in Hecks::Framework.members.
+  it "draws exactly one edge per real uses_framework and one per distinct cross-domain policy target, in banking" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter,
+                                               options:  { hecksagon: banking_hecksagon })["frameworks.mmd"]
+    attaches = diagram.lines.count { |line| line.include?("|attaches|") }
+    reaches = diagram.lines.count { |line| line.include?("|reaches across|") }
+
+    expect(attaches).to eq(banking_hecksagon.framework_members.size)
+    expect(reaches).to eq(banking_chapter.policies.filter_map(&:target_domain).uniq.size)
+  end
+
+  it "draws attaches dotted and reaches across solid, and dedupes two policies reaching the same domain" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter,
+                                               options:  { hecksagon: banking_hecksagon })["frameworks.mmd"]
+    expect(diagram).to include("Banking[(Banking)] -.->|attaches| Governance[(Governance)]")
+    expect(diagram).to include("Banking[(Banking)] -.->|attaches| Identity[(Identity)]")
+    expect(diagram).to include("Banking[(Banking)] -->|reaches across| Compliance[(Compliance)]")
+    expect(diagram.lines.count { |line| line.include?("|reaches across| Compliance") }).to eq(1) # ReviewOnFreeze AND ReviewOnBoxSurrender both target it
+  end
+
+  it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing" do
+    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter,
+                                               options:  { hecksagon: pizzas_hecksagon })["frameworks.mmd"]
+    expect(diagram).to include("Pizzas[(Pizzas)] -.->|attaches| Governance[(Governance)]")
+    expect(diagram).not_to include("reaches across")
+  end
+
+  # NO hecksagon HANDED IN — an older caller, or a spec fixture that
+  # doesn't need one — MEANS NO frameworks.mmd, the same "nothing to
+  # state" skip every other diagram in this file already takes when its
+  # own data is empty, not an error.
+  it "draws no frameworks.mmd at all when no hecksagon is given" do
+    expect(Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["frameworks.mmd"]).to be_nil
+  end
+
   # A STRUCTURAL CHECK, NOT A MERMAID PARSE — this repo's own suite takes
   # no Node/npm dependency for that. Every diagram this projection can
-  # currently produce (all 39, across both real domains plus the one
+  # currently produce (all 41, across both real domains plus the one
   # in-memory to: fixture) WAS run through the real mermaid.parse()
   # engine once, by hand, to confirm this exact shape is valid Mermaid
   # — this just guards the one structural fact that made that true for
@@ -411,17 +470,21 @@ RSpec.describe "the generated diagrams" do
       [:pizzas_chapter, "roles.mmd"]            => "flowchart LR",
       [:pizzas_chapter, "ports.mmd"]            => "flowchart LR",
       [:pizzas_chapter, "Order_surface.mmd"]    => "flowchart LR",
+      [:pizzas_chapter, "frameworks.mmd"]       => "flowchart LR",
       [:banking_chapter, "relationships.mmd"]   => "erDiagram",
       [:banking_chapter, "dispatch.mmd"]        => "flowchart LR",
       [:banking_chapter, "roles.mmd"]           => "flowchart LR",
       [:banking_chapter, "read_models.mmd"]     => "flowchart LR",
       [:banking_chapter, "Account_surface.mmd"] => "flowchart LR",
       [:banking_chapter, "Settlement_saga.mmd"] => "stateDiagram-v2",
+      [:banking_chapter, "frameworks.mmd"]      => "flowchart LR",
       [:scratch_chapter, "ports.mmd"]           => "flowchart LR"
     }
+    hecksagons = { pizzas_chapter: -> { pizzas_hecksagon }, banking_chapter: -> { banking_hecksagon } }
 
     expectations.each do |(chapter_method, filename), expected_first_line|
-      files = Hecks::Projector.call(:diagrams, bluebook: send(chapter_method))
+      hecksagon = hecksagons[chapter_method]&.call
+      files = Hecks::Projector.call(:diagrams, bluebook: send(chapter_method), options: { hecksagon: hecksagon })
       lines = files.fetch(filename).lines.map(&:strip).reject(&:empty?)
       first_real_line = lines.find { |line| !line.start_with?("%%") }
       expect(first_real_line).to eq(expected_first_line), "#{filename}: expected #{expected_first_line.inspect} first"

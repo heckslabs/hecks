@@ -54,6 +54,13 @@ module Hecks
     #                                          its own states, and what
     #                                          each transition dispatches
     #                                          elsewhere in the domain
+    #   frameworks.mmd        flowchart        every OTHER domain this one
+    #                                          depends on — a shared
+    #                                          framework it `uses_framework`,
+    #                                          or a domain a policy reaches
+    #                                          `across` — the one diagram
+    #                                          here that looks OUTWARD past
+    #                                          this domain's own boundary
     #
     # CONSTRUCT NAMES (aggregate/entity/command/event) ARE USED BARE,
     # UNSANITIZED, as Mermaid node/entity ids — safe because this
@@ -107,6 +114,10 @@ module Hecks
 
         bluebook.process_managers.each do |saga|
           files["#{saga.hecks_name}_saga.mmd"] = saga_diagram(bluebook, saga)
+        end
+
+        if (diagram = frameworks_diagram(bluebook, options[:hecksagon]))
+          files["frameworks.mmd"] = diagram
         end
 
         files
@@ -532,6 +543,63 @@ module Hecks
         label += " / dispatches #{dispatched.join(', ')}" unless dispatched.empty?
 
         "    #{handler.from_state} --> #{handler.to_state}: #{label}"
+      end
+
+      # ── frameworks -> flowchart ─────────────────────────────────────
+
+      # EVERY OTHER DIAGRAM IN THIS FILE STAYS INSIDE ONE DOMAIN'S OWN
+      # BOUNDARY — this is the one that steps outside it. A real domain
+      # depends on another domain's own aggregates in exactly two ways:
+      # `uses_framework "X"` in its `.hecksagon` (`Hecksagon#framework_
+      # members`), which loads X's whole bluebook into THIS registry,
+      # unconditionally, the moment this domain boots; or a policy's own
+      # `across "X"` (`Policy#target_domain`), which only reaches X when
+      # the policy's declared event actually fires. Same underlying
+      # fact `dispatch.mmd`'s own `trigger_edge` already draws from the
+      # command's side ("triggers in X") — this draws it again from the
+      # DOMAIN's side, next to the structural `uses_framework` fact
+      # `dispatch.mmd` never sees at all (that lives in the `.hecksagon`,
+      # which no other diagram here is handed).
+      #
+      # NEITHER THIS DOMAIN NOR EACH DEPENDENCY GETS THE holders() TREATMENT
+      # — a whole domain is drawn as ONE cylinder, the same "a bounded,
+      # addressable thing" shape every other diagram here already spends
+      # on a single aggregate, just scaled up one level: a domain is a
+      # bigger box the same kind of box lives inside.
+      #
+      # DOTTED FOR `attaches`, SOLID FOR `reaches across` — the reverse
+      # of which fact is "always true" between the two: attaching a
+      # framework is a standing declaration, true every time this domain
+      # boots, so it gets the same dotted "this always belongs" treatment
+      # `ports.mmd` gives an aggregate's own `-.->|exposes|` edge.
+      # Reaching across only happens when a real policy actually fires —
+      # the same solid edge `dispatch.mmd`'s own `trigger_edge` already
+      # draws for the identical fact, kept solid here so the same
+      # relationship reads the same way in both diagrams.
+      #
+      # `options[:hecksagon]` IS THE ONE DIAGRAM IN THIS FILE THAT NEEDS
+      # MORE THAN `bluebook` — `framework_members` lives on the
+      # `Hecksagon`, a sibling IR object `bin/project_diagrams` already
+      # has in hand (`registry.hecksagon(chapter_name)`) but `bluebook`
+      # itself carries no reference to. No hecksagon handed in (an older
+      # caller, or a spec that doesn't care) just means no frameworks.mmd
+      # — same "nothing to state" skip every other diagram here already
+      # takes when its own underlying data is empty.
+      def frameworks_diagram(bluebook, hecksagon)
+        return nil unless hecksagon
+
+        lines = hecksagon.framework_members.map { |name| domain_edge(bluebook.name, "attaches", name, dotted: true) }
+        lines += bluebook.policies.filter_map(&:target_domain).uniq
+                         .map { |name| domain_edge(bluebook.name, "reaches across", name, dotted: false) }
+        return nil if lines.empty?
+
+        subject = "#{bluebook.name}'s own declared uses_framework and cross-domain policy targets"
+        "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"
+      end
+
+      def domain_edge(from, label, to, dotted:)
+        arrow = dotted ? "-.->" : "-->"
+        %(    #{from}[(#{from})] #{arrow}|#{label}| #{to}[(#{to})])
       end
     end
   end

@@ -25,10 +25,11 @@ chapter_name = ARGV[1] or abort "usage: bin/project_diagrams <domain-path> <Chap
 
 runtime   = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
 chapter   = runtime.registry.bluebook(chapter_name)
+hecksagon = runtime.registry.hecksagon(chapter_name)
 directory = File.expand_path("../docs/generated/diagrams/#{Hecks::Naming.snake(chapter_name)}", __dir__)
 
 written = Hecks::Projector.write(
-  Hecks::Projector.call(:diagrams, bluebook: chapter),
+  Hecks::Projector.call(:diagrams, bluebook: chapter, options: { hecksagon: hecksagon }),
   directory, as: :files
 )
 
