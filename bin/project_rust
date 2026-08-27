@@ -32,6 +32,46 @@ require "hecks/ports/persistence/plugins/era"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
+# DOMAIN-NAME LANDMINE GUARD (R5) — validated FIRST, before ANY side
+# effect this script has (including the `meta`/`active` directory wipes
+# below, in BOTH the opt-in and default paths) — an earlier version of
+# this guard sat right before the `meta`/`active` `FileUtils.rm_rf`
+# calls further down, which meant an invalid domain name still wiped
+# `rust/src/generated/meta/` before the abort fired, leaving it deleted
+# and never regenerated (found live, from a real negative-path test run
+# against a domain named "version" during this fix's own verification).
+# `target_mod_name` becomes, unescaped, a directory name, a literal Rust
+# module identifier (`pub mod #{name};`), AND a Cargo feature name
+# (rust/Cargo.toml) — two distinct ways that can go wrong:
+#
+#   1. Not a legal, unadorned Rust identifier (contains `-`, starts with
+#      a digit, is empty, ...) — `pub mod 2pizzas;` / `pub mod my-app;`
+#      is a syntax error, not a name Rust can even parse.
+#   2. A legal identifier that collides with something else load-bearing:
+#      - a Rust keyword (`RUST_KEYWORDS`, `rust/project/naming.rb`) —
+#        `pub mod type;` doesn't compile either, module names get no
+#        raw-identifier (`r#type`) escape hatch the way struct FIELDS do
+#        (`rust_ident_field`).
+#      - a Cargo.toml key the feature-sync regex (further down, and in
+#        `rust/project_rust_pipeline.rb`) would false-positive against
+#        if it weren't scoped to `[features]` — `version`/`edition`/
+#        `name`/`path` are exactly the `[package]`/`[lib]`/`[[bin]]`
+#        keys that used to risk matching.
+#      - `default` itself — Cargo reserves that name for the
+#        auto-enabled feature set; a domain can't also own it.
+#
+# The predicate itself (and the reserved-word lists it checks) lives in
+# `rust/project/naming.rb` alongside `RUST_KEYWORDS`, unit-tested
+# directly there rather than only reachable by shelling this whole
+# script out. `RustProjection::Projector` is already loaded by the
+# `require_relative "../rust/project"` above.
+unless RustProjection::Projector.valid_domain_mod_name?(File.basename(domain))
+  abort "bin/project_rust: domain name #{File.basename(domain).inspect} (from #{domain.inspect}) can't be used " \
+        "as-is — it has to double as a Rust module identifier and a Cargo feature name, and this one is " \
+        "either not a plain lowercase identifier, is a Rust keyword, or collides with a reserved Cargo.toml " \
+        "key (#{RustProjection::Projector::CARGO_RESERVED_DOMAIN_NAMES.join(', ')}). Rename the domain directory."
+end
+
 # STAGE 8 OPT-IN — `HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust
 # <domain>` runs the ENTIRE pipeline (parse AND codegen) through
 # `rust/parser`'s `hecks-parse`/`rust/codegen`'s `hecks-codegen`
@@ -225,7 +265,11 @@ else
   # that has ever been generated, never a directory of its own.
   FileUtils.rm_rf(File.join(out_root, "active"))
 
+  # Already validated at the very top of this script, before ANY side
+  # effect (including the `meta`/`active` wipes above) — see that
+  # guard's own header for why it moved there.
   target_mod_name = File.basename(domain)
+
   FileUtils.rm_rf(File.join(out_root, target_mod_name))
   meta_result = RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecks/language/bluebook)",
                                                      File.join(out_root, "meta"), "meta")
@@ -263,6 +307,8 @@ else
     f.puts RustProjection::Projector.emit_creates_table(meta_result[:aggregates])
     f.puts
     f.puts RustProjection::Projector.emit_identity_head_table(meta_result[:aggregates])
+    f.puts
+    f.puts RustProjection::Projector.emit_command_attributes_table(meta_result[:aggregates])
     f.puts
     f.puts RustProjection::Projector.emit_query_table(meta_result[:queries])
     f.puts
@@ -346,6 +392,7 @@ else
   merged_queries = target_queries + framework_queries
   merged_read_models = target_read_models + framework_read_models
   merged_path = File.join(out_root, target_mod_name, "merged.rs")
+  # rubocop:disable-next Metrics/BlockLength
   File.open(merged_path, "w") do |f|
     f.puts RustProjection::Projector.emit_registry(merged_aggregates)
     f.puts
@@ -369,6 +416,8 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_identity_head_table(merged_aggregates)
     f.puts
+    f.puts RustProjection::Projector.emit_command_attributes_table(merged_aggregates)
+    f.puts
     f.puts RustProjection::Projector.emit_query_table(merged_queries)
     f.puts
     f.puts RustProjection::Projector.emit_read_model_table(merged_read_models)
@@ -388,6 +437,7 @@ else
   domains  = all_dirs.select { |name| File.exist?(File.join(out_root, name, "merged.rs")) }
 
   root_mod_path = File.join(out_root, "mod.rs")
+  # rubocop:disable-next Metrics/BlockLength
   File.open(root_mod_path, "w") do |f|
     f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
     f.puts "pub mod meta;"
@@ -398,9 +448,53 @@ else
     f.puts "// list by bin/project_rust) — kernel/cli.rs imports"
     f.puts "// `crate::generated::active::{dispatch_by_name, Store, ...}` unchanged"
     f.puts "// no matter which domain that resolves to."
+    f.puts "//"
+    f.puts "// DOMAIN FEATURES ARE MUTUALLY EXCLUSIVE (R5) — Cargo has no native"
+    f.puts "// concept of that, and `default = [#{target_mod_name.inspect}]` in"
+    f.puts "// Cargo.toml stays enabled unless a build passes"
+    f.puts "// `--no-default-features`, so a plain `cargo build --features banking`"
+    f.puts "// used to enable BOTH the default domain's feature and banking's,"
+    f.puts "// producing two `pub use ... as active;` imports and a hard E0252."
+    f.puts "// Fixed two ways below, entirely mechanically from `domains`/"
+    f.puts "// `target_mod_name` (this run's new default) — never hand-maintained:"
+    f.puts "//"
+    f.puts "//   1. THE DEFAULT DOMAIN'S OWN re-export backs off whenever any OTHER"
+    f.puts "//      domain feature is also enabled, so it never contends for `active`"
+    f.puts "//      by accident — `cargo build --features banking` (still implicitly"
+    f.puts "//      carrying the default feature) now resolves to banking alone,"
+    f.puts "//      same as if `--no-default-features` had been passed explicitly."
+    f.puts "//   2. Two NON-default domain features enabled TOGETHER (a genuine,"
+    f.puts "//      not-accidental conflict — nothing makes that combination"
+    f.puts "//      meaningful) still fail the build, but with an explicit"
+    f.puts "//      `compile_error!` naming both features instead of a cryptic"
+    f.puts "//      \"defined multiple times\"."
     domains.each do |name|
-      f.puts "#[cfg(feature = #{name.inspect})]"
+      other_domains = domains - [name]
+      if name == target_mod_name && !other_domains.empty?
+        guard = other_domains.map { |o| "feature = #{o.inspect}" }.join(", ")
+        f.puts "#[cfg(all(feature = #{name.inspect}, not(any(#{guard}))))]"
+      else
+        f.puts "#[cfg(feature = #{name.inspect})]"
+      end
       f.puts "pub use #{name}::merged as active;"
+    end
+    non_default_domains = domains - [target_mod_name]
+    if non_default_domains.size > 1
+      f.puts
+      f.puts "// Explicit conflict guard — see point 2 above. Only fires when TWO"
+      f.puts "// non-default domain features are both turned on; the default"
+      f.puts "// domain's own feature never reaches here (point 1 already excludes"
+      f.puts "// it whenever any other domain feature is present)."
+      non_default_domains.combination(2).each do |a, b|
+        f.puts "#[cfg(all(feature = #{a.inspect}, feature = #{b.inspect}))]"
+        # NOTE: plain `a`/`b`/`domains.join` here, never `.inspect` — this
+        # whole line is ALREADY inside one Rust string literal
+        # (`compile_error!("...")`); embedding another `.inspect`'s own
+        # `"quoted"` form would nest unescaped double quotes and produce
+        # invalid Rust (the exact class of landmine this pass is fixing
+        # elsewhere for domain names/descriptions — not repeating it here).
+        f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(', ')} (both #{a} and #{b} are enabled)\");"
+      end
     end
   end
   puts "wrote #{root_mod_path}"
@@ -436,10 +530,20 @@ else
 
     TOML
   end
+  # SCOPED TO THE `[features]` TABLE ONLY (R5) — checking `name = ` against
+  # the WHOLE file (as a bare `cargo_toml =~ /^name\s*=/` used to) false-
+  # positives against `[package]`'s `name`/`version`/`edition`, `[lib]`'s
+  # `name`/`path`, `[[bin]]`'s `name`/`path` — real TOML keys that share a
+  # word with a domain name (see the guard above, which now rejects a
+  # domain named one of those outright, but this scoping is the honest
+  # structural fix underneath it: a feature genuinely named e.g. `roster`
+  # should only ever be looked up inside `[features]`).
+  features_table = cargo_toml[/^\[features\](?:\n(?!\[).*)*$/] || ""
   domains.each do |name|
-    next if cargo_toml =~ /^#{Regexp.escape(name)}\s*=/
+    next if features_table =~ /^#{Regexp.escape(name)}\s*=/
 
     cargo_toml = cargo_toml.sub(/^default\s*=.*$/) { "#{Regexp.last_match(0)}\n#{name} = []" }
+    features_table = cargo_toml[/^\[features\](?:\n(?!\[).*)*$/] || ""
   end
   cargo_toml = cargo_toml.sub(/^default\s*=.*$/, "default = [#{target_mod_name.inspect}]")
   File.write(cargo_toml_path, cargo_toml)

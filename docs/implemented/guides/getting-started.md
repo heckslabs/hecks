@@ -15,8 +15,9 @@ read can be checked.
 
 ## What you need
 
-This is a research language: there is no gem. You clone the repository,
-and the repository is the tool:
+This is a research language, published as the `hecks` gem (currently
+0.3.0), but the repository itself is still the primary way to work with
+it — clone it and the repository is the tool:
 
 ```sh
 git clone https://github.com/chrisyoung/hecks

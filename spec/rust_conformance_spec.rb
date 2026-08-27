@@ -151,7 +151,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   KNOWN_REFUSAL_GAP_VERBS = %w[Banking.ComplianceDashboard Banking::ATMCard.ByFee].freeze
 
   def known_refusal_gap?(entry)
-    KNOWN_REFUSAL_GAP_VERBS.include?(entry["verb"] || entry["query"])
+    KNOWN_REFUSAL_GAP_VERBS.include?(entry.key?("verb") ? entry["verb"] : entry["query"])
   end
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|

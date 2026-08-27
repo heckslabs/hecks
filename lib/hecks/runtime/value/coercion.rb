@@ -121,7 +121,13 @@ module Hecks
             segments = path.to_s.split(".")
             segments.shift if direct_head && segments.first == direct_head
             segments.reduce(materialized) do |held, segment|
-              held.is_a?(Hash) ? (held[segment.to_sym] || held[segment]) : nil
+              next nil unless held.is_a?(Hash)
+
+              # `key?` decides which spelling answers, never `||` — a
+              # genuinely-held `false` must not fall through to the
+              # other spelling (usually absent) and read as `nil`.
+              sym = segment.to_sym
+              held.key?(sym) ? held[sym] : held[segment]
             end
           end
           return value if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }

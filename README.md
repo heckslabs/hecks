@@ -417,10 +417,14 @@ generated too (`bin/project_parser_table`, from the language's own
 Ruby is the reference implementation; Rust is checked against it
 continuously, not just at release time: `spec/codegen_parity_spec.rb`
 holds Rust's generated output byte-identical to Ruby's, and
-`spec/rust_conformance_spec.rb` runs the same corpus scripts through
-the compiled binary and diffs the result against Ruby's — in CI, on
-every push. Measured directly in this repository, generating and
-building the `pizzas` domain from a clean `rust/src/generated/`:
+`spec/rust_conformance_spec.rb` replays 16 pinned fixture scripts —
+against the `banking`, `pizzas`, and `roster` example domains —
+through the compiled binary, diffing instances, events, refusals,
+reactions, sagas, and query rows against Ruby's byte-for-byte, in CI,
+on every push. That parity is proven on the pinned fixtures, not the
+whole corpus — see below for what's still open there. Measured
+directly in this repository, generating and building the `pizzas`
+domain from a clean `rust/src/generated/`:
 
 ```sh
 $ bin/project_rust examples/pizzas      # canonical IR → Rust source
@@ -432,6 +436,40 @@ $ bin/project_wasm examples/pizzas      # cross-compiles the SAME binary to wasm
 $ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
 # real dispatch output — instances, events, refusals — matching Ruby's
 ```
+
+The gap past those 16 fixtures is real: replaying `spec/corpus/banking.json`
+in full (258 steps, far more varied than any pinned script) against the
+compiled binary turns up genuine divergence — a policy-triggered
+reaction's `AccountDebited`/`AccountCredited` event carries an extra
+`reference` field in Rust that Ruby's own record omits, and the two
+sides disagree on refusal count (180 from Ruby, 190 from Rust, on the
+same script), wording, and order, since they don't always check the
+same thing first for the same bad input. Only 4 of the 10 domains
+under `spec/corpus/` have a Rust build to compare against at all today
+(`banking`, `compliance`, `pizzas`, `roster`); `chess` (the newest
+example domain) has never been run through `bin/project_rust`, and the
+framework/grammar chapters (`governance`, `identity`,
+`console_settings`, `expression`, `translation` — `lib/hecks/framework`
+and `lib/hecks/grammar`) have no Cargo feature of their own to build,
+only folded in as dependencies of banking's build. Closing the
+full-corpus gap is ongoing work, tracked alongside
+[`docs/audits/2026-08-11-bug-triage.md`](docs/audits/2026-08-11-bug-triage.md)'s
+R1–R4.
+
+Named/declared aggregate queries and `read_model` ("report") execution
+in Rust cover a real, proven subset — not "no Rust path at all": a
+wheres-only, single-aggregate field-comparator query (plus its own
+`order_by`/`limit` on a plain field) and a bare read model declaring no
+`where`/`order_by`/`limit`/`offset`/`freshness`/`authorization`/
+`index_hints` execute for real and match Ruby byte-for-byte
+(`Banking.CustomerPortfolio`, one of the 16 pinned fixtures). A query or
+read model outside that shape — `Banking.ComplianceDashboard`'s
+`freshness`/`index_hints`, `Banking::Account.OpenForSuspendedCustomers`,
+`Banking::ATMCard.ByFee` — refuses with an explicit "is not generated
+for this domain" error in Rust instead of running; both sides are
+documented, allowlisted gaps (`rust/project/queries.rb`,
+`rust/project/read_models.rb`, `bin/rust_coverage`'s own allowlist), not
+silent wrong answers.
 
 That WASM artifact is not a second implementation compiled for a
 different target — it is `rust/src/main.rs`'s stdin/stdout JSON CLI,
@@ -655,8 +693,8 @@ status](#project-status) are real starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `bin/model_check`, and
 `bin/fuzz` are what CI runs, and every `ruby`-fenced example in a guide
 or this README is expected to execute exactly as shown
-(`spec/guides_spec.rb`). There is no `CONTRIBUTING.md` yet — open an
-issue first for anything larger than a small fix.
+(`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
+the full checklist.
 
 ## License
 

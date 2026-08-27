@@ -177,11 +177,26 @@ module Hecks
 
         ordered = ordered_elements(rows, declared.order_by, declared.null_semantics,
                                    parent_key, entity.identity_heads)
-        declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+        # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
+        # #interpret's own rows above. `entity_rows` is the ONLY engine
+        # for entity/sub-list queries, so a declared offset here silently
+        # vanished for every entity query, not merely one path among
+        # several.
+        skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
+        declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
       end
 
+      # FieldPath.dig, not a raw `element[clause.field.to_sym]` — an
+      # entity sub-list row is a plain hash merged from stored state
+      # (mixed string/symbol keys depending on adapter, per `#cell`'s own
+      # comment below), and a dotted `where` (`where "price.cents" < 100`)
+      # needs the same segment-by-segment walk every other query path
+      # already gets. Reading only the symbol spelling of the WHOLE
+      # dotted string as one key always missed — `element[:"price.cents"]`
+      # is never a real key — so a dotted where on an entity query
+      # silently matched nothing, on the only engine entity queries have.
       def element_where_holds?(clause, element, args)
-        holds?(clause, element[clause.field.to_sym], args)
+        holds?(clause, QuerySpecification::FieldPath.dig(element, clause.field), args)
       end
 
       # A row's own key, however the store spells it. A sub-list row is a plain hash
@@ -191,7 +206,13 @@ module Hecks
       # to remove. It rides `comparable` for the same reason a where-clause does : an
       # identity is a value object, and `to_s` on one is an OBJECT ADDRESS — a sort key
       # that differs run to run, which is worse than the store order it replaced.
-      def cell(row, key) = row[key.to_sym] || row[key.to_s]
+      # `key?` decides which spelling answers, never `||` — a row whose
+      # value is a genuinely-held `false` must not fall through to the
+      # other spelling (usually absent) and land on `nil`.
+      def cell(row, key)
+        sym = key.to_sym
+        row.key?(sym) ? row[sym] : row[key.to_s]
+      end
 
       # A sub-list row is identified by its PARENT and then its own key : two
       # entities under different parents can share a sequence, so the parent has
@@ -244,10 +265,21 @@ module Hecks
 
       def comparable(value) = QuerySpecification::Common::Comparison.comparable(value)
 
+      # FieldPath.dig, not a raw `record[field]` — `record` is an Instance
+      # here, and a dotted order_by (`order_by "price.cents"`) is a
+      # single symbol key (`:"price.cents"`) that never matches anything
+      # `Instance#[]` actually holds, so a dotted order_by silently sorted
+      # by all-nil (the identity tier alone deciding every tie) on this,
+      # the reference/no-native-hook engine — the same bug already fixed
+      # for `where` (see `where_holds?` above) and for entity rows (see
+      # `ordered_elements` below), just not yet for this, the aggregate-
+      # level order_by.
       def ordered(records, order_by, null_semantics = nil)
         field = order_by&.field
         Ports::Query::Ordering.apply(records, order_by, null_semantics,
-                                     identity: ->(record) { record.id.to_s }) { |record| comparable(record[field]) }
+                                     identity: ->(record) { record.id.to_s }) { |record|
+          comparable(QuerySpecification::FieldPath.dig(record, field))
+        }
       end
     end
   end

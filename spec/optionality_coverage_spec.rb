@@ -61,7 +61,28 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # own `wire_presence` walk to see -- and banking.bluebook's own real
   # `DisputedPaymentCount`/`DisputedPaymentMedian` set them for real, so
   # there is nothing unexercised to name here even if it did.
-  ALLOWED_UNSET = { "where" => "new Policy surface, dispatch-tested inline -- see this file's own comment" }.freeze
+  #
+  # `formerly_known_as` (Bluebook) -- M10 (docs/audits/2026-08-10-main-bug-
+  # audit.md): the field was an ivar the wire never spelled at all until
+  # this fix taught `Chapter#emits_ir` to carry it, so this gate is seeing
+  # it for the first time rather than seeing a regression. It IS real and
+  # dispatch/boot-tested (`spec/dsl_spec.rb`'s own "formerly_known_as
+  # records..." and "...survives onto the wire" ; `spec/adapters/driven/
+  # postgres_era/domain_rename_spec.rb` exercises the real Postgres rename
+  # end to end) -- just not by any of THIS file's golden-tracked corpus
+  # members. `spec/parser_coverage_spec.rb`'s own PENDING_PAIRS already
+  # names this exact gap by hand ("a domain rename IS live in production
+  # per MEMORY -- Embryonaut->EmbryonautFoundersApp -- but no .bluebook IN
+  # THIS CODEBASE'S OWN TRACKED CORPUS declares one"): declaring one on a
+  # golden fixture here would flip that claim false and hand Rust parity a
+  # keyword `rust/parser/src/parse/chapter.rs` itself says still "falls
+  # through to not_built_yet" -- fixing the Rust side is real, separate
+  # work, not a side effect of a Ruby wire-format fix.
+  ALLOWED_UNSET = {
+    "where"             => "new Policy surface, dispatch-tested inline -- see this file's own comment",
+    "formerly_known_as" => "real and dispatch/boot-tested outside the golden corpus (spec/dsl_spec.rb, " \
+                           "spec/adapters/driven/postgres_era/domain_rename_spec.rb) -- see this file's own comment"
+  }.freeze
 
   # SET and NULL counts for every key in every frozen IR. An object or a list
   # counts as SET: `lifecycle` is a Hash when it is there and null when it is

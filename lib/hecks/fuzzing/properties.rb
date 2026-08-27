@@ -257,9 +257,34 @@ module Hecks
       # drifted before — an adapter that ACCEPTS what the reference says
       # matches nothing, or orders what it refuses to order, shows up
       # here as a finding no self-referential adapter spec could see.
+      # M23 — `Replay` now runs the native and reference engines
+      # INDEPENDENTLY (each in its own begin/rescue — see that file's own
+      # comment at the capture site), so this property can tell apart what
+      # used to be indistinguishable: "both engines refused" (fine — the
+      # ask was genuinely bad, nothing to compare) from "one refused and
+      # the other did not" (a real divergence — the two engines disagree
+      # about whether the ask was even VALID, never mind what it answers).
+      # `native_refused`/`reference_refused` are read by KEY PRESENCE, not
+      # truthiness — `Replay` only ever adds `:error`/`:reference_error`
+      # to an entry when that side actually raised, so an absent key is an
+      # unambiguous "this side answered." A read-model ask (no reference
+      # twin attempted at all, `asked[:query]` without "::") is skipped
+      # entirely, same as always — there is no second engine to disagree
+      # with.
       def query_answers_match_reference(history)
         offenders = history.fetch(:queries).filter_map do |asked|
-          next if asked[:error] || asked[:reference_rows].nil?
+          next unless asked[:query].is_a?(String) && asked[:query].include?("::")
+
+          native_refused    = asked.key?(:error)
+          reference_refused = asked.key?(:reference_error)
+
+          if native_refused != reference_refused
+            next "#{asked[:query]} #{asked[:args].inspect} — native #{native_refused ? "refused (#{asked[:error]})" : 'answered'}, " \
+                 "but the reference interpreter #{reference_refused ? "refused (#{asked[:reference_error]})" : 'answered'} — " \
+                 "a refusal-shaped divergence, not just a differing row set"
+          end
+
+          next if native_refused
           next if asked[:rows] == asked[:reference_rows]
 
           "#{asked[:query]} #{asked[:args].inspect} answered #{asked[:rows].inspect} " \

@@ -62,6 +62,8 @@ module Hecks
                            admits: nil, one_of: nil)
           # moved to the language: FieldName invariant, on Root.Attribute
 
+          refuse_duplicate_attribute!(name)
+
           if type.equal?(UNSET)
             raise Malformed, "#{name} declares no type — attribute :#{name}, SomeType is required, " \
                              "there is no default"
@@ -156,6 +158,7 @@ module Hecks
         private
 
         def relationship_attribute(target, kind, name, optional: false, list: false)
+          refuse_duplicate_attribute!(name)
           attributes << Attribute.new(
             name:         name,
             type:         Reference.new(target),
@@ -181,6 +184,24 @@ module Hecks
           raise Malformed,
                 "#{name}'s one_of: only means something inside a value_object — name a closed set " \
                 "with the type-position one_of(...) instead"
+        end
+
+        # A NAME DECLARED TWICE ON THE SAME OWNER IS TWO ATTRIBUTES SHARING
+        # ONE NAME, and nothing downstream disambiguates them — every
+        # reader that walks `attributes` looking for one by name
+        # (`seal_mutation_targets`, `seal_query_field`, `projects`'s own
+        # local check, `Instance#[]`, ...) uses `Array#find`/`any?`, which
+        # silently answers whichever declaration happens to come first and
+        # discards the second. Used to boot clean and stay that way : both
+        # declarations survived into the IR, one of them permanently
+        # unreachable by name. Refused HERE, at the one place every owner
+        # (Aggregate/Entity/Command/Query/PortOperation/ValueObject, each
+        # `include AttributeCollector`) mints an attribute through, rather
+        # than taught to each of those readers individually.
+        def refuse_duplicate_attribute!(name)
+          return unless attributes.any? { |attribute| attribute.name == name }
+
+          raise Malformed, "#{name} is declared twice — an attribute name is declared once, not twice"
         end
 
         # A pattern is refused AT DECLARATION, not when a value first meets it :

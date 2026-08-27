@@ -127,6 +127,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:entity.holds",
+      "verb": "Bluebook::Entity.Holds",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:entity.identify",
       "verb": "Bluebook::Entity.Identify",
       "role": "Language"
@@ -144,6 +149,11 @@
     {
       "scope": "bluebook:entity.precondition",
       "verb": "Bluebook::Entity.Precondition",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.reference",
+      "verb": "Bluebook::Entity.Reference",
       "role": "Language"
     },
     {

@@ -40,7 +40,15 @@ module Hecks
         # (§2/§4) — falls back to the aggregate's own name for a
         # directly-instantiated adapter (specs), same fallback shape
         # Postgres's own @domain already uses.
-        @domain    = (settings[:domain] || settings["domain"] || aggregate.name).to_s
+        @domain    = (
+          if settings.key?(:domain)
+            settings[:domain]
+          elsif settings.key?("domain")
+            settings["domain"]
+          else
+            aggregate.name
+          end
+        ).to_s
 
         FileUtils.mkdir_p(File.dirname(@path))
         @db = SQLite3::Database.new(@path)
@@ -89,7 +97,12 @@ module Hecks
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          [entry.id, entry.operation, JSON.generate(entry.state), JSON.generate(entry.mirrors)]
+          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # mirrors hash must bind a real SQL NULL, not the four-character
+          # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
+          # check against it would never match. Same guard `postgres_era.rb`
+          # already uses for its own journal's `mirrors` column.
+          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end
@@ -269,7 +282,14 @@ module Hecks
       def quoted_entry_table = quote_ident(entry_table)
 
       def resolve_path(settings, root)
-        declared = settings[:database] || settings["database"] || "data/#{table}.db"
+        declared =
+          if settings.key?(:database)
+            settings[:database]
+          elsif settings.key?("database")
+            settings["database"]
+          else
+            "data/#{table}.db"
+          end
         return declared if declared.start_with?("/")
 
         File.join(root || Dir.pwd, declared)

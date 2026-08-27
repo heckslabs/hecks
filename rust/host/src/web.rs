@@ -104,8 +104,40 @@ fn extract_cookies(body: &Value) -> HashMap<String, String> {
     map
 }
 
+// H11 (docs/audits/2026-08-10-main-bug-audit.md) — this secret HMAC-signs
+// every session cookie AND OAuth `state` parameter (auth.rs's own
+// `session_cookie`/`verify_state`), and `parse_session_cookie` treats
+// anything that verifies against it as a trusted session, bypassing the
+// `session.is_none()` -> `/login` redirect gate entirely. Unset OR
+// empty used to fail OPEN here (`unwrap_or_default()`), signing every
+// cookie with a publicly-known empty-string key instead of refusing to
+// serve — unlike every other required var this crate reads (main.rs's
+// own `DATABASE_URL`/`HECKS_DOMAIN`/`HECKS_IR_PATH`, each a hard `?`
+// that refuses to boot rather than silently defaulting). Not required
+// at main.rs's own top-level boot, deliberately: unlike those vars,
+// SESSION_SECRET is genuinely absent for a domain with no web layer at
+// all (Banking/Pizzas's own template.yaml never sets it) — this only
+// has to refuse the moment a request actually needs it, i.e. here.
 fn session_secret() -> String {
-    std::env::var("SESSION_SECRET").unwrap_or_default()
+    let secret = std::env::var("SESSION_SECRET").unwrap_or_default();
+    if let Err(e) = validate_session_secret(&secret) {
+        panic!("{e}");
+    }
+    secret
+}
+
+// Pure and separately unit-tested from the panic above — same split
+// main.rs's own `mint::decide_boot_action` already uses for its boot
+// gate (a pure decision function, panicking/erroring only at the one
+// call site that owns process lifecycle).
+fn validate_session_secret(secret: &str) -> Result<(), String> {
+    if secret.is_empty() {
+        Err("SESSION_SECRET is required and must not be empty -- refusing to sign/verify session \
+             cookies and OAuth state with a publicly-known empty-string HMAC key"
+            .to_string())
+    } else {
+        Ok(())
+    }
 }
 
 fn redirect_uri() -> String {
@@ -725,7 +757,10 @@ fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<
 // ---- params: flat dotted form body -> nested JSON args --------------
 // Mirrors Hecks::Presentation::Params/hecks_on_web's own copy.
 
-fn extract_args(fields: &[Field], raw: &HashMap<String, String>) -> Value {
+// `Err` — a human-readable refusal message, never a panic — on a
+// path-prefix collision (L23, docs/audits/2026-08-11-bug-triage.md
+// Tier 7): see `nest`'s own header for what that collision is.
+fn extract_args(fields: &[Field], raw: &HashMap<String, String>) -> Result<Value, String> {
     let mut pairs: Vec<(String, Value)> = Vec::new();
     for field in fields {
         collect_field(field, raw, &mut pairs);
@@ -778,17 +813,55 @@ fn cast_scalar(field: &Field, text: &str) -> Value {
     }
 }
 
-fn nest(pairs: Vec<(String, Value)>) -> Value {
+// L23 (docs/audits/2026-08-11-bug-triage.md Tier 7) — a PATH-PREFIX
+// COLLISION: one field's path is a bare scalar (`"price"`) while
+// another's is that same name dotted deeper (`"price.cents"`, implying
+// `price` should be an object). Inserting the object-shaped one after
+// the scalar used to panic outright (`.as_object_mut().unwrap()` on a
+// `Value::Number`/`Value::String`, a 500); inserting it the OTHER way
+// round — scalar after the nested object was already built — never
+// panicked at all, but silently CLOBBERED the nested object with the
+// scalar, dropping every child it had already collected, no refusal,
+// no error, just quietly wrong `args`. Both directions are the same
+// bug (a collision this function has no business resolving on its
+// own), so both are caught here and refused identically, cleanly, as
+// an `Err` — never a panic, never silent data loss. In real command
+// dispatch this can only actually arise from a malformed/hand-edited
+// IR (`command_fields`'s own resolved field paths never collide this
+// way for a well-formed one) — but a web-facing function refuses
+// cleanly on bad input rather than trusting its caller never sends it.
+fn nest(pairs: Vec<(String, Value)>) -> Result<Value, String> {
     let mut result = json!({});
     for (path, value) in pairs {
         let segments: Vec<&str> = path.split('.').collect();
         let mut node = &mut result;
-        for segment in &segments[..segments.len() - 1] {
-            node = node.as_object_mut().unwrap().entry(*segment).or_insert_with(|| json!({}));
+        for depth in 0..segments.len() - 1 {
+            let obj = node
+                .as_object_mut()
+                .ok_or_else(|| collision_error(&path, &segments[..depth]))?;
+            node = obj.entry(segments[depth]).or_insert_with(|| json!({}));
         }
-        node.as_object_mut().unwrap().insert(segments[segments.len() - 1].to_string(), value);
+        let leaf = segments[segments.len() - 1];
+        let obj = node
+            .as_object_mut()
+            .ok_or_else(|| collision_error(&path, &segments[..segments.len() - 1]))?;
+        // The OTHER direction: `leaf` already holds an object (built by
+        // an earlier, longer path sharing this prefix) and the value
+        // about to land there is a plain scalar/array — inserting it
+        // would silently erase every child already nested underneath.
+        if matches!(obj.get(leaf), Some(existing) if existing.is_object()) && !value.is_object() {
+            return Err(collision_error(&path, &segments));
+        }
+        obj.insert(leaf.to_string(), value);
     }
-    result
+    Ok(result)
+}
+
+fn collision_error(path: &str, existing_prefix: &[&str]) -> String {
+    format!(
+        "form field {path:?} collides with {:?} — one implies a scalar value, the other a nested object; refusing rather than guessing or silently dropping data",
+        existing_prefix.join(".")
+    )
 }
 
 // ---- routes -----------------------------------------------------------
@@ -957,7 +1030,14 @@ async fn submit(
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let verb = format!("{domain_name}::{agg}.{cname}");
-    let args = extract_args(fields, raw);
+
+    // L23 (docs/audits/2026-08-11-bug-triage.md Tier 7) — a path-prefix
+    // collision refuses cleanly here (400) rather than panicking inside
+    // `nest` (`extract_args`'s own header).
+    let args = match extract_args(fields, raw) {
+        Ok(a) => a,
+        Err(e) => return bad_request(domain_name, aggregate, command, fields, raw, json_mode, &e),
+    };
 
     // `None` -- the web UI has no notion of an authenticated caller's
     // role yet (a separate, not-yet-built concern; see auth.rs's own
@@ -969,16 +1049,7 @@ async fn submit(
     };
 
     if outcome.accepted {
-        let id = outcome
-            .result
-            .get("mutations")
-            .and_then(|m| m.as_array())
-            .and_then(|steps| steps.last())
-            .and_then(|last| last.as_array())
-            .and_then(|muts| muts.last())
-            .and_then(|m| m.get("id"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let id = own_command_target_id(&outcome.result).unwrap_or("");
         if json_mode {
             return respond(201, "application/json", &outcome.result.to_string());
         }
@@ -993,6 +1064,48 @@ async fn submit(
 
     let action = format!("/{domain_name}/{agg}/{cname}.html");
     html(422, &page(&format!("{domain_name}::{agg}.{cname}"), &form_body(domain_name, aggregate, command, &action, fields, raw, Some(&refusal))))
+}
+
+// L23's own clean-refusal shape — mirrors the 422-refusal rendering
+// just below (same json_mode/html split, same `form_body` error-banner
+// reuse), at 400 rather than 422: this is a malformed submission `nest`
+// itself caught, never a WASM-kernel domain refusal.
+#[allow(clippy::too_many_arguments)]
+fn bad_request(domain_name: &str, aggregate: &Value, command: &Value, fields: &[Field], raw: &HashMap<String, String>, json_mode: bool, message: &str) -> Value {
+    let refusal = json!({"error": message});
+    if json_mode {
+        return respond(400, "application/json", &refusal.to_string());
+    }
+    let agg = agg_name(aggregate);
+    let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let action = format!("/{domain_name}/{agg}/{cname}.html");
+    html(400, &page(&format!("{domain_name}::{agg}.{cname}"), &form_body(domain_name, aggregate, command, &action, fields, raw, Some(&refusal))))
+}
+
+// L24 (docs/audits/2026-08-11-bug-triage.md Tier 7) — the id to redirect
+// to after an accepted command is THIS call's own new step's OWN
+// mutation, never whichever mutation happens to sit last in that step.
+// `orchestrate` (rust/src/kernel/orchestrate.rs) always dispatches the
+// command itself FIRST — pushing exactly one `MutationRecord` for the
+// aggregate/id the command actually targets (`dispatch`/`dispatch_
+// entity`, rust/src/kernel/dispatch.rs) — before it ever calls
+// `react_policies`/`advance_saga` on the resulting event(s), which is
+// what can push FURTHER mutations onto the SAME step for a cascaded
+// reaction's own aggregate (a policy or saga firing as a side effect).
+// So within the last step's own mutations array, the FIRST entry is
+// always the form's own command target; anything after it belongs to a
+// reaction, never the id this redirect should land on. `.last()` used
+// to grab whichever mutation ran most recently instead — correct only
+// by accident, whenever no reaction fired within that same step.
+fn own_command_target_id(result: &Value) -> Option<&str> {
+    result
+        .get("mutations")
+        .and_then(|m| m.as_array())
+        .and_then(|steps| steps.last())
+        .and_then(|last| last.as_array())
+        .and_then(|muts| muts.first())
+        .and_then(|m| m.get("id"))
+        .and_then(|v| v.as_str())
 }
 
 // A refused command's own MOST RECENT refusal — `.last()` because
@@ -1519,6 +1632,17 @@ mod tests {
     // markup for every later viewer of the index row or record page.
     const MALICIOUS_ID: &str = r#"x"><script>alert(1)</script>"#;
 
+    // H11 (docs/audits/2026-08-10-main-bug-audit.md) — an unset or empty
+    // SESSION_SECRET must never be treated as valid: `session_secret()`
+    // used to silently fall back to `""`, HMAC-signing every session
+    // cookie and OAuth `state` with a publicly-known empty key instead
+    // of refusing to serve.
+    #[test]
+    fn validate_session_secret_refuses_empty_or_unset() {
+        assert!(validate_session_secret("").is_err());
+        assert!(validate_session_secret("s3cret").is_ok());
+    }
+
     #[test]
     fn action_link_escapes_the_link_text_and_percent_encodes_the_query_value() {
         let link = action_link("Pizzas", "Order", "Purchase", MALICIOUS_ID, "mr-3");
@@ -1763,6 +1887,102 @@ mod tests {
         assert!(TEXTAREA_HINT.is_match("text"));
         assert!(!TEXTAREA_HINT.is_match("context"));
         assert!(EMAIL_HINT.is_match("EMAIL"));
+    }
+
+    // ---- nest / extract_args: L23's own path-prefix collision --------
+    // (docs/audits/2026-08-11-bug-triage.md Tier 7)
+
+    #[test]
+    fn nest_builds_an_ordinary_dotted_path_into_a_nested_object() {
+        let result = nest(vec![("price.cents".to_string(), json!(500)), ("price.currency".to_string(), json!("USD"))]).unwrap();
+        assert_eq!(result, json!({"price": {"cents": 500, "currency": "USD"}}));
+    }
+
+    #[test]
+    fn nest_refuses_rather_than_panics_when_a_scalar_is_inserted_before_a_deeper_path_sharing_its_prefix() {
+        // `price` lands as a plain scalar FIRST, then `price.cents`
+        // tries to descend into it as though it were an object — the
+        // exact shape that used to panic `.as_object_mut().unwrap()`
+        // (a 500), rather than refuse cleanly.
+        let err = nest(vec![("price".to_string(), json!(500)), ("price.cents".to_string(), json!(500))]).unwrap_err();
+        assert!(err.contains("price"), "{err}");
+    }
+
+    #[test]
+    fn nest_refuses_rather_than_silently_dropping_data_when_the_deeper_path_is_inserted_first() {
+        // The OTHER order never panicked at all — it silently
+        // CLOBBERED the nested object `price` already held with a bare
+        // scalar, dropping `cents` with no error. Must now refuse
+        // instead of corrupting the result.
+        let err = nest(vec![("price.cents".to_string(), json!(500)), ("price".to_string(), json!(500))]).unwrap_err();
+        assert!(err.contains("price"), "{err}");
+    }
+
+    #[test]
+    fn nest_is_unaffected_by_an_unrelated_sibling_sharing_no_prefix() {
+        let result = nest(vec![("price.cents".to_string(), json!(500)), ("name".to_string(), json!("Widget"))]).unwrap();
+        assert_eq!(result, json!({"price": {"cents": 500}, "name": "Widget"}));
+    }
+
+    #[test]
+    fn extract_args_surfaces_a_collision_as_an_error_rather_than_panicking() {
+        let scalar_field = Field { path: "price".to_string(), label: "Price".to_string(), kind: FieldKind::Number { step: "1" }, optional: false };
+        let nested_field = Field {
+            path: "price".to_string(),
+            label: "Price".to_string(),
+            kind: FieldKind::Group(vec![Field { path: "price.cents".to_string(), label: "Cents".to_string(), kind: FieldKind::Number { step: "1" }, optional: false }]),
+            optional: false,
+        };
+        let mut raw = HashMap::new();
+        raw.insert("price".to_string(), "500".to_string());
+        raw.insert("price.cents".to_string(), "500".to_string());
+
+        let result = extract_args(&[scalar_field, nested_field], &raw);
+        assert!(result.is_err(), "expected a collision error, got {result:?}");
+    }
+
+    // ---- own_command_target_id: L24's own cascaded-reaction redirect -
+    // (docs/audits/2026-08-11-bug-triage.md Tier 7)
+
+    #[test]
+    fn own_command_target_id_picks_the_forms_own_target_when_no_reaction_fired() {
+        let result = json!({"mutations": [[{"aggregate": "Pizzas::Order", "id": "order-1", "operation": "save"}]]});
+        assert_eq!(own_command_target_id(&result), Some("order-1"));
+    }
+
+    #[test]
+    fn own_command_target_id_picks_the_first_mutation_not_a_cascaded_reactions_last_one() {
+        // The command's own mutation (Order) is pushed FIRST by
+        // `orchestrate` (rust/src/kernel/orchestrate.rs), before any
+        // policy/saga reaction it triggers can push a SECOND mutation
+        // for a different aggregate entirely (a Loyalty account, say)
+        // onto the very same step. `.last()` used to grab the
+        // reaction's own id instead of the form's own target.
+        let result = json!({
+            "mutations": [[
+                {"aggregate": "Pizzas::Order", "id": "order-1", "operation": "save"},
+                {"aggregate": "Pizzas::LoyaltyAccount", "id": "loyalty-9", "operation": "save"}
+            ]]
+        });
+        assert_eq!(own_command_target_id(&result), Some("order-1"), "must redirect to the command's OWN aggregate, not the cascaded reaction's");
+    }
+
+    #[test]
+    fn own_command_target_id_only_looks_at_the_last_step_never_prior_replayed_history() {
+        let result = json!({
+            "mutations": [
+                [{"aggregate": "Pizzas::Order", "id": "stale-from-history", "operation": "save"}],
+                [{"aggregate": "Pizzas::Order", "id": "order-2", "operation": "save"}]
+            ]
+        });
+        assert_eq!(own_command_target_id(&result), Some("order-2"));
+    }
+
+    #[test]
+    fn own_command_target_id_is_none_when_mutations_is_missing_or_empty() {
+        assert_eq!(own_command_target_id(&json!({})), None);
+        assert_eq!(own_command_target_id(&json!({"mutations": []})), None);
+        assert_eq!(own_command_target_id(&json!({"mutations": [[]]})), None);
     }
 
     // ---- checkout_route: real Postgres, real lifeadelics.wasm, no

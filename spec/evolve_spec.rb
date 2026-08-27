@@ -256,4 +256,57 @@ RSpec.describe "the evolve surgery" do
       expect(after[0...before_block.size]).to eq(before_block)
     end
   end
+
+  # bin/evolve's own `--name value` flag reader (`option`, wrapping this).
+  # A bare value-arity contract: consume the next argv element ONLY when
+  # it doesn't itself look like a flag.
+  describe ".option" do
+    it "reads a flag's value" do
+      expect(EVOLVE.option(["--context", "Aggregate"], "context")).to eq("Aggregate")
+    end
+
+    it "does not swallow a following flag as the value" do
+      expect(EVOLVE.option(["--foo", "--bar", "baz"], "foo")).to be_nil
+      expect(EVOLVE.option(["--foo", "--bar", "baz"], "bar")).to eq("baz")
+    end
+
+    it "falls back to the given default when the flag is absent or value-less" do
+      expect(EVOLVE.option(["--other", "x"], "foo", "fallback")).to eq("fallback")
+      expect(EVOLVE.option(["--foo"], "foo", "fallback")).to eq("fallback")
+    end
+  end
+
+  # The restore-on-raise ceremony `guarded` (bin/evolve) wraps every
+  # mutating command's body in: a raise partway through a multi-file
+  # cascade (rename's keyword-row write followed by its argument
+  # cascade, in particular) must not leave any snapshotted file
+  # half-changed.
+  describe ".restore_on_raise" do
+    it "leaves every file untouched on a clean return" do
+      with_copies("Command") do |paths|
+        contents = paths.to_h { |path| [path, File.read(path)] }
+        EVOLVE.restore_on_raise(paths) { EVOLVE.rename(word: "emits", context: "Command", to: "announces", path: paths) }
+        expect(paths.any? { |path| File.read(path) != contents[path] }).to be(true) # the rename really landed
+      end
+    end
+
+    it "restores every snapshotted file, and re-raises, when the block raises after partial writes" do
+      with_copies("Command", "PortOperation") do |paths|
+        contents = paths.to_h { |path| [path, File.read(path)] }
+
+        expect do
+          EVOLVE.restore_on_raise(paths) do
+            # Simulate a mid-cascade raise: the keyword row lands (one
+            # real file write, same shape as `rename`'s own first step)
+            # before the failure — proving restoration undoes a write
+            # that already reached disk, not merely one still pending.
+            EVOLVE.rename(word: "emits", context: "Command", to: "announces", path: paths)
+            raise "boom mid-cascade"
+          end
+        end.to raise_error("boom mid-cascade")
+
+        paths.each { |path| expect(File.read(path)).to eq(contents[path]) }
+      end
+    end
+  end
 end

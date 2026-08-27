@@ -67,12 +67,30 @@ module Hecks
         )
       end
 
+      # BOTH SPELLINGS OF A SETTING ARE HONORED — a world's settings hash
+      # may arrive symbol-keyed (built straight in Ruby) or string-keyed
+      # (round-tripped through JSON), and a domain that names one is not
+      # obligated to also skip the other. `key?` decides which spelling
+      # actually exists, never `||` — `||` cannot tell a genuinely stored
+      # `false` apart from an absent key, and would silently prefer the
+      # OTHER spelling (or `default`) instead of returning the real, held
+      # answer. See Hecks::QuerySpecification::FieldPath#read for the same
+      # discipline applied to stored state instead of settings.
+      def self.setting(settings, key, default: nil)
+        return settings[key] if settings.key?(key)
+
+        str_key = key.to_s
+        return settings[str_key] if settings.key?(str_key)
+
+        default
+      end
+
       def self.connect_for(name, settings)
         # LAZY, ON PURPOSE — same reasoning as Sqlite's own initialize:
         # a domain that never wires PostgresEra should never need the gem.
         require "pg"
 
-        declared = settings[:database] || settings["database"]
+        declared = setting(settings, :database)
         if declared.to_s.empty?
           raise Runtime::WiringError,
                 "#{name} binds PostgresEra, which needs a database connection, " \
@@ -94,7 +112,7 @@ module Hecks
         # TABLE ... SET SCHEMA migrations transparent to the rest of the
         # adapter. A domain with no `schema` setting keeps Postgres's
         # own default search_path (public), same as before this existed.
-        schema = settings[:schema] || settings["schema"]
+        schema = setting(settings, :schema)
         if schema.to_s != ""
           # THE SCHEMA ITSELF, IDEMPOTENTLY — a domain naming a `schema:`
           # nobody has created yet used to fail on its FIRST table-
@@ -132,14 +150,29 @@ module Hecks
         # The domain names the journal (one journal per lineage). The
         # factory injects it; a directly-instantiated adapter (specs,
         # consoles) journals under the aggregate's own name.
-        @domain = (settings[:domain] || settings["domain"] || aggregate.storage_name).to_s
+        @domain = self.class.setting(settings, :domain, default: aggregate.storage_name).to_s
         @lineage = Lineage.new(@db, @domain)
         @lineage.ensure_base!
         # The era gate resolves which era this boot IS (an old checkout
         # boots a held-but-superseded era and keeps writing its own
         # partition); a directly-instantiated adapter defaults to the
         # newest.
-        @era = settings[:era] || settings["era"] || @lineage.current_era
+        #
+        # NOT `self.class.setting(...)` here — RepositoryFactory#build
+        # always merges `era: registry.resolved_eras[domain]` into
+        # settings, so the key is genuinely PRESENT (not absent) for
+        # any domain the era boot gate hasn't resolved yet (or that
+        # doesn't have one at all), just holding `nil`. `setting`'s own
+        # presence-over-truthiness discipline (correct for a field like
+        # `:role`, where a stored `false` is a real, distinct answer
+        # from "unset") does the wrong thing for `:era` specifically:
+        # `nil` can never be a meaningful era override — only a real
+        # ordinal or "not resolved, self-resolve" ever apply — so
+        # coalescing here, not `setting`'s presence check, is what
+        # actually honors this comment's own "defaults to the newest"
+        # promise.
+        @era = settings.key?(:era) ? settings[:era] : settings["era"]
+        @era ||= @lineage.current_era
         # Unconditional and idempotent, regardless of era — belt-and-
         # suspenders self-healing (compile_head! already ensures this for
         # a freshly-minted era's own name; ensure_first_head! for era 1's)
@@ -309,8 +342,31 @@ module Hecks
         end
       end
 
+      # The journal carries FORCE ROW LEVEL SECURITY with exactly two
+      # policies — hecks_current_era's INSERT and hecks_read_all's
+      # SELECT (advance_era! above) — and no DELETE policy at all, for
+      # anyone. FORCE means even the table's own owner is fenced by
+      # that (only an actual Postgres superuser or a role granted
+      # BYPASSRLS sits above it — see lineage.rb's own header), so a
+      # plain `DELETE ... WHERE aggregate = $1` from an ordinary
+      # connection silently matches zero rows: no privilege error, no
+      # exception, just a no-op that looks like success. Counting
+      # before and comparing to what the DELETE itself reports is what
+      # tells "nothing to delete" apart from "RLS silently ate the
+      # delete" — the same row count, from the same statement, either
+      # way, with no separate query racing the DELETE for an answer.
       def reset!
-        @db.exec_params("DELETE FROM #{@lineage.quoted_journal} WHERE aggregate = $1", [table])
+        before = @db.exec_params(
+          "SELECT count(*) FROM #{@lineage.quoted_journal} WHERE aggregate = $1", [table]
+        )[0]["count"].to_i
+        result = @db.exec_params("DELETE FROM #{@lineage.quoted_journal} WHERE aggregate = $1", [table])
+        if before.positive? && result.cmd_tuples.zero?
+          raise Runtime::WiringError,
+                "reset! deleted 0 of #{before} row(s) for #{table} in #{@lineage.quoted_journal} — " \
+                "FORCE ROW LEVEL SECURITY admits no DELETE policy on the journal, so this connection's " \
+                "DELETE silently matched nothing. reset! only works connected as an actual Postgres " \
+                "superuser or a role granted BYPASSRLS, not as the provisioner or an app role."
+        end
         self
       end
 
@@ -404,9 +460,9 @@ module Hecks
 
         if entry.save?
           @db.exec_params(
-            "INSERT INTO #{quoted_head_snapshot} (id, ordinal, state) VALUES ($1, $2, $3) " \
-            "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
-            "WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
+            "INSERT INTO #{quoted_head_snapshot} (id, ordinal, operation, state) VALUES ($1, $2, 'save', $3) " \
+            "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, operation = EXCLUDED.operation, " \
+            "state = EXCLUDED.state WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
             [entry.id, ordinal, state_json]
           )
           # SAME TRANSACTION, SAME ORDINAL — every field cache stays
@@ -419,7 +475,30 @@ module Hecks
             @lineage.upsert_field_cache_row!(cache_table, entry.id, ordinal, state_json, query_expression(field))
           end
         else
-          @db.exec_params("DELETE FROM #{quoted_head_snapshot} WHERE id = $1", [entry.id])
+          # A TOMBSTONE ROW, NOT A BARE DELETE — H3 (docs/audits/2026-08-
+          # 10-main-bug-audit.md). `DELETE FROM head_snapshot` used to be
+          # the whole story here, which is correct in isolation but wrong
+          # once an ancestor era is in the picture: for a record carried
+          # into this era from an ancestor, removing this era's row left
+          # NOTHING on the current-era side of `compile_head!`'s union to
+          # outrank the ancestor matview's own (still-present, still
+          # `save`) row, so `DISTINCT ON` picked the ancestor's row and
+          # the "deleted" record kept reading back forever. Upserting a
+          # tombstone (`operation = 'delete'`, `state` NULL) instead
+          # means this era always has ITS OWN newest-ordinal row for the
+          # id, exactly like a real re-save already did ("re-saves are
+          # masked correctly" — the audit's own phrasing for why that
+          # half of this was never broken) — it just carries `operation
+          # = 'delete'` instead of `'save'`, so `head_view`'s own `WHERE
+          # operation = 'save'` still correctly hides it. Ordinal-guarded
+          # the same as every other upsert here, so an out-of-order
+          # replay can never let a stale delete clobber a newer save.
+          @db.exec_params(
+            "INSERT INTO #{quoted_head_snapshot} (id, ordinal, operation, state) VALUES ($1, $2, 'delete', NULL) " \
+            "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, operation = EXCLUDED.operation, " \
+            "state = EXCLUDED.state WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
+            [entry.id, ordinal]
+          )
           @field_caches.each_value { |cache_table| @lineage.delete_field_cache_row!(cache_table, entry.id) }
         end
 

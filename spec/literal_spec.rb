@@ -35,6 +35,18 @@ RSpec.describe Hecks::Literal do
     it "refuses a type it has no pinned spelling for, rather than letting to_s decide" do
       expect { described_class.render(Object.new) }.to raise_error(ArgumentError, /no pinned literal spelling/)
     end
+
+    # The exact regression `render_value`'s old `.to_s`-for-everything
+    # collapse produced: a numeric-LOOKING string wears its own quotes on
+    # the wire rather than being indistinguishable from the bare digits a
+    # real Integer renders as ("007" used to cross the wire as the text
+    # `007`, identical to what `7` itself would have written, and came
+    # back an Integer on the other side — `where code == "007"` then
+    # matched nothing).
+    it "quotes a numeric-looking string differently from the number itself" do
+      expect(described_class.render("007")).to eq('"007"')
+      expect(described_class.render(7)).to eq("7")
+    end
   end
 
   describe ".read" do
@@ -59,10 +71,42 @@ RSpec.describe Hecks::Literal do
       expect(described_class.read('{note: "a, b", other: 1}')).to eq(note: "a, b", other: 1)
     end
 
+    # M15 — an EMBEDDED QUOTE inside an object literal's own string field.
+    # `quote`/`unquote` escape and unescape it (`ESCAPED`), and `split_items`
+    # tracks `quoting`/`escaping` state char by char rather than splitting on a
+    # bare `"`, so `{text: "a \"quoted\" word"}` neither ends the field early
+    # nor corrupts the split into a following field. Exercised through
+    # `.render` first — the exact string a real default/binding would carry
+    # on the wire — not hand-written, so this is the real encoding, not a
+    # convenient one.
+    it "keeps an embedded, escaped quote inside a quoted field rather than ending it early" do
+      value = { text: 'a "quoted" word' }
+
+      expect(described_class.read(described_class.render(value))).to eq(value)
+    end
+
+    # THE SAME SHAPE ONE FIELD LATER — an embedded quote must not corrupt a
+    # SIBLING field's own read either, which a naive quote-blind scanner
+    # (ending the string at the first `"` it sees) would have done by
+    # treating the field's own closing quote as the embedded one and reading
+    # everything after it — including the next field's name — as more text.
+    it "keeps an embedded quote from corrupting the field that follows it" do
+      value = { note: 'say "hi"', other: 1 }
+
+      expect(described_class.read(described_class.render(value))).to eq(value)
+    end
+
     # The language stores a closed set's members and a few other fields as text
     # nothing ever rendered, so a bare word has to stay the word it is.
     it "leaves an unrendered bare word alone" do
       expect(described_class.read("high_risk")).to eq("high_risk")
+    end
+
+    # The read-side half of the same regression: a real render'd numeric
+    # string round-trips as the STRING it was, not the Integer its digits
+    # happen to spell.
+    it "reads a rendered numeric-looking string back as a string, not a number" do
+      expect(described_class.read(described_class.render("007"))).to eq("007")
     end
   end
 end

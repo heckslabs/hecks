@@ -28,6 +28,16 @@ RSpec.describe Hecks::Bluebook::Assembly::Marks do
         .to eq(narrative: { text: "transfer out" })
     end
 
+    # M15 — an object literal whose own field embeds a `"`. `Literal.render`
+    # is the only writer of this wire spelling, so it is the fixture here
+    # too — a hand-written string would test the reader against text nothing
+    # ever actually produces.
+    it "recovers an object literal whose own field embeds a quote" do
+      wire = Hecks::Literal.render(text: 'a "quoted" word')
+
+      expect(described_class.bindings(narrative: wire)).to eq(narrative: { text: 'a "quoted" word' })
+    end
+
     it "leaves a plain word as the string it is" do
       expect(described_class.bindings(label: "plain")).to eq(label: "plain")
     end

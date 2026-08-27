@@ -1,0 +1,58 @@
+name: Feature request or question
+description: A word the DSL doesn't have yet, a design question, or something you can't tell from the docs.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For an actual new DSL keyword or argument, skim
+        [Extending Hecks](../../docs/implemented/guides/extending-hecks.md)
+        first — a new word is a declared row (`proposed → admitted`)
+        before it's a line of Ruby, and that guide explains why. This
+        template is also fine for "is this possible already" and
+        "why does X work this way" — not everything here needs to be a
+        proposal.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What are you trying to do?
+      description: >
+        The domain concept you're trying to express, in prose — not
+        the syntax you imagine yet. If you already have a `.bluebook`
+        fragment showing where it falls short, include it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What does the language make you do instead, today?
+      description: >
+        If there's a current way to express this (even an awkward
+        one), say what it is — it's the fastest way to tell a genuine
+        gap from a documentation gap.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of ask is this?
+      options:
+        - New DSL keyword/argument
+        - New resolution rule (DSL sugar the runtime could derive)
+        - Behavior of an existing construct
+        - Tooling (bin/*, verification, docs generation)
+        - Rust runtime / codegen
+        - Question — not proposing a change
+    validations:
+      required: true
+
+  - type: input
+    id: hecks-version
+    attributes:
+      label: hecks version or commit
+      placeholder: "e.g. 0.3.0, or a git SHA"
+    validations:
+      required: false

@@ -4,6 +4,7 @@
   "version": null,
   "vision": "Put toppings on a pizza and sell it to a customer.",
   "classification": "supporting",
+  "formerly_known_as": null,
   "aggregates": [
     {
       "name": "Order",

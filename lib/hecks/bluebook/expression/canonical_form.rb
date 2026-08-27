@@ -37,7 +37,7 @@ module Hecks
 
         def step(text, rule)
           case rule.strategy
-          when "collapse_whitespace" then text.gsub(/\s+/, " ")
+          when "collapse_whitespace" then map_outside_strings(text) { |segment| segment.gsub(/\s+/, " ") }
           when "replace"             then replace(text, rule)
           else
             raise ArgumentError, "#{rule.strategy.inspect} is not a linked normalisation strategy"
@@ -45,9 +45,54 @@ module Hecks
         end
 
         def replace(text, rule)
-          return text.gsub(rule.source_token, rule.replacement) if rule.boundary == "none"
+          map_outside_strings(text) do |segment|
+            if rule.boundary == "none"
+              segment.gsub(rule.source_token, rule.replacement)
+            else
+              segment.gsub(/#{Regexp.escape(rule.source_token)}(?![[:alnum:]_])/, rule.replacement)
+            end
+          end
+        end
 
-          text.gsub(/#{Regexp.escape(rule.source_token)}(?![[:alnum:]_])/, rule.replacement)
+        # Applies a normalisation rule to the text OUTSIDE quoted string
+        # literals only, copying every quoted run through byte-for-byte.
+        # Every rule here (collapse_whitespace, the `.length`→`.size` fold)
+        # used to run quote-blind — `"a  b"` collapsed to `"a b"` and
+        # `"a.length"` folded to `"a.size"` just as readily as the real
+        # source outside the quotes, silently rewriting what a predicate
+        # compares a string attribute against, not merely how the
+        # predicate itself is spelled. A canonical string literal's
+        # CONTENTS are data, never syntax to normalise.
+        #
+        # Handles both `"` and `'` delimiters (this grammar's own
+        # `Resolver.quoted?` admits either), quote-aware exactly the way
+        # `Evaluator.top_level_index`/`Resolver.array_elements` already are
+        # elsewhere in this sublanguage. An unterminated quote (malformed
+        # input) is passed through raw rather than risk mangling it further.
+        def map_outside_strings(text)
+          result = +""
+          buffer = +""
+          quote = nil
+
+          text.each_char do |char|
+            if quote
+              buffer << char
+              if char == quote
+                result << buffer
+                buffer = +""
+                quote = nil
+              end
+            elsif ['"', "'"].include?(char)
+              result << yield(buffer)
+              buffer = char.to_s
+              quote = char
+            else
+              buffer << char
+            end
+          end
+
+          result << (quote ? buffer : yield(buffer))
+          result
         end
       end
     end

@@ -86,6 +86,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::roster::roster::OpenArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -97,6 +98,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
+                      args.to.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -108,6 +110,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.to { v.check_invariants()?; }
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -130,6 +133,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::AddSeatArgs::from_json(facts_json)?;
+                      args.number.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -141,6 +145,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::EnlistArgs::from_json(facts_json)?;
+                      args.id.check_invariants()?;
+                      args.age.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -152,6 +158,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::AssignArgs::from_json(facts_json)?;
+                      args.member.check_invariants()?;
+                      args.number.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -163,6 +171,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
               let args = crate::generated::roster::roster::RetireArgs::from_json(facts_json)?;
+                      args.id.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -174,6 +183,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json)?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json)?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.id { v.check_invariants()?; }
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id) { command_deref.push(("parent", parent_node)); }
@@ -263,6 +273,21 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Roster::Roster" => Some("name"),
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Roster::Roster.Open" => &["name"],
+        "Roster::Roster.Mark" => &["to"],
+        "Roster::Roster.Notice" => &["to"],
+        "Roster::Roster.Honor" => &["rank"],
+        "Roster::Roster.AddSeat" => &["number", "row"],
+        "Roster::Roster.Enlist" => &["id", "age"],
+        "Roster::Roster.Assign" => &["member", "number"],
+        "Roster::Roster.Retire" => &["id"],
+        "Roster::Roster.Member.Retire" => &["id"],
+        _ => &[],
     }
 }
 

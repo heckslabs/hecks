@@ -31,8 +31,22 @@ module Hecks
 
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
-        domain = settings[:domain] || settings["domain"] || aggregate.name
-        region = settings[:region] || settings["region"] || "us-east-1"
+        domain =
+          if settings.key?(:domain)
+            settings[:domain]
+          elsif settings.key?("domain")
+            settings["domain"]
+          else
+            aggregate.name
+          end
+        region =
+          if settings.key?(:region)
+            settings[:region]
+          elsif settings.key?("region")
+            settings["region"]
+          else
+            "us-east-1"
+          end
         # TWO DIFFERENT "domain"s, deliberately not conflated: `domain`
         # (this aggregate's OWN bluebook name — "Identity", "Governance")
         # only ever prefixes the instances lookup, since that's how

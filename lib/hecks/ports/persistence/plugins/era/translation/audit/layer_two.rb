@@ -53,15 +53,14 @@ module Hecks
           return if rekeyed
 
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
-          compute_tops = declared.computes.flat_map { |compute| [compute.from, compute.to] }
-                                 .map { |path| path.to_s.split(".").first }
+          compute_paths = declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)
 
           before.each do |id, state|
             next unless after.key?(id)
 
             entry = Ports::Persistence::Entry.new(operation: "save", id: id, state: state.transform_keys(&:to_sym))
-            expected = normalize(rules.translate(entry).state).reject { |key, _| compute_tops.include?(key) }
-            actual = normalize(after[id]).reject { |key, _| compute_tops.include?(key) }
+            expected = strip_compute_paths(normalize(rules.translate(entry).state), compute_paths)
+            actual = strip_compute_paths(normalize(after[id]), compute_paths)
             next if expected == actual
 
             diverged = (expected.keys | actual.keys).select { |key| expected[key] != actual[key] }
@@ -71,6 +70,32 @@ module Hecks
         end
 
         def normalize(state) = JSON.parse(JSON.generate(state))
+
+        # Exempts exactly the paths a compute owns, not the whole
+        # top-level attribute it happens to live under. A bare path
+        # ("price_cents") is itself the compute's entire value — dropping
+        # the whole top-level key is correct, there's nothing else there
+        # to check. A DOTTED path ("price.cents") only owns that one
+        # member of the value object it reaches into; every sibling
+        # member (e.g. "price.currency") is untouched by the compute and
+        # must stay subject to the equivalence check below. Blanket-
+        # dropping the whole top-level key for a dotted compute used to
+        # exempt the entire attribute — silent data loss elsewhere in the
+        # same value object (a migration that nulls or drops a sibling
+        # field) produced zero violations, defeating the one gate whose
+        # entire purpose is to catch exactly that.
+        def strip_compute_paths(state, paths)
+          paths.each do |path|
+            segments = path.split(".")
+            if segments.length == 1
+              state.delete(segments.first)
+            else
+              parent = segments[0..-2].reduce(state) { |node, segment| node.is_a?(Hash) ? node[segment] : nil }
+              parent.delete(segments.last) if parent.is_a?(Hash)
+            end
+          end
+          state
+        end
       end
     end
   end

@@ -73,6 +73,52 @@ RSpec.describe Hecks::Adapters::PostgresEra,
     expect(adapter.find("p1").toppings).to eq([{ name: "Basil", amount: 3 }])
   end
 
+  # RepositoryFactory#build always merges `era: registry.resolved_eras[domain]`
+  # into settings — genuinely PRESENT, not absent, holding plain `nil` for any
+  # domain the era boot gate hasn't resolved yet. `PostgresEra.setting`'s
+  # presence-over-truthiness discipline (correct for :role, where a stored
+  # `false` is real) used to return that stored `nil` verbatim instead of
+  # falling back to `@lineage.current_era` — @era became nil, era.to_i (field_
+  # cache.rb) coerced it to 0, and every self-healing table got minted at
+  # "era 0" instead of era 1, breaking the very first boot of a fresh domain.
+  it "resolves era 1 (not nil, not 0) when settings carry an explicit era: nil, the RepositoryFactory#build shape" do
+    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, era: nil })
+
+    conn = PG.connect(dbname: SPEC_DB)
+    tables = conn.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
+    conn.close
+
+    expect(tables).to include("order_head_snapshot_1")
+    expect(tables).not_to include("order_head_snapshot_0", "order_head_snapshot_")
+  end
+
+  # ensure_base! (provisioning.rb) runs on every boot, not only the first —
+  # a domain's Nth reboot re-provisions the same base unconditionally. Two
+  # of its statements used to be reissued with no existence guard at all
+  # (install_transforms!'s six CREATE OR REPLACE FUNCTIONs; the journal's
+  # REVOKE UPDATE, DELETE FROM PUBLIC), unlike the RLS ALTER TABLE calls in
+  # the same method, which already read current state first for exactly
+  # this reason ("Postgres does not skip the lock just because the
+  # statement would be a no-op"). Two real sessions reissuing either
+  # raced Postgres's own catalog MVCC into `PG::InternalError: tuple
+  # concurrently updated`. Real threads, real separate PG connections (each
+  # `described_class.new` opens its own) — not a synthetic simulation.
+  it "boots the same already-provisioned domain from many concurrent connections without a catalog race" do
+    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB }) # establishes the base once
+
+    errors = []
+    threads = Array.new(10) do
+      Thread.new do
+        described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+      rescue StandardError => e
+        errors << e
+      end
+    end
+    threads.each(&:join)
+
+    expect(errors).to be_empty, -> { "expected no boot to raise, got: #{errors.map(&:message).join('; ')}" }
+  end
+
   it "answers nil for an id it never stored" do
     expect(adapter.find("nope")).to be_nil
   end

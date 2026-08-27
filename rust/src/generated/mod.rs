@@ -13,6 +13,26 @@ pub mod roster;
 // list by bin/project_rust) — kernel/cli.rs imports
 // `crate::generated::active::{dispatch_by_name, Store, ...}` unchanged
 // no matter which domain that resolves to.
+//
+// DOMAIN FEATURES ARE MUTUALLY EXCLUSIVE (R5) — Cargo has no native
+// concept of that, and `default = ["roster"]` in
+// Cargo.toml stays enabled unless a build passes
+// `--no-default-features`, so a plain `cargo build --features banking`
+// used to enable BOTH the default domain's feature and banking's,
+// producing two `pub use ... as active;` imports and a hard E0252.
+// Fixed two ways below, entirely mechanically from `domains`/
+// `target_mod_name` (this run's new default) — never hand-maintained:
+//
+//   1. THE DEFAULT DOMAIN'S OWN re-export backs off whenever any OTHER
+//      domain feature is also enabled, so it never contends for `active`
+//      by accident — `cargo build --features banking` (still implicitly
+//      carrying the default feature) now resolves to banking alone,
+//      same as if `--no-default-features` had been passed explicitly.
+//   2. Two NON-default domain features enabled TOGETHER (a genuine,
+//      not-accidental conflict — nothing makes that combination
+//      meaningful) still fail the build, but with an explicit
+//      `compile_error!` naming both features instead of a cryptic
+//      "defined multiple times".
 #[cfg(feature = "banking")]
 pub use banking::merged as active;
 #[cfg(feature = "compliance")]
@@ -23,5 +43,30 @@ pub use embryonaut::merged as active;
 pub use meta::merged as active;
 #[cfg(feature = "pizzas")]
 pub use pizzas::merged as active;
-#[cfg(feature = "roster")]
+#[cfg(all(feature = "roster", not(any(feature = "banking", feature = "compliance", feature = "embryonaut", feature = "meta", feature = "pizzas"))))]
 pub use roster::merged as active;
+
+// Explicit conflict guard — see point 2 above. Only fires when TWO
+// non-default domain features are both turned on; the default
+// domain's own feature never reaches here (point 1 already excludes
+// it whenever any other domain feature is present).
+#[cfg(all(feature = "banking", feature = "compliance"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both banking and compliance are enabled)");
+#[cfg(all(feature = "banking", feature = "embryonaut"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both banking and embryonaut are enabled)");
+#[cfg(all(feature = "banking", feature = "meta"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both banking and meta are enabled)");
+#[cfg(all(feature = "banking", feature = "pizzas"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both banking and pizzas are enabled)");
+#[cfg(all(feature = "compliance", feature = "embryonaut"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both compliance and embryonaut are enabled)");
+#[cfg(all(feature = "compliance", feature = "meta"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both compliance and meta are enabled)");
+#[cfg(all(feature = "compliance", feature = "pizzas"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both compliance and pizzas are enabled)");
+#[cfg(all(feature = "embryonaut", feature = "meta"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both embryonaut and meta are enabled)");
+#[cfg(all(feature = "embryonaut", feature = "pizzas"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both embryonaut and pizzas are enabled)");
+#[cfg(all(feature = "meta", feature = "pizzas"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, compliance, embryonaut, meta, pizzas, roster (both meta and pizzas are enabled)");

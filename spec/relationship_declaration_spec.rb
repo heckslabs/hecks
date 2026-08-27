@@ -122,4 +122,28 @@ RSpec.describe "relationship declarations" do
       end
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /has_many takes no optional/)
   end
+
+  # `has_many`'s target resolves through `Naming.singularize`, the
+  # crude undo of `Naming.plural` (naming_spec.rb's own "undoes
+  # plural's -es rule" pins the rule itself) — a target aggregate whose
+  # own name ends in s/x/z/ch/sh must round-trip through the SAME
+  # "-es" suffix `plural` would mint for it, or `has_many Boxes` names
+  # a phantom "Boxe" this chapter never declares instead of the real
+  # aggregate named Box.
+  it "resolves has_many against a real aggregate whose plural adds -es" do
+    chapter = build_chapter do
+      vision "a plural ending in -es still resolves to its real singular"
+
+      aggregate("Box") { identified_by { attribute :number, String } }
+
+      aggregate "Shelf" do
+        identified_by { attribute :number, String }
+        has_many Boxes
+      end
+    end
+
+    shelf = chapter.aggregate("Shelf")
+    expect(shelf.attributes.last.type.to_s).to eq("Reference<Box>")
+    expect(shelf.reference_targets).to include("Box")
+  end
 end

@@ -110,11 +110,46 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
     it "query_answers_match_reference passes agreement, refusals, and read-model asks through" do
       history = { queries: [
         { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "M" }], reference_rows: [{ id: "M" }] },
-        { query: "Pizzas::Order.Expensive", args: {}, error: "refused" },
-        { query: "Pizzas.some_read_model", args: {}, rows: [], reference_rows: nil }
+        # BOTH engines refused, in agreement — not a finding. Modeled with
+        # BOTH `error:` and `reference_error:` present, the shape `Replay`
+        # itself now builds when each engine is run independently and both
+        # happen to raise (see that file's own comment on why a single
+        # shared begin/rescue used to make this indistinguishable from the
+        # one-sided case below).
+        { query: "Pizzas::Order.Expensive", args: {}, error: "refused", reference_error: "refused" },
+        { query: "Pizzas.some_read_model", args: {}, rows: [] }
       ] }
 
       expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to eq(true)
+    end
+
+    # M23 — the property this feeds needs to be ABLE to fail on a
+    # refusal-shaped divergence, not just a differing row set. Before the
+    # fix, `Replay` shared one begin/rescue across both engines: whichever
+    # engine raised first (always the native one, since it runs first)
+    # discarded any record of the OTHER engine ever having been asked at
+    # all, so an entry like this — one engine refusing where the other
+    # answers — could never even be CONSTRUCTED from a real run, let alone
+    # checked. This proves the property itself, fed the shape `Replay` can
+    # now actually produce, correctly names it.
+    it "query_answers_match_reference names a refusal-shaped divergence — one engine refused, the other didn't" do
+      history = { queries: [
+        { query: "Pizzas::Order.Expensive", args: {}, rows: [{ id: "Margherita" }], reference_error: "reference refused" }
+      ] }
+
+      result = Hecks::Fuzzing::Properties.query_answers_match_reference(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Pizzas::Order.Expensive").and include("divergence")
+    end
+
+    it "query_answers_match_reference names the reverse refusal-shaped divergence too — reference refused, native didn't" do
+      history = { queries: [
+        { query: "Pizzas::Order.Expensive", args: {}, error: "native refused", reference_rows: [{ id: "Margherita" }] }
+      ] }
+
+      result = Hecks::Fuzzing::Properties.query_answers_match_reference(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Pizzas::Order.Expensive").and include("divergence")
     end
 
     it "replay_is_deterministic names a real divergence — a genuinely different step count" do

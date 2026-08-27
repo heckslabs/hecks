@@ -110,8 +110,15 @@ module Hecks
             # below checks them in, for the same reason: `list_of`/
             # `one_of` used in an attribute's own type position never
             # arrive with `self.class::GRAMMAR_CONTEXT == "Type"`.
-            target = fallback[[self.class::GRAMMAR_CONTEXT, word.to_s]] || fallback[["Type", word.to_s]]
-            return send(target, *args, **kwargs, &block) if target
+            own_key  = [self.class::GRAMMAR_CONTEXT, word.to_s]
+            type_key = ["Type", word.to_s]
+            # key? first, never `||` — a target method name is never
+            # actually stored as `false`, but the fallback lookup itself
+            # must not silently prefer "Type" over this class's own
+            # context on the strength of a falsy-looking value.
+            found  = fallback.key?(own_key) || fallback.key?(type_key)
+            target = fallback.key?(own_key) ? fallback[own_key] : fallback[type_key]
+            return send(target, *args, **kwargs, &block) if found
 
             return super
           end

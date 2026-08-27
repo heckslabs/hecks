@@ -67,15 +67,41 @@ module Hecks
                 @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
                 next if table_exists?(name)
 
+                # `operation` + a NULLABLE `state` — H3, docs/audits/2026-08-
+                # 10-main-bug-audit.md: a delete used to just `DELETE FROM`
+                # this table, leaving NO row at all for an id carried in
+                # from an ancestor era. `compile_head!`'s union below then
+                # had nothing current-era to outrank the ancestor
+                # matview's own (still-live-looking) `save` row with, so a
+                # deleted ancestor-carried record kept winning `DISTINCT
+                # ON` forever. A delete now upserts a TOMBSTONE row here
+                # instead (`operation = 'delete'`, `state` NULL) — the
+                # exact same ordinal-guarded upsert every write already
+                # uses, so it participates in the union/`DISTINCT ON`
+                # exactly like a save does, and out-ranks the ancestor row
+                # by ordinal the same way a real re-save already did
+                # ("re-saves are masked correctly" — the audit's own
+                # phrasing for why this half of the read path was never
+                # broken).
                 @db.exec(<<~SQL)
                   CREATE TABLE #{quote(name)} (
-                    id      text PRIMARY KEY,
-                    ordinal bigint NOT NULL,
-                    state   jsonb NOT NULL
+                    id        text PRIMARY KEY,
+                    ordinal   bigint NOT NULL,
+                    operation text NOT NULL DEFAULT 'save',
+                    state     jsonb
                   )
                 SQL
               end
             end
+            # SELF-HEALING for a table this ADR predates — same idiom as
+            # `postgres/schema_builder.rb`'s own `hecks_version` backfill:
+            # unconditional, runs on every boot, a no-op once the column
+            # is there. A table created before H3's fix has no
+            # `operation` column and a `state NOT NULL` constraint a
+            # tombstone's NULL state would violate; both are corrected
+            # here regardless of which branch above just ran.
+            @db.exec("ALTER TABLE #{quote(name)} ADD COLUMN IF NOT EXISTS operation text NOT NULL DEFAULT 'save'")
+            @db.exec("ALTER TABLE #{quote(name)} ALTER COLUMN state DROP NOT NULL")
             backfill_head_snapshot!(name, storage_name, era)
           end
 
@@ -105,10 +131,13 @@ module Hecks
               end,
               upsert:     lambda do |rows|
                 rows.each do |row|
+                  # Always `'save'` — `source_sql` above already filtered
+                  # to `operation = 'save'`, so nothing this backfill ever
+                  # sees is a delete tombstone.
                   @db.exec_params(
-                    "INSERT INTO #{quote(name)} (id, ordinal, state) VALUES ($1, $2, $3) " \
-                    "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
-                    "WHERE #{quote(name)}.ordinal < EXCLUDED.ordinal",
+                    "INSERT INTO #{quote(name)} (id, ordinal, operation, state) VALUES ($1, $2, 'save', $3) " \
+                    "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, operation = EXCLUDED.operation, " \
+                    "state = EXCLUDED.state WHERE #{quote(name)}.ordinal < EXCLUDED.ordinal",
                     [row["id"], row["ordinal"], row["state"]]
                   )
                 end
@@ -149,9 +178,15 @@ module Hecks
           # already keeps the snapshot current as of every write.
           def ensure_first_head!(storage_name)
             ensure_head_snapshot!(storage_name, 1)
+            # `WHERE operation = 'save'` — era 1 has no ancestor tail to
+            # worry about, but the snapshot table can now hold delete
+            # tombstones too (H3, see `ensure_head_snapshot!`'s own
+            # comment), and a tombstone's `state` is NULL: without this
+            # filter a deleted id would still resolve here, just to a nil
+            # state, instead of correctly falling out of the head at all.
             @db.exec(<<~SQL)
               CREATE OR REPLACE VIEW #{quote(head_view(storage_name))} AS
-              SELECT id, state FROM #{quote(head_snapshot(storage_name, 1))}
+              SELECT id, state FROM #{quote(head_snapshot(storage_name, 1))} WHERE operation = 'save'
             SQL
           end
 
@@ -359,13 +394,27 @@ module Hecks
             # under this era specifically.
             ensure_head_snapshot!(storage_name, era)
             @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
+            # THE CURRENT-ERA SIDE READS ITS OWN `operation` COLUMN NOW —
+            # H3 (docs/audits/2026-08-10-main-bug-audit.md). This used to
+            # hardcode `'save' AS operation` here, on the reasoning that a
+            # delete simply removed its row from the snapshot table. But
+            # for an id carried in from an ancestor era, that left the
+            # ancestor matview's own `save` row as the ONLY row on either
+            # side of this union — which then won `DISTINCT ON` and
+            # `WHERE operation = 'save'` let it straight through, so a
+            # deleted ancestor-carried record kept resurrecting forever.
+            # The snapshot side now upserts a real tombstone row on
+            # delete (`ensure_head_snapshot!`'s own comment) instead of
+            # deleting the row, so reading its actual `operation` here
+            # lets that tombstone outrank the stale ancestor `save` row
+            # by ordinal, exactly the way a genuine re-save already did.
             @db.exec(<<~SQL)
               CREATE VIEW #{quote(head_view(storage_name))} AS
               SELECT id, state FROM (
                 SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, operation, state FROM (
                   SELECT ordinal, aggregate_id, operation, state FROM #{quote(view)}
                   UNION ALL
-                  SELECT ordinal, id AS aggregate_id, 'save' AS operation, state
+                  SELECT ordinal, id AS aggregate_id, operation, state
                   FROM #{quote(head_snapshot(storage_name, era))}
                 ) merged ORDER BY aggregate_id, ordinal DESC
               ) latest WHERE operation = 'save'

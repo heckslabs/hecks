@@ -1,0 +1,432 @@
+#!/usr/bin/env ruby
+
+# A MECHANICAL guard against the "blind trust" bug class fixed in
+# bin/project_deploy under H13/H14/L20 (docs/audits/
+# 2026-08-11-bug-triage.md):
+#
+#   H13 — a Shared-mode `mint-era` stub `exit 1`'d after reporting a
+#         manual step remains, so `deploy:`'s own unconditional trailing
+#         `$(MAKE) mint-era` made a fully successful `sam deploy` still
+#         report a failed `make deploy` — training operators to ignore
+#         red deploys.
+#   H14 — `scaffold-translation`/`translation-audit` opened a real SSM
+#         tunnel to production, then ran scripts that silently resolved
+#         their DB connection from the LOCAL dev world file instead —
+#         reporting success while doing the wrong thing entirely.
+#   L20 — `rename-schema` interpolated OLD/NEW straight into SQL with no
+#         identifier validation.
+#
+# All three are now fixed AT THE INSTANCES bin/project_deploy generates
+# today. This script exists so the CLASS of bug — a generated
+# Makefile/shell recipe that touches prod (AWS, a real Postgres
+# connection over a bastion tunnel) and either (a) reports success
+# without the underlying command's own exit status actually being what
+# gates that report, or (b) does that AWS/DB work with no echo/
+# validation step telling the human running it what is about to happen
+# — is mechanically caught in any FUTURE recipe this generator adds,
+# not just re-litigated for these three.
+#
+# A SCRIPT LINTER, NOT A COP — deliberately: bin/project_deploy emits
+# Make/shell TEXT, not Ruby a rubocop cop could parse. This is a
+# pattern-matching pass over that generated text — the same
+# recipe_lines/shell_chains shape spec/project_deploy_bug_fixes_spec.rb
+# already uses to pin these exact bugs, generalized here to run over
+# EVERY target in the Makefile rather than one named up front, and
+# runnable standalone outside RSpec so it can gate CI right after
+# generation (see this file's own bottom comment for the exact wiring).
+#
+# HEURISTIC, NOT A STATIC ANALYZER — pattern matching over generated
+# shell text can, in principle, both miss a real violation phrased
+# differently than these checks expect and flag a line that reads as
+# risky but genuinely isn't. Scoped deliberately narrow: three checks,
+# each mirroring one shape this codebase has actually shipped (or
+# named, for the `exit $?` case — see DOLLAR_QUESTION_EXIT_REGEX's own
+# comment) and fixed, not an attempt at general shell-safety analysis.
+# Read a violation's own message before assuming it's real; a heuristic
+# this simple WILL occasionally flag something defensible (documented
+# in this script's own README-equivalent — see the project's audit
+# trail for confirmed cases at the time this was written).
+#
+# Usage:
+#   bin/lint_deploy_recipes                     # generates 3 representative
+#                                                # fixture domains (plain,
+#                                                # Shared-mode, OAuth), lints
+#                                                # each one's generated Makefile
+#   bin/lint_deploy_recipes path/to/Makefile …   # lints given Makefile(s) directly
+#                                                 # (e.g. a real deploy/<domain>/Makefile)
+#
+# Exits 0 ("no violations found") if every recipe passes; exits 1 with
+# a full report (source, target, line, rule, message) otherwise.
+
+require "tmpdir"
+require "fileutils"
+require "open3"
+
+module DeployRecipeLint
+  # "Touches prod" — bin/project_deploy's own generated recipes hit
+  # AWS or a real Postgres connection through exactly these calls (this
+  # tool's own charter: `$(STACK)`, `aws cloudformation`, `aws ssm`, a
+  # bastion-tunneled DB connection). `sam build` is deliberately
+  # EXCLUDED — it cross-compiles/packages locally and never touches
+  # AWS; only `sam deploy` does.
+  RISKY_REGEX = /\baws\s+(?:cloudformation|ssm|secretsmanager|lambda|ec2)\b|\bpsql\b|DATABASE_URL=|\bsam\s+deploy\b/
+
+  # A validation/explanation step aimed at a human running this
+  # interactively — deliberately loose (the word "echo" anywhere in a
+  # REAL shell statement, `@`-prefixed or not: see real_statements
+  # below for why comments never count). This linter's job is to catch
+  # a recipe with NO such step at all, not to grade the quality of the
+  # ones that exist.
+  ECHO_REGEX = /\becho\b/
+
+  # H13's own exact shape: a literal, unconditional `exit 0` as its OWN
+  # statement — NOT `exit $?`/`exit $$STATUS` (those at least carry a
+  # real command's status forward), and NOT `command && exit 0` (that's
+  # one statement whose text contains `&&`, never matches this on its
+  # own — the exit there genuinely IS gated on `command` succeeding).
+  BARE_EXIT_ZERO_REGEX = /\Aexit\s+0\s*\z/
+
+  # `exit $?`/`exit $$?` is legitimate ONLY when the immediately
+  # preceding statement in the same chain is the actual meaningful
+  # command being checked. This codebase doesn't currently emit this
+  # shape at all — every real exit-code propagation here captures into
+  # a named variable first (e.g. `BOOT_STATUS=$$?` ... `exit
+  # $$BOOT_STATUS`) — but a FUTURE recipe reaching for the shorthand,
+  # with something else (even just an `@echo`, which itself exits 0)
+  # sitting between the real command and the `exit $?` that's supposed
+  # to report on it, is exactly the "$? wasn't just set by the
+  # meaningful command" bug this check exists to catch before it ships.
+  DOLLAR_QUESTION_EXIT_REGEX = /\Aexit\s+\$\$?\?\s*\z/
+
+  # Statements whose only job is printing or no-op'ing — never
+  # themselves "the meaningful command" a nearby `exit $?` could mean
+  # to report on.
+  BENIGN_REGEX = /\A(?:@)?(?:echo\b|:\s*\z)/
+
+  Violation = Struct.new(:source, :target, :line, :rule, :message, keyword_init: true) do
+    def to_s
+      "#{source}:#{line}: [#{rule}] target #{target.inspect} — #{message}"
+    end
+  end
+
+  module_function
+
+  # ---- Makefile parsing ----------------------------------------------
+  #
+  # Mirrors spec/project_deploy_bug_fixes_spec.rb's own recipe_lines/
+  # shell_chains helpers, generalized to walk every target in one pass
+  # (rather than one target named up front) and to keep each line's
+  # real line number around for reporting.
+
+  # name => [[line_no, raw_text], ...] — raw_text still carries its
+  # leading tab (if any) and any trailing "\" continuation; each of the
+  # checks below normalizes what it actually needs.
+  def parse_targets(text)
+    lines = text.lines
+    targets = {}
+    i = 0
+    while i < lines.length
+      line = lines[i]
+      if line.start_with?("\t", "#") || line.strip.empty? || line.include?(":=") || line.start_with?(".PHONY")
+        i += 1
+        next
+      end
+
+      if (m = line.match(%r{\A([A-Za-z0-9_./$(){}-]+):(?:\s.*)?\z}))
+        recipe = []
+        j = i + 1
+        while j < lines.length && (lines[j] == "\n" || lines[j].start_with?("\t") || lines[j].start_with?("#"))
+          recipe << [j, lines[j].chomp]
+          j += 1
+        end
+        targets[m[1]] = recipe
+        i = j
+      else
+        i += 1
+      end
+    end
+    targets
+  end
+
+  # Drops comment lines (whether at column 0 — mint_era_recipe's own
+  # explanatory blocks — or tab-prefixed, as predeploy_bridge_shell's
+  # own comments are) and blank lines. A comment can quote a risky
+  # command or the word "echo" in its own PROSE (confirmed live: one of
+  # predeploy_bridge_shell's own comments literally contains the
+  # substring "sam deploy" as prose) — neither should count toward
+  # either check below, since a comment never executes and a human
+  # running `make` never sees it.
+  def real_statements(recipe_lines)
+    recipe_lines.reject { |_, text| text.sub(/\A\t/, "").start_with?("#") || text.strip.empty? }
+  end
+
+  # Splits a target's real (non-comment, non-blank) recipe lines into
+  # independent shell chains — a break happens after any line that does
+  # NOT end in a backslash continuation (Make runs each such segment as
+  # its own separate shell invocation, matching
+  # project_deploy_bug_fixes_spec.rb's own shell_chains convention).
+  # Each chain is [[line_no, statement_text], ...] with the leading tab
+  # and trailing "\" already stripped.
+  def shell_chains(recipe_lines)
+    chains = []
+    current = []
+    real_statements(recipe_lines).each do |line_no, text|
+      stripped = text.sub(/\A\t/, "")
+      continues = stripped.end_with?("\\")
+      statement = continues ? stripped.sub(/\\\z/, "").rstrip : stripped
+      current << [line_no, statement]
+      unless continues
+        chains << current
+        current = []
+      end
+    end
+    chains << current unless current.empty?
+    chains
+  end
+
+  def normalize_statement(text)
+    text.sub(/\A@/, "").strip.sub(/;\s*\z/, "")
+  end
+
+  # ---- Checks ---------------------------------------------------------
+
+  # H13-shape: a shell chain that both touches AWS/DB and falls through
+  # to a bare, unconditional `exit 0` later in that SAME chain — i.e.
+  # reports success regardless of what the risky command(s) earlier in
+  # the same shell invocation actually did.
+  def check_blind_exit_zero(target, chains)
+    chains.filter_map do |chain|
+      exit_zero = chain.find { |_, stmt| BARE_EXIT_ZERO_REGEX.match?(normalize_statement(stmt)) }
+      next unless exit_zero
+
+      risky_before = chain.take_while { |line_no, _| line_no != exit_zero.first }
+                          .select { |_, stmt| RISKY_REGEX.match?(stmt) }
+      next if risky_before.empty?
+
+      Violation.new(
+        target: target, line: exit_zero.first + 1, rule: "UNVERIFIED_EXIT_ZERO",
+        message: "unconditional `exit 0` follows an AWS/DB-touching command (line #{risky_before.last.first + 1}: " \
+                 "#{risky_before.last.last.strip.inspect}) whose own exit status this chain never checks — a real " \
+                 "failure there would still report success."
+      )
+    end
+  end
+
+  # "$? wasn't just set by the meaningful command" — `exit $?`/`exit
+  # $$?` whose immediately preceding statement in the same chain is a
+  # benign echo/no-op, not the risky command this exit code is
+  # presumably meant to report on.
+  def check_stale_dollar_question(target, chains)
+    chains.filter_map do |chain|
+      idx = chain.index { |_, stmt| DOLLAR_QUESTION_EXIT_REGEX.match?(normalize_statement(stmt)) }
+      next unless idx
+
+      prev = idx.positive? ? chain[idx - 1] : nil
+      next unless prev
+      next unless BENIGN_REGEX.match?(normalize_statement(prev.last))
+
+      Violation.new(
+        target: target, line: chain[idx].first + 1, rule: "STALE_DOLLAR_QUESTION",
+        message: "`exit $?` follows a benign statement (line #{prev.first + 1}: #{prev.last.strip.inspect}), " \
+                 "not the meaningful command it claims to report on — capture the real command's status into a " \
+                 "named variable instead (this codebase's own convention, e.g. `BOOT_STATUS=$$?` ... " \
+                 "`exit $$BOOT_STATUS`) and exit that, not a bare $?."
+      )
+    end
+  end
+
+  # H14-shape, generalized: a target that touches AWS/DB with no
+  # earlier echo/validation step anywhere in the recipe — nothing tells
+  # a human running this interactively what it's about to do before it
+  # does it.
+  def check_prod_touch_without_echo(target, recipe_lines)
+    ordered = real_statements(recipe_lines)
+    first_risky = ordered.find { |_, text| RISKY_REGEX.match?(text) }
+    return [] unless first_risky
+
+    seen_echo = ordered.take_while { |line_no, _| line_no != first_risky.first }
+                       .any? { |_, text| ECHO_REGEX.match?(text) }
+    return [] if seen_echo
+
+    [Violation.new(
+      target: target, line: first_risky.first + 1, rule: "PROD_TOUCH_WITHOUT_ECHO",
+      message: "touches AWS/DB (#{first_risky.last.strip.inspect}) with no earlier echo/validation step in this " \
+               "recipe naming what it's about to do to a human running it interactively."
+    )]
+  end
+
+  def lint(text, source:)
+    targets = parse_targets(text)
+    violations = targets.flat_map do |name, recipe_lines|
+      chains = shell_chains(recipe_lines)
+      check_blind_exit_zero(name, chains) +
+        check_stale_dollar_question(name, chains) +
+        check_prod_touch_without_echo(name, recipe_lines)
+    end
+    violations.each { |v| v.source = source }
+    violations
+  end
+
+  # ---- Fixture generation ---------------------------------------------
+  #
+  # Same shape as spec/project_deploy_bug_fixes_spec.rb's own
+  # write_fixture/generate! — a minimal but real Hecks.bluebook/
+  # Hecks.world pair, run through the real bin/project_deploy, so this
+  # lints the ACTUAL generator output, never a hand-written stand-in
+  # for it.
+
+  def write_fixture(dir, basename, world_body, env_local: nil)
+    domain_dir = File.join(dir, basename)
+    bluebook_dir = File.join(domain_dir, "bluebook")
+    FileUtils.mkdir_p(bluebook_dir)
+    bluebook_name = basename.split("_").map(&:capitalize).join
+
+    File.write(File.join(bluebook_dir, "#{basename}.bluebook"), <<~BLUEBOOK)
+      Hecks.bluebook "#{bluebook_name}" do
+        aggregate "Thing" do
+          identified_by :name
+          attribute :name, ThingName
+          value_object "ThingName" do
+            attribute :value, String
+            invariant("named") { !value.to_s.empty? }
+          end
+          command "Create" do
+            attribute :name, ThingName
+            sets :name
+            emits "ThingCreated"
+          end
+        end
+      end
+    BLUEBOOK
+
+    File.write(File.join(bluebook_dir, "#{basename}.world"), <<~WORLD)
+      Hecks.world "#{bluebook_name}" do
+        deployed_to("AwsLambda") do
+          #{world_body}
+        end
+      end
+    WORLD
+
+    File.write(File.join(domain_dir, ".env.local"), env_local) if env_local
+
+    domain_dir
+  end
+
+  # Generates the fixture under a throwaway tmpdir and returns the path
+  # bin/project_deploy actually wrote to (<root>/deploy/<basename> —
+  # always there regardless of where the source domain lived, same as
+  # every project_deploy_*_spec.rb in this repo already relies on).
+  def generate!(root, basename, world_body, env_local: nil)
+    Dir.mktmpdir do |dir|
+      domain_dir = write_fixture(dir, basename, world_body, env_local: env_local)
+      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+      status.success? or raise "bin/project_deploy failed generating the #{basename} fixture: #{stderr}"
+    end
+    File.join(root, "deploy", basename)
+  end
+
+  # The three representative shapes bin/project_deploy's own recipe
+  # builders branch on — a domain with its own RDS instance ("own"), a
+  # Shared-mode domain borrowing another's ("shared" — mint-era/
+  # scaffold-translation/translation-audit/rename-schema all take their
+  # OTHER branch here), and a domain with real Google OAuth wired up
+  # ("oauth" — deploy:'s own WebRedirectBaseUrl branch, sync-google-oauth).
+  # Between the three, every recipe this generator can currently emit
+  # gets exercised at least once.
+  def fixtures
+    {
+      "own fixture"    => ["region \"us-east-1\"", nil],
+      "shared fixture" => ["region \"us-east-1\"\n    database \"Shared\"\n    owner \"SomeOwner\"", nil],
+      "oauth fixture"  => [
+        "region \"us-east-1\"\n    web \"Rust\"",
+        "GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com\nGOOGLE_CLIENT_SECRET=test-secret\n"
+      ]
+    }
+  end
+end
+
+# ---- CI wiring (documented here, not added to .github/workflows/ci.yml
+# by this change — see this repo's own standing per-task-scope rule) ----
+#
+# This belongs in the `checks:` job, not `rspec:` — same reasoning that
+# job already collects bin/fuzz and bin/model_check under: a single
+# always-run tool invocation, not RSpec examples, and (like both of
+# those) needs no Postgres service and no Rust build at all — this
+# script's own "no arguments" path generates its 3 fixture domains
+# through the real bin/project_deploy and lints purely the resulting
+# Makefile TEXT, no real AWS/DB touched by the check itself. Add a step
+# such as:
+#
+#     - name: lint generated deploy recipes
+#       run: bundle exec bin/lint_deploy_recipes
+#
+# ORDERING — after bin/project_deploy has been proven to run at all
+# (the `rspec:` job's own project_deploy_*_spec.rb examples already
+# cover that; this step needs no explicit `needs:` on them since GitHub
+# Actions schedules `checks:` and `rspec:` concurrently regardless, the
+# same tradeoff this workflow's own header comment already accepts for
+# bin/fuzz/bin/model_check), and — the actual point of this tool —
+# BEFORE any step in any workflow that could reach a real `make deploy`
+# against production. Nothing in this repo's CI does that today, but if
+# one ever does, gating it on this step passing first, not just on
+# `bin/project_deploy` having exited 0, is the whole reason this exists:
+# a generator can succeed while the recipe TEXT it wrote still contains
+# an H13/H14-shaped landmine no one runs until deploy day.
+#
+# EXIT CODE IS THE GATE — no output-scraping needed; `bundle exec
+# bin/lint_deploy_recipes` exits 1 (and prints the full violation
+# report to stderr) the moment any generated recipe trips one of this
+# file's three checks, exactly like bin/fuzz/bin/model_check already do
+# for their own domains.
+#
+# A REAL DOMAIN'S OWN Makefile CAN BE LINTED TOO — `bundle exec
+# bin/lint_deploy_recipes deploy/<domain>/Makefile` (one or more paths)
+# lints exactly the given file(s) instead of generating fixtures — worth
+# adding as a SEPARATE step, right after any workflow step that runs
+# `bin/project_deploy <real-domain>` for real, so a change to that one
+# domain's own `.world` file (a new `deployed_to("AwsLambda")` setting,
+# an owner/schema override) gets checked against its ACTUAL generated
+# recipe, not just the three synthetic fixtures above.
+
+if $PROGRAM_NAME == __FILE__
+  root = File.expand_path("..", __dir__)
+  violations = []
+  generated_dirs = []
+
+  begin
+    if ARGV.empty? || %w[-h --help].include?(ARGV.first)
+      if %w[-h --help].include?(ARGV.first)
+        puts "usage: bin/lint_deploy_recipes [Makefile ...]"
+        puts "  no args: generates 3 representative fixture domains (own/shared/oauth)"
+        puts "           via the real bin/project_deploy, lints each one's Makefile"
+        puts "  with args: lints the given Makefile(s) directly (e.g. deploy/<domain>/Makefile)"
+        exit 0
+      end
+
+      DeployRecipeLint.fixtures.each do |label, (world_body, env_local)|
+        basename = "lint_deploy_recipes_fixture_#{label.tr(' ', '_')}"
+        dir = DeployRecipeLint.generate!(root, basename, world_body, env_local: env_local)
+        generated_dirs << dir
+        makefile_path = File.join(dir, "Makefile")
+        text = File.read(makefile_path)
+        violations.concat(DeployRecipeLint.lint(text, source: "#{label} (#{makefile_path})"))
+      end
+    else
+      ARGV.each do |path|
+        File.exist?(path) or abort "bin/lint_deploy_recipes: no such file #{path}"
+        violations.concat(DeployRecipeLint.lint(File.read(path), source: path))
+      end
+    end
+
+    if violations.empty?
+      puts "bin/lint_deploy_recipes: no violations found."
+      exit 0
+    else
+      warn "bin/lint_deploy_recipes: #{violations.size} violation(s) found:\n\n"
+      violations.each { |v| warn "  #{v}\n" }
+      exit 1
+    end
+  ensure
+    generated_dirs.each { |dir| FileUtils.rm_rf(dir) }
+  end
+end

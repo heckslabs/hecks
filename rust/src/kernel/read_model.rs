@@ -130,8 +130,120 @@ pub struct ReadModelDef {
 /// a linear scan over a generated domain's own `READ_MODELS` table, the
 /// same shape `named_query::find` already uses for the SIBLING "Domain::
 /// Aggregate.Name" shape.
+///
+/// R2 FIX (docs/audits/2026-08-11-bug-triage.md) — `ReadModelDef::verb`
+/// (`rust/project/read_models.rb`'s own `read_model_def`) only ever spells
+/// the read model's DECLARED name ("Banking.CustomerPortfolio"), that
+/// file's own header explaining why: the ONE spelling this generator ever
+/// needs to emit. But `Runtime::Chapter#read_model` — the ground truth,
+/// `lib/hecks/bluebook/behaviour/chapter.rb` — accepts EITHER that spelling
+/// OR the snake-cased one (`ReadModel#query_name`, `Naming.snake(@name)`),
+/// and a real corpus caller uses the snake_case spelling for exactly this
+/// read model (`spec/corpus/banking.json`'s own "Banking.customer_portfolio"
+/// query step). A `def.verb == verb` exact match alone made this compiled
+/// artifact refuse a read model Ruby answers for real — not a genuine
+/// codegen gap (`rust/src/generated/banking/manifest.json` already marks
+/// `Banking::CustomerPortfolio` `"generated": true`), just a narrower
+/// accepted-spelling set than Ruby's own. `matches_snake_alias` below
+/// closes it without touching codegen at all: still one row, one spelling
+/// baked in, checked against both of the two spellings Ruby itself accepts.
 pub fn find<'a>(table: &'a [ReadModelDef], verb: &str) -> Option<&'a ReadModelDef> {
-    table.iter().find(|def| def.verb == verb)
+    table.iter().find(|def| def.verb == verb || matches_snake_alias(def.verb, verb))
+}
+
+/// `declared_verb` is `def.verb`, "Domain.Name" (the read model's own
+/// declared, PascalCase-or-whatever-was-written name); `asked` is the wire
+/// string a caller actually sent. True when they name the same domain and
+/// `asked`'s own name half is `declared_verb`'s own name half run through
+/// `to_snake` — the compiled-in port of `Hecks::Naming.snake`, below.
+fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
+    let Some((domain, name)) = declared_verb.split_once('.') else { return false };
+    let Some((asked_domain, asked_name)) = asked.split_once('.') else { return false };
+
+    domain == asked_domain && to_snake(name) == asked_name
+}
+
+/// A direct port of `Hecks::Naming.snake` (lib/hecks/naming.rb):
+///
+/// ```ruby
+/// text.to_s
+///     .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+///     .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+///     .downcase
+/// ```
+///
+/// Both `gsub`s only ever insert an underscore at a CASE BOUNDARY; neither
+/// one's own match consumes more than the two characters straddling that
+/// boundary (the first pass leaves the run-of-uppercase's own LAST letter
+/// glued to the lowercase word that follows it, same as the second pass's
+/// single preceding lowercase/digit character), so both collapse into one
+/// single left-to-right scan of adjacent-character pairs here: no
+/// dependency exists between one inserted `_` and the NEXT character pair's
+/// own decision, in either the Ruby original or this port, so running the
+/// two passes' conditions as one pass changes nothing observable. No regex
+/// engine in this dependency-free kernel (`rust/Cargo.toml` carries no
+/// crate at all) — every declared read-model/query name this needs to
+/// snake-case is plain ASCII, so `is_ascii_*` suffices.
+fn to_snake(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut out = String::with_capacity(name.len() + 4);
+
+    for (i, &c) in chars.iter().enumerate() {
+        if i > 0 {
+            let prev = chars[i - 1];
+            // Rule 1 (`([A-Z]+)([A-Z][a-z])`): the boundary between the
+            // last two letters of a >=2 run of uppercase, when the second
+            // of those two is itself followed by a lowercase letter —
+            // "HTTPServer" splits before the "S" of "Server", not before
+            // the "H" of "HTTP".
+            let rule1 = prev.is_ascii_uppercase() && c.is_ascii_uppercase() && chars.get(i + 1).is_some_and(char::is_ascii_lowercase);
+            // Rule 2 (`([a-z\d])([A-Z])`): a plain lowercase-or-digit to
+            // uppercase boundary — "customerPortfolio" splits before "P".
+            let rule2 = (prev.is_ascii_lowercase() || prev.is_ascii_digit()) && c.is_ascii_uppercase();
+            if rule1 || rule2 {
+                out.push('_');
+            }
+        }
+        out.push(c);
+    }
+
+    out.make_ascii_lowercase();
+    out
+}
+
+#[cfg(test)]
+mod snake_alias_tests {
+    use super::*;
+
+    // Ground truth: `Hecks::Naming.snake` — every case here was checked
+    // against the real Ruby method, not merely against this port of it.
+    #[test]
+    fn to_snake_matches_ruby_naming_snake() {
+        assert_eq!(to_snake("CustomerPortfolio"), "customer_portfolio");
+        assert_eq!(to_snake("ComplianceDashboard"), "compliance_dashboard");
+        assert_eq!(to_snake("Active"), "active");
+        assert_eq!(to_snake("ByFee"), "by_fee");
+        assert_eq!(to_snake("HTTPServer"), "http_server");
+        assert_eq!(to_snake("Type2Foo"), "type2_foo");
+    }
+
+    #[test]
+    fn find_accepts_both_the_declared_and_the_snake_cased_spelling() {
+        let table = [ReadModelDef {
+            verb: "Banking.CustomerPortfolio",
+            reference_name: "reference",
+            heads: &[],
+            filtered_head: None,
+            conditions: &[],
+            order_by: None,
+            limit: None,
+        }];
+
+        assert!(find(&table, "Banking.CustomerPortfolio").is_some());
+        assert!(find(&table, "Banking.customer_portfolio").is_some());
+        assert!(find(&table, "Banking.somethingelse").is_none());
+        assert!(find(&table, "Other.customer_portfolio").is_none());
+    }
 }
 
 /// THE GENERIC INTERPRETER — `Runtime::ReadModelInterpreter#project`,

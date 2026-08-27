@@ -74,6 +74,7 @@ module Hecks
               compile_head!(aggregate, era, label, edges, full: true)
             end
 
+            # rubocop:disable-next Metrics/BlockLength
             winners.each do |id, side|
               aggregates.each do |aggregate|
                 state =
@@ -101,10 +102,16 @@ module Hecks
                   "VALUES ($1, $2, $3, 'save', $4) RETURNING ordinal",
                   [era, aggregate.storage_name, id, state]
                 )[0]["ordinal"]
+                # Always `'save'` — a merge winner is read from either
+                # the matview's own `operation = 'save'` rows or the new
+                # world's live head (`new_states`, captured from
+                # `head_view`, which is save-only by construction), so
+                # nothing reaching this INSERT is ever a delete.
                 @db.exec_params(
-                  "INSERT INTO #{quote(head_snapshot(aggregate.storage_name, era))} (id, ordinal, state) VALUES ($1, $2, $3) " \
-                  "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
-                  "WHERE #{quote(head_snapshot(aggregate.storage_name, era))}.ordinal < EXCLUDED.ordinal",
+                  "INSERT INTO #{quote(head_snapshot(aggregate.storage_name, era))} (id, ordinal, operation, state) " \
+                  "VALUES ($1, $2, 'save', $3) " \
+                  "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, operation = EXCLUDED.operation, " \
+                  "state = EXCLUDED.state WHERE #{quote(head_snapshot(aggregate.storage_name, era))}.ordinal < EXCLUDED.ordinal",
                   [id, ordinal, state]
                 )
               end

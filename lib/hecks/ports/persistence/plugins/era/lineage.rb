@@ -91,7 +91,7 @@ module Hecks
           # value-object hash, and a shallow dup would quietly mutate
           # the caller's copy of the original entry.
           state = deep_dup(entry.state)
-          @renames.each { |old_name, new_name| state[new_name] = state.delete(old_name) if state.key?(old_name) }
+          apply_renames(state, @renames)
           @moves.each { |move| apply_move(state, move) }
           @converts.each { |convert| apply_convert(state, convert) }
           @drops.each { |name| apply_drop(state, name) }
@@ -181,6 +181,33 @@ module Hecks
           when Array then node.map { |item| deep_dup(item) }
           else node
           end
+        end
+
+        # M27 (docs/audits/2026-08-10-main-bug-audit.md,
+        # docs/audits/2026-08-11-bug-triage.md) — SIMULTANEOUS, not
+        # sequential: `state[new] = state.delete(old)` per rename, run
+        # one rule at a time against the SAME hash it was reading from,
+        # loses data the instant one rule's destination is another
+        # rule's source. A swap (`rename :a, to: :b` alongside
+        # `rename :b, to: :a`) on `{a: 1, b: 2}` used to produce
+        # `{a: 1}` — the first rule wrote `b: 1` over the real `b: 2`
+        # before the second rule ever got a chance to read it, and the
+        # value the whole edge was supposed to preserve (2, moved to
+        # `:a`) was gone. The standard fix: snapshot every rule's OLD
+        # key and value from `state` FIRST, then remove every old key
+        # and only THEN write every new key — a rename never reads a
+        # key this same pass has already written to, so a swap or a
+        # longer chain applies as one permutation, not a sequence of
+        # edits each stepping on the last.
+        def apply_renames(state, renames)
+          snapshot = renames.filter_map { |old_name, new_name| [old_name, new_name, state[old_name]] if state.key?(old_name) }
+          snapshot.each { |old_name, _new_name, _value| state.delete(old_name) }
+          # rubocop:disable Style/CombinableLoops -- NOT combinable: a swap
+          # (:a<->:b) needs every delete done before any write, or the first
+          # rename's write becomes the second rename's delete target — see
+          # this method's own comment above.
+          snapshot.each { |_old_name, new_name, value| state[new_name] = value }
+          # rubocop:enable Style/CombinableLoops
         end
 
         def apply_drop(state, name)

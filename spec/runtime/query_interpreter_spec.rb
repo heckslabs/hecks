@@ -78,4 +78,20 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     expect(rows.first[:id]).to eq("t1")
     expect(rows.first[:name]).to be_a(Hecks::Runtime::Value)
   end
+
+  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `#cell`, the entity
+  # sub-list row-identity reader used to tiebreak `order_by` on a
+  # composite piece, read `row[key.to_sym] || row[key.to_s]`. When the
+  # symbol-keyed value is a genuinely-stored `false`, `false || …` falls
+  # through to the (usually absent) string spelling and answers `nil`
+  # instead of the real, held value.
+  describe "#cell" do
+    it "reads a stored false the same way it reads any other value, symbol- or string-keyed" do
+      interpreter = Hecks::Runtime::QueryInterpreter.new(nil)
+
+      expect(interpreter.send(:cell, { active: false }, :active)).to be(false)
+      expect(interpreter.send(:cell, { "active" => false }, :active)).to be(false)
+      expect(interpreter.send(:cell, { active: true }, :active)).to be(true)
+    end
+  end
 end

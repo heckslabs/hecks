@@ -11,7 +11,10 @@ require "hecks"
 require "json"
 
 domain = ARGV.fetch(0)
-exit 0 unless Dir.exist?(domain)
+unless Dir.exist?(domain)
+  warn "bin/stores: no such domain #{domain.inspect}"
+  exit 1
+end
 
 runtime = Hecks.boot(domain)
 registry = runtime.registry

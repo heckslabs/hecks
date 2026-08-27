@@ -454,6 +454,13 @@ pub fn generate(
                         domain_name,
                         command.get("attributes").map(Json::each).unwrap_or(&[]),
                     ),
+                    attributes: command
+                        .get("attributes")
+                        .map(Json::each)
+                        .unwrap_or(&[])
+                        .iter()
+                        .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
+                        .collect(),
                     role: command.get("role").map(Json::to_s),
                     entity_name: entity
                         .get("name")
@@ -578,6 +585,10 @@ pub fn generate(
                     &unsupported_names,
                 ),
                 reference_specs: crate::reference_specs::reference_specs(domain_name, cmd_attrs),
+                attributes: cmd_attrs
+                    .iter()
+                    .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
+                    .collect(),
                 role: command.get("role").map(Json::to_s),
             });
         }
@@ -802,6 +813,11 @@ pub fn generate(
     puts_str(
         &mut registry_rs,
         &reactions::emit_identity_head_table(exemplar, &registry_aggregates),
+    );
+    puts_blank(&mut registry_rs);
+    puts_str(
+        &mut registry_rs,
+        &reactions::emit_command_attributes_table(exemplar, &registry_aggregates),
     );
     puts_blank(&mut registry_rs);
     puts_str(

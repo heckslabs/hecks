@@ -4,6 +4,7 @@
   "version": "v1",
   "vision": "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.",
   "classification": "core",
+  "formerly_known_as": null,
   "aggregates": [
     {
       "name": "Customer",
@@ -4501,11 +4502,11 @@
               ],
               [
                 "retention_months",
-                "84"
+                84
               ],
               [
                 "paper_fee_cents",
-                "0"
+                0
               ]
             ],
             [
@@ -4515,11 +4516,11 @@
               ],
               [
                 "retention_months",
-                "120"
+                120
               ],
               [
                 "paper_fee_cents",
-                "0"
+                0
               ]
             ],
             [
@@ -4529,11 +4530,11 @@
               ],
               [
                 "retention_months",
-                "240"
+                240
               ],
               [
                 "paper_fee_cents",
-                "500"
+                500
               ]
             ]
           ]

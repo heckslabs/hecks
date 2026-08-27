@@ -33,7 +33,11 @@ module Hecks
           path.to_s.split(".").reduce(state) do |node, segment|
             break nil unless node.is_a?(Hash)
 
-            node[segment] || node[segment.to_sym]
+            # `key?` decides which spelling answers, never `||` — a
+            # `false` genuinely held at this path must not fall through
+            # to the other spelling (usually absent) and read as `nil`,
+            # which would wrongly mark a `false`-valued attribute "unfed".
+            node.key?(segment) ? node[segment] : node[segment.to_sym]
           end
         end
       end

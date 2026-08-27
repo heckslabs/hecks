@@ -131,13 +131,45 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
                                                                   "deploy: should pass WebRedirectBaseUrl in its one real sam deploy call (the WEB_URL-present branch)"
   end
 
-  it "deploy:'s own multi-line shell chain has exactly one Make '@' (echo-suppress) prefix, at its true first line" do
+  # `deploy:`'s recipe is not ONE giant chain end to end — it's several
+  # independent shell invocations back to back (e.g. `sam build`, then a
+  # standalone `@echo` announcing the Shared-mode owner-stack lookup below
+  # it, then the actual backslash-joined lookup+`sam deploy` chain). What
+  # must never happen is a SECOND '@' appearing MID a single backslash-
+  # joined chain — that stops being a Make directive and becomes literal,
+  # invalid shell text the moment it's concatenated with the line before
+  # it. Checked per chain, not across the whole recipe: a target can
+  # legitimately carry more than one independent '@'-prefixed line (see
+  # mint_era_recipe's own OWNMINT branch, which already does this).
+  def self.shell_chains(lines)
+    chains = []
+    current = []
+    lines.each do |l|
+      next if l == "\n"
+
+      current << l
+      unless l.rstrip.end_with?("\\")
+        chains << current
+        current = []
+      end
+    end
+    chains << current unless current.empty?
+    chains
+  end
+
+  it "never has a second Make '@' (echo-suppress) prefix mid-chain — only ever at a chain's true first line" do
     lines = self.class.deploy_recipe_lines(@makefile)
-    at_prefixed = lines.select { |l| l.lstrip.start_with?("@") }
-    expect(at_prefixed.size).to eq(1),
-                                "expected exactly one '@'-prefixed recipe line (a SECOND one mid-chain stops being a Make " \
-                                "directive and becomes literal, invalid shell text once backslash-continuation joins " \
-                                "everything into one command) — got #{at_prefixed.size}: #{at_prefixed.inspect}"
+    chains = self.class.shell_chains(lines)
+
+    chains.each do |chain|
+      at_prefixed_indices = chain.each_index.select { |i| chain[i].lstrip.start_with?("@") }
+      expect(at_prefixed_indices.size).to be <= 1,
+                                          "expected at most one '@'-prefixed line in this shell chain (a SECOND one " \
+                                          "mid-chain stops being a Make directive and becomes literal, invalid shell " \
+                                          "text once backslash-continuation joins everything into one command) — " \
+                                          "got #{at_prefixed_indices.size} in chain: #{chain.inspect}"
+      expect(at_prefixed_indices).to eq([0]) if at_prefixed_indices.any?
+    end
   end
 
   it "deploy:'s own generated shell chain is syntactically valid shell" do

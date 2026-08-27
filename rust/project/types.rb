@@ -35,7 +35,7 @@ module RustProjection
                           let offered = offered.to_json_string();
                           return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
                               ("name", #{type_name.inspect}),
-                              ("description", #{inv[:description].inspect}),
+                              ("description", #{rust_string_literal(inv[:description])}),
                               ("offered", offered.as_str()),
                           ])));
                       }
@@ -111,7 +111,7 @@ module RustProjection
           literal = case attr[:type]
                     when "Integer" then raw.to_i.to_s
                     when "Float"   then "#{raw.to_f}f64"
-                    else raw.to_s.inspect # String, or an unrecognized type — treated as text, not silently dropped
+                    else rust_string_literal(raw.to_s) # String, or an unrecognized type — treated as text, not silently dropped
                     end
           Exemplar.render("closed_set_table_row_field", "tmpl_field" => rust_ident_field(attr[:name]), "tmpl_value_placeholder()" => literal)
         end.join(", ")

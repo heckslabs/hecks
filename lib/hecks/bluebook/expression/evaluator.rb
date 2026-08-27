@@ -67,6 +67,23 @@ module Hecks
           left, right = split_top_level(expr, "&&")
           return And.new(left: parse(left), right: parse(right)) if left
 
+          # Tried BEFORE `.include?`/comparisons, not after — `!` negates
+          # the WHOLE boolean expression that follows it (`!names.include?(x)`
+          # means `!(names.include?(x))`, never "call .include? on the negated
+          # receiver"), so the leading marker has to be stripped and the
+          # remainder re-parsed before anything downstream gets a chance to
+          # mis-scan across it. It used to sit after `match_include`, whose
+          # naive `rindex(".include?(")` has no concept of a leading `!` —
+          # for `!names.include?(x)` it swallowed the `!` straight into the
+          # haystack text ("!names"), which `Resolver.parse` cannot resolve,
+          # so every spelling of negated membership raised instead of
+          # evaluating. Moving the check here fixes both the bare prefix
+          # (`!names.include?(x)`) and the parenthesized form
+          # (`!(names.include?(x))`) — the recursive `parse` call sees the
+          # clean remainder and correctly finds the `.include?` (or `&&`/`||`)
+          # inside it.
+          return Not.new(node: parse(Regexp.last_match(1))) if expr =~ /\A!(.+)\z/
+
           membership = match_include(expr)
           return Include.new(haystack: Resolver.parse(membership[0]), needle: Resolver.parse(membership[1])) if membership
 
@@ -74,8 +91,6 @@ module Hecks
             left, right = split_comparison(expr, op.symbol)
             return Compare.new(operator: op, left: Resolver.parse(left), right: Resolver.parse(right)) if left
           end
-
-          return Not.new(node: parse(Regexp.last_match(1))) if expr =~ /\A!(.+)\z/
 
           Resolve.new(expr: Resolver.parse(expr))
         end

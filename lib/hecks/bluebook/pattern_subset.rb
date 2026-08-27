@@ -66,6 +66,14 @@ module Hecks
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0
+        # A CHARACTER-CLASS INTERIOR IS A DIFFERENT ALPHABET : inside `[...]`,
+        # `*`, `+`, `?`, `(`, `?` are literal characters, not quantifiers or
+        # group syntax — `[*+]` means "a literal asterisk or plus". `]` is
+        # only the class's close when it isn't the first character after `[`
+        # or `[^` (where it is itself a literal, per POSIX bracket-expression
+        # rules).
+        in_class = false
+        class_start = nil
 
         while index < chars.length
           if chars[index] == "\\"
@@ -78,14 +86,36 @@ module Hecks
             next
           end
 
+          if in_class
+            if chars[index] == "]" && index != class_start
+              in_class = false
+              index += 1
+              next
+            end
+
+            return refuse(:posix_class) if posix_class_at?(chars, index)
+
+            index += 1
+            next
+          end
+
+          if chars[index] == "["
+            return refuse(:posix_class) if posix_class_at?(chars, index)
+
+            in_class = true
+            class_start = index + 1
+            class_start += 1 if chars[class_start] == "^"
+            index += 1
+            next
+          end
+
           if chars[index] == "(" && chars[index + 1] == "?"
             return refuse(:lookahead)    if %w[= !].include?(chars[index + 2])
             return refuse(:lookbehind)   if chars[index + 2] == "<" && %w[= !].include?(chars[index + 3])
             return refuse(:atomic_group) if chars[index + 2] == ">"
           end
 
-          return refuse(:posix_class)  if posix_class_at?(chars, index)
-          return refuse(:possessive)   if %w[* + ?].include?(chars[index]) && chars[index + 1] == "+"
+          return refuse(:possessive) if possessive_at?(chars, index)
 
           index += 1
         end
@@ -114,6 +144,40 @@ module Hecks
         cursor = index + 2
         cursor += 1 while chars[cursor]&.match?(/[a-zA-Z]/)
         chars[cursor] == ":" && chars[cursor + 1] == "]"
+      end
+
+      # A possessive quantifier is `*+`, `++`, `?+`, or a bounded `{n}`/{n,m}`
+      # immediately followed by `+` — only checked OUTSIDE a character class,
+      # where `*`, `+`, `?`, `{`, `}` are quantifier syntax rather than
+      # literal characters.
+      def possessive_at?(chars, index)
+        return true if %w[* + ?].include?(chars[index]) && chars[index + 1] == "+"
+        return false unless chars[index] == "{"
+
+        len = bounded_quantifier_length(chars, index)
+        !len.nil? && chars[index + len] == "+"
+      end
+
+      # Length of a `{n}` / `{n,}` / `{n,m}` bound starting at `index`, or nil
+      # if what's there isn't one.
+      def bounded_quantifier_length(chars, index)
+        cursor = index + 1
+        digit_seen = false
+
+        while chars[cursor]&.match?(/[0-9]/)
+          digit_seen = true
+          cursor += 1
+        end
+        return nil unless digit_seen
+
+        if chars[cursor] == ","
+          cursor += 1
+          cursor += 1 while chars[cursor]&.match?(/[0-9]/)
+        end
+
+        return nil unless chars[cursor] == "}"
+
+        cursor - index + 1
       end
     end
   end

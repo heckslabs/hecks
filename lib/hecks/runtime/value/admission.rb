@@ -14,12 +14,30 @@ module Hecks
           discriminant = value_object.attributes.first.name
           offered      = fields[discriminant]
           admitted     = value_object.members.map { |member| member[discriminant].to_s }
-          return if admitted.include?(offered.to_s)
+          return if value_object.members.any? { |member| member_matches?(member, fields) }
 
           raise InvariantViolation,
                 RefusalWording.render("InvariantViolation", "closed_set_member",
                                       type: value_object.hecks_name,
                                       admitted: admitted.map(&:inspect).join(", "), offered: offered.inspect)
+        end
+
+        # EVERY DECLARED FIELD, not only the discriminant — a multi-column
+        # `member` row (`StatementFrequency`'s `cadence`/`retention_months`/
+        # `paper_fee_cents`, statements.bluebook) names a whole tuple, and a
+        # caller offering the right `cadence` with the wrong
+        # `retention_months` is not a genuine member just because the FIRST
+        # column happened to match. `admitted.include?(offered.to_s)` above
+        # used to be the entire check, so it stopped at that first column —
+        # confirmed live: `Value.build(StatementFrequency, cadence:
+        # "monthly", retention_months: 999, paper_fee_cents: 999)` was
+        # admitted outright, no member of the closed set declares that row.
+        # A single-field set (`AccountKind`, `LedgerDirection`, ...) has
+        # exactly one key here, so this reduces to the original discriminant-
+        # only comparison for every set that only ever had one column to
+        # begin with — same refusal, same wording, unchanged.
+        private def member_matches?(member, fields)
+          member.all? { |field, value| fields[field].to_s == value.to_s }
         end
 
         # THE SAME REFUSAL, FOR A SET NAMED SOMEWHERE ELSE.

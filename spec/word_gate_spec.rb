@@ -117,4 +117,47 @@ RSpec.describe "Hecks::Bluebook::DSL::WordGate" do
     Hecks::Bluebook::MetaValidator.grammar_registry # already booted; still true off-bootstrap
     expect(Hecks::Bluebook::MetaValidator.bootstrapping?).to be(false)
   end
+
+  describe "the bootstrap-window fallback's own-context-first precedence" do
+    # BOOTSTRAP_CALLS_FALLBACK's values are always method-name Symbols in
+    # real use, never `false` — but the lookup that finds them must not
+    # rely on that: it has to pick the own-context entry whenever ONE
+    # exists, never quietly prefer "Type"'s entry just because the
+    # own-context value happens to look falsy. A minimal class stands in
+    # for a real builder, with a fallback table rigged so the own-context
+    # entry is `false` and the "Type" entry is a real, callable method —
+    # if the old `||` lookup ran, it would silently dispatch to the real
+    # method instead; the fix instead tries to `send(false, ...)`, which
+    # raises `TypeError`, proving the own-context (`false`) entry won.
+    let(:builder_class) do
+      Class.new do
+        include Hecks::Bluebook::DSL::WordGate
+
+        const_set(:GRAMMAR_CONTEXT, "OwnContext") # own constant, not the block's lexical scope
+
+        def type_method(*) = :type_method_result
+      end
+    end
+
+    before do
+      allow(Hecks::Bluebook::MetaValidator).to receive(:bootstrapping?).and_return(true)
+      stub_const(
+        "Hecks::Bluebook::DSL::GenericDispatch::BOOTSTRAP_CALLS_FALLBACK",
+        { ["OwnContext", "gated_word"] => false, %w[Type gated_word] => :type_method }
+      )
+    end
+
+    it "tries the own-context entry even when it is `false`, rather than falling to \"Type\"'s real method" do
+      expect { builder_class.new.gated_word }.to raise_error(TypeError, /false/)
+    end
+
+    it "falls to \"Type\"'s entry when the own-context key is genuinely absent" do
+      stub_const(
+        "Hecks::Bluebook::DSL::GenericDispatch::BOOTSTRAP_CALLS_FALLBACK",
+        { %w[Type gated_word] => :type_method }
+      )
+
+      expect(builder_class.new.gated_word).to eq(:type_method_result)
+    end
+  end
 end

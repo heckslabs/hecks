@@ -62,4 +62,43 @@ RSpec.describe Hecks::Runtime::Value do
       expect(current.map(&:name)).to eq(["stove"])
     end
   end
+
+  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `.reference_identity`
+  # walked a dotted identity path with `held[segment.to_sym] ||
+  # held[segment]`, which drops a genuinely-stored `false` to `nil`
+  # (`false || …` falls through). Any part of an identity resolving to
+  # `nil` fails the whole identity (the very next line refuses a `nil`
+  # part), so a `false`-valued identity component didn't just misread —
+  # it took the entire canonical identity down with it.
+  describe ".reference_identity" do
+    # A minimal double for the referenced aggregate/entity: only
+    # `identity_paths` is read on this path (`identity_heads` is only
+    # consulted for a bare, single-Value shortcut this fixture doesn't
+    # take).
+    ReferenceIdentityFakeType      = Struct.new(:target) { def resolve = target } unless defined?(ReferenceIdentityFakeType)
+    ReferenceIdentityFakeTarget    = Struct.new(:identity_paths) unless defined?(ReferenceIdentityFakeTarget)
+    ReferenceIdentityFakeAttribute = Struct.new(:type) unless defined?(ReferenceIdentityFakeAttribute)
+
+    def reference_attribute(paths)
+      ReferenceIdentityFakeAttribute.new(ReferenceIdentityFakeType.new(ReferenceIdentityFakeTarget.new(paths)))
+    end
+
+    it "resolves a false-valued dotted identity member to its real value, not nil" do
+      attribute = reference_attribute(["flags.active"])
+
+      expect(described_class.reference_identity(attribute, { flags: { active: false } })).to eq("false")
+    end
+
+    it "still resolves a true-valued dotted identity member" do
+      attribute = reference_attribute(["flags.active"])
+
+      expect(described_class.reference_identity(attribute, { flags: { active: true } })).to eq("true")
+    end
+
+    it "still hands the raw value back when a genuine part is absent" do
+      attribute = reference_attribute(["flags.active"])
+
+      expect(described_class.reference_identity(attribute, { flags: {} })).to eq({ flags: {} })
+    end
+  end
 end

@@ -195,7 +195,16 @@ module RustProjection
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;", role_line, *reference_lines,
+                  id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
+                  # R3 FIX (docs/audits/2026-08-11-bug-triage.md) — VO
+                  # invariant/admits/pattern BEFORE role_line/reference_lines,
+                  # matching Ruby's own DISPATCH_ORDER (this file's own
+                  # header, above, on why role/references are emitted here
+                  # rather than inside the generated dispatch fn itself;
+                  # `domain_generator.rb`'s own comment on `invariant_check_
+                  # lines` has the full argument for why this is safe to run
+                  # a second time, redundantly, inside that fn too).
+                  *c[:invariant_check_lines], role_line, *reference_lines,
                   *deref_lines,
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
@@ -262,7 +271,9 @@ module RustProjection
                   "let facts_json = invocation.facts();",
                   "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
-                  role_line, *reference_lines,
+                  # R3 FIX — see the aggregate arm's own identical comment,
+                  # above.
+                  *c[:invariant_check_lines], role_line, *reference_lines,
                   "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
                   "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",

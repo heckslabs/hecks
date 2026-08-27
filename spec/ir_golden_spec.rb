@@ -28,6 +28,31 @@ require "fileutils"
 RSpec.describe "the IR the builder produces, frozen" do
   GOLDEN_DIR = File.join(InMemoryDomain::ROOT, "spec/golden/ir").freeze
 
+  # THE GUARD FOR THE COMMENT ABOVE, MADE EXECUTABLE. Gemfile.lock is
+  # gitignored (this is a library gem — Bundler convention holds lockfiles
+  # for applications, not gems consumers install), so nothing commits the
+  # exact dependency graph that produced these fixtures. What DOES commit
+  # is the Gemfile's own `gem "json", "2.7.2"` — an EXACT pin (no `~>`),
+  # chosen because a newer `json` gem changes `JSON.pretty_generate`'s
+  # formatting of an empty array/hash, which would fail every fixture
+  # below with a diff that has nothing to do with the wire format
+  # actually changing. This spec fails loudly, in this file, if that pin
+  # and the resolved gem ever disagree — rather than the failure showing
+  # up only as a wall of unrelated-looking byte diffs further down.
+  it "resolves the exact `json` gem the Gemfile pins, not merely one the lockfile once recorded" do
+    pin = File.read(File.join(InMemoryDomain::ROOT, "Gemfile"))
+              .match(/^\s*gem\s+"json"\s*,\s*"([\d.]+)"\s*$/)&.captures&.first
+
+    expect(pin).not_to be_nil, "Gemfile no longer pins `json` to an exact version — " \
+                               "the golden fixtures below need that pin to stay pretty-printed identically"
+    expect(JSON::VERSION).to eq(pin),
+                             "installed `json` gem (#{JSON::VERSION}) does not match the Gemfile's pin " \
+                             "(#{pin}) — run `bundle install` (or check for a stray `bundle config " \
+                             "disable_local_branch_check`/frozen-lockfile override) before trusting any " \
+                             "failure below, since a mismatched `json` gem reformats JSON.pretty_generate " \
+                             "output and fails every fixture here for reasons unrelated to the IR itself"
+  end
+
   # Chapters that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",

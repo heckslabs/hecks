@@ -242,6 +242,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::customer::RegisterArgs::from_json(facts_json)?;
+                      args.reference.check_invariants()?;
+                      args.name.check_invariants()?;
+                      args.email.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Register", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -254,6 +257,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json)?, };
               let args = crate::generated::banking::customer::SuspendArgs::from_json(facts_json)?;
+                      args.standing.check_invariants()?;
               crate::kernel::check_role(Some("Compliance officer"), "Suspend", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Customer", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -289,6 +293,8 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::account::OpenArgs::from_json(facts_json)?;
+                      args.number.check_invariants()?;
+                      args.daily_limit.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.customer, "Customer", "reference")?;
               let owner_deref = Vec::new();
@@ -302,6 +308,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::CreditArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Teller"), "Credit", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -314,6 +322,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::DebitArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Teller"), "Debit", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -362,6 +372,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::ApplyFeeArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
+                      args.narrative.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -373,6 +385,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::CorrectFeeArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -384,6 +397,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::AccrueInterestArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -395,6 +409,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::CorrectInterestArgs::from_json(facts_json)?;
+                      args.amount.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -405,6 +420,8 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::onboardingcase::OpenArgs::from_json(facts_json)?;
+                      args.reference.check_invariants()?;
+                      args.account_number.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
               crate::kernel::check_reference(&store.customer, &args.customer, "Customer", "reference")?;
               let owner_deref = Vec::new();
@@ -441,6 +458,8 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::atmcard::IssueArgs::from_json(facts_json)?;
+                      args.serial.check_invariants()?;
+                      args.daily_fee.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Issue", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
@@ -454,6 +473,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
               let args = crate::generated::banking::atmcard::RenameArgs::from_json(facts_json)?;
+                      args.nickname.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Rename", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -466,6 +486,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
               let args = crate::generated::banking::atmcard::WithdrawArgs::from_json(facts_json)?;
+                      args.cents.check_invariants()?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Withdraw", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -501,6 +523,10 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::cardpayment::AuthorizeArgs::from_json(facts_json)?;
+                      args.authorisation.check_invariants()?;
+                      if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
+                      args.amount.check_invariants()?;
+                      args.merchant.check_invariants()?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
@@ -591,6 +617,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::safedepositbox::RentArgs::from_json(facts_json)?;
+                      args.customer.check_invariants()?;
+                      args.branch_code.check_invariants()?;
+                      args.box_number.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Rent", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -615,6 +644,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?, };
               let args = crate::generated::banking::safedepositbox::LogVisitArgs::from_json(facts_json)?;
+                      args.date.check_invariants()?;
+                      args.sequence.check_invariants()?;
+                      if let Some(v) = &args.note { v.check_invariants()?; }
               crate::kernel::check_role(Some("Vault officer"), "LogVisit", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -627,6 +659,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?, };
               let args = crate::generated::banking::safedepositbox::IssueKeyArgs::from_json(facts_json)?;
+                      args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "IssueKey", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -638,6 +671,10 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::statement::GenerateArgs::from_json(facts_json)?;
+                      args.period.check_invariants()?;
+                      args.opening_balance.check_invariants()?;
+                      args.closing_balance.check_invariants()?;
+                      args.generated_on.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Generate", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
@@ -650,6 +687,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::transfer::RequestArgs::from_json(facts_json)?;
+                      args.reference.check_invariants()?;
+                      args.amount.check_invariants()?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Request", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.source, "Account", "number")?;
               crate::kernel::check_reference(&store.account, &args.destination, "Account", "number")?;
@@ -723,6 +763,11 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::externaltransfer::RequestArgs::from_json(facts_json)?;
+                      args.end_to_end.check_invariants()?;
+                      args.amount.check_invariants()?;
+                      args.beneficiary.check_invariants()?;
+                      if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got ", args.direction.value))); }
+                      args.direction.check_invariants()?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
@@ -767,6 +812,10 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::scheduledpayment::ScheduleArgs::from_json(facts_json)?;
+                      args.instruction.check_invariants()?;
+                      args.amount.check_invariants()?;
+                      args.recipient.check_invariants()?;
+                      args.due_on.check_invariants()?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
@@ -836,6 +885,10 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
+                      args.actor_id.check_invariants()?;
+                      args.role_name.check_invariants()?;
+                      args.scope.check_invariants()?;
+                      args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -848,6 +901,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json)?, };
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
+                      args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -859,6 +913,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
+                      args.from_role.check_invariants()?;
+                      args.to_role.check_invariants()?;
+                      args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -871,6 +928,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json)?, };
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
+                      args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -882,6 +940,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
+                      args.identity_id.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -893,6 +952,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.issuer.check_invariants()?;
+                      args.subject.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let owner_deref = Vec::new();
@@ -906,6 +968,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?;
+                      args.adjustment.check_invariants()?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Amend", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -919,6 +983,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -932,6 +997,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(facts_json)?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?;
+                      args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -945,6 +1011,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?;
+                      args.note.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -958,6 +1025,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?;
+                      args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -1178,6 +1246,74 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Identity::Identity" => Some("identity_id"),
         "Identity::ExternalIdentifier" => Some("key"),
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Banking::Customer.Register" => &["reference", "name", "email"],
+        "Banking::Customer.Suspend" => &["standing"],
+        "Banking::Customer.Reinstate" => &[],
+        "Banking::Customer.Close" => &[],
+        "Banking::Account.Open" => &["customer", "number", "kind", "daily_limit"],
+        "Banking::Account.Credit" => &["amount", "narrative"],
+        "Banking::Account.Debit" => &["amount", "narrative"],
+        "Banking::Account.FreezeAccount" => &[],
+        "Banking::Account.Unfreeze" => &[],
+        "Banking::Account.CloseAccount" => &[],
+        "Banking::Account.ApplyFee" => &["amount", "narrative"],
+        "Banking::Account.CorrectFee" => &["amount"],
+        "Banking::Account.AccrueInterest" => &["amount"],
+        "Banking::Account.CorrectInterest" => &["amount"],
+        "Banking::Account.LedgerEntry.Amend" => &["adjustment", "narrative"],
+        "Banking::Account.LedgerEntry.Reverse" => &["narrative"],
+        "Banking::OnboardingCase.Open" => &["customer", "reference", "account_number"],
+        "Banking::OnboardingCase.Clear" => &[],
+        "Banking::OnboardingCase.Decline" => &[],
+        "Banking::ATMCard.Issue" => &["account", "serial", "daily_fee"],
+        "Banking::ATMCard.Rename" => &["nickname"],
+        "Banking::ATMCard.Withdraw" => &["cents", "narrative"],
+        "Banking::ATMCard.Activate" => &[],
+        "Banking::ATMCard.Retire" => &[],
+        "Banking::ATMCard.Withdrawal.Dispute" => &["narrative"],
+        "Banking::CardPayment.Authorize" => &["authorisation", "tags", "account", "amount", "merchant"],
+        "Banking::CardPayment.Capture" => &[],
+        "Banking::CardPayment.Void" => &[],
+        "Banking::CardPayment.Refund" => &[],
+        "Banking::CardPayment.Reverse" => &[],
+        "Banking::CardPayment.Dispute" => &["disputed_by"],
+        "Banking::CardPayment.Chargeback" => &[],
+        "Banking::CardPayment.RejectDispute" => &[],
+        "Banking::SafeDepositBox.Rent" => &["customer", "branch_code", "box_number", "size"],
+        "Banking::SafeDepositBox.Surrender" => &[],
+        "Banking::SafeDepositBox.LogVisit" => &["date", "sequence", "note"],
+        "Banking::SafeDepositBox.IssueKey" => &["serial"],
+        "Banking::SafeDepositBox.Visit.Annotate" => &["note"],
+        "Banking::SafeDepositBox.KeyIssuance.Return" => &["serial"],
+        "Banking::Statement.Generate" => &["period", "opening_balance", "closing_balance", "generated_on", "frequency", "account"],
+        "Banking::Transfer.Request" => &["reference", "amount", "narrative", "source", "destination"],
+        "Banking::Transfer.Debited" => &[],
+        "Banking::Transfer.Settle" => &[],
+        "Banking::Transfer.Credited" => &[],
+        "Banking::Transfer.Reverse" => &[],
+        "Banking::Transfer.Reject" => &[],
+        "Banking::ExternalTransfer.Request" => &["end_to_end", "account", "amount", "beneficiary", "direction"],
+        "Banking::ExternalTransfer.SendTransfer" => &[],
+        "Banking::ExternalTransfer.Recall" => &[],
+        "Banking::ExternalTransfer.Return" => &[],
+        "Banking::ScheduledPayment.Schedule" => &["instruction", "account", "amount", "recipient", "due_on"],
+        "Banking::ScheduledPayment.Execute" => &[],
+        "Banking::ScheduledPayment.Cancel" => &[],
+        "Banking::ScheduledPayment.Fail" => &[],
+        "Banking::ScheduledPayment.Retry" => &[],
+        "Banking::ScheduledPayment.Abandon" => &[],
+        "Governance::RoleAssignment.Assign" => &["actor_id", "role_name", "scope", "starts_at"],
+        "Governance::RoleAssignment.Revoke" => &["ends_at"],
+        "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
+        "Governance::RoleTransition.Revoke" => &["ends_at"],
+        "Identity::Identity.Register" => &["identity_id"],
+        "Identity::ExternalIdentifier.Link" => &["identity", "key", "issuer", "subject"],
+        _ => &[],
     }
 }
 

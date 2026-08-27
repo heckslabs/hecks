@@ -140,6 +140,15 @@ RSpec.describe Hecks::Adapters::Heki do
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}]])
       expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}]])
     end
+
+    # `settings[:domain] || settings["domain"] || aggregate.name` used to
+    # coerce a genuinely stored `false` at :domain into the aggregate-name
+    # fallback — indistinguishable from :domain being absent entirely.
+    it "reads a `false`-valued :domain setting back as itself, not the aggregate-name fallback" do
+      falsy_domain = described_class.new(aggregate: aggregate, settings: { dir: ".", domain: false }, root: @dir)
+
+      expect(falsy_domain.instance_variable_get(:@domain)).to eq("false")
+    end
   end
 
   describe "the file format" do

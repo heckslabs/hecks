@@ -7,7 +7,27 @@ module Hecks
           # equal to the port's reference entry-JSON transform by the
           # cross-execution equivalence spec; the SQL here is a compilation
           # target, not a second source of truth.
+          #
+          # LOCKED, unlike every other statement `ensure_base!` runs — those
+          # are all `CREATE ... IF NOT EXISTS`/`ADD COLUMN IF NOT EXISTS`,
+          # which Postgres itself resolves safely under concurrent boots.
+          # `CREATE OR REPLACE FUNCTION` is not: it always rewrites the
+          # `pg_proc` row, so two sessions racing to (re)install the SAME
+          # function — these six are shared/global, not per-domain, so any
+          # two domains' concurrent first-boots can collide here — hit a
+          # real `PG::InternalError: tuple concurrently updated`, not a
+          # graceful no-op. `nested_transaction` is the same
+          # already-open-transaction-safe wrapper `ensure_field_cache!`
+          # uses for its own advisory lock; a fixed, domain-independent key
+          # is correct since these functions have no domain of their own.
           def install_transforms!
+            nested_transaction("hecks_tr_functions") do
+              @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_tr_functions'))", [])
+              install_transform_functions!
+            end
+          end
+
+          def install_transform_functions!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_extract(state jsonb, path text[], OUT remaining jsonb, OUT value jsonb, OUT present boolean)
               LANGUAGE plpgsql IMMUTABLE AS $fn$

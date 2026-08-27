@@ -17,6 +17,39 @@ module Hecks
 
       module_function
 
+      # bin/evolve's own `--name value` flag reader. Only consumes the
+      # NEXT argv element as the value when that element doesn't itself
+      # look like a flag — otherwise `--foo --bar` would swallow `--bar`
+      # as `--foo`'s value (and `--bar` would then never be seen at
+      # all), and a value-less `--foo` at the end of argv would bypass
+      # whatever default `foo` promised instead of falling back to it.
+      def option(argv, name, default = nil)
+        index = argv.index("--#{name}")
+        return default unless index
+
+        value = argv[index + 1]
+        value.nil? || value.start_with?("-") ? default : value
+      end
+
+      # The snapshot/restore ceremony bin/evolve wraps every mutating
+      # command in: read every `paths` file, run the block, and put
+      # every file back exactly as it was if the block raises partway
+      # through — `rename`'s keyword-row write followed by its
+      # argument cascade across several files (`cascade_argument_rename`
+      # above) included, not only a declared gate failing after the
+      # block has already returned cleanly (bin/evolve's own `guarded`
+      # still handles that half on its own, since it depends on running
+      # the gate specs, not on anything this method knows about). A
+      # clean return leaves the snapshots unused; the caller decides
+      # from there whether the tree stands.
+      def restore_on_raise(paths)
+        snapshots = paths.to_h { |path| [path, File.read(path)] }
+        yield
+      rescue StandardError
+        snapshots.each { |path, content| File.write(path, content) }
+        raise
+      end
+
       def syntax_paths
         Dir.glob(File.expand_path("../language/**/*.bluebook", __dir__)).select do |path|
           source = File.read(path)

@@ -29,10 +29,30 @@ module Hecks
       class Worker
         attr_reader :projection
 
+        # The only two policies anything in this codebase ever passes
+        # (`bin/project`, every spec) — there is no third, legitimate
+        # "lenient append" policy on record anywhere. Before this, any
+        # value OTHER than the exact symbol `:strict` silently fell
+        # through the `consistent?` check below and appended onto
+        # divergent history without a word — not just a real typo like
+        # `:strikt`, but a caller-supplied String `"strict"` too (this
+        # duck-typed fine via `policy.to_sym`, but that was luck, not a
+        # contract: nothing here declared what a valid policy even was).
+        # Refusing loudly at construction, once, for anything outside
+        # this list turns a silent no-op into an immediate, named error
+        # — the "refuse rather than silently skip" reading of L1, since
+        # `:strict` really is meant to be the only enforcing contract.
+        VALID_POLICIES = %i[refresh strict].freeze
+
         def initialize(authoritative, projection, policy: :refresh)
           @authoritative = authoritative
           @projection = projection
           @policy = policy.to_sym
+          unless VALID_POLICIES.include?(@policy)
+            raise ArgumentError,
+                  "unknown projection catch_up! policy #{@policy.inspect} — expected one of " \
+                  "#{VALID_POLICIES.map(&:inspect).join(' or ')}"
+          end
         end
 
         # Invoke from a separate process or scheduler. The command-side write

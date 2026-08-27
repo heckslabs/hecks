@@ -23,6 +23,15 @@ module Hecks
     module Identity
       module_function
 
+      # A hash read that decides which spelling of a key answers by
+      # PRESENCE, never by `||` — a bare `||` treats a genuinely-held
+      # `false` the same as an absent key and falls through to the other
+      # spelling, landing on `nil` instead of the real, stored answer.
+      def hash_lookup(hash, key)
+        sym = key.to_sym
+        hash.key?(sym) ? hash[sym] : hash[key]
+      end
+
       # The head names the ATTRIBUTE and is consumed by whoever looked the value
       # up; what is left is the walk down into it. A path with no fields to walk
       # — an aggregate that declares no identity and falls back to `id` — hands
@@ -32,7 +41,7 @@ module Hecks
         return held if fields.empty?
 
         fields.reduce(Value.materialize(held)) do |dug, field|
-          dug.is_a?(Hash) ? (dug[field.to_sym] || dug[field]) : nil
+          dug.is_a?(Hash) ? hash_lookup(dug, field) : nil
         end
       end
 
@@ -83,7 +92,7 @@ module Hecks
           # arrived whole has to be opened.
           return held.to_s unless held.is_a?(Hash)
 
-          return rest.reduce(held) { |h, f| h.is_a?(Hash) ? (h[f.to_sym] || h[f]) : nil }&.to_s
+          return rest.reduce(held) { |h, f| h.is_a?(Hash) ? hash_lookup(h, f) : nil }&.to_s
         end
 
         # Coerced against the identity ATTRIBUTE only when the caller actually

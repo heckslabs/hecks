@@ -244,6 +244,208 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
   end
 
+  # THE ROOT-FIRST FIX'S OWN GAP — root-first alone only guarantees the
+  # ROOT is in `projected` before any other head is matched. A CHAIN of
+  # non-root heads (a head referencing another non-root head, not the
+  # root) is one level deeper than that reaches: `include Coupon` before
+  # `include Promotion`, where Coupon references Promotion (which
+  # references the root, Item), used to silently return an empty
+  # `coupons` array — Coupon was matched while `projected` held only
+  # Item, one level short of what it needed (Promotion). Declared in
+  # the WORST order for the old code (deepest dependency declared
+  # first, root last) to prove this isn't declaration order working by
+  # accident.
+  it "joins a CHAIN of non-root heads correctly regardless of declaration order, not just one level deep" do
+    build_chain = lambda do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Chained") do
+          vision "x"
+          generic
+
+          aggregate "Item" do
+            identified_by :name
+            attribute :name, Name
+            value_object "Name" do
+              attribute :value, String
+            end
+            command "Add" do
+              attribute :name, Name
+              sets :name
+            end
+          end
+
+          aggregate "Promotion" do
+            identified_by :ref
+            attribute :ref, Ref
+            reference_to Item, as: :item
+            value_object "Ref" do
+              attribute :value, String
+            end
+            command "Promote" do
+              attribute :ref, Ref
+              reference_to Item
+              sets :ref
+              sets :item
+            end
+          end
+
+          # References Promotion, NOT the root (Item) — one level
+          # deeper than the root-first fix's own reach.
+          aggregate "Coupon" do
+            identified_by :ref
+            attribute :ref, Ref
+            reference_to Promotion, as: :promotion
+            value_object "Ref" do
+              attribute :value, String
+            end
+            command "Issue" do
+              attribute :ref, Ref
+              reference_to Promotion
+              sets :ref
+              sets :promotion
+            end
+          end
+
+          # THE WORST DECLARATION ORDER for the old code: the deepest
+          # dependency (Coupon, which needs Promotion already resolved)
+          # declared FIRST, its own dependency (Promotion) second, and
+          # the root (Item) LAST.
+          read_model "Search" do
+            reference_to Item
+            include Coupon
+            include Promotion
+            include Item
+          end
+        end
+        Hecks.hecksagon("Chained") do
+          Chained::Item.persisted_by("Memory")
+          Chained::Promotion.persisted_by("Memory")
+          Chained::Coupon.persisted_by("Memory")
+        end
+      end
+      registry.verify!
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    end
+
+    runtime = build_chain.call
+    Chained::Item.add!(name: { value: "headlamp" })
+    Chained::Promotion.promote!(ref: { value: "p1" }, item: "headlamp")
+    Chained::Coupon.issue!(ref: { value: "c1" }, promotion: "p1")
+
+    rows = runtime.query("Chained.search", item: "headlamp")
+
+    expect(rows.first[:item][:id]).to eq("headlamp")
+    expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
+    expect(rows.first[:coupons].map { |c| c[:id] }).to eq(["c1"])
+  end
+
+  # THE TOPOLOGICAL SORT'S OWN BLIND SPOT — `include` accepts a nested
+  # ENTITY (declared with `entity "X" do ... end` inside an aggregate),
+  # not just a top-level `aggregate`, exactly the way the language's own
+  # `WholeBluebook` read model includes `Member`/`Handler`/`Dispatch`
+  # (nested entities under ValueObject/ProcessManager, spec/executes_spec.rb).
+  # `bluebook.aggregate` only ever searches top-level aggregates
+  # (Behaviour::Chapter#aggregate), so it returns nil for an entity
+  # head — `depends_on` used to call straight into
+  # `reference_fields(nil, ...)` for that head and blow up with
+  # `NoMethodError: undefined method 'attributes' for nil` before a
+  # single record was ever read. `records`, the pre-existing runtime
+  # matcher, already tolerated this (a nil aggregate reads as "no rows
+  # of its own"), so an entity head has always come back empty rather
+  # than erroring — this pins that the STATIC ordering pass tolerates
+  # it too, and that a real dependency chain among the OTHER (resolvable)
+  # heads is still ordered correctly around it.
+  it "tolerates an included head that is a nested entity, not a top-level aggregate, without crashing" do
+    build_entity_head = lambda do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("EntityHeaded") do
+          vision "x"
+          generic
+
+          aggregate "Item" do
+            identified_by :name
+            attribute :name, Name
+            attribute :notes, list_of(Note)
+            value_object "Name" do
+              attribute :value, String
+            end
+            value_object "NoteRef" do
+              attribute :value, String
+            end
+            command "Add" do
+              attribute :name, Name
+              sets :name
+            end
+
+            # A NESTED ENTITY, not a top-level aggregate — the same shape
+            # Member/Handler/Dispatch have in the language's own grammar.
+            entity "Note" do
+              identified_by :ref
+              attribute :ref, NoteRef
+            end
+          end
+
+          aggregate "Promotion" do
+            identified_by :ref
+            attribute :ref, Ref
+            reference_to Item, as: :item
+            value_object "Ref" do
+              attribute :value, String
+            end
+            command "Promote" do
+              attribute :ref, Ref
+              reference_to Item
+              sets :ref
+              sets :item
+            end
+          end
+
+          # WORST ORDER for the real (resolvable) chain, same as the
+          # test above — Promotion (which depends on the root, Item)
+          # declared before Item — with the unresolvable entity head
+          # (Note) mixed in first, so a crash there would hide whether
+          # ordering among the rest still works at all.
+          read_model "Search" do
+            reference_to Item
+            include Note
+            include Promotion
+            include Item
+          end
+        end
+        Hecks.hecksagon("EntityHeaded") do
+          EntityHeaded::Item.persisted_by("Memory")
+          EntityHeaded::Promotion.persisted_by("Memory")
+        end
+      end
+      registry.verify!
+      Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+    end
+
+    runtime = build_entity_head.call
+    EntityHeaded::Item.add!(name: { value: "headlamp" })
+    EntityHeaded::Promotion.promote!(ref: { value: "p1" }, item: "headlamp")
+
+    rows = runtime.query("EntityHeaded.search", item: "headlamp")
+
+    expect(rows.first[:item][:id]).to eq("headlamp")
+    expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
+    # NOT what a bluebook author would want long-term (a real gap,
+    # already flagged elsewhere: an entity head has no repository of
+    # its own to read from at all) — but empty, not a crash, is the
+    # honest current answer, and the one this fix restores.
+    expect(rows.first[:notes]).to eq([])
+  end
+
   it "applies the same options through Sqlite's native projected-table path" do
     Dir.mktmpdir do |dir|
       registry = Hecks::Runtime::Registry.new

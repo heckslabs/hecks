@@ -370,7 +370,7 @@ module Hecks
                                                      offered: Rendering.describe(id)))
         end
 
-        Instance.new(aggregate: aggregate, id: id)
+        Instance.new(aggregate: aggregate, id: id, args: args)
       end
 
       def hydrate_complete_state(repository, aggregate, command, args, route, strategy)
@@ -404,7 +404,7 @@ module Hecks
                                                      offered: Rendering.describe(id)))
         end
 
-        Instance.new(aggregate: aggregate, id: id)
+        Instance.new(aggregate: aggregate, id: id, args: args)
       end
 
       # A complete command may still depend on prior state: lifecycle guards
@@ -447,7 +447,7 @@ module Hecks
                                                      offered: Rendering.describe(id)))
         end
 
-        found ? found.dup : Instance.new(aggregate: aggregate, id: id)
+        found ? found.dup : Instance.new(aggregate: aggregate, id: id, args: args)
       end
 
       # THE JOIN, THE DIG, AND THE READING — all shared with `EntityInterpreter`

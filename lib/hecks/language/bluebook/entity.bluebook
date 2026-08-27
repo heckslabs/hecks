@@ -153,8 +153,16 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one attribute to the entity"
 
+      # THE TYPE IS A REFERENCE TO THE VALUE OBJECT IT NAMES — the same rule
+      # Aggregate.Attribute enforces one construct over (see that command's own
+      # comment). An entity declares no value objects of its own (Entity never
+      # answers `value_object` — entity.rb's own comment says why); its
+      # attributes read the SAME pool its enclosing aggregate declares, so this
+      # still resolves as a reference, not free text. An entity attribute naming
+      # an undeclared value object failed to fail: `type` rode as plain text, so
+      # reference resolution never ran and a typo'd or invented type boots clean.
+      reference_to ValueObject, as: :type
       attribute :name,    EntityText
-      attribute :type,    EntityText
       attribute :list,    EntityText
       attribute :optional, EntityText, optional: true
       attribute :pattern,  EntityText, optional: true
@@ -165,6 +173,65 @@ Hecks.bluebook "Bluebook" do
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
       emits "PieceAttributeAttached"
+    end
+
+    # An attribute that points at ANOTHER AGGREGATE'S HEAD — the SAME
+    # construct Aggregate.Reference is, one level down (see that
+    # command's own comment for why the type cannot be text): `belongs_to`/
+    # `has_one`/`has_many`/`reference_to` are declared on an entity by the
+    # same DSL (`EntityBuilder`/`AttributeCollector`) an aggregate uses,
+    # and a real fixture already exercises it (`spec/relationship_
+    # declaration_spec.rb`'s "uses the same relationship declarations on
+    # an entity", `docs/reference/entity.md`). Without this verb such an
+    # attribute fell to the SAME `Attribute` verb above, which reads
+    # `type` as a value-object reference — so a cross-aggregate reference
+    # declared on a piece failed reference resolution against the wrong
+    # pool the moment entity attributes started being checked at all.
+    command "Reference" do
+      role "Language"
+      goal "Attach an attribute that points at another aggregate's head"
+
+      reference_to Aggregate, as: :points_at
+      attribute :name,    EntityText
+      attribute :list,    EntityText
+      attribute :optional, EntityText, optional: true
+      attribute :pattern,  EntityText, optional: true
+      attribute :default, EntityText, optional: true
+      attribute :admits,  EntityText, optional: true
+      attribute :relationship, EntityText, optional: true
+
+      sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
+
+      emits "PieceReferenceAttached"
+    end
+
+    # An attribute whose type names a PIECE NESTED INSIDE THIS ONE — the
+    # SAME construct Aggregate.Holds is, one level down (see that
+    # command's own comment): `attribute :dispatches, list_of(Dispatch)`
+    # inside `entity "Handler"` (S17, ADR 0026's own two-level chain) is
+    # exactly `Account#ledger` one level further in. Without this verb
+    # such an attribute fell to the SAME `Attribute` verb above, which
+    # reads `type` as a value-object reference — so a piece nested inside
+    # a piece failed reference resolution against the wrong pool the
+    # moment entity attributes started being checked at all (found live:
+    # the meta-grammar's own `Handler.dispatches` naming `Dispatch`,
+    # nested inside Handler itself).
+    command "Holds" do
+      role "Language"
+      goal "Attach an attribute whose type is a piece nested inside this one"
+
+      reference_to Entity, as: :holds
+      attribute :name,    EntityText
+      attribute :list,    EntityText
+      attribute :optional, EntityText, optional: true
+      attribute :pattern,  EntityText, optional: true
+      attribute :default, EntityText, optional: true
+      attribute :admits,  EntityText, optional: true
+      attribute :relationship, EntityText, optional: true
+
+      sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
+
+      emits "PieceHeld"
     end
 
 

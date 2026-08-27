@@ -218,6 +218,15 @@ RSpec.describe "adapter agreement — declared queries answer identically across
         order_by :balance, :desc
       end
 
+      # `lte` had no case of its own here — every OTHER ordered comparator
+      # (lt, gt, gte) already had one, so `lte` alone rode through
+      # untested by this file even though the shared Comparison module
+      # covers it identically to its three siblings. No order_by, on
+      # purpose: this asks the SELECTION question alone, the same way
+      # OpenOnes/NotClosed do, rather than repeating BelowFloor's/
+      # AtLeast500Desc's ordering coverage under a different comparator.
+      builder.query("AtMost500") { where(balance: { lte: { cents: 500 } }) }
+
       builder.query("PriceAbove300") do
         where(:"box.price.cents" => { gt: 300 })
         order_by :"box.price.cents"
@@ -382,6 +391,10 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
 
   it "compiles gte with a literal value on a bare value object, descending, the same everywhere" do
     agree!("AtLeast500Desc", expected: %w[r3 r5 r2])
+  end
+
+  it "compiles lte with a nested value object literal on a bare value object, the same everywhere" do
+    agree!("AtMost500", expected: %w[r1 r2 r4])
   end
 
   it "compiles gt on a two-level nested path, ordered and limited, the same everywhere" do

@@ -332,6 +332,15 @@ module Hecks
           options |= Regexp::EXTENDED   if flags.include?("x")
 
           Regexp.new(pattern, options).match?(text)
+        rescue RegexpError => e
+          # M9: a malformed pattern between the slashes (an unclosed
+          # character class, say) is a defect in the EXPRESSION TEXT
+          # itself, exactly the same category of author mistake an
+          # unresolvable attribute name already refuses for — `Regexp.new`
+          # raising a raw `RegexpError` crossed this sublanguage's own
+          # refusal boundary the same way the `ZeroDivisionError`/
+          # `TypeError` cases elsewhere in this file did.
+          raise EvaluationError, "match? given an invalid pattern #{pattern.inspect} — #{e.message}"
         end
 
         # The elements of a bracketed literal, or nil if this isn't one.
@@ -525,11 +534,29 @@ module Hecks
           [expr[0...index], expr[(index + marker.length)...-1]]
         end
 
+        # Both operands are coerced to a real Integer/Float BEFORE the
+        # zero-check, and the check reads the COERCED divisor — not the
+        # raw `divisor_value` (which might not even respond to `.zero?`,
+        # a String for instance) and not a `.to_i`-truncated stand-in for
+        # it either. The old order checked a truncated `divisor.to_i`
+        # AFTER already validating the untruncated value wasn't zero, so
+        # a divisor merely small (`0.3`, truncating to `0`) sailed past
+        # the guard and then blew up `Integer#%` with a raw
+        # `ZeroDivisionError` the moment it reached zero anyway.
+        #
+        # The modulo itself is plain `%` on the coerced values, matching
+        # `add`'s own no-truncation precedent just above — Ruby's native
+        # `%` already handles every Integer/Float combination correctly
+        # (promoting to Float when either side is one), so rounding both
+        # operands down to Integer first was pure data loss with no
+        # purpose: `7.5.modulo(2.5)` silently became `7 % 2` (`1`)
+        # instead of the real `0.0`.
         def apply_modulo(receiver_value, divisor_value)
-          divisor = require_number(divisor_value, "modulo")
+          receiver = require_number(receiver_value, "modulo")
+          divisor  = require_number(divisor_value, "modulo")
           raise EvaluationError, "divided by 0" if divisor.zero?
 
-          require_number(receiver_value, "modulo").to_i % divisor.to_i
+          receiver % divisor
         end
 
         def lookup(expr, state, attrs)
@@ -544,13 +571,34 @@ module Hecks
         # `found_of` (the `Find` node's own path projection) can walk a
         # `.find { ... }`-produced element the identical way `lookup`
         # walks a plain attribute path, rather than duplicating the
-        # `value[segment.to_sym] || value[segment]` step twice in this
-        # file.
+        # symbol-or-string key step twice in this file. `key?` decides
+        # which spelling answers — a bare `||` between the two would
+        # treat a genuinely-held `false` the same as an absent key and
+        # fall through to the other spelling, landing on `nil`.
         def walk_path(value, segments)
           segments.reduce(value) do |current, segment|
             break nil unless current.respond_to?(:[])
 
-            current[segment.to_sym] || current[segment]
+            if current.is_a?(Hash)
+              sym = segment.to_sym
+              current.key?(sym) ? current[sym] : current[segment]
+            else
+              begin
+                current[segment]
+              rescue TypeError
+                # M9 (docs/audits/2026-08-10-main-bug-audit.md): a dotted
+                # path can walk onto an Array (e.g. the result of `.split`,
+                # or a `list_of` attribute) — Array#[] demands an
+                # Integer/Range and raises a raw TypeError for a String
+                # segment ("no implicit conversion of String into
+                # Integer"), which used to cross straight past this
+                # sublanguage's own refusal boundary and crash the
+                # runtime instead of reading as "this predicate doesn't
+                # apply here."
+                raise EvaluationError,
+                      "cannot read #{segment.inspect} from #{describe(current)}"
+              end
+            end
           end
         end
 

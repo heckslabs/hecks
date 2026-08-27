@@ -409,6 +409,66 @@ RSpec.describe "lineage in the PostgresEra adapter",
     db.close
   end
 
+  # H3, docs/audits/2026-08-10-main-bug-audit.md: a delete used to just
+  # `DELETE FROM head_snapshot`, leaving no row at all behind for an id
+  # carried in from an ancestor era. `compile_head!`'s head view unions
+  # the translated ancestor matview with this era's own snapshot and
+  # picks the highest-ordinal row per id (`DISTINCT ON`) — with the
+  # current-era side now silent, the ancestor's own (still-`save`) row
+  # won every time, so a record deleted after being carried across a
+  # mint kept reading back forever. Re-saves were never affected (a new
+  # save row DOES outrank the ancestor row by ordinal) — only deletes.
+  it "deleting an era-migrated record does not resurrect the ancestor era's save row" do
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    registry = check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
+
+    adapter = adapter_for(registry, "Account")
+    expect(adapter.find("a1")).not_to be_nil # sanity: the migrated record is there pre-delete
+
+    adapter.delete("a1")
+
+    expect(adapter.find("a1")).to be_nil
+    expect(adapter.all.map(&:id)).not_to include("a1")
+    expect(adapter.count).to eq(0)
+
+    # re-opening the adapter (a fresh boot, its own `ensure_head_snapshot!`
+    # self-heal/backfill pass) must not un-delete it either
+    reopened = adapter_for(registry, "Account")
+    expect(reopened.find("a1")).to be_nil
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    expect(db.exec("SELECT count(*) FROM account_head WHERE id = 'a1'")[0]["count"]).to eq("0")
+    # the tombstone itself is a real row, not an absence — this era genuinely
+    # out-ranks the ancestor's save row rather than merely lacking one
+    tombstone = db.exec("SELECT operation, state FROM account_head_snapshot_2 WHERE id = 'a1'")
+    expect(tombstone.ntuples).to eq(1)
+    expect(tombstone[0]["operation"]).to eq("delete")
+    expect(tombstone[0]["state"]).to be_nil
+    db.close
+  end
+
+  it "an era-migrated record can be deleted and then re-saved, and the re-save wins" do
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    registry = check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
+
+    adapter = adapter_for(registry, "Account")
+    adapter.delete("a1")
+    expect(adapter.find("a1")).to be_nil
+
+    revived = Hecks::Runtime::Instance.new(
+      aggregate: registry.bluebooks.values.first.aggregate("Account"), id: "a1",
+      state: { amount: { "cents" => 42 }, kind: { "label" => "business" }, denomination: { "code" => "USD" } }
+    )
+    adapter.save(revived)
+
+    expect(adapter.find("a1").amount.to_h).to eq(cents: 42)
+    expect(adapter.count).to eq(1)
+  end
+
   it "a convert meeting an unmapped value refuses the whole mint — the era is never half-born" do
     write_v1_record(
       cost:        { "cents" => 5, "currency" => "USD" },

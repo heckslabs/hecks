@@ -30,17 +30,27 @@ module Hecks
       IR_VERSION = 1
 
       emits_ir(
-        ir_version:       -> { IR_VERSION },
-        name:             :name,
-        version:          :version,
-        vision:           :vision,
-        classification:   :classification,
-        aggregates:       many(:aggregates),
-        read_models:      many(:read_models),
-        policies:         many(:policies),
-        process_managers: many(:process_managers),
-        attaches_to:      :attaches_to,
-        canonical_form:   -> { Expression::CanonicalForm.table }
+        ir_version:        -> { IR_VERSION },
+        name:              :name,
+        version:           :version,
+        vision:            :vision,
+        classification:    :classification,
+        # M10 — a domain rename (`formerly_known_as "OldName"`) drives a
+        # real Postgres schema rename at boot (EraResolver reads
+        # `bluebook.formerly_known_as` off the live Ruby object) and the
+        # meta-validator's cache key is `SHA256(JSON(bluebook.to_h))` — so
+        # a fact this method didn't spell was a fact two chapters
+        # differing ONLY by their old name could hash identically on,
+        # same as read-model filters before them. Spelled here for the
+        # same reason `version`/`vision` are: a plain field, present
+        # (possibly nil) rather than silently absent.
+        formerly_known_as: :formerly_known_as,
+        aggregates:        many(:aggregates),
+        read_models:       many(:read_models),
+        policies:          many(:policies),
+        process_managers:  many(:process_managers),
+        attaches_to:       :attaches_to,
+        canonical_form:    -> { Expression::CanonicalForm.table }
       )
 
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,

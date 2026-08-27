@@ -43,10 +43,50 @@ RSpec.describe "the judge's coverage of the language" do
     # to be offered at all. Already loaded into the grammar registry
     # itself (MetaValidator::ATTACHED_GRAMMAR_DIR) — no separate boot.
     @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
+    # M13 — "Bluebook" (the meta-grammar describing itself) is the one
+    # real user of `Entity.Holds` today: `Handler.dispatches, list_of
+    # (Dispatch)` (S17, ADR 0026) is a piece nested inside a piece, and no
+    # aggregate/entity in Banking or Paging declares one of its own.
+    # `Entity.Holds` is genuinely dispatched every time ANY bluebook is
+    # judged, though — `MetaValidator.grammar_registry` bootstraps by
+    # judging "Bluebook" against itself, and that boot is what this spec
+    # file's own `before(:context)` just triggered by loading Banking at
+    # all. Judged again here, the same way Paging is, so the verb this
+    # boot already exercises for real is counted as offered rather than
+    # this gate reporting a rule nothing ever dispatches into.
+    @grammar = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    # M13 — the mirror image of the same gap, one verb over:
+    # `Entity.Reference` (a piece's own cross-aggregate `belongs_to`/
+    # `has_one`/`has_many`/`reference_to`) is real DSL surface
+    # (`EntityBuilder`/`AttributeCollector`, same as an aggregate's) and
+    # is exercised by `spec/relationship_declaration_spec.rb` and
+    # `docs/reference/entity.md` — just not by Banking, Paging, or the
+    # meta-grammar itself, none of which happens to nest a
+    # cross-aggregate reference inside a piece. A tiny fixture built the
+    # same way that spec's own `build_chapter` does, so this gate sees a
+    # verb the project genuinely dispatches rather than reporting a rule
+    # nothing here exercises.
+    @relationships = Hecks::Bluebook::DSL::BluebookBuilder.build("EntityRelationshipCoverage") do
+      aggregate "Target" do
+        identified_by { attribute :number, String }
+      end
+
+      aggregate "Holder" do
+        identified_by { attribute :number, String }
+
+        entity "Piece" do
+          identified_by { attribute :sequence, Integer }
+
+          belongs_to Target
+        end
+      end
+    end
   end
 
-  def banking = @banking
-  def paging  = @paging
+  def banking       = @banking
+  def paging        = @paging
+  def grammar       = @grammar
+  def relationships = @relationships
 
   # Records what the judge asks for, without judging anything.
   class Spy
@@ -81,7 +121,10 @@ RSpec.describe "the judge's coverage of the language" do
   # `freshness`/`use_index`, `SafeDepositBox.Rented`'s
   # `authorize`/`consistency`, `ComplianceDashboard`'s own
   # `freshness`/`use_index` — so the union is gone with it.
-  def offered_verbs = offered_in_order + offered_in_order(paging)
+  def offered_verbs
+    offered_in_order + offered_in_order(paging) + offered_in_order(grammar) +
+      offered_in_order(relationships)
+  end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged

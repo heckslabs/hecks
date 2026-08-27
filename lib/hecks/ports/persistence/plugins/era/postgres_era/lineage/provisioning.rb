@@ -78,7 +78,17 @@ module Hecks
             # to revoke them from the owner itself); a deployment's app
             # role connects as a NON-owner and gets exactly INSERT, per
             # era, at mint time.
-            @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC")
+            #
+            # GUARDED, same reasoning as the RLS ALTER TABLE calls just
+            # below: REVOKE still writes pg_class.relacl (and takes the
+            # matching lock) even when the resulting privileges are
+            # unchanged, so an unconditional reissue on every ordinary
+            # reboot raced two concurrent boots into
+            # `PG::InternalError: tuple concurrently updated` — read
+            # whether PUBLIC can still UPDATE first, touch the catalog
+            # only on the boot that actually needs to.
+            still_public = @db.exec_params("SELECT has_table_privilege('public', $1, 'UPDATE')", [journal]).getvalue(0, 0)
+            @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC") if still_public == "t"
             # RLS goes on AT PROVISIONING, never mid-life — enabling it
             # later would deny every role that has no policy yet, on
             # whatever the shape of the schema happened to be at that

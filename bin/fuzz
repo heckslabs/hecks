@@ -136,13 +136,32 @@ end
 # only while the same finding still reproduces ; an argument the domain
 # requires will change the refusal and stop reproducing, so it comes
 # straight back.
+#
+# ACCEPTED DROPS ACCUMULATE. `original_keys` is read once, up front, only
+# to know WHICH keys are worth trying — the trim itself is always computed
+# from `step`'s OWN CURRENT args (re-read every iteration), which is
+# `candidate[position]` from the previous accepted drop when there was one.
+# Reading a stale, pre-loop `args` snapshot here instead (as this once did)
+# means every trim starts over from the ORIGINAL argument set minus one
+# key, so accepting a second drop silently un-drops the first — a shrunk
+# candidate that looked minimal after N accepted drops actually only ever
+# carried the LAST one.
+# A step's own args are read by whichever spelling it actually carries —
+# key? first, never `||`, which cannot tell a genuinely stored `false`
+# argument value apart from an absent "args" key and would silently
+# prefer the OTHER spelling instead.
+def args_of(step)
+  step.key?("args") ? step["args"] : step[:args]
+end
+
 def shrink_arguments(domain, steps, signature)
   steps.each_with_index do |step, position|
-    args = step["args"] || step[:args]
-    next unless args.is_a?(Hash)
+    original_keys = args_of(step)
+    next unless original_keys.is_a?(Hash)
 
-    args.keys.each do |key|
-      trimmed = args.reject { |name, _| name == key }
+    original_keys.keys.each do |key|
+      current_args = args_of(step)
+      trimmed = current_args.reject { |name, _| name == key }
       candidate = steps.map(&:dup)
       candidate[position] = step.merge("args" => trimmed)
 

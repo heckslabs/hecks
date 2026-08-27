@@ -124,6 +124,30 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(adapter.delete("missing")).to be(true)
   end
 
+  it "stores an absent mirrors hash as a real SQL NULL, not the JSON text \"null\"" do
+    adapter.save(instance("p1", status: "available"))
+
+    db = adapter.instance_variable_get(:@db)
+    null_rows = db.execute('SELECT mirrors FROM "order_entries" WHERE mirrors IS NULL')
+    expect(null_rows.size).to eq(1)
+
+    text_rows = db.execute("SELECT mirrors FROM \"order_entries\" WHERE mirrors = 'null'")
+    expect(text_rows).to be_empty
+  end
+
+  it "still stores a real mirrors hash as JSON text, and reads it back" do
+    entry = Hecks::Ports::Persistence::Entry.new(
+      operation: "save", id: "p2", state: { status: "available" }, mirrors: { replica: "eu" }
+    )
+    adapter.append(entry)
+
+    expect(adapter.entries.last.mirrors).to eq("replica" => "eu")
+
+    db = adapter.instance_variable_get(:@db)
+    row = db.get_first_row('SELECT mirrors FROM "order_entries" WHERE aggregate_id = ?', ["p2"])
+    expect(row["mirrors"]).to eq(JSON.generate(replica: "eu"))
+  end
+
   it "records and reloads domain events" do
     event = Hecks::Runtime::Event.new(
       name: "PizzaPurchased", aggregate: "Pizza", id: "p1",
@@ -194,6 +218,17 @@ RSpec.describe Hecks::Adapters::Sqlite do
 
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}]])
       expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}]])
+    end
+
+    # `settings[:domain] || settings["domain"] || aggregate.name` used to
+    # coerce a genuinely stored `false` at :domain into the aggregate-name
+    # fallback — indistinguishable from :domain being absent entirely.
+    it "reads a `false`-valued :domain setting back as itself, not the aggregate-name fallback" do
+      falsy_domain = described_class.new(
+        aggregate: aggregate, settings: { database: "pizzas.db", domain: false }, root: @dir
+      )
+
+      expect(falsy_domain.instance_variable_get(:@domain)).to eq("false")
     end
   end
 end

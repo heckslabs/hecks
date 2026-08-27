@@ -76,9 +76,60 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod sum_tests {
+    use super::sum;
+    use crate::kernel::expr::Value;
+
+    #[test]
+    fn adds_ordinary_ints() {
+        assert_eq!(sum(&Value::Int(2), &Value::Int(3)).unwrap(), Value::Int(5));
+    }
+
+    #[test]
+    fn mixed_int_float_promotes_to_float_like_ruby_coercion() {
+        assert_eq!(sum(&Value::Int(2), &Value::Float(3.5)).unwrap(), Value::Float(5.5));
+    }
+
+    // L22: `Int + Int` used plain `+`, which panics in debug and silently
+    // wraps in release — neither matches Ruby's `Integer#+`, which
+    // promotes to Bignum and never overflows. True Bignum parity isn't
+    // achievable without a bignum dependency (this kernel has none, by
+    // design); refusing cleanly on overflow is the honest fix.
+    #[test]
+    fn refuses_cleanly_on_overflow_instead_of_panicking_or_wrapping() {
+        let result = sum(&Value::Int(i64::MAX), &Value::Int(1));
+        assert!(result.is_err(), "i64::MAX + 1 must refuse, not silently wrap to i64::MIN");
+    }
+
+    #[test]
+    fn refuses_cleanly_on_negative_overflow() {
+        let result = sum(&Value::Int(i64::MIN), &Value::Int(-1));
+        assert!(result.is_err(), "i64::MIN + -1 must refuse, not silently wrap to i64::MAX");
+    }
+
+    #[test]
+    fn does_not_refuse_right_at_the_boundary() {
+        assert_eq!(sum(&Value::Int(i64::MAX - 1), &Value::Int(1)).unwrap(), Value::Int(i64::MAX));
+    }
+}
+
+// Ruby's `Integer#+` (resolver.rb's `add`, read directly: plain `+`) never
+// overflows — `Integer` promotes to Bignum with no ceiling. This kernel's
+// `Value::Int` is a plain `i64` (zero Cargo dependencies — no
+// arbitrary-precision integer type lives anywhere in this crate, see
+// `rust/src/kernel/json.rs`'s own header for the same constraint), so true
+// Bignum parity isn't achievable here without a real bignum dependency.
+// Rust's own unchecked `+` on `i64` is wrong either way it could go: it
+// panics in a debug build (an uncontrolled crash, not a refusal) and
+// silently WRAPS in a release build (`i64::MAX + 1` becomes `i64::MIN` —
+// corrupted data, not even a plausible-looking wrong number). `checked_add`
+// plus a clean refusal is the honest middle ground used elsewhere in this
+// file (`modulo`'s divide-by-zero check, above): refuse loudly and
+// specifically rather than silently corrupt OR crash uncontrolled.
 fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
-        return Ok(Value::Int(l + r));
+        return l.checked_add(*r).map(Value::Int).ok_or_else(|| eval_error(format!("addition overflowed: {l} + {r} does not fit in a 64-bit integer")));
     }
     let l = require_number(lhs, "addition")?;
     let r = require_number(rhs, "addition")?;

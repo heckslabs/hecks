@@ -61,7 +61,21 @@ module Hecks
     def singularize(text)
       word = text.to_s
       return "#{word[0..-4]}y" if word.length > 3 && word.end_with?("ies")
-      return word[0..-2]       if word.length > 1 && word.end_with?("s")
+
+      # `plural`'s OWN second rule adds "es" (not bare "s") after
+      # s/x/z/ch/sh — undone here the same way, or a word `plural`
+      # itself would have suffixed with "es" comes back missing its
+      # own trailing letter ("Boxes" -> "Boxe", not "Box") once this
+      # only ever knew how to drop a bare "s". Checked BEFORE the
+      # bare-"s" rule below: stripping "es" first and confirming what
+      # is left actually ends in one of those five shapes is what
+      # keeps an ordinary "-es" word (e.g. "Invoices" -> "Invoice")
+      # from also losing a letter it never doubled.
+      if word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
+        return word[0..-3]
+      end
+
+      return word[0..-2] if word.length > 1 && word.end_with?("s")
 
       word
     end

@@ -31,7 +31,11 @@ module Hecks
       # plain row hash); the rest read through whatever each step holds. A
       # stored nested value object is a plain hash by the time it is read
       # back, keyed by symbol in memory and by string off a wire decode,
-      # so both spellings are tried.
+      # so both spellings are tried — `key?` first, never `||`, because
+      # `||` falls through a genuinely-stored `false` to the OTHER
+      # spelling (usually absent) and returns `nil` instead. The seal
+      # admits boolean leaves (`SCALAR_PRIMITIVES` below), so a `false`
+      # here is a real, held answer, not a missing one.
       def dig(holder, field)
         return nil if field.nil?
 
@@ -40,7 +44,21 @@ module Hecks
 
       def read(current, segment)
         return nil if current.nil?
-        return current[segment.to_sym] || current[segment] if current.is_a?(Hash)
+
+        if current.is_a?(Hash)
+          sym = segment.to_sym
+          return current.key?(sym) ? current[sym] : current[segment]
+        end
+
+        # M5 — "or nil, never raise" is this method's whole contract, and
+        # an Array broke it: `Array#[]` demands an Integer index, so
+        # `current[segment]` (a String) raised `TypeError` straight
+        # through `dig` instead of answering nil. A dotted path stepping
+        # INTO a list_of attribute (`where "tags.name" == "x"` against a
+        # bare list, rather than each element) has no single member a
+        # bare index would name anyway — nil is the honest answer, the
+        # same one a dangling reference or a missing key already gets.
+        return nil if current.is_a?(Array)
 
         current[segment]
       end

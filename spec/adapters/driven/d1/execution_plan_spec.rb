@@ -163,6 +163,47 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(statements[2][0]).to include("WHERE NOT EXISTS")
   end
 
+  it "binds a real NULL, not the JSON text \"null\", for an absent mirrors hash" do
+    aggregate = item_aggregate
+    connection = fake_batch_connection
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter_with(connection, aggregate))
+
+    instance = Hecks::Runtime::Instance.new(
+      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
+    )
+    repository.atomic_put(instance)
+
+    entry_binds = connection.batches.first[1][1]
+    expect(entry_binds).to include(nil)
+    expect(entry_binds).not_to include("null")
+  end
+
+  it "stores an absent mirrors hash as a real SQL NULL through atomic_put's own batch, queryable via IS NULL" do
+    aggregate = item_aggregate
+    adapter = adapter_on_real_sqlite(aggregate)
+    repository = Hecks::Ports::Persistence::AppendOnly.new(adapter)
+
+    instance = Hecks::Runtime::Instance.new(
+      aggregate: aggregate, id: "sku-1", state: { identity: { sku: "sku-1" }, label: { value: "First" } }
+    )
+    repository.atomic_put(instance)
+
+    connection = adapter.instance_variable_get(:@db)
+    expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
+    expect(connection.execute("SELECT mirrors FROM \"item_entries\" WHERE mirrors = 'null'")).to be_empty
+  end
+
+  it "stores an absent mirrors hash as a real SQL NULL through plain #append too" do
+    aggregate = item_aggregate
+    adapter = adapter_on_real_sqlite(aggregate)
+
+    entry = Hecks::Ports::Persistence::Entry.new(operation: "save", id: "sku-1", state: { identity: { sku: "sku-1" } })
+    adapter.append(entry)
+
+    connection = adapter.instance_variable_get(:@db)
+    expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
+  end
+
   it "encodes the connection batch as one REST request and returns each statement's rows in order" do
     connection = Hecks::Adapters::D1::Connection.new(
       account_id:  "account",

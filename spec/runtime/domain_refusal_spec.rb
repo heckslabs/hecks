@@ -64,7 +64,8 @@ RSpec.describe "every refusal the corpus provokes" do
               runtime.dispatch(step["verb"], **args)
             end
           rescue StandardError => e
-            faults << "#{step['verb'] || step['query']} raised #{e.class}: #{e.message}" unless domain_refusal?(e)
+            verb_or_query = step.key?("verb") ? step["verb"] : step["query"]
+            faults << "#{verb_or_query} raised #{e.class}: #{e.message}" unless domain_refusal?(e)
           end
         end
 

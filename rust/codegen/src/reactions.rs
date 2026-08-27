@@ -305,6 +305,25 @@ pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntr
     exemplar.render("identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
 }
 
+/// Port of `rust/project/reactions.rb`'s own `emit_command_attributes_
+/// table` — see that function's own header for the full argument (R1,
+/// docs/audits/2026-08-11-bug-triage.md).
+pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+    let mut arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        for c in &a.commands {
+            let names = c.attributes.iter().map(|n| naming::ruby_inspect_string(n)).collect::<Vec<_>>().join(", ");
+            arms.push(format!("        {} => &[{}],", naming::ruby_inspect_string(&c.verb), names));
+        }
+        for c in &a.entity_commands {
+            let names = c.attributes.iter().map(|n| naming::ruby_inspect_string(n)).collect::<Vec<_>>().join(", ");
+            arms.push(format!("        {} => &[{}],", naming::ruby_inspect_string(&c.verb), names));
+        }
+    }
+
+    exemplar.render("command_attributes_table", &[("\"tmpl_verb\" => &[\"tmpl_attr\"],", arms.join("\n"))])
+}
+
 /// `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than in
 /// the kernel: `Behaviour::Policy#for_each_route` resolves the bare
 /// "Aggregate.query" spelling against the policy's own domain, and that

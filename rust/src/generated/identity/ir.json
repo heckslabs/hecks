@@ -4,6 +4,7 @@
   "version": null,
   "vision": "Authentication proves an identifier; the organization decides what that identity means.",
   "classification": "generic",
+  "formerly_known_as": null,
   "aggregates": [
     {
       "name": "Identity",

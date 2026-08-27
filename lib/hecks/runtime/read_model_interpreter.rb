@@ -68,7 +68,7 @@ module Hecks
         root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
         projected = []
         rows_by_as = {}
-        (root_heads + other_heads).each do |head|
+        (root_heads + order_other_heads(bluebook, root_heads, other_heads)).each do |head|
           rows = if head[:aggregate] == model.reference_target
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
                  elsif rootless
@@ -110,6 +110,81 @@ module Hecks
                       Value.materialize(row(value))
                     end
         end]
+      end
+
+      # THE ROOT-FIRST FIX'S OWN FIX — root-first alone only reaches one
+      # level: it guarantees the root is in `projected` before any other
+      # head is matched, but a CHAIN of non-root heads (a head that
+      # references another non-root head, not the root) is still
+      # matched against whatever declaration order happened to put in
+      # `projected` so far. `include Coupon` before `include Promotion`
+      # on a read model rooted at Item, where Coupon references
+      # Promotion (which references Item), silently returned an empty
+      # `coupons` array — Coupon's match ran while `projected` held only
+      # Item, one level short of what it needed.
+      #
+      # Fixed the same way root-first was: not by asking bluebook authors
+      # to declare `include` in dependency order (the same promise
+      # `read_model_builder.rb` already makes and this file is the one
+      # place obligated to keep), but by topologically sorting the
+      # non-root heads on their OWN declared reference fields before
+      # this method's runtime matching ever runs — Kahn's algorithm,
+      # picking ready heads in DECLARED order at each step so declaring
+      # order still governs whenever there is no dependency to break a
+      # tie. This generalizes root-first (a chain of length 1) to a
+      # chain of any depth, and to a head depending on more than one
+      # other head at once (not just a straight chain).
+      #
+      # A cycle among non-root heads (A references B which references A)
+      # has no valid topological order at all — falls back to the
+      # remaining heads' declared order rather than looping forever, the
+      # same "whichever runs first finds nothing" behaviour this method
+      # had for every non-root head before root-first existed.
+      def order_other_heads(bluebook, root_heads, other_heads)
+        resolved = root_heads.map { |head| head[:aggregate] }
+        remaining = other_heads.dup
+        ordered = []
+        until remaining.empty?
+          ready, blocked = remaining.partition do |head|
+            depends_on(bluebook, head, other_heads).all? { |target| resolved.include?(target) }
+          end
+          if ready.empty?
+            ordered.concat(remaining)
+            break
+          end
+          ordered.concat(ready)
+          resolved.concat(ready.map { |head| head[:aggregate] })
+          remaining = blocked
+        end
+        ordered
+      end
+
+      # Which OTHER declared (non-root) heads a head's own aggregate
+      # holds a reference field toward — the same relationship this
+      # file's runtime matching checks record-by-record, asked here
+      # statically, once, to order heads before any record is read.
+      #
+      # `head[:aggregate]` names whatever `include` was given — and
+      # `include` accepts a nested ENTITY (Member, nested under
+      # ValueObject ; Handler and Dispatch, nested under ProcessManager
+      # — bluebook.bluebook's own `WholeBluebook` read model includes
+      # all three) just as readily as a top-level aggregate.
+      # `bluebook.aggregate` only ever finds the latter
+      # (Behaviour::Chapter#aggregate searches `@aggregates`, which
+      # holds no entities), so it returns nil for an entity-headed
+      # include — a real case, not a malformed one. `records`, below,
+      # already treats that nil as "no rows of its own to fetch" ;
+      # a head with no rows of its own has nothing to check for a
+      # reference field either, so it depends on nothing here, the
+      # same as it always silently read empty before this file's
+      # topological sort existed.
+      def depends_on(bluebook, head, other_heads)
+        aggregate = bluebook.aggregate(head[:aggregate])
+        return [] unless aggregate
+
+        other_heads.reject { |other| other[:aggregate] == head[:aggregate] }
+                   .select { |other| reference_fields(aggregate, other[:aggregate]).any? }
+                   .map { |other| other[:aggregate] }
       end
 
       # `group_by`'s own declared fields, checked against the ONE

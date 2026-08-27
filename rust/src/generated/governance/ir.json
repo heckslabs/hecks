@@ -4,6 +4,7 @@
   "version": null,
   "vision": "Organizational authority is explicit, reviewable, and historically explainable.",
   "classification": "supporting",
+  "formerly_known_as": null,
   "aggregates": [
     {
       "name": "RoleAssignment",
@@ -318,10 +319,11 @@
     },
     {
       "name": "RoleTransition",
-      "description": "Role X is authorized to act as role Y — until revoked.",
+      "description": "Role X is authorized to act as role Y, from one point in time — until revoked, and grantable again afterward, exactly like RoleAssignment.",
       "identified_by": [
         "from_role.value",
-        "to_role.value"
+        "to_role.value",
+        "starts_at.value"
       ],
       "attributes": [
         {
@@ -337,6 +339,16 @@
         {
           "name": "to_role",
           "type": "RoleName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "starts_at",
+          "type": "Timestamp",
           "list": false,
           "default": null,
           "optional": false,
@@ -433,6 +445,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "starts_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -507,7 +529,7 @@
       "queries": [
         {
           "name": "Allowed",
-          "description": "The role transition granted for this exact pair, if any — revoked or not.",
+          "description": "Every role transition granted for this exact pair, current or historical.",
           "attributes": [
             {
               "name": "from_role",

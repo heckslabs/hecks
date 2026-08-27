@@ -37,7 +37,24 @@ module Hecks
           return nil if matches.empty?
           return matches.first unless current_state
 
-          matches.find { |t| applies_from?(t, current_state) } || matches.first
+          # NOT `|| matches.first` — that used to silently hand back an
+          # ARBITRARY declared transition for `command` whenever none of
+          # them actually admitted `current_state`, picking a `target`
+          # that command dispatch would in fact have refused (that
+          # refusal is `CommandRules::Admissibility#admissible_transition`'s
+          # own job, which raises `LifecycleRefused` for exactly this
+          # case rather than guessing — this module has no state subject
+          # to build that refusal message from, only the two bare
+          # values callers passed in). Zero production callers reach
+          # this branch today (both real dispatch paths that check a
+          # transition go through `admissible_transition`, not
+          # `target_for`/`match_transition`), so this raise is a
+          # backstop, not a live behaviour change — same shape as
+          # `CommandRules::Arithmetic#sign_of`'s own fix.
+          matches.find { |t| applies_from?(t, current_state) } ||
+            raise(Runtime::WiringError,
+                  "no transition for #{command.inspect} admits state #{current_state.inspect} " \
+                  "— add a from: covering it, or check admissibility before calling #target_for")
         end
 
         def applies_from?(transition, current)

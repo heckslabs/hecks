@@ -1,43 +1,28 @@
 //! `write_sidecars!` (`rust/project_rust_pipeline.rb`) — `ir.json` (the
 //! exact bytes this crate's own optional-marking pass already produced,
 //! never re-serialized again) and `metadata.rs` (`pub const IR_JSON: &str
-//! = ...;`, using Rust's own string-literal escaping for that same exact
-//! text). The Ruby original builds `metadata.rs`'s literal via plain
-//! `String#inspect` — this module has to reproduce THAT algorithm
-//! byte-for-byte, not Rust's own `format!("{:?}", ...)` (which escapes
-//! differently — e.g. Rust escapes a bare `'` inside a `"`-delimited
-//! string as-is like Ruby does, but the two disagree on which non-ASCII
-//! control characters get a named escape (`\e`/`\a`/`\b`/`\f`/`\v`) vs a
-//! numeric one, and on the numeric escape's OWN shape: Ruby's `\uXXXX`
-//! use text and Rust's own `Debug` impl for `char`/`str` uses `\u{XXXX}`
-//! with braces).
-
-/// Ruby's `String#inspect`, confirmed empirically (not guessed) against
-/// this repo's own Ruby, run directly:
-///
-/// ```text
-/// ruby -e 'p "abc\ndef".inspect'    #=> "\"abc\\ndef\""
-/// ruby -e 'p "tab\there".inspect'   #=> "\"tab\\there\""
-/// ruby -e 'p "\x01\x1f".inspect'    #=> "\"\\u0001\\u001F\""   (uppercase hex, NO braces)
-/// ruby -e 'p "\x7f".inspect'        #=> "\"\\u007F\""
-/// ruby -e 'p "café".inspect'        #=> "\"café\""             (printable UTF-8, untouched)
-/// ruby -e 'p "🍕".inspect'          #=> "\"🍕\""                (ditto)
-/// ```
-///
-/// So: `"` -> `\"`, `\` -> `\\`, the six named C escapes Ruby keeps
-/// (`\n`/`\t`/`\r`/`\e`/`\a`/`\b`/`\f`/`\v`), every OTHER byte below
-/// 0x20 or equal to 0x7F (DEL) -> `\uXXXX` (uppercase hex, exactly 4
-/// digits, no braces) — and everything else, including multi-byte UTF-8,
-/// passed through unchanged. `ir.json`'s own realistic content (JSON
-/// punctuation, ASCII description text, occasional accented characters)
-/// never reaches the exotic non-ASCII-control-character corner Ruby's
-/// `inspect` treats specially beyond this (confirmed by this crate's own
-/// byte-exact corpus verification against pizzas/banking, not merely
-/// asserted) — a genuinely exotic Unicode control character in some
-/// future domain's own free text is the one named limit of this port,
-/// not silently unhandled: it would surface as a real, visible byte-diff
-/// in `spec/hecks_build_pipeline_spec.rb`, never a silent wrong answer.
-pub fn ruby_string_inspect(text: &str) -> String {
+//! = ...;`, using a Rust-string-literal-correct escaping of that same
+//! exact text).
+//!
+//! R5 (`docs/audits/2026-08-11-bug-triage.md`) — this used to reproduce
+//! Ruby's own `String#inspect` byte-for-byte (including its own
+//! Ruby-specific escaping quirks), on the theory that Ruby's `.inspect`
+//! was what `rust/project_rust_pipeline.rb`'s own `write_sidecars!` used
+//! on the Ruby side. That theory was the landmine: Ruby's `.inspect`
+//! escapes a literal `#{`/`#@` as `\#{`/`\#@` (meaningful only when the
+//! inspected text is later re-read as a RUBY double-quoted string) and a
+//! control character as bare `\uXXXX` (Ruby's own escape, missing Rust's
+//! required braces) — NEITHER is a legal Rust escape, so a domain
+//! description containing either, embedded verbatim in `ir.json`'s own
+//! JSON text, would make the generated `metadata.rs` fail to compile.
+//! Ruby's own side is fixed the same way: `rust/project/naming.rb`'s
+//! `RustProjection::Projector.rust_string_literal` replaces the bare
+//! `.inspect` call `write_sidecars!` used to make. THIS function is that
+//! same algorithm, ported to Rust rather than "Ruby's `.inspect`,
+//! replicated" — the two must still match each other byte-for-byte
+//! (`spec/hecks_build_pipeline_spec.rb`), just not Ruby's `.inspect`
+//! itself anymore.
+pub fn rust_string_literal(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
     for ch in text.chars() {
@@ -45,15 +30,10 @@ pub fn ruby_string_inspect(text: &str) -> String {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
             '\n' => out.push_str("\\n"),
-            '\t' => out.push_str("\\t"),
             '\r' => out.push_str("\\r"),
-            '\x1b' => out.push_str("\\e"),
-            '\x07' => out.push_str("\\a"),
-            '\x08' => out.push_str("\\b"),
-            '\x0c' => out.push_str("\\f"),
-            '\x0b' => out.push_str("\\v"),
+            '\t' => out.push_str("\\t"),
             c if (c as u32) < 0x20 || (c as u32) == 0x7f => {
-                out.push_str(&format!("\\u{:04X}", c as u32));
+                out.push_str(&format!("\\u{{{:x}}}", c as u32));
             }
             c => out.push(c),
         }
@@ -89,7 +69,7 @@ pub fn write(mod_dir: &std::path::Path, ir_text: &str, source_label: &str) -> Re
     contents.push_str("// embedded for runtime self-description. Not read by any dispatch\n");
     contents.push_str("// function in this module — introspection only.\n");
     contents.push_str("pub const IR_JSON: &str = ");
-    contents.push_str(&ruby_string_inspect(ir_text));
+    contents.push_str(&rust_string_literal(ir_text));
     contents.push_str(";\n");
     std::fs::write(&metadata_path, contents).map_err(|e| format!("writing {}: {e}", metadata_path.display()))?;
 
@@ -102,21 +82,33 @@ mod tests {
 
     #[test]
     fn escapes_quotes_backslashes_and_newlines() {
-        assert_eq!(ruby_string_inspect("abc\ndef"), "\"abc\\ndef\"");
-        assert_eq!(ruby_string_inspect("tab\there"), "\"tab\\there\"");
-        assert_eq!(ruby_string_inspect("quote\"here"), "\"quote\\\"here\"");
-        assert_eq!(ruby_string_inspect("back\\slash"), "\"back\\\\slash\"");
+        assert_eq!(rust_string_literal("abc\ndef"), "\"abc\\ndef\"");
+        assert_eq!(rust_string_literal("tab\there"), "\"tab\\there\"");
+        assert_eq!(rust_string_literal("quote\"here"), "\"quote\\\"here\"");
+        assert_eq!(rust_string_literal("back\\slash"), "\"back\\\\slash\"");
     }
 
+    // R5 — the actual landmine: a literal `#{`/`#@` must pass through
+    // UNCHANGED (Rust has no string interpolation syntax to escape),
+    // never Ruby's own `\#{`/`\#@` rendering (invalid Rust — no `\#`
+    // escape exists at all).
     #[test]
-    fn escapes_other_control_characters_as_uppercase_u_no_braces() {
-        assert_eq!(ruby_string_inspect("\u{1}\u{1f}"), "\"\\u0001\\u001F\"");
-        assert_eq!(ruby_string_inspect("\u{7f}"), "\"\\u007F\"");
+    fn leaves_a_literal_hash_brace_and_hash_at_untouched() {
+        assert_eq!(rust_string_literal("cost #{threshold}"), "\"cost #{threshold}\"");
+        assert_eq!(rust_string_literal("ivar #@foo"), "\"ivar #@foo\"");
+    }
+
+    // R5 — a control character becomes a BRACED `\u{...}` (Rust's own
+    // syntax), never Ruby's bare `\uXXXX` (no braces — also invalid Rust).
+    #[test]
+    fn escapes_control_characters_as_braced_lowercase_hex() {
+        assert_eq!(rust_string_literal("\u{1}\u{1f}"), "\"\\u{1}\\u{1f}\"");
+        assert_eq!(rust_string_literal("\u{7f}"), "\"\\u{7f}\"");
     }
 
     #[test]
     fn leaves_printable_multibyte_utf8_untouched() {
-        assert_eq!(ruby_string_inspect("café"), "\"café\"");
-        assert_eq!(ruby_string_inspect("🍕"), "\"🍕\"");
+        assert_eq!(rust_string_literal("café"), "\"café\"");
+        assert_eq!(rust_string_literal("🍕"), "\"🍕\"");
     }
 }

@@ -73,15 +73,26 @@ Hecks.bluebook "Governance" do
   # may role X ACT AS role Y — the fact `act_as` (the plan's §2) needs before
   # a caller is allowed to dispatch under a role it does not itself hold.
   # Same event-log shape as RoleAssignment : a natural key, `ends_at` for
-  # revocation, no delete.
+  # revocation, no delete — and, like RoleAssignment, THE IDENTITY IS THE
+  # GRANT, not the (from_role, to_role) pair. `starts_at` used to be
+  # missing from here — the one field RoleAssignment's own identity adds
+  # beyond its own (actor, role) pair specifically so a second, later
+  # assignment is a SECOND real record rather than a collision. Without
+  # it, `identified_by :from_role, :to_role` alone made a revoked pair's
+  # own identity permanently occupied: `Grant` is a creating command, the
+  # same (from_role, to_role) pair is the SAME id forever, and a repeat
+  # `Grant` after a `Revoke` was refused as `AlreadyExists` no matter how
+  # long ago the prior grant ended — an absorbing "revoked" state this
+  # very comment already claimed didn't exist.
   aggregate "RoleTransition" do
-    description "Role X is authorized to act as role Y — until revoked."
+    description "Role X is authorized to act as role Y, from one point in time — until revoked, and grantable again afterward, exactly like RoleAssignment."
 
     attribute :from_role, RoleName
     attribute :to_role,   RoleName
+    attribute :starts_at, Timestamp
     attribute :ends_at,   Timestamp, optional: true
 
-    identified_by :from_role, :to_role
+    identified_by :from_role, :to_role, :starts_at
 
     value_object "RoleName" do
       attribute :value, String
@@ -99,6 +110,7 @@ Hecks.bluebook "Governance" do
 
       attribute :from_role, RoleName
       attribute :to_role,   RoleName
+      attribute :starts_at, Timestamp
 
       emits "RoleTransitionGranted"
     end
@@ -114,14 +126,17 @@ Hecks.bluebook "Governance" do
       emits "RoleTransitionRevoked"
     end
 
-    # THE RECORD FOR THIS PAIR, granted or revoked — same deferral
+    # EVERY GRANT OF THIS PAIR, current or historical — same deferral
     # `AssignmentsForActor` already makes for RoleAssignment: the where
     # clause has no way to ask "and ends_at is absent", so the query
-    # answers with the row and the CALLER reads `ends_at` to tell a
+    # answers with every row and the CALLER reads `ends_at` to tell a
     # live grant from a revoked one, exactly as it already must for
-    # every assignment.
+    # every assignment. Can answer MORE than one row now that `starts_at`
+    # is part of the identity — a pair granted again after a revocation is
+    # a SECOND row, not an overwrite of the first, the same way a
+    # re-assigned actor/role is for RoleAssignment.
     query "Allowed" do
-      description "The role transition granted for this exact pair, if any — revoked or not."
+      description "Every role transition granted for this exact pair, current or historical."
       attribute :from_role, RoleName
       attribute :to_role,   RoleName
       where(from_role: :from_role, to_role: :to_role)

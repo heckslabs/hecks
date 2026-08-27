@@ -81,12 +81,24 @@ module Hecks
       end
 
       # A URL segment or a JSON body's "command" field, checked against what
-      # the aggregate actually declares. `klass.commands` is the same
-      # sorted, snake_cased list `AggregateDoor` built for its own door, so
-      # a name this accepts is a name a `Handle` can actually dispatch.
+      # a `Handle` can actually dispatch — NOT `klass.commands`, which is
+      # `AggregateDoor`'s own door-level list and includes the one creating
+      # command too (`aggregate_door.rb`'s `commands` singleton method maps
+      # every `ir.commands`, full stop). A `Handle` only ever defines
+      # singleton methods for the NON-creating ones
+      # (`Handle#define_verb_methods`, `@ir.commands.reject(&:creates?)`) —
+      # the creating command lives on the aggregate class itself, dispatched
+      # through `.creating_command` above, not through a `Handle` in hand.
+      # Accepting a creating-command name here let it past this gate clean,
+      # only to blow up as a raw `NoMethodError` the moment a caller tried
+      # `handle.public_send(name, **args)`, instead of the 404 this method
+      # promises. Filtering `reject(&:creates?)` here, the same filter
+      # `Handle` itself applies, is what keeps "accepted here" and
+      # "dispatchable there" the same set.
       def validate_command!(klass, name)
         wanted = name.to_s
-        return wanted if klass.commands.include?(wanted)
+        dispatchable = klass.ir.commands.reject(&:creates?).map { |command| "#{Naming.snake(command.hecks_name)}!" }
+        return wanted if dispatchable.include?(wanted)
 
         raise Runtime::NotFound, "#{klass.ir.hecks_name} declares no command named #{wanted.inspect}"
       end

@@ -178,6 +178,35 @@ jobs:
       - name: model check
         run: bundle exec bin/model_check
 
+      # THE MECHANICAL GUARD keeping `Ports::Query::InMemory` and
+      # `Runtime::QueryInterpreter` from re-growing their own comparator
+      # tables the way they already drifted twice (see this script's own
+      # header) — for every comparator the grammar declares, checks both
+      # that `QuerySpecification::Common::Comparison` still has a shared
+      # `when` case for it AND that some cross-engine agreement spec
+      # actually exercises it. Reads only already-committed Ruby source —
+      # no cargo, no Postgres — so it belongs in this job right next to
+      # `model check`/`rust coverage` above and below, not in `rspec`.
+      - name: engine agreement (query comparators)
+        run: bundle exec bin/check_engine_agreement
+
+      # THE MECHANICAL GUARD against the H13/H14/L20 "blind trust" bug
+      # class fixed in bin/project_deploy (docs/audits/
+      # 2026-08-11-bug-triage.md): a generated deploy Makefile that
+      # reports success without the underlying command's own exit status
+      # actually gating that report, or that does real AWS/DB work with
+      # no echo/validation telling the human running it what's about to
+      # happen. No arguments — generates its own 3 representative fixture
+      # domains (plain/Shared-mode/OAuth) via the real bin/project_deploy
+      # and lints each one's Makefile TEXT; no real AWS or Postgres
+      # touched by the check itself, so — like the step above — this
+      # belongs here rather than in `rspec`. (No domain in this repo's own
+      # CI runs `bin/project_deploy` for real yet; if one ever does, this
+      # script's own header recommends a second, domain-specific lint
+      # step immediately after it.)
+      - name: lint generated deploy recipes
+        run: bundle exec bin/lint_deploy_recipes
+
       # THE COVERAGE CHECKER, PER DOMAIN — a different question than the
       # `rspec` job's "Build the Rust conformance binary" and "rspec"
       # steps ask. Those check "did Ruby and Rust agree on this script";
@@ -243,3 +272,144 @@ jobs:
       # it at all — see bin/rust_kernel_coverage's own header.
       - name: rust kernel coverage
         run: bundle exec bin/rust_kernel_coverage
+
+      # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
+      # this same integration pass that wired
+      # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/
+      # SequentialHashRenameInLoop into .rubocop.yml's `require:` list
+      # (docs/rubocop-custom-cops.md). Those three cops each guard a real,
+      # already-shipped bug class (8+ instances of a same-receiver `||`
+      # fallback silently dropping a stored `false`; a thread-shared ivar
+      # mutation on Dispatcher/Registry; a hash rename loop clobbering its
+      # own keys mid-pass) — pre-push is opt-in per clone
+      # (`git config core.hooksPath .githooks`) and bypassable
+      # (`git push --no-verify`), so a branch that never installed it, or
+      # a push made with that flag, would otherwise reach GitHub with NONE
+      # of those three guards (or any other rubocop cop) having run at
+      # all — the exact "a push that skipped the hook... can't land red"
+      # gap this workflow's own top-of-file comment already names as the
+      # reason `rspec`/`checks` both exist here rather than trusting
+      # pre-push alone. Same command pre-push already runs, so nothing
+      # cop-specific is needed here (docs/rubocop-custom-cops.md's own
+      # closing note); confirmed clean against this tree before adding
+      # this step.
+      - name: rubocop
+        run: bundle exec rubocop -c .rubocop.yml
+
+  # A THIRD JOB, gated rather than run on every push/PR the way `rspec`/
+  # `checks` are — bin/stress_concurrency_specs's own trailing __END__
+  # doc block is explicit about why: repeating dispatcher_spec.rb/
+  # in_process_concurrent_dispatch_spec.rb/postgres_concurrent_dispatch_
+  # spec.rb 30 times each (its own default), under varied seeds and real
+  # process-level parallelism, exists to catch a race a SINGLE ordinary
+  # run can miss (the M20 shape: a schedule-dependent bug that passes
+  # every time on a quiet box and fails only under genuine contention) —
+  # but that repetition is exactly what makes it meaningfully more
+  # expensive per-run than the rest of this suite, so its own doc
+  # recommends gating it to PRs that can actually regress this class of
+  # bug rather than taxing every unrelated one: changes touching
+  # `lib/hecks/runtime/**`.
+  #
+  # SPLIT INTO TWO JOBS rather than one job with a conditional step,
+  # specifically so an unrelated PR skips paying for the job below's own
+  # Postgres service container too, not just its rspec invocation —
+  # `services:` are provisioned before any step runs and have no `if:`
+  # of their own, so the only way to actually avoid that cost is a
+  # job-level `if:`, which in turn needs this diff computed in a job
+  # that ran (and finished) first.
+  runtime_changed:
+    runs-on: ubuntu-latest
+
+    outputs:
+      touched: ${{ steps.diff.outputs.touched }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FULL HISTORY, not the default single-commit shallow clone —
+          # the `git diff` below needs both endpoints (a pull request's
+          # base commit, or a push's prior HEAD) present as real objects
+          # in this checkout, not just the tip a shallow fetch would give
+          # it alone.
+          fetch-depth: 0
+
+      # BASE — a pull request's own base commit when this run IS one
+      # (github.event.pull_request.base.sha), otherwise the prior HEAD a
+      # push moved from (github.event.before). Both are populated by the
+      # trigger events this workflow already declares (`push: branches:
+      # [main]`, `pull_request`), so no third case to handle.
+      - name: does this change touch lib/hecks/runtime/**?
+        id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE" ]; then
+            BASE="${{ github.event.before }}"
+          fi
+
+          if git diff --name-only "$BASE" "${{ github.sha }}" | grep -q '^lib/hecks/runtime/'; then
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  stress_concurrency:
+    needs: runtime_changed
+    if: needs.runtime_changed.outputs.touched == 'true'
+    runs-on: ubuntu-latest
+
+    # Real Postgres, same discipline this workflow's own top comment
+    # already holds the `rspec` job to — SERIAL_ONLY_SPEC_FILES in
+    # bin/stress_concurrency_specs is
+    # spec/adapters/driven/postgres_concurrent_dispatch_spec.rb alone,
+    # and that spec skips itself cleanly (PostgresProbe.available?) with
+    # no reachable Postgres, which here would mean this whole job
+    # "passing" having exercised only its two parallel-safe specs, never
+    # the Postgres-backed one repetition was supposed to stress in the
+    # first place.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # See the `rspec` job's own identical setting above for why
+          # trust is safe here: scoped to this ephemeral service
+          # container, and spec/adapters/driven/postgres_concurrent_
+          # dispatch_spec.rb connects as the plain `postgres` superuser
+          # anyway (it creates and drops its own scratch database, not a
+          # passwordless role).
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # NO FLAGS — this script's own defaults (30 runs of each group,
+      # Etc.nprocessors parallel copies of the parallel-safe group, the
+      # Postgres-backed group always one process at a time) are what its
+      # own doc recommends for a dedicated CI leg; a developer's local
+      # loop before a push is the case its own `--runs`/`--parallel`/
+      # `--seed-start` flags exist to shrink or reshape, not this one.
+      # Sets `CI=true` on its own child rspec invocations (see this
+      # script's own comment on that), so the Postgres spec's `io: true`
+      # tag is included here the same way it would be anywhere else in
+      # this workflow — no extra env needed at this level.
+      - name: bin/stress_concurrency_specs
+        run: bundle exec bin/stress_concurrency_specs

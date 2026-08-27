@@ -41,13 +41,42 @@ module Hecks
         end
       end
 
+      # A path-prefix collision: one field named (say) "price" alongside
+      # another named "price.cents" implies "price" is BOTH a scalar leaf
+      # and the parent of a nested group — the two can never coexist in
+      # the same result hash. Depending on which pair `each_with_object`
+      # reaches first, the naive walk below used to fail in one of two
+      # ways: a scalar planted first left `acc[segment] ||= {}` seeing a
+      # truthy non-Hash and reusing IT as `node`, so the next `node[leaf] =
+      # value` blew up with a raw `TypeError` from calling `String#[]=`
+      # with a Symbol key; a scalar planted AFTER the nested group instead
+      # sailed through `node[leaf] = value` and silently clobbered the
+      # entire nested hash with the scalar, losing every sibling under it
+      # with no error at all. Both directions are checked explicitly here
+      # so either order raises the SAME clear `ArgumentError` instead of a
+      # confusing crash or silent data loss — this is the family of error
+      # every command/query submission path in app.rb already rescues into
+      # a 422 (`ArgumentError` sits right alongside the domain refusals in
+      # every one of those rescue clauses).
       def self.nest(pairs)
         pairs.each_with_object({}) do |(path, value), result|
           segments = path.to_s.split(".").map(&:to_sym)
           leaf = segments.pop
-          node = segments.reduce(result) { |acc, segment| acc[segment] ||= {} }
+          node = segments.reduce(result) do |acc, segment|
+            existing = acc[segment]
+            raise nesting_collision(path) if existing && !existing.is_a?(Hash)
+
+            acc[segment] ||= {}
+          end
+          raise nesting_collision(path) if node[leaf].is_a?(Hash)
+
           node[leaf] = value
         end
+      end
+
+      def self.nesting_collision(path)
+        ArgumentError.new("#{path.inspect} conflicts with another field at the same path — " \
+                          "one names it as a plain value and another as a nested group")
       end
 
       SKIP = Object.new.freeze

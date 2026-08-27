@@ -1,0 +1,18 @@
+{
+  "domain": "examples/banking",
+  "note": "R2 (docs/audits/2026-08-11-bug-triage.md) — a read model's OWN wire-string alias. `rust/project/read_models.rb`'s own `read_model_def` bakes `ReadModelDef::verb` as the read model's DECLARED name only (\"Banking.CustomerPortfolio\", see read_models.json's own fixture for that spelling) — that file's own header explains why: the one spelling this generator ever needs to EMIT. But `Runtime::Chapter#read_model` (lib/hecks/bluebook/behaviour/chapter.rb) — the ground truth a caller actually dispatches through — accepts EITHER that spelling OR the snake_cased one (`ReadModel#query_name`, `Naming.snake(@name)`), and examples/banking/spec/corpus/banking.json's own real corpus step asks for exactly this second spelling: \"Banking.customer_portfolio\". Verified genuinely broken before this fixture existed (an independent live re-check in this same session against the real banking.json corpus): unmodified Rust's `read_model::find` did an exact `def.verb == verb` string compare only, so this spelling had NO row in the generated table at all as far as `find` was concerned — refused with 'named/declared read model \"Banking.customer_portfolio\" is not generated for this domain', even though `Banking::CustomerPortfolio` is marked `\"generated\": true` in this domain's own manifest.json and the OTHER spelling of the identical ask already worked. Ruby never refuses this ask at all (it genuinely executes `ReadModelInterpreter#project` and returns a row), so this is a byte-for-byte parity check, not a same-refusal-either-side one. Fixed by `kernel/read_model.rs`'s own `find` accepting a second match — `def.verb`'s own name half run through a compiled port of `Hecks::Naming.snake` — alongside the exact declared spelling, with no codegen change and no regeneration needed for any other domain.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": { "value": "CUST-R2" },
+        "name": { "given": "Ada", "family": "Lovelace" },
+        "email": { "address": "ada@example.com" }
+      }
+    },
+    {
+      "query": "Banking.customer_portfolio",
+      "args": { "customer": "CUST-R2" }
+    }
+  ]
+}

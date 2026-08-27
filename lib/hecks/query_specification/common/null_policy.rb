@@ -25,12 +25,24 @@ module Hecks
           end
         end
 
+        # M3 — an UNDECLARED (`native`) null policy used to render no
+        # `NULLS ...` clause at all here, leaving each dialect's own
+        # default to decide: Postgres puts nulls LAST on ASC (and FIRST
+        # on DESC), while `#order` above — this same "native" default,
+        # for Memory — puts nulls FIRST on ASC (and LAST on DESC), the
+        # SQLite convention. Same query, same data, different row order
+        # depending only on which adapter ran it. Rendered explicitly
+        # here instead, so an undeclared policy means the SAME total
+        # order everywhere rather than "whatever this store already does"
+        # — matching `#order`'s own default rather than the other way
+        # round, since that default is unconditional (Memory/Heki have no
+        # dialect to defer to) and SQLite already agrees with it natively.
         def sql_order(expression, direction, policy)
           direction = direction.to_s.downcase == "desc" ? "DESC" : "ASC"
           nulls = case policy&.mode.to_s
                   when "first" then " NULLS FIRST"
                   when "last" then " NULLS LAST"
-                  else ""
+                  else direction == "DESC" ? " NULLS LAST" : " NULLS FIRST"
                   end
           "#{expression} #{direction}#{nulls}, id #{direction}"
         end

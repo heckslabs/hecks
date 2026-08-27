@@ -327,11 +327,11 @@ module RustProjection
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
       given_specs = command[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
       end
 
       ensures_specs = command[:ensures].map do |rule|
-        "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
+        "            crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
       end
 
       transition = lifecycle_transition_for(command, aggregate)
@@ -514,10 +514,10 @@ module RustProjection
       target_args_name = "#{element_record}#{rust_ident(target[:name])}EntityArgs"
       aliases = delegate_mapping(delegation).map { |target_key, source_key| "(#{target_key.inspect}, #{source_key.inspect})" }
       given_specs = target[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
       end
       ensures_specs = target[:ensures].map do |rule|
-        "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
+        "            crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
       end
       transition = lifecycle_transition_for(target, entity)
       mutation_lines = target[:mutations].map { |m| emit_mutation_line(m, entity, target, value_objects_by_name, optional: false) }
@@ -626,11 +626,11 @@ module RustProjection
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
       given_specs = command[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
       end
 
       ensures_specs = command[:ensures].map do |rule|
-        "            crate::kernel::EnsuresSpec { description: #{rule[:description].inspect}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
+        "            crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
       end
 
       # THE ENTITY's OWN lifecycle, not the parent aggregate's —

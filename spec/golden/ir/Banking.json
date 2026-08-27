@@ -4631,11 +4631,11 @@
               ],
               [
                 "retention_months",
-                "84"
+                84
               ],
               [
                 "paper_fee_cents",
-                "0"
+                0
               ]
             ],
             [
@@ -4645,11 +4645,11 @@
               ],
               [
                 "retention_months",
-                "120"
+                120
               ],
               [
                 "paper_fee_cents",
-                "0"
+                0
               ]
             ],
             [
@@ -4659,11 +4659,11 @@
               ],
               [
                 "retention_months",
-                "240"
+                240
               ],
               [
                 "paper_fee_cents",
-                "500"
+                500
               ]
             ]
           ],
@@ -6287,6 +6287,7 @@
     }
   ],
   "classification": "core",
+  "formerly_known_as": null,
   "ir_version": 1,
   "name": "Banking",
   "policies": [

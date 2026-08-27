@@ -560,6 +560,7 @@
     }
   ],
   "classification": "supporting",
+  "formerly_known_as": null,
   "ir_version": 1,
   "name": "Pizzas",
   "policies": [

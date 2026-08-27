@@ -41,7 +41,12 @@ module Hecks
 
       def self.row(instance, aggregate, cols, domain)
         cells = cols.map { |name| "<td>#{Escape.html(cell(instance, name))}</td>" }.join
-        href = "/#{domain}/#{aggregate.hecks_name}/#{instance.id}.html"
+        # L12 — the id is free-form (S3): percent-encoded as the path
+        # segment, HTML-escaped as the link text, and the assembled href
+        # is itself attribute-escaped (belt-and-suspenders — nothing else
+        # in `href` is untrusted, but this matches the convention used
+        # everywhere else an href is built from parts).
+        href = "/#{domain}/#{aggregate.hecks_name}/#{Escape.url(instance.id)}.html"
         "<tr><td><a href=\"#{Escape.attr(href)}\">#{Escape.html(instance.id)}</a></td>#{cells}</tr>"
       end
 

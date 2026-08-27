@@ -112,22 +112,55 @@ module Hecks
                 next
               end
 
+              # THE QUERY ORACLE — TWO INDEPENDENT ENGINES, EACH RUN AND
+              # CAUGHT ON ITS OWN, never a single shared `begin`/`rescue`
+              # wrapping both calls. A shared begin/rescue meant `runtime.
+              # query` raising (native refuses) short-circuited BEFORE
+              # `runtime.reference_query` ever ran at all — the entry
+              # recorded only `error:`, with no `reference_rows` and no
+              # record of what the reference interpreter would have
+              # answered — and `runtime.reference_query` raising instead
+              # (reference refuses, native already succeeded) landed in the
+              # SAME rescue, discarding the native `rows` this begin block
+              # had already computed and recording the whole ask as an
+              # ordinary refusal. Either way, "one engine refused and the
+              # other did not" — a real divergence, exactly the shape a
+              # differential oracle exists to catch — read as "refused,
+              # nothing to compare" and vanished. Each engine's own
+              # success/failure is captured here independently instead, so
+              # `Properties.query_answers_match_reference` can tell "both
+              # refused" (fine) apart from "one refused, the other did not"
+              # (a finding) rather than having every refusal-shaped run
+              # skipped uniformly.
+              native_rows = native_error = nil
               begin
-                rows = runtime.query(question, **args)
-                # THE QUERY ORACLE'S OTHER HALF — the same ask at the same
-                # instant, answered by the reference interpreter instead of
-                # the bound adapter's native hook. Recorded side by side so
-                # Properties.query_answers_match_reference can treat any
-                # difference as a finding. Read-model asks (bare domain
-                # form, no "::") have no reference twin and record only the
-                # one answer.
-                reference = question.include?("::") ? runtime.reference_query(question, **args) : nil
-                queries << { query: question, args: args, rows: rows, reference_rows: reference,
-                             instances_at: snapshot_instances(runtime) }
+                native_rows = runtime.query(question, **args)
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-                queries << { query: question, args: args, error: e.message }
-                refusals << { verb: question, error: e.message, kind: e.class.name }
+                native_error = e
               end
+
+              # Read-model asks (bare domain form, no "::") have no
+              # reference twin at all — never attempted, not "attempted and
+              # agreed."
+              has_reference = question.include?("::")
+              reference_rows = reference_error = nil
+              if has_reference
+                begin
+                  reference_rows = runtime.reference_query(question, **args)
+                rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
+                  reference_error = e
+                end
+              end
+
+              entry = { query: question, args: args, rows: native_rows, instances_at: snapshot_instances(runtime) }
+              entry[:error] = native_error.message if native_error
+              if has_reference
+                entry[:reference_rows]  = reference_rows
+                entry[:reference_error] = reference_error.message if reference_error
+              end
+              queries << entry
+
+              refusals << { verb: question, error: native_error.message, kind: native_error.class.name } if native_error
               next
             end
 

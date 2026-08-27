@@ -1,0 +1,253 @@
+#!/usr/bin/env ruby
+
+# THE SHAPE OF BUG THIS GUARDS AGAINST: `Ports::Query::InMemory` (the
+# path a Memory- or Heki-backed aggregate query actually runs) and
+# `Runtime::QueryInterpreter` (entity/sub-list queries, and the fallback
+# for any adapter implementing no native `:query`) each used to carry
+# their OWN copy of the comparator table and the null-handling rule. The
+# two copies drifted twice, silently: `none_in_state` was added to one
+# copy only (an ordinary Memory query's `none_in_state` clause fell to
+# the `else` branch and excluded every row), and `comparable` disagreed
+# about a value object with two numeric members (one path took the
+# first, the other only unwrapped an unambiguous single member). Both
+# are now unified behind `QuerySpecification::Common::Comparison` /
+# `NullPolicy` (see comparison.rb's own header). This script is the
+# MECHANICAL guard that keeps it unified: it does not re-derive query
+# semantics, it checks that the places semantics are ALLOWED to live
+# still agree with each other.
+#
+# TWO INDEPENDENT QUESTIONS, both answered per declared comparator
+# (Vocabulary::QueryComparator, the language's own closed set):
+#
+#   1. ROUTING  — do the two engine files still funnel every comparator
+#      through the ONE shared `Comparison.holds?`, rather than each
+#      re-growing its own `case operation ... when "eq"` copy? A file
+#      that starts answering comparators itself again is exactly how
+#      this drifted the first time, however faithfully it starts out.
+#
+#   2. COVERAGE — for EVERY declared comparator: (a) does `Comparison`'s
+#      own `case` actually have a `when` for it (the backstop against a
+#      10th name reaching the grammar with no runtime case to match —
+#      see comparison.rb's own `else` branch), and (b) does at least one
+#      spec in the CROSS-ENGINE AGREEMENT SUITE below exercise it. (a)
+#      alone proves the shared module accepts the name; (b) proves two
+#      real engines were actually asked the same question and agreed —
+#      which is the only kind of evidence that would have caught either
+#      bug above. A comparator can have (a) without (b): a case that
+#      compiles but that no spec ever put in front of both engines.
+#
+# GREP-BASED ON PURPOSE, not a general "flag any logic duplicated across
+# two adapters" static analyzer — that's a much harder, much fuzzier
+# problem (what counts as "the same logic"? which two files are "the two
+# paths"?) that would either miss real duplication or flag everything.
+# This narrows to the ONE concrete, recurring, already-twice-shipped
+# shape: query comparators. See this file's own footer for the honest
+# scope note on what a NEW kind of duplication (a different pair of
+# files, a different rule) would need a different, purpose-built check.
+#
+# WIRING — this belongs in .githooks/pre-push and CI right next to
+# `bin/model_check`/`bin/doc_coverage` (see pre-push's own comments for
+# why those two are separate, small, named steps rather than folded
+# into the rspec run): a coverage miss reported as its own sentence is
+# actionable; the same miss buried in a 1500-example suite is noise.
+# Add, in .githooks/pre-push, immediately after the existing
+# "adapter agreement" step:
+#
+#   printf '\n[pre-push] engine agreement — every declared comparator, both engines\n\n'
+#   if ! "$ROOT/bin/check_engine_agreement"; then
+#     printf '\n[pre-push] BLOCKED — a comparator is missing a shared case or cross-engine spec.\n'
+#     printf '           Fix it, or push with --no-verify and say why.\n\n'
+#     exit 1
+#   end
+#
+# and in .github/workflows/ci.yml's `checks` job (same job as
+# `bin/model_check`/`bin/doc_coverage` — this reads only already-
+# committed Ruby source, no cargo, no Postgres, same reasoning that job
+# header already gives for grouping those two), add a step:
+#
+#   - name: Engine agreement (query comparators)
+#     run: bin/check_engine_agreement
+#
+# Left undone here on purpose — this worktree's own instructions reserve
+# ci.yml for a later integration pass once every piece has landed.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks"
+
+# ROOT is overridable ONLY for this script's own spec
+# (spec/check_engine_agreement_spec.rb), which points it at a scratch
+# copy of the six tracked files below to prove the negative cases —
+# `require "hecks"` above is NOT affected by this override (it always
+# resolves against this script's own real `lib/`), so the DECLARED
+# closed set is always the real one; only where the shared case and the
+# agreement specs are read from can be faked.
+ROOT = ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || File.expand_path("..", __dir__)
+
+# THE TWO ENGINE FILES the whole check exists to keep honest. Adding a
+# third real engine (a new adapter with its own native `:query` hook
+# that does NOT go through `Ports::Query::InMemory`) would need a third
+# entry here — see the footer note.
+ENGINE_FILES = {
+  "in-memory port (Memory/Heki-backed aggregate queries)"                    => "lib/hecks/ports/query/in_memory.rb",
+  "reference interpreter (entity/sub-list queries, no-native-hook fallback)" => "lib/hecks/runtime/query_interpreter.rb"
+}.freeze
+
+SHARED_COMPARISON_FILE = "lib/hecks/query_specification/common/comparison.rb"
+
+# THE CROSS-ENGINE AGREEMENT SUITE. `spec/adapters/query_agreement_spec.rb`
+# is the primary one — self-contained (every query it asks is declared
+# inline, not through an external .bluebook fixture), so a comparator's
+# presence there is a precise, grep-friendly fact, and it already checks
+# Memory/Sqlite/PostgresEra/plain-Postgres/D1 against one hand-computed
+# oracle per case. `none_in_state` is a CROSS-AGGREGATE anti-join
+# (`where ref: { none_in_state: "Claim:held" }`) that needs a second,
+# related aggregate and a live registry to look it up through — real
+# machinery that spec's single-aggregate, direct-adapter-construction
+# fixture does not set up, and retrofitting it there is a bigger, riskier
+# change than this check earns on its own. Its two engines are instead
+# pinned by two separate, purpose-built specs that between them exercise
+# BOTH engines this whole mechanism protects: the aggregate-level growth
+# spec drives `Ports::Query::InMemory` (a real, native, Memory-adapter
+# query), and the (non-aggregate-level) growth spec drives
+# `Runtime::QueryInterpreter`'s own entity-row path — the same two
+# places `none_in_state` diverged for real the first time.
+AGREEMENT_SPEC_FILES = %w[
+  spec/adapters/query_agreement_spec.rb
+  spec/query_none_in_state_aggregate_level_growth_spec.rb
+  spec/query_none_in_state_growth_spec.rb
+].freeze
+
+def read(relative_path)
+  File.read(File.join(ROOT, relative_path))
+end
+
+# --- 1. THE DECLARED CLOSED SET --------------------------------------
+#
+# `Vocabulary::QueryComparator` is the language's own registration (see
+# lib/hecks/language/bluebook/vocabulary.bluebook) — the SAME closed set
+# `QuerySpecification::Common::COMPARATORS` reads
+# (`Hecks::Vocabulary.symbols("QueryComparator")`, see comparators.rb),
+# already held equal to it by spec/vocabulary_table_spec.rb and
+# spec/vocabulary_registration_growth_spec.rb. Read directly from
+# `Hecks::Vocabulary` here rather than re-parsing the .bluebook file, for
+# the same reason `Common::COMPARATORS` does: one live source, not a
+# second hand-copied list to fall out of step with a THIRD way.
+declared = Hecks::Vocabulary.symbols("QueryComparator").map(&:to_s)
+
+if declared.empty?
+  warn "check_engine_agreement: Vocabulary::QueryComparator declared no comparators at all — " \
+       "vocabulary.bluebook failed to register, or Hecks::Vocabulary changed shape. Refusing to report a clean pass."
+  exit 1
+end
+
+# Self-check: the runtime table this whole file audits should already
+# agree with the language's own declaration (this is exactly what
+# vocabulary_registration_growth_spec.rb pins down for real, in RSpec —
+# re-asserted here too, so a `bin/check_engine_agreement` run alone,
+# with no test suite in sight, still catches the same drift).
+runtime_comparators = Hecks::QuerySpecification::Common::COMPARATORS.map(&:to_s)
+vocab_runtime_diff = (declared - runtime_comparators) | (runtime_comparators - declared)
+
+problems = []
+
+if vocab_runtime_diff.any?
+  problems << "Vocabulary::QueryComparator #{declared.sort.inspect} and " \
+              "QuerySpecification::Common::COMPARATORS #{runtime_comparators.sort.inspect} disagree " \
+              "(only in one: #{vocab_runtime_diff.sort.inspect}) — the language and the runtime table it drives " \
+              "have drifted apart."
+end
+
+# --- 2. ROUTING: do both engine files still funnel through the ONE ----
+#        shared module, rather than re-growing their own case/when?
+ENGINE_FILES.each do |label, relative_path|
+  source = read(relative_path)
+
+  unless source =~ /Comparison\.holds\?/
+    problems << "#{relative_path} (#{label}) no longer calls Comparison.holds? at all — " \
+                "has it grown its own comparator dispatch again?"
+  end
+
+  # A bare `when "eq"`/`when :eq` (etc.) in one of the two ENGINE files
+  # is the exact shape the original duplication took: a second, private
+  # case statement re-answering a comparator the shared module already
+  # owns. `comparison.rb` itself is exempt (it's the one file allowed to
+  # have this case) — see the separate scan below.
+  declared.each do |comparator|
+    escaped = Regexp.escape(comparator)
+    next unless source =~ /when\s+"#{escaped}"/ || source =~ /when\s+:#{escaped}\b/
+
+    problems << "#{relative_path} (#{label}) has its own `when #{comparator.inspect}` — " \
+                "comparator logic belongs ONLY in #{SHARED_COMPARISON_FILE}, not re-implemented per engine."
+  end
+end
+
+# --- 3. COVERAGE: per declared comparator, a shared case + a spec -----
+comparison_source = read(SHARED_COMPARISON_FILE)
+agreement_sources = AGREEMENT_SPEC_FILES.map { |path| [path, read(path)] }
+
+def shared_case?(comparison_source, comparator)
+  # `comparison.rb`'s own `case operation.to_s ... when "eq" then ...`
+  # block — one comparator per line, quoted, by construction (see the
+  # file itself). Matches `when "eq"` with anything after (` then ...`)
+  # on the same physical line.
+  comparison_source =~ /when\s+"#{Regexp.escape(comparator)}"/
+end
+
+def mentions_operator?(text, comparator)
+  # THE EXPLICIT FORM every real `where(field: { comparator: value })`
+  # clause takes: the comparator as a bare hash key, `comparator:`,
+  # bounded so `in:` doesn't also match inside some unrelated identifier.
+  return true if text =~ /(?<![A-Za-z0-9_])#{Regexp.escape(comparator)}(?![A-Za-z0-9_])\s*:/
+
+  # `eq` HAS NO EXPLICIT KEYWORD FORM in ordinary use — `where(status:
+  # "open")` means eq by omission, the same way SQL's own `=` is rarely
+  # spelled out. Every file in the agreement suite instead NAMES the
+  # comparator in its example description ("compiles eq on...", "Eq
+  # matches...") precisely so a comparator with no keyword of its own is
+  # still greppable. Restricted to `eq` alone — every other comparator
+  # must show its explicit keyword form above, not just be mentioned in
+  # passing prose.
+  return false unless comparator == "eq"
+
+  text =~ /\b(?:it|describe)\s+"[^"]*\beq\b[^"]*"/i ? true : false
+end
+
+missing_case = []
+missing_spec = []
+
+declared.each do |comparator|
+  missing_case << comparator unless shared_case?(comparison_source, comparator)
+
+  covered = agreement_sources.any? { |_path, text| mentions_operator?(text, comparator) }
+  missing_spec << comparator unless covered
+end
+
+if missing_case.any?
+  problems << "#{SHARED_COMPARISON_FILE} has no `when` case for: #{missing_case.sort.inspect} — " \
+              "a declared comparator with no shared implementation falls to Comparison.holds?'s own `else`, " \
+              "which RAISES (by design), but only the first time anything actually asks for it at runtime. " \
+              "Add a `when #{missing_case.first.inspect} then ...` case before shipping this comparator."
+end
+
+if missing_spec.any?
+  problems << "no example in #{AGREEMENT_SPEC_FILES.inspect} exercises: #{missing_spec.sort.inspect} — " \
+              "a comparator with a case but no cross-engine spec has never actually had both engines asked " \
+              "the same question. Add a declared query using it, with a hand-computed expected id list, to one " \
+              "of those files (see spec/adapters/query_agreement_spec.rb's own header for why a hand-computed " \
+              "oracle, not mere pairwise agreement, is the standard)."
+end
+
+# --- report ------------------------------------------------------------
+
+if problems.empty?
+  puts "check_engine_agreement: #{declared.size} declared comparator(s) (#{declared.sort.join(', ')}) — " \
+       "every one has a shared Comparison case, a cross-engine agreement spec, and both engine files still " \
+       "route through Comparison.holds? alone. 0 problems."
+  exit 0
+end
+
+warn "check_engine_agreement: #{problems.size} problem(s) found:\n\n"
+problems.each_with_index { |problem, index| warn "  #{index + 1}. #{problem}\n\n" }
+warn "See lib/hecks/query_specification/common/comparison.rb's own header for what this mechanism replaced " \
+     "and why a grep-based gate exists here at all."
+exit 1

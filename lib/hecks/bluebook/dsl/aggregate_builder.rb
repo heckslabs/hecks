@@ -610,7 +610,17 @@ module Hecks
         # keys: a default that is a Hash is left to `Value.for_attribute`, which
         # is where a wrong FIELD belongs.
         def seal_defaults
-          shapes = @value_objects.map { |shape| shape.hecks_name.to_s }
+          # `closed_sets` TOO, not only `@value_objects` — the exact gap
+          # this method's own comment names: an inline `one_of(...)`
+          # synthesises its value object through `closed_sets`
+          # (AttributeCollector#synthesise_closed_set), never installed
+          # into `@value_objects` until `#build` merges them (see
+          # `#build`'s own `@value_objects + closed_sets`, and
+          # `declared_value_object`'s identical merge). Checking
+          # `@value_objects` alone made this exact attribute — a bare
+          # default on an inline closed set — invisible to the one
+          # check meant to catch it.
+          shapes = (@value_objects + closed_sets).map { |shape| shape.hecks_name.to_s }
 
           attributes.each do |attribute|
             next if attribute.default.nil? || attribute.default.is_a?(Hash)

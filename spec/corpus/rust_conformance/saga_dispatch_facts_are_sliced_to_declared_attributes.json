@@ -1,0 +1,11 @@
+{
+  "domain": "examples/banking",
+  "note": "R1 (docs/audits/2026-08-11-bug-triage.md), regression — a saga leg's own `with:` mapping can resolve a value (Transfer.Request's own `reference:`, forwarded onto Account::Debit/Account::Credit purely for saga correlation) that the TARGET command never declares as an attribute at all. Before the fix, `orchestrate.rs`'s `split_routed_args` only ever removed the ONE key it promoted into `to:`, leaving every OTHER undeclared key (here, `reference`) sitting in the projected args unfiltered — `Json::overlay` then carried it straight through into the persisted event, since its own `patch` (the typed args struct's `to_json()`) never touches a key it doesn't declare. Ruby's own `ReactionInvocation.command_facts` (`args.slice(*declared)`) never lets it through in the first place, so Ruby's own `AccountDebited`/`AccountCredited` events never carry a `reference` key. Confirmed live against the full corpus (spec/corpus/banking.json) before this fix: exactly 6 events differed this same way. This fixture pins the smallest reproduction — one transfer, one debit leg, one credit leg — as a permanent regression guard on the 3 pinned CI fixtures, not just the full corpus.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "CUST-SAGA-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-saga-src"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "CUST-SAGA-1"}},
+    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-saga-dst"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "CUST-SAGA-1"}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-saga-src"}, "amount": {"cents": 10000, "currency": "USD"}, "narrative": {"text": "Opening deposit"}}},
+    {"verb": "Banking::Transfer.Request", "args": {"reference": {"value": "xfer-saga-1"}, "source": "acct-saga-src", "destination": "acct-saga-dst", "amount": {"cents": 2500}, "narrative": {"text": "Rent"}}}
+  ]
+}

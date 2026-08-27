@@ -72,7 +72,22 @@ module Hecks
 
       emits_ir(
         name:          :name,
-        correlates_by: -> { correlates_by.to_s },
+        # M11 — `&.`, not `.`: a DSL-built process manager always carries
+        # a real `correlates_by` (`ProcessManagerBuilder#build` refuses to
+        # mint one without it), but the IR class itself defaults it to
+        # `nil` and is what `Assembly::Build`'s `:identity` reader
+        # (`value&.to_sym`) round-trips against. A bare `.to_s` mapped
+        # that absent case to `""`, indistinguishable on the wire from a
+        # real empty name and read back as the wrong, non-nil `:""`
+        # instead of `nil` — the same nil-erasure S1 fixed for
+        # `render_value`, one field over. `correlates_by` is always a
+        # bare Symbol (`SagaInterpreter` hash-looks-up a payload by it),
+        # never a `Literal`-encoded polymorphic value, so this stays a
+        # local `&.` rather than routing through `Literal.render` — that
+        # would wrap a real value in a leading `:` and break both the
+        # `:identity` reader's plain `to_sym` and the pinned golden IR
+        # fixtures' bare-string spelling (`"reference.value"`).
+        correlates_by: -> { correlates_by&.to_s },
         starts_on:     :starts_on,
         ends_on:       :ends_on,
         states:        :states,

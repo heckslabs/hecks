@@ -92,6 +92,16 @@ RSpec.describe Hecks::Naming do
       expect(described_class.singularize("Boards")).to eq("Board")
     end
 
+    # `.plural`'s OWN second rule adds "es" (not bare "s") after
+    # s/x/z/ch/sh — `has_many Boxes` must undo exactly that, or a real
+    # aggregate named Box resolves to a phantom "Boxe" nothing declares.
+    it "undoes plural's -es rule for a word ending in s/x/z/ch/sh" do
+      expect(described_class.singularize("Boxes")).to eq("Box")
+      expect(described_class.singularize("Churches")).to eq("Church")
+      expect(described_class.singularize("Wishes")).to eq("Wish")
+      expect(described_class.singularize("Buzzes")).to eq("Buzz")
+    end
+
     it "leaves a word with no recognised suffix alone" do
       expect(described_class.singularize("Sheep")).to eq("Sheep")
       expect(described_class.singularize("Children")).to eq("Children")

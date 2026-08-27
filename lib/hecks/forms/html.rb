@@ -1,3 +1,5 @@
+require "uri"
+
 module Hecks
   module Forms
     # Hand-rolled, on purpose — the repo has no ERB anywhere and no template
@@ -25,6 +27,25 @@ module Hecks
       # call site reads "this value fills an attribute" rather than repeating
       # the same escaping and leaving the reader to check they match.
       def self.attr(value) = html(value)
+
+      # L12 (docs/audits/2026-08-10-main-bug-audit.md) — safe as a URL PATH
+      # segment or query-string VALUE. `html`/`attr` guard against the
+      # value becoming markup, but say nothing about it staying inside the
+      # URL syntax position it was placed in: an aggregate's identity is
+      # free-form unless its value object declares a `pattern:` (see S3 in
+      # the same audit), so `&`, `+`, `?`, `#`, and `/` are all otherwise
+      # legal id characters, and each would corrupt an href/Location built
+      # by naive interpolation (a stray `&` smuggles a second query
+      # parameter, `#` truncates the path at a fragment, `/` splits the
+      # path into an extra segment, ...). Percent-encodes via
+      # `application/x-www-form-urlencoded` (`+` for space) — the same
+      # encoding this directory already uses for a query value elsewhere
+      # (query_form_renderer.rb's `quick_links`), now shared here so every
+      # id-in-a-link call site uses the one guard instead of remembering
+      # it individually. Callers still wrap the ASSEMBLED href/Location in
+      # `attr` (or `html`) as usual — this only covers the id's own
+      # component, not the surrounding markup.
+      def self.url(value) = URI.encode_www_form_component(value.to_s)
     end
 
     # A tiny attribute-hash -> string helper, shared by every renderer in

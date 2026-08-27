@@ -325,10 +325,17 @@ pub struct Tables<'a> {
     /// A FAN-OUT RUNS A DECLARED QUERY, so the reaction path needs the
     /// same table `cli::run` already answers top-level asks from.
     pub queries: &'a [crate::kernel::QueryDef],
-    /// `split_routed_args`'s own two tables — `reactions.rb`'s `emit_
-    /// creates_table`/`emit_identity_head_table`, both read directly.
+    /// `split_routed_args`'s own three tables — `reactions.rb`'s `emit_
+    /// creates_table`/`emit_identity_head_table`/`emit_command_
+    /// attributes_table`, all read directly.
     pub command_creates_fn: fn(&str) -> bool,
     pub identity_head_fn: fn(&str) -> Option<&'static str>,
+    /// R1 (docs/audits/2026-08-11-bug-triage.md) — the target command's
+    /// own declared attribute names, so a reaction-triggered dispatch's
+    /// `with:` facts can be sliced down to them, matching Ruby's own
+    /// `ReactionInvocation.command_facts` (`args.slice(*declared)`). See
+    /// `emit_command_attributes_table`'s own header for the full story.
+    pub command_attributes_fn: fn(&str) -> &'static [&'static str],
 }
 
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
@@ -601,28 +608,46 @@ fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)
 /// silent guess) leaves the args flat and unsplit, exactly like today —
 /// a real, narrower gap than Ruby's own full `identity_for`, not silently
 /// assumed to cover every shape.
+///
+/// R1 (docs/audits/2026-08-11-bug-triage.md) — `facts` below is the SAME
+/// slice `ReactionInvocation.command_facts` computes on the Ruby side
+/// (`args.slice(*declared)`), taken from the ORIGINAL, unfiltered
+/// `pairs` rather than by removing whichever key got promoted into
+/// `to:` — an identity/reference/correlation key a policy or process
+/// manager's own `with:` mapping resolved (`reference: :reference`
+/// forwarding a Transfer's own reference onto its saga-dispatched
+/// Account::Debit/Credit legs is the corpus's own live example) almost
+/// never doubles as a declared attribute of the TARGET command, so it's
+/// already excluded from `facts` without needing to be found and
+/// removed first; a command that DOES happen to redeclare its own
+/// identity/reference field as a real attribute keeps it in `facts` too,
+/// exactly as Ruby's own slice would. Applied before the creates-check
+/// split, same as Ruby's own `command_facts` call sits above BOTH of
+/// `ReactionInvocation.build`'s branches.
 fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Json {
-    let Json::Object(mut pairs) = projected else { return projected };
+    let Json::Object(pairs) = projected else { return projected };
+    let declared = (tables.command_attributes_fn)(target_verb);
+    let facts: Vec<(String, Json)> = pairs.iter().filter(|(k, _)| declared.contains(&k.as_str())).cloned().collect();
+
     if (tables.command_creates_fn)(target_verb) {
-        return Json::Object(pairs);
+        return Json::Object(facts);
     }
 
     let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) else {
-        return Json::Object(pairs);
+        return Json::Object(facts);
     };
 
     let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
     for key in candidates.into_iter().flatten() {
-        if let Some(pos) = pairs.iter().position(|(k, _)| k == key) {
-            let (_, raw_id) = pairs.remove(pos);
+        if let Some((_, raw_id)) = pairs.iter().find(|(k, _)| k == key) {
             let Ok(id) = raw_id.to_id_component() else { continue };
             if id.is_empty() {
                 continue;
             }
-            return Json::obj(vec![("to", Json::str(id)), ("with", Json::Object(pairs))]);
+            return Json::obj(vec![("to", Json::str(id)), ("with", Json::Object(facts))]);
         }
     }
-    Json::Object(pairs)
+    Json::Object(facts)
 }
 
 #[allow(clippy::too_many_arguments)]

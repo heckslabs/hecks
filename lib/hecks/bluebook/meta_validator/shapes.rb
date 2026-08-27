@@ -52,14 +52,33 @@ module Hecks
         def identity_path(part) = text(part[:value]).to_s
 
         # An argument, a parameter, a piece's attribute — the three places an
-        # attribute is written that carry no owner id to strip.
+        # attribute is written that carry no owner id to strip... except a
+        # piece's own attribute now does : an entity is its own root (repeating
+        # the aggregate's whole shape one level down), so ITS attributes name a
+        # value object exactly the way an aggregate's own do (`Judge#cell`'s own
+        # comment), and reconstruction has to undo the same owned-vs-reference
+        # split `attribute`, below, already undoes for an aggregate — not the
+        # cruder "any qualified name is a Reference" guess this used before,
+        # which mistook a piece's own value-object type for a cross-aggregate
+        # head every time.
         #
-        # A REFERENCE among them came in as the head's ID, because that is what
-        # Command/Entity/Query.Reference offer, so it goes back out as the
-        # encoding the IR spells. A qualified name is the tell : an ordinary
-        # type names something declared beside it (`Money`, `AccountNumber`) and
-        # never carries a chapter, while a head's id always does.
-        def shape_field(field)
+        # `aggregate_id`, passed only for a piece's own attribute (an
+        # argument or a parameter carries no value-object type at all — see
+        # entity.bluebook's/command.bluebook's own comments on why — so the
+        # generic reader path calls this with one argument and gets the
+        # OLD reading unchanged), is the piece's OWNING aggregate — the same
+        # one its own attribute types were resolved against on the way in
+        # (`Judge#owning_aggregate_ref`).
+        #
+        # A REFERENCE among the other two came in as the head's ID, because
+        # that is what Command/Query.Reference offer, so it goes back out as
+        # the encoding the IR spells. A qualified name is the tell : an
+        # ordinary type names something declared beside it (`Money`,
+        # `AccountNumber`) and never carries a chapter, while a head's id
+        # always does.
+        def shape_field(field, aggregate_id = nil)
+          return attribute(field, aggregate_id) if aggregate_id
+
           type = text(field[:type]).to_s
 
           {

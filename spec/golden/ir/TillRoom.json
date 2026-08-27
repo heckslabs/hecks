@@ -379,6 +379,7 @@
     }
   ],
   "classification": "core",
+  "formerly_known_as": null,
   "ir_version": 1,
   "name": "TillRoom",
   "policies": [

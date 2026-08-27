@@ -1,8 +1,8 @@
 {
   "name": "governance-parity",
-  "note": "Assign, a second Assign for the same actor/role at a different starts_at (proves the composite identity is per-event, not per-actor-role), a Revoke addressed by that composite identity, then RoleTransition's own Grant/Revoke/Allowed — a second, unrelated pair.",
+  "note": "Assign, a second Assign for the same actor/role at a different starts_at (proves the composite identity is per-event, not per-actor-role), a Revoke addressed by that composite identity, then RoleTransition's own Grant/Revoke/Allowed — a second, unrelated pair — then a SECOND Grant of that same (from_role, to_role) pair after the first was revoked, proving the pair is grantable again (M25) rather than absorbed into a permanently-occupied identity.",
   "expectations": {
-    "events": 5
+    "events": 6
   },
   "steps": [
     {
@@ -56,6 +56,9 @@
         },
         "to_role": {
           "value": "Customer registrar"
+        },
+        "starts_at": {
+          "value": "2026-01-01"
         }
       }
     },
@@ -73,9 +76,34 @@
     {
       "verb": "Governance::RoleTransition.Revoke",
       "args": {
-        "id": "Customer administrator:Customer registrar",
+        "id": "Customer administrator:Customer registrar:2026-01-01",
         "ends_at": {
           "value": "2026-05-31"
+        }
+      }
+    },
+    {
+      "query": "Governance::RoleTransition.Allowed",
+      "args": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        }
+      }
+    },
+    {
+      "verb": "Governance::RoleTransition.Grant",
+      "args": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        },
+        "starts_at": {
+          "value": "2026-06-01"
         }
       }
     },

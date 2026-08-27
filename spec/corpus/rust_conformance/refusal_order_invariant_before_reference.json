@@ -1,0 +1,16 @@
+{
+  "domain": "examples/banking",
+  "note": "R3 (docs/audits/2026-08-11-bug-triage.md) — dispatch-order parity: VO invariant/admits/pattern BEFORE refuse_role_mismatch/resolve_references, matching Ruby's own DISPATCH_ORDER (Vocabulary::AggregateDispatchOrder — normalize_args, where a VO's own `build` raises, precedes refuse_role_mismatch/resolve_references, both of which only ever run once every declared argument already coerced clean). A single Banking::Transfer.Request names a source account (\"acct-8\") that never existed in this fixture's own empty store AND carries an invalid TransferMoney amount (a negative cents value) in the same step, so the two checks race: which one the runtime consults first is the only thing that decides which refusal reason a caller ever sees. Verified genuinely broken before this fixture existed (docs/audits/2026-08-11-bug-triage.md's R3, and an independent live re-check in this same session against examples/banking/spec/corpus/banking.json's own identical-shaped steps): unmodified Rust checked `resolve_references` first and refused with 'no Account with number \"acct-8\"', never reaching TransferMoney's own invariant at all; Ruby always refused with 'TransferMoney invariant violated — a transfer amount is positive (given {\"cents\":-100})' instead, since normalize_args (VO construction) runs before resolve_references in Ruby's own DISPATCH_ORDER. Fixed by rust/project/registry.rb's own router now running each command's compiled VO invariant/admits/pattern checks (rust/project/commands.rb's `invariant_checks_for`, threaded through as `invariant_check_lines` — rust/project/domain_generator.rb) immediately after `from_json`, before `refuse_role_mismatch`/`resolve_references` — same order Ruby's DISPATCH_ORDER already declares, no dispatch.rs change needed.",
+  "steps": [
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "source": "acct-8",
+        "destination": "acct-7",
+        "amount": { "cents": -100 },
+        "narrative": { "text": "A transfer that runs backwards" },
+        "reference": { "value": "xfer-neg" }
+      }
+    }
+  ]
+}

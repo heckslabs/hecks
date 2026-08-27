@@ -1,4 +1,5 @@
 require_relative "value"
+require_relative "identity"
 
 module Hecks
   module Runtime
@@ -17,12 +18,17 @@ module Hecks
       # ADR) for the full mechanism.
       attr_accessor :version
 
-      def initialize(aggregate:, id:, state: nil)
+      # `args:` — THE ORIGINAL COMMAND PAYLOAD, offered only by a fresh
+      # creation (`CommandInterpreter#hydrate_legacy_creation`/
+      # `#hydrate_complete_state`/`#hydrate_prior_or_initial`, each already
+      # holding it when they mint a brand-new record). See
+      # `materialize_identity!` for why a composite identity needs it.
+      def initialize(aggregate:, id:, state: nil, args: nil)
         @aggregate = aggregate
         @id        = id
         @state     = state ? self.class.hydrate_with_defaults(aggregate, state) : self.class.defaults(aggregate)
         @version   = nil
-        materialize_identity!
+        materialize_identity!(args)
       end
 
       # Loading existing state runs the same default-fill a fresh instance
@@ -115,7 +121,29 @@ module Hecks
 
       private
 
-      def materialize_identity!
+      # M17 — a COMPOSITE identity (`identity_heads.size > 1`, e.g.
+      # `identified_by :branch_code, :box_number`) has no single
+      # `identified_by` to fall back to `:id` for — `@aggregate.identified_by`
+      # is nil the moment there is more than one head (`Behaviour::Identified
+      # #derive_identity`), so the single-head branch below never runs for
+      # it at all. A creating command that declares those heads as ordinary
+      # attributes but doesn't ALSO `sets` them (redundant with the identity
+      # the command's own args already named) used to persist every head as
+      # nil — the id correctly named the record, but the record's own
+      # attributes forgot what named it.
+      #
+      # Filled from `args`, never from splitting `@id` back apart — the
+      # same reason the single-head branch below won't guess a multi-path
+      # identifier from its joined string: `@id` is a display key, not a
+      # reversible serialization, and a composite's own separator can
+      # collide with a part's own text. `args` is only offered by a FRESH
+      # creation (`Instance.new`'s own `args:` comment); an existing record
+      # read back from storage has no args to lean on, and doesn't need
+      # one since a correctly-persisted record already carries its own
+      # heads.
+      def materialize_identity!(args = nil)
+        return materialize_composite_identity!(args) if @aggregate.identity_heads.size > 1
+
         identity  = @aggregate.identified_by || :id
         attribute = @aggregate.attribute(identity)
         return unless attribute && @state[identity].nil?
@@ -126,6 +154,21 @@ module Hecks
         return if @aggregate.identity_heads.one? && @aggregate.identity_paths.size > 1
 
         @state[identity] = Value.from_identifier(@aggregate, attribute, @id)
+      end
+
+      def materialize_composite_identity!(args)
+        return unless args
+
+        @aggregate.identity_paths.each do |path|
+          head = path.to_s.split(".").first.to_sym
+          attribute = @aggregate.attribute(head)
+          next unless attribute && @state[head].nil?
+
+          raw = Identity.from(@aggregate, args, path, value_owner: @aggregate)
+          next if raw.nil?
+
+          @state[head] = Value.from_identifier(@aggregate, attribute, raw)
+        end
       end
     end
   end

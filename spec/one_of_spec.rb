@@ -78,4 +78,35 @@ RSpec.describe "one_of" do
     end.to raise_error(Hecks::Runtime::TypeMismatch,
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end
+
+  # L6 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — `Admission#admit_member`
+  # checked only the closed set's DISCRIMINANT column (the first declared
+  # attribute), so a multi-column `member` row — `StatementFrequency`
+  # (examples/banking/bluebook/statements.bluebook), a real member of this
+  # very corpus, not a synthetic fixture — was admitted the instant its
+  # `cadence` matched a declared row, no matter what `retention_months`/
+  # `paper_fee_cents` said. Confirmed live before the fix: `Value.build`
+  # with `cadence: "monthly"` (a real member) alongside an invalid
+  # `retention_months`/`paper_fee_cents` raised nothing.
+  describe "a multi-column one_of (StatementFrequency)" do
+    def statement_frequency
+      boot_banking.registry.bluebook("Banking").aggregate("Statement").value_object("StatementFrequency")
+    end
+
+    it "admits a row that matches every declared column" do
+      vo = statement_frequency
+
+      expect do
+        Hecks::Runtime::Value.build(vo, cadence: "monthly", retention_months: 84, paper_fee_cents: 0)
+      end.not_to raise_error
+    end
+
+    it "refuses a row whose discriminant matches a member but whose other columns do not" do
+      vo = statement_frequency
+
+      expect do
+        Hecks::Runtime::Value.build(vo, cadence: "monthly", retention_months: 999, paper_fee_cents: 999)
+      end.to raise_error(Hecks::Runtime::InvariantViolation, /StatementFrequency admits/)
+    end
+  end
 end

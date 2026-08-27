@@ -81,9 +81,24 @@ module Hecks
         raise RouteNotFound, "#{domain.inspect} is not exposed by this app — declared chapters: #{@exposed.join(', ')}"
       end
 
+      # H12 (docs/audits/2026-08-10-main-bug-audit.md) — splitting on the
+      # FIRST "." truncated any identity value containing a dot (an email
+      # `identified_by { email.address }`, a decimal-ish reference — an
+      # aggregate's identity is free-form unless its value object declares
+      # a `pattern:`, see S3 in the same audit) at its own first dot, so
+      # `reference.value=c.1` 404'd everywhere: detail page, JSON view, and
+      # its own index-table link. Only a LITERAL trailing ".html"/".json"
+      # now counts as a format — every other dot in the segment is just
+      # part of the identity. An identity that itself happens to end in
+      # exactly ".html" or ".json" is still ambiguous with a real format
+      # suffix (the same tension any extension-based content-negotiation
+      # scheme has), but that was already true before this fix and is not
+      # this bug.
       def split_format(segment)
-        name, format = segment.to_s.split(".", 2)
-        [name, format || "json"]
+        segment = segment.to_s
+        return [Regexp.last_match(1), Regexp.last_match(2)] if segment =~ /\A(.*)\.(html|json)\z/
+
+        [segment, "json"]
       end
 
       # ---- home -------------------------------------------------------
@@ -122,6 +137,21 @@ module Hecks
         aggregate = find_aggregate(chapter, aggregate_name)
         domain = chapter.name
 
+        # L11 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own
+        # id is free-form (S3) and can collide with one of its own
+        # aggregate's command/query names ("Close", "Overdrawn", ...).
+        # A GET for such an id must still be able to reach that RECORD's
+        # own detail page when a record with that literal id actually
+        # exists — checking the verb first (the previous order) meant a
+        # record unlucky enough to be named after a real verb could never
+        # be viewed again. POST never means "view a record" at all
+        # (`record_route` only ever answers GET), so command submission
+        # there is unambiguous and is left to match the verb first, same
+        # as before.
+        if request.get? && (instance = @registry.repository(domain, aggregate).find(verb_or_id))
+          return record_route(request, domain, aggregate, verb_or_id, format, instance: instance)
+        end
+
         if (command = aggregate.command(verb_or_id))
           return command_route(request, domain, aggregate, command, format)
         end
@@ -157,7 +187,9 @@ module Hecks
       def submit_command(request, domain, aggregate, command, action)
         raw, envelope = submitted_command(request, aggregate, command)
         result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
-        redirect("/#{domain}/#{aggregate.hecks_name}/#{result.id}.html")
+        # L12 — the id is free-form (S3), so it must be percent-encoded as
+        # a path segment here, not just interpolated raw.
+        redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.url(result.id)}.html")
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         status = e.is_a?(Runtime::NotFound) ? 404 : 422
         command_form(domain, aggregate, command, action, status: status, values: raw, error: e)
@@ -221,14 +253,23 @@ module Hecks
         args = Params.extract(fields, asked)
         rows = @dispatcher.query("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}", **args)
         [rows.map { |row| Record.new(row[:id], row.reject { |k, _| k == :id }) }, nil]
-      rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError => e
+      # L10 (docs/audits/2026-08-10-main-bug-audit.md) — `Params.extract`
+      # (params.rb's `extract_list`) reads a list-of-value-object line as
+      # JSON (the honest fallback for a multi-attribute list element this
+      # prototype's textarea doesn't build a second widget for). A caller
+      # who types a non-JSON line into that field raises `JSON::ParserError`
+      # BEFORE dispatch ever sees it — both command submission paths
+      # already rescue it (`submit_command`, `command_json`); this one
+      # didn't, so a malformed list-of-VO query 500'd instead of showing
+      # the same 422 every other bad-input path shows.
+      rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         [nil, e]
       end
 
-      def record_route(request, domain, aggregate, id, format)
+      def record_route(request, domain, aggregate, id, format, instance: nil)
         return respond(405, "text/plain", "GET only") unless request.get?
 
-        instance = @registry.repository(domain, aggregate).find(id)
+        instance ||= @registry.repository(domain, aggregate).find(id)
         return not_found(aggregate, id, format) unless instance
         # id LAST — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).

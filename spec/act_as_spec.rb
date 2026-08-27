@@ -73,10 +73,10 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
     rows.any? { |row| row[:ends_at].nil? }
   end
 
-  def grant(from:, to:)
+  def grant(from:, to:, starts_at: "2026-01-01")
     governance.dispatch(
       "Governance::RoleTransition.Grant",
-      from_role: { value: from }, to_role: { value: to }
+      from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
   end
 

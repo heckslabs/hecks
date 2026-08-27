@@ -14,7 +14,10 @@ module Hecks
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
-            role = settings[:role] || settings["role"]
+            # Both spellings honored, key? first — never `||`, which cannot
+            # tell a genuinely stored `false` apart from an absent key (see
+            # PostgresEra.setting's own comment for the full reasoning).
+            role = settings.key?(:role) ? settings[:role] : settings["role"]
 
             held = lineage.eras
             if held.empty?

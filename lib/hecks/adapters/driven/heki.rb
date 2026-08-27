@@ -34,7 +34,15 @@ module Hecks
         # — falls back to the aggregate's own name for a directly-
         # instantiated adapter (specs), same fallback shape Postgres's
         # own @domain already uses.
-        @domain    = (settings[:domain] || settings["domain"] || aggregate.name).to_s
+        @domain    = (
+          if settings.key?(:domain)
+            settings[:domain]
+          elsif settings.key?("domain")
+            settings["domain"]
+          else
+            aggregate.name
+          end
+        ).to_s
 
         FileUtils.mkdir_p(File.dirname(@path))
       end
@@ -138,7 +146,14 @@ module Hecks
       end
 
       def resolve_path(settings, root)
-        declared = settings[:dir] || settings["dir"] || "data"
+        declared =
+          if settings.key?(:dir)
+            settings[:dir]
+          elsif settings.key?("dir")
+            settings["dir"]
+          else
+            "data"
+          end
         dir      = declared.start_with?("/") ? declared : File.join(root || Dir.pwd, declared)
 
         File.join(dir, "#{@aggregate.storage_name}.heki")

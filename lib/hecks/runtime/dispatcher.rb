@@ -256,15 +256,30 @@ module Hecks
       # is cleared for the reaction's own dispatch, so a triggering
       # caller's role can neither satisfy nor block a reaction command it
       # has nothing to do with (Runtime::Caller.without).
+      #
+      # `Thread.current[:hecks_reaction_depth]`, not a plain ivar — this
+      # `Dispatcher` instance is a single object shared by every thread
+      # dispatching through it (a Puma worker pool, say), so a plain ivar
+      # here is exactly the known Puma-concurrency bug class: two
+      # concurrent top-level dispatches on different threads would
+      # increment/decrement the SAME counter, letting one thread's nested
+      # reaction depth leak into another thread's unrelated dispatch. A
+      # `Mutex` is not the answer either — a reaction cascade re-enters
+      # `reenter` on the SAME thread (see `SagaInterpreter#advance_saga`'s
+      # own comment on why a non-reentrant `Mutex` can't guard this).
+      # `Thread.current`-backed, saved/restored around the call with a
+      # plain local + `ensure`, is the same idiom `Runtime::Caller`
+      # (`caller.rb`) already established for exactly this shape of
+      # per-thread ambient state.
       def reenter(verb, saga_correlation: nil, **args)
-        depth = @reaction_depth.to_i
-        @reaction_depth = depth + 1
+        depth = Thread.current[:hecks_reaction_depth].to_i
+        Thread.current[:hecks_reaction_depth] = depth + 1
         Caller.without { dispatch(verb, saga_correlation: saga_correlation, **args) }
       ensure
-        @reaction_depth = depth
+        Thread.current[:hecks_reaction_depth] = depth
       end
 
-      def reaction_depth_reached? = @reaction_depth.to_i >= MAX_REACTION_DEPTH
+      def reaction_depth_reached? = Thread.current[:hecks_reaction_depth].to_i >= MAX_REACTION_DEPTH
       def max_reaction_depth      = MAX_REACTION_DEPTH
 
       private

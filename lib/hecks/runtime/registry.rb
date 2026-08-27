@@ -45,9 +45,11 @@ module Hecks
         # GUARDS `saga_instances`' OWN mutation+checkpoint sequence
         # (`SagaInterpreter`'s 4 write points, §7) — the same shape of
         # hazard this codebase's own prior audit already flagged for
-        # `@reaction_depth`, a thread-shared dispatcher ivar with no
-        # lock, made meaningfully easier to hit once a persistence write
-        # sits in the same critical section. Held across the in-memory
+        # `Dispatcher#reenter`'s reaction-depth counter (M20: a
+        # thread-shared ivar with no lock, since fixed by moving it to
+        # `Thread.current`, dispatcher.rb), made meaningfully easier to
+        # hit here once a persistence write sits in the same critical
+        # section. Held across the in-memory
         # mutation AND the checkpoint write together, never across a
         # saga's own dispatch cascade — see `SagaInterpreter#advance_saga`'s
         # own comment for why that distinction matters (non-reentrant
@@ -56,6 +58,35 @@ module Hecks
         @repositories = {}
         @projection_repositories = {}
         @bluebook_builders = {}
+        # EAGER, NOT LAZY — see `#resolved_eras`'s own comment for why. Built
+        # here rather than `@resolved_eras ||= {}` on first access so there is
+        # no window, post-boot, where two concurrently dispatching threads
+        # could race creating this Hash (Hecks/ThreadSharedIvarMutation; the
+        # same shape of hazard `Dispatcher#reenter`'s `@reaction_depth` was
+        # fixed for). Every WRITE into it still only ever happens at boot,
+        # single-threaded (`EraResolver.check!`, a `:pre_verify` boot gate) —
+        # this only removes the race on standing up the container itself for
+        # a boot with no era-plugin domain at all, whose first touch would
+        # otherwise be a live dispatch's own `RepositoryFactory.build` read.
+        @resolved_eras = {}
+        # EAGER, NOT LAZY — see `#capability_graph`'s own comment for why.
+        # `CapabilityGraph.new` only stores the registry reference; there is
+        # no reason to defer it, and doing so removes the exact same
+        # first-access race `#resolved_eras` above does, while preserving the
+        # "same instance every call" identity `spec/runtime/capability_graph_
+        # spec.rb` already requires.
+        @capability_graph = CapabilityGraph.new(self)
+        # `@saga_persistence` itself is eager (see `#saga_persistence`'s own
+        # comment) — only the PER-DOMAIN resolution inside it is genuinely
+        # expensive and lazy, guarded by this dedicated mutex. NOT the same
+        # mutex as `@saga_mutex`: `checkpoint` (saga_interpreter.rb) calls
+        # `saga_persistence(domain)` from INSIDE an `@saga_mutex.synchronize`
+        # block, so reusing `@saga_mutex` here would deadlock the very first
+        # time a saga advanced (a `Mutex` is not reentrant — the exact
+        # warning `@saga_mutex`'s own comment already gives for a different
+        # reason).
+        @saga_persistence = {}
+        @saga_persistence_mutex = Mutex.new
       end
 
       # THE BUILDER STAYS OPEN FOR THE LIFE OF THIS REGISTRY, keyed by chapter
@@ -67,6 +98,20 @@ module Hecks
         @bluebook_builders[name.to_s] ||= yield
       end
 
+      # BOOT-TIME-ONLY, SINGLE-THREADED — every `add_*` below (through
+      # `add_translation`) is called exclusively from `Hecks.collect`
+      # (hecks.rb), which is what `Hecks.bluebook`/`.hecksagon`/`.port`/
+      # `.adapter`/`.world`/`.translation` run inside while a `.bluebook`/
+      # `.hecksagon`/`.world` file is being `Kernel.load`ed — i.e. strictly
+      # during `Loader.boot`/`.boot_files`, before `dispatcher_for` ever
+      # hands this registry to a live, multi-threaded caller. Nothing
+      # downstream of boot ever calls these — verified by grepping every
+      # call site in lib/ and spec/ before writing this — so unlike
+      # `#resolved_eras`/`#capability_graph`/`#saga_persistence` (each
+      # reachable from live dispatch, and fixed for real above/in
+      # registry/saga_persistence.rb) there is no concurrent caller for
+      # `Hecks/ThreadSharedIvarMutation` to actually be warning about here.
+      # rubocop:disable Hecks/ThreadSharedIvarMutation
       def add_bluebook(item) = @bluebooks[item.name] = item
 
       # MERGED, NOT REPLACED — RECOVERED, not new (see Runtime::Loader
@@ -99,12 +144,16 @@ module Hecks
       end
 
       def add_translation(item) = @translations << item
+      # rubocop:enable Hecks/ThreadSharedIvarMutation
 
       # {domain name => era ordinal} as resolved by the boot-time era
       # gate. A lineage adapter writes into ITS OWN era's partition —
       # which, for an old checkout booting a held-but-superseded shape,
-      # is not the newest one.
-      def resolved_eras = @resolved_eras ||= {}
+      # is not the newest one. The Hash itself is stood up in `initialize`
+      # (see that comment) — this is a plain reader, not a memoizer;
+      # `Hecks/ThreadSharedIvarMutation` is the reason there is no `||=`
+      # left here to flag.
+      attr_reader :resolved_eras
 
       def bluebook(name)  = @bluebooks[name.to_s]
       def hecksagon(name) = @hecksagons[name.to_s]
@@ -133,6 +182,16 @@ module Hecks
       # test to get isolation (`Behaviors::Expectations.run_one`) — ~2s a
       # boot, 76 chess behaviours = two and a half minutes of booting the
       # same two files — can now boot once and reset between tests.
+      #
+      # SINGLE-THREADED CALLER, THE SAME REASON THE `add_*` CLUSTER ABOVE
+      # IS EXEMPT — `Behaviors::Expectations.run_one` is this method's ONLY
+      # caller (verified by grep before writing this), and it runs one
+      # test at a time: `Runner#run` maps over tests sequentially, and
+      # `Behaviors.rspec`'s generated examples run under RSpec's own
+      # single-threaded example loop. No production dispatch path calls
+      # this at all — a live Puma worker pool never resets a registry out
+      # from under itself mid-flight.
+      # rubocop:disable-next Hecks/ThreadSharedIvarMutation
       def reset_runtime_state!
         @event_log.clear
         @reaction_log.clear
@@ -146,9 +205,11 @@ module Hecks
         self
       end
 
-      def capability_graph
-        @capability_graph ||= CapabilityGraph.new(self)
-      end
+      # Built eagerly in `initialize` (see that comment) — this is a plain
+      # reader, not a memoizer; `spec/runtime/capability_graph_spec.rb`
+      # asserts the SAME instance comes back every call, which this still
+      # gives, just without a lazy `||=` race on standing it up.
+      attr_reader :capability_graph
 
       def read_repository(domain, aggregate)
         key = [domain.to_s, aggregate.hecks_name]

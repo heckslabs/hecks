@@ -1,6 +1,7 @@
 require_relative "../../../../../../runtime/errors"
 require_relative "../../../../../../runtime/instance"
 require_relative "../../../../../../runtime/value/invariant_violation"
+require_relative "../../../../../../bluebook/model_check"
 
 module Hecks
   module Translation
@@ -21,8 +22,16 @@ module Hecks
               next unless lifecycle
 
               held = instance[lifecycle.field]
-              allowed = lifecycle.states | [lifecycle.default]
-              unless held.nil? || allowed.include?(held)
+              # `Lifecycle#states` answers default+targets only — a state
+              # legitimately declared just as a `from:` (a terminal
+              # transition's source, never anyone's target) is real and
+              # reachable but invisible to it. `ModelCheck.full_states`
+              # is the full declared set (default, every target, AND
+              # every from) that `fuzzing/properties.rb`'s own replay
+              # check already uses for this identical question — see its
+              # comment on this same hole.
+              allowed = Bluebook::ModelCheck.full_states(lifecycle)
+              unless held.nil? || allowed.include?(held.to_s)
                 violations << "#{aggregate.name}##{id}: #{lifecycle.field} is #{held.inspect}, " \
                               "a state this era's lifecycle never reaches"
               end

@@ -58,6 +58,39 @@ module RustProjection
       final macro override priv typeof unsized virtual yield try
     ].freeze
 
+    # A DOMAIN'S OWN NAME (`File.basename(domain)`, `bin/project_rust`) has
+    # to double as THREE things at once: a directory name, a bare Rust
+    # module identifier (`pub mod #{name};` — module names get no raw-
+    # identifier `r#name` escape hatch the way struct FIELDS do via
+    # `rust_ident_field`), and a Cargo `[features]` key. `RUST_KEYWORDS`
+    # above rules out the second; this list rules out the third — every
+    # key that already appears elsewhere in `rust/Cargo.toml` outside
+    # `[features]` (`[package]`'s `name`/`version`/`edition`/etc., `[lib]`/
+    # `[[bin]]`'s `name`/`path`) plus `default`, which Cargo itself
+    # reserves for the auto-enabled feature set. `bin/project_rust`'s own
+    # feature-sync regex used to search the WHOLE Cargo.toml text for
+    # `/^name\s*=/` (now scoped to `[features]` only — see its own
+    # comment), so a domain named one of these used to silently never
+    # get its own feature line while still being set as `default`,
+    # producing a Cargo.toml that referenced an undeclared feature.
+    CARGO_RESERVED_DOMAIN_NAMES = %w[
+      name version edition path authors license description
+      default features package lib bin dependencies
+      dev-dependencies build-dependencies workspace
+    ].freeze
+
+    # TRUE exactly when `name` is safe to use, unescaped, as all three of
+    # the above at once. Plain lowercase-identifier shape (no leading
+    # digit, no `-`, not empty) rules out landmine class 1 (an outright
+    # Rust syntax error); the two reserved-word checks rule out class 2
+    # (a legal identifier that collides with something load-bearing).
+    def valid_domain_mod_name?(name)
+      str = name.to_s
+      str.match?(/\A[a-z_][a-z0-9_]*\z/) &&
+        !RUST_KEYWORDS.include?(str) &&
+        !CARGO_RESERVED_DOMAIN_NAMES.include?(str)
+    end
+
     def rust_field(name) = name.to_s
     def rust_ident_field(name)
       field = rust_field(name)
@@ -136,7 +169,7 @@ module RustProjection
       name = rust_ident(vo[:name])
       arms = vo[:members].map do |row|
         _, raw = row.first
-        "#{name}::#{closed_set_variant(row)} => #{raw.to_s.inspect}.to_string(),"
+        "#{name}::#{closed_set_variant(row)} => #{rust_string_literal(raw.to_s)}.to_string(),"
       end.join(" ")
 
       "impl crate::kernel::Fielded for #{name} {\n" \
@@ -155,11 +188,51 @@ module RustProjection
 
     def literal_rhs(literal)
       case literal
-      when String        then "#{literal.inspect}.to_string()"
+      when String        then "#{rust_string_literal(literal)}.to_string()"
       when Integer, Float then literal.to_s
       when true, false     then literal.to_s
       else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
       end
+    end
+
+    # RUST STRING LITERAL ESCAPING (R5) — free-form bluebook text (a
+    # `given`/`ensures`/invariant description, a `then_set ... to:`
+    # literal, a closed-set member's raw value, the domain's whole IR
+    # embedded verbatim as `IR_JSON`) has to become a Rust string literal
+    # somewhere in generated code. Ruby's own `String#inspect` LOOKS like
+    # it does this job — it already backslash-escapes `"`/`\`/newlines/
+    # tabs — but it escapes for RUBY'S OWN benefit, not Rust's:
+    # verified live —
+    #
+    #   "cost #{"#"}{x}".inspect  => "\"cost \\\#{x}\""   (Ruby needs \# so
+    #                                the re-read literal doesn't interpolate)
+    #   "\x01".inspect            => "\"\\u0001\""        (Ruby's own \uXXXX,
+    #                                no braces)
+    #
+    # Neither `\#` nor a brace-less `\uXXXX` is a legal Rust escape — Rust
+    # has no `\#` escape at all, and requires `\u{XXXX}` — so a
+    # description containing a literal `#{`/`#@` or a raw control
+    # character produces generated Rust that fails to compile (the exact
+    # R5 landmine). This escapes only what RUST's own string-literal
+    # grammar actually needs — backslash, double-quote, and control
+    # characters (`\n`/`\r`/`\t` where they have a short escape, braced
+    # `\u{XX}` otherwise) — and leaves everything else, including a
+    # literal `#{`/`#@` (meaningless in Rust — it has no string
+    # interpolation), untouched.
+    def rust_string_literal(str)
+      escaped = str.to_s.each_char.map do |ch|
+        case ch
+        when "\\" then "\\\\"
+        when "\"" then "\\\""
+        when "\n" then "\\n"
+        when "\r" then "\\r"
+        when "\t" then "\\t"
+        else
+          cp = ch.ord
+          cp < 0x20 || cp == 0x7F ? format("\\u{%x}", cp) : ch
+        end
+      end.join
+      "\"#{escaped}\""
     end
   end
 end

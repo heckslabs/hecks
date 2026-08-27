@@ -7,6 +7,69 @@ inherit_mode:
 plugins:
   - rubocop-rspec
 
+# LOCAL, THIS-REPO-ONLY COPS — not a published gem, so `require:` (which
+# loads an arbitrary Ruby file, relative to this config) rather than
+# `plugins:` (the gem-based extension API `rubocop-rspec` above uses).
+require:
+  - ./lib/rubocop/cop/hecks/fallback_hash_lookup
+  - ./lib/rubocop/cop/hecks/thread_shared_ivar_mutation
+  - ./lib/rubocop/cop/hecks/sequential_hash_rename_in_loop
+
+# THE MECHANICAL FOLLOW-UP to 8+ real bugs already fixed one at a time
+# across Tiers 1-5: `holder[a] || holder[b]` — the same receiver looked
+# up by two different keys, falling back to the second whenever the
+# first is falsy — silently discards a genuinely stored `false` because
+# `||` cannot tell it apart from a missing key. Not scoped by Include —
+# the cop only matches same-receiver `[]`/`[]` pairs joined by `||`, a
+# shape with no legitimate use anywhere in this codebase (an ordinary
+# `value || default` has a different receiver on each side and is left
+# alone). A full-tree run at wiring time found zero pre-existing
+# offenses, so nothing needed an Exclude entry in .rubocop_todo.yml
+# alongside this. See lib/rubocop/cop/hecks/fallback_hash_lookup.rb's
+# own header and lib/hecks/query_specification/field_path.rb#read for
+# the `key?`-first idiom this codebase already converged on instead.
+Hecks/FallbackHashLookup:
+  Enabled: true
+
+# `Hecks::Runtime::Dispatcher` and `Hecks::Runtime::Registry` are each ONE
+# object shared across every thread dispatching through it (a Puma worker
+# pool, say) — a plain `@ivar` mutation on either is the exact bug class
+# M20 already found and fixed for real (`@reaction_depth`, moved to
+# `Thread.current[:hecks_reaction_depth]` — see dispatcher.rb's `#reenter`
+# and spec/runtime/dispatcher_spec.rb). This cop is the mechanical
+# follow-up: it flags the NEXT plain ivar mutation added to either class,
+# so the next instance of this bug is caught at lint time rather than
+# found again by a lucky concurrency test. See
+# lib/rubocop/cop/hecks/thread_shared_ivar_mutation.rb and
+# spec/rubocop/cop/hecks/thread_shared_ivar_mutation_spec.rb.
+Hecks/ThreadSharedIvarMutation:
+  Enabled: true
+  Include:
+    - "lib/hecks/runtime/dispatcher.rb"
+    - "lib/hecks/runtime/registry.rb"
+    # `registry/*.rb` — `Verification`/`SagaPersistence` are modules
+    # reopening `class Registry` from a separate file (`registry.rb`'s own
+    # `include Verification`/`include SagaPersistence`), so an ivar
+    # mutation written there is exactly as much "on `Registry`" as one
+    # written directly in registry.rb.
+    - "lib/hecks/runtime/registry/*.rb"
+
+# THE MECHANICAL FOLLOW-UP to M27 (docs/audits/2026-08-10-main-bug-audit.md,
+# docs/audits/2026-08-11-bug-triage.md; fixed in
+# Hecks::Ports::Persistence::Lineage#apply_renames,
+# lib/hecks/ports/persistence/plugins/era/lineage.rb): `state[new_name] =
+# state.delete(old_name)` run one rule at a time, in a loop, against the
+# SAME hash it reads from, loses data on any swap or chain rename — the
+# first rule's write becomes the second rule's read target before it ever
+# runs. Not scoped by Include like the cop above — this AST shape (same
+# receiver on both sides of `recv[x] = recv.delete(y)`, inside something
+# that iterates) is precise enough on its own that it has no legitimate
+# use anywhere in this codebase; see
+# lib/rubocop/cop/hecks/sequential_hash_rename_in_loop.rb's own header
+# for what it does and does not attempt to catch.
+Hecks/SequentialHashRenameInLoop:
+  Enabled: true
+
 # LEAN ON PURPOSE — this codebase's own established style is long,
 # deliberate prose comments above methods/modules, module_function-heavy
 # modules, Struct-based value types, and comfortably long lines in both

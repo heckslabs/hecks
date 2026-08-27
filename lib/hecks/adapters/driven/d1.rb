@@ -81,7 +81,14 @@ module Hecks
           failed = results.find { |result| result["success"] == false }
           if failed
             messages = (body["errors"] || []).map { |error| error["message"] }.join("; ")
-            detail = failed["error"] || failed["message"] || messages
+            detail =
+              if failed.key?("error")
+                failed["error"]
+              elsif failed.key?("message")
+                failed["message"]
+              else
+                messages
+              end
             raise Runtime::WiringError, "D1 query failed: #{detail.to_s.empty? ? 'a batched statement failed' : detail}"
           end
 
@@ -112,9 +119,9 @@ module Hecks
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
 
-        account_id  = settings[:account_id]  || settings["account_id"]
-        database_id = settings[:database_id] || settings["database_id"]
-        api_token   = settings[:api_token]   || settings["api_token"]
+        account_id  = settings.key?(:account_id)  ? settings[:account_id]  : settings["account_id"]
+        database_id = settings.key?(:database_id) ? settings[:database_id] : settings["database_id"]
+        api_token   = settings.key?(:api_token)   ? settings[:api_token]   : settings["api_token"]
         { "account_id" => account_id, "database_id" => database_id, "api_token" => api_token }.each do |name, value|
           raise Runtime::WiringError, "D1 needs a #{name.inspect} in its world settings" if value.to_s.empty?
         end
@@ -126,7 +133,15 @@ module Hecks
         # own per-aggregate-file default, there's no "which file does
         # this end up in" ambiguity here: every aggregate on D1 within a
         # domain already shares one database.
-        @domain = (settings[:domain] || settings["domain"] || aggregate.name).to_s
+        @domain = (
+          if settings.key?(:domain)
+            settings[:domain]
+          elsif settings.key?("domain")
+            settings["domain"]
+          else
+            aggregate.name
+          end
+        ).to_s
 
         # No PRAGMA synchronous here, unlike Sqlite — D1 is a managed
         # durable service; there is no local fsync policy for a caller to
@@ -171,7 +186,12 @@ module Hecks
       def append(entry)
         @db.execute(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-          [entry.id, entry.operation, JSON.generate(entry.state), JSON.generate(entry.mirrors)]
+          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # mirrors hash must bind a real SQL NULL, not the four-character
+          # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
+          # check against it would never match. Same guard `postgres_era.rb`
+          # already uses for its own journal's `mirrors` column.
+          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end
@@ -252,17 +272,20 @@ module Hecks
               "THEN 'replaced' ELSE 'inserted' END AS status"
           end
 
+        # `mirrors` is NULLABLE (unlike `state`) — see `append`'s own comment.
+        encoded_mirrors = entry.mirrors && JSON.generate(entry.mirrors)
+
         entry_sql, entry_binds =
           if insert_only
             [
               "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) " \
               "SELECT ?, ?, ?, ? #{not_exists}",
-              [entry.id, entry.operation, JSON.generate(entry.state), JSON.generate(entry.mirrors), entry.id.to_s]
+              [entry.id, entry.operation, JSON.generate(entry.state), encoded_mirrors, entry.id.to_s]
             ]
           else
             [
               "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES (?, ?, ?, ?)",
-              [entry.id, entry.operation, JSON.generate(entry.state), JSON.generate(entry.mirrors)]
+              [entry.id, entry.operation, JSON.generate(entry.state), encoded_mirrors]
             ]
           end
 

@@ -41,8 +41,10 @@ impl super::Fielded for Json {
             Json::Object(_) => Field::Nested(found),
             Json::Array(items) => Field::Value(Value::List(items.len())),
             Json::Str(s) => Field::Value(Value::Str(s.clone())),
-            Json::Num(n) if n.fract() == 0.0 => Field::Value(Value::Int(*n as i64)),
-            Json::Num(n) => Field::Value(Value::Float(*n)),
+            Json::Num(n) => match integral_i64(*n) {
+                Some(i) => Field::Value(Value::Int(i)),
+                None => Field::Value(Value::Float(*n)),
+            },
             Json::Bool(b) => Field::Value(Value::Bool(*b)),
             Json::Null => Field::Value(Value::Nil),
         })
@@ -60,8 +62,10 @@ impl super::Fielded for Json {
                     Json::Object(_) => Field::Nested(item),
                     Json::Array(inner) => Field::Value(Value::List(inner.len())),
                     Json::Str(s) => Field::Value(Value::Str(s.clone())),
-                    Json::Num(n) if n.fract() == 0.0 => Field::Value(Value::Int(*n as i64)),
-                    Json::Num(n) => Field::Value(Value::Float(*n)),
+                    Json::Num(n) => match integral_i64(*n) {
+                        Some(i) => Field::Value(Value::Int(i)),
+                        None => Field::Value(Value::Float(*n)),
+                    },
                     Json::Bool(b) => Field::Value(Value::Bool(*b)),
                     Json::Null => Field::Value(Value::Nil),
                 })
@@ -160,10 +164,18 @@ impl Json {
 
     /// `None` for a fractional number, not a silent truncation — an
     /// `Integer`-typed field given `25.5` is a type mismatch Ruby's own
-    /// `Value.for_attribute` coercion refuses, not "close enough."
+    /// `Value.for_attribute` coercion refuses, not "close enough." Also
+    /// `None` for an integral-looking number outside `i64`'s own range —
+    /// see `integral_i64`'s own comment. Ruby's `Integer` promotes to
+    /// Bignum with no ceiling; this kernel has no arbitrary-precision type
+    /// to promote to (zero Cargo dependencies, see this file's header), so
+    /// every one of this function's callers is a generated `from_json`
+    /// that already turns a `None` here into `Refusal::TypeMismatch` — a
+    /// clean refusal, not the silent saturation Rust's own `as i64` cast
+    /// would otherwise produce for a value past `i64::MAX`/`i64::MIN`.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
-            Json::Num(n) if n.fract() == 0.0 => Some(*n as i64),
+            Json::Num(n) => integral_i64(*n),
             _ => None,
         }
     }
@@ -296,11 +308,50 @@ impl Json {
     /// `extract_id`'s job (rust/project/json_codec.rb), the same "whatever
     /// it resolved to, make an id component out of it" coercion
     /// `Runtime::Identity.from` performs with `.to_s` on the Ruby side.
+    ///
+    /// R4 (docs/audits/2026-08-11-bug-triage.md) — an empty string is
+    /// refused here the same way `Runtime::Identity.of` refuses one on
+    /// the Ruby side: "A BLANK PART NAMES NOTHING, the same as an ABSENT
+    /// one — AN ID IS A SCALAR, and '' is not a fact about anything"
+    /// (`identity.rb`'s own comment, verbatim). Ruby's `Identity.of`
+    /// treats a blank part as absent and returns `nil` for the WHOLE
+    /// identity, refused later wherever the caller's own `|| raise(...)`
+    /// chain bottoms out (dispatch time — `acting_no_identity`/
+    /// `creating_no_identity`/`entity_parent_no_identity`, never a
+    /// separate boot-time check). This kernel has no `nil`-vs-"identity
+    /// resolved" distinction of its own to thread the same way; refusing
+    /// HERE, at the one place every identity-component read funnels
+    /// through (`extract_id`'s own `c0`/`c1` chain, each already wrapped
+    /// in `.ok()?` — an `Err` here already reads as "this component
+    /// didn't resolve" one level up, the same as a genuinely absent
+    /// field), reaches the identical outcome at the identical pipeline
+    /// stage: dispatch time, when this id is actually needed, not any
+    /// earlier. Before this fix, an empty string round-tripped through
+    /// unchanged and was accepted as a real, empty-string identity — a
+    /// record silently addressable by an id no caller could have meant,
+    /// and a real, persisted-state divergence from Ruby (which never
+    /// persists such a record at all).
     pub fn to_id_component(&self) -> Result<String, Refusal> {
         match self {
+            Json::Str(s) if s.is_empty() => {
+                Err(Refusal::TypeMismatch("identity component must not be empty".to_string()))
+            }
             Json::Str(s) => Ok(s.clone()),
-            Json::Num(n) if n.fract() == 0.0 => Ok((*n as i64).to_string()),
-            Json::Num(n) => Ok(n.to_string()),
+            Json::Num(n) => match integral_i64(*n) {
+                // In i64's own range: print as a plain integer, same as
+                // Ruby's `.to_s` on a small-enough Integer.
+                Some(i) => Ok(i.to_string()),
+                // Outside i64's range (or non-integral): fall back to the
+                // float's own digits rather than routing through the `as
+                // i64` cast, which would silently saturate to
+                // i64::MAX/i64::MIN instead of reflecting the real
+                // magnitude. Still not a byte-for-byte match for Ruby's
+                // exact Bignum digits (this kernel's `Json::Num` is `f64`
+                // throughout, so precision beyond ~2^53 is already lost by
+                // the time a wire value reaches here) — but a merely
+                // imprecise identity component beats a wrong, clamped one.
+                None => Ok(n.to_string()),
+            },
             Json::Bool(b) => Ok(b.to_string()),
             other => Err(Refusal::TypeMismatch(format!("cannot use {other:?} as an identity component"))),
         }
@@ -354,6 +405,111 @@ impl Json {
             Json::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
             Json::Null => out.push_str("null"),
         }
+    }
+}
+
+/// Whether a JSON number is safely representable as an `i64` — both a
+/// whole number (`fract() == 0.0`) AND within `i64::MIN..=i64::MAX`.
+/// Every `Json::Num` is an `f64` (this file's own header: zero Cargo
+/// dependencies, no arbitrary-precision integer type), and Rust's `as i64`
+/// cast on an out-of-range float doesn't panic or truncate — it SATURATES
+/// to `i64::MAX`/`i64::MIN` silently, which every direct `*n as i64` in
+/// this file used to do unguarded. Ruby has no such ceiling (`Integer`
+/// promotes to Bignum), so a value this kernel can't represent must be
+/// refused (or, where the call site has no `Result` to refuse through,
+/// handled some way OTHER than silently pretending it was `i64::MAX`) —
+/// never quietly clamped into a wrong-but-plausible-looking number.
+///
+/// The bound check compares against `i64::MAX as f64`/`i64::MIN as f64`
+/// rather than a hand-picked constant: `i64::MIN` (`-2^63`) is exactly
+/// representable in `f64`, so `>=` is correct at that end; `i64::MAX`
+/// (`2^63 - 1`) is NOT exactly representable and rounds UP to `2^63` when
+/// widened to `f64`, so a strict `<` against that rounded value correctly
+/// excludes `2^63` itself (which would saturate) while admitting every
+/// float below it (all of which cast to `i64` without saturating).
+fn integral_i64(n: f64) -> Option<i64> {
+    if n.fract() == 0.0 && n >= i64::MIN as f64 && n < i64::MAX as f64 {
+        Some(n as i64)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod integral_i64_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_ordinary_whole_numbers() {
+        assert_eq!(integral_i64(0.0), Some(0));
+        assert_eq!(integral_i64(42.0), Some(42));
+        assert_eq!(integral_i64(-42.0), Some(-42));
+    }
+
+    #[test]
+    fn rejects_fractional_numbers() {
+        assert_eq!(integral_i64(25.5), None);
+    }
+
+    #[test]
+    fn accepts_i64_boundaries() {
+        assert_eq!(integral_i64(i64::MIN as f64), Some(i64::MIN));
+        // The largest f64 that still casts to i64 without saturating —
+        // i64::MAX itself (2^63 - 1) isn't exactly representable in f64
+        // and rounds up to 2^63, which is the saturation point rejected
+        // by `accepts_i64_saturation_boundary` below.
+        let largest_safe = 9223372036854774784.0_f64;
+        assert_eq!(integral_i64(largest_safe), Some(largest_safe as i64));
+    }
+
+    #[test]
+    fn accepts_i64_saturation_boundary() {
+        // Refuses rather than silently saturating to i64::MAX/i64::MIN —
+        // this is the L21 bug: `as i64` on either of these would produce
+        // `i64::MAX`/`i64::MIN`, a wrong number that looks plausible.
+        assert_eq!(integral_i64(2f64.powi(63)), None, "2^63 must not saturate to i64::MAX");
+        // `f64`'s precision step this far from zero is already 2^11 (2048),
+        // so nudging by a small delta can silently round back to the same
+        // float — `2f64.powi(64)` (twice i64::MIN's magnitude) leaves no
+        // ambiguity.
+        assert_eq!(integral_i64(-(2f64.powi(64))), None, "well below i64::MIN must not saturate to i64::MIN");
+    }
+
+    #[test]
+    fn as_i64_refuses_out_of_range_where_the_old_cast_would_have_saturated() {
+        // A JSON number bigger than i64::MAX, e.g. from a huge command
+        // argument — `Json::Num(n).as_i64()` used to silently become
+        // `Some(i64::MAX)`. It must now be `None`, letting every generated
+        // `from_json` call site's existing `.ok_or_else(|| Refusal::TypeMismatch(...))`
+        // refuse cleanly instead.
+        let huge = Json::Num(1e30);
+        assert_eq!(huge.as_i64(), None);
+    }
+
+    #[test]
+    fn to_id_component_reflects_true_magnitude_instead_of_a_clamped_one() {
+        let huge = Json::Num(1e30);
+        let id = huge.to_id_component().expect("numbers are always usable as an id component");
+        assert_ne!(id, i64::MAX.to_string(), "must not silently clamp to i64::MAX");
+        assert!(id.starts_with('1'), "should reflect the real magnitude, got {id:?}");
+    }
+
+    #[test]
+    fn to_id_component_refuses_an_empty_string() {
+        // R4 (docs/audits/2026-08-11-bug-triage.md) — Ruby's own
+        // `Runtime::Identity.of` treats a blank identity part as absent,
+        // never as a real, empty-string identity component. Before this
+        // fix, `to_id_component` round-tripped `""` unchanged and Rust
+        // silently accepted a record addressable by an empty-string id
+        // that Ruby would never persist.
+        let blank = Json::Str(String::new());
+        assert!(blank.to_id_component().is_err(), "an empty string must not be usable as an identity component");
+    }
+
+    #[test]
+    fn to_id_component_still_accepts_a_real_string() {
+        let real = Json::Str("acct-1".to_string());
+        assert_eq!(real.to_id_component().unwrap(), "acct-1");
     }
 }
 

@@ -67,19 +67,44 @@ RSpec.describe "Governance" do
     expect(rows.map { |row| row[:id] }).to eq(["u-1:Teller:2026-01-01"])
   end
 
-  def grant(from: "Customer administrator", to: "Customer registrar")
+  def grant(from: "Customer administrator", to: "Customer registrar", starts_at: "2026-01-01")
     runtime.dispatch(
       "Governance::RoleTransition.Grant",
-      from_role: { value: from }, to_role: { value: to }
+      from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
   end
 
-  it "grants a role transition, identified by the (from, to) pair" do
+  it "grants a role transition, identified by the (from, to, starts_at) triple" do
     result = grant
 
     expect(result.events.map(&:name)).to eq(["RoleTransitionGranted"])
-    expect(result.instance.id).to eq("Customer administrator:Customer registrar")
+    expect(result.instance.id).to eq("Customer administrator:Customer registrar:2026-01-01")
     expect(result.instance.state[:ends_at]).to be_nil
+  end
+
+  # M25 — `starts_at` is part of the identity for the SAME reason it is
+  # for RoleAssignment (see the aggregate's own header comment): without
+  # it, `identified_by :from_role, :to_role` alone made a revoked pair
+  # permanently occupied — `Grant` is a creating command, so a repeat
+  # grant of the identical pair collided with its own (now-revoked)
+  # record as `AlreadyExists`, forever. This is the regression test for
+  # that fix: revoke a pair, then grant it again — the second grant must
+  # succeed as a genuinely new record, not be refused.
+  it "grants a previously-revoked pair again, as a distinct record — the pair is not an absorbing state" do
+    first = grant(starts_at: "2026-01-01")
+    runtime.dispatch("Governance::RoleTransition.Revoke", id: first.instance.id, ends_at: { value: "2026-05-31" })
+
+    second = grant(starts_at: "2026-06-01")
+
+    expect(second.events.map(&:name)).to eq(["RoleTransitionGranted"])
+    expect(second.instance.id).not_to eq(first.instance.id)
+    expect(second.instance.state[:ends_at]).to be_nil
+
+    rows = runtime.query(
+      "Governance::RoleTransition.Allowed",
+      from_role: { value: "Customer administrator" }, to_role: { value: "Customer registrar" }
+    )
+    expect(rows.map { |row| row[:id] }).to contain_exactly(first.instance.id, second.instance.id)
   end
 
   it "revokes a role transition by setting ends_at, without deleting the record" do
@@ -102,7 +127,7 @@ RSpec.describe "Governance" do
       from_role: { value: "Customer registrar" }, to_role: { value: "Customer administrator" }
     )
 
-    expect(matching.map { |row| row[:id] }).to eq(["Customer administrator:Customer registrar"])
+    expect(matching.map { |row| row[:id] }).to eq(["Customer administrator:Customer registrar:2026-01-01"])
     expect(reversed).to be_empty
   end
 

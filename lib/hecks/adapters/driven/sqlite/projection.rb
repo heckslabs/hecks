@@ -1,5 +1,8 @@
 require_relative "../../../runtime/instance"
 require_relative "../../../runtime/value"
+require_relative "../../../runtime/errors"
+require_relative "../../../runtime/refusal_wording"
+require_relative "../../../rendering"
 require_relative "../../../ports/query/in_memory"
 
 # The subclass needs its parent — and sqlite.rb requires this file at
@@ -29,6 +32,34 @@ module Hecks
       # Execute a declared read model against the projected aggregate-head
       # tables. The report shape is assembled from SQL-selected rows, rather
       # than scanning repositories and matching references in Ruby.
+      #
+      # M19 (docs/audits/2026-08-10-main-bug-audit.md,
+      # docs/audits/2026-08-11-bug-triage.md) — this used to diverge from
+      # `Runtime::ReadModelInterpreter#project` (the in-process path) on
+      # two counts, both fixed here to agree with it:
+      #
+      # MISSING ROOT: the in-process path's own `fetch` refuses with
+      # `NotFound` when the reference argument names no record —
+      # `query_read_model` used to answer a silent `{root: nil, ...}`
+      # instead, the one path a caller could dispatch a read model
+      # against a record that never existed and get back something that
+      # LOOKS like an empty report rather than the refusal every other
+      # path gives.
+      #
+      # CHAINED-INCLUDE JOIN SCOPE: a non-root head was always matched
+      # against the ROOT's own id, regardless of what it actually
+      # references — correct for a head that references the root
+      # directly, silently EMPTY for one that references another
+      # included head instead (`Leaf` -> `Mid` -> `Root`, `Leaf` itself
+      # has no attribute referencing `Root` at all, so `references`
+      # was always `[]`). The in-process path's own root-first fix
+      # (`ReadModelInterpreter#project`'s "ROOT FIRST, ALWAYS" comment)
+      # already matches a head against ANY already-projected source, not
+      # only the root — `select_related` now does the same: each head is
+      # matched against every source resolved so far (root first, then
+      # declared order — the same one-level-of-declaration-order
+      # dependency the in-process path itself still has, documented
+      # there as L2, not a gap introduced here).
       def query_read_model(_domain, model, args, bluebook = nil)
         raise ArgumentError, "projection query needs its domain bluebook" unless bluebook
 
@@ -37,15 +68,27 @@ module Hecks
         # declared as a path and followed.
         reference_id = args.fetch(model.reference_name).to_s
         eligible = model.filtered_head_name
+
+        # ROOT FIRST, ALWAYS — see this method's own header. Mirrors
+        # `ReadModelInterpreter#project`'s identical partition, for the
+        # identical reason: a later head's own join has to be able to
+        # match against a root (or another head) already resolved.
+        root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
+        projected = []
         reports = {}
-        model.aggregate_heads.each do |head|
+        (root_heads + other_heads).each do |head|
           aggregate = bluebook.aggregate(head[:aggregate])
           rows = if head[:aggregate] == model.reference_target
-                   [select_projected(aggregate, reference_id)].compact
+                   [select_projected(aggregate, reference_id) ||
+                     raise(Runtime::NotFound,
+                           Runtime::RefusalWording.render("NotFound", "read_model_reference_missing",
+                                                          aggregate: head[:aggregate],
+                                                          offered:   Hecks::Rendering.describe(reference_id)))]
                  else
-                   select_related(aggregate, model.reference_target, reference_id)
+                   select_related(aggregate, projected)
                  end
           rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
+          projected << { aggregate: head[:aggregate], rows: rows }
           reports[head[:as]] = if head[:many]
                                  rows.map { |row| Runtime::Value.materialize(row.to_h) }
                                else
@@ -62,18 +105,32 @@ module Hecks
         row && projected_instance(aggregate, row)
       end
 
-      def select_related(aggregate, target, id)
-        references = aggregate.attributes.select do |attribute|
-          attribute.reference? && attribute.type.target_name == target.to_s
+      # Matched against EVERY source already projected (root first, then
+      # declared order — see this class's own `query_read_model` header),
+      # not only the root — a head whose own reference points at another
+      # included head rather than the root directly used to match nothing
+      # at all, since its reference attribute was compared against a
+      # target (the root) it never names.
+      def select_related(aggregate, projected)
+        matches = projected.flat_map do |source|
+          references = aggregate.attributes.select do |attribute|
+            attribute.reference? && attribute.type.target_name == source[:aggregate].to_s
+          end
+          next [] if references.empty?
+
+          ids = source[:rows].map { |row| row.id.to_s }
+          next [] if ids.empty?
+
+          references.product(ids)
         end
-        return [] if references.empty?
+        return [] if matches.empty?
 
         # A REFERENCE COLUMN HOLDS THE ID, so it compares as itself. The
         # `json_extract(col,'$.value') = ? OR col = ?` this replaced was
         # reading both shapes because both existed — one written by the
         # command path, one by older journals. There is one shape now.
-        clauses = references.map { |attribute| "#{quote_ident(attribute.name)} = ?" }
-        bind = references.map { id.to_s }
+        clauses = matches.map { |attribute, _id| "#{quote_ident(attribute.name)} = ?" }
+        bind = matches.map { |_attribute, id| id }
         @db.execute("SELECT * FROM #{quote_ident(aggregate.storage_name)} WHERE #{clauses.join(' OR ')} ORDER BY id", bind)
            .map { |row| projected_instance(aggregate, row) }
       end

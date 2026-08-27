@@ -30,7 +30,15 @@ module Hecks
         attributes: many(:attributes),
         invariants: -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         closed_set: :closed_set?,
-        members:    -> { members.map { |member| member.map { |field, value| [field.to_s, value.to_s] } } }
+        # THE FIELD NAME IS STRINGIFIED, NEVER THE VALUE. A `member` row can
+        # hold any of the scalar types an attribute declares — `Integer 84`
+        # (`StatementFrequency#retention_months`, statements.bluebook), not
+        # only `String` — and `value.to_s` used to erase that on the way
+        # out, so `84` and `"84"` (a member some other row might
+        # legitimately spell as text) became indistinguishable once they
+        # reached `to_h`. The declared name still moves (`field.to_s`) —
+        # that half was never a Ruby object with a type to lose.
+        members:    -> { members.map { |member| member.map { |field, value| [field.to_s, value] } } }
       )
 
       class << self

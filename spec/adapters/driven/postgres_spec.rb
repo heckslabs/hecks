@@ -105,6 +105,32 @@ RSpec.describe Hecks::Adapters::Postgres,
     expect(adapter.entries.map { |entry| entry.state[:status] }).to eq(%w[available sold])
   end
 
+  it "stores an absent mirrors hash as a real SQL NULL, not the jsonb literal null" do
+    adapter.save(instance("p1", status: "available"))
+
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    null_rows = db.exec_params('SELECT mirrors FROM "order_entries" WHERE mirrors IS NULL')
+    expect(null_rows.ntuples).to eq(1)
+
+    jsonb_null_rows = db.exec_params("SELECT mirrors FROM \"order_entries\" WHERE mirrors = 'null'::jsonb")
+    expect(jsonb_null_rows.ntuples).to eq(0)
+    db.close
+  end
+
+  it "still stores a real mirrors hash as jsonb, and reads it back" do
+    entry = Hecks::Ports::Persistence::Entry.new(
+      operation: "save", id: "p2", state: { status: "available" }, mirrors: { replica: "eu" }
+    )
+    adapter.append(entry)
+
+    expect(adapter.entries.last.mirrors).to eq("replica" => "eu")
+
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    row = db.exec_params('SELECT mirrors FROM "order_entries" WHERE aggregate_id = $1', ["p2"])[0]
+    db.close
+    expect(JSON.parse(row["mirrors"])).to eq("replica" => "eu")
+  end
+
   it "lists everything it holds" do
     adapter.save(instance("p1", name: { value: "Margherita" }))
     adapter.save(instance("p2", name: { value: "Bare" }))
@@ -297,6 +323,18 @@ RSpec.describe Hecks::Adapters::Postgres,
 
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}]])
       expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}]])
+    end
+
+    # `settings[:domain] || settings["domain"] || aggregate.storage_name`
+    # used to coerce a genuinely stored `false` at :domain into the
+    # storage-name fallback — indistinguishable from :domain being absent
+    # entirely.
+    it "reads a `false`-valued :domain setting back as itself, not the storage-name fallback" do
+      falsy_domain = described_class.new(
+        aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: false }
+      )
+
+      expect(falsy_domain.instance_variable_get(:@domain)).to eq("false")
     end
   end
 end

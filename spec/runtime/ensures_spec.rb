@@ -207,7 +207,16 @@ RSpec.describe "a command's ensures" do
             identified_by :serial
             attribute :serial, Serial
             attribute :label,  Label
-            attribute :cents,  Integer
+            # `Money`, not the bare `Integer` this fixture declared before —
+            # M13: an entity's attribute types are now resolved as
+            # references the same way an aggregate's own are, and `Integer`
+            # is a Ruby class, never a declared value object anywhere in
+            # this chapter (Purse's own `AddCoin` already binds this same
+            # field through `attribute :cents, Money`, and `Purse#total`
+            # carries the identical `Money` type one level up — the
+            # bare-`Integer` field type here was simply unexercised: only
+            # `label` is asserted after `Reface`'s ensures refuses).
+            attribute :cents,  Money
 
             command "Reface" do
               role "Teller"

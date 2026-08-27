@@ -74,6 +74,20 @@ RSpec.describe Hecks::Facade::JsonDoor do
       expect { json_door.validate_command!(Pizzas::Order, "cancel_order") }
         .to raise_error(Hecks::Runtime::NotFound, /cancel_order/)
     end
+
+    it "raises Runtime::NotFound for the creating command, which a Handle can never dispatch" do
+      # `klass.commands` (AggregateDoor's own door-level list) includes the
+      # creating command; a `Handle` in hand only ever defines singleton
+      # methods for non-creating verbs (`Handle#define_verb_methods`). A
+      # caller that got "create_pizza!" past this gate would go on to hit
+      # a raw NoMethodError from `handle.public_send("create_pizza!")`
+      # instead of the clean 404 this method exists to give — this pins
+      # the gate refusing it here instead.
+      boot_in_memory
+
+      expect { json_door.validate_command!(Pizzas::Order, "create_pizza!") }
+        .to raise_error(Hecks::Runtime::NotFound, /create_pizza!/)
+    end
   end
 
   describe ".find!" do

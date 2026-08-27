@@ -59,7 +59,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
       steps.each do |step|
         expect(step.keys - %w[verb query args]).to be_empty
         expect(step).to have_key("args")
-        expect(step["verb"] || step["query"]).to be_a(String)
+        expect(step.key?("verb") ? step["verb"] : step["query"]).to be_a(String)
       end
     end
 

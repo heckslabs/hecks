@@ -63,6 +63,42 @@ RSpec.describe Hecks::Bluebook::PatternSubset do
     end
   end
 
+  describe "character-class interiors" do
+    # A `*` or `+` INSIDE `[...]` is a literal character, not a quantifier —
+    # the walk must not mistake it for a possessive-quantifier attempt.
+    [
+      "[*+]",
+      "[+*]",
+      "[?+]",
+      "[a*+]",
+      "^[*+?]+$",
+      "[]]",
+      "[^]]",
+      "[]*+]"
+    ].each do |pattern|
+      it "admits #{pattern.inspect} (literal quantifier characters in a class)" do
+        expect(described_class.validate(pattern)).to be_nil
+      end
+    end
+
+    # A genuine possessive quantifier — including the bounded `{n}+` form,
+    # which the old scan never even looked for — is still refused when it
+    # occurs OUTSIDE any character class.
+    {
+      "a{2}+"    => "possessive quantifier",
+      "a{2,4}+"  => "possessive quantifier",
+      "a{2,}+"   => "possessive quantifier",
+      "[ab]{2}+" => "possessive quantifier"
+    }.each do |pattern, construct|
+      it "refuses #{pattern} as a #{construct}" do
+        rejection = described_class.validate(pattern)
+
+        expect(rejection).not_to be_nil, "#{pattern} should have been refused"
+        expect(rejection.construct).to eq(construct)
+      end
+    end
+  end
+
   # A RECORDED CONTRACT, not a re-derived one : the fixture holds the
   # expected verdicts, so a regression in the walk is caught against what was
   # agreed rather than against whatever the walk now says. Recording the

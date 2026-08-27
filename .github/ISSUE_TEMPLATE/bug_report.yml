@@ -1,0 +1,95 @@
+name: Bug report
+description: The declaration says one thing and the runtime did another.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful bug report here is a small `.bluebook` and the
+        exact command/query that misbehaves — see `spec/corpus/*.json`
+        and `bin/fuzz`'s own shrinker for what "small" looks like. If
+        you hit this through `bin/fuzz`, paste the shrunk script under
+        `tmp/fuzz-failures/` instead of retyping it by hand.
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: >
+        The smallest `.bluebook` (plus `.hecksagon`/`.world` if the
+        wiring matters) that still reproduces this, and the Ruby or
+        `bin/run`-style step list you ran against it.
+      placeholder: |
+        aggregate "Thing" do
+          ...
+        end
+      render: ruby
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual
+      description: >
+        What you expected the runtime to do or refuse, and what it did
+        instead. If it's a refusal that should have fired (or one that
+        fired but shouldn't have), say which `given`/invariant and
+        include the exact message.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Which runtime?
+      description: Ruby is the reference implementation; rust/ is generated from the same IR and checked against it.
+      options:
+        - Ruby only
+        - Rust only (rust/, via bin/project_rust / cargo)
+        - Both — Ruby and Rust disagree
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: ruby-version
+    attributes:
+      label: Ruby version
+      placeholder: "e.g. 3.3.4 — ruby -v"
+    validations:
+      required: true
+
+  - type: input
+    id: hecks-version
+    attributes:
+      label: hecks version or commit
+      description: The gem version (`Hecks::VERSION`) or the commit SHA if running off a checkout.
+      placeholder: "e.g. 0.3.0, or a git SHA"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Persistence adapter involved (if any)
+      options:
+        - Not applicable / Memory
+        - Sqlite
+        - Postgres
+        - PostgresEra
+        - Heki
+        - Folder
+        - Other / not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: >
+        Output of `bin/model_check` or `bin/fuzz` if you ran either
+        against this domain, or anything else that narrowed it down.
+    validations:
+      required: false

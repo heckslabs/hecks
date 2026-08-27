@@ -436,5 +436,50 @@ module RustProjection
 
       Exemplar.render("identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
     end
+
+    # ── THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1,
+    # docs/audits/2026-08-11-bug-triage.md) — `orchestrate.rs`'s own
+    # `split_routed_args` needs this to build a reaction-triggered
+    # dispatch's `with:` facts the SAME way `ReactionInvocation.
+    # command_facts` does on the Ruby side: `args.slice(*declared)`,
+    # dropping anything the target command doesn't itself declare as an
+    # attribute — an identity/reference/correlation key a policy or
+    # process manager's own `with:` mapping resolved (`reference: :reference`
+    # forwarding a Transfer's own reference onto its saga-dispatched
+    # Account::Debit/Credit legs, the corpus's real, live example) but
+    # the TARGET command never declared stays OFF that command's own
+    # event payload — exactly like a direct, hand-written dispatch of the
+    # same command never carries it either. Previously `split_routed_
+    # args` only ever REMOVED the one key it promoted into `to:`,
+    # leaving every OTHER undeclared key (like a forwarded `reference:`)
+    # sitting in `with:` unfiltered, which is what let it leak all the
+    # way into the persisted event (`Json::overlay`'s own `patch` merge
+    # never touches a key it doesn't declare, so `base`'s copy — this
+    # exact leaked key — survived the merge untouched).
+    #
+    # Built the same way `emit_creates_table` is: one arm per verb, both
+    # `aggregate[:commands]` and `aggregate[:entity_commands]` — an
+    # entity command's own declared attributes are exactly as real a
+    # constraint on its facts as an aggregate command's.
+    #
+    # NARROWER THAN Ruby's OWN gate, on purpose: this only ever runs
+    # inside `split_routed_args`, itself only ever reached from a
+    # POLICY/PROCESS-MANAGER-triggered dispatch (`react_policies`/
+    # `deliver_saga_dispatch`'s own `build_dispatch_args`) — a direct,
+    # externally-dispatched command's own facts are never touched by
+    # this table at all, matching Ruby's own split (`ReactionInvocation
+    # .build`'s `command_facts` slice applies to a REACTION's own
+    # explicit projection, never to `Dispatcher#dispatch`'s plain
+    # external args).
+    def emit_command_attributes_table(aggregates)
+      arms = aggregates.flat_map do |aggregate|
+        (Array(aggregate[:commands]) + Array(aggregate[:entity_commands])).map do |c|
+          names = Array(c[:attributes]).map { |name| name.to_s.inspect }.join(", ")
+          "        #{c[:verb].inspect} => &[#{names}],"
+        end
+      end
+
+      Exemplar.render("command_attributes_table", '"tmpl_verb" => &["tmpl_attr"],' => arms.join("\n"))
+    end
   end
 end

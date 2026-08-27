@@ -30,6 +30,10 @@ pub struct CommandEntry {
     /// This command's OWN reference-typed attributes — `command_deref`'s
     /// own specs (`reference_specs.rb`'s own header).
     pub reference_specs: Vec<ReferenceSpec>,
+    /// THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1) —
+    /// `reactions.rs`'s own `emit_command_attributes_table` reads this;
+    /// see its header for the full argument.
+    pub attributes: Vec<String>,
     pub role: Option<String>,
 }
 
@@ -41,6 +45,9 @@ pub struct EntityCommandEntry {
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
     pub reference_specs: Vec<ReferenceSpec>,
+    /// THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1) — see
+    /// `CommandEntry`'s own identical field, above.
+    pub attributes: Vec<String>,
     pub role: Option<String>,
     /// `entity_name:`/`entity_identity_reading:` — carried in
     /// `domain_generator.rb`'s own `entity_commands` hash (its own

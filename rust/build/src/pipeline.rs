@@ -60,6 +60,16 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         .ok_or_else(|| format!("could not determine a module name from domain path {domain:?}"))?
         .to_string();
 
+    // SAME GUARD, SAME REASON as bin/project_rust's own default path (R5)
+    // — see `cargo_sync::valid_domain_mod_name`'s own header.
+    if !cargo_sync::valid_domain_mod_name(&target_mod_name) {
+        return Err(format!(
+            "domain name {target_mod_name:?} (from {domain:?}) can't be used as-is — it has to double as a Rust \
+             module identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, \
+             is a Rust keyword, or collides with a reserved Cargo.toml key. Rename the domain directory."
+        ));
+    }
+
     let bluebook_directory = domain_path.join("bluebook");
     let bluebook_paths = resolve::bluebook_files(&bluebook_directory)?;
     let first_bluebook = bluebook_paths.first().ok_or_else(|| format!("{} has no .bluebook files", domain_path.display()))?;

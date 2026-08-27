@@ -32,6 +32,30 @@ RSpec.describe "the expression sublanguage" do
       expect { evaluate('amount.modulo("x")', amount: 7) }.to raise_error(/modulo expects a number/)
     end
 
+    # M8 (docs/audits/2026-08-10-main-bug-audit.md) — modulo used to
+    # truncate BOTH operands with `.to_i` before dividing, and zero-check
+    # a coerced-but-still-untruncated divisor. A divisor that only
+    # truncates to zero (`0.3.to_i == 0`) sailed past that guard and then
+    # blew up the real `%` with a raw `ZeroDivisionError` — never reaching
+    # this sublanguage's own `EvaluationError` refusal.
+    #
+    # `resolve`, not `evaluate` — modulo is the Resolver's own arithmetic
+    # leaf, and `Evaluator.call` would fold its numeric result through
+    # `truthy?` on the way out (fine for a bare `given`/`invariant`, but it
+    # would hide a wrong NUMBER behind an equally-true boolean here).
+    def resolve(expression, state = {}, args = {})
+      Hecks::Bluebook::Expression::Resolver.resolve(expression, state, args)
+    end
+
+    it "does not truncate a float divisor into a false zero-division" do
+      expect(resolve("amount.modulo(0.3)", amount: 7)).to be_within(1e-9).of(7 % 0.3)
+    end
+
+    it "does not truncate float operands, matching Ruby's own modulo" do
+      expect(resolve("amount.modulo(2.5)", amount: 7.5)).to eq(7.5 % 2.5)
+      expect(resolve("amount.modulo(2.5)", amount: 7.5)).not_to eq(1) # the old truncated-to-Integer answer
+    end
+
     it "supports empty maps and scalar string conversion" do
       expect(evaluate("metadata.empty?", metadata: {})).to be(true)
       expect(evaluate('ratio.to_s == "1.5"', ratio: 1.5)).to be(true)
@@ -130,6 +154,27 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("!ready && open", { ready: false, open: true })).to be true
       expect(evaluate("!ready && open", { ready: true,  open: true })).to be false
       expect(evaluate("!(a && b)",      { a: true, b: false })).to be true
+    end
+
+    # M6 (docs/audits/2026-08-10-main-bug-audit.md) — every spelling of
+    # negated membership used to raise. `match_include`'s naive
+    # `rindex(".include?(")` isn't aware of a leading `!`, so it swallowed
+    # the marker straight into the haystack text ("!names"), which
+    # `Resolver.parse` cannot resolve. `!` now negates the whole boolean
+    # expression that follows it, exactly as real Ruby's `!` binds to a
+    # full method-call chain.
+    it "expresses negated membership" do
+      state = { names: %w[Basil Olive] }
+
+      expect(evaluate('!names.include?("Anchovy")', state)).to be true
+      expect(evaluate('!names.include?("Basil")',   state)).to be false
+    end
+
+    it "expresses negated membership parenthesized too" do
+      state = { names: %w[Basil Olive] }
+
+      expect(evaluate('!(names.include?("Anchovy"))', state)).to be true
+      expect(evaluate('!(names.include?("Basil"))',   state)).to be false
     end
   end
 
@@ -476,6 +521,24 @@ RSpec.describe "the expression sublanguage" do
     it "still resolves a declared attribute that happens to be nil" do
       expect(evaluate("customer_name == nil", { customer_name: nil })).to be(true)
     end
+
+    # M9 (docs/audits/2026-08-10-main-bug-audit.md) — a dotted lookup that
+    # walks onto an Array used to hit `Array#[]` with a non-Integer
+    # segment and raise a raw `TypeError` straight past this
+    # sublanguage's own refusal boundary, instead of the `EvaluationError`
+    # every other "this predicate can't read that" case already raises.
+    it "refuses, rather than raising a raw TypeError, a dotted lookup onto a list" do
+      expect { evaluate("list.foo", { list: [1, 2, 3] }) }
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /cannot read "foo"/)
+    end
+
+    # M9 — a malformed pattern between the slashes used to reach
+    # `Regexp.new` and raise a raw `RegexpError`, the same shape of
+    # boundary crossing as the TypeError/ZeroDivisionError cases above.
+    it "refuses, rather than raising a raw RegexpError, an invalid match? pattern" do
+      expect { evaluate("value.match?(/[/)", value: "x") }
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /invalid pattern/)
+    end
   end
 
   describe "extraction" do
@@ -609,6 +672,23 @@ RSpec.describe "the expression sublanguage" do
 
     it "still splits a genuinely top-level addition that merely CONTAINS a block predicate" do
       expect(evaluate("pending + extras.size == 3", { pending: 2 }, { extras: [1] })).to be(true)
+    end
+  end
+
+  # S2 (docs/audits/2026-08-10-main-bug-audit.md) — `Resolver#walk_path`
+  # used to read a dotted step with `current[segment.to_sym] ||
+  # current[segment]`, which drops a genuinely-stored `false` to `nil`
+  # (`false || …` falls through to the other key spelling). A dotted
+  # lookup that lands on a `false` member used to answer as though the
+  # member were entirely absent.
+  describe "dotted lookup onto a stored false" do
+    it "reads a false-valued nested member as itself, not as absent" do
+      expect(evaluate("flags.active == false", { flags: { active: false } })).to be(true)
+      expect(evaluate("flags.active == true",  { flags: { active: false } })).to be(false)
+    end
+
+    it "still reads a true-valued nested member" do
+      expect(evaluate("flags.active == true", { flags: { active: true } })).to be(true)
     end
   end
 end

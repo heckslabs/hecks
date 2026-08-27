@@ -98,6 +98,10 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
+                      args.actor_id.check_invariants()?;
+                      args.role_name.check_invariants()?;
+                      args.scope.check_invariants()?;
+                      args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -110,6 +114,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json)?, };
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
+                      args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -121,6 +126,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
+                      args.from_role.check_invariants()?;
+                      args.to_role.check_invariants()?;
+                      args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -133,6 +141,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json)?, };
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
+                      args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -215,6 +224,16 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
 
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Governance::RoleAssignment.Assign" => &["actor_id", "role_name", "scope", "starts_at"],
+        "Governance::RoleAssignment.Revoke" => &["ends_at"],
+        "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
+        "Governance::RoleTransition.Revoke" => &["ends_at"],
+        _ => &[],
     }
 }
 

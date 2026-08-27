@@ -57,7 +57,7 @@ module Hecks
         # need the gem installed.
         require "pg"
 
-        declared = settings[:database] || settings["database"]
+        declared = settings.key?(:database) ? settings[:database] : settings["database"]
         if declared.to_s.empty?
           raise Runtime::WiringError,
                 "#{name} binds Postgres, which needs a database connection, " \
@@ -76,7 +76,7 @@ module Hecks
         # with other domains, so every unqualified reference this
         # adapter constructs resolves through search_path. A domain with
         # no `schema` setting keeps Postgres's own default (public).
-        schema = settings[:schema] || settings["schema"]
+        schema = settings.key?(:schema) ? settings[:schema] : settings["schema"]
         connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
 
         # QUIET ON PURPOSE — same reasoning as PostgresEra's own: a
@@ -96,7 +96,15 @@ module Hecks
         # (§2/§4) — falls back to the aggregate's own storage name for a
         # directly-instantiated adapter (specs), same fallback shape
         # Sqlite's own @domain already uses.
-        @domain = (settings[:domain] || settings["domain"] || aggregate.storage_name).to_s
+        @domain = (
+          if settings.key?(:domain)
+            settings[:domain]
+          elsif settings.key?("domain")
+            settings["domain"]
+          else
+            aggregate.storage_name
+          end
+        ).to_s
 
         create_aggregate_table!
         create_entry_table!
@@ -134,7 +142,13 @@ module Hecks
       def append(entry)
         @db.exec_params(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES ($1, $2, $3, $4)",
-          [entry.id, entry.operation, JSON.generate(entry.state), JSON.generate(entry.mirrors)]
+          # `mirrors` (unlike `state`) is a NULLABLE column — an absent
+          # mirrors hash must bind a real SQL NULL, not the four-character
+          # JSON text `"null"` (`JSON.generate(nil)`), or a future `IS NULL`
+          # check against it would never match. Same guard `sqlite.rb`/
+          # `d1.rb`/`postgres_era.rb` already use for their own journal's
+          # `mirrors` column.
+          [entry.id, entry.operation, JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
         )
         entry
       end

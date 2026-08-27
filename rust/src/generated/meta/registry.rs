@@ -207,6 +207,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::IdentifyArgs::from_json(facts_json)?;
+                      args.path.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -219,6 +220,13 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::AttributeArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Attribute", caller_role)?;
               crate::kernel::check_reference(&store.valueobject, &args.r#type, "ValueObject", "aggregate, name")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
@@ -232,6 +240,13 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::ReferenceArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Reference", caller_role)?;
               crate::kernel::check_reference(&store.aggregate, &args.points_at, "Aggregate", "bluebook, name")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
@@ -245,6 +260,13 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::HoldsArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Holds", caller_role)?;
               crate::kernel::check_reference(&store.entity, &args.holds, "Entity", "aggregate, name")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
@@ -258,6 +280,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::LifecycleArgs::from_json(facts_json)?;
+                      args.state_field.check_invariants()?;
+                      args.state_start.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Lifecycle", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -270,6 +294,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::TransitionArgs::from_json(facts_json)?;
+                      args.command.check_invariants()?;
+                      if let Some(v) = &args.from_state { v.check_invariants()?; }
+                      args.to_state.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Transition", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -294,6 +321,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::ValueArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Value", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -306,6 +334,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::InvariantArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Invariant", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -318,6 +348,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::PreconditionArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Precondition", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -330,6 +362,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
               let args = crate::generated::meta::aggregate::ProjectsArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.reference.check_invariants()?;
+                      args.remote_field.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Projects", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -342,6 +377,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json)?, };
               let args = crate::generated::meta::bluebook::AttachArgs::from_json(facts_json)?;
+                      args.context.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Attach", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Bluebook", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -354,6 +390,11 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json)?, };
               let args = crate::generated::meta::bluebook::NormaliseArgs::from_json(facts_json)?;
+                      args.strategy.check_invariants()?;
+                      args.source_token.check_invariants()?;
+                      args.replacement.check_invariants()?;
+                      args.boundary.check_invariants()?;
+                      if let Some(v) = &args.position { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Normalise", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Bluebook", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -366,6 +407,14 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::ArgumentArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.r#type.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Argument", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -378,6 +427,13 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::ReferenceArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Reference", caller_role)?;
               crate::kernel::check_reference(&store.aggregate, &args.points_at, "Aggregate", "bluebook, name")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
@@ -391,6 +447,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::RuleArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Rule", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -403,6 +461,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::EnsureArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Ensure", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -415,6 +475,12 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::ChangeArgs::from_json(facts_json)?;
+                      args.target.check_invariants()?;
+                      if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\" — got ", args.op.value))); }
+                      args.op.check_invariants()?;
+                      args.field.check_invariants()?;
+                      args.kind.check_invariants()?;
+                      args.source.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Change", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -427,6 +493,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::ActsOnArgs::from_json(facts_json)?;
+                      args.root.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "ActsOn", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -439,6 +506,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::AnnounceArgs::from_json(facts_json)?;
+                      args.announces.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Announce", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -451,6 +519,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::IdentifyArgs::from_json(facts_json)?;
+                      args.path.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -475,11 +544,59 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::AttributeArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Attribute", caller_role)?;
+              crate::kernel::check_reference(&store.valueobject, &args.r#type, "ValueObject", "aggregate, name")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "type", as_name: "type", target: "Bluebook::ValueObject" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::entity::dispatch_attribute(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::Entity.Reference" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let args = crate::generated::meta::entity::ReferenceArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
+              crate::kernel::check_role(Some("Language"), "Reference", caller_role)?;
+              crate::kernel::check_reference(&store.aggregate, &args.points_at, "Aggregate", "bluebook, name")?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "points_at", as_name: "points_at", target: "Bluebook::Aggregate" }], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::entity::dispatch_reference(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::Entity.Holds" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let args = crate::generated::meta::entity::HoldsArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
+              crate::kernel::check_role(Some("Language"), "Holds", caller_role)?;
+              crate::kernel::check_reference(&store.entity, &args.holds, "Entity", "aggregate, name")?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "holds", as_name: "holds", target: "Bluebook::Entity" }], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::entity::dispatch_holds(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Entity.Precondition" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -487,6 +604,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::PreconditionArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Precondition", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -499,6 +618,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::InvariantArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Invariant", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -511,6 +632,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.state_field { v.check_invariants()?; }
+                      if let Some(v) = &args.state_start { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Lifecycle", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -523,6 +646,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
               let args = crate::generated::meta::entity::TransitionArgs::from_json(facts_json)?;
+                      args.command.check_invariants()?;
+                      if let Some(v) = &args.from_state { v.check_invariants()?; }
+                      args.to_state.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Transition", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -535,6 +661,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json)?, };
               let args = crate::generated::meta::policy::BindArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Bind", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Policy", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -547,6 +675,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?, };
               let args = crate::generated::meta::processmanager::StateArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "State", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -559,6 +688,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?, };
               let args = crate::generated::meta::processmanager::HandlerArgs::from_json(facts_json)?;
+                      args.event_type.check_invariants()?;
+                      args.from_state.check_invariants()?;
+                      args.to_state.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Handler", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -571,6 +703,9 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
               let args = crate::generated::meta::readmodel::GatherArgs::from_json(facts_json)?;
+                      args.aggregate.check_invariants()?;
+                      args.r#as.check_invariants()?;
+                      args.many.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Gather", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -583,6 +718,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
               let args = crate::generated::meta::readmodel::GroupByArgs::from_json(facts_json)?;
+                      args.field.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "GroupBy", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -595,6 +731,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
               let args = crate::generated::meta::readmodel::CountArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.count { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Count", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -607,6 +744,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
               let args = crate::generated::meta::readmodel::MedianArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.median_field { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Median", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -619,6 +757,10 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
               let args = crate::generated::meta::readmodel::OptionArgs::from_json(facts_json)?;
+                      args.option.check_invariants()?;
+                      args.key.check_invariants()?;
+                      if let Some(v) = &args.value { v.check_invariants()?; }
+                      if let Some(v) = &args.at { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Option", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ReadModel", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -631,6 +773,10 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
               let args = crate::generated::meta::query::FilterArgs::from_json(facts_json)?;
+                      args.field.check_invariants()?;
+                      if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", args.op.value))); }
+                      args.op.check_invariants()?;
+                      args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Filter", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Query", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -643,6 +789,10 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
               let args = crate::generated::meta::query::OptionArgs::from_json(facts_json)?;
+                      args.option.check_invariants()?;
+                      args.key.check_invariants()?;
+                      if let Some(v) = &args.value { v.check_invariants()?; }
+                      if let Some(v) = &args.at { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Option", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Query", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -655,6 +805,14 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
               let args = crate::generated::meta::query::ArgumentArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.r#type.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Argument", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Query", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -667,6 +825,14 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
               let args = crate::generated::meta::valueobject::FieldArgs::from_json(facts_json)?;
+                      args.name.check_invariants()?;
+                      args.r#type.check_invariants()?;
+                      args.list.check_invariants()?;
+                      if let Some(v) = &args.optional { v.check_invariants()?; }
+                      if let Some(v) = &args.pattern { v.check_invariants()?; }
+                      if let Some(v) = &args.default { v.check_invariants()?; }
+                      if let Some(v) = &args.admits { v.check_invariants()?; }
+                      if let Some(v) = &args.relationship { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Field", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -679,6 +845,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
               let args = crate::generated::meta::valueobject::CloseArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.rows { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Close", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -691,6 +858,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
               let args = crate::generated::meta::valueobject::AssertArgs::from_json(facts_json)?;
+                      if let Some(v) = &args.description { v.check_invariants()?; }
+                      args.canonical.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Assert", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -703,6 +872,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
               let args = crate::generated::meta::valueobject::MemberArgs::from_json(facts_json)?;
+                      args.position.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Member", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -714,6 +884,8 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::meta::syntax::DeclareArgs::from_json(facts_json)?;
+                      args.bluebook.check_invariants()?;
+                      args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -726,6 +898,21 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json)?, };
               let args = crate::generated::meta::syntax::KeywordArgs::from_json(facts_json)?;
+                      args.position.check_invariants()?;
+                      args.word.check_invariants()?;
+                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
+                      args.context.check_invariants()?;
+                      if !["none", "keywords", "source", "rows"].contains(&args.body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "body admits Syntax::Body — \"none\", \"keywords\", \"source\", \"rows\" — got ", args.body.value))); }
+                      args.body.check_invariants()?;
+                      args.inner.check_invariants()?;
+                      args.opens.check_invariants()?;
+                      args.fills.check_invariants()?;
+                      if let Some(v) = &args.was { v.check_invariants()?; }
+                      if let Some(__optional_value) = &args.resolves_via { if !["hash_chain", "owner_keyed", "sibling_scan"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "resolves_via admits Syntax::ResolutionScope — \"hash_chain\", \"owner_keyed\", \"sibling_scan\" — got ", __optional_value.value))); } }
+                      if let Some(v) = &args.resolves_via { v.check_invariants()?; }
+                      if let Some(__optional_value) = &args.disambiguator { if !["declared_by"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "disambiguator admits Syntax::Disambiguator — \"declared_by\" — got ", __optional_value.value))); } }
+                      if let Some(v) = &args.disambiguator { v.check_invariants()?; }
+                      if let Some(v) = &args.calls { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Keyword", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -738,6 +925,24 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json)?, };
               let args = crate::generated::meta::syntax::ArgumentArgs::from_json(facts_json)?;
+                      args.position.check_invariants()?;
+                      args.keyword.check_invariants()?;
+                      if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
+                      args.context.check_invariants()?;
+                      if let Some(v) = &args.at { v.check_invariants()?; }
+                      if let Some(v) = &args.named { v.check_invariants()?; }
+                      if !["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"].contains(&args.kind.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "kind admits Syntax::ArgumentKind — \"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\" — got ", args.kind.value))); }
+                      args.kind.check_invariants()?;
+                      args.required.check_invariants()?;
+                      args.fills.check_invariants()?;
+                      if let Some(v) = &args.selects { v.check_invariants()?; }
+                      if let Some(v) = &args.pair_key_fills { v.check_invariants()?; }
+                      if let Some(v) = &args.pair_value_fills { v.check_invariants()?; }
+                      if let Some(v) = &args.pairs_shape { v.check_invariants()?; }
+                      if let Some(v) = &args.variadic { v.check_invariants()?; }
+                      if let Some(v) = &args.minimum { v.check_invariants()?; }
+                      if let Some(v) = &args.coerce { v.check_invariants()?; }
+                      if let Some(v) = &args.blank_message { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Argument", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -750,6 +955,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let element_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?;
+                      args.command_name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Dispatch", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -763,6 +969,8 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?; let element_id = crate::generated::meta::valueobject::Member::extract_id(facts_json)?; let element_wants = crate::generated::meta::valueobject::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::valueobject::MemberPairEntityArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Pair", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -954,6 +1162,8 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Entity.Identify" => false,
         "Bluebook::Entity.Seal" => false,
         "Bluebook::Entity.Attribute" => false,
+        "Bluebook::Entity.Reference" => false,
+        "Bluebook::Entity.Holds" => false,
         "Bluebook::Entity.Precondition" => false,
         "Bluebook::Entity.Invariant" => false,
         "Bluebook::Entity.Lifecycle" => false,
@@ -992,6 +1202,65 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Bluebook::Syntax" => Some("name"),
         "Bluebook::Vocabulary" => Some("name"),
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Bluebook::Aggregate.Identify" => &["path"],
+        "Bluebook::Aggregate.Attribute" => &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Aggregate.Reference" => &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Aggregate.Holds" => &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Aggregate.Lifecycle" => &["state_field", "state_start"],
+        "Bluebook::Aggregate.Transition" => &["command", "from_state", "to_state"],
+        "Bluebook::Aggregate.Seal" => &[],
+        "Bluebook::Aggregate.Value" => &["name"],
+        "Bluebook::Aggregate.Invariant" => &["description", "canonical"],
+        "Bluebook::Aggregate.Precondition" => &["description", "canonical"],
+        "Bluebook::Aggregate.Projects" => &["name", "reference", "remote_field"],
+        "Bluebook::Bluebook.Attach" => &["context"],
+        "Bluebook::Bluebook.Normalise" => &["strategy", "source_token", "replacement", "boundary", "position"],
+        "Bluebook::Command.Argument" => &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Command.Reference" => &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Command.Rule" => &["description", "canonical"],
+        "Bluebook::Command.Ensure" => &["description", "canonical"],
+        "Bluebook::Command.Change" => &["target", "op", "field", "kind", "source"],
+        "Bluebook::Command.ActsOn" => &["root"],
+        "Bluebook::Command.Announce" => &["announces"],
+        "Bluebook::Entity.Identify" => &["path"],
+        "Bluebook::Entity.Seal" => &[],
+        "Bluebook::Entity.Attribute" => &["type", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Entity.Reference" => &["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Entity.Holds" => &["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::Entity.Precondition" => &["description", "canonical"],
+        "Bluebook::Entity.Invariant" => &["description", "canonical"],
+        "Bluebook::Entity.Lifecycle" => &["state_field", "state_start"],
+        "Bluebook::Entity.Transition" => &["command", "from_state", "to_state"],
+        "Bluebook::Policy.Bind" => &["key", "value"],
+        "Bluebook::ProcessManager.State" => &["name"],
+        "Bluebook::ProcessManager.Handler" => &["event_type", "from_state", "to_state"],
+        "Bluebook::ProcessManager.Handler.Dispatch" => &["command_name"],
+        "Bluebook::ReadModel.Gather" => &["aggregate", "as", "many"],
+        "Bluebook::ReadModel.GroupBy" => &["field"],
+        "Bluebook::ReadModel.Count" => &["count"],
+        "Bluebook::ReadModel.Median" => &["median_field"],
+        "Bluebook::ReadModel.Option" => &["option", "key", "value", "at"],
+        "Bluebook::Query.Filter" => &["field", "op", "value"],
+        "Bluebook::Query.Option" => &["option", "key", "value", "at"],
+        "Bluebook::Query.Argument" => &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::ValueObject.Field" => &["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"],
+        "Bluebook::ValueObject.Close" => &["rows"],
+        "Bluebook::ValueObject.Assert" => &["description", "canonical"],
+        "Bluebook::ValueObject.Member" => &["position"],
+        "Bluebook::ValueObject.Member.Pair" => &["key", "value"],
+        "Bluebook::Syntax.Declare" => &["bluebook", "name"],
+        "Bluebook::Syntax.Keyword" => &["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls"],
+        "Bluebook::Syntax.Argument" => &["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message"],
+        "Bluebook::Syntax.Keyword.Deprecate" => &[],
+        "Bluebook::Syntax.Keyword.Retire" => &[],
+        "Bluebook::Syntax.Argument.Deprecate" => &[],
+        "Bluebook::Syntax.Argument.Retire" => &[],
+        _ => &[],
     }
 }
 

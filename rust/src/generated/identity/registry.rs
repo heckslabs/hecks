@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
+                      args.identity_id.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -109,6 +110,9 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.issuer.check_invariants()?;
+                      args.subject.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let owner_deref = Vec::new();
@@ -191,6 +195,14 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Identity::Identity" => Some("identity_id"),
         "Identity::ExternalIdentifier" => Some("key"),
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Identity::Identity.Register" => &["identity_id"],
+        "Identity::ExternalIdentifier.Link" => &["identity", "key", "issuer", "subject"],
+        _ => &[],
     }
 }
 

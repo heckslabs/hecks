@@ -93,12 +93,45 @@ RSpec.describe "the language's own definition" do
       .to be(registry.bluebook("World").aggregate("World"))
   end
 
+  # `:members` is compared with its own values stringified on BOTH sides,
+  # and only there — a deliberate, narrow exception, not a loophole. L7
+  # (docs/audits/2026-08-11-bug-triage.md) fixed `ValueObject#to_h` to stop
+  # flattening every member value to text, so `raw` now shows a member
+  # field's REAL declared type (`Vocabulary::MutationOp`'s own `sign: "1"`
+  # is genuinely a String — the language's own grammar says so,
+  # `vocabulary.bluebook`). `Assembly::Marks#member` still runs every
+  # value through `unmark_scalar` on the assembled side, on purpose:
+  # spec/vocabulary_conformance_spec.rb reads real Ruby `true`/`false`
+  # (`compares_less_than: true`, not the source text `"true"`) off exactly
+  # this path, and says so in its own header comment. So `raw` and
+  # `registry` now genuinely, intentionally disagree on a member field's
+  # Ruby type — String there, guessed-typed here — and stringifying both
+  # sides' member values before comparing is what still lets this spec
+  # hold everything else (every attribute, invariant, closed_set flag,
+  # command, lifecycle, ...) to the byte-for-byte standard the fixpoint
+  # claims, without re-litigating a difference two other specs already
+  # pin on purpose.
+  def stringify_members(node)
+    case node
+    when Hash
+      node.to_h { |key, value| [key, key == :members ? stringify_member_rows(value) : stringify_members(value)] }
+    when Array
+      node.map { |item| stringify_members(item) }
+    else
+      node
+    end
+  end
+
+  def stringify_member_rows(rows)
+    Array(rows).map { |row| row.map { |field, value| [field, value.to_s] } }
+  end
+
   it "lost nothing on the way through — assembled equals a fresh raw load, chapter for chapter" do
     registry = Hecks::Bluebook::MetaValidator.grammar_registry
     raw = Hecks::Bluebook::MetaValidator.load_grammar_into(Hecks::Runtime::Registry.new)
 
     Hecks::Bluebook::MetaValidator::LANGUAGE_CHAPTERS.each do |name|
-      expect(registry.bluebook(name).to_h).to eq(raw.bluebook(name).to_h)
+      expect(stringify_members(registry.bluebook(name).to_h)).to eq(stringify_members(raw.bluebook(name).to_h))
     end
   end
 end

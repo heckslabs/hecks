@@ -43,10 +43,10 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     )
   end
 
-  def grant_transition(runtime, from:, to:)
+  def grant_transition(runtime, from:, to:, starts_at: "2026-01-01")
     runtime.dispatch(
       "Governance::RoleTransition.Grant",
-      from_role: { value: from }, to_role: { value: to }
+      from_role: { value: from }, to_role: { value: to }, starts_at: { value: starts_at }
     )
   end
 

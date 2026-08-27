@@ -1509,8 +1509,22 @@ mint_era_recipe =
     # settings)`, `lineage = Lineage.new(db, bluebook.name)`, then for
     # every OTHER loaded bluebook's own aggregates, `lineage.
     # ensure_first_head!(aggregate.storage_name)`.
-    \t@echo "mint-era isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see this target's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
-    \texit 1
+    #
+    # EXIT 0, NOT 1 -- `deploy:`'s own last line (below) always chains
+    # `$(MAKE) mint-era` unconditionally, even for a Shared-mode domain,
+    # so a nonzero exit here used to mean a fully successful `sam
+    # deploy` still left `make deploy` exiting nonzero -- confirmed
+    # live: CI and any scripted caller read every Shared-mode deploy as
+    # failed, which trains operators to ignore a red `make deploy` on
+    # exactly the domains where a real failure most needs to stand out.
+    # This step never fails at its own job (it has no automated job to
+    # fail at -- it only reports that a manual step remains), so it
+    # reports success and leaves the manual-step reminder in the echo
+    # text above, not in the exit code. A human running `make mint-era`
+    # directly still SEES the same message; they just don't get a
+    # misleading "command failed" on top of it either.
+    \t@echo "mint-era isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see this target's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel. This is NOT a failure -- exiting 0 so a genuinely successful \\"make deploy\\" still reports success; era-minting for this domain remains a separate manual step."; \\
+    \texit 0
     SHAREDMINT
   else
     <<~OWNMINT.rstrip
@@ -1585,6 +1599,24 @@ mint_era_recipe =
     # built for. Each attempt below kills whatever tunnel the LAST
     # attempt opened (a no-op the first time) and opens a fresh one,
     # so a dead session gets a real replacement, not just more patience.
+    #
+    # DB_PASS_URLENC, DERIVED RIGHT AFTER DB_PASS BELOW, IS WHAT ACTUALLY
+    # GOES INTO THE `postgres://` URL FURTHER DOWN — not DB_PASS itself.
+    # RDS/Secrets-Manager-generated passwords are not guaranteed free of
+    # `%`, and libpq's own connection-URI parser treats a bare `%` as an
+    # invalid token (percent-encoding is the one escape libpq's URI form
+    # actually documents and decodes; a raw `%` is not) -- roughly 29% of
+    # 32-char generated passwords contain at least one `%`, so this was
+    # silently unreachable until it wasn't. `ERB::Util.url_encode`
+    # percent-encodes everything outside RFC 3986's unreserved set,
+    # exactly what a URI password component needs -- a strict superset
+    # of the ExcludeCharacters the Aurora path below already excludes
+    # (a no-op there), and the actual fix for the plain-RDS
+    # ManageMasterUserPassword path, whose generated character set this
+    # template has no control over at all. This comment sits HERE,
+    # before the chain starts, on purpose -- see the note further below
+    # on why a comment line can never be spliced between two
+    # `\`-continued recipe lines.
     \t@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \\
     \techo "Waiting for $$INSTANCE_ID to register with SSM..."; \\
     \tfor i in $$(seq 1 30); do \\
@@ -1593,6 +1625,7 @@ mint_era_recipe =
     \t\tsleep 5; \\
     \tdone; \\
     \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
+    \tDB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' "$$DB_PASS"); \\
     \tBOOT_STATUS=1; \\
     \tfor attempt in 1 2 3 4 5; do \\
     \t\tkill $$TUNNEL_PID 2>/dev/null; \\
@@ -1606,7 +1639,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1629,16 +1662,35 @@ mint_era_recipe =
 # tunnel differs: these run the scaffold/audit SCRIPTS (hecks's
 # own bin/, not a Ruby -e one-liner) instead of a boot check, since
 # both scripts already do their own registry-loading internally.
-# HECKS_SCHEMA is exported because neither script takes a settings
-# override the way mint_era_recipe's inline `LineageManager.check!`
-# call does — they resolve their own DB connection purely off the
-# domain's `.world` file, which reads that same env var.
+#
+# HECKS_SCHEMA/DATABASE_URL BELOW ARE NOT ACTUALLY CONSUMED BY THOSE
+# SCRIPTS — this comment used to claim the opposite ("they resolve
+# their own DB connection purely off the domain's `.world` file, which
+# reads that same env var"), which is false: grep-confirmed, neither
+# `bin/scaffold_translation` nor `bin/translation_audit` nor
+# `Hecks::Bluebook::Behaviour::World#for_binding` nor
+# `PostgresEra.connect_for` ever reads `ENV["DATABASE_URL"]` or
+# `ENV["HECKS_SCHEMA"]` — both scripts call
+# `registry.world(bluebook.name)&.for_binding(...)`, a pure hash lookup
+# against whatever literal `database "..."` string #{domain}'s own
+# `.world` file declares. So this whole recipe used to stand up a real
+# bastion, punch a live 5432 ingress rule into production's security
+# group, open a real SSM tunnel to #{stack_name}'s RDS instance, tear
+# it all down again — and then silently scaffold/audit the developer's
+# LOCAL dev database the entire time, reporting success. `db_env_blind:`
+# (below) is exactly this: true for scaffold-translation/
+# translation-audit (confirmed env-blind), left false for
+# migrate-console-settings (an APP-owned script this generator doesn't
+# control the internals of — it may honor these vars; not asserting
+# either way here). A `db_env_blind` recipe REFUSES before ever
+# touching AWS unless `ALLOW_LOCAL_DB=1` is set, rather than silently
+# doing the wrong (but locally successful-looking) thing.
 # `cwd:`/`run_prefix:` — every existing caller runs a hecks-owned
 # script from hecks's own $(ROOT) with `-Ilib` (source, not the
 # installed gem); `migrate_console_settings_recipe` below is the one
 # exception, an APP-owned script that needs the app's own Gemfile
 # context instead — `cd $(DOMAIN) && bundle exec ruby`, not `-Ilib`.
-translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib"|
+translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib", db_env_blind: false|
   if shared
     <<~SHAREDTRANSLATION.rstrip
     \t@echo "#{verb} isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see mint-era's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
@@ -1646,12 +1698,25 @@ translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", r
     SHAREDTRANSLATION
   else
     <<~OWNTRANSLATION.rstrip
+    #{db_env_blind ? <<~ENVBLINDGUARD.rstrip
+    \t@if [ -z "$$ALLOW_LOCAL_DB" ]; then \\
+    \t\techo "REFUSING: #{script} resolves its OWN database connection from #{domain}'s .world file, NOT from DATABASE_URL/HECKS_SCHEMA -- opening a real tunnel to #{stack_name}'s production RDS instance below would silently scaffold/audit the LOCAL dev database instead and report success (see this recipe's own comment, above, for the confirmed root cause). Set ALLOW_LOCAL_DB=1 to run #{verb} against #{domain}'s local .world-declared database on purpose (e.g. to exercise the scaffold/audit logic itself); otherwise run this for real against production via the manual tunnel path mint-era's own comment describes."; \\
+    \t\texit 1; \\
+    \tfi
+    ENVBLINDGUARD
+    : ""}
     \t@echo "Looking up $(STACK)'s VPC/security group..."
     \t#{STACK_OUTPUTS.map { |o| %($(eval #{o[:var]} := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='#{o[:key]}'].OutputValue" --output text))) }.join("\n\t")}
     \t@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
     \taws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \\
     \t\t--parameter-overrides #{BASTION_PARAMETERS.map { |p| "#{p[:name]}=$(#{STACK_OUTPUTS.find { |o| o[:key] == p[:from_output] }[:var]})" }.join(" ")} \\
     \t\t--capabilities CAPABILITY_IAM
+    # DB_PASS_URLENC -- same percent-encoding fix as mint_era_recipe's
+    # own comment above the equivalent line in that recipe (libpq's URI
+    # parser rejects a bare `%`, which a generated RDS password isn't
+    # guaranteed to be free of); this recipe's DATABASE_URL below uses
+    # the encoded form for the same reason, even though the script it
+    # feeds doesn't currently read it (see db_env_blind above).
     \t@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \\
     \techo "Waiting for $$INSTANCE_ID to register with SSM..."; \\
     \tfor i in $$(seq 1 30); do \\
@@ -1660,6 +1725,7 @@ translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", r
     \t\tsleep 5; \\
     \tdone; \\
     \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
+    \tDB_PASS_URLENC=$$(ruby -rerb -e 'print ERB::Util.url_encode(ARGV[0])' "$$DB_PASS"); \\
     \tRUN_STATUS=1; \\
     \tfor attempt in 1 2 3 4 5; do \\
     \t\tkill $$TUNNEL_PID 2>/dev/null; \\
@@ -1673,7 +1739,7 @@ translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", r
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
+    \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{infra_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
     \t\tRUN_STATUS=$$?; \\
     \t\techo "#{verb} attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1688,8 +1754,8 @@ translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", r
   end
 end
 
-scaffold_translation_recipe = translation_recipe.call("scaffold-translation", "bin/scaffold_translation")
-translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit")
+scaffold_translation_recipe = translation_recipe.call("scaffold-translation", "bin/scaffold_translation", db_env_blind: true)
+translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit", db_env_blind: true)
 
 # `make migrate-console-settings` — the SAME bastion/tunnel/retry/
 # teardown chain as scaffold-translation/translation-audit, running an
@@ -1748,7 +1814,34 @@ rename_schema_recipe =
     # that were the real answer, not a connectivity failure wearing
     # its name — which is exactly why `TUNNEL_READY` gates that branch
     # explicitly rather than trusting empty results at face value.
-    \t@[ -n "$(OLD)" ] && [ -n "$(NEW)" ] || { echo "usage: make rename-schema OLD=<old-schema> NEW=<new-schema>"; exit 1; }
+    #
+    # OLD/NEW ARE ALLOWLISTED AS BARE IDENTIFIERS, not SQL-escaped, before
+    # either one reaches a psql command line: both get interpolated
+    # straight into the `nspname = '...'` lookups above and the
+    # `ALTER SCHEMA "..." RENAME TO "..."` below, and a schema name can't
+    # be bound as a parameter the way a value can — quoting/escaping an
+    # identifier is exactly the kind of thing that's easy to get subtly
+    # wrong, so instead of trying, this refuses anything that isn't
+    # `^[A-Za-z_][A-Za-z0-9_]*$` outright. `make` runs this recipe as an
+    # operator command, not user-facing web input, but it still executes
+    # against production RDS, so a typo'd or copy-pasted `OLD`/`NEW`
+    # containing quotes or `;` must fail loudly here, before either
+    # tunnel or query, rather than run as-is.
+    #
+    # `$$OLD`/`$$NEW` HERE, NOT `$(OLD)`/`$(NEW)`: this check itself has
+    # to read the value without Make ever splicing its raw text into the
+    # recipe line, or a value containing `;`/`"` would break out of THIS
+    # line's shell command and run before the pattern match ever sees it
+    # — confirmed live, the same way the tunnel-restart behavior above
+    # was. `$$OLD` instead reads the real shell environment variable
+    # `make` already exports for command-line-assigned vars, so the
+    # value is one opaque string to the shell no matter what characters
+    # it contains. Once a value's passed this gate it's provably just
+    # `[A-Za-z0-9_]`, so the existing `$(OLD)`/`$(NEW)` splices further
+    # below (already written before this fix, reused as-is) are safe.
+    \t@[ -n "$$OLD" ] && [ -n "$$NEW" ] || { echo "usage: make rename-schema OLD=<old-schema> NEW=<new-schema>"; exit 1; }
+    \t@echo "$$OLD" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$$' || { echo "invalid OLD schema name -- schema names must match ^[A-Za-z_][A-Za-z0-9_]*$$, refusing to touch SQL"; exit 1; }
+    \t@echo "$$NEW" | grep -Eq '^[A-Za-z_][A-Za-z0-9_]*$$' || { echo "invalid NEW schema name -- schema names must match ^[A-Za-z_][A-Za-z0-9_]*$$, refusing to touch SQL"; exit 1; }
     \t@echo "Looking up $(STACK)'s VPC/security group..."
     \t#{STACK_OUTPUTS.map { |o| %($(eval #{o[:var]} := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='#{o[:key]}'].OutputValue" --output text))) }.join("\n\t")}
     \t@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
@@ -1863,8 +1956,67 @@ sam_deploy_lines =
 deploy_shell_chain = owner_lookup_lines + sam_deploy_lines
 deploy_shell_chain = ["@#{deploy_shell_chain.first}"] + deploy_shell_chain.drop(1) if deploy_shell_chain.first&.match?(/=\$\$\(/)
 
+# `deploy:`'s own PRE-deploy `mint-era` bridge (below, inlined into
+# PREDEPLOYBRIDGE) — a plain Ruby string built HERE, not inlined
+# directly in that heredoc, for the same reason as everywhere else
+# comment: it needs its own `if/else` branch on `google_oauth_present`,
+# and Ruby heredoc-in-string-interpolation only reads cleanly one level
+# deep before it gets hard to follow.
+#
+# GOOGLE OAUTH NEWLY ADDED TO AN EXISTING STACK DEADLOCKS THIS BRIDGE —
+# confirmed live: STACK_OUTPUTS (above) only gains PublicSubnetId/
+# BastionSubnetId entries once `google_oauth_present` is true, but those
+# two CloudFormation resources (#{db_id}PublicSubnet/
+# #{db_id}BastionPublicSubnet) don't exist on a stack that predates
+# turning OAuth on — only the upcoming `sam deploy` (further below,
+# still ahead of us here) creates them. This pre-check's own `mint-era`
+# call evaluates STACK_OUTPUTS against the CURRENTLY live stack (an
+# `aws cloudformation describe-stacks` eval chain, same one mint-era's
+# own recipe uses), gets an empty string back for both, and hands
+# bastion.yaml an empty `AWS::EC2::Subnet::Id` — CloudFormation refuses
+# that outright. The pre-check fails BEFORE `sam deploy` ever runs, so
+# the one deploy that would actually create those outputs never gets
+# the chance to: a hard deadlock, `make deploy` can never get OAuth
+# provisioned on a stack that didn't have it already. Detected the same
+# way a genuine first deploy is detected just below (describe-stacks
+# succeeding or not) — here, describe-stacks succeeds (the STACK
+# itself exists) but the SPECIFIC output this deploy is newly adding
+# does not, yet. Skip the pre-deploy bridge in exactly that one case;
+# the unconditional `mint-era` call at the very end of `deploy:` still
+# covers it once `sam deploy` has actually created PublicSubnetId/
+# BastionSubnetId — the exact same "runs once, after the stack exists"
+# path a domain's true first deploy already takes below.
+predeploy_bridge_shell =
+  if google_oauth_present
+    <<~OAUTHBRIDGE.rstrip
+    @echo "Checking whether $(STACK) already exists, and if so whether it already has Google OAuth's PublicSubnetId/BastionSubnetId outputs, before deciding whether to bridge era history now or let this deploy create them first..."
+    @if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \\
+    \tOAUTH_OUTPUTS_READY=$$(aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text 2>/dev/null); \\
+    \tif [ -z "$$OAUTH_OUTPUTS_READY" ]; then \\
+    \t\techo "Existing stack found, but Google OAuth is newly being added -- PublicSubnetId/BastionSubnetId don't exist on it yet (sam deploy, below, is what creates them); skipping the pre-deploy bridge this one time so THIS deploy can actually run. mint-era still runs once, after sam deploy, same as a genuine first deploy."; \\
+    \telse \\
+    \t\techo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \\
+    \t\t$(MAKE) mint-era || exit 1; \\
+    \tfi; \\
+    else \\
+    \techo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \\
+    fi
+    OAUTHBRIDGE
+  else
+    <<~PLAINBRIDGE.rstrip
+    @echo "Checking whether $(STACK) already exists, to decide whether this deploy needs to bridge era history before it flips the stack over..."
+    @if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \\
+    \techo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \\
+    \t$(MAKE) mint-era || exit 1; \\
+    else \\
+    \techo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \\
+    fi
+    PLAINBRIDGE
+  end
+
 deploy_recipe_lines = (
   (google_oauth_present ? ["$(MAKE) sync-google-oauth"] : []) +
+  (shared ? [%(@echo "Looking up #{owner_stack_name}'s shared VpcId/PrivateSubnetAId/PrivateSubnetBId/FunctionSecurityGroupId/DatabaseEndpoint/DatabaseSecretArn outputs to pass as $(STACK)'s Owning* parameters...")] : []) +
   deploy_shell_chain
 ).map { |l| "\t#{l}" }.join("\n")
 
@@ -2174,12 +2326,14 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
       # a live stack (a rename or an ordinary redeploy) — cheap and
       # safe either way, since mint-era's own quiet-reboot path is a
       # no-op the moment nothing has actually changed.
-      @if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \\
-      \techo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \\
-      \t$(MAKE) mint-era || exit 1; \\
-      else \\
-      \techo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \\
-      fi
+      #
+      # See predeploy_bridge_shell's own comment (bin/project_deploy,
+      # above, right before deploy_recipe_lines) for why this branches
+      # on google_oauth_present at all -- the short version: adding
+      # Google OAuth to an EXISTING stack would otherwise deadlock this
+      # exact pre-check against outputs the upcoming sam deploy (not
+      # yet run) hasn't created.
+      #{predeploy_bridge_shell}
       PREDEPLOYBRIDGE
   }
   #{deploy_recipe_lines}

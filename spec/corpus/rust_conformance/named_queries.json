@@ -22,8 +22,8 @@
     {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-1"}, "role_name": {"value": "Teller"}, "scope": {"value": "Branch-1"}, "starts_at": {"value": "2026-06-01"}}},
     {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-2"}, "role_name": {"value": "Branch manager"}, "scope": {"value": "Branch-2"}, "starts_at": {"value": "2026-01-01"}}},
 
-    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Customer administrator"}, "to_role": {"value": "Customer registrar"}}},
-    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Teller"}, "to_role": {"value": "Branch manager"}}},
+    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Customer administrator"}, "to_role": {"value": "Customer registrar"}, "starts_at": {"value": "2026-01-01"}}},
+    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "Teller"}, "to_role": {"value": "Branch manager"}, "starts_at": {"value": "2026-01-01"}}},
 
     {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-1"}}},
     {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-2"}}},

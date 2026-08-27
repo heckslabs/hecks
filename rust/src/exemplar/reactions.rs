@@ -87,3 +87,15 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     }
 }
 // TMPL:identity_head_table END
+
+// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
+// on `emit_command_attributes_table` for the full argument (R1,
+// docs/audits/2026-08-11-bug-triage.md).
+// TMPL:command_attributes_table BEGIN
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+"tmpl_verb" => &["tmpl_attr"],
+        _ => &[],
+    }
+}
+// TMPL:command_attributes_table END

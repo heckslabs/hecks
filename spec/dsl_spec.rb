@@ -432,6 +432,51 @@ RSpec.describe "the DSL surface" do
       expect(thing.attribute(:cover).default).to eq({ value: "open" })
     end
 
+    # THE EXACT CASE seal_defaults' OWN COMMENT NAMES — an INLINE closed
+    # set (`one_of(...)` in the type position) synthesises its value
+    # object through `closed_sets`, not `@value_objects`, and used to be
+    # invisible to this exact check: `attribute :cover, one_of("covered",
+    # "open"), default: "open"` built cleanly and then refused every
+    # create at dispatch, the same silent-then-loud failure the
+    # block-declared case above is already sealed against.
+    # A NAME DECLARED TWICE used to survive into the IR as two distinct
+    # attributes sharing one name — every downstream reader that finds
+    # an attribute BY NAME (a mutation target, a query field, `Instance
+    # #[]`) silently sees only the first, the second permanently
+    # unreachable and yet still real IR, checked by nothing.
+    it "refuses an attribute name declared twice" do
+      expect do
+        build_aggregate("DupAttr") do
+          value_object("Tag") { attribute :value, String }
+          value_object("Size") { attribute :value, Integer }
+          attribute :label, Tag
+          attribute :label, Size
+        end
+      end.to raise_error(Malformed, /label is declared twice/)
+    end
+
+    it "refuses a relationship whose name collides with an existing attribute" do
+      expect do
+        build_bluebook("DupRelationship") do
+          aggregate("Account") { identified_by { attribute :number, String } }
+
+          aggregate "Portfolio" do
+            identified_by { attribute :number, String }
+            attribute :account, String
+            belongs_to Account
+          end
+        end
+      end.to raise_error(Malformed, /account is declared twice/)
+    end
+
+    it "refuses a bare default on an inline one_of closed set the same way" do
+      expect do
+        build_aggregate("DefaultedInline") do
+          attribute :cover, one_of("covered", "open"), default: "open"
+        end
+      end.to raise_error(Malformed, /Cover is a value object — a default fills its FIELDS/)
+    end
+
     it "refuses an unnamed event" do
       expect { build_command("Silent") { emits "" } }
         .to raise_error(Malformed, /an event is named/)
@@ -542,6 +587,41 @@ RSpec.describe "the DSL surface" do
       currency = registry.bluebooks["Coins"].aggregates.first.value_objects.first
       expect(currency.members).to eq(
         [{ code: "USD", minor_units: 2 }, { code: "JPY", minor_units: 0 }]
+      )
+    end
+
+    # L7 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — `to_h`'s own
+    # `members:` emission used to call `.to_s` on every member field value,
+    # so `minor_units: 2` (a genuine Integer, `currency.members` above
+    # proves it) crossed the wire as the STRING `"2"` — indistinguishable
+    # from a member some other row spelled as text. Only the field NAME is
+    # a Ruby symbol that has to become a string for the wire; the value's
+    # own type is real information (`Bluebook::Attribute#to_h`'s own
+    # `default:` already preserves it the same way, unstringified) and
+    # `to_h` should not be the place that erases it.
+    it "to_h preserves a member field's own declared type, not just its String spelling" do
+      registry = in_registry do
+        Hecks.bluebook("Coins") do
+          aggregate("Coin") do
+            identified_by :id
+
+            attribute :currency, Currency
+
+            value_object("Currency") do
+              attribute :code,        String
+              attribute :minor_units, Integer
+
+              member code: "USD", minor_units: 2
+              member code: "JPY", minor_units: 0
+            end
+          end
+        end
+      end
+
+      currency = registry.bluebooks["Coins"].aggregates.first.value_objects.first
+
+      expect(currency.to_h[:members]).to eq(
+        [[["code", "USD"], ["minor_units", 2]], [["code", "JPY"], ["minor_units", 0]]]
       )
     end
 
@@ -931,6 +1011,20 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Renamed") { formerly_known_as "OldName" }.formerly_known_as).to eq("OldName")
     end
 
+    # M10 — `formerly_known_as` drives a real Postgres schema rename at
+    # boot (EraResolver) and is what the meta-validator hashes as its
+    # cache key (`SHA256(JSON(bluebook.to_h))`); a field this method
+    # doesn't spell is a fact the wire — and the cache key — cannot see,
+    # so a chapter reassembled from exported IR loses it silently.
+    it "formerly_known_as survives onto the wire, not just the live object" do
+      expect(build_bluebook("RenamedOnWire") { formerly_known_as "OldName" }.to_h[:formerly_known_as])
+        .to eq("OldName")
+    end
+
+    it "formerly_known_as is present (nil) on the wire even when a chapter declares none" do
+      expect(build_bluebook("NeverRenamed") {}.to_h).to include(formerly_known_as: nil)
+    end
+
     it "policy declares a reaction the domain owns rather than one aggregate" do
       reaction = build_bluebook("Reacting") do
         policy "NotifyOnPlacement" do
@@ -968,6 +1062,22 @@ RSpec.describe "the DSL surface" do
       expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
       expect(handler.dispatches.first.to_h)
         .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]] })
+      # M11 — `correlates_by` must cross the wire as the SAME bare word
+      # `Assembly::Build`'s `:identity` reader turns back into a Symbol
+      # (`value&.to_sym`); a colon-wrapped `Literal.render` spelling or a
+      # stringified-Symbol-then-lost-nil-ness both break that round trip.
+      expect(checkout.to_h[:correlates_by]).to eq("order.id")
+    end
+
+    # M11 — a process manager built straight from the IR class (as
+    # `Assembly::Build`/a hand-rolled hash-to-object rebuild does) rather
+    # than through the DSL can carry a nil `correlates_by`; the DSL itself
+    # always refuses to mint one without it (`ProcessManagerBuilder#build`,
+    # "declares no correlates_by"). `to_h` used to spell that absent case
+    # as `""`, indistinguishable on the wire from a genuinely empty name,
+    # and read back as the wrong non-nil `:""` rather than `nil`.
+    it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
+      expect(Hecks::Bluebook::ProcessManager.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
 
     it "process_manager refuses a machine with no transitions at all" do
@@ -1601,6 +1711,23 @@ RSpec.describe "the DSL surface" do
       expect(machine.states).to eq(["a", "b", "c"])
     end
 
+    it "lifecycle refuses to guess a target when no declared from: admits the current state" do
+      machine = build_aggregate("Stalled") do
+        lifecycle :status, default: "a" do
+          transition "Advance" => "b", from: "a"
+          transition "Advance" => "c", from: "b"
+        end
+      end.lifecycle
+
+      # "z" admits neither declared "Advance" transition — this used to
+      # silently fall back to the FIRST one ("b"), a wrong answer for a
+      # state no transition actually admits, rather than the loud
+      # refusal every real dispatch path gets from
+      # CommandRules::Admissibility#admissible_transition.
+      expect { machine.target_for("Advance", "z") }
+        .to raise_error(Hecks::Runtime::WiringError, /no transition for "Advance" admits state "z"/)
+    end
+
     it "entity declares an identity-bearing member inside the boundary" do
       line = build_aggregate("Ordered") do
         entity "OrderLine" do
@@ -1969,6 +2096,37 @@ RSpec.describe "the DSL surface" do
             end
           end.to raise_error(Malformed,
                              %r{Board::Card\.ForProduct asks about product/sku, which hops through Card's own reference})
+        end
+
+        # M14 (docs/audits/2026-08-11-bug-triage.md) — the exact case named
+        # in this whole battery's own title: an entity query's `where`
+        # hopping through a reference to an aggregate THIS CHAPTER NEVER
+        # DECLARES AT ALL, not merely one the entity's own query cannot
+        # follow. The blanket refusal above already catches this (it
+        # refuses every entity-query hop outright, unconditionally,
+        # never reaching whether the target even resolves) — pinned here
+        # separately so a future loosening of that refusal (e.g. "teach
+        # entity queries to follow a hop for real") cannot reopen this
+        # exact silent gap without a failing test naming it.
+        it "refuses a hop where-clause on an entity's own query through an aggregate the chapter never declares" do
+          expect do
+            build_bluebook("PieceHopUndeclared") do
+              aggregate "Board" do
+                identified_by :tag
+                attribute :tag, BoardTag
+                value_object("BoardTag") { attribute :value, String }
+
+                entity "Card" do
+                  identified_by :sequence
+                  attribute :sequence, Integer
+                  reference_to Nonexistent
+
+                  query("ForNonexistent") { where(:"nonexistent/sku" => "widget") }
+                end
+              end
+            end
+          end.to raise_error(Malformed,
+                             %r{Board::Card\.ForNonexistent asks about nonexistent/sku, which hops through Card's own reference})
         end
 
         it "refuses a hop whose tail lands on a value object rather than a scalar" do

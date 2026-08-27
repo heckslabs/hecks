@@ -76,8 +76,12 @@ module Hecks
         return "<p><em>No commands act on an existing #{Escape.html(aggregate.hecks_name)}.</em></p>" if commands.empty?
 
         items = commands.map do |cmd|
-          href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.attr(id)}"
-          %(<li><a href="#{href}"><span>#{Escape.html(cmd.hecks_name)}</span><span class="kind">#{Escape.html(cmd.goal.to_s)}</span></a></li>)
+          # L12 — the id is free-form (S3): percent-encoded as the query
+          # VALUE (a raw `&` here would smuggle a second bogus query
+          # parameter), then the assembled href is attribute-escaped as
+          # usual.
+          href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.url(id)}"
+          %(<li><a href="#{Escape.attr(href)}"><span>#{Escape.html(cmd.hecks_name)}</span><span class="kind">#{Escape.html(cmd.goal.to_s)}</span></a></li>)
         end
         %(<ul class="verb-list">#{items.join}</ul>)
       end

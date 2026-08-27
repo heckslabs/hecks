@@ -25,10 +25,23 @@ module Hecks
       class Judge
         include Readings
 
-        # Children offered BEFORE the parent's own lists. An attribute's type is
-        # offered as the id of the thing it names, so both the value objects and the
-        # entities have to exist before any attribute names one.
-        EAGER_CHILDREN = { "Aggregate" => %w[Entity ValueObject] }.freeze
+        # Children offered BEFORE the parent's own lists, IN THIS ORDER. An
+        # attribute's type is offered as the id of the thing it names, so the
+        # value objects have to exist before anything that can name one — an
+        # aggregate's own attributes, AND an entity's own (M13: an entity is its
+        # own root, repeating the aggregate's whole shape one level down, so its
+        # attributes resolve against the SAME value-object pool). ValueObject
+        # first, Entity second, so an entity's own attributes are never offered
+        # before the value objects they may reference exist — a self-hosting
+        # casualty found live: the meta-grammar's own Handler/Dispatch/Member/
+        # Keyword/Argument entities (S17, ADR 0026) failed reference resolution
+        # on their own plain value-object-typed attributes (`HandlerText`,
+        # `MemberPosition`, ...) the moment entity attributes started being
+        # checked at all, because `@plan.names`' own (incidental) declaration
+        # order happened to walk Entity first. The order is stated here, not
+        # left to whatever order the plan's own category table iterates in —
+        # see `detail_node`'s own use of this constant, below.
+        EAGER_CHILDREN = { "Aggregate" => %w[ValueObject Entity] }.freeze
 
         # Categories an ENTITY declares as well as an aggregate. The IR reuses
         # Command and Query for a piece's own commands and queries, so the
@@ -157,13 +170,32 @@ module Hecks
           identity     = extra.merge(node_identity(plan, category, node, index, parent_id))
           receiver   ||= { aggregate: id, entities: [] }
           eager, later = children_of(category).partition { |child| eager?(category, child) }
+          # ORDERED AS `EAGER_CHILDREN` DECLARES, not as `children_of` happens to
+          # list them — `children_of` reads `@plan.names`, whose own order is an
+          # accident of which .bluebook file registered which category first,
+          # never a promise about which of two eager children exists before the
+          # other. `EAGER_CHILDREN`'s own array IS that promise (ValueObject
+          # before Entity), so the walk keeps only what this parent actually
+          # has, in the order the constant states — see that constant's own
+          # comment for the bug this exact reordering fixes.
+          eager = Array(EAGER_CHILDREN[category]) & eager
 
           eager.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
           setters(plan, category, node, receiver)
-          appends(plan, category, node, receiver)
+          # BEFORE `appends`, not after — the same reason `EAGER_CHILDREN`
+          # walks an aggregate's OWN entities before its OWN attributes
+          # (M13): a piece nested inside a piece (Handler's own
+          # `dispatches, list_of(Dispatch)` — S17, ADR 0026) must exist
+          # before this piece's own attribute list can reference it as a
+          # HELD entity, the same way `Account#ledger` needs Account's own
+          # entities walked eagerly. `nest_entities` is a no-op for every
+          # category but "Entity" (its own early return), so reordering it
+          # ahead of `appends` costs nothing for anything else that walks
+          # through here.
+          nest_entities(category, node, id, parent_id)
+          appends(plan, category, node, receiver, parent_id)
           later.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
           within_entity(category, node, id, parent_id)
-          nest_entities(category, node, id, parent_id)
           sealers(plan, category, receiver)
         end
 
@@ -353,8 +385,9 @@ module Hecks
           end
         end
 
-        def appends(plan, category, node, receiver)
+        def appends(plan, category, node, receiver, parent_id)
           id = receiver[:entities].last || receiver[:aggregate]
+          owner_id = owning_aggregate_ref(category, id, parent_id)
           plan.appends.each do |list_name, append|
             rows_for(category, list_name, node).each_with_index do |row, index|
               chosen = append_for(category, list_name, append, row, node)
@@ -367,7 +400,7 @@ module Hecks
                           v(index)
                         else
                           carried(@plan.category(category), chosen.verb, argument,
-                                  cell(category, list_name, row, field, id, chosen))
+                                  cell(category, list_name, row, field, id, chosen, owner_id))
                         end
                 [argument.to_sym, value]
               end
@@ -378,21 +411,41 @@ module Hecks
           end
         end
 
+        # WHICH AGGREGATE OWNS THE VALUE OBJECTS an attribute's TYPE may
+        # resolve against. An aggregate owns its own — `id` already names
+        # it. An entity never has value objects of its own (Entity
+        # deliberately never answers `value_object` — see entity.rb's own
+        # comment on why); its attributes read the SAME pool its
+        # enclosing aggregate declares, one level up the construct tree
+        # no matter how many entities deep this attribute is nested —
+        # `parent_id` names it because `detail_node`/`nest_entities`
+        # thread the ROOT aggregate's id down as `parent_id` at every
+        # entity level, never the direct (possibly entity) parent.
+        def owning_aggregate_ref(category, id, parent_id)
+          category == "Entity" ? parent_id : id
+        end
+
         def sealers(plan, category, receiver)
           id = receiver[:entities].last || receiver[:aggregate]
           plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, to: receiver) }
         end
 
-        # An aggregate's attribute names its value object by TYPE, and the language
-        # models that as a reference — so the type is offered as the value object's
-        # own id. This is the rule "attributes must use value-object types",
-        # enforced by reference resolution rather than by a predicate.
+        # An aggregate's or an entity's attribute names its value object by TYPE,
+        # and the language models that as a reference — so the type is offered as
+        # the value object's own id. This is the rule "attributes must use
+        # value-object types", enforced by reference resolution rather than by a
+        # predicate — for a HEAD's own attributes, aggregate or entity alike: an
+        # entity is its own root, repeating the aggregate's whole shape one level
+        # down (entity.rb's own words), and an undeclared type on an entity's
+        # attribute must fail the same reference resolution an aggregate's own
+        # does, not go unchecked because only "Aggregate.attributes" was ever
+        # asked.
         # An attribute's type is offered as the ID OF THE THING IT NAMES, so the
         # language resolves it as a reference and "the type is declared" costs no
         # predicate. Three kinds, three ids: a value object and an entity both hang
         # off this aggregate, so they share its prefix; another aggregate's head
         # hangs off the chapter.
-        def cell(category, list_name, row, field, id, append)
+        def cell(category, list_name, row, field, id, append, aggregate_id)
           value = row_value(row, field)
           # A default keeps its TYPE by being written as a literal — 0.0 rather than
           # "0.0" — because the language holds it as text and text alone forgets.
@@ -400,13 +453,22 @@ module Hecks
           return value unless field == :type
           # A REFERENCE names another head WHEREVER it is written — on a head, on
           # a command, on a piece, on an ask — so it is offered as that head's
-          # id in all four. Only the head's own attributes additionally qualify
+          # id in all four. Only a HEAD's own attributes additionally qualify
           # an ordinary type into a value object's id ; a command argument's
           # type is text and stays text.
           return points_at(row, id) if append.verb == "Reference"
-          return value unless "#{category}.#{list_name}" == "Aggregate.attributes"
+          return value unless attribute_list?(category, list_name)
 
-          Naming.identity([owning_aggregate_id(id, value), value])
+          Naming.identity([owning_aggregate_id(aggregate_id, value), value])
+        end
+
+        # A HEAD'S OWN ATTRIBUTES — an aggregate's, or an entity's (its own root,
+        # one level down). Every other "attributes" list belongs to something that
+        # is not a head at all (a command's arguments, a value object's own
+        # fields), and a type written there is a name, not a reference — the same
+        # distinction `cell`'s own comment draws.
+        def attribute_list?(category, list_name)
+          list_name.to_s == "attributes" && %w[Aggregate Entity].include?(category)
         end
 
         # `id` NAMES THE ATTRIBUTE'S OWN AGGREGATE, not necessarily the

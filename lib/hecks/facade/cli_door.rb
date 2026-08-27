@@ -33,10 +33,13 @@ module Hecks
 
         pairs.each_with_object({}) do |pair, args|
           path, value = split(pair)
-          argument    = options[path] || options[expand(path, options)] ||
-                        raise(Runtime::NotFound, unknown(path, options.keys))
+          # key? first, never `||` — full names whichever spelling (the
+          # bare path, or its one-argument expansion) actually declares
+          # this option, and the lookup below must hold to that same
+          # decision rather than re-guessing which one exists.
+          full     = options.key?(path) ? path : expand(path, options)
+          argument = options.key?(full) ? options[full] : raise(Runtime::NotFound, unknown(path, options.keys))
 
-          full = options.key?(path) ? path : expand(path, options)
           next append(args, full.split("."), cast(value, argument[:type])) if argument[:list]
 
           bury(args, full.split("."), cast(value, argument[:type]))

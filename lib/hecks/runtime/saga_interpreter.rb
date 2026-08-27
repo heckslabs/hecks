@@ -100,8 +100,9 @@ module Hecks
         correlation = saga_correlation(pm, event)
         return if correlation.to_s.empty?
 
-        record   = { process_manager: pm.name, on: event.name, instance: correlation }
-        instance = nil
+        record    = { process_manager: pm.name, on: event.name, instance: correlation }
+        instance  = nil
+        pre_state = nil
 
         advanced = @registry.saga_mutex.synchronize do
           instance = @registry.saga_instances[pm.name][correlation]
@@ -115,13 +116,28 @@ module Hecks
             next false
           end
 
+          pre_state = instance[:state]
           instance[:state] = handler.to_state
           checkpoint(pm, correlation, instance, domain)
           true
         end
         return unless advanced
 
-        @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
+        # `from:`/`to:` are the INSTANCE'S OWN real pre/post state — read
+        # back from `instance` itself, never re-derived from `handler.
+        # from_state`/`handler.to_state` a second time. `Properties.saga_
+        # advances_follow_declared_handlers` (fuzzing/properties.rb) builds
+        # its OWN "declared edges" list from this SAME handler object (via
+        # `pm.handlers`), so a log entry that just echoed `handler.
+        # from_state`/`handler.to_state` back could never disagree with
+        # that list no matter what the runtime actually did — the entry
+        # and the thing it's checked against would be the identical fact,
+        # read twice. Logging the instance's own observed state instead
+        # means a future defect that moves an instance somewhere its own
+        # declared handler didn't say (a stale handler reference, the
+        # wrong handler picked, a second racing mutation) shows up as a
+        # real mismatch instead of vanishing into a tautology.
+        @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
 
         handler.dispatches.each do |spec|
           deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
@@ -242,7 +258,8 @@ module Hecks
         handler = pm.handler_for(REFUSED)
         return unless handler && instance
 
-        record = { process_manager: pm.name, on: REFUSED, instance: correlation }
+        record    = { process_manager: pm.name, on: REFUSED, instance: correlation }
+        pre_state = nil
 
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
         # the mutex covers only the check-and-mutate-and-checkpoint step.
@@ -253,13 +270,18 @@ module Hecks
             next false
           end
 
+          pre_state = instance[:state]
           instance[:state] = handler.to_state
           checkpoint(pm, correlation, instance, domain)
           true
         end
         return unless advanced
 
-        @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
+        # See `advance_saga`'s own comment on `pre_state`/`instance[:state]`
+        # — the real observed transition, not a second read of the SAME
+        # handler object `Properties.saga_advances_follow_declared_handlers`
+        # checks this log against.
+        @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
 
         handler.dispatches.each do |spec|
           deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)

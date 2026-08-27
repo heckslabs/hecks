@@ -87,6 +87,14 @@ if ! (cd "$ROOT" && bundle exec rspec spec/adapters/query_agreement_spec.rb --ta
   exit 1
 fi
 
+printf '\n[pre-push] engine agreement — every declared comparator, both engines\n\n'
+
+if ! "$ROOT/bin/check_engine_agreement"; then
+  printf '\n[pre-push] BLOCKED — a comparator is missing a shared case or cross-engine spec.\n'
+  printf '           Fix it, or push with --no-verify and say why.\n\n'
+  exit 1
+fi
+
 printf '\n[pre-push] model check — unreachable states, dead transitions, orphaned handlers\n\n'
 
 if ! "$ROOT/bin/model_check"; then

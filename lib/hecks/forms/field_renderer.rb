@@ -156,13 +156,20 @@ module Hecks
         # an existing record's own state hands back a NESTED hash instead
         # (`{amount: {cents: 1050}}`). Flat wins when both would answer,
         # since only the raw form is ever what the caller actually typed.
-        flat = values[path.to_s] || values[path.to_sym]
-        return flat unless flat.nil?
+        # `key?` decides which spelling answers, at every step below —
+        # never `||`, which would treat a genuinely-held `false` the
+        # same as an absent key and fall through to `nil`.
+        str = path.to_s
+        return values[str] if values.key?(str)
 
-        path.to_s.split(".").reduce(values) do |acc, segment|
+        sym = path.to_sym
+        return values[sym] if values.key?(sym)
+
+        str.split(".").reduce(values) do |acc, segment|
           break nil unless acc.is_a?(Hash)
 
-          acc[segment.to_sym] || acc[segment]
+          seg_sym = segment.to_sym
+          acc.key?(seg_sym) ? acc[seg_sym] : acc[segment]
         end
       end
     end

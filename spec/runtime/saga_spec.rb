@@ -222,6 +222,61 @@ RSpec.describe "a process manager" do
                      reason: 'in "returned", not "carrying"')
     )
   end
+
+  # M22 — a logged advance's own `from:`/`to:` used to be re-derived from
+  # `handler.from_state`/`handler.to_state` A SECOND TIME, after the real
+  # mutation already happened — the SAME handler object `Properties.
+  # saga_advances_follow_declared_handlers` (fuzzing/properties.rb) walks
+  # to build its own "declared edges" list, so the logged pair could never
+  # disagree with that list no matter what the runtime actually stored: it
+  # was the identical fact, read twice. This intercepts `handler_for` to
+  # make that second read answer something ELSE ("a_second_read_would_
+  # answer_this_instead") from the FIRST read's own real, correct value
+  # ("asked", the declared self-loop `"WireAsked" => "asked", from:
+  # "asked"`) — the shape of bug this fix closes: any future defect that
+  # divides "what got stored" from "what the handler says" now surfaces in
+  # the log immediately, because the log is read back FROM the instance,
+  # never from a second call to the handler.
+  #
+  # `to_state_calls` proves the mechanism directly: the fixed interpreter
+  # calls `handler.to_state` exactly ONCE (to perform the mutation) and
+  # never again to build the log entry — the old code's own two-calls
+  # shape is exactly the coupling this test would catch.
+  it "logs the saga instance's own real transition, not a second read of the handler that decided it" do
+    runtime = funded
+    pm = runtime.registry.bluebook("Wire").process_managers.find { |candidate| candidate.name == "Carry" }
+    real_handler = pm.handler_for("WireAsked")
+    real_to_state = real_handler.to_state
+
+    to_state_calls = 0
+    stub_handler = Struct.new(:event_type, :from_state, :dispatches)
+                         .new(real_handler.event_type, real_handler.from_state, real_handler.dispatches)
+    stub_handler.define_singleton_method(:to_state) do
+      to_state_calls += 1
+      to_state_calls == 1 ? real_to_state : "a_second_read_would_answer_this_instead"
+    end
+
+    real_handler_for = pm.method(:handler_for)
+    pm.define_singleton_method(:handler_for) do |event|
+      event == "WireAsked" ? stub_handler : real_handler_for.call(event)
+    end
+
+    runtime.dispatch("Wire::Wire.Ask",
+                     reference: { value: "wire-log-fidelity" }, amount: { cents: 500 },
+                     source: "left", destination: "right")
+
+    entry = runtime.sagas.find { |s| s[:process_manager] == "Carry" && s[:on] == "WireAsked" && s[:advanced] }
+
+    # The handler's own `to_state` was consulted exactly once — for the
+    # real mutation — never again to build the log entry.
+    expect(to_state_calls).to eq(1)
+    # So the log carries the value the instance was ACTUALLY moved to
+    # (the first, real read)…
+    expect(entry[:to]).to eq(real_to_state)
+    # …never a second, different read of the same handler — the shape of
+    # bug that made the property this feeds unable to ever fail.
+    expect(entry[:to]).not_to eq("a_second_read_would_answer_this_instead")
+  end
 end
 
 RSpec.describe "a lifecycle" do

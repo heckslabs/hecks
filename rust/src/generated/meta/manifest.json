@@ -187,6 +187,18 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Entity.Reference",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Holds",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Entity.Precondition",
     "generated": true,
     "routed": true

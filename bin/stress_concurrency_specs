@@ -1,0 +1,234 @@
+#!/usr/bin/env ruby
+
+# WHY A SINGLE `rspec` RUN IS NOT ENOUGH FOR THIS CLASS OF BUG: every spec
+# below proves a thread-safety property by forcing one specific
+# interleaving (a `Queue`-based rendezvous, a `Mutex`-guarded "first
+# arrival wins" gate) — real, but only as good as the ONE schedule the
+# Ruby VM/OS actually hands it on a given run. A race that needs, say,
+# thread A's `Thread.current[...]` write to land between thread B's read
+# and its own write can pass every single time on a quiet CI box with two
+# threads and no contention, and still be exactly the M20 bug
+# (dispatcher.rb's `#reenter`, fixed by moving `@reaction_depth` off a
+# plain ivar onto `Thread.current`) if a THIRD thread happens to be
+# running at the same time, or the scheduler happens to preempt at a
+# different instruction. GVL-level thread scheduling in CircleCI/GitHub
+# Actions containers is also famously more deterministic (often
+# effectively serialized under light load) than a real multi-core Puma
+# worker pool under production traffic — the exact gap that let M20 ship
+# in the first place despite `dispatcher_spec.rb`'s own sibling specs
+# passing green on every PR.
+#
+# THIS SCRIPT'S ANSWER: run the same specs many times, EACH RUN WITH A
+# DIFFERENT RANDOM SEED (RSpec's own `--seed` reorders example execution,
+# which — combined with Ruby's own green-thread scheduler — changes which
+# thread gets CPU time when) AND, by default, several copies running
+# CONCURRENTLY as separate OS processes (`--parallel`), so the box is
+# under genuine CPU/scheduler contention while each copy's own threads
+# race — closer to "several Puma workers under load" than "one lonely
+# rspec process with two threads and nothing else to do."
+#
+# NOT A REPLACEMENT for the specs themselves — a script that finds nothing
+# new here proves only "not in THIS many tries," never "impossible." See
+# the bottom of this file for how this is meant to be wired into CI: a
+# repeat/matrix step on PRs touching lib/hecks/runtime/, not a replacement
+# for the specs running normally on every PR.
+
+require "etc"
+require "open3"
+require "fileutils"
+
+ROOT = File.expand_path("..", __dir__)
+
+# THE KNOWN THREAD-SAFETY SPECS — not "every spec that happens to use
+# `Thread.new`", but specifically the ones proving a shared-mutable-state
+# race is actually closed:
+#
+#   dispatcher_spec.rb                     — M20 itself (`@reaction_depth`
+#                                             as a plain ivar vs.
+#                                             `Thread.current`), a pure
+#                                             in-process reproduction with
+#                                             no I/O at all.
+#   in_process_concurrent_dispatch_spec.rb — `Runtime::AggregateLock`'s
+#                                             per-key `Mutex` under real
+#                                             concurrent `Thread`s against
+#                                             one process-local `Registry`
+#                                             (Heki + Memory adapters).
+#   postgres_concurrent_dispatch_spec.rb   — the same invariant against a
+#                                             real Postgres row from two
+#                                             independent `Dispatcher`s
+#                                             (`io: true` — self-skips via
+#                                             `PostgresProbe.available?`
+#                                             when no Postgres is
+#                                             reachable, so this script
+#                                             works with or without one).
+#
+# Discovered by a fixed list, not a glob — unlike bin/fuzz's domain sweep,
+# "every spec file that touches Thread" would catch plenty of ordinary
+# fixture setup that spins up a thread for unrelated reasons and prove
+# nothing about races. A glob here would trade a short, legible list for
+# noise.
+# SPLIT IN TWO, NOT ONE LIST — discovered the hard way running this
+# script's own first draft: `postgres_concurrent_dispatch_spec.rb` targets
+# ONE hardcoded database name (`DATABASE = "hecks_concurrency_gap_spec"`)
+# that its own `before(:all)` drops and recreates. That's fine for a
+# single `rspec` process — but run several `--parallel` COPIES of this
+# script's own batch at once against a real, reachable Postgres and they
+# all fight over that same physical database: one copy's `before(:all)`
+# calling `DROP DATABASE ... WITH (FORCE)` while another copy is
+# mid-transaction against it is a real `PG::ConnectionBad` ("server closed
+# the connection unexpectedly") that has NOTHING to do with the
+# application-level race the spec is actually proving — a false alarm
+# from this script's own harness, not a finding. The Gemfile's own comment
+# on `parallel_tests` already named this exact gap ("parallelizing
+# [the io: true specs] against [Postgres] needs per-worker database naming
+# this project doesn't have yet") before this script ever existed to
+# rediscover it.
+#
+# So: the two in-process specs (no shared external resource — pure
+# `Thread`s against one in-memory `Registry`) are genuinely safe to run as
+# several concurrent OS processes, and get the real `--parallel` treatment
+# below. The Postgres spec runs its own repeat loop ONE PROCESS AT A TIME,
+# always — still repeated `runs` times with a varied `--seed` each time
+# (which does exercise different interleavings inside that one process's
+# own two `Dispatcher`s), just never overlapped with a copy of itself.
+PARALLEL_SAFE_SPEC_FILES = [
+  "spec/runtime/dispatcher_spec.rb",
+  "spec/adapters/driven/in_process_concurrent_dispatch_spec.rb"
+].freeze
+
+SERIAL_ONLY_SPEC_FILES = [
+  "spec/adapters/driven/postgres_concurrent_dispatch_spec.rb"
+].freeze
+
+runs           = 30
+parallel       = Etc.nprocessors
+seed_start     = 1
+failures_dir   = File.join(ROOT, "tmp/stress-failures")
+
+until ARGV.empty?
+  case (arg = ARGV.shift)
+  when "--runs"       then runs = Integer(ARGV.shift)
+  when "--parallel"   then parallel = Integer(ARGV.shift)
+  when "--seed-start" then seed_start = Integer(ARGV.shift)
+  when "--help", "-h"
+    puts <<~USAGE
+      Usage: bin/stress_concurrency_specs [--runs N] [--parallel N] [--seed-start N]
+
+        --runs N        How many times to run EACH group below (default 30).
+                         Each run uses a different --seed (seed-start + run
+                         index).
+        --parallel N    How many parallel-safe-group runs to have going as
+                         separate OS processes AT THE SAME TIME (default: this
+                         machine's own core count, via Etc.nprocessors) — real
+                         concurrent scheduler/CPU contention, not just varied
+                         seeds one after another. The Postgres-backed group
+                         always runs one process at a time regardless of this
+                         flag — see this file's own comment on why.
+        --seed-start N  First --seed value (default 1); runs use seed_start,
+                         seed_start + 1, ... seed_start + runs - 1.
+
+      Exits 0 if every run's every example passed, 1 if anything failed —
+      failing runs' full rspec output is saved under tmp/stress-failures/
+      for a real repro (same seed, same command, just add CI=true).
+    USAGE
+    exit 0
+  else
+    warn "unrecognized argument: #{arg.inspect} (--help for usage)"
+    exit 64
+  end
+end
+
+# `CI=true` — spec_helper.rb only un-excludes `io: true` examples (the
+# Postgres spec above) when `ENV["CI"]` is set OR `--tag io` is passed
+# explicitly; setting it here means this script exercises all three specs
+# by default the same way a real CI run would, while the Postgres one
+# still self-skips cleanly via `PostgresProbe.available?` if this machine
+# has no reachable Postgres — no separate flag needed to opt in or out.
+def run_once(spec_files, seed, label:)
+  env = { "CI" => "true" }
+  cmd = ["bundle", "exec", "rspec", *spec_files, "--seed", seed.to_s, "--format", "progress"]
+  stdout, status = Open3.capture2e(env, *cmd, chdir: ROOT)
+  { label: label, seed: seed, success: status.success?, output: stdout,
+    reproduce: "CI=true bundle exec rspec #{spec_files.join(' ')} --seed #{seed}" }
+end
+
+def run_batch(spec_files, seeds, label:)
+  # ONE THREAD PER RSPEC PROCESS IN THIS BATCH, not `Process.spawn`
+  # directly — `Open3.capture2e` already spawns a real child process per
+  # call (a genuinely separate OS process, its own Ruby VM, its own GVL),
+  # so running several of THOSE calls concurrently from Ruby `Thread`s is
+  # enough to have `parallel` real processes running at once; the
+  # coordinating threads here are just waiting on `Process.wait`
+  # underneath `capture2e`, not doing any of the actual work themselves.
+  seeds.map { |seed| Thread.new { run_once(spec_files, seed, label: label) } }.map(&:value)
+end
+
+puts "Stress-running the parallel-safe group #{runs} time(s) (#{parallel} at a time), " \
+     "seeds #{seed_start}..#{seed_start + runs - 1}:"
+PARALLEL_SAFE_SPEC_FILES.each { |f| puts "  - #{f}" }
+puts "...and the Postgres-backed group #{runs} time(s), ONE PROCESS AT A TIME:"
+SERIAL_ONLY_SPEC_FILES.each { |f| puts "  - #{f}" }
+puts
+
+results = []
+
+(seed_start...(seed_start + runs)).each_slice(parallel) do |batch|
+  batch_results = run_batch(PARALLEL_SAFE_SPEC_FILES, batch, label: "parallel-safe")
+  results.concat(batch_results)
+  batch_results.each { |result| print result[:success] ? "." : "F" }
+  $stdout.flush
+end
+
+(seed_start...(seed_start + runs)).each do |seed|
+  result = run_once(SERIAL_ONLY_SPEC_FILES, seed, label: "postgres (serial)")
+  results << result
+  print result[:success] ? "." : "F"
+  $stdout.flush
+end
+
+puts
+puts
+
+failures = results.reject { |r| r[:success] }
+
+if failures.empty?
+  puts "CLEAN — #{results.size}/#{results.size} runs passed. " \
+       "No new flakiness beyond a single ordinary `rspec` run found in this many tries."
+  exit 0
+end
+
+FileUtils.mkdir_p(failures_dir)
+puts "FOUND FLAKINESS — #{failures.size}/#{results.size} runs failed:"
+failures.each do |failure|
+  path = File.join(failures_dir, "#{failure[:label].tr(' ', '_').gsub(/[()]/, '')}-seed#{failure[:seed]}.log")
+  File.write(path, failure[:output])
+  puts "  [#{failure[:label]}] seed #{failure[:seed]} — output saved to #{path.sub("#{ROOT}/", '')}"
+  puts "    reproduce: #{failure[:reproduce]}"
+end
+puts
+exit 1
+
+__END__
+
+HOW TO WIRE THIS INTO CI (not done here — see this repo's own note on not
+editing .github/workflows/ci.yml until a final integration pass; this is
+the runnable piece that pass is meant to call):
+
+  - Add a job that runs `bin/stress_concurrency_specs` (defaults: 30 runs,
+    Etc.nprocessors at a time) gated to PRs touching `lib/hecks/runtime/**`
+    — e.g. a `paths:` filter on the job, or a cheap `git diff
+    --name-only origin/main... | grep -q '^lib/hecks/runtime/'` guard step
+    that skips the rest of the job when it doesn't match.
+  - Keep it SEPARATE from the main `bundle exec rspec` job rather than
+    folded into it — this job's whole point is repeating a small, known
+    subset many times, which takes meaningfully longer per-PR than the
+    single-pass suite; gating it to the paths that can actually regress
+    this class of bug is what keeps that cost worth paying on every
+    relevant PR without taxing every unrelated one.
+  - A real GitHub Actions matrix (`strategy: matrix: run: [1, 2, ..., N]`)
+    is the OTHER standard way to get repetition-with-varied-scheduling in
+    CI, and composes fine with this script too (each matrix leg just runs
+    `bin/stress_concurrency_specs --runs 1 --parallel 1 --seed-start
+    ${{ matrix.run }}`) — this script's own `--runs`/`--parallel` exist so
+    the same tool also works for a developer's local loop before ever
+    reaching for CI-side parallelism, not as a replacement for it.

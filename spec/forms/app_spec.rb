@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/forms"
 require "rack/test"
 require "json"
+require "uri"
 
 RSpec.describe Hecks::Forms::App do
   include Rack::Test::Methods
@@ -149,6 +150,72 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
+  # L10 (docs/audits/2026-08-10-main-bug-audit.md) — `run_query`'s own
+  # rescue clause listed every domain refusal plus ArgumentError/TypeError,
+  # but not `JSON::ParserError` — the one error a malformed line in a
+  # list-of-VALUE-OBJECT query parameter actually raises
+  # (`Params.extract_list`'s own JSON fallback for a multi-attribute list
+  # element; a single-attribute VO like Banking's own `Tag`/`CustomerNumber`
+  # unwraps to a plain scalar and never hits that branch at all). Both
+  # command submission paths already rescue it (`submit_command`,
+  # `command_json`); this was the same defect on the query side. No
+  # Banking fixture query happens to take a list-of-multi-attribute-VO
+  # parameter, so this spins up a tiny dedicated domain rather than
+  # bending a shared fixture other specs also depend on.
+  describe "a query with a list-of-value-object parameter" do
+    def app
+      @app ||= begin
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
+          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+
+          Hecks.bluebook("ListQueryDomain") do
+            aggregate("Basket") do
+              identified_by :basket_id
+
+              value_object("Item") do
+                attribute :name, String
+                attribute :qty, Integer
+              end
+
+              query("BySpecs") do
+                attribute :items, list_of(Item)
+              end
+            end
+          end
+
+          Hecks.hecksagon("ListQueryDomain") do
+            ::ListQueryDomain::Basket.persisted_by("Memory")
+          end
+        end
+        registry.verify!
+        Hecks::Forms::App.new(registry: registry, exposed: ["ListQueryDomain"])
+      end
+    end
+
+    it "answers 422 (not 500) for a malformed line, bare/JSON path" do
+      get "/ListQueryDomain/Basket/BySpecs?items=not-json"
+      expect(last_response.status).to eq(422)
+      body = JSON.parse(last_response.body)
+      expect(body["error"]).to eq("ParserError")
+    end
+
+    it "answers 422 (not 500) for a malformed line, .html path, with the error rendered" do
+      get "/ListQueryDomain/Basket/BySpecs.html?items=not-json"
+      expect(last_response.status).to eq(422)
+      expect(last_response.body).to include("ParserError")
+    end
+
+    it "still runs cleanly for a well-formed line" do
+      get "/ListQueryDomain/Basket/BySpecs?items=#{URI.encode_www_form_component(JSON.generate(name: 'bolt', qty: 3))}"
+      expect(last_response.status).to eq(200)
+      expect(JSON.parse(last_response.body)).to eq([])
+    end
+  end
+
   describe "a record's own page" do
     before { register_ada }
 
@@ -170,6 +237,60 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
+  # L11 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own id is
+  # free-form (S3) and can collide with a command/query name on its own
+  # aggregate ("Close" is one of Customer's own command names). Checking
+  # the verb first (the old order) meant such a record's own detail page
+  # could never be reached again — a GET always resolved to the
+  # command/query instead. POST never views a record at all
+  # (`record_route` only ever answers GET), so command submission for a
+  # DIFFERENT record must stay unaffected.
+  describe "a record whose id collides with a command/query name" do
+    def register_named(id)
+      post "/Banking/Customer/Register.html", "reference.value" => id, "name.given" => "Ada",
+                                                "name.family" => "Lovelace", "email.address" => "ada@example.com"
+    end
+
+    it "the record's own detail page (.html) still wins over a command sharing its name" do
+      register_named("Close") # "Close" is also Customer's own command name
+
+      get "/Banking/Customer/Close.html"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("status: active") # the RECORD's state, not a command form
+      expect(last_response.body).not_to include("<form")
+    end
+
+    it "the record's own detail page (bare/JSON) still wins over a command sharing its name" do
+      register_named("Close")
+
+      get "/Banking/Customer/Close"
+      expect(last_response.status).to eq(200)
+      expect(last_response.content_type).to include("application/json")
+      expect(JSON.parse(last_response.body)["id"]).to eq("Close")
+    end
+
+    it "the record's own detail page still wins over a query sharing its name" do
+      register_named("Suspended") # "Suspended" is also Customer's own query name
+
+      get "/Banking/Customer/Suspended.html"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("status: active")
+      expect(last_response.body).not_to include("<h2>Results")
+    end
+
+    it "does not disturb submitting the command for a DIFFERENT (non-colliding) record" do
+      register_named("Close")
+      register_ada # id "c1", no collision
+
+      post "/Banking/Customer/Close.html", "to" => "c1"
+      expect(last_response.status).to eq(302)
+      expect(last_response.headers["location"]).to eq("/Banking/Customer/c1.html")
+
+      get "/Banking/Customer/c1.html"
+      expect(last_response.body).to include("status: closed")
+    end
+  end
+
   describe "an aggregate's index page" do
     it "lists every creating command and every existing record" do
       register_ada
@@ -177,6 +298,110 @@ RSpec.describe Hecks::Forms::App do
       expect(last_response.status).to eq(200)
       expect(last_response.body).to include("Register")
       expect(last_response.body).to include("/Banking/Customer/c1.html")
+    end
+  end
+
+  # H12 — CustomerNumber's own `pattern:` is `[^ \t\n\r]` (just "no
+  # whitespace"), so a dot is a perfectly legal identity value — an email
+  # `identified_by { email.address }` or any decimal-ish reference would hit
+  # this same way. `reference.value=c.1` is the audit's own live repro
+  # (docs/audits/2026-08-10-main-bug-audit.md, H12).
+  describe "a record id containing a dot" do
+    def register_dotted
+      post "/Banking/Customer/Register.html", "reference.value" => "c.1", "name.given" => "Ada",
+                                                "name.family" => "Lovelace", "email.address" => "ada@example.com"
+    end
+
+    it "redirects to the dotted id's own detail page, not a truncated one" do
+      register_dotted
+      expect(last_response.status).to eq(302)
+      expect(last_response.headers["location"]).to eq("/Banking/Customer/c.1.html")
+    end
+
+    it "the detail page (.html) resolves the full id, not just the part before the first dot" do
+      register_dotted
+      get "/Banking/Customer/c.1.html"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("c.1")
+    end
+
+    it "the bare/JSON path resolves the full id" do
+      register_dotted
+      get "/Banking/Customer/c.1"
+      expect(last_response.status).to eq(200)
+      expect(last_response.content_type).to include("application/json")
+      expect(JSON.parse(last_response.body)["id"]).to eq("c.1")
+    end
+
+    it "an explicit .json request resolves the full id" do
+      register_dotted
+      get "/Banking/Customer/c.1.json"
+      expect(last_response.status).to eq(200)
+      expect(JSON.parse(last_response.body)["id"]).to eq("c.1")
+    end
+
+    it "the index page links to the dotted id's own (unambiguous) detail page" do
+      register_dotted
+      get "/Banking/Customer.html"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("/Banking/Customer/c.1.html")
+    end
+  end
+
+  # L12 — the id is HTML-escaped everywhere it's rendered, but a raw `&`,
+  # `+`, `?`, or `#` in an href/query-string position still corrupts the
+  # link (a stray `&` smuggles a second query parameter, `#` truncates the
+  # path at a fragment, etc). CustomerNumber's pattern permits all four.
+  describe "a record id containing URL-syntax characters" do
+    MALICIOUS_ID = "a&b+c?d#e"
+
+    def register_malicious
+      post "/Banking/Customer/Register.html", "reference.value" => MALICIOUS_ID, "name.given" => "Ada",
+                                                "name.family" => "Lovelace", "email.address" => "ada@example.com"
+    end
+
+    # Rack::Test's own `get(path)` parses `path` as a URI string BEFORE it
+    # ever reaches the app — a raw "?"/"#" in it is parsed as Rack::Test's
+    # OWN query/fragment separator, not delivered to us at all, and a
+    # percent-encoded path is left percent-ENCODED in PATH_INFO instead of
+    # decoded. Neither matches a real deployment: every real Rack server
+    # decodes percent-escapes into PATH_INFO before the app ever sees it
+    # (that decode step is what a browser navigating our own rendered href
+    # actually triggers). Setting PATH_INFO directly bypasses Rack::Test's
+    # URI parsing and hands the app exactly what production would.
+    def get_with_raw_path_info(path)
+      get "/", {}, "PATH_INFO" => path
+    end
+
+    it "percent-encodes the id in the redirect Location after create" do
+      register_malicious
+      expect(last_response.status).to eq(302)
+      expect(last_response.headers["location"]).to eq("/Banking/Customer/#{URI.encode_www_form_component(MALICIOUS_ID)}.html")
+    end
+
+    it "the index page's own link to the record is percent-encoded in the href, and still HTML-escaped as link text" do
+      register_malicious
+      get "/Banking/Customer.html"
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include("href=\"/Banking/Customer/#{URI.encode_www_form_component(MALICIOUS_ID)}.html\"")
+      # link text is the raw id, HTML-escaped (not percent-encoded) —
+      # readable, and the & doesn't get interpreted as an entity start
+      expect(last_response.body).to include(Hecks::Forms::Escape.html(MALICIOUS_ID))
+      # the raw id must never appear unescaped/unencoded
+      expect(last_response.body).not_to include(%(>#{MALICIOUS_ID}<))
+    end
+
+    it "resolves via the id a browser decodes back out of the percent-encoded href it was linked with" do
+      register_malicious
+      get_with_raw_path_info("/Banking/Customer/#{MALICIOUS_ID}.html")
+      expect(last_response.status).to eq(200)
+      expect(last_response.body).to include(Hecks::Forms::Escape.html(MALICIOUS_ID))
+    end
+
+    it "percent-encodes the id in a record's own command links (?to=)" do
+      register_malicious
+      get_with_raw_path_info("/Banking/Customer/#{MALICIOUS_ID}.html")
+      expect(last_response.body).to include("?to=#{URI.encode_www_form_component(MALICIOUS_ID)}")
     end
   end
 

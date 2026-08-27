@@ -54,7 +54,7 @@ RSpec.describe "the syntax lifecycle" do
   it "gives every keyword and argument a status the set admits" do
     (WORD_ROWS + ARGUMENT_ROWS).each do |row|
       expect(WORD_STATUSES).to include(status_of(row)),
-                               "#{row[:word] || row[:keyword]} in #{row[:context]} carries " \
+                               "#{row.key?(:word) ? row[:word] : row[:keyword]} in #{row[:context]} carries " \
                                "status #{row[:status].inspect}, which the language does not admit"
     end
   end
