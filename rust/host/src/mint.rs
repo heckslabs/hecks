@@ -422,7 +422,25 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
 
     ensure_partition(client, domain, 1).await?;
 
-    client.batch_execute(&format!("REVOKE UPDATE, DELETE ON {} FROM PUBLIC", quote_ident(&journal))).await?;
+    // Guarded the same way the RLS flags just below are: REVOKE writes
+    // pg_class.relacl (and takes a lock) even when privileges are
+    // already correct, and Ruby's own provisioning.rb found the hard
+    // way that `has_table_privilege('public', ..., 'UPDATE')` can't
+    // tell "never revoked" apart from "already revoked" (a brand-new
+    // table already answers false to PUBLIC-has-UPDATE by Postgres's
+    // own default) -- `relacl IS NULL` is the one-time signal that
+    // actually works.
+    let relacl_null = client
+        .query_opt(
+            "SELECT relacl IS NULL FROM pg_class WHERE relname = $1 AND pg_table_is_visible(oid)",
+            &[&journal],
+        )
+        .await?
+        .map(|row| row.get::<_, bool>(0))
+        .unwrap_or(true);
+    if relacl_null {
+        client.batch_execute(&format!("REVOKE UPDATE, DELETE ON {} FROM PUBLIC", quote_ident(&journal))).await?;
+    }
 
     let current = client
         .query_opt(

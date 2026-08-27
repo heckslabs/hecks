@@ -21,6 +21,17 @@ pub enum Json {
     Array(Vec<Json>),
     Str(String),
     Num(f64),
+    /// A declared-Float value, distinct from `Num` ONLY in how it
+    /// SERIALISES: `Num` is `f64` used for both Integer- and Float-typed
+    /// attributes alike, and its own `write` renders a whole-number value
+    /// WITHOUT a decimal point (correct for an Integer attribute that
+    /// happens through). `Float` renders WITH one always, matching Ruby's
+    /// own `Float#to_json` (`10.0`, never bare `10`) for a Float-typed
+    /// attribute whose value happens to be whole. Every other operation
+    /// (comparison, ordering, `as_f64`, expression-evaluator field
+    /// access) treats the two identically — this variant exists to carry
+    /// one bit of lost type provenance through to JSON text, nothing more.
+    Float(f64),
     Bool(bool),
     Null,
 }
@@ -45,6 +56,10 @@ impl super::Fielded for Json {
                 Some(i) => Field::Value(Value::Int(i)),
                 None => Field::Value(Value::Float(*n)),
             },
+            // A declared-Float value's field access is ALWAYS Value::Float
+            // -- unlike Num, whose Integer-or-Float split is a guess off
+            // `integral_i64`, Float already carries the answer.
+            Json::Float(n) => Field::Value(Value::Float(*n)),
             Json::Bool(b) => Field::Value(Value::Bool(*b)),
             Json::Null => Field::Value(Value::Nil),
         })
@@ -66,6 +81,7 @@ impl super::Fielded for Json {
                         Some(i) => Field::Value(Value::Int(i)),
                         None => Field::Value(Value::Float(*n)),
                     },
+                    Json::Float(n) => Field::Value(Value::Float(*n)),
                     Json::Bool(b) => Field::Value(Value::Bool(*b)),
                     Json::Null => Field::Value(Value::Nil),
                 })
@@ -96,6 +112,10 @@ impl Json {
 
     pub fn int(i: i64) -> Json {
         Json::Num(i as f64)
+    }
+
+    pub fn float(f: f64) -> Json {
+        Json::Float(f)
     }
 
     pub fn get(&self, key: &str) -> Option<&Json> {
@@ -182,7 +202,7 @@ impl Json {
 
     pub fn as_f64(&self) -> Option<f64> {
         match self {
-            Json::Num(n) => Some(*n),
+            Json::Num(n) | Json::Float(n) => Some(*n),
             _ => None,
         }
     }
@@ -400,6 +420,21 @@ impl Json {
                     out.push_str(&(*n as i64).to_string());
                 } else {
                     out.push_str(&n.to_string());
+                }
+            }
+            // Always a decimal point, even for a whole-number value --
+            // matching Ruby's own Float#to_json (`10.0`, never bare `10`).
+            // `Num`'s own branch, above, deliberately does the OPPOSITE
+            // for a whole number, because it also carries Integer-typed
+            // values, which must NOT grow a spurious `.0`. `n.to_string()`
+            // already renders a fractional value correctly (`"3.5"`); the
+            // only case needing help is a whole number, which f64's own
+            // Display renders bare (`"10"`, no `.`/`e`).
+            Json::Float(n) => {
+                let rendered = n.to_string();
+                out.push_str(&rendered);
+                if !rendered.contains('.') && !rendered.contains('e') && !rendered.contains('E') {
+                    out.push_str(".0");
                 }
             }
             Json::Bool(b) => out.push_str(if *b { "true" } else { "false" }),

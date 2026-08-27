@@ -223,7 +223,7 @@ pub fn none_in_state_matches(cross_domain: &[(&str, &dyn super::AggregateScan)],
 /// this is the real, proven TYPE-MISMATCH behavior (that file's own
 /// comment: "lt was already exactly this permissive"), not an assumption.
 fn ordered(held: &Json, want: &Json) -> bool {
-    matches!(held, Json::Num(_)) && matches!(want, Json::Num(_))
+    matches!(held, Json::Num(_) | Json::Float(_)) && matches!(want, Json::Num(_) | Json::Float(_))
 }
 
 /// Only ever called once `ordered` has already gated the comparison —
@@ -233,7 +233,7 @@ fn ordered(held: &Json, want: &Json) -> bool {
 /// parser could never actually hand it (a non-`Num` `Json` value).
 fn as_f64(value: &Json) -> f64 {
     match value {
-        Json::Num(n) => *n,
+        Json::Num(n) | Json::Float(n) => *n,
         _ => f64::NAN,
     }
 }
@@ -248,6 +248,17 @@ fn to_s(value: &Json) -> String {
         Json::Str(s) => s.clone(),
         Json::Num(n) if n.fract() == 0.0 && n.abs() < 1e15 => (*n as i64).to_string(),
         Json::Num(n) => n.to_string(),
+        // Ruby's `Float#to_s` always shows a decimal point (`10.0.to_s`
+        // => `"10.0"`) -- unlike Num, this never collapses to Integer
+        // styling regardless of whether the value happens to be whole.
+        Json::Float(n) => {
+            let rendered = n.to_string();
+            if rendered.contains('.') || rendered.contains('e') || rendered.contains('E') {
+                rendered
+            } else {
+                format!("{rendered}.0")
+            }
+        }
         Json::Bool(b) => b.to_string(),
         Json::Null => String::new(),
         // Array/Object: `comparable` already collapses every ORDINARY
@@ -273,7 +284,7 @@ fn to_s(value: &Json) -> String {
 pub fn comparable(value: &Json) -> Json {
     let Json::Object(fields) = value else { return value.clone() };
 
-    if let Some((_, numeric)) = fields.iter().find(|(_, v)| matches!(v, Json::Num(_))) {
+    if let Some((_, numeric)) = fields.iter().find(|(_, v)| matches!(v, Json::Num(_) | Json::Float(_))) {
         return numeric.clone();
     }
     if fields.len() == 1 {

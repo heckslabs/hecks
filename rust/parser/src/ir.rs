@@ -350,7 +350,10 @@ pub struct ValueObject {
     pub attributes: Vec<Attribute>,
     pub invariants: Vec<Invariant>,
     pub closed_set: bool,
-    pub members: Vec<Vec<(String, String)>>, // each member: ordered (field, text-value) pairs
+    // each member: ordered (field, typed-value) pairs — typed, not text, so
+    // an Integer/Float/Bool-declared attribute round-trips to the same JSON
+    // type Ruby's own emits_ir gives it, not a stringified copy.
+    pub members: Vec<Vec<(String, crate::ruby_value::Value)>>,
 }
 
 /// `ReadModelBuilder#add_aggregate_head`'s own row shape
@@ -485,6 +488,7 @@ pub struct Bluebook {
     pub version: Option<String>,
     pub vision: Option<String>,
     pub classification: Option<String>,
+    pub formerly_known_as: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
@@ -507,6 +511,7 @@ impl Default for Bluebook {
             version: None,
             vision: None,
             classification: None,
+            formerly_known_as: None,
             aggregates: Vec::new(),
             read_models: Vec::new(),
             policies: Vec::new(),

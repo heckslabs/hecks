@@ -112,7 +112,7 @@ module RustProjection
       case scalar_type
       when "String"  then "crate::kernel::Json::Str(#{rust_expr}.clone())"
       when "Integer" then "crate::kernel::Json::int(#{rust_expr})"
-      when "Float"   then "crate::kernel::Json::Num(#{rust_expr})"
+      when "Float"   then "crate::kernel::Json::Float(#{rust_expr})"
       end
     end
 
@@ -491,7 +491,7 @@ module RustProjection
           case scalar
           when "String"  then "crate::kernel::Json::Str(self.#{ident}.to_string())"
           when "Integer" then "crate::kernel::Json::int(self.#{ident})"
-          when "Float"   then "crate::kernel::Json::Num(self.#{ident})"
+          when "Float"   then "crate::kernel::Json::Float(self.#{ident})"
           end
         Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => value_expr)
       end

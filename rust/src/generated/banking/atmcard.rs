@@ -192,7 +192,7 @@ impl DailyFee {
 impl DailyFee {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("amount".to_string(), crate::kernel::Json::Num(self.amount)),
+        ("amount".to_string(), crate::kernel::Json::Float(self.amount)),
         ])
     }
 }

@@ -232,12 +232,20 @@ pub fn run(input: &str) -> String {
                                 ("args", args.clone()),
                                 ("rows", Json::Array(vec![row])),
                                 // A read model has no reference-interpreter
-                                // twin at all — see this block's own header
-                                // — so `reference_rows` is always `null`,
-                                // never a second computed answer, matching
-                                // Fuzzing::Replay's own `reference = ...
-                                // include?("::") ? ... : nil` exactly.
-                                ("reference_rows", Json::Null),
+                                // twin at all — see this block's own header.
+                                // `reference_rows` is OMITTED, not present-
+                                // as-`null`: `Fuzzing::Replay#call`
+                                // (lib/hecks/fuzzing/replay.rb) only does
+                                // `entry[:reference_rows] = reference_rows`
+                                // inside its own `if has_reference` guard,
+                                // so Ruby's own queries entry for a bare
+                                // (non-"::") question never gains the key
+                                // at all — confirmed directly, not assumed.
+                                // Ruby is the oracle (docs/decisions/
+                                // 0010-ruby-is-the-reference-implementation.md);
+                                // this key used to claim to match that
+                                // exactly while actually always including
+                                // it, which it didn't.
                             ]));
                         }
                         Err(refusal) => refusals.push((question.clone(), refusal)),

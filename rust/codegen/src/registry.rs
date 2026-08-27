@@ -35,6 +35,14 @@ pub struct CommandEntry {
     /// see its header for the full argument.
     pub attributes: Vec<String>,
     pub role: Option<String>,
+    /// R3 fix (docs/audits/2026-08-11-bug-triage.md) — VO invariant/
+    /// admits/pattern checks, emitted BEFORE role/reference checks here
+    /// too, matching `rust/project/registry.rb`'s own `DISPATCH_ORDER`.
+    /// `commands.rs::emit_command` already runs these a second time
+    /// inside the generated dispatch fn itself; redundant on the
+    /// success path, and the reason this router's own copy is safe to
+    /// run first regardless.
+    pub invariant_check_lines: Vec<String>,
 }
 
 pub struct EntityCommandEntry {
@@ -49,6 +57,8 @@ pub struct EntityCommandEntry {
     /// `CommandEntry`'s own identical field, above.
     pub attributes: Vec<String>,
     pub role: Option<String>,
+    /// See `CommandEntry`'s own identical field, above.
+    pub invariant_check_lines: Vec<String>,
     /// `entity_name:`/`entity_identity_reading:` — carried in
     /// `domain_generator.rb`'s own `entity_commands` hash (its own
     /// comment: for `entity_element_missing`'s `{entity}`/`{identity}`
@@ -293,6 +303,11 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "let args = {mod_path}::{}::from_json(facts_json)?;",
                 c.args_struct
             ));
+            // R3 fix (docs/audits/2026-08-11-bug-triage.md) — VO invariant/
+            // admits/pattern BEFORE role_line/reference_lines, matching
+            // Ruby's own DISPATCH_ORDER; see rust/project/registry.rb's
+            // identical comment.
+            body.extend(c.invariant_check_lines.iter().cloned());
             if let Some(rl) = role_line {
                 if !rl.is_empty() {
                     body.push(rl);
@@ -344,6 +359,9 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 ),
                 format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct),
             ];
+            // R3 fix (docs/audits/2026-08-11-bug-triage.md) — see the
+            // identical comment on the aggregate-command body, above.
+            body.extend(c.invariant_check_lines.iter().cloned());
             if let Some(rl) = role_line {
                 body.push(rl);
             }

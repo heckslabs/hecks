@@ -152,7 +152,9 @@ fn order_key(record: &Json, field: &str) -> Json {
 /// ever actually reach.
 fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
     match (a, b) {
-        (Json::Num(x), Json::Num(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
+        (Json::Num(x) | Json::Float(x), Json::Num(y) | Json::Float(y)) => {
+            x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+        }
         (Json::Str(x), Json::Str(y)) => x.cmp(y),
         _ => std::cmp::Ordering::Equal,
     }

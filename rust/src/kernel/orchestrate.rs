@@ -455,7 +455,7 @@ fn read_literal_wire(binding: &str) -> Json {
         return Json::int(i);
     }
     if let Ok(f) = binding.parse::<f64>() {
-        return Json::Num(f);
+        return Json::Float(f);
     }
     if binding.len() >= 2 && binding.starts_with('"') && binding.ends_with('"') {
         let inner = &binding[1..binding.len() - 1];
@@ -1152,7 +1152,7 @@ mod tests {
         assert_eq!(read_literal_wire("true"), Json::Bool(true));
         assert_eq!(read_literal_wire("false"), Json::Bool(false));
         assert_eq!(read_literal_wire("42"), Json::int(42));
-        assert_eq!(read_literal_wire("3.5"), Json::Num(3.5));
+        assert_eq!(read_literal_wire("3.5"), Json::Float(3.5));
     }
 
     #[test]

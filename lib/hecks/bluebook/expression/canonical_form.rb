@@ -84,8 +84,21 @@ module Hecks
               end
             elsif ['"', "'"].include?(char)
               result << yield(buffer)
-              buffer = char.to_s
-              quote = char
+              # `char.dup`, not `char.to_s` (a no-op on a String — always
+              # returns self, never a copy) and not `+char` either
+              # (`String#+@` only dups a FROZEN receiver; `each_char`'s
+              # yielded strings aren't frozen, so `+char` is just as
+              # much a no-op here). Without a REAL copy, `buffer` and
+              # `quote` alias the same mutable object: the very next
+              # `buffer << char` grows `quote` right along with it, so
+              # `char == quote` can only ever compare a single character
+              # against an ever-lengthening string and never closes the
+              # literal — everything after a predicate's first quoted
+              # string silently skipped normalisation for the rest of
+              # the text, undetected because passing text through
+              # unnormalised is silent.
+              buffer = char.dup
+              quote = char.dup
             else
               buffer << char
             end

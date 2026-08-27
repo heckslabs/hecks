@@ -377,10 +377,11 @@ pub fn resolve_uses_framework(
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body INTO an
 /// already-existing accumulator — `vision`/`core`/`supporting`/
-/// `generic`/`aggregate`/`policy`/`report`/`read_model`. STAGE 4 added
-/// `process_manager` (banking.bluebook's own three sagas).
-/// `formerly_known_as` is declared but not exercised by any real corpus
-/// member yet — still falls through to `not_built_yet`.
+/// `generic`/`formerly_known_as`/`aggregate`/`policy`/`report`/
+/// `read_model`. STAGE 4 added `process_manager` (banking.bluebook's own
+/// three sagas). `formerly_known_as` is parsed (single positional text,
+/// same shape as `vision`) but not exercised by any real corpus member
+/// yet — every fixture still emits it as `null`.
 ///
 /// STAGE 6: takes `bluebook`/`aggregate_policies`/`chapter_policies` BY
 /// MUTABLE REFERENCE rather than minting and returning fresh ones, so
@@ -440,6 +441,15 @@ fn parse_body_into(
                     file,
                     line,
                     "vision",
+                    &gated.args,
+                    1,
+                )?)
+            }
+            "formerly_known_as" => {
+                bluebook.formerly_known_as = Some(super::positional_text(
+                    file,
+                    line,
+                    "formerly_known_as",
                     &gated.args,
                     1,
                 )?)

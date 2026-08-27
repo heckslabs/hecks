@@ -240,7 +240,7 @@ fn install_inline_closed_set(
     vo.closed_set = true;
     vo.members = values
         .iter()
-        .map(|value| vec![(field.to_string(), value.clone())])
+        .map(|value| vec![(field.to_string(), ruby_value::Value::Str(value.clone()))])
         .collect();
     Ok(())
 }
@@ -253,7 +253,7 @@ fn push_member(
     file: &str,
     line: usize,
     args: &super::ArgumentGateResult,
-    members: &mut Vec<Vec<(String, String)>>,
+    members: &mut Vec<Vec<(String, ruby_value::Value)>>,
 ) -> ParseResult<()> {
     if args.named.is_empty() {
         return Err(Diagnostic::new(
@@ -265,8 +265,65 @@ fn push_member(
     let fields = args
         .named
         .iter()
-        .map(|(field, raw)| (field.clone(), ruby_value::to_s(&ruby_value::read(raw))))
+        .map(|(field, raw)| (field.clone(), unmark_scalar(&ruby_value::to_s(&ruby_value::read(raw)))))
         .collect();
     members.push(fields);
     Ok(())
+}
+
+/// Port of `Marks#unmark_scalar` (lib/hecks/bluebook/assembly/marks.rb) —
+/// NOT the same thing as reading the Ruby literal type off the source
+/// text. `ValueObject#to_h` (Ruby's own runtime) stores every member
+/// field as text regardless of how it was written (`member required:
+/// "true"` and a hypothetical bare `required: true` land the same way),
+/// then infers Bool/Integer/Float back OUT of that text BY SHAPE alone —
+/// a quoted `"true"`/`"1"` unmarks to a real `true`/`1` exactly like an
+/// unquoted one would, because by the time this runs the quoting is
+/// already gone. Getting this wrong (preserving the as-parsed-from-
+/// source Ruby type instead) is silently plausible: it happens to give
+/// the right answer whenever a corpus member writes an Integer bare
+/// (`retention_months: 84`) and only diverges once one writes a
+/// boolean/numeric-shaped value AS A QUOTED STRING (`required: "true"`,
+/// `at: "1"` — the self-hosted grammar's own ArgumentSeed/KeywordSeed
+/// members, syntax.bluebook, do exactly this) — found via
+/// parser_parity_spec's bluebook_language fixture, not a synthetic case.
+fn unmark_scalar(text: &str) -> ruby_value::Value {
+    if text == "true" {
+        return ruby_value::Value::Bool(true);
+    }
+    if text == "false" {
+        return ruby_value::Value::Bool(false);
+    }
+    if is_integer_shape(text) {
+        if let Ok(n) = text.parse::<i64>() {
+            return ruby_value::Value::Int(n);
+        }
+    }
+    if is_float_shape(text) {
+        if let Ok(f) = text.parse::<f64>() {
+            return ruby_value::Value::Float(f);
+        }
+    }
+    ruby_value::Value::Str(text.to_string())
+}
+
+/// `/\A-?\d+\z/` — Ruby's own pattern, ported literally: an optional
+/// single leading `-`, then one or more ASCII digits, nothing else.
+fn is_integer_shape(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// `/\A-?\d+\.\d+\z/` — Ruby's own pattern, ported literally: digits,
+/// a literal `.`, more digits. No exponent form, no bare leading/
+/// trailing dot — matching Ruby's regex exactly, not "parses as f64".
+fn is_float_shape(text: &str) -> bool {
+    let rest = text.strip_prefix('-').unwrap_or(text);
+    let Some((int_part, frac_part)) = rest.split_once('.') else {
+        return false;
+    };
+    !int_part.is_empty()
+        && !frac_part.is_empty()
+        && int_part.bytes().all(|b| b.is_ascii_digit())
+        && frac_part.bytes().all(|b| b.is_ascii_digit())
 }

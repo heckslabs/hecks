@@ -85,10 +85,28 @@ module Hecks
             # unchanged, so an unconditional reissue on every ordinary
             # reboot raced two concurrent boots into
             # `PG::InternalError: tuple concurrently updated` — read
-            # whether PUBLIC can still UPDATE first, touch the catalog
-            # only on the boot that actually needs to.
-            still_public = @db.exec_params("SELECT has_table_privilege('public', $1, 'UPDATE')", [journal]).getvalue(0, 0)
-            @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC") if still_public == "t"
+            # first, touch the catalog only on the boot that actually
+            # needs to.
+            #
+            # `relacl IS NULL`, not `has_table_privilege('public', ...,
+            # 'UPDATE')` — found live, not assumed: a brand-new table's
+            # PUBLIC privilege is already "no UPDATE" by Postgres's own
+            # default (nothing has ever been explicitly granted to
+            # PUBLIC), so `has_table_privilege` answers false BOTH before
+            # the REVOKE has ever run AND after it has — indistinguishable
+            # by that check alone, which meant the very first boot's own
+            # REVOKE never actually ran, `relacl` stayed NULL forever, and
+            # "journal rows accept no UPDATE/DELETE from PUBLIC" was true
+            # only by accident of Postgres's default, not by the explicit
+            # privilege revocation this method exists to record.
+            # `relacl IS NULL` means "default ACL, nothing explicit yet" —
+            # exactly the one-time signal needed, and (like the RLS flags
+            # below) `pg_table_is_visible(oid)`, not a bare relname match,
+            # for the same shared-instance/storehouse reason.
+            relacl_null = @db.exec_params(
+              "SELECT relacl IS NULL FROM pg_class WHERE relname = $1 AND pg_table_is_visible(oid)", [journal]
+            ).getvalue(0, 0)
+            @db.exec("REVOKE UPDATE, DELETE ON #{quoted_journal} FROM PUBLIC") if relacl_null == "t"
             # RLS goes on AT PROVISIONING, never mid-life — enabling it
             # later would deny every role that has no policy yet, on
             # whatever the shape of the schema happened to be at that
