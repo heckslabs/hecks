@@ -26,14 +26,61 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", io: tru
     [status.success?, stdout + stderr]
   end
 
-  it "`cargo build --features banking` succeeds WITHOUT --no-default-features" do
+  # THIS SPEC'S OWN BUG, found live: hardcoding "banking"/"pizzas" by
+  # name assumed neither would ever be `default` -- true only by
+  # accident. `bin/project_rust`'s `default` tracks whichever domain
+  # was MOST RECENTLY generated, and CI's own earlier step
+  # (`bundle exec bin/project_rust examples/banking`) makes banking
+  # exactly that domain right before this file runs. When the "genuine
+  # conflict" example's own chosen non-default domain happens to BE the
+  # current default, `--features banking,pizzas` stops meaning "two
+  # domains, both explicitly requested" and starts meaning "the default
+  # domain, plus one real request" -- exactly the shape Track 1's own
+  # back-off mechanism is SUPPOSED to let through cleanly, per its own
+  # design. Reading the real current `default` out of Cargo.toml and
+  # picking domains around it, instead of hardcoding names, is what
+  # actually tests the invariant the comments already claimed to.
+  def current_default_domain
+    toml = File.read(File.join(DFE_RUST_DIR, "Cargo.toml"))
+    toml[/^default\s*=\s*\["([^"]+)"\]/, 1] or
+      raise "could not find rust/Cargo.toml's own [features] default = [...] line"
+  end
+
+  def all_domain_features
+    toml = File.read(File.join(DFE_RUST_DIR, "Cargo.toml"))
+    section = toml[/^\[features\]\n(.*?)(?:\n\[|\z)/m, 1] or raise "no [features] section found"
+    section.lines.filter_map { |line| line[/^(\w+)\s*=\s*\[\]/, 1] }
+  end
+
+  # Two real domain features guaranteed NEITHER is the current default
+  # -- the one thing every example below actually needs, and the one
+  # thing hardcoded names never guaranteed. Prefers banking/pizzas (the
+  # two domains CI's own pipeline actively regenerates and keeps
+  # buildable) over an arbitrary pick from the full feature list --
+  # found live: compliance/embryonaut's OWN checked-in generated code
+  # can be stale for entirely unrelated reasons (a missing
+  # command_attributes_for_verb function, this session's own earlier
+  # finding), which would fail this spec's build for a reason that has
+  # nothing to do with the R5 mutual-exclusivity mechanism under test.
+  PREFERRED_TEST_DOMAINS = %w[banking pizzas roster].freeze
+
+  def two_non_default_domains
+    non_default = all_domain_features - [current_default_domain]
+    raise "need at least 2 non-default domain features to test against, found #{non_default.inspect}" if non_default.size < 2
+
+    preferred = PREFERRED_TEST_DOMAINS & non_default
+    (preferred + non_default).uniq.first(2)
+  end
+
+  it "`cargo build --features <a non-default domain>` succeeds WITHOUT --no-default-features" do
     # This is the exact command the audit recorded as failing to
-    # compile. rust/Cargo.toml's `default` feature is whichever domain
-    # was most recently generated (today: roster) -- the whole point of
-    # the fix is that this succeeds regardless of what `default` is, not
-    # just when it happens to already be "banking".
-    ok, output = cargo_build("--features", "banking")
-    expect(ok).to be(true), "cargo build --features banking failed:\n#{output}"
+    # compile. The whole point of the fix is that this succeeds
+    # regardless of what `default` is -- so the domain under test has
+    # to actually NOT be the current default, or the example passes
+    # trivially without exercising the back-off mechanism at all.
+    domain, = two_non_default_domains
+    ok, output = cargo_build("--features", domain)
+    expect(ok).to be(true), "cargo build --features #{domain} failed:\n#{output}"
   end
 
   it "a bare `cargo build` (whichever domain is currently `default`) still succeeds unaffected" do
@@ -41,21 +88,25 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", io: tru
     expect(ok).to be(true), "plain cargo build failed:\n#{output}"
   end
 
-  it "`--no-default-features --features banking` (the old required workaround) still works too" do
-    ok, output = cargo_build("--no-default-features", "--features", "banking")
-    expect(ok).to be(true), "cargo build --no-default-features --features banking failed:\n#{output}"
+  it "`--no-default-features --features <a non-default domain>` (the old required workaround) still works too" do
+    domain, = two_non_default_domains
+    ok, output = cargo_build("--no-default-features", "--features", domain)
+    expect(ok).to be(true), "cargo build --no-default-features --features #{domain} failed:\n#{output}"
   end
 
   # THE GENUINE CONFLICT -- two domains that are BOTH explicitly
   # requested (neither one is just along for the ride via `default`)
   # can't both be the crate's one `generated::active` -- this should
   # still fail, but with our own named compile_error! rather than a bare
-  # "defined multiple times".
+  # "defined multiple times". Picking two domains dynamically, both
+  # confirmed non-default, is what actually guarantees "neither is just
+  # along for the ride" -- a hardcoded pair only guaranteed it by luck.
   it "two explicitly-requested, non-default domain features fail with a clear, named compile_error!" do
-    ok, output = cargo_build("--features", "banking,pizzas")
-    expect(ok).to be(false), "expected --features banking,pizzas to fail (both are real, non-default domains)"
+    domain_a, domain_b = two_non_default_domains
+    ok, output = cargo_build("--features", "#{domain_a},#{domain_b}")
+    expect(ok).to be(false), "expected --features #{domain_a},#{domain_b} to fail (both are real, non-default domains)"
     expect(output).to include("domain features are mutually exclusive")
-    expect(output).to include("banking")
-    expect(output).to include("pizzas")
+    expect(output).to include(domain_a)
+    expect(output).to include(domain_b)
   end
 end
