@@ -297,7 +297,7 @@ module Hecks
           end
 
           op, source = named.first
-          @mutations << Mutation.new(target: target.to_sym, op: op, source: source)
+          @mutations << Mutation.new(target: target.to_sym, op: op, source: normalize_append_source(op, source))
         end
 
         # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era text
@@ -460,7 +460,7 @@ module Hecks
           end
 
           @mutations << Mutation.new(target: event.to_s, op: :corrects,
-                                      source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
+                                     source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
         end
 
         def build
@@ -669,7 +669,29 @@ module Hecks
           end
 
           op, source = named.first
-          @mutations << Mutation.new(target: target.to_sym, op: op, source: source)
+          @mutations << Mutation.new(target: target.to_sym, op: op, source: normalize_append_source(op, source))
+        end
+
+        # `append:` NORMALLY binds several fields at once (`append: {
+        # name: :name, amount: :amount }`) — `Mutation#appended_fields`/
+        # `MutationApplier#appended`/the meta-validator Judge's own
+        # `mutation_rows` all read `mutation.source` as a Hash
+        # unconditionally. A BARE value (`append: :single_field`, or any
+        # non-Hash literal) is the one-field shorthand: exactly what an
+        # explicit `append: { value: :single_field }` would have meant,
+        # named the same way a single-field value object's own implicit
+        # member already is (`MutationApplier#appended`'s own `:value`
+        # scalar-unwrap). Without this, that shorthand built a Mutation
+        # whose `source` was a bare Symbol, which crashed with a raw
+        # `NoMethodError` on `#transform_values` the moment anything
+        # downstream read it — at dispatch (`MutationApplier#appended`),
+        # at IR emission (`Mutation#appended_fields`), and in the
+        # meta-validator's own Judge (`Readings#mutation_rows`). #138.
+        def normalize_append_source(op, source)
+          return source unless op == :append
+          return source if source.is_a?(::Hash)
+
+          { value: source }
         end
       end
     end

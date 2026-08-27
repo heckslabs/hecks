@@ -82,7 +82,10 @@ RSpec.describe "the DSL surface is fully covered" do
       # `realm`/`latest` -> `*_impl` — item #13's full metaprogrammed
       # dispatch (slice 5), reached through WordGate#word_gate_dispatch
       # now, called explicitly from this class's own method_missing.
-      %i[realm_impl latest_impl method_missing]
+      # `record_binding` — extracted from the old `method_missing` body
+      # (#143) so `WorldConstProxy`'s own aggregate-qualified verb calls
+      # share the same write path the bare top-level spelling uses.
+      %i[realm_impl latest_impl method_missing record_binding]
     ],
     "SettingsCollector"           => [
       Hecks::Bluebook::DSL::SettingsCollector,
@@ -91,6 +94,14 @@ RSpec.describe "the DSL surface is fully covered" do
     "BindingProxy"                => [
       Hecks::Bluebook::DSL::BindingProxy,
       %i[port method_missing to_s]
+    ],
+    "WorldConstProxy"             => [
+      # THE `.world` FILE'S OWN ConstShim BRIDGE (#143) — mirrors
+      # `BindingProxy`'s job for `.hecksagon` files, minus the
+      # aggregate-qualifier bookkeeping `IR::World` never reads back
+      # out; see this class's own header comment.
+      Hecks::Bluebook::DSL::WorldConstProxy,
+      %i[method_missing]
     ],
     "HecksagonBuilder"            => [
       Hecks::Bluebook::DSL::HecksagonBuilder,
@@ -167,7 +178,8 @@ RSpec.describe "the DSL surface is fully covered" do
     [
       Hecks::Bluebook::DSL::WorldBuilder,
       Hecks::Bluebook::DSL::SettingsCollector,
-      Hecks::Bluebook::DSL::BindingProxy
+      Hecks::Bluebook::DSL::BindingProxy,
+      Hecks::Bluebook::DSL::WorldConstProxy
     ].each do |klass|
       expect(klass.public_instance_methods(false)).to include(:method_missing),
                                                       "#{klass} should answer to anything"

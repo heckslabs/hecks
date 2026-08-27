@@ -466,6 +466,15 @@ card = Banking::ATMCard.issue!(account: account.id, serial: { value: "CARD-1000"
 card.withdrawals   # => []
 ```
 
+A fresh card cannot pay out yet — `Withdraw` guards on `status ==
+"active"`, and a card just issued sits in `"issued"` until its holder
+activates it:
+
+```ruby
+card = card.activate!
+card.status   # => "active"
+```
+
 `WithdrawalAmount` carries its own invariant, and `list_of` does not
 exempt an appended element from it. Every element built by `append:`
 goes through the same construction a bare value would, invariant

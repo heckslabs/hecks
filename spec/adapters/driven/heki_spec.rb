@@ -186,6 +186,32 @@ RSpec.describe Hecks::Adapters::Heki do
     end
   end
 
+  describe "resolve_path" do
+    # Issue #129: `dir: :default` (a bare Symbol) used to crash
+    # `File.join` with `TypeError: no implicit conversion of Symbol
+    # into String` — resolve_path only ever checked for a MISSING
+    # `dir` setting, never a Symbol one.
+    it "treats a bare :default Symbol the same as no dir setting at all" do
+      defaulted = described_class.new(aggregate: aggregate, settings: { dir: :default }, root: @dir)
+      absent    = described_class.new(aggregate: aggregate, settings: {}, root: @dir)
+
+      expect(defaulted.path).to eq(absent.path)
+      expect(defaulted.path).to eq(File.join(@dir, "data", "order.heki"))
+    end
+
+    it "still honors a real declared string path" do
+      adapter = described_class.new(aggregate: aggregate, settings: { dir: "custom" }, root: @dir)
+
+      expect(adapter.path).to eq(File.join(@dir, "custom", "order.heki"))
+    end
+
+    it "still falls back to \"data\" when dir is truly absent" do
+      adapter = described_class.new(aggregate: aggregate, settings: {}, root: @dir)
+
+      expect(adapter.path).to eq(File.join(@dir, "data", "order.heki"))
+    end
+  end
+
   describe "refusing what it cannot read" do
     def write_raw(contents)
       File.binwrite(File.join(@dir, "order.heki"), contents)

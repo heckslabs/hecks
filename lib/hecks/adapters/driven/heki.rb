@@ -145,6 +145,13 @@ module Hecks
         replay_journal(snapshot)
       end
 
+      # `dir: :default` — a bare Symbol, the framework's own convention
+      # for "a DECLARED value that resolves by convention, never a silent
+      # fallback" — used to crash `File.join` outright
+      # (`TypeError: no implicit conversion of Symbol into String`):
+      # `resolve_path` only ever checked for a MISSING `dir` setting,
+      # never a Symbol one. Treated the same as no setting at all — falls
+      # back to the existing "data" default, not a new special case.
       def resolve_path(settings, root)
         declared =
           if settings.key?(:dir)
@@ -154,6 +161,7 @@ module Hecks
           else
             "data"
           end
+        declared = "data" if declared == :default
         dir      = declared.start_with?("/") ? declared : File.join(root || Dir.pwd, declared)
 
         File.join(dir, "#{@aggregate.storage_name}.heki")

@@ -141,6 +141,13 @@ Hecks.bluebook "Pizzas" do
       given("a pizza needs at least one topping") { toppings.size.positive? }
       given("it must still be available")         { status == "available" }
       given("a payment was actually made")         { amount.cents.positive? }
+      # NOT re-deciding WHETHER a payment happened — that's the external
+      # fact the comment below this command explains. This checks the
+      # fact ITSELF makes sense: an underpayment arriving from upstream
+      # (a data-entry error, a stale price quoted before an increase, a
+      # malformed webhook) shouldn't mark the pizza sold any more than a
+      # payment for an already-sold pizza should.
+      given("the payment covers the price") { amount.cents >= pizza.price_cents.cents }
 
       sets :customer_name
       sets :status,        to: "sold"

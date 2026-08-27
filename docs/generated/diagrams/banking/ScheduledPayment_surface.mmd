@@ -11,5 +11,6 @@ flowchart LR
     cmd_ScheduledPayment_Schedule(["ScheduledPayment.Schedule"]) -->|"sets: amount"| attr_ScheduledPayment_amount[amount]
     cmd_ScheduledPayment_Schedule(["ScheduledPayment.Schedule"]) -->|"sets: recipient"| attr_ScheduledPayment_recipient[recipient]
     cmd_ScheduledPayment_Schedule(["ScheduledPayment.Schedule"]) -->|"sets: due_on"| attr_ScheduledPayment_due_on[due_on]
+    cmd_ScheduledPayment_Schedule(["ScheduledPayment.Schedule"]) -->|"sets: instruction"| attr_ScheduledPayment_instruction[instruction]
     cmd_ScheduledPayment_Retry(["ScheduledPayment.Retry"]) -->|"increments: '{:value=>1}'"| attr_ScheduledPayment_attempts[attempts]
     ScheduledPayment[(ScheduledPayment)] -.->|asks| qry_ScheduledPayment_Due{"ScheduledPayment.Due"}

@@ -745,7 +745,7 @@ module Hecks
         #    — see docs/decisions/ for the ADR that draws this exact
         #    line.
         def seal_correction_targets
-          inverse_op    = { increment: :decrement, decrement: :increment }
+          inverse_op = { increment: :decrement, decrement: :increment }
           emitted_by = Hash.new { |hash, key| hash[key] = [] }
           @commands.each { |command| command.emits.each { |event_name| emitted_by[event_name] << command } }
 
@@ -785,7 +785,7 @@ module Hecks
 
             derived.each do |mutation|
               command.mutations << Mutation.new(target: mutation.target, op: inverse_op.fetch(mutation.op),
-                                                 source: mutation.source)
+                                                source: mutation.source)
             end
           end
         end

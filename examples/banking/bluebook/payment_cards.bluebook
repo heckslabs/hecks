@@ -122,6 +122,15 @@ Hecks.bluebook "Banking" do
       reference_to ATMCard
       given("customer is active")
       given("account is open")
+      # A card fresh off `Issue` sits in "issued" until its holder
+      # activates it (`Activate`, below) — the SAME gap `given("card is
+      # issued or active")`, declared once above, deliberately papers
+      # over for Rename/Retire (naming or decommissioning a card needs
+      # no activation first). Cash does. Bare `status == "active"`
+      # rather than that shared predicate, on purpose: "issued or
+      # active" would let this command through in exactly the state it
+      # exists to refuse.
+      given("card is active") { status == "active" }
 
       sets :withdrawals, append: { cents: :cents, narrative: :narrative }
 
@@ -234,6 +243,17 @@ Hecks.bluebook "Banking" do
     end
 
     command "Authorize" do
+      # DELIBERATELY LEFT ROLE-LESS — `role` is optional metadata; every
+      # other command this file's own Bug #107 audit found bare now
+      # declares one (payment_cards.bluebook's Capture/Void/Refund/
+      # Reverse/Chargeback/RejectDispute among them), but the corpus
+      # still needs at least one genuinely unguarded command for real —
+      # `diagrams_spec.rb`'s own "draws nothing for a command with no
+      # declared role" and `oidc_projection_spec.rb`'s own "keeps an
+      # unguarded command with a nil role rather than dropping it" both
+      # depend on Banking having one, by name, for a scope that must not
+      # silently vanish rather than a nullable field left empty by
+      # accident. Authorize stays that fixture.
       attribute :authorisation, AuthorisationCode
       attribute :tags, list_of(Tag), optional: true
       given("customer is active")
@@ -242,10 +262,13 @@ Hecks.bluebook "Banking" do
       sets :amount
       sets :merchant
       sets :tags
+      sets :authorisation
       emits "CardAuthorized"
     end
 
     command "Capture" do
+      role "System"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")
@@ -254,6 +277,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "Void" do
+      role "System"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")
@@ -262,6 +287,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "Refund" do
+      role "System"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")
@@ -270,6 +297,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "Reverse" do
+      role "System"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")
@@ -306,6 +335,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "Chargeback" do
+      role "Compliance officer"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")
@@ -314,6 +345,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "RejectDispute" do
+      role "Compliance officer"
+
       reference_to CardPayment
       given("customer is active")
       given("account is open")

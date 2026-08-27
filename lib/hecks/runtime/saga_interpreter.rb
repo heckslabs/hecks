@@ -75,7 +75,23 @@ module Hecks
         created = @registry.saga_mutex.synchronize do
           next false if @registry.saga_instances[pm.name].key?(correlation)
 
-          instance = { state: pm.states.first, memory: event.payload }
+          # `.dup`, NOT THE SAME OBJECT — a fresh saga's own memory starts
+          # as a COPY of the starting event's own payload, never the
+          # payload itself. A saga's own memory is meant to be written
+          # into over its lifetime (remember-style, growing beyond what
+          # the starting event carried) ; the payload it was seeded from
+          # is a fact about something that ALREADY happened, logged and
+          # emitted before the saga ever saw it. Sharing the one Hash
+          # object between them means a write into the saga's own memory
+          # is silently ALSO a write into an already-emitted event's own
+          # payload — retroactively adding a field nothing announced.
+          # `event.payload` is deep-frozen by `Event#emit!` by the time
+          # this runs, so a naive in-place write here would raise
+          # FrozenError rather than corrupt silently — but the `.dup`
+          # still matters: it is what makes the saga's own memory a
+          # normal, writable Hash of its own, rather than one write away
+          # from crashing every future in-place `remember`.
+          instance = { state: pm.states.first, memory: event.payload.dup }
           @registry.saga_instances[pm.name][correlation] = instance
           checkpoint(pm, correlation, instance, domain)
           true

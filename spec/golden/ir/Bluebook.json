@@ -8180,7 +8180,7 @@
               ],
               [
                 "at",
-                "1"
+                1
               ],
               [
                 "named",
@@ -8192,7 +8192,7 @@
               ],
               [
                 "required",
-                "true"
+                true
               ],
               [
                 "fills",
@@ -8222,7 +8222,7 @@
               ],
               [
                 "required",
-                "false"
+                false
               ],
               [
                 "fills",
@@ -8252,7 +8252,7 @@
               ],
               [
                 "required",
-                "false"
+                false
               ],
               [
                 "fills",
@@ -8282,7 +8282,7 @@
               ],
               [
                 "required",
-                "false"
+                false
               ],
               [
                 "fills",
@@ -12579,6 +12579,16 @@
                   "pattern": null,
                   "relationship": null,
                   "type": "DispatchText"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "position",
+                  "optional": false,
+                  "pattern": null,
+                  "relationship": null,
+                  "type": "DispatchPosition"
                 }
               ],
               "emits": [
@@ -12595,7 +12605,8 @@
               "mutations": [
                 {
                   "fields": {
-                    "command_name": ":command_name"
+                    "command_name": ":command_name",
+                    "position": ":position"
                   },
                   "op": "append",
                   "sign": "",
@@ -12621,6 +12632,16 @@
                   "pattern": null,
                   "relationship": null,
                   "type": "DispatchText"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "position",
+                  "optional": false,
+                  "pattern": null,
+                  "relationship": null,
+                  "type": "DispatchPosition"
                 },
                 {
                   "admits": null,
@@ -12690,7 +12711,8 @@
 
               ],
               "identified_by": [
-                "command_name.value"
+                "command_name.value",
+                "position.value"
               ],
               "invariants": [
 
@@ -12706,7 +12728,8 @@
             }
           ],
           "identified_by": [
-            "event_type.value"
+            "event_type.value",
+            "from_state.value"
           ],
           "invariants": [
 
@@ -12915,6 +12938,28 @@
 
           ],
           "name": "Binding"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "DispatchPosition"
         },
         {
           "attributes": [

@@ -11,4 +11,5 @@ flowchart LR
     cmd_Transfer_Request(["Transfer.Request"]) -->|"sets: narrative"| attr_Transfer_narrative[narrative]
     cmd_Transfer_Request(["Transfer.Request"]) -->|"sets: source"| attr_Transfer_source[source]
     cmd_Transfer_Request(["Transfer.Request"]) -->|"sets: destination"| attr_Transfer_destination[destination]
+    cmd_Transfer_Request(["Transfer.Request"]) -->|"sets: reference"| attr_Transfer_reference[reference]
     Transfer[(Transfer)] -.->|asks| qry_Transfer_InFlight{"Transfer.InFlight"}

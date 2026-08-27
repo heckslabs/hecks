@@ -54,6 +54,28 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
+    # ONE DISPATCH'S OWN ORDER AMONG ITS HANDLER'S SIBLINGS — named
+    # DispatchPosition rather than reusing ProcessManager's own `Position`
+    # four lines below (same discipline as `MemberPosition`/shape.bluebook's
+    # own comment on the identical choice): that one orders process
+    # managers among a CHAPTER's siblings ; this one orders dispatches
+    # within ONE handler. Same shape, different fact.
+    #
+    # Part of `identified_by`, below, alongside `command_name` — a real
+    # handler fans the SAME command out more than once with different
+    # `with:` bindings each leg (item #151's own real example: one
+    # BodyPulse handler dispatching Signal.FireSignal once per organ),
+    # and `command_name` alone collided the instant it did: the Judge's
+    # own `entity_duplicate` check raised the moment a second dispatch of
+    # the same command was declared, an uncaught crash for a legitimate,
+    # common pattern. `position` names WHICH send this is and is safe to
+    # fold into identity exactly where it would not be for Handler's own
+    # `from_state` (a real business value) — a Dispatch is declared once,
+    # at load time, and never re-addressed by identity afterward.
+    value_object "DispatchPosition" do
+      attribute :value, Integer
+    end
+
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
@@ -147,21 +169,33 @@ Hecks.bluebook "Bluebook" do
     # wrong thing, holds nothing, and duplicates the reference beside it.
     #
     # `event_type` is an event name, or one of the Trigger vocabulary's
-    # members when the leg answers something no aggregate announces — and
-    # is Handler's own real, non-positional identity now : a saga answers
-    # each event ONCE, so the event names the leg, and the process
-    # manager it belongs to is structural (which list this element sits
-    # in), not a stored field any more.
+    # members when the leg answers something no aggregate announces — but
+    # NOT, alone, Handler's own identity any more (items #151/#152's own
+    # finding): a state machine legitimately answers the SAME event
+    # differently depending on which state it is currently in — one event
+    # name, several distinct legs (a BodyPulse handler that moves
+    # `attentive -> attentive` and, separately, `sleeping_light ->
+    # sleeping_light`) — and `event_type` alone collided the instant a
+    # real corpus declared that shape: the Judge's own `entity_duplicate`
+    # check raised `AlreadyExists` the moment the second leg was declared,
+    # an uncaught crash, not a refusal, for a common, legitimate pattern.
+    # `from_state` joins it below for exactly this reason — a real
+    # business value, not a stand-in for missing meaning, the same
+    # distinction `DispatchPosition`'s own comment (above) draws for its
+    # sibling `Dispatch`. The process manager this leg belongs to stays
+    # structural (which list this element sits in), never a stored field.
     entity "Handler" do
       description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings."
 
-      identified_by HandlerText, as: :event_type
-
+      attribute :event_type, HandlerText
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText
       # S17, ADR 0026 — Dispatch nested here too (see `entity "Dispatch"`,
       # below), one level further in than Handler itself.
       attribute :dispatches, list_of(Dispatch)
+
+      # BOTH FIELDS TOGETHER — see the class-level comment above.
+      identified_by :event_type, :from_state
 
       # THE DISPATCH'S OWN CREATION — same reason Handler's own creation
       # lives on ProcessManager, one level up: an entity is never created
@@ -174,8 +208,15 @@ Hecks.bluebook "Bluebook" do
         goal "Open a dispatch inside a handler"
 
         attribute :command_name, DispatchText
+        # THE WALK INDEX, never author-supplied — the same generic
+        # POSITION handling `ValueObject.Member`'s own creating command
+        # already relies on (`Judge#appends`), which fills this from
+        # where the walk found the dispatch, not from a field the row
+        # happens to hold. No real `.bluebook` author ever calls this
+        # verb directly; only the Judge's own replay does.
+        attribute :position, DispatchPosition
 
-        sets :dispatches, append: { command_name: :command_name }
+        sets :dispatches, append: { command_name: :command_name, position: :position }
 
         emits "SendDeclared"
       end
@@ -185,12 +226,21 @@ Hecks.bluebook "Bluebook" do
       # its Handler" (the ADR's own words). The bindings are an open
       # map, which no value object can hold — that was always a reason
       # it could not be one, never a reason it could not be an entity.
-      # `command_name` is Dispatch's own real, non-positional identity,
-      # the same shape Handler's own `event_type` just took one level up.
+      # `command_name` ALONE used to be Dispatch's own identity, the same
+      # shape Handler's own `event_type` took one level up — and collided
+      # the same way, for the same real reason (item #151): one handler
+      # fanning the SAME command out several times with different `with:`
+      # bindings each time (one BodyPulse handler dispatching
+      # Signal.FireSignal once per organ). `position` joins it below —
+      # see `DispatchPosition`'s own comment for why that field, unlike
+      # Handler's `from_state`, is safe to fold into identity.
       entity "Dispatch" do
         description "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold."
 
-        identified_by DispatchText, as: :command_name
+        attribute :command_name, DispatchText
+        attribute :position,     DispatchPosition
+
+        identified_by :command_name, :position
 
         attribute :with_spec, list_of(Binding)
 

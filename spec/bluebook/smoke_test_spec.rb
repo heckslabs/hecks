@@ -19,7 +19,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
   end
 
   it "dispatches cleanly against a real, well-formed domain — no failures" do
-    dir = write_domain("Widget", <<~RUBY)
+    dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do
         identified_by :name
         attribute :name, Name
@@ -42,7 +42,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
   # same class of bug this tool caught for real in `bin/interview`'s
   # own build.
   it "catches a command wrongly classified as creating — reloads clean, only breaks on dispatch" do
-    dir = write_domain("Widget", <<~RUBY)
+    dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do
         identified_by :name
         attribute :name, Name
@@ -66,7 +66,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
   end
 
   it "walks aggregates in declaration order, so a later aggregate can reference an earlier one's real id" do
-    dir = write_domain("Widget", <<~RUBY)
+    dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do
         identified_by :name
         attribute :name, Name
@@ -107,7 +107,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
   # smoke-test run untouched, regardless of what `dir`'s own `.hecksagon`
   # and `.world` actually bind to.
   it "never touches the target directory's own real persisted data, however it's really bound" do
-    dir = write_domain("Widget", <<~RUBY)
+    dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do
         identified_by :name
         attribute :name, Name
@@ -119,21 +119,21 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
         end
       end
     RUBY
-    File.write(File.join(dir, "bluebook", "Widget.hecksagon"), <<~RUBY)
-      Hecks.hecksagon "Widget" do
-        Widget::Item.persisted_by("Heki")
+    File.write(File.join(dir, "bluebook", "SmokeWidget.hecksagon"), <<~RUBY)
+      Hecks.hecksagon "SmokeWidget" do
+        SmokeWidget::Item.persisted_by("Heki")
       end
     RUBY
-    File.write(File.join(dir, "bluebook", "Widget.world"), <<~RUBY)
-      Hecks.world "Widget" do
+    File.write(File.join(dir, "bluebook", "SmokeWidget.world"), <<~RUBY)
+      Hecks.world "SmokeWidget" do
         realm "Acme"
         persisted_by("Heki") { dir "data" }
       end
     RUBY
 
     real_runtime = Hecks.boot(dir, install_facade: false)
-    real_runtime.dispatch("Widget::Item.Add", name: { value: "smoke-test" })
-    repository = real_runtime.registry.repository("Widget", real_runtime.registry.bluebook("Widget").aggregate("Item"))
+    real_runtime.dispatch("SmokeWidget::Item.Add", name: { value: "smoke-test" })
+    repository = real_runtime.registry.repository("SmokeWidget", real_runtime.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(repository.all.size).to eq(1)
 
     described_class.call(dir)
@@ -142,7 +142,7 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
     # objects, so this proves the real Heki FILE itself was untouched,
     # not merely that a stale reference still looks right.
     reread = Hecks.boot(dir, install_facade: false)
-    reread_repository = reread.registry.repository("Widget", reread.registry.bluebook("Widget").aggregate("Item"))
+    reread_repository = reread.registry.repository("SmokeWidget", reread.registry.bluebook("SmokeWidget").aggregate("Item"))
     expect(reread_repository.all.map(&:id)).to eq(["smoke-test"])
   end
 end

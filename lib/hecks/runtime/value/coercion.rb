@@ -203,6 +203,20 @@ module Hecks
         # value_object(name)`, so callers with no aggregate in reach
         # (`Value#with`, always re-setting an already-scalar arithmetic
         # field) simply skip this and keep their prior behavior.
+        # RECURSES INTO EACH NESTED FIELD'S OWN VALIDATION TOO, not only its
+        # shape — found live alongside the shape bug this method's header
+        # already describes: a nested `Price`/`Size` (a value-object-typed
+        # field of ANOTHER value object, e.g. `Pizza.price_cents`,
+        # `Pizza.size`) had its Hash shape normalized here but never ran
+        # `validate!` — `build`, below, only ever validated the OUTER value
+        # object's own direct fields, so a negative `price_cents.cents` or an
+        # out-of-`one_of` `size.value` sailed through a `Pizza`-typed command
+        # argument untouched, while the exact same nested type declared as a
+        # direct, top-level command attribute (`SafeDepositBox.Rent`'s own
+        # `attribute :size, Size`) was already checked correctly. `apply_
+        # defaults` runs first, same as the outer value object gets in
+        # `build`, so a nested field's own default is filled in before its
+        # own invariants read it.
         def normalize_composite_fields(aggregate, value_object, fields)
           return fields unless aggregate&.respond_to?(:value_object)
 
@@ -215,17 +229,27 @@ module Hecks
             nested = value_object_for(aggregate, attribute.type)
             next unless nested
 
-            fields[attribute.name] = normalize_composite_fields(aggregate, nested, fields_for(nested, attribute.name, raw))
+            nested_fields = apply_defaults(nested, fields_for(nested, attribute.name, raw))
+            nested_fields = normalize_composite_fields(aggregate, nested, nested_fields)
+            validate!(nested, nested_fields)
+            fields[attribute.name] = nested_fields
           end
 
           fields
         end
 
-        def build(value_object, fields, aggregate = nil)
-          fields = value_object.attributes.each_with_object(fields.transform_keys(&:to_sym)) do |attribute, completed|
+        def apply_defaults(value_object, fields)
+          value_object.attributes.each_with_object(fields) do |attribute, completed|
             completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
           end
-          fields = normalize_composite_fields(aggregate, value_object, fields)
+        end
+
+        # THE FULL DOOR A VALUE OBJECT'S OWN FIELDS PASS THROUGH — shared by
+        # `build` (the outer value object) and `normalize_composite_fields`
+        # (every nested one), so a nested `Price`/`Size` is refused exactly
+        # the same way, with exactly the same wording, as the identical type
+        # declared directly on a command.
+        def validate!(value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
           check_numeric_fields(value_object, fields)
@@ -239,6 +263,12 @@ module Hecks
                                         name: value_object.hecks_name, description: invariant.description,
                                         offered: canonical_fields(fields))
           end
+        end
+
+        def build(value_object, fields, aggregate = nil)
+          fields = apply_defaults(value_object, fields.transform_keys(&:to_sym))
+          fields = normalize_composite_fields(aggregate, value_object, fields)
+          validate!(value_object, fields)
           new(value_object, fields)
         end
 

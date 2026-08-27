@@ -33,6 +33,7 @@ Lint/DuplicateBranch:
     - 'lib/hecks/bluebook/expression/resolver.rb'
     - 'lib/hecks/literal.rb'
     - 'lib/hecks/query_specification/common/comparison.rb'
+    - 'lib/hecks/runtime/command_interpreter/mutation_applier.rb'
     - 'lib/hecks/runtime/value/coercion.rb'
     - 'spec/orchestration_spec.rb'
 
@@ -178,6 +179,7 @@ Metrics/AbcSize:
 Metrics/BlockLength:
   Exclude:
     - 'bin/rust_coverage'
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
     - 'lib/hecks/bluebook/project_register.rb'
     - 'lib/hecks/fuzzing/replay.rb'
 
@@ -191,6 +193,7 @@ Metrics/BlockNesting:
 # Configuration parameters: CountComments, Max, CountAsOne.
 Metrics/ClassLength:
   Exclude:
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
     - 'lib/hecks/bluebook/dsl/bluebook_builder.rb'
 
 # Offense count: 37
@@ -522,6 +525,7 @@ Style/CollectionQuerying:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Style/CombinableLoops:
   Exclude:
+    - 'lib/hecks/bluebook/dsl/aggregate_builder.rb'
     - 'lib/hecks/bluebook/meta_validator/judge.rb'
     - 'lib/hecks/runtime/dispatcher.rb'
 

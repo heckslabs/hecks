@@ -255,11 +255,17 @@ module Hecks
         ),
 
         # S17, ADR 0026 — Dispatch is a genuine entity now, nested under
-        # Handler (`entity "Dispatch"`, reaction.bluebook) — two levels
-        # deep, "no life outside its Handler" (the ADR's own words).
-        # `command_name` is Dispatch's own real, non-positional identity
-        # — neither `position` nor `handler` is a stored field any more,
-        # the same reason Handler's own contract, above, dropped them.
+        # Handler (`entity "Dispatch"`, process_manager.bluebook) — two
+        # levels deep, "no life outside its Handler" (the ADR's own
+        # words). `command_name` ALONE used to be Dispatch's own
+        # identity, until items #151/#152 (`process_manager.bluebook`'s
+        # own `DispatchPosition` comment) found it collided the instant a
+        # real handler fanned the same command out more than once —
+        # `position` now joins it, walk-minted the same way every other
+        # category's own `position` is (`derived: { position: :walk }`,
+        # the same entry ProcessManager's own contract carries above) —
+        # never a stored field on `DispatchSpec` itself, exactly like
+        # `handler` before it.
         "Dispatch"       => Contract.new(
           holder: DispatchSpec, make: :new,
           fields: {
@@ -268,7 +274,7 @@ module Hecks
           },
           rows: { with_spec: :with_spec_rows },
           reads: { with_spec: [:from, :with_spec] },
-          derived: {}
+          derived: { position: :walk }
         ),
 
         # S14, ADR 0026 — Syntax/Keyword/Argument are never built via

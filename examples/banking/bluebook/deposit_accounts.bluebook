@@ -284,6 +284,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "ApplyFee", from: "open" do
+      role "System"
+
       reference_to Account
       attribute :amount, PositiveMoney
       attribute :narrative, Narrative
@@ -295,6 +297,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "CorrectFee", from: "open" do
+      role "Back office"
+
       reference_to Account
       attribute :amount, PositiveMoney
       # RETROACTIVE CORRECTION — this account must have actually had a fee
@@ -310,6 +314,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "AccrueInterest", from: "open" do
+      role "System"
+
       reference_to Account
       attribute :amount, PositiveMoney
       given("customer is active")
@@ -319,6 +325,8 @@ Hecks.bluebook "Banking" do
     end
 
     command "CorrectInterest", from: "open" do
+      role "Back office"
+
       reference_to Account
       attribute :amount, PositiveMoney
       given("customer is active")

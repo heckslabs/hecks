@@ -73,6 +73,31 @@ RSpec.describe "a process manager" do
     expect(Wire::Wire.find("wire-2").status).to eq("returned")
   end
 
+  # `begin_saga` used to seed a fresh instance's own memory with the
+  # starting event's own `.payload` directly — the SAME Hash object, not a
+  # copy. A `remember` written mid-saga (or any other future write into
+  # `instance[:memory]`) would then be, silently, ALSO a write into an
+  # event that had already happened and been logged — retroactively
+  # adding a field nothing announced. `.dup` on the way in breaks the
+  # alias without changing what the saga's own memory actually holds.
+  it "seeds a fresh saga's own memory as a COPY of the starting event's payload, never the same object" do
+    runtime = funded
+    # A refused leg unwinds rather than ending (see the example above),
+    # so this instance survives long enough to inspect directly — a wire
+    # that lands cleanly ends immediately and is reaped from
+    # `saga_instances` before there is anything left to check.
+    runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
+    result = runtime.dispatch("Wire::Wire.Ask",
+                              reference: { value: "wire-2" }, amount: { cents: 1_000 },
+                              source: "left", destination: "right")
+
+    started  = result.events.find { |event| event.name == "WireAsked" }
+    instance = runtime.registry.saga_instances["Carry"]["wire-2"]
+
+    expect(instance[:memory]).not_to equal(started.payload)
+    expect(instance[:memory]).to eq(started.payload)
+  end
+
   it "ignores an uncorrelated event — a manual Take is just a take" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Take", number: { value: "left" }, amount: { cents: 500 })

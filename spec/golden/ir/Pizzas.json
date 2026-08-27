@@ -185,6 +185,10 @@
             {
               "canonical": "amount.cents.positive?",
               "description": "a payment was actually made"
+            },
+            {
+              "canonical": "amount.cents >= pizza.price_cents.cents",
+              "description": "the payment covers the price"
             }
           ],
           "goal": "Buy the pizza",

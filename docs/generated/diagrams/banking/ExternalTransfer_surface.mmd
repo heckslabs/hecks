@@ -9,4 +9,5 @@ flowchart LR
     cmd_ExternalTransfer_Request(["ExternalTransfer.Request"]) -->|"sets: amount"| attr_ExternalTransfer_amount[amount]
     cmd_ExternalTransfer_Request(["ExternalTransfer.Request"]) -->|"sets: beneficiary"| attr_ExternalTransfer_beneficiary[beneficiary]
     cmd_ExternalTransfer_Request(["ExternalTransfer.Request"]) -->|"sets: direction"| attr_ExternalTransfer_direction[direction]
+    cmd_ExternalTransfer_Request(["ExternalTransfer.Request"]) -->|"sets: end_to_end"| attr_ExternalTransfer_end_to_end[end_to_end]
     ExternalTransfer[(ExternalTransfer)] -.->|asks| qry_ExternalTransfer_Sent{"ExternalTransfer.Sent"}

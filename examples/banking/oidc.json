@@ -4,12 +4,12 @@
     {
       "scope": "banking:account.accrue_interest",
       "verb": "Banking::Account.AccrueInterest",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:account.apply_fee",
       "verb": "Banking::Account.ApplyFee",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:account.close_account",
@@ -19,12 +19,12 @@
     {
       "scope": "banking:account.correct_fee",
       "verb": "Banking::Account.CorrectFee",
-      "role": null
+      "role": "Back office"
     },
     {
       "scope": "banking:account.correct_interest",
       "verb": "Banking::Account.CorrectInterest",
-      "role": null
+      "role": "Back office"
     },
     {
       "scope": "banking:account.credit",
@@ -99,12 +99,12 @@
     {
       "scope": "banking:card_payment.capture",
       "verb": "Banking::CardPayment.Capture",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:card_payment.chargeback",
       "verb": "Banking::CardPayment.Chargeback",
-      "role": null
+      "role": "Compliance officer"
     },
     {
       "scope": "banking:card_payment.dispute",
@@ -114,22 +114,22 @@
     {
       "scope": "banking:card_payment.refund",
       "verb": "Banking::CardPayment.Refund",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:card_payment.reject_dispute",
       "verb": "Banking::CardPayment.RejectDispute",
-      "role": null
+      "role": "Compliance officer"
     },
     {
       "scope": "banking:card_payment.reverse",
       "verb": "Banking::CardPayment.Reverse",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:card_payment.void",
       "verb": "Banking::CardPayment.Void",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:customer.close",
@@ -154,22 +154,22 @@
     {
       "scope": "banking:external_transfer.recall",
       "verb": "Banking::ExternalTransfer.Recall",
-      "role": null
+      "role": "Customer"
     },
     {
       "scope": "banking:external_transfer.request",
       "verb": "Banking::ExternalTransfer.Request",
-      "role": null
+      "role": "Customer"
     },
     {
       "scope": "banking:external_transfer.return",
       "verb": "Banking::ExternalTransfer.Return",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:external_transfer.send_transfer",
       "verb": "Banking::ExternalTransfer.SendTransfer",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:onboarding_case.clear",
@@ -224,12 +224,12 @@
     {
       "scope": "banking:scheduled_payment.cancel",
       "verb": "Banking::ScheduledPayment.Cancel",
-      "role": null
+      "role": "Customer"
     },
     {
       "scope": "banking:scheduled_payment.execute",
       "verb": "Banking::ScheduledPayment.Execute",
-      "role": null
+      "role": "System"
     },
     {
       "scope": "banking:scheduled_payment.fail",
@@ -244,7 +244,7 @@
     {
       "scope": "banking:scheduled_payment.schedule",
       "verb": "Banking::ScheduledPayment.Schedule",
-      "role": null
+      "role": "Customer"
     },
     {
       "scope": "banking:statement.generate",

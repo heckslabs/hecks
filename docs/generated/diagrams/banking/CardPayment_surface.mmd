@@ -13,6 +13,7 @@ flowchart LR
     cmd_CardPayment_Authorize(["CardPayment.Authorize"]) -->|"sets: amount"| attr_CardPayment_amount[amount]
     cmd_CardPayment_Authorize(["CardPayment.Authorize"]) -->|"sets: merchant"| attr_CardPayment_merchant[merchant]
     cmd_CardPayment_Authorize(["CardPayment.Authorize"]) -->|"sets: tags"| attr_CardPayment_tags[tags]
+    cmd_CardPayment_Authorize(["CardPayment.Authorize"]) -->|"sets: authorisation"| attr_CardPayment_authorisation[authorisation]
     cmd_CardPayment_Dispute(["CardPayment.Dispute"]) -->|"sets: disputed_by"| attr_CardPayment_disputed_by[disputed_by]
     CardPayment[(CardPayment)] -.->|asks| qry_CardPayment_Pending{"CardPayment.Pending"}
     CardPayment[(CardPayment)] -.->|asks| qry_CardPayment_Disputed{"CardPayment.Disputed"}
