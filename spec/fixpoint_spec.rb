@@ -82,7 +82,28 @@ RSpec.describe "the language's own definition" do
   # constants at ITS surface, so "registry and door agree" is only a fact
   # about the moment just after a bind — which is exactly the moment this
   # asserts, whatever order the suite ran in.
+  #
+  # RESTORED AFTER, not just reset before — `@grammar_registry` is process-
+  # global and memoized (MetaValidator.grammar_registry's own `||=`), so
+  # nil-ing it here forces a genuine rebuild for THIS example's own purposes,
+  # but leaving that rebuild in place afterward means every OTHER spec
+  # sharing this process for the rest of its life — including
+  # ir_golden_spec.rb's byte-for-byte comparison against a frozen fixture —
+  # reads a registry built at THIS moment in suite history, not the
+  # pristine first-boot one the golden fixtures were captured against.
+  # Found live: an intermittent ir_golden_spec.rb failure under
+  # parallel_rspec, order-dependent on whether this example's process
+  # happened to run before it — never reproduced under a plain sequential
+  # `bundle exec rspec` because this test and ir_golden_spec.rb only race
+  # when parallel_rspec's file-to-process assignment puts them in the same
+  # worker. Saving and restoring the singleton (a bare `ensure`, the same
+  # shape every other spec here already uses to leave shared state as it
+  # found it) makes this example's own deliberate reset invisible to
+  # whatever runs after it, in this process or any other.
   it "runs from its own records — registry and the installed door agree from bind" do
+    original_registry = Hecks::Bluebook::MetaValidator.instance_variable_get(:@grammar_registry)
+    original_ready_for = Hecks::Bluebook::MetaValidator.instance_variable_get(:@grammar_ready_for)
+
     Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
     registry = Hecks::Bluebook::MetaValidator.grammar_registry
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
@@ -91,6 +112,9 @@ RSpec.describe "the language's own definition" do
       .to be(registry.bluebook("Bluebook").aggregate("Aggregate"))
     expect(Object.const_get(:World).const_get(:World).ir)
       .to be(registry.bluebook("World").aggregate("World"))
+  ensure
+    Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, original_registry)
+    Hecks::Bluebook::MetaValidator.instance_variable_set(:@grammar_ready_for, original_ready_for)
   end
 
   # `:members` is compared with its own values stringified on BOTH sides,

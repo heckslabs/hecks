@@ -1463,12 +1463,29 @@ RSpec.describe "lineage in the PostgresEra adapter",
   it "journal rows accept no UPDATE or DELETE from PUBLIC — immutability by privilege" do
     check!(V1_SOURCE)
     db = PG.connect(dbname: LINEAGE_DB)
-    acl = db.exec("SELECT relacl::text FROM pg_class WHERE relname = 'hecks_journal_ledger'")[0]["relacl"]
+    # THE REAL PROPERTY, NOT A PROXY FOR IT. `provisioning.rb`'s own
+    # REVOKE is GUARDED (`still_public = has_table_privilege(...)`) —
+    # it only fires, and only then writes a pg_class.relacl row at
+    # all, when PUBLIC already held the privilege; skipping a no-op
+    # REVOKE avoids a real concurrent-boot race (that file's own
+    # comment). On a fresh Postgres, a table's default privileges
+    # already give PUBLIC nothing at all — relacl stays NULL, which
+    # in Postgres means exactly that: no explicit grants, owner-only.
+    # This example used to assert relacl was non-nil, assuming the
+    # REVOKE always ran — true only in an environment where some
+    # earlier state (a template database, a prior GRANT) had already
+    # given PUBLIC the privilege first. Confirmed live: relacl is nil
+    # here and has_table_privilege still correctly answers false for
+    # both — the guard's whole point (skip a REVOKE nothing needs) was
+    # working exactly as designed; the test's own assumption was the
+    # bug. Ask Postgres's own privilege-check function directly,
+    # which is true regardless of whether relacl happens to be an
+    # explicit row or the (equally real) unwritten default.
+    update_allowed = db.exec("SELECT has_table_privilege('public', 'hecks_journal_ledger', 'UPDATE')")[0]["has_table_privilege"]
+    delete_allowed = db.exec("SELECT has_table_privilege('public', 'hecks_journal_ledger', 'DELETE')")[0]["has_table_privilege"]
     db.close
-    # An explicit ACL exists (the REVOKE materialized it), and PUBLIC
-    # carries no grants at all in it — only the owner's own entry.
-    expect(acl).not_to be_nil
-    expect(acl).not_to include("=w")
+    expect(update_allowed).to eq("f")
+    expect(delete_allowed).to eq("f")
   end
 
   it "holds the code path and the compiled matview to the same answer — the cross-execution equivalence gate" do

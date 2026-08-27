@@ -233,19 +233,21 @@ pub fn run(input: &str) -> String {
                                 ("rows", Json::Array(vec![row])),
                                 // A read model has no reference-interpreter
                                 // twin at all — see this block's own header.
-                                // `reference_rows` is OMITTED, not present-
-                                // as-`null`: `Fuzzing::Replay#call`
-                                // (lib/hecks/fuzzing/replay.rb) only does
-                                // `entry[:reference_rows] = reference_rows`
-                                // inside its own `if has_reference` guard,
-                                // so Ruby's own queries entry for a bare
-                                // (non-"::") question never gains the key
-                                // at all — confirmed directly, not assumed.
-                                // Ruby is the oracle (docs/decisions/
-                                // 0010-ruby-is-the-reference-implementation.md);
-                                // this key used to claim to match that
-                                // exactly while actually always including
-                                // it, which it didn't.
+                                // NO `reference_rows` KEY AT ALL, not a null
+                                // one — `Fuzzing::Replay`'s own `if
+                                // has_reference` (replay.rb) only ever sets
+                                // `entry[:reference_rows]` when the question
+                                // has a reference twin; a bare read-model
+                                // question's own entry hash never gains the
+                                // key, so it's absent from Ruby's JSON, not
+                                // present-as-null. This block's own prior
+                                // comment misread that ternary as "always
+                                // set, to nil or a value" — it isn't; the
+                                // KEY itself is conditional. Confirmed via
+                                // spec/rust_conformance_spec.rb's own
+                                // read_models.json/read_model_snake_case_
+                                // alias.json fixtures, the only two real
+                                // corpus members with a bare read-model ask.
                             ]));
                         }
                         Err(refusal) => refusals.push((question.clone(), refusal)),

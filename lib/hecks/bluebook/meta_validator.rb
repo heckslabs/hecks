@@ -147,7 +147,23 @@ module Hecks
         end
       end
 
-      def self.disabled? = ENV["HECKS_META_VALIDATION"] == "off"
+      # `&& !@forcing_fixpoint` — see `while_forcing_fixpoint` below. Unlike
+      # `bootstrapping?`/`shadow_parsing?`, this reads a bare env toggle with
+      # no stack-restore shape of its own (the comment on `shadow_parsing?`
+      # already called that difference out) — which let a test's own
+      # temporary `ENV["HECKS_META_VALIDATION"] = "off"` window reach code
+      # it was never meant to touch: if `grammar_registry`'s ONE-TIME lazy
+      # build (below) happened to land inside that window, EVERY language
+      # chapter got cached in its raw, never-judged form for the rest of
+      # the process — `unmark_scalar`'s String->Integer/Boolean fix
+      # (assembly/marks.rb) never ran, so a `Command`'s own `required: true`
+      # stayed `required: "true"` forever after, permanently memoized.
+      # Found live: an intermittent, parallel_rspec-only ir_golden_spec.rb
+      # failure, order-dependent on whether identifier_numeric_coercion_
+      # growth_spec.rb's disabled-validation window raced the ONE lazy
+      # build in its own worker process — reproduced in isolation by
+      # setting the env var off before the first `grammar_registry` call.
+      def self.disabled? = ENV["HECKS_META_VALIDATION"] == "off" && !@forcing_fixpoint
 
       # ADR 0025's own prerequisite (docs/dsl-work-slices.md, S0a): a word
       # a later slice removes from the LIVE grammar must still parse
@@ -173,6 +189,21 @@ module Hecks
         yield
       ensure
         @shadow_parsing = previous
+      end
+
+      # THE SAME STACK-RESTORE SHAPE `while_shadow_parsing` USES, for the
+      # same reason: whatever this wraps must never see `disabled?` answer
+      # true, however a test elsewhere has the env toggle set at that
+      # exact moment. Only `grammar_registry`'s own one-time build (below)
+      # wraps itself in this — nothing else needs it, and nothing else
+      # should reach for it just to dodge `disabled?` for a domain
+      # bluebook, which is precisely the toggle's real, intended use.
+      def self.while_forcing_fixpoint
+        previous          = @forcing_fixpoint
+        @forcing_fixpoint = true
+        yield
+      ensure
+        @forcing_fixpoint = previous
       end
 
       # The same bluebook judged twice gets the same verdict, and a suite reloads
@@ -348,9 +379,14 @@ module Hecks
           # judged from here on is judged by the language the language itself
           # produced. Outside load_grammar_into on purpose : its ensure clears
           # @bootstrapping, and call() must see bootstrapping? == false to do
-          # anything at all.
-          LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
-          load_attached_grammar_into(registry)
+          # anything at all. `while_forcing_fixpoint`-wrapped so a test's
+          # own `HECKS_META_VALIDATION=off` window can never leave this
+          # ONE-TIME build cached in its raw, never-judged form — see
+          # `disabled?`'s own comment.
+          while_forcing_fixpoint do
+            LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
+            load_attached_grammar_into(registry)
+          end
           # Stamped LAST, keyed by this registry's own identity rather than
           # a bare boolean — a manual reset (fixpoint_spec.rb's own
           # `@grammar_registry = nil`) makes @grammar_registry not equal

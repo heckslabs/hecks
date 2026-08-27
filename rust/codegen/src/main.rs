@@ -285,6 +285,14 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_identity_head_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
+    // R1 (docs/audits/2026-08-11-bug-triage.md) — this hand-curated
+    // section list predates `emit_command_attributes_table` and was
+    // never updated when it landed, unlike `domain_generator.rs`'s own
+    // `generate` (used by every OTHER codegen entry point), which calls
+    // it correctly. Position matches `rust/project/domain_generator.rb`'s
+    // own ordering exactly: identity_head, THEN command_attributes,
+    // THEN query — `spec/project_rust_pipeline_spec.rb` compares this
+    // file byte-for-byte, so order is load-bearing, not cosmetic.
     puts_str(&mut merged_rs, &reactions::emit_command_attributes_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &queries::emit_query_table(&ex, &merged_queries));

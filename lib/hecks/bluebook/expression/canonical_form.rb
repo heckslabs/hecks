@@ -96,7 +96,17 @@ module Hecks
               # literal — everything after a predicate's first quoted
               # string silently skipped normalisation for the rest of
               # the text, undetected because passing text through
-              # unnormalised is silent.
+              # unnormalised is silent. MASKED by every existing spec
+              # here, which only checks that quoted CONTENTS survive
+              # untouched (the M7 fix this method exists for) — that
+              # still holds by accident once the bug makes the "outside"
+              # branch unreachable. Found live: a multi-line `given`/
+              # `ensures` block whose ONLY quoted literal closes before a
+              # later line — the newline and that later line's own
+              # indentation went uncollapsed, diverging from
+              # `hecks-parse`'s own (correct) single-space join.
+              # `spec/parser_parity_spec.rb`, roster's "a front-row seat
+              # takes a member of age".
               buffer = char.dup
               quote = char.dup
             else

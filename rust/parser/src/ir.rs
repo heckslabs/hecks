@@ -488,6 +488,15 @@ pub struct Bluebook {
     pub version: Option<String>,
     pub vision: Option<String>,
     pub classification: Option<String>,
+    // M10 (docs/audits/2026-08-11-bug-triage.md) — a domain rename
+    // (`formerly_known_as "OldName"`) drives a translation-audit lookup on
+    // the Ruby side (chapter.rb's own comment on this field). Declared in
+    // the grammar (keywords.rs) but not yet exercised by any real corpus
+    // member — this parser refuses it via `not_built_yet` the moment one
+    // does (parse/chapter.rs) — so this is always `None` here today, same
+    // as Ruby's own `formerly_known_as: nil` default. Present regardless:
+    // IR::Chapter#to_h emits the key on every chapter, declared or not,
+    // and `hecks-parse`'s ir.json has to match that key-for-key.
     pub formerly_known_as: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub read_models: Vec<ReadModel>,

@@ -75,12 +75,28 @@ RSpec.describe "SyntaxBoot's memo" do
       m.call(*args)
     })
 
-    MetaValidatorUnderTest.instance_variable_set(:@grammar_registry, nil)
-    registry = MetaValidatorUnderTest.grammar_registry
+    # SAVED AND RESTORED, not just reset — @grammar_registry is process-
+    # global and memoized. Left nil'd-then-rebuilt with no restore, a
+    # golden-fixture spec sharing this process later (ir_golden_spec.rb)
+    # would compare against a registry built at THIS moment in suite
+    # history instead of the pristine one its fixture was captured
+    # against — the exact intermittent parallel_rspec-only flake this
+    # file's own sibling test (fixpoint_spec.rb) was found doing the same
+    # unguarded reset for.
+    original_registry = MetaValidatorUnderTest.instance_variable_get(:@grammar_registry)
+    original_ready_for = MetaValidatorUnderTest.instance_variable_get(:@grammar_ready_for)
 
-    attached = registry.bluebooks.values.count { |chapter| chapter.attaches_to.any? }
-    distinct_chapter_sets = 1 + MetaValidatorUnderTest::LANGUAGE_CHAPTERS.size + attached
-    expect(boots).to be <= distinct_chapter_sets
-    expect(boots).to be < 42
+    begin
+      MetaValidatorUnderTest.instance_variable_set(:@grammar_registry, nil)
+      registry = MetaValidatorUnderTest.grammar_registry
+
+      attached = registry.bluebooks.values.count { |chapter| chapter.attaches_to.any? }
+      distinct_chapter_sets = 1 + MetaValidatorUnderTest::LANGUAGE_CHAPTERS.size + attached
+      expect(boots).to be <= distinct_chapter_sets
+      expect(boots).to be < 42
+    ensure
+      MetaValidatorUnderTest.instance_variable_set(:@grammar_registry, original_registry)
+      MetaValidatorUnderTest.instance_variable_set(:@grammar_ready_for, original_ready_for)
+    end
   end
 end
