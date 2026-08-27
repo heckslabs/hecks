@@ -488,3 +488,42 @@ account.debit!(amount: { cents: 2_000 }, narrative: { text: "rent" })
 account.balance.cents  # => 3000
 ```
 
+## corrects
+
+<!-- generated:begin word=corrects -->
+`corrects target, as:, reason:, reverses:` — fills `mutations`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | target |
+| `as:` | symbol | false | source |
+| `reason:` | text | false | source |
+| `reverses:` | flag | false | source |
+<!-- generated:end -->
+
+A command declaring what past event it amends, rather than acting fresh — the append-only answer to "this record's history turns out to have been wrong": the original event is never rewritten, a new one is always appended on top. `target` names the event this command corrects; `as:` optionally binds the located instance for a `given`/`ensures` to reference (not yet wired into the expression evaluator — recorded for a future round); `reason:` is carried as data, not descriptive-only the way `goal` is, because an audit trail needs to say why, and a blank one is refused the moment the command is declared. `reverses: true` asks the runtime to derive the corrective `sets` itself from the original command's own mutations — see the `sets` word's own closed verb set: only `increment`/`decrement` are structurally invertible with no runtime data (the same argument, the opposite verb), so `reverses: true` against a `to:`/`multiply:`/`clamp:` original is refused at BUILD time rather than silently guessing.
+
+Two refusals fire before any dispatch runs at all: `corrects` naming an event nothing in the aggregate ever `emits` is refused the moment the aggregate finishes building (a real event this domain never announces is an authoring mistake, not a business rule), and so is `reverses: true` against an original that used a non-invertible verb. A THIRD refusal is a dispatch-time fact about the record in hand, not the declaration — `CorrectFee` corrects `FeeApplied`, so correcting an account that was never charged a fee refuses with `NothingToCorrect`, never silently applying a correction with nothing behind it:
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "cf-1" },
+                 name: { given: "Annie", family: "Cannon" },
+                 email: { address: "annie@example.com" })
+account = Banking::Account.open!(customer: "cf-1", number: { value: "cf-a1" },
+                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+account.correct_fee!(amount: { cents: 500 })  # ~> NothingToCorrect: CorrectFee refused — corrects FeeApplied, but Banking::Account #cf-a1 has never emitted it
+```
+
+`ApplyFee` first is what makes `CorrectFee` admissible — the correction hands the fee straight back:
+
+```ruby
+account.credit!(amount: { cents: 10_000 }, narrative: { text: "funding" })
+account.apply_fee!(amount: { cents: 500 }, narrative: { text: "monthly maintenance" })
+account.balance.cents      # => 9_500
+account.fees_cents.cents   # => 500
+
+account.correct_fee!(amount: { cents: 500 })
+account.balance.cents      # => 10_000
+account.fees_cents.cents   # => 0
+```
+

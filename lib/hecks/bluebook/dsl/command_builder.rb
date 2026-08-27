@@ -412,6 +412,57 @@ module Hecks
           @mutations << Mutation.new(target: target.to_s, op: :delegate, source: with)
         end
 
+        # A COMMAND DECLARING WHAT PAST FACT IT AMENDS — the append-only
+        # answer to "what if this record's history turns out to have been
+        # wrong": never rewrite the original event (the log stays exactly
+        # what it was), always append a NEW fact on top. `event` names the
+        # event this command corrects; `as:` optionally binds the located
+        # instance for a `given`/`ensures` to reference, the same shape
+        # `ensures`'s own `old` binding already has; `reason:` is not
+        # descriptive-only the way `goal` is — it is carried as data, the
+        # one thing an audit trail actually needs ("we corrected this, and
+        # here is why"), refused when blank the same way a `given`'s own
+        # description is required to say something.
+        #
+        # STORED AS A MUTATION, not a new Command field — see the
+        # KeywordSeed row's own comment (command.bluebook) for why: this
+        # is the exact same choice `delegates_to` already made, for the
+        # exact same reason. Rides the SAME multi-binding wire shape
+        # `append`/`delegate` use — `as:`/`reason:`/`reverses:` assembled
+        # by hand into one `source` hash, the way `sets_impl` assembles up
+        # to seven kwargs into one `named` hash above.
+        #
+        # `reverses: true` NAMES an intent to auto-derive the corrective
+        # `sets` from the original event's own mutations, rather than the
+        # author writing it — see `AggregateBuilder#seal_correction_targets`,
+        # where that derivation actually happens (it needs every sibling
+        # command in the aggregate already known, which this builder alone
+        # cannot see). MUTUALLY EXCLUSIVE with an explicit `sets` on the
+        # same command — two ways of saying the same thing is exactly the
+        # redundancy `sets`'s own omittable-`to:` rule refuses elsewhere.
+        #
+        # `as:` IS ALWAYS STORED AS TEXT, never left a bare Symbol —
+        # `Mutation#classified_source`/`#appended_fields` (Behaviour::
+        # Mutation) classify any bare Symbol field as `kind: "argument"`,
+        # meaning "resolve this against one of THIS command's own declared
+        # attributes at dispatch time" (append/delegate's own meaning for a
+        # Symbol). `as:` names no such thing — it is a plain label, not yet
+        # wired into the expression evaluator (a future round's work, once
+        # a real runtime consumer exists) — so coercing it to a String here
+        # keeps it out of that machinery entirely rather than silently
+        # miscategorised as an unresolvable argument reference.
+        def corrects_impl(event, as: nil, reason: nil, reverses: false)
+          if reason.to_s.strip.empty?
+            raise Malformed,
+                  "#{@name}'s corrects #{event.inspect} names no reason — a correction " \
+                  "is carried as data (an audit trail needs to say WHY), the same way a " \
+                  "given's own description must say something"
+          end
+
+          @mutations << Mutation.new(target: event.to_s, op: :corrects,
+                                      source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
+        end
+
         def build
           resolve_implicit_attributes!
 

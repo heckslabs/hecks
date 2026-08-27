@@ -199,7 +199,12 @@ RSpec.describe "the declared vocabularies" do
     # single-dispatch handoff into a nested entity command). No bundled
     # example here uses it yet; `spec/dsl_spec.rb`'s own delegates_to
     # example is this vocabulary member's real usage instead.
-    ops = %w[set append increment decrement multiply clamp remove delegate]
+    #
+    # `corrects` joined for retroactive correction — CommandBuilder
+    # #corrects_impl's own comment gives the full reasoning. Real in
+    # banking: `Account.CorrectFee` corrects `FeeApplied`
+    # (examples/banking/bluebook/deposit_accounts.bluebook).
+    ops = %w[set append increment decrement multiply clamp remove delegate corrects]
     expect(declared("MutationOp")).to eq(ops)
     expect(used).not_to be_empty
   end

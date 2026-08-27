@@ -130,6 +130,32 @@ module Hecks
           enforce_lifecycle_guard(declaring, command, subject) if declaring
         end
 
+        # `corrects` — CommandBuilder#corrects_impl's own comment. NOT
+        # expressible as an ordinary `given`: "has this exact record
+        # already emitted this exact event" is not a predicate over the
+        # record's OWN fields, it is a fact about the event log, so it is
+        # raised structurally here, the same way NotFound/AlreadyExists
+        # are, rather than through the expression evaluator. The build-
+        # time half — does ANYTHING in this aggregate ever emit the named
+        # event at all — is `AggregateBuilder#seal_correction_targets`;
+        # this is the dispatch-time half — has THIS record actually done
+        # so yet.
+        def enforce_correction_target(instance, aggregate, command, domain:)
+          command.mutations.each do |mutation|
+            next unless mutation.op == :corrects
+
+            event_key  = "#{domain}::#{aggregate.hecks_name}"
+            event_name = mutation.target.to_s
+            next if @registry.event_log.any? do |event|
+              event.name == event_name && event.aggregate == event_key && event.id == instance.id
+            end
+
+            raise NothingToCorrect,
+                  "#{command.hecks_name} refused — corrects #{event_name}, but " \
+                  "#{event_key} ##{instance.id} has never emitted it"
+          end
+        end
+
         # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command
         # "Debit", from: "open"` checked here, folded into the SAME
         # dispatch step `given` already runs at (both are preconditions,

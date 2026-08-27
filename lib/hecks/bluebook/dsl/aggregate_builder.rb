@@ -419,6 +419,7 @@ module Hecks
           seal_defaults
           seal_lifecycle_guards
           seal_projected_fields
+          seal_correction_targets
 
           ir = Aggregate.new(
             name:              @name,
@@ -683,13 +684,98 @@ module Hecks
               # #step_delegate_to_entity`, which refuses a real one that
               # names no such entity or command). Sealing THIS check
               # against it would refuse every delegating command outright.
-              next if mutation.op == :delegate
+              # `:corrects` — CommandBuilder#corrects_impl's own comment —
+              # targets an EVENT name, not a field either; checked instead
+              # by `seal_correction_targets`, below.
+              next if [:delegate, :corrects].include?(mutation.op)
               next if known.include?(mutation.target.to_sym)
 
               raise Malformed,
                     "#{@name}.#{command.hecks_name} sets #{mutation.target}, which #{@name} " \
                     "never declares — a mutation into a field that does not exist " \
                     "writes nothing and refuses nothing"
+            end
+          end
+        end
+
+        # `corrects` — CommandBuilder#corrects_impl's own comment. Runs
+        # once every command in the aggregate is known (the same reason
+        # this is a `seal_*` step rather than living in `corrects_impl`
+        # itself — a command cannot see its own siblings' `emits` while
+        # it is still being built). Two things are checked:
+        #
+        # 1. The named event must be something a SIBLING command here
+        #    actually `emits` — naming an event nothing in this aggregate
+        #    ever announces is a build-time authoring error. (Whether
+        #    THIS record has actually emitted it YET is the dispatch-time
+        #    half — CommandRules::Admissibility#enforce_correction_target.)
+        #
+        # 2. `reverses: true` derives the corrective `sets` from the
+        #    ORIGINAL command's own mutations, rather than the author
+        #    writing them — but only when every one of those mutations is
+        #    STRUCTURALLY invertible with no runtime data: increment/
+        #    decrement, same argument, opposite verb (`sign_for`'s own
+        #    +1/-1 pair — CommandRules::Arithmetic applies `current +
+        #    sign * amount`, so the SAME source with the OPPOSITE sign
+        #    undoes it exactly). Nothing else qualifies today: `set` has
+        #    no such rule at all — inverting it needs the SPECIFIC prior
+        #    value at the moment the original fired, which is per-
+        #    instance runtime data no build-time derivation can have;
+        #    `multiply`/`clamp` are lossy by design (a clamped value's
+        #    own pre-clamp magnitude is not recoverable from the mutation
+        #    at all); `append`/`remove` LOOK symmetric but are not
+        #    reliably so — `append`'s source is a per-field binding hash
+        #    (`append: { name: :name, amount: :amount }`), `remove`'s is
+        #    a single resolved value to match by equality
+        #    (MutationApplier#removed), and collapsing one shape into the
+        #    other correctly needs the target list's own value-object
+        #    field names, not just the mutation's own recorded shape — a
+        #    real gap, left for a follow-on round rather than guessed at
+        #    here. Refuses rather than silently deriving something wrong
+        #    — see docs/decisions/ for the ADR that draws this exact
+        #    line.
+        def seal_correction_targets
+          inverse_op    = { increment: :decrement, decrement: :increment }
+          emitted_by = Hash.new { |hash, key| hash[key] = [] }
+          @commands.each { |command| command.emits.each { |event_name| emitted_by[event_name] << command } }
+
+          @commands.each do |command|
+            correction = command.mutations.find { |mutation| mutation.op == :corrects }
+            next unless correction
+
+            event   = correction.target
+            sources = emitted_by[event]
+            if sources.empty?
+              raise Malformed,
+                    "#{@name}.#{command.hecks_name} corrects #{event.inspect}, but nothing " \
+                    "declared on #{@name} ever emits it — corrects names a fact this " \
+                    "aggregate actually announces, not an aspiration"
+            end
+
+            next unless correction.source[:reverses]
+
+            own_mutations = command.mutations.reject { |mutation| mutation.op == :corrects }
+            if own_mutations.any?
+              raise Malformed,
+                    "#{@name}.#{command.hecks_name} declares both corrects #{event.inspect}, " \
+                    "reverses: true AND its own sets — reverses: true means the correction " \
+                    "is DERIVED; write one or the other, never both"
+            end
+
+            derived     = sources.flat_map(&:mutations).reject { |mutation| mutation.op == :corrects }
+            unsupported = derived.reject { |mutation| inverse_op.key?(mutation.op) }
+            if unsupported.any?
+              raise Malformed,
+                    "#{@name}.#{command.hecks_name} corrects #{event.inspect}, reverses: " \
+                    "true, but the command(s) that emit it use " \
+                    "#{unsupported.map(&:op).uniq.join(', ')} — not statically invertible " \
+                    "(set needs the specific prior value, multiply/clamp are lossy) — " \
+                    "declare the corrective sets by hand instead"
+            end
+
+            derived.each do |mutation|
+              command.mutations << Mutation.new(target: mutation.target, op: inverse_op.fetch(mutation.op),
+                                                 source: mutation.source)
             end
           end
         end

@@ -51,6 +51,14 @@ module Hecks
     # itself, not whether the caller actually holds `policy`. See
     # Runtime::TenantScope.
     class Unauthorized < StandardError; end
+    # `corrects` names a past event this record must have already emitted
+    # (CommandBuilder#corrects_impl's own comment) — a fact the expression
+    # evaluator cannot check (it is not a predicate over the record's OWN
+    # fields, it is "did this exact record ever announce this"), so it is
+    # raised structurally, the same way AlreadyExists/NotFound are, rather
+    # than being expressible as an ordinary `given`. Raised by
+    # `CommandRules::Admissibility#enforce_correction_target`.
+    class NothingToCorrect < StandardError; end
 
     # A RUNTIME FAULT, NOT A DOMAIN REFUSAL — deliberately absent from
     # `DOMAIN_REFUSALS` below and from `vocabulary.bluebook`'s own

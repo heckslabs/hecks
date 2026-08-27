@@ -130,6 +130,13 @@ Hecks.bluebook "Bluebook" do
       # shape append does (`with: {...}` is a field map, same as
       # append's own `fields:`), so it carries no sign, same reading.
       member name: "delegate",  sign: ""
+      # CommandBuilder#corrects_impl's own comment gives the full
+      # reasoning — a command declaring a past event it amends, rather
+      # than a fresh mutation of its own. Rides the SAME multi-binding
+      # wire shape append/delegate do (`as:`/`reason:`/`reverses:`,
+      # assembled into one `source` hash by hand, same as `with:` is),
+      # so it carries no sign either.
+      member name: "corrects",  sign: ""
     end
 
     # QuerySpecification::Common::Comparators::COMPARATORS — a where-clause's
@@ -196,8 +203,8 @@ Hecks.bluebook "Bluebook" do
     value_object "DomainRefusal" do
       attribute :name, String,
                 one_of: ["AbsentArgument", "AlreadyExists", "AttributeAbsent", "EnsuresNotMet", "GivenNotMet",
-                         "InvariantViolation", "LifecycleRefused", "NotFound", "ProjectionAbsent", "RemoteRefusal",
-                         "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
+                         "InvariantViolation", "LifecycleRefused", "NothingToCorrect", "NotFound", "ProjectionAbsent",
+                         "RemoteRefusal", "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
     # THE WORDING ITSELF, for every DomainRefusal site that is not already

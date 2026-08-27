@@ -375,6 +375,19 @@ Hecks.bluebook "Bluebook" do
       member word: "state",           context: "Command", body: "none",   inner: "", opens: "", fills: "mutations"
       member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
       member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
+      # RETROACTIVE CORRECTION — a command that amends a specific past
+      # event rather than acting fresh (see this domain's own ADR on why:
+      # sagas only compensate their OWN anticipated failures, eras only
+      # reinterpret stored shape, and the event log stays append-only —
+      # so nothing existing lets a command say "this is amending a fact
+      # we already announced, and here is why"). STORED AS A MUTATION,
+      # not a new Command field — the same reasoning `delegates_to`'s own
+      # comment gives in full: `mutations:` is ALREADY a fully round-
+      # tripped part of the self-hosted meta-domain's own contract, and a
+      # genuinely new top-level Command field is not. `corrects` rides the
+      # SAME multi-binding wire shape `append`/`delegate` already use
+      # (CommandBuilder#corrects_impl's own comment has the rest).
+      member word: "corrects",        context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "corrects_impl"
 
     end
 
@@ -431,6 +444,18 @@ Hecks.bluebook "Bluebook" do
       member keyword: "attribute",       context: "Command", at: "",  named: "pattern",   kind: "text",     required: "false", fills: "pattern"
       member keyword: "attribute",       context: "Command", at: "",  named: "admits",    kind: "text",     required: "false", fills: "admits"
       member keyword: "attribute",       context: "Command", at: "",  named: "one_of",    kind: "list",     required: "false", fills: "one_of"
+      # `corrects` — see the KeywordSeed row's own comment. `event` is the
+      # only positional and the only required-by-the-grammar argument;
+      # `reason` is required IN PRACTICE (CommandBuilder#corrects_impl
+      # refuses its absence by hand, the same way `sets` refuses two ops
+      # at once — a fact about runtime state, not a pure per-row fill, so
+      # it stays hand-enforced rather than declared `required: "true"`
+      # here, which would only gate the row's OWN presence, not a sibling
+      # kwarg's).
+      member keyword: "corrects",        context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "target"
+      member keyword: "corrects",        context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "source"
+      member keyword: "corrects",        context: "Command", at: "",  named: "reason",    kind: "text",     required: "false", fills: "source"
+      member keyword: "corrects",        context: "Command", at: "",  named: "reverses",  kind: "flag",     required: "false", fills: "source"
 
     end
   end

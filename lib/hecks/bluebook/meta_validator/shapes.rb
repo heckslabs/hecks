@@ -221,9 +221,10 @@ module Hecks
         # language does not hold is a named gap, not a byte-for-byte one).
         def mutation(target, op, bindings)
           base = { target: target.to_sym, op: op.to_sym, sign: Hecks::Bluebook::Mutation.sign_for(op) }
-          # `:delegate` (CommandBuilder#delegates_to's own comment) rides
-          # the SAME multi-binding shape `:append` does.
-          return base.merge(fields: appended(bindings)) if ["append", "delegate"].include?(op)
+          # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
+          # #corrects_impl's own comments) ride the SAME multi-binding
+          # shape `:append` does.
+          return base.merge(fields: appended(bindings)) if ["append", "delegate", "corrects"].include?(op)
 
           base.merge(source: classified(bindings.first))
         end

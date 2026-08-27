@@ -297,6 +297,11 @@ Hecks.bluebook "Banking" do
     command "CorrectFee", from: "open" do
       reference_to Account
       attribute :amount, PositiveMoney
+      # RETROACTIVE CORRECTION — this account must have actually had a fee
+      # applied before one can be corrected off of it; `corrects` makes
+      # that a real, checked fact (`NothingToCorrect`) rather than a rule
+      # only the fees_cents balance happens to enforce.
+      corrects "FeeApplied", reason: "a fee was applied in error and is being reversed"
       given("customer is active")
       given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
       sets :balance, increment: :amount

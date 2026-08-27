@@ -2460,6 +2460,37 @@ RSpec.describe "the DSL surface" do
       }.to raise_error(Hecks::Bluebook::DSL::Malformed, /pure passthrough/)
     end
 
+    # `corrects` — CommandBuilder#corrects_impl's own comment gives the
+    # full reasoning (a command declaring what past event it amends, the
+    # append-only answer to retroactive correction). Recorded as a
+    # `:corrects`-op Mutation, the same multi-binding wire shape
+    # `append:`/`delegates_to`'s own `with:` already use — these specs
+    # cover the DSL surface only: that it parses into the right
+    # mutation, and that its build-time refusal fires.
+    # AggregateBuilder#seal_correction_targets (build-time cross-command
+    # validation) and CommandRules::Admissibility
+    # #enforce_correction_target (the dispatch-time refusal) have their
+    # own coverage elsewhere (spec/runtime/corrects_spec.rb).
+    it "corrects records a :corrects mutation naming the event and the reason" do
+      # `seal_correction_targets` (AggregateBuilder#build) refuses a
+      # `corrects` naming an event nothing in the aggregate ever emits —
+      # so, unlike a bare `build_command`, this needs a sibling command
+      # that really does emit it.
+      aggregate = build_aggregate("CmdCorrects") do
+        command("Happen") { emits "SomethingHappened" }
+        command("Fix") { corrects "SomethingHappened", as: :original, reason: "it was wrong" }
+      end
+      mutation = aggregate.commands.find { |c| c.hecks_name == "Fix" }.mutations.first
+
+      expect([mutation.target.to_s, mutation.op]).to eq(["SomethingHappened", :corrects])
+      expect(mutation.source).to eq(as: "original", reason: "it was wrong", reverses: false)
+    end
+
+    it "corrects refuses a blank reason — an audit trail needs to say why" do
+      expect { build_command("CmdCorrectsNoReason") { corrects "SomethingHappened", reason: "  " } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /names no reason/)
+    end
+
     # `state(:field)` — the record's own value as a source, never an
     # argument: nothing is imported onto the command, and the wire
     # spelling round-trips (`Literal::StateRef`).

@@ -71,6 +71,18 @@ module Hecks
           # never through this method.
           when :delegate
             nil
+          # `corrects` — CommandBuilder#corrects_impl's own comment gives
+          # the full reasoning for storing it as a mutation at all. A REAL
+          # no-op here too: it targets no field on THIS instance either —
+          # its own event name, and whether THIS record has actually
+          # emitted it, is checked once, up front, by
+          # CommandRules::Admissibility#enforce_correction_target, not
+          # here. Whatever field this correction actually changes is an
+          # ORDINARY declared (or, for `reverses: true`, derived — see
+          # AggregateBuilder#seal_correction_targets) mutation of its own,
+          # applied by one of the branches above like any other.
+          when :corrects
+            nil
           else
             # Every declared op has a `when` above — this is not a real
             # runtime path today, only a backstop against the day one

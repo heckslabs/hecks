@@ -469,7 +469,18 @@ module Hecks
 
       def mutation_label(shape)
         verb = "#{shape[:op]}s"
-        detail = shape[:op] == :append ? shape[:fields].keys.join(", ") : mutation_source_detail(shape[:source])
+        # `fields:` (not `source:`) IS the multi-binding shape
+        # (`Mutation#to_h`'s own `[:append, :delegate, :corrects]`
+        # branch) — checked by the KEY'S PRESENCE, not by re-listing
+        # which ops use it a second time here, the same lesson
+        # `Change.op`'s own `admits: Vocabulary::MutationOp` already
+        # drew (command.bluebook's own comment): a second list of "the
+        # ops that mean multi-binding" is exactly the kind of copy that
+        # drifts — `:delegate` already carried this shape with nothing
+        # here reading it correctly, caught only once `:corrects` gave
+        # banking's own real diagrams a fields:-shaped mutation to
+        # actually render.
+        detail = shape[:fields] ? shape[:fields].keys.join(", ") : mutation_source_detail(shape[:source])
         "#{verb}: #{detail}"
       end
 

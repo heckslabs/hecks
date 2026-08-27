@@ -390,6 +390,23 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
                 ),
             ),
         ]),
+        // `op: "corrects"` — see `ir::Mutation::Correction`'s own header.
+        // Same shape as Append/Delegate above, sign always "" (the same
+        // "corrects" row in `Vocabulary::MutationOp` carries no sign).
+        ir::Mutation::Correction { target, fields } => JsonValue::Object(vec![
+            ("target".to_string(), JsonValue::str(target.clone())),
+            ("op".to_string(), JsonValue::str("corrects")),
+            ("sign".to_string(), JsonValue::str("")),
+            (
+                "fields".to_string(),
+                JsonValue::Object(
+                    fields
+                        .iter()
+                        .map(|(k, v)| (k.clone(), JsonValue::str(v.clone())))
+                        .collect(),
+                ),
+            ),
+        ]),
         ir::Mutation::Other {
             target,
             op,

@@ -132,6 +132,16 @@ pub enum Mutation {
         target: String,
         fields: Vec<(String, String)>,
     },
+    // `CommandBuilder#corrects_impl`'s own comment — a `corrects "Event",
+    // as: ..., reason: ..., reverses: ...` clause rides the SAME
+    // multi-binding `fields:` wire shape Append/Delegate do (`op:
+    // "corrects"`, target the corrected event's name rather than an
+    // attribute or "Entity.Command" pair), its own variant for the same
+    // exhaustive-match reason Delegate is its own.
+    Correction {
+        target: String,
+        fields: Vec<(String, String)>,
+    },
     // `sign` — item #5, whole-project table-unification survey. Ruby's
     // own `Bluebook::Mutation.sign_for` reads `Vocabulary::MutationOp`
     // (a live table); this parser has no such table to read (it builds

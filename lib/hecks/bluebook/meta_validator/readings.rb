@@ -155,10 +155,12 @@ module Hecks
         # was being handed a blank and could never refuse.
         def mutation_rows(node)
           Array(node.mutations).flat_map do |mutation|
-            # `:delegate` (CommandBuilder#delegates_to's own comment) rides
-            # the SAME multi-binding shape `:append` does — `with: {...}`
-            # is a field map, same as append's own `fields:`.
-            next set_row(mutation) unless [:append, :delegate].include?(mutation.op)
+            # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
+            # #corrects_impl's own comments) ride the SAME multi-binding
+            # shape `:append` does — `with: {...}`/the assembled
+            # `as:`/`reason:`/`reverses:` hash is a field map, same as
+            # append's own `fields:`.
+            next set_row(mutation) unless [:append, :delegate, :corrects].include?(mutation.op)
 
             mutation.source.map do |field, argument|
               # Spelled the way Mutation#appended_fields spells it, because

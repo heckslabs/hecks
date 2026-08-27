@@ -41,6 +41,15 @@ module Hecks
     # moves beside each dispatch — `reverses` on the step it reverses — this is
     # where the completed ones, newest first, will live. The shape is already
     # right for it; only the source of the order changes.
+    #
+    # NAMING COLLISION, KNOWN AND DELIBERATE — `command`'s own `corrects
+    # event, reverses: true` (docs/implemented/decisions/0036-corrects-
+    # is-an-appended-fact-not-a-rewrite.md) already claims `reverses` for
+    # a different meaning: auto-deriving a command's OWN corrective
+    # mutation from a past EVENT, not a saga's own compensating leg from
+    # a past DISPATCH. Whoever builds THIS feature should read that ADR
+    # first and make a deliberate choice — reuse `reverses`'s meaning
+    # here too, or pick another word — rather than colliding by accident.
     Saga = Struct.new(:trigger, :from_state, :to_state, :reversals, keyword_init: true) do
       def undoes = reversals.map(&:command_name)
 

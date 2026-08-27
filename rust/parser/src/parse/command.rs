@@ -336,6 +336,9 @@ pub fn parse_body(
             "delegates_to" => command
                 .mutations
                 .push(build_delegation(file, line, &gated.args)?),
+            "corrects" => command
+                .mutations
+                .push(build_correction(file, line, &gated.args)?),
             _ => {
                 return Err(super::not_built_yet(
                     "Command",
@@ -745,6 +748,57 @@ fn build_delegation(
         None => Vec::new(),
     };
     Ok(ir::Mutation::Delegate { target, fields })
+}
+
+/// `CommandBuilder#corrects_impl` — `corrects "Event", as: :binding,
+/// reason: "...", reverses: true`. Rides the SAME multi-binding `fields:`
+/// wire shape `Append`/`Delegate` do (`corrects_impl`'s own comment gives
+/// the full reasoning), but `as:`/`reason:`/`reverses:` are three
+/// separate NAMED arguments here rather than one combined hash like
+/// `delegates_to`'s `with:` — assembled into one `fields` list by hand,
+/// the same shape `sets_impl`'s own `KWARG_TO_OP` assembly is on the
+/// Ruby side.
+///
+/// `as:` IS ALWAYS RENDERED AS A QUOTED STRING LITERAL, never a Symbol —
+/// `corrects_impl`'s own comment: a bare Symbol field means "resolve
+/// this against one of the command's own declared attributes" elsewhere
+/// (`Append`/`Delegate`'s own fields), and `as:` names no such thing, so
+/// Ruby coerces it to a String (`as&.to_s`) before it ever reaches
+/// `Mutation#appended_fields`'s `Literal.render`. Absent (`nil`) renders
+/// bare, matching `Literal.render(nil) == "nil"` — the SAME "a number, a
+/// boolean and nil are bare" rule `Literal`'s own header states, not a
+/// special case invented here.
+fn build_correction(
+    file: &str,
+    line: usize,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<ir::Mutation> {
+    let target = super::positional_text(file, line, "corrects", args, 1)?;
+    let reason = super::named_text(args, "reason").unwrap_or_default();
+    if reason.trim().is_empty() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'corrects {target:?}' names no reason — a correction is carried as \
+                 data (an audit trail needs to say WHY), the same way a given's own \
+                 description must say something"
+            ),
+        ));
+    }
+
+    let as_field = match super::named_symbol(args, "as") {
+        Some(name) => ruby_value::render(&ruby_value::Value::Str(name)),
+        None => "nil".to_string(),
+    };
+    let reverses = if super::named_flag(args, "reverses") { "true" } else { "false" };
+
+    let fields = vec![
+        ("as".to_string(), as_field),
+        ("reason".to_string(), ruby_value::render(&ruby_value::Value::Str(reason))),
+        ("reverses".to_string(), reverses.to_string()),
+    ];
+    Ok(ir::Mutation::Correction { target, fields })
 }
 
 // `Vocabulary::MutationOp`'s own fixed values, read directly — see

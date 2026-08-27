@@ -964,6 +964,16 @@
           "goal": null,
           "mutations": [
             {
+              "fields": {
+                "as": "nil",
+                "reason": "\"a fee was applied in error and is being reversed\"",
+                "reverses": "false"
+              },
+              "op": "corrects",
+              "sign": "",
+              "target": "FeeApplied"
+            },
+            {
               "op": "increment",
               "sign": "1",
               "source": {

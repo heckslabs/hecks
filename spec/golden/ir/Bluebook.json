@@ -6829,6 +6829,36 @@
                 "fills",
                 "ensures"
               ]
+            ],
+            [
+              [
+                "word",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mutations"
+              ],
+              [
+                "calls",
+                "corrects_impl"
+              ]
             ]
           ],
           "name": "KeywordSeed"
@@ -8137,6 +8167,126 @@
               [
                 "fills",
                 "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "target"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "reason"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "reverses"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
               ]
             ]
           ],
@@ -20719,6 +20869,16 @@
                 "sign",
                 ""
               ]
+            ],
+            [
+              [
+                "name",
+                "corrects"
+              ],
+              [
+                "sign",
+                ""
+              ]
             ]
           ],
           "name": "MutationOp"
@@ -21129,6 +21289,12 @@
               [
                 "name",
                 "LifecycleRefused"
+              ]
+            ],
+            [
+              [
+                "name",
+                "NothingToCorrect"
               ]
             ],
             [

@@ -46,6 +46,7 @@ module Hecks
         {"name"=>"GivenNotMet"}.freeze,
         {"name"=>"InvariantViolation"}.freeze,
         {"name"=>"LifecycleRefused"}.freeze,
+        {"name"=>"NothingToCorrect"}.freeze,
         {"name"=>"NotFound"}.freeze,
         {"name"=>"ProjectionAbsent"}.freeze,
         {"name"=>"RemoteRefusal"}.freeze,
@@ -95,7 +96,8 @@ module Hecks
         {"name"=>"multiply", "sign"=>""}.freeze,
         {"name"=>"clamp", "sign"=>""}.freeze,
         {"name"=>"remove", "sign"=>""}.freeze,
-        {"name"=>"delegate", "sign"=>""}.freeze
+        {"name"=>"delegate", "sign"=>""}.freeze,
+        {"name"=>"corrects", "sign"=>""}.freeze
       ].freeze,
       "NormalisationStrategy" => [
         {"name"=>"collapse_whitespace"}.freeze,

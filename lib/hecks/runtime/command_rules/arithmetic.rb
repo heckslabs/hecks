@@ -45,7 +45,13 @@ module Hecks
           # what Vocabulary::MutationOp declares — MutationApplier's own
           # `when :delegate` branch (mutation_applier.rb) never calls
           # #sign_of either, same as `remove`'s own note above.
-          MutationOp.new(name: "delegate",  sign: nil)
+          MutationOp.new(name: "delegate",  sign: nil),
+          # CommandBuilder#corrects_impl's own comment gives the full
+          # reasoning — a command amending a past event rather than
+          # acting fresh. Carries no sign, like delegate: it does no
+          # arithmetic of its own; the record's actual change, if any,
+          # is an ordinary `sets` declared alongside it.
+          MutationOp.new(name: "corrects",  sign: nil)
         ].freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and

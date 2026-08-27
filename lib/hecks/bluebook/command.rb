@@ -39,7 +39,7 @@ module Hecks
       # the tail, which is why a construct with a variable shape needs no
       # new mixin API.
       def to_h
-        return super.merge(fields: appended_fields) if [:append, :delegate].include?(op)
+        return super.merge(fields: appended_fields) if [:append, :delegate, :corrects].include?(op)
 
         super.merge(source: classified_source)
       end

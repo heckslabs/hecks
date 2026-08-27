@@ -21,6 +21,7 @@ flowchart LR
     cmd_Account_Debit(["Account.Debit"]) -->|"appends: amount, narrative, direction"| attr_Account_ledger[ledger]
     cmd_Account_ApplyFee(["Account.ApplyFee"]) -->|"decrements: amount"| attr_Account_balance[balance]
     cmd_Account_ApplyFee(["Account.ApplyFee"]) -->|"increments: amount"| attr_Account_fees_cents[fees_cents]
+    cmd_Account_CorrectFee(["Account.CorrectFee"]) -->|"correctss: as, reason, reverses"| attr_Account_FeeApplied[FeeApplied]
     cmd_Account_CorrectFee(["Account.CorrectFee"]) -->|"increments: amount"| attr_Account_balance[balance]
     cmd_Account_CorrectFee(["Account.CorrectFee"]) -->|"decrements: amount"| attr_Account_fees_cents[fees_cents]
     cmd_Account_AccrueInterest(["Account.AccrueInterest"]) -->|"increments: amount"| attr_Account_balance[balance]

@@ -49,11 +49,11 @@ RSpec.describe "the DSL surface is fully covered" do
       # (slice 4c), and `then_set` (slice 5) -> `*_impl` — item #13's
       # full metaprogrammed dispatch. GenericDispatch forwards via
       # calls:; these are the real, directly-defined methods.
-      # `delegates_to_impl` is a new word, not a migrated one —
-      # CommandBuilder#delegates_to_impl's own comment gives the full
-      # reasoning — but reached the same `calls:`-forwarded way.
+      # `delegates_to_impl`/`corrects_impl` are new words, not migrated
+      # ones — their own comments give the full reasoning — but reached
+      # the same `calls:`-forwarded way.
       %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl
-         delegates_to_impl emits state attribute list_of attributes]
+         delegates_to_impl corrects_impl emits state attribute list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecks::Bluebook::DSL::PortBuilder,
