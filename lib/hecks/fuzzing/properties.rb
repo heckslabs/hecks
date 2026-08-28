@@ -321,7 +321,8 @@ module Hecks
 
           domain, aggregate_name, = Naming.split_verb(asked[:query])
           args = asked[:args] || {}
-          rows = query_eligible_rows(asked.fetch(:instances_at), domain, aggregate_name, declared.wheres, args)
+          rows = query_eligible_rows(asked.fetch(:instances_at), domain, aggregate_name, declared.wheres, args,
+                                     bluebooks: bluebooks)
           ordered = Ports::Query::Ordering.apply(
             rows, declared.order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
           ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, declared.order_by.field)) }
@@ -361,19 +362,63 @@ module Hecks
       # same way #eligible_rows' own rows are, since a stable sort
       # (Ordering.apply's own `identity:`) and the real answer's own
       # `record.state.merge(id: record.id)` both need it.
-      def query_eligible_rows(instances, domain, aggregate_name, wheres, args)
+      # `bluebooks:` — needed ONLY to recognise and resolve a `/` HOP
+      # clause (`engagement/client/status`, hop_chain.bluebook's own
+      # PricedAboveViaEngagement): a hop's head names one of the OWNING
+      # aggregate's declared references, and only the declaration graph
+      # can say which attribute that is and which aggregate it targets.
+      # A local clause never consults it. Latent gap this closed, found
+      # by the fuzzer itself the first time a generated sequence ever
+      # built a full hop chain AND had its paged query answer a row
+      # (seed 1, the moment scalar_value_objects.bluebook joined the
+      # fixtures corpus and shifted every seeded draw): the recompute
+      # dug `engagement/client/status` as a LOCAL dotted path, found
+      # nil, and declared every genuinely-eligible row ineligible — a
+      # false property violation against a correct runtime answer,
+      # reproducible on an untouched main with this same 4-step script.
+      def query_eligible_rows(instances, domain, aggregate_name, wheres, args, bluebooks: {})
+        aggregate = bluebooks[domain]&.aggregate(aggregate_name)
         prefix = "#{domain}::#{aggregate_name}#"
         instances.filter_map do |key, state|
           next unless key.start_with?(prefix)
 
           row = state.merge(id: key.split("#").last)
           next unless wheres.all? do |clause|
-            held = Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, clause.field))
-            Ports::Query::InMemory.holds?(clause, held, args)
+            resolved = resolve_hop_clause(instances, domain, aggregate, clause, args, bluebooks)
+            held = Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, resolved.field))
+            Ports::Query::InMemory.holds?(resolved, held, args)
           end
 
           row
         end
+      end
+
+      # `Runtime::ReferenceHop#fold`, independently restated over the
+      # replay's own `:instances_at` snapshot instead of live
+      # repositories — the same shape every other recompute in this
+      # file takes (never the runtime's own code path, or the property
+      # would be checking the runtime against itself). One hop peels
+      # off the head (`HopPath.next_hop`, the identical one-step
+      # primitive the live fold uses), the inner clause recurses
+      # through `query_eligible_rows` against the TARGET's own
+      # snapshot rows (so a multi-hop tail resolves hop by hop, exactly
+      # as the live path's own recursion does), and the ids that
+      # answered fold back as the same local `in` membership clause the
+      # live fold builds. A clause with no `/`, or one whose head this
+      # aggregate's declarations cannot resolve, passes through
+      # untouched and evaluates locally as it always did.
+      def resolve_hop_clause(instances, domain, aggregate, clause, args, bluebooks)
+        return clause unless aggregate && QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes)
+
+        hop, rest = QuerySpecification::HopPath.next_hop(clause.field, aggregate.attributes)
+        target = hop.target
+        return clause unless target
+
+        inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
+        ids   = query_eligible_rows(instances, domain, target.hecks_name, [inner], args, bluebooks: bluebooks)
+                .map { |row| row[:id].to_s }.uniq
+
+        QuerySpecification::Common::WhereClause.new(field: hop.attribute.name, op: "in", value: ids)
       end
 
       # `QueryInterpreter#resolve_query_value`, reproduced: a declared

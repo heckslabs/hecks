@@ -384,7 +384,7 @@ impl crate::kernel::Fielded for ValueName {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("name") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -989,6 +989,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "query", context: "Aggregate", body: "keywords", inner: "Query", opens: "Query", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "policy", context: "Aggregate", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "value_object", context: "Aggregate", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "value_objects", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "value_object", context: "Aggregate", body: "none", inner: "", opens: "", fills: "value_objects", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "command", context: "Aggregate", body: "keywords", inner: "Command", opens: "Command", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "attribute", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "invariant", context: "Aggregate", body: "source", inner: "", opens: "", fills: "invariants", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -1066,6 +1067,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "query", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "policy", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "value_object", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "value_object", context: "Aggregate", at: "2", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "command", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "command", context: "Aggregate", at: "", named: "from", kind: "literal", required: "false", fills: "from", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },

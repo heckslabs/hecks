@@ -103,7 +103,7 @@ impl crate::kernel::Fielded for Price {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("cents") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 

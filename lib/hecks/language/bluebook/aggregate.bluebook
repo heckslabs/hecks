@@ -509,6 +509,15 @@ Hecks.bluebook "Bluebook" do
       member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: "", calls: "query_impl"
       member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: "", calls: "policy_impl"
       member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
+      # THE BARE SHORTHAND — `value_object "Price", Integer`, no block:
+      # a second row for the SAME word with `body: "none"`, the exact
+      # two-row move `identified_by` (above) already makes for its own
+      # block/blockless split — the body gate picks whichever row
+      # matches how the line was actually written. Declares a value
+      # object with exactly one attribute, named `value`, of the given
+      # type; sugar for the block form's own single `attribute :value,
+      # Type` line (`AggregateBuilder#value_object`'s own comment).
+      member word: "value_object",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "value_objects"
       member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: "", calls: "command_impl"
       member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
       member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants", calls: "invariant_impl"
@@ -558,6 +567,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "query",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      # The bare shorthand's own TYPE argument — optional, because the
+      # block form gives no type at all (its attributes carry their own);
+      # `kind: "constant"` for the same reason `attribute`'s own type
+      # argument (below) is: a type is a bare constant, never quoted
+      # text. Type-AND-block is refused by the builder itself
+      # (`AggregateBuilder#value_object`), not here — an argument row
+      # cannot see the body, only the call.
+      member keyword: "value_object",    context: "Aggregate", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
       member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "command",         context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"
       member keyword: "attribute",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"

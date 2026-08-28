@@ -242,8 +242,37 @@ module Hecks
         # into THIS aggregate's own `@value_objects`, the identical move
         # `@value_objects + closed_sets` already makes for the aggregate's
         # own direct attributes (see this file's other 5 call sites).
-        def value_object(name, &block)
+        # `type` — THE BARE SHORTHAND (single-attribute value objects):
+        # `value_object :Price, Integer` declares a value object with
+        # exactly one attribute, NAMED `value`, of that type — pure sugar
+        # for `value_object("Price") { attribute :value, Integer }`,
+        # routed through the SAME `attribute_impl` the block form's own
+        # `attribute` line reaches (so the quoted-text-type refusal,
+        # `one_of(...)`/`list_of(...)` synthesis, everything an attribute
+        # line already does, applies unchanged rather than being
+        # re-derived here). The name `value` is not arbitrary: a
+        # single-attribute value object is a NAME for a scalar, not a
+        # genuine group ([[feedback_name_the_scalar_field]], `Behaviour::
+        # ValueObject#sole_attribute`), and `value` is what the language
+        # guarantees EVERY sole field answers to at runtime regardless of
+        # its declared name (`Runtime::Value#method_missing`'s alias) —
+        # so the shorthand simply declares it under the canonical name
+        # directly. Type AND block together are refused: the block exists
+        # to say what the fields are, and the type just said it — two
+        # answers to one question is an authoring error, never a merge.
+        # NEITHER type NOR block keeps its historical behavior untouched
+        # (an empty attribute list — judged, or not, by the language
+        # downstream, the same as before this parameter existed).
+        def value_object(name, type = nil, &block)
+          if type && block
+            raise Malformed,
+                  "#{name} declares both a type (#{type.inspect}) and a block — " \
+                  "value_object #{name.inspect}, Type is sugar for a block declaring " \
+                  "exactly one attribute named :value; write one form or the other, never both"
+          end
+
           builder = ValueObjectBuilder.new(name, owner_value_objects: @value_objects + closed_sets)
+          builder.attribute_impl(:value, type) if type
           builder.instance_eval(&block) if block
           @value_objects << builder.build
           @value_objects.concat(builder.closed_sets)

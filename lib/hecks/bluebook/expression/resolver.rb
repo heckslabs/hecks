@@ -744,8 +744,33 @@ module Hecks
         # `#to_h`), so this is safe for the existing `field.value`-
         # shaped dotted lookups too -- they already returned a raw
         # scalar and are unaffected.
+        # UPDATE (single-element value objects strictly answer `.value`):
+        # the unwrap used to gate on the sole key being literally NAMED
+        # `:value` — correct for the shorthand/closed-set shapes that
+        # motivated it, but a lie of omission for `Money{amount}` and
+        # every other single-field value object whose author picked a
+        # domain name for the field: the SAME "this VO IS its scalar"
+        # reading ([[feedback_name_the_scalar_field]], `Behaviour::
+        # ValueObject#sole_attribute`) applies regardless of what the
+        # sole field happens to be called, and the name gate made a bare
+        # `balance > 0` work for a `Balance{value}` while silently
+        # comparing a whole VO for a `Balance{amount}`. Now the COUNT is
+        # the gate, never the name. A declared `Runtime::Value` reads
+        # its own `sole_attribute` (the declaration's answer, not the
+        # stored hash's); any OTHER to_h-able (a Struct, a bespoke
+        # wrapper with no declaration to consult) keeps the original
+        # `{value: X}`-only unwrap, so nothing that never was a value
+        # object gains a surprise unwrapping. `rust/src/kernel/json.rs`'s
+        # `impl Fielded for Json` mirrors the count-only reading on the
+        # Rust side — change them in lockstep or rust_conformance
+        # diverges.
         def unwrap_scalar(value)
           return value unless value.respond_to?(:to_h) && !value.is_a?(Hash) && !value.is_a?(Array)
+
+          if value.respond_to?(:value_object)
+            sole = value.value_object.sole_attribute
+            return sole ? value[sole.name] : value
+          end
 
           hash = value.to_h
           hash.size == 1 && hash.key?(:value) ? hash[:value] : value

@@ -1186,6 +1186,32 @@
             [
               [
                 "word",
+                "value_object"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "value_objects"
+              ]
+            ],
+            [
+              [
+                "word",
                 "command"
               ],
               [
@@ -2212,6 +2238,36 @@
               [
                 "fills",
                 "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "value_object"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                2
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "type"
               ]
             ],
             [

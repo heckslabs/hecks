@@ -493,6 +493,70 @@ The rule you declared once on `WithdrawalAmount` holds for withdrawal
 one and for withdrawal four hundred — a `list_of` field is not a place
 invariants quietly stop applying.
 
+## A value object that is really one scalar
+
+Most of banking's value objects are exactly one field deep —
+`AccountNumber{value}`, `DailyLimit{cents}`, `Narrative{text}`. That
+shape is common enough that the language treats it as its own rule:
+**a value object with exactly one declared attribute is a name for a
+scalar, and always answers `.value`** — whatever its real field is
+called. The alias reads the sole field; the real name keeps working
+beside it:
+
+```ruby
+account.number.value        # => "ACC-1000"
+account.daily_limit.value   # => 0
+account.daily_limit.cents   # => 0
+
+card.withdrawals.first[:cents].value   # => 4000
+```
+
+A multi-field value object refuses `.value` exactly as it always has —
+`PositiveMoney` carries `cents` AND `currency`, so there is no single
+value it could honestly mean:
+
+```ruby
+account.balance.respond_to?(:value)   # => false
+```
+
+The same rule works in the other direction, at the call site: wherever
+an argument is typed as a single-attribute value object, a bare scalar
+wraps into the sole field automatically. `Withdraw` takes a
+`WithdrawalAmount{cents}` and a `Narrative{text}` — both collapse:
+
+```ruby
+card = card.withdraw!(cents: 2_000, narrative: "coffee run")
+
+card.withdrawals.size                 # => 2
+card.withdrawals.last[:cents].to_h    # => { cents: 2000 }
+```
+
+The explicit spelling (`cents: { cents: 2_000 }`) always keeps working
+— collapsing only ADDS the bare form, and only where the target has
+exactly one field; a multi-field value object still requires its
+fields spelled out. Serialization is deliberately NOT aliased: `to_h`
+above still says `cents`, so nothing stored, exported, or compared
+changes shape.
+
+Declaring that shape has a shorthand of its own — a type in second
+position, no block — sugar for the block form's single
+`attribute :value, Type` line:
+
+```ruby skip
+value_object "StickerRef", String
+# is exactly:
+value_object "StickerRef" do
+  attribute :value, String
+end
+```
+
+Banking's own one-field value objects all keep the block form because
+each carries a `pattern:` or an `invariant` too — the shorthand is for
+the plain case, and refuses a block beside the type outright (two
+answers to "what are the fields"). See the `value_object` reference
+(aggregate.md) and the ValueObject context page's own
+"single-attribute rule" section for the full contract.
+
 ## Pointing at another aggregate
 
 A reference is how one aggregate names another, and getting the shape

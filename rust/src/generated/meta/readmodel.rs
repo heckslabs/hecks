@@ -376,7 +376,7 @@ impl crate::kernel::Fielded for GroupByField {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("field") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 

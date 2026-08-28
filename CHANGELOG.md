@@ -7,6 +7,38 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+**Single-element value objects strictly answer `.value`.** A value object
+with exactly one declared attribute is a name for a scalar, and the
+language now treats that as a rule rather than a convention:
+
+- New bare shorthand: `value_object "Price", Integer` — no block, a type
+  in second position — declares exactly one attribute named `value` of
+  that type; pure sugar for the block form's single `attribute :value,
+  Type` line (byte-identical IR). Type AND block together refuse
+  (`Malformed`); bare `value_object "Name"` with neither keeps its
+  historical empty-attribute behavior. Grammar rows, the Rust parser
+  (`hecks-parse`, byte-exact parity), and reference docs all carry the
+  new spelling.
+- Runtime alias: every single-attribute value object answers `.value`
+  (and `[:value]`/`key?(:value)`/`with(:value, ...)`), aliasing its real
+  sole field whatever it is named — `Money{amount}` and `Label{value}`
+  read identically. Multi-attribute value objects keep refusing
+  `.value`. Serialization is deliberately NOT aliased: `to_h`/`to_json`
+  keep the real field name.
+- The scalar-unwrap rule is count-gated, not name-gated, everywhere both
+  engines read it: `Resolver#unwrap_scalar`, the generated Rust
+  `Fielded::as_scalar` (rust/project + rust/codegen, in lockstep), the
+  kernel's own `Json::as_scalar`, SQL member-picking
+  (`SqlQueryBuilder#query_expression`), and Memory ordering
+  (`InMemoryOrdering#sortable_path`) — a bare-field predicate or query
+  over `EmailAddress{address}` now means its one field, exactly as it
+  always did for a field literally named `value`.
+- Call-site collapsing (already count-gated in
+  `Coercion#fields_for`) is now documented and pinned as part of the
+  language: `price: 10` and `price: { amount: 10 }` build the identical
+  single-attribute value object; the explicit spelling keeps working,
+  and multi-field shapes still require their fields spelled out.
+
 ## [1.0.2] - 2026-08-28
 
 **Gem page cleanup, now that the gem is actually published.** `1.0.0`

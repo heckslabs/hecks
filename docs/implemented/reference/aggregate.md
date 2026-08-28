@@ -376,11 +376,12 @@ runtime.registry.bluebook("Banking").policies.map(&:name).first  # => "ReviewOnF
 ## value_object
 
 <!-- generated:begin word=value_object -->
-`value_object name do ... end` — opens a `ValueObject` body, fills `value_objects`
+`value_object name, type do ... end` / `value_object name, type` — opens a `ValueObject` body, fills `value_objects`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| positional 2 | constant | false | type |
 <!-- generated:end -->
 
 Opens a type with no identity of its own, carrying its `attribute`s and `invariant`s wherever it is used. See the ValueObject context page for the full vocabulary.
@@ -391,6 +392,29 @@ nothing addresses one:
 ```ruby
 Banking::Account.ir.value_objects.map(&:hecks_name).first(3)  # => ["AccountNumber", "DailyLimit", "LedgerSequence"]
 ```
+
+THE BARE SHORTHAND — a TYPE in second position, no block — declares a
+value object with exactly one attribute, NAMED `value`, of that type.
+It is pure sugar for the block form's single `attribute :value, Type`
+line, and builds byte-identical IR:
+
+```ruby skip
+value_object "StickerRef", String
+# is exactly:
+value_object "StickerRef" do
+  attribute :value, String
+end
+```
+
+The two spellings are mutually exclusive — a type AND a block together
+refuse at build time (`Malformed`): the block exists to say what the
+fields are, and the type just said it. A value object that needs a
+`pattern:`, an `invariant`, a second field, or a closed set keeps the
+block form. Every single-attribute value object — shorthand-declared or
+not, whatever its sole field is named — answers `.value` at runtime and
+takes a bare scalar at the call site; that rule is the ValueObject
+context page's own "single-attribute rule" section
+(value_object.md).
 
 ## command
 

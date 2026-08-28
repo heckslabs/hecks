@@ -1486,7 +1486,7 @@ pub(crate) fn build_attribute(
 /// name (`build/closed_sets.rs`), and the attribute's own type is that
 /// name — the VALUE OBJECT itself is handed back to the caller, which
 /// decides whether to keep it (see `build_attribute`'s own header).
-fn resolve_type_expression(
+pub(crate) fn resolve_type_expression(
     file: &str,
     line: usize,
     word: &str,

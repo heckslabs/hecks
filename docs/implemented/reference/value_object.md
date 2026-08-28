@@ -34,6 +34,50 @@ account = Banking::Account.open!(customer: "vo-1", number: { value: "vo-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
+## The single-attribute rule: `.value`
+
+A value object with exactly ONE declared attribute is a NAME for a
+scalar, not a genuine group — and the language treats that as a rule,
+not a convention: every single-attribute value object answers `.value`,
+aliasing whatever its real sole field is actually called. A
+shorthand-declared `StickerRef{value}` and an author-named
+`DailyLimit{cents}` answer it identically:
+
+```ruby
+account.number.value       # => "vo-a1"
+account.daily_limit.value  # => 50000
+account.daily_limit.cents  # => 50000
+```
+
+The alias covers indexed access (`[:value]`, `key?(:value)`) and
+`with(:value, ...)` the same way — a write through the alias lands in
+the REAL field, never mints a literal `:value` key. Serialization is
+NOT aliased: `to_h`/`to_json` keep the real field name, so nothing
+stored or exported changes shape.
+
+A MULTI-attribute value object refuses `.value` exactly as it always
+has — with two or more fields there is no single value it could
+honestly mean:
+
+```ruby
+account.balance.respond_to?(:value)  # => false
+```
+
+The same rule collapses call sites: wherever a command or query
+argument (or an aggregate attribute) is typed as a single-attribute
+value object, a bare scalar wraps into that sole field automatically —
+`daily_limit: 50_000` and `daily_limit: { cents: 50_000 }` build the
+identical `DailyLimit`. The explicit field-named spelling always keeps
+working; a multi-field value object still requires its fields spelled
+out. The Rust runtime reads the same rule (`Fielded::as_scalar` — a
+generated struct with one attribute reads as that attribute's value,
+whatever its name), so a predicate comparing a single-attribute value
+against a bare literal agrees across engines.
+
+The bare declaration shorthand for this shape — `value_object
+"DailyLimit", Integer`, no block — is documented with the word itself
+(aggregate.md's own `value_object` section).
+
 ## attribute
 
 <!-- generated:begin word=attribute -->

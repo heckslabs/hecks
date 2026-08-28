@@ -1,0 +1,75 @@
+# A DEDICATED FIXTURE for "single-element value objects strictly answer
+# .value" — the bare `value_object "Name", Type` shorthand (one
+# attribute, named `value`, of that type; sugar for the block form's
+# single `attribute :value, Type` line), a sole attribute the author
+# named for the domain instead (`Price{amount}`), and a bare-field query
+# over each — small enough for the parser-parity harness to byte-match
+# both parsers over every one of those shapes at once, and for the DSL
+# specs to dispatch real commands through (a bare scalar collapses into
+# a single-attribute value object's own real field at the call site —
+# `Runtime::Value::Coercion#fields_for`'s count-one auto-wrap).
+Hecks.bluebook "ScalarValueObjects" do
+  vision "A single-attribute value object is a name for a scalar — it answers .value, and takes the bare scalar at the call site."
+  core
+
+  aggregate "Sticker" do
+    description "A price sticker whose every field is a single-attribute value object."
+
+    identified_by :ref
+
+    attribute :ref,   StickerRef
+    attribute :price, Price, default: { amount: 0 }
+    attribute :shelf, Shelf, optional: true
+
+    # THE BARE SHORTHAND — no block, a type in second position: exactly
+    # one attribute, named `value`, of that type.
+    value_object "StickerRef", String
+    value_object "Shelf", Integer
+
+    # The SAME single-attribute shape with an author-chosen field name —
+    # `.value` answers `amount` here exactly as it answers `value` above.
+    value_object "Price" do
+      attribute :amount, Integer
+      invariant("a price is never negative") { amount >= 0 }
+    end
+
+    command "Print" do
+      role "Clerk"
+      goal "Print a sticker at a starting price"
+
+      attribute :ref,   StickerRef
+      attribute :price, Price
+
+      sets :ref
+      sets :price
+
+      emits "StickerPrinted"
+    end
+
+    command "Reprice" do
+      role "Clerk"
+      goal "Change a sticker's price"
+
+      reference_to Sticker
+      attribute :price, Price
+
+      sets :price
+
+      emits "StickerRepriced"
+    end
+
+    # A bare field naming a single-attribute value object is an
+    # unambiguous comparison (`refuse_ambiguous_comparison!`'s own
+    # "exactly one member, whatever its type") — one query per shape,
+    # shorthand-declared and author-named alike.
+    query "AtPrice" do
+      attribute :price, Price
+      where price: :price
+    end
+
+    query "ByRef" do
+      attribute :ref, StickerRef
+      where ref: :ref
+    end
+  end
+end

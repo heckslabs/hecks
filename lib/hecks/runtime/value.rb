@@ -38,8 +38,8 @@ module Hecks
       end
 
       def type_name = @value_object.hecks_name
-      def [](field) = @fields[field.to_sym]
-      def key?(field) = @fields.key?(field.to_sym)
+      def [](field) = @fields[resolve_field(field)]
+      def key?(field) = @fields.key?(resolve_field(field))
       def to_h = @fields.transform_values { |value| self.class.materialize(value) }
       def to_json(*) = JSON.generate(to_h)
 
@@ -48,7 +48,7 @@ module Hecks
       end
 
       def with(field, value)
-        self.class.build(@value_object, @fields.merge(field.to_sym => value))
+        self.class.build(@value_object, @fields.merge(resolve_field(field) => value))
       end
 
       def self.materialize(value)
@@ -114,11 +114,61 @@ module Hecks
       def method_missing(name, *args)
         return @fields[name] if @fields.key?(name)
 
+        # THE LANGUAGE RULE, not a convenience: ANY value object with
+        # exactly one declared attribute answers `.value`, whatever that
+        # attribute is actually named — a single-attribute value object
+        # is a NAME for a scalar, not a genuine group
+        # ([[feedback_name_the_scalar_field]], `Behaviour::ValueObject#
+        # sole_attribute`), so `money.value` reads `Money`'s own `amount`
+        # exactly as `label.value` reads a shorthand-declared `value`.
+        # AFTER the real-field lookup above, on purpose: a field
+        # literally named `value` is already answered there (and IS the
+        # sole attribute whenever the count is one), so this branch only
+        # ever aliases, never shadows. A MULTI-attribute value object
+        # keeps its NoMethodError — `sole_attribute` answers nil for it,
+        # and falling through to `super` is exactly the refusal it
+        # always gave: with two or more fields there is no single value
+        # `.value` could honestly mean.
+        if name == :value
+          sole = @value_object.sole_attribute
+          return @fields[sole.name] if sole
+        end
+
         super
       end
 
       def respond_to_missing?(name, include_private = false)
-        @fields.key?(name) || super
+        return true if @fields.key?(name)
+        return true if name == :value && @value_object.sole_attribute
+
+        super
+      end
+
+      private
+
+      # THE `.value` ALIAS FOR INDEXED ACCESS — the same language rule
+      # `method_missing` above enforces for method reads, applied to
+      # `[]`/`key?`/`with`: `:value` names a single-attribute value
+      # object's sole field whatever that field is actually called. A
+      # REAL key always wins first (a field literally named `value` is
+      # its own answer, and is the sole attribute anyway whenever the
+      # count is one), so this only ever resolves a `:value` that would
+      # otherwise MISS — it can never redirect a genuine field read.
+      # `with(:value, x)` in particular NEEDS this: merging a literal
+      # `:value` key beside a sole field named `amount` would build a
+      # two-key hash for a one-field shape and be refused (or worse,
+      # stored) downstream — aliasing at the merge is what keeps the
+      # write half of the rule as true as the read half.
+      def resolve_field(field)
+        sym = field.to_sym
+        return sym if @fields.key?(sym)
+
+        if sym == :value
+          sole = @value_object.sole_attribute
+          return sole.name if sole
+        end
+
+        sym
       end
     end
   end

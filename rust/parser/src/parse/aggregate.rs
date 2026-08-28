@@ -555,23 +555,99 @@ pub fn parse_body(
             // `value_object` line (not threaded as a running Vec) since
             // `aggregate.value_objects`/`closed_sets` are two separate
             // local Vecs, each still growing.
+            // TWO KEYWORD ROWS FOR ONE WORD — the same block/blockless
+            // split `identified_by` already carries: `body: "keywords"`
+            // is the block form (attributes declared inside), `body:
+            // "none"` is THE BARE SHORTHAND — `value_object "Price",
+            // Integer` — declaring exactly one attribute, NAMED `value`,
+            // of the given type (`AggregateBuilder#value_object`'s own
+            // comment; sugar for the block form's single `attribute
+            // :value, Type` line). `body_gate` has already picked which
+            // row this line is, so `gated.row.body` is the branch. The
+            // TYPE argument routes through `resolve_type_expression` —
+            // the same door the block form's own `attribute` line uses —
+            // so `one_of(...)`/`list_of(...)` in the type position
+            // synthesize/mark exactly as they would there, closed set
+            // included. Type AND block together is refused below (the
+            // argument rows are shared across both keyword rows, so the
+            // gate alone cannot see the body to refuse it) — mirroring
+            // `AggregateBuilder#value_object`'s own Malformed byte for
+            // byte in spirit: two answers to "what are the fields" is an
+            // authoring error, never a merge. Bare `value_object "Foo"`
+            // (no type, no block) builds an EMPTY attribute list — the
+            // exact thing Ruby's own builder has always built for that
+            // spelling, newly parseable here only because the `none` row
+            // now exists at all.
             "value_object" => {
                 let vo_name = super::positional_text(file, line, "value_object", &gated.args, 1)?;
-                let owner_value_objects: Vec<ir::ValueObject> = aggregate
-                    .value_objects
+                let type_arg = gated
+                    .args
+                    .positional
                     .iter()
-                    .chain(closed_sets.iter())
-                    .cloned()
-                    .collect();
-                let vo = super::parse_nested_body(
-                    file,
-                    lines,
-                    pos,
-                    &gated.call.opener,
-                    line,
-                    |f, l, p| value_object::parse_body(f, l, p, &vo_name, &owner_value_objects),
-                )?;
-                aggregate.value_objects.push(vo);
+                    .find(|(idx, _)| *idx == 2)
+                    .map(|(_, text)| text.clone());
+
+                if gated.row.body == "none" {
+                    let attributes = match type_arg {
+                        Some(text) => {
+                            let (type_name, list, closed_set) = super::resolve_type_expression(
+                                file,
+                                line,
+                                "value_object",
+                                "value",
+                                &text,
+                            )?;
+                            if let Some(vo) = closed_set {
+                                closed_sets.push(vo);
+                            }
+                            vec![ir::Attribute {
+                                name: "value".to_string(),
+                                type_name,
+                                list,
+                                default: None,
+                                optional: false,
+                                pattern: None,
+                                admits: None,
+                                relationship: None,
+                            }]
+                        }
+                        None => Vec::new(),
+                    };
+                    aggregate.value_objects.push(ir::ValueObject {
+                        name: vo_name,
+                        attributes,
+                        invariants: Vec::new(),
+                        closed_set: false,
+                        members: Vec::new(),
+                    });
+                } else {
+                    if type_arg.is_some() {
+                        return Err(Diagnostic::new(
+                            file,
+                            line,
+                            format!(
+                                "{vo_name} declares both a type and a block — value_object \
+                                 \"{vo_name}\", Type is sugar for a block declaring exactly one \
+                                 attribute named :value; write one form or the other, never both"
+                            ),
+                        ));
+                    }
+                    let owner_value_objects: Vec<ir::ValueObject> = aggregate
+                        .value_objects
+                        .iter()
+                        .chain(closed_sets.iter())
+                        .cloned()
+                        .collect();
+                    let vo = super::parse_nested_body(
+                        file,
+                        lines,
+                        pos,
+                        &gated.call.opener,
+                        line,
+                        |f, l, p| value_object::parse_body(f, l, p, &vo_name, &owner_value_objects),
+                    )?;
+                    aggregate.value_objects.push(vo);
+                }
             }
             "lifecycle" => {
                 let field = super::positional_symbol(file, line, "lifecycle", &gated.args, 1)?;

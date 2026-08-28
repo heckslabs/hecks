@@ -151,7 +151,18 @@ module Hecks
                  end
         member ||= if path.empty? && attribute && value_object?(attribute)
                      object = @aggregate.value_object(attribute.type)
-                     Forms::ValueObjectShape.numeric_member(object)&.name
+                     # A SOLE attribute is the fallback when no member is
+                     # numeric — a single-attribute value object IS its one
+                     # field whatever that field is named (`Behaviour::
+                     # ValueObject#sole_attribute`, the same strict rule
+                     # `Runtime::Value`'s own `.value` alias enforces), so
+                     # `EmailAddress{address}` compiles to `$.address`
+                     # rather than falling through to the dialects' own
+                     # `member || "value"` convention and silently matching
+                     # nothing. Multi-field non-numeric shapes still fall
+                     # through to that convention, unchanged — there is no
+                     # single field to honestly pick for them here either.
+                     (Forms::ValueObjectShape.numeric_member(object) || object.sole_attribute)&.name
                    end
         nested_expression(name, path, member)
       end

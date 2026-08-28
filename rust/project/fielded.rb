@@ -168,12 +168,30 @@ module RustProjection
       )}\n"
     end
 
-    # `Resolver#unwrap_scalar` — a struct whose SOLE attribute is `value`
-    # reads as that value (see the exemplar's own `tmpl_as_scalar_
-    # placeholder` comment); anything else answers `None`.
+    # `Resolver#unwrap_scalar` — a struct with exactly ONE attribute
+    # reads as that attribute's value, WHATEVER it is named (see the
+    # exemplar's own `tmpl_as_scalar_placeholder` comment); anything
+    # else answers `None`. Used to gate on the sole attribute being
+    # literally NAMED `value` — the same name-vs-count split the Ruby
+    # oracle's own `unwrap_scalar` carried, relaxed in lockstep with it
+    # (single-element value objects strictly answer `.value`,
+    # [[feedback_name_the_scalar_field]]): a `Money{amount}` IS its
+    # amount exactly as a `Label{value}` is its value, and the name gate
+    # made the two behave differently in every generated predicate walk.
+    # Only a genuine SCALAR leaf unwraps — a sole attribute that is
+    # itself a value object (`Field::Nested`, or a closed set with no
+    # arm at all) already answered `None` through the match's own `_`
+    # floor, so requiring `effective_scalar_type` here changes no
+    # runtime answer; it just emits the honest literal `None` instead of
+    # a match that could never bind (and stops the generated text
+    # mentioning a field name no arm exists for — spec/rust_project/
+    # closed_set_fielded_spec.rb pins exactly that for the multi-field
+    # closed-set shape).
     def as_scalar_expr(attributes)
-      sole_value = attributes.size == 1 && attributes.first[:name].to_s == "value" && !attributes.first[:list]
-      sole_value ? 'match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }' : "None"
+      sole = attributes.size == 1 && !attributes.first[:list] ? attributes.first : nil
+      return "None" unless sole && effective_scalar_type(sole[:type])
+
+      "match self.field(#{rust_field(sole[:name]).inspect}) { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }"
     end
   end
 end

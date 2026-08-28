@@ -152,11 +152,26 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
 }
 
 /// Port of fielded.rb's `as_scalar_expr` — `Resolver#unwrap_scalar`: a
-/// struct whose sole attribute is `value` reads as that value.
+/// struct with exactly ONE attribute reads as that attribute's value,
+/// whatever it is named (single-element value objects strictly answer
+/// `.value` — relaxed from the old name-gated `== "value"` check in
+/// lockstep with the Ruby projector and the Ruby oracle's own
+/// `unwrap_scalar`; see fielded.rb's `as_scalar_expr` for the full
+/// account). Only a genuine SCALAR leaf unwraps — a sole attribute
+/// that is itself a value object already answered `None` through the
+/// match's own `_` floor, so gating on `effective_scalar_type` changes
+/// no runtime answer; it emits the honest literal `None` instead of a
+/// match that could never bind (fielded.rb's own `as_scalar_expr`
+/// comment, and spec/rust_project/closed_set_fielded_spec.rb's pin).
 fn as_scalar_expr(attributes: &[Json]) -> String {
-    let sole_value = attributes.len() == 1 && crate::attr::name(&attributes[0]) == "value" && !crate::attr::list(&attributes[0]);
-    if sole_value {
-        "match self.field(\"value\") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }".to_string()
+    let sole = attributes.len() == 1
+        && !crate::attr::list(&attributes[0])
+        && naming::effective_scalar_type(crate::attr::type_name(&attributes[0])).is_some();
+    if sole {
+        format!(
+            "match self.field(\"{}\") {{ Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }}",
+            naming::rust_field(crate::attr::name(&attributes[0]))
+        )
     } else {
         "None".to_string()
     }

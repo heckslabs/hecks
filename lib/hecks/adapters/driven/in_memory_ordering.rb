@@ -43,7 +43,15 @@ module Hecks
         vo = aggregate.value_object(attribute.type)
         return field.to_s unless vo
 
-        member = vo.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name || "value"
+        # Numeric member first, then the SOLE attribute whatever it is
+        # named (single-attribute value objects strictly answer `.value`
+        # — the same generalization `SqlQueryBuilder#query_expression`
+        # makes for the column side, kept in lockstep so Memory and SQL
+        # order the identical rows identically), and only then the bare
+        # `value` convention — now purely a backstop for the multi-field
+        # non-numeric shape neither rule can honestly pick a field for.
+        member = vo.attributes.find { |a| %w[Integer Float].include?(a.type) }&.name ||
+                 vo.sole_attribute&.name || "value"
         "#{name}.#{member}"
       end
     end

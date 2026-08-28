@@ -10,8 +10,9 @@ require "hecks/fuzzing"
 # declarations.
 RSpec.describe "Hecks::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT
-  PROPERTIES_PIZZAS  = File.join(ROOT_DIR, "examples/pizzas")
-  PROPERTIES_BANKING = File.join(ROOT_DIR, "examples/banking")
+  PROPERTIES_PIZZAS   = File.join(ROOT_DIR, "examples/pizzas")
+  PROPERTIES_BANKING  = File.join(ROOT_DIR, "examples/banking")
+  PROPERTIES_FIXTURES = File.join(ROOT_DIR, "spec/fixtures")
   # S17's own fixture, now a real bootable domain (no .hecksagon at all
   # — Memory by construction) rather than the raw-Kernel.load-only
   # fixture it was — the only real corpus site anywhere using entity-
@@ -244,6 +245,47 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                              ] }] }
 
       expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+    end
+
+    # HopChain::Proposal.PricedAboveViaEngagement — real fixture corpus,
+    # `where :"engagement/client/status" => "active"; order_by :number;
+    # limit 1` — a `/` HOP clause, which the recompute used to dig as a
+    # LOCAL dotted path (nil for every row, 0 eligible) and so falsely
+    # flagged the runtime's own correct answer the first time a
+    # generated sequence ever built the full chain (bin/fuzz fixtures,
+    # seed 1 — reproducible on an untouched checkout; see
+    # `Properties#query_eligible_rows`'s own comment). Every field in
+    # the chain is a single-attribute value object (Name/Reference/
+    # Number, each `{value}`), so this also pins that shape ordering and
+    # paging through the recompute. Two directions, same snapshot shape:
+    # the recompute must ACCEPT the answer when the hop's far end
+    # genuinely holds, and still NAME a violation when it doesn't.
+    it "paging_offset_partitions_correctly resolves a / hop clause the way the live fold does, and passes the answer" do
+      instances = {
+        "HopChain::Client#juliet"      => { name: { value: "juliet" }, status: "active" },
+        "HopChain::Engagement#charlie" => { client: "juliet", reference: { value: "charlie" }, stage: "started" },
+        "HopChain::Proposal#p1"        => { engagement: "charlie", number: { value: "p1" }, status: "drafted" }
+      }
+      history = { bluebooks: bluebooks_for(PROPERTIES_FIXTURES),
+                  queries:   [{ query: "HopChain::Proposal.PricedAboveViaEngagement", args: {}, instances_at: instances,
+                                rows: [{ id: "p1", engagement: "charlie", number: { value: "p1" }, status: "drafted" }] }] }
+
+      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+    end
+
+    it "paging_offset_partitions_correctly still names an answer whose hop's far end does not actually hold" do
+      instances = {
+        "HopChain::Client#juliet"      => { name: { value: "juliet" }, status: "churned" },
+        "HopChain::Engagement#charlie" => { client: "juliet", reference: { value: "charlie" }, stage: "started" },
+        "HopChain::Proposal#p1"        => { engagement: "charlie", number: { value: "p1" }, status: "drafted" }
+      }
+      history = { bluebooks: bluebooks_for(PROPERTIES_FIXTURES),
+                  queries:   [{ query: "HopChain::Proposal.PricedAboveViaEngagement", args: {}, instances_at: instances,
+                                rows: [{ id: "p1", engagement: "charlie", number: { value: "p1" }, status: "drafted" }] }] }
+
+      result = Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)
+      expect(result).to be_a(String)
+      expect(result).to include("HopChain::Proposal.PricedAboveViaEngagement").and include("0 eligible row(s)")
     end
 
     # SafeDepositBox.Rented — real corpus, `where(status: "rented"); order_by

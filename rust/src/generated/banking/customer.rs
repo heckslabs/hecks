@@ -273,7 +273,7 @@ impl crate::kernel::Fielded for EmailAddress {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("address") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 

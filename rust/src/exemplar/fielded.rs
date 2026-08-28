@@ -213,12 +213,14 @@ fn tmpl_items_block() -> Option<Vec<crate::kernel::Field<'static>>> {
 }
 
 // `Fielded::as_scalar` — `Resolver#unwrap_scalar`, read directly: an
-// object whose `to_h` has exactly one key, `value`, READS AS that value
-// (a chess piece's `color == "white"`, its Color a single-field closed
-// set). Rendered as the `value` field's own scalar for exactly that
-// shape — a struct whose sole attribute is `value` — and `None` for
-// every other, the kernel's existing "refuse — nothing generated does
-// this" reading.
+// object with exactly ONE declared attribute READS AS that attribute's
+// value, whatever it is named (a chess piece's `color == "white"`, its
+// Color a single-field closed set; a `Money{amount}` its amount —
+// single-element value objects strictly answer `.value`). Rendered as
+// the sole attribute's own scalar for exactly that shape and `None`
+// for every other (multi-field structs, and a sole attribute that is
+// itself nested), the kernel's existing "refuse — nothing generated
+// does this" reading.
 fn tmpl_as_scalar_placeholder() -> Option<crate::kernel::Value> {
     None
 }

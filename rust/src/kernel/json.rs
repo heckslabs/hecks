@@ -89,12 +89,23 @@ impl super::Fielded for Json {
         )
     }
 
+    // Exactly ONE pair, whatever its key — the payload side of "a
+    // single-element value object strictly answers `.value`". A `Json`
+    // carries no declaration to consult (unlike a generated struct,
+    // whose `as_scalar` was rendered FROM the declared attribute list),
+    // so "one key" is the whole shape test here — relaxed from the old
+    // `pairs[0].0 != "value"` name gate in lockstep with the Ruby
+    // oracle's own `Resolver#unwrap_scalar` (which now reads a declared
+    // value's `sole_attribute` by COUNT, never by name) and the
+    // generated structs' own `as_scalar_expr`. A one-pair object whose
+    // value is itself nested still answers `None` — `field()` hands
+    // back `Field::Nested`, not a `Value`, exactly as before.
     fn as_scalar(&self) -> Option<super::Value> {
         let Json::Object(pairs) = self else { return None };
-        if pairs.len() != 1 || pairs[0].0 != "value" {
+        if pairs.len() != 1 {
             return None;
         }
-        match self.field("value") {
+        match self.field(&pairs[0].0) {
             Some(super::Field::Value(v)) => Some(v),
             _ => None,
         }

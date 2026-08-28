@@ -103,7 +103,7 @@ impl crate::kernel::Fielded for DailyLimit {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("cents") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
@@ -511,7 +511,7 @@ impl crate::kernel::Fielded for Narrative {
     }
 
     fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        None
+        match self.field("text") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
     }
 }
 
