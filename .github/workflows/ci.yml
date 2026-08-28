@@ -7,21 +7,73 @@ name: CI
 # check their own reachability and skip themselves silently otherwise,
 # which would mean this workflow "passing" without ever having run them.
 
-# TWO JOBS, RUN CONCURRENTLY (no `needs:` between them, so GitHub Actions
-# schedules both the moment the workflow starts). Split along the one
-# dependency edge that actually exists: `rspec`'s `io: true` specs
-# (rust_conformance_spec.rb, rust_host_lineage_conformance_spec.rb,
-# codegen_parity_spec.rb, parser_parity_spec.rb) build and run real Rust
-# against Postgres, so that job keeps the Postgres service and the Rust
-# build steps. Everything in `checks` — bin/fuzz, bin/model_check, every
-# bin/rust_coverage call, bin/rust_kernel_coverage — reads only Ruby, the
-# example domains' own IR, and already-committed rust/src/generated/
-# manifests; none of them shell out to cargo or touch Postgres (verified
-# by grepping each for cargo/postgres references — none found), so moving
-# them off the `rspec` job's critical path costs nothing. Locally this
-# split cut wall-clock from ~236s serial to ~187s (rspec-bound, since
-# `checks`'s own ~50s finishes underneath it); in Actions the saving is
-# usually bigger still since the two jobs get separate runners.
+# FIVE JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
+# GitHub Actions schedules all five the moment the workflow starts).
+# This used to be two jobs (`rspec`, `checks`) with `rspec` itself split
+# into a parallel_rspec step followed by a SERIAL "io + fuzzing" step
+# that ran ~110-135s of real Postgres/cargo work on the critical path,
+# after the parallel step had already finished — the two couldn't run
+# concurrently because they shared one checkout, and the io/fuzzing
+# specs do real, uncontrolled things to that checkout (cargo builds
+# writing into rust/, before(:context)/after(:context) backup-and-
+# restore of rust/src/generated and rust/Cargo.toml) that would race a
+# second worker touching the same files.
+#
+# The fix isn't more workers inside that one job, it's more checkouts:
+# `rspec`'s old serial step is now three separate jobs, split along the
+# dependency edges that actually exist in the `io: true`/`fuzzing: true`
+# spec set (each verified by grepping every file in the set for real
+# `cargo`/`make`/Postgres/subprocess use — see the file lists inside each
+# job below, not just its own header comment):
+#
+#   - `rspec_rust_io`  — the ~12 specs that do a real `cargo build`
+#     (Rust conformance, codegen/parser parity, numeric coercion, the
+#     rust_project generator specs, the deploy parity gate's functional
+#     half). Keeps the Rust build steps and — because
+#     rust_host_lineage_conformance_spec.rb mints against its own
+#     scratch Postgres database — the Postgres service too.
+#   - `rspec_postgres_io` — every other `io: true` spec: the Postgres
+#     adapter suite, the tenant/deploy specs that do real filesystem I/O
+#     (Makefile generation, `make` runs that are expected to refuse or
+#     no-op) and the handful of specs wired to the shared
+#     `hecks_pizzas` database. No Rust toolchain involved anywhere in
+#     this set, so no cargo build steps here. THIS JOB IS THE DEFAULT:
+#     a newly-added `io: true` spec lands here automatically unless it's
+#     also added to `rspec_rust_io`'s explicit list AND excluded here
+#     (see the comment on its `--exclude-pattern` below) — so the
+#     failure mode of forgetting to update both is "runs twice, one
+#     complains about no cargo," not "silently never runs."
+#   - `rspec_fuzzing` — `spec/fuzzing/**`, tagged by path
+#     (`define_derived_metadata`, spec/spec_helper.rb). Not `io: true`
+#     itself — no subprocess, no network, all in-memory — just several
+#     seeds of live-generated-history replay, worth its own runner
+#     because it noticeably outweighs an average `~io ~fuzzing` example
+#     (spec_helper.rb's own comment: ~8s for properties_spec.rb's two
+#     passes alone, against a suite that's otherwise ~50ms/example).
+#
+# Each of these repeats the checkout/Ruby-setup cost the old serial step
+# only paid once — real, but small next to running on three separate
+# runners instead of one queue. `rspec_rust_io` additionally caches
+# `~/.cargo` and every `rust/**/target`, since nothing in this workflow
+# cached either before: a cold `cargo test --lib` alone measured ~4
+# minutes locally this session, paid fresh on every single run.
+#
+# `rspec` ITSELF STILL KEEPS THE POSTGRES SERVICE — confirmed live, not
+# assumed: spec/diagrams_spec.rb, spec/storehouse_spec.rb, and the
+# committed-OIDC-manifest spec all boot the full examples/pizzas domain
+# for real, which wires real PostgresEra at boot, and none of the three
+# is tagged `io: true`. A first version of this split dropped the
+# service on the (wrong) assumption that only `io: true` specs ever
+# touch real Postgres; that broke `rspec` with 21 `PG::ConnectionBad`
+# failures the first time it actually ran. See the job's own comment
+# below.
+#
+# No wall-clock numbers for the new split below — unlike the old
+# `rspec`-internal split (measured locally, see the parallel step's own
+# comment), this one only shows its real timing once it's actually run
+# on Actions' own runners; the shape of the win (independent checkouts,
+# nothing left serialized after something that already finished) is
+# what's asserted here, not a specific number.
 
 on:
   push:
@@ -32,6 +84,20 @@ jobs:
   rspec:
     runs-on: ubuntu-latest
 
+    # STILL NEEDED HERE, even though every `cargo build` and every
+    # deliberately-real-I/O spec moved to `rspec_postgres_io`/
+    # `rspec_rust_io` below: spec/diagrams_spec.rb, spec/storehouse_spec.rb,
+    # and the committed-OIDC-manifest spec all boot the FULL
+    # examples/pizzas domain for real (`Hecks.boot`/`Storehouse.validate`),
+    # which wires real PostgresEra at boot time regardless of what the
+    # spec itself is actually testing — none of the three is tagged
+    # `io: true` (arguably a gap in that convention, not addressed here),
+    # so removing this service on the assumption that only `io: true`
+    # specs touch real Postgres broke this job the first time it ran
+    # without one (18+2+1 failures, all `PG::ConnectionBad`). Confirmed
+    # live before settling here: no other failure in that run was
+    # Rust-build-related, so the Rust build steps below (moved to
+    # `rspec_rust_io`) really were safe to drop from this job.
     services:
       postgres:
         image: postgres:16
@@ -39,12 +105,6 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-          # spec/adapters/driven/postgres/lineage_spec.rb creates its own
-          # unprivileged roles at runtime (`CREATE ROLE ... LOGIN`, no
-          # password — it's testing GRANTs, not credentials) and connects
-          # as them; the official image's default password auth would
-          # refuse every one of those logins since none has a password to
-          # check. trust is scoped to this ephemeral service container.
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
@@ -67,118 +127,24 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
-      # examples/pizzas/bluebook/pizzas.world wires straight at this
-      # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
-      # and the schema-evolution guide's own live example all boot it.
-      # Nothing creates it on demand (unlike the adapter specs' own
-      # scratch databases, which manage their own lifecycle); a fresh
-      # Postgres needs it provisioned once, up front.
+      # See the job-level comment above: this job's own specs (not just
+      # `io: true` ones moved elsewhere) boot examples/pizzas for real.
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
-      # bin/rust_conformance's `native` mode (0012/0013) — regenerated
-      # from the CURRENT generator, not just the checked-in rust/src/
-      # generated/ snapshot (which could silently drift from it), then
-      # built, so spec/rust_conformance_spec.rb below has a binary to run
-      # against rather than skipping itself the way it would locally
-      # without one — the same "provision it for real, don't skip"
-      # discipline this workflow already holds Postgres/SQLite to.
-      # ubuntu-latest ships a Rust toolchain already; no separate setup
-      # action needed for the native build below. The wasm32-wasip1
-      # TARGET is a different story — spec/project_deploy_parity_gate_spec.rb
-      # (Phase 8, the equivalence-gap plan) shells out to bin/project_wasm,
-      # which cross-compiles for it, and ubuntu-latest's default rustup
-      # install has no target but the host's own.
-      #
-      # TWO toolchains, not one — bin/project_wasm's own "is it
-      # installed" check (`rustup target list --installed`, bare) runs
-      # from the repo root and so resolves through rust-toolchain.toml
-      # (channel 1.98.0); its actual build line is `rustup run stable
-      # cargo build ...` (its own comment: a deliberate Homebrew-PATH
-      # workaround, predating rust-toolchain.toml) — a DIFFERENT
-      # toolchain. Installing the target on only one leaves the other
-      # either failing the check (1.98.0 missing it) or failing the
-      # real build with E0463 "can't find crate for `std`" (stable
-      # missing it) despite the check having passed. Found live
-      # shipping this very fix — a `--toolchain stable`-only version of
-      # this step still failed the same way #416 originally did, one
-      # layer deeper.
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      # The runtime half of the same gap — a compiled .wasm is only
-      # useful with a WASI-preview1 host to run it under, and
-      # bin/rust_conformance's own `.wasm` branch shells out to
-      # `wasmtime run` (docs/decisions/0012-wasm-via-wasi-stdio.md).
-      # ubuntu-latest carries neither the CLI nor a package for it —
-      # confirmed live: the wasm32 target fix alone got bin/project_wasm
-      # producing a real .wasm, then bin/rust_conformance failed one
-      # step later with plain ENOENT on `wasmtime`. Pinned to the SAME
-      # 47.0.3 rust/host/Cargo.toml already depends on (as a library,
-      # separately) — not because the CLI and the embedding API need to
-      # match, but because a CI failure from those two silently
-      # drifting is exactly the kind of thing worth not inventing here.
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
-
-      # `bundle exec` matters here even though bin/project_rust never
-      # touches Bundler itself: run bare, `require "json"` resolves
-      # against whatever `json` gem is highest on the default load path
-      # (ruby/setup-ruby's bundled default, not Gemfile.lock's pinned
-      # 2.7.2) rather than the locked one — harmless to THIS build (its
-      # output feeds `cargo build`, and nothing byte-compares the ir.json/
-      # metadata.rs it writes against git), but confirmed live to reformat
-      # empty-array pretty-printing differently across `json` versions —
-      # `[]` vs `[\n\n]` — which reads as a 900+ line "drift" against the
-      # committed fixtures if anyone naively regenerates+diffs the same
-      # way this step does. `bundle exec` pins it to Gemfile.lock's
-      # version, matching what actually produced the committed files.
-      - name: Build the Rust conformance binary
-        run: |
-          bundle exec bin/project_rust examples/banking
-          cd rust && cargo build --release
-
-      # rust/src/exemplar/** — real Rust the codegen in rust/project/*.rb
-      # slices shapes out of, proven valid/idiomatic here BEFORE any Ruby
-      # runs. `#[cfg(test)] pub mod exemplar;` (rust/src/lib.rs) means
-      # plain `mod` inclusion under `cargo test` type-checks the whole
-      # tree; no #[test] fn is required for that to catch a broken shape.
-      - name: Build the exemplar module
-        run: cd rust && cargo test --lib
-
-      # The whole suite, SPLIT IN TWO the same way .githooks/pre-push
-      # already splits it locally — not by tag content, by SAFETY under
-      # concurrency. `io: true` and `fuzzing: true` specs do real,
-      # uncontrolled things against this ONE checkout: cargo builds
-      # writing into the shared rust/ tree, and — for
-      # spec/project_rust_pipeline_spec.rb and friends — a
-      # before(:context)/after(:context) backup-and-restore of
-      # rust/src/generated and rust/Cargo.toml itself. Running those
-      # under parallel_rspec's multiple worker processes would race two
-      # workers over the same files; running everything else serially
-      # would waste the runner's other cores for no reason. So: the
-      # `~io ~fuzzing` majority runs under parallel_rspec (auto-detects
-      # this runner's core count), then the two tagged categories run
-      # single-process, exactly like the pre-push hook already treats
-      # them. `--tag io --tag fuzzing` on its own (no CI=true reliance)
-      # is what makes the second step run them regardless of environment
-      # — spec_helper.rb's config-level exclusion only fires `unless
-      # ENV["CI"]`, but an explicit `--tag` inclusion always wins over
-      # it either way. Measured locally: the parallel step alone cut
-      # ~172s to ~15s for its 1738 examples; the serial step's 309
-      # examples (real Postgres + cargo work) still take ~118s — ~133s
-      # combined, down from ~165-172s serial-only.
+      # Every `io: true`/`fuzzing: true` spec that does a real `cargo
+      # build` — the only kind of real I/O this job no longer provisions
+      # for — now runs in `rspec_rust_io` instead (including its own
+      # wasm32-wasip1/wasmtime setup, main's #416); the Postgres-only
+      # `io: true` specs are in `rspec_postgres_io`. Both moves are safe
+      # by spec_helper.rb's own convention (`config.filter_run_excluding
+      # io: true unless ENV["CI"]` means an `io: true` spec that secretly
+      # needed something only `rspec` still had wouldn't be broken by
+      # this — it would already be broken for every contributor running
+      # a plain local `bundle exec rspec`, since none of them provision a
+      # local Postgres or build Rust either).
       - name: "rspec: parallel (everything safe to run concurrently)"
         run: bundle exec parallel_rspec spec -o "--tag ~io --tag ~fuzzing"
-
-      - name: "rspec: io + fuzzing (serial — real I/O, shared-file mutation)"
-        run: bundle exec rspec --tag io --tag fuzzing
 
   checks:
     runs-on: ubuntu-latest
@@ -248,8 +214,8 @@ jobs:
       - name: lint generated deploy recipes
         run: bundle exec bin/lint_deploy_recipes
 
-      # THE COVERAGE CHECKER, PER DOMAIN — a different question than the
-      # `rspec` job's "Build the Rust conformance binary" and "rspec"
+      # THE COVERAGE CHECKER, PER DOMAIN — a different question than
+      # `rspec_rust_io`'s "Build the Rust conformance binary" and rspec
       # steps ask. Those check "did Ruby and Rust agree on this script";
       # this checks "did bin/project_rust generate SOMETHING for every
       # construct this domain's own IR declares, at all" — a gap class
@@ -304,13 +270,14 @@ jobs:
       # THE KERNEL HALF of the same guarantee. bin/project_kernel_
       # capabilities' own enums (AttributeShape/OperatorCategory) already
       # make an exhaustive match over them a compile error the moment the
-      # grammar admits a new capability — enforced for free by the `rspec`
-      # job's "Build the exemplar module" step, since kernel code isn't
-      # behind a domain feature flag (and that step running in a different
-      # job doesn't weaken this one — both jobs must pass). What THIS step
-      # catches is the other half: a capability whose enum variant compiles
-      # clean but has no rust/src/kernel/<category>/<name>.rs file behind
-      # it at all — see bin/rust_kernel_coverage's own header.
+      # grammar admits a new capability — enforced for free by the
+      # `rspec_rust_io` job's "Build the exemplar module" step, since
+      # kernel code isn't behind a domain feature flag (and that step
+      # running in a different job doesn't weaken this one — every job in
+      # this workflow must pass). What THIS step catches is the other
+      # half: a capability whose enum variant compiles clean but has no
+      # rust/src/kernel/<category>/<name>.rs file behind it at all — see
+      # bin/rust_kernel_coverage's own header.
       - name: rust kernel coverage
         run: bundle exec bin/rust_kernel_coverage
 
@@ -337,19 +304,298 @@ jobs:
       - name: rubocop
         run: bundle exec rubocop -c .rubocop.yml
 
-  # A THIRD JOB, gated rather than run on every push/PR the way `rspec`/
-  # `checks` are — bin/stress_concurrency_specs's own trailing __END__
-  # doc block is explicit about why: repeating dispatcher_spec.rb/
-  # in_process_concurrent_dispatch_spec.rb/postgres_concurrent_dispatch_
-  # spec.rb 30 times each (its own default), under varied seeds and real
-  # process-level parallelism, exists to catch a race a SINGLE ordinary
-  # run can miss (the M20 shape: a schedule-dependent bug that passes
-  # every time on a quiet box and fails only under genuine contention) —
-  # but that repetition is exactly what makes it meaningfully more
-  # expensive per-run than the rest of this suite, so its own doc
-  # recommends gating it to PRs that can actually regress this class of
-  # bug rather than taxing every unrelated one: changes touching
-  # `lib/hecks/runtime/**`.
+  rspec_postgres_io:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          # spec/adapters/driven/postgres/lineage_spec.rb creates its own
+          # unprivileged roles at runtime (`CREATE ROLE ... LOGIN`, no
+          # password — it's testing GRANTs, not credentials) and connects
+          # as them; the official image's default password auth would
+          # refuse every one of those logins since none has a password to
+          # check. trust is scoped to this ephemeral service container.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # examples/pizzas/bluebook/pizzas.world wires straight at this
+      # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
+      # and the schema-evolution guide's own live example all boot it.
+      # Nothing creates it on demand (unlike the adapter specs' own
+      # scratch databases, which manage their own lifecycle); a fresh
+      # Postgres needs it provisioned once, up front. (The 12 specs that
+      # run in `rspec_rust_io` instead don't reference this database by
+      # name — verified by grep — so that job doesn't need this step.)
+      - name: Create the pizzas example's database
+        run: createdb -h localhost -U postgres hecks_pizzas
+
+      # THE REST OF THE `io: true` SUITE — every real-Postgres and
+      # real-filesystem-I/O spec except the ~12 that also need a Rust
+      # toolchain (those run in `rspec_rust_io`, listed there). No
+      # `parallel_rspec` here for the same reason the old serial step
+      # avoided it: a handful of these specs do
+      # before(:context)/after(:context) backup-and-restore of shared
+      # fixture state, which a second worker in THIS SAME checkout could
+      # race — moving the Rust-building specs to their own checkout
+      # doesn't change that within this one.
+      #
+      # `--exclude-pattern` is the maintenance edge of this split: a new
+      # `io: true` spec added anywhere else in `spec/` runs here
+      # automatically (this job has no explicit include list, unlike
+      # `rspec_rust_io`), UNLESS it also needs a real `cargo build` — in
+      # which case it needs adding to `rspec_rust_io`'s explicit file
+      # list below AND to this exclude list, or it will run in both
+      # places and fail here for lack of a Rust toolchain step. That
+      # failure is loud (a spec error, not a skip), so drift here surfaces
+      # itself rather than hiding silently.
+      - name: "rspec: postgres + deploy/tenant I/O (serial — shared-file mutation)"
+        run: |
+          bundle exec rspec --tag io --tag ~fuzzing --exclude-pattern \
+            "spec/project_rust_pipeline_spec.rb,\
+          spec/parser_parity_spec.rb,\
+          spec/project_deploy_parity_gate_spec.rb,\
+          spec/hecks_build_pipeline_spec.rb,\
+          spec/rust_conformance_spec.rb,\
+          spec/rust_conformance_fuzz_spec.rb,\
+          spec/codegen_parity_spec.rb,\
+          spec/rust_numeric_coercion_spec.rb,\
+          spec/rust_host_lineage_conformance_spec.rb,\
+          spec/parser_coverage_spec.rb,\
+          spec/rust_project/domain_feature_exclusivity_spec.rb,\
+          spec/rust_project/naming_landmines_spec.rb"
+
+  rspec_rust_io:
+    runs-on: ubuntu-latest
+
+    # rust_host_lineage_conformance_spec.rb mints across a real era
+    # boundary against its own scratch database
+    # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
+    # spec itself — it never touches the shared `hecks_pizzas` database,
+    # so this job skips that provisioning step) — the only one of these
+    # 12 specs that needs Postgres at all, but that's enough to keep the
+    # service on this job.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # Nothing in this workflow cached either of these before this job
+      # existed — every run paid a fully cold `cargo build`/`cargo test`
+      # from scratch (measured locally this session: ~4 minutes for a
+      # cold `cargo test --lib` alone). Keyed on every Cargo.lock under
+      # rust/ (the root crate plus host/web/lsp/parser/codegen/build each
+      # have their own), so a dependency bump anywhere invalidates the
+      # cache rather than silently building against stale crates;
+      # restore-keys falls back to the most recent same-OS cache when the
+      # exact lockfile hash misses, so a lockfile change still reuses
+      # already-fetched registry contents instead of re-downloading them.
+      - name: Cache Rust build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+            rust/host/target
+            rust/web/target
+            rust/lsp/target
+            rust/parser/target
+            rust/codegen/target
+            rust/build/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # bin/rust_conformance's `native` mode (0012/0013) — regenerated
+      # from the CURRENT generator, not just the checked-in rust/src/
+      # generated/ snapshot (which could silently drift from it), then
+      # built, so spec/rust_conformance_spec.rb below has a binary to run
+      # against rather than skipping itself the way it would locally
+      # without one — the same "provision it for real, don't skip"
+      # discipline this workflow already holds Postgres/SQLite to.
+      # ubuntu-latest ships a Rust toolchain already; no separate setup
+      # action needed for the native build below. The wasm32-wasip1
+      # TARGET is a different story — spec/project_deploy_parity_gate_spec.rb
+      # (Phase 8, the equivalence-gap plan) shells out to bin/project_wasm,
+      # which cross-compiles for it, and ubuntu-latest's default rustup
+      # install has no target but the host's own.
+      #
+      # TWO toolchains, not one — bin/project_wasm's own "is it
+      # installed" check (`rustup target list --installed`, bare) runs
+      # from the repo root and so resolves through rust-toolchain.toml
+      # (channel 1.98.0); its actual build line is `rustup run stable
+      # cargo build ...` (its own comment: a deliberate Homebrew-PATH
+      # workaround, predating rust-toolchain.toml) — a DIFFERENT
+      # toolchain. Installing the target on only one leaves the other
+      # either failing the check (1.98.0 missing it) or failing the
+      # real build with E0463 "can't find crate for `std`" (stable
+      # missing it) despite the check having passed. Found live
+      # shipping this very fix (main's own #416) — a `--toolchain
+      # stable`-only version of this step still failed the same way
+      # #416 originally did, one layer deeper.
+      - name: Install the wasm32-wasip1 target
+        run: |
+          rustup target add wasm32-wasip1 --toolchain stable
+          rustup target add wasm32-wasip1
+
+      # The runtime half of the same gap — a compiled .wasm is only
+      # useful with a WASI-preview1 host to run it under, and
+      # bin/rust_conformance's own `.wasm` branch shells out to
+      # `wasmtime run` (docs/decisions/0012-wasm-via-wasi-stdio.md).
+      # ubuntu-latest carries neither the CLI nor a package for it —
+      # confirmed live: the wasm32 target fix alone got bin/project_wasm
+      # producing a real .wasm, then bin/rust_conformance failed one
+      # step later with plain ENOENT on `wasmtime`. Pinned to the SAME
+      # 47.0.3 rust/host/Cargo.toml already depends on (as a library,
+      # separately) — not because the CLI and the embedding API need to
+      # match, but because a CI failure from those two silently
+      # drifting is exactly the kind of thing worth not inventing here.
+      - name: Install wasmtime
+        run: |
+          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
+            | tar xJ -C /tmp
+          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+          wasmtime --version
+
+      # `bundle exec` matters here even though bin/project_rust never
+      # touches Bundler itself: run bare, `require "json"` resolves
+      # against whatever `json` gem is highest on the default load path
+      # (ruby/setup-ruby's bundled default, not Gemfile.lock's pinned
+      # 2.7.2) rather than the locked one — harmless to THIS build (its
+      # output feeds `cargo build`, and nothing byte-compares the ir.json/
+      # metadata.rs it writes against git), but confirmed live to reformat
+      # empty-array pretty-printing differently across `json` versions —
+      # `[]` vs `[\n\n]` — which reads as a 900+ line "drift" against the
+      # committed fixtures if anyone naively regenerates+diffs the same
+      # way this step does. `bundle exec` pins it to Gemfile.lock's
+      # version, matching what actually produced the committed files.
+      - name: Build the Rust conformance binary
+        run: |
+          bundle exec bin/project_rust examples/banking
+          cd rust && cargo build --release
+
+      # rust/src/exemplar/** — real Rust the codegen in rust/project/*.rb
+      # slices shapes out of, proven valid/idiomatic here BEFORE any Ruby
+      # runs. `#[cfg(test)] pub mod exemplar;` (rust/src/lib.rs) means
+      # plain `mod` inclusion under `cargo test` type-checks the whole
+      # tree; no #[test] fn is required for that to catch a broken shape.
+      - name: Build the exemplar module
+        run: cd rust && cargo test --lib
+
+      # THE ~12 `io: true` SPECS THAT DO A REAL `cargo build` — verified
+      # by grepping every `io: true`/`fuzzing: true` spec file for actual
+      # `cargo`/`make`/subprocess invocations, not just by name (several
+      # `project_deploy_*` specs LOOK Rust-adjacent but only generate and
+      # text-inspect a Makefile, no real build — those stay in
+      # `rspec_postgres_io`). Listed explicitly rather than by directory:
+      # spec/rust_project/ also holds several fast, non-`io` specs that
+      # already run under `rspec`'s parallel step, so a directory glob
+      # here would double-run them. Single-process, matching the shared-
+      # file-mutation discipline the old serial step already used — cargo
+      # builds writing into this checkout's own rust/ tree would race a
+      # second worker doing the same.
+      - name: "rspec: Rust conformance + codegen/parser parity (serial — shared-file mutation)"
+        run: |
+          bundle exec rspec --tag io \
+            spec/project_rust_pipeline_spec.rb \
+            spec/parser_parity_spec.rb \
+            spec/project_deploy_parity_gate_spec.rb \
+            spec/hecks_build_pipeline_spec.rb \
+            spec/rust_conformance_spec.rb \
+            spec/rust_conformance_fuzz_spec.rb \
+            spec/codegen_parity_spec.rb \
+            spec/rust_numeric_coercion_spec.rb \
+            spec/rust_host_lineage_conformance_spec.rb \
+            spec/parser_coverage_spec.rb \
+            spec/rust_project/domain_feature_exclusivity_spec.rb \
+            spec/rust_project/naming_landmines_spec.rb
+
+  rspec_fuzzing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # `spec/fuzzing/**`, tagged by PATH not by hand
+      # (`config.define_derived_metadata(file_path: %r{/spec/fuzzing/})`,
+      # spec/spec_helper.rb) — no subprocess, no network, all in-memory,
+      # so unlike the other two `rspec_*_io` jobs this one needs no
+      # service and no Rust toolchain. Slow for a different reason: a
+      # live-generated-history replay against a real domain, dispatched
+      # for real, several seeds deep (spec_helper.rb's own comment: ~8s
+      # for properties_spec.rb's "standard battery" + determinism check
+      # alone, against a suite that's otherwise ~50ms/example) — enough
+      # to be worth its own runner rather than sharing one with either
+      # Postgres or cargo work it doesn't need.
+      - name: "rspec: fuzzing (property replay)"
+        run: bundle exec rspec spec/fuzzing --tag fuzzing
+
+  # A FOURTH JOB, gated rather than run on every push/PR the way the
+  # `rspec*`/`checks` jobs above are — bin/stress_concurrency_specs's own
+  # trailing __END__ doc block is explicit about why: repeating
+  # dispatcher_spec.rb/in_process_concurrent_dispatch_spec.rb/postgres_
+  # concurrent_dispatch_spec.rb 30 times each (its own default), under
+  # varied seeds and real process-level parallelism, exists to catch a
+  # race a SINGLE ordinary run can miss (the M20 shape: a
+  # schedule-dependent bug that passes every time on a quiet box and
+  # fails only under genuine contention) — but that repetition is exactly
+  # what makes it meaningfully more expensive per-run than the rest of
+  # this suite, so its own doc recommends gating it to PRs that can
+  # actually regress this class of bug rather than taxing every unrelated
+  # one: changes touching `lib/hecks/runtime/**`.
   #
   # SPLIT INTO TWO JOBS rather than one job with a conditional step,
   # specifically so an unrelated PR skips paying for the job below's own
@@ -399,8 +645,8 @@ jobs:
     runs-on: ubuntu-latest
 
     # Real Postgres, same discipline this workflow's own top comment
-    # already holds the `rspec` job to — SERIAL_ONLY_SPEC_FILES in
-    # bin/stress_concurrency_specs is
+    # already holds the `rspec_postgres_io`/`rspec_rust_io` jobs to —
+    # SERIAL_ONLY_SPEC_FILES in bin/stress_concurrency_specs is
     # spec/adapters/driven/postgres_concurrent_dispatch_spec.rb alone,
     # and that spec skips itself cleanly (PostgresProbe.available?) with
     # no reachable Postgres, which here would mean this whole job
@@ -414,8 +660,8 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-          # See the `rspec` job's own identical setting above for why
-          # trust is safe here: scoped to this ephemeral service
+          # See the `rspec_postgres_io` job's own identical setting above
+          # for why trust is safe here: scoped to this ephemeral service
           # container, and spec/adapters/driven/postgres_concurrent_
           # dispatch_spec.rb connects as the plain `postgres` superuser
           # anyway (it creates and drops its own scratch database, not a
