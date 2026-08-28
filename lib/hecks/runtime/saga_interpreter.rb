@@ -4,6 +4,7 @@ require_relative "../bluebook/process_manager"
 require_relative "errors"
 require_relative "reaction_invocation"
 require_relative "value"
+require_relative "saga_pending_dispatch"
 
 module Hecks
   module Runtime
@@ -53,10 +54,21 @@ module Hecks
       # `unwind` go on to mutate in place; round-tripping through JSON
       # is also what guarantees the value is safe for every adapter that
       # itself calls `JSON.generate` on it.
-      def checkpoint(pm, correlation, instance, domain)
+      # `pending:` — see saga_pending_dispatch.rb. Injected into the
+      # WRITTEN copy of memory only, never into `instance[:memory]`
+      # itself: every other reader of a live instance's memory
+      # (`dispatch_args`'s "opening event memory" scope, the fuzzer's
+      # own round-trip/shape checks, `saga_spec.rb`'s exact-equality
+      # assertion against a fresh instance's seeded memory) sees exactly
+      # what it always did. The marker exists ONLY in the persisted
+      # blob, and only for as long as a dispatch cascade is genuinely
+      # in flight for this instance.
+      def checkpoint(pm, correlation, instance, domain, pending: nil)
+        memory = deep_copy(instance[:memory])
+        memory[SAGA_PENDING_DISPATCH_KEY] = pending if pending
         @registry.saga_persistence(domain).save_saga(
           process_manager: pm.name, correlation: correlation,
-          state: instance[:state], memory: deep_copy(instance[:memory])
+          state: instance[:state], memory: memory
         )
       end
 
@@ -134,11 +146,26 @@ module Hecks
 
           pre_state = instance[:state]
           instance[:state] = handler.to_state
-          checkpoint(pm, correlation, instance, domain)
+          checkpoint(pm, correlation, instance, domain,
+                     pending: pending_marker(event, handler, pre_state, instance[:state]))
           true
         end
         return unless advanced
 
+        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
+      end
+
+      def pending_marker(event, handler, from_state, to_state)
+        { on: event.name, from: from_state, to: to_state, dispatches: handler.dispatches.map(&:command_name) }
+      end
+
+      # THE SHARED TAIL of `advance_saga` and `unwind` — both are "guard,
+      # mutate, checkpoint-with-pending" under the mutex (kept separate
+      # per caller: `advance_saga`'s own guard also has to handle "no
+      # instance at all", `unwind`'s doesn't), then this: log the real
+      # observed transition, run the leg's dispatches, and clear the
+      # pending marker once that cascade — however it ended — is done.
+      def settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
         # `from:`/`to:` are the INSTANCE'S OWN real pre/post state — read
         # back from `instance` itself, never re-derived from `handler.
         # from_state`/`handler.to_state` a second time. `Properties.saga_
@@ -157,6 +184,29 @@ module Hecks
 
         handler.dispatches.each do |spec|
           deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
+        end
+
+        # THE CLEAR — guarded by the SAME identity check `end_saga`'s own
+        # `.delete` return value implies: `deliver_saga_dispatch`'s
+        # `@door.reenter` can synchronously trigger this SAME correlation's
+        # `ends_on` event as a nested reaction (a leg's own dispatch is
+        # what makes the saga's terminal event fire), which deletes this
+        # row from the store before this line ever runs. Writing the
+        # clear unconditionally would RESURRECT a legitimately-ended saga
+        # — this diff's own first attempt did exactly that, caught by
+        # `saga_durability_spec.rb`'s "deletes the checkpoint once a saga
+        # genuinely ends" — so this only re-checkpoints when `instance`
+        # is still THE SAME object `@saga_instances` holds for this
+        # correlation (`.equal?`, not `==`: a fresh saga reborn under the
+        # same correlation between then and now is a DIFFERENT instance,
+        # and writing this stale one's state onto that one's row would be
+        # its own corruption). Under the mutex — dispatching is over by
+        # now, so this is not the reentrancy hazard `advance_saga`'s own
+        # comment warns about.
+        @registry.saga_mutex.synchronize do
+          next unless @registry.saga_instances[pm.name][correlation].equal?(instance)
+
+          checkpoint(pm, correlation, instance, domain, pending: nil)
         end
       end
 
@@ -288,20 +338,17 @@ module Hecks
 
           pre_state = instance[:state]
           instance[:state] = handler.to_state
-          checkpoint(pm, correlation, instance, domain)
+          checkpoint(pm, correlation, instance, domain,
+                     pending: pending_marker(event, handler, pre_state, instance[:state]))
           true
         end
         return unless advanced
 
-        # See `advance_saga`'s own comment on `pre_state`/`instance[:state]`
-        # — the real observed transition, not a second read of the SAME
-        # handler object `Properties.saga_advances_follow_declared_handlers`
-        # checks this log against.
-        @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
-
-        handler.dispatches.each do |spec|
-          deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
-        end
+        # See `settle_transition`'s own comment on `pre_state`/
+        # `instance[:state]` — the real observed transition, not a
+        # second read of the SAME handler object `Properties.saga_
+        # advances_follow_declared_handlers` checks this log against.
+        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
       end
 
       def dispatch_args(pm, spec, event, instance, correlation)

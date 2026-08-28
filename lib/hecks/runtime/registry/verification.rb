@@ -42,6 +42,8 @@ module Hecks
 
               repository(hexagon.domain, aggregate)
             end
+
+            warn_undurable_sagas!(hexagon)
           end
           self
         end
@@ -151,6 +153,41 @@ module Hecks
         # itself needs at dispatch time, just walked ahead of time here.
         def commands_in(bluebook_ir)
           bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
+        end
+
+        # A domain that declares a `process_manager` but whose
+        # `saga_persistence` resolves to `NULL_SAGA_STORE` (no anchor
+        # aggregate, a RemoteRuntime-shaped adapter, an adapter that
+        # doesn't `respond_to?(:save_saga)`, or a rescued WiringError —
+        # see `SagaPersistence#resolve_saga_persistence`) gets sagas that
+        # advance correctly in-process and vanish on restart: no
+        # checkpoint written, nothing for `rehydrate_sagas!` to find, no
+        # compensation ever replayed. That is silent right up until the
+        # process actually dies mid-saga — the same "consistency/
+        # freshness defect applied to access control, failing open" ADR
+        # 0025 named for an unchecked `role`, here applied to saga
+        # durability instead.
+        #
+        # A WARNING, NOT A REFUSAL — unlike `refuse_ungoverned_roles!`,
+        # running sagas on a store with no `save_saga` is legitimate on
+        # purpose in a fast in-memory test/dev boot (this project's own
+        # `saga_durability_spec.rb` boots a process manager on `Memory`
+        # specifically to exercise the saga_mutex without real I/O), so
+        # refusing the boot outright would break a choice an author made
+        # deliberately. What a deploy needs is for the gap to be loud and
+        # undeniable, not for local dev/test to become impossible.
+        def warn_undurable_sagas!(hexagon)
+          bluebook_ir = bluebook(hexagon.domain)
+          return unless bluebook_ir
+          return if bluebook_ir.process_managers.empty?
+          return unless saga_persistence(hexagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
+
+          names = bluebook_ir.process_managers.map(&:name).join(", ")
+          warn "[hecks] #{hexagon.domain} declares process_manager(s) #{names} but its resolved " \
+               "persistence adapter has no save_saga — saga state advances correctly in-process " \
+               "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
+               "Bind this domain to an adapter that implements save_saga if this process_manager " \
+               "must survive a crash."
         end
       end
     end

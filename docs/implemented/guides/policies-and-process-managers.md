@@ -470,6 +470,29 @@ reversal was written and never armed. `:refused` is a refusal, not an
 event any command emits, which is why the leg answers it by name rather
 than by an `on` string nothing announces.
 
+**"Nobody had to notice" is a claim about a *refusal*, not about a
+crash.** Everything above happens inside one dispatch, one process,
+with nothing killed in between — `Account.Credit` declines, and
+`unwind` runs in the same call stack that asked for the credit. A
+process that dies partway through a leg is a different case: the
+saga's checkpoint commits the new state before that leg's own dispatch
+runs (the mutex guarding the checkpoint can't be held across a
+dispatch that might re-enter it), so a crash in that window leaves a
+state on record with no proof its leg ever ran. hecks does not silently
+lose this the way it would from a plain in-memory saga store: booting
+against the same durable adapter again surfaces it — a loud
+`[hecks] ... rehydrated ... with a dispatch left pending ...` warning
+and a `rehydrated_stalled: true` entry in `runtime.sagas` — but it does
+NOT auto-redrive the pending leg. Redelivering a dispatch whose outcome
+is genuinely unknown is only safe with idempotent delivery (the
+downstream command recognizing and no-op'ing a duplicate), which
+hecks's command pipeline doesn't have yet; blindly retrying without it
+risks a double-credited transfer, a strictly worse defect than the
+stall it would replace. So a crash mid-leg, unlike a refusal, still
+needs a human to look at the warning and reconcile the instance by
+hand — an honest gap, tracked as the durable outbox in
+`future-features.md`, not a solved one.
+
 ## When there is nothing to compensate
 
 `Settlement` compensates because a transfer stopped halfway is money

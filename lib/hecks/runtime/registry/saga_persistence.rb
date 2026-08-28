@@ -1,3 +1,5 @@
+require_relative "../saga_pending_dispatch"
+
 module Hecks
   module Runtime
     class Registry
@@ -66,13 +68,53 @@ module Hecks
         def rehydrate_sagas!
           @hecksagons.each_key do |domain|
             saga_persistence(domain).each_saga do |process_manager, correlation, state, memory|
+              pending = memory.delete(SAGA_PENDING_DISPATCH_KEY)
               @saga_instances[process_manager][correlation] = { state: state, memory: memory }
+              warn_stalled_saga(domain, process_manager, correlation, state, pending) if pending
             end
           end
           self
         end
 
         private
+
+        # THE OTHER HALF OF THE OUTBOX-SHAPED FIX (see saga_pending_
+        # dispatch.rb) — `SAGA_PENDING_DISPATCH_KEY`, if the crashed
+        # process left it standing, means the row's own `state` was
+        # checkpointed but the dispatch cascade that justifies it may
+        # never have run. Stripped out of `memory` before it becomes
+        # this instance's LIVE `:memory` (so nothing downstream — a
+        # `given`, a `with:` mapping, the fuzzer — ever sees it), and
+        # surfaced loudly instead: a WARNING plus a `saga_log` entry,
+        # never an automatic redrive (see saga_pending_dispatch.rb for
+        # why redriving without idempotent delivery would be worse than
+        # the stall). This is real, durable crash-recovery VISIBILITY —
+        # still not the reconciliation itself, which stays a human's
+        # call until hecks has idempotent redelivery to make it safe.
+        # rubocop:disable-next Hecks/ThreadSharedIvarMutation -- same
+        # justification as `rehydrate_sagas!`'s own disable comment
+        # above: this method's ONLY caller is that boot-time-only walk,
+        # never live dispatch, so `@saga_log` has no concurrent writer
+        # to race here.
+        def warn_stalled_saga(domain, process_manager, correlation, state, pending)
+          # `.transform_keys(&:to_sym)` — Heki's own `each_saga` only
+          # symbolizes `memory`'s TOP-level keys (`SagaStore#each_saga`'s
+          # own `transform_keys`, one level deep); a value NESTED under
+          # one of those keys, like this marker, comes back with plain
+          # string keys from Heki specifically, symbol keys already from
+          # Postgres/SQLite/D1's own `symbolize_names: true` parse. Normalizing
+          # here, once, is simpler than teaching every adapter's own
+          # shallow/deep parsing convention about this one reserved key.
+          pending    = pending.transform_keys(&:to_sym)
+          dispatches = Array(pending[:dispatches]).join(", ")
+          warn "[hecks] #{domain} rehydrated #{process_manager} instance #{correlation.inspect} in state " \
+               "#{state.inspect} with a dispatch left pending from before the last crash/restart — " \
+               "#{dispatches} (on #{pending[:on].inspect}, #{pending[:from].inspect} -> #{pending[:to].inspect}) " \
+               "may or may not have actually run. hecks does not auto-redrive a pending saga dispatch (that " \
+               "needs idempotent delivery, which this pipeline doesn't have yet); reconcile this instance by hand."
+          @saga_log << { process_manager: process_manager, instance: correlation, rehydrated_stalled: true,
+                         state: state, pending: pending }
+        end
 
         def resolve_saga_persistence(domain)
           anchor = hecksagon(domain) && bluebook(domain)&.aggregates&.first
