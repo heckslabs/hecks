@@ -22,6 +22,20 @@ name = "rust"
 version = "0.1.0"
 edition = "2021"
 
+# ONE DELIBERATE, DOCUMENTED EXCEPTION to this crate's own zero-Cargo-
+# dependency discipline (ADR 0012 — WASM-via-WASI binary size and
+# auditability; json.rs's and arithmetic.rs's own headers state the same
+# constraint for themselves). `expression_operators/pattern_match.rs`
+# (`.match?`) is the reason — see that file's own header for why a
+# hand-rolled regex subset was rejected in favour of one well-audited,
+# pure-Rust crate. `default-features = false` keeps out `perf` (SIMD/
+# `memchr`-driven, unneeded for the small per-call patterns this
+# grammar's own predicates use) — `std`/`unicode` alone cover Ruby-
+# Regexp-style `\d`/`\w`/case-insensitive matching without the extra
+# code size.
+[dependencies]
+regex = { version = "1", default-features = false, features = ["std", "unicode"] }
+
 [lib]
 name = "rust"
 path = "src/lib.rs"

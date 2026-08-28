@@ -61,7 +61,11 @@ fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
     }
 }
 
-fn values_equal(lhs: &Value, rhs: &Value) -> bool {
+/// `pub(crate)`, not private — `membership.rs`'s own `Value::Array`
+/// haystack arm reuses this SAME numeric-coerced equality (`Evaluator#
+/// includes?`'s own `Array` branch: `found.any? { |item| equal?(item,
+/// wanted) }`) rather than re-deriving it a second time.
+pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
     match (scalar::numeric(lhs), scalar::numeric(rhs)) {
         (Some(l), Some(r)) => l == r,
         _ => lhs == rhs,

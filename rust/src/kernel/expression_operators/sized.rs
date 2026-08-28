@@ -38,6 +38,12 @@ pub fn empty(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match v {
         Value::Str(_) => Ok(Value::Bool(scalar::is_empty(&v).expect("Str always answers is_empty"))),
         Value::List(_) => Ok(Value::Bool(list::is_empty(&v).expect("List always answers is_empty"))),
+        // `Value::Array` (an `ArrayLiteral`/`.split` result — see its own
+        // header) is a materialised list, not a length-only `List` — its
+        // own `.len()` answers `.empty?`/`.size` directly, no
+        // `attribute_shapes::list` indirection needed the way `List`
+        // has (that file is keyed on `Value::List(usize)` specifically).
+        Value::Array(ref elements) => Ok(Value::Bool(elements.is_empty())),
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!("empty? expects a list or string, got {v:?}"))),
     }
 }
@@ -51,6 +57,7 @@ pub fn size(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match v {
         Value::Str(_) => Ok(Value::Int(scalar::size(&v).expect("Str always answers size"))),
         Value::List(_) => Ok(Value::Int(list::size(&v).expect("List always answers size"))),
+        Value::Array(ref elements) => Ok(Value::Int(elements.len() as i64)),
         Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!("size expects a list or string, got {v:?}"))),
     }
 }

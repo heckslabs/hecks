@@ -37,7 +37,7 @@ pub fn to_s(v: &Value) -> Option<Value> {
         Value::Int(i) => Some(Value::Str(i.to_string())),
         Value::Float(f) => Some(Value::Str(f.to_string())),
         Value::Bool(b) => Some(Value::Str(b.to_string())),
-        Value::List(_) | Value::Nil => None,
+        Value::List(_) | Value::Nil | Value::Array(_) => None,
     }
 }
 

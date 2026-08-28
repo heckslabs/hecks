@@ -1,6 +1,6 @@
 {
   "name": "expression-operators",
-  "note": "The admission ledger \u2014 every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives \u2014 an operator absent here is not a slow operator, it is not an operator.",
+  "note": "The admission ledger — every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives — an operator absent here is not a slow operator, it is not an operator.",
   "steps": [
     {
       "verb": "Expression::Operator.Propose",
@@ -1055,6 +1055,502 @@
       "args": {
         "symbol": {
           "value": ".find"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".match?"
+        },
+        "category": {
+          "value": "pattern_match"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "call_pattern_match"
+        },
+        "position": {
+          "value": 13
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".match?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "receiver.match?(/pattern/)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".match?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "receiver.match?(/pattern/) -> regex crate, Ruby-Regexp-compatible subset"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".match?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        },
+        "category": {
+          "value": "presence"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 14
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.present?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.present? -> !blank(a)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".present?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        },
+        "category": {
+          "value": "presence"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 15
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.blank?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.blank? -> blank(a)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".blank?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".split"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "call_pattern_match"
+        },
+        "position": {
+          "value": 16
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".split"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.split(\"SEP\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".split"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.split(\"SEP\") -> Value::Array of Value::Str"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".split"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "call_pattern_match"
+        },
+        "position": {
+          "value": 17
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.start_with?(\"prefix\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.start_with?(\"prefix\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".start_with?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        },
+        "category": {
+          "value": "text"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 2
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "call_pattern_match"
+        },
+        "position": {
+          "value": 18
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.end_with?(\"suffix\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.end_with?(\"suffix\")"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".end_with?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        },
+        "category": {
+          "value": "positional"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 19
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.first"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.first -> first element or Nil"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".first"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".last"
+        },
+        "category": {
+          "value": "positional"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 20
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".last"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.last"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".last"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.last -> last element or Nil"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".last"
         }
       }
     },

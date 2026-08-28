@@ -527,6 +527,11 @@ and held equal to it by `spec/operator_conformance_spec.rb`:
 | `.empty?`, `.size` | sized | 1 | `Array`, `String`, `Hash` only |
 | `.to_s` | to_string | 1 | `String`, `Integer`, `Float`, `Boolean`, `nil` only — raises `EvaluationError` on anything else |
 | `.any?`, `.none?`, `.all?`, `.find` | enumeration | 2 | `list.any? { \|x\| predicate }` — the block's parameter is bound for the predicate (a whole boolean expression, blocks nest freely); `.find { }` may carry a dotted path, `list.find { \|x\| … }.a.b`, and is nil when nothing matches. Braces only, never `do…end` |
+| `.match?` | pattern_match | 2 | `receiver.match?(/pattern/flags)` — a real Ruby-Regexp source between the slashes; `i`/`m`/`x` flags supported |
+| `.present?`, `.blank?` | presence | 1 | Rails-standard semantics: `nil`/`false` are blank, `String`/`Array` are blank when empty, everything else is present |
+| `.split` | text | 2 | `receiver.split("SEP")` — produces an `Array`, literal separator only |
+| `.start_with?`, `.end_with?` | text | 2 | `String` receiver only |
+| `.first`, `.last` | positional | 1 | over an array-typed receiver (an `ArrayLiteral`, a `.split` result, or a list-typed field of scalar elements) — `nil` on an empty list |
 
 Every one of the six comparison operators reduces to two primitives —
 `less_than` and `equal` — combined with a boolean algebra rather than
@@ -565,11 +570,13 @@ Hecks::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents
 ```
 
 Below `Compare`, the left and right sides are `Resolver` leaves — a
-smaller grammar for the non-boolean part: integer/float/string/bool/nil
-literals, `+` addition, `.modulo`, a sign test, `.empty?`/`.size`,
-`.to_s`, the block-taking enumeration operators (`.any?`/`.none?`/
-`.all?`/`.find { |x| … }`, whose body is a whole boolean expression
-parsed by `Evaluator` again), and the true leaf, `Lookup` — a bare or dotted name resolved
+smaller grammar for the non-boolean part: integer/float/string/bool/nil/
+array literals, `+` addition, `.modulo`, a sign test, `.empty?`/`.size`,
+`.to_s`, `.match?`, `.present?`/`.blank?`, `.split`, `.start_with?`/
+`.end_with?`, `.first`/`.last`, the block-taking enumeration operators
+(`.any?`/`.none?`/`.all?`/`.find { |x| … }`, whose body is a whole
+boolean expression parsed by `Evaluator` again), and the true leaf,
+`Lookup` — a bare or dotted name resolved
 against `attrs` then `state`, per `fetch` above. A `given` that only
 ever reads a bare instance field, no operator at all, still parses —
 into a `Resolve` node, whose value is checked for Ruby truthiness

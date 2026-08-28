@@ -55,6 +55,18 @@ pub enum Value {
     Bool(bool),
     List(usize),
     Nil,
+    /// A real, fully-materialised list of `Value`s — distinct from
+    /// `List(usize)` (a length-only reading of a FIELD; see this enum's
+    /// own header) — produced by an `ArrayLiteral` (`Resolver::
+    /// ArrayLiteral`, `[a, b]`, `Expr::Array` below) or a `.split` call.
+    /// `expression_operators::text::split` produces it;
+    /// `expression_operators::positional` (`.first`/`.last`) is its main
+    /// consumer. NOT how a literal-array `.include?` haystack reaches
+    /// the kernel — `rust/project/expr_emitter.rb`'s own `emit_include`
+    /// rewrites that specific shape into an OR-of-equalities at codegen
+    /// time instead (see its header for why), so this variant never
+    /// needs to carry `.include?`'s own membership test.
+    Array(Vec<Value>),
 }
 
 impl Value {
@@ -294,6 +306,36 @@ pub enum Expr {
     /// first element the predicate accepts, projected through `path`
     /// (empty for a bare `.find { }`), or nil when nothing matches.
     Find { receiver: Box<Expr>, param: &'static str, predicate: Box<Expr>, path: &'static [&'static str] },
+    /// `[a, b, c]` — `Resolver::ArrayLiteral`. A LEAF, like `Int`/`Str`/
+    /// `Nil` above, not an expression-ledger OPERATOR — see expression.
+    /// bluebook's own "WHAT IS NOT HERE" comment on the `Operator`
+    /// aggregate: a literal's spelling doesn't differ per target the
+    /// way an operation's might, so `interpret`'s leaf match handles
+    /// this directly rather than routing it through `category_of`/
+    /// `dispatch_operator`, the identical treatment every other literal
+    /// already gets.
+    Array(Vec<Expr>),
+    /// `receiver.match?(/pattern/flags)` — `Resolver::MatchesRegex`. The
+    /// pattern text is a real Ruby-Regexp source, taken as-is between
+    /// the slashes (see `expression_operators::pattern_match`'s own
+    /// header for why this crate takes a `regex` dependency for it).
+    MatchesRegex { receiver: Box<Expr>, pattern: String, flags: String },
+    /// `receiver.present?` / `receiver.blank?` — `Resolver::Presence`,
+    /// one node for the symbol pair, `negated` distinguishing them
+    /// (`.blank?` is `.present?` negated) exactly the way `SignTest`
+    /// above is one node for three symbols.
+    Presence { receiver: Box<Expr>, negated: bool },
+    /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
+    /// `Value::Array`, not `Value::List` — see that variant's own header.
+    Split { receiver: Box<Expr>, separator: String },
+    /// `receiver.start_with?("prefix")` — `Resolver::StartsWith`.
+    StartsWith { receiver: Box<Expr>, substring: String },
+    /// `receiver.end_with?("suffix")` — `Resolver::EndsWith`.
+    EndsWith { receiver: Box<Expr>, substring: String },
+    /// `receiver.first` — `Resolver::First`.
+    First(Box<Expr>),
+    /// `receiver.last` — `Resolver::Last`.
+    Last(Box<Expr>),
 }
 
 /// `state`/`attrs` from `Evaluator.call(expr, state, attrs)` — `args` is
@@ -319,6 +361,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         Bool(v) => Ok(Value::Bool(*v)),
         Nil => Ok(Value::Nil),
         Lookup(path) => lookup(path, ctx),
+        Array(elements) => Ok(Value::Array(elements.iter().map(|e| interpret(e, ctx)).collect::<Result<Vec<_>, _>>()?)),
         _ => dispatch_operator(category_of(expr), expr, ctx),
     }
 }
@@ -341,7 +384,11 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         Empty(..) | Size(..) => OperatorCategory::Sized,
         ToS(..) => OperatorCategory::ToString,
         BlockPredicate { .. } | Find { .. } => OperatorCategory::Enumeration,
-        Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) => {
+        MatchesRegex { .. } => OperatorCategory::PatternMatch,
+        Presence { .. } => OperatorCategory::Presence,
+        Split { .. } | StartsWith { .. } | EndsWith { .. } => OperatorCategory::Text,
+        First(..) | Last(..) => OperatorCategory::Positional,
+        Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) | Array(..) => {
             unreachable!("interpret's own leaf arms handle these before category_of is ever called")
         }
     }
@@ -373,6 +420,10 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
         },
         OperatorCategory::ToString => to_string::interpret(expr, ctx),
         OperatorCategory::Enumeration => enumeration::interpret(expr, ctx),
+        OperatorCategory::PatternMatch => pattern_match::interpret(expr, ctx),
+        OperatorCategory::Presence => presence::interpret(expr, ctx),
+        OperatorCategory::Text => text::interpret(expr, ctx),
+        OperatorCategory::Positional => positional::interpret(expr, ctx),
     }
 }
 

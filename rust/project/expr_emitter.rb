@@ -27,7 +27,21 @@ module RustProjection
       when ev::Resolve
         emit_resolver(node.expr)
       else
-        raise "unhandled evaluator node #{node.class} — the real grammar has no such node; this generator is stale"
+        # NAME THE OPERATOR, DON'T ACCUSE THE GRAMMAR. Used to say "the
+        # real grammar has no such node" unconditionally — true only for
+        # a node type this file has genuinely never heard of (a real
+        # emitter bug). It was FALSE the day the resolver vendored eight
+        # operators (`.match?`/`.present?`/`.blank?`/`.split`/
+        # `.start_with?`/`.end_with?`/`.first`/`.last`) straight into
+        # `resolver.rb` without a matching `emit_resolver` arm here — the
+        # grammar had exactly such a node, admitted and running in Ruby,
+        # and this message told whoever hit it to look in the wrong
+        # place. Every node type this generator has NO arm for at all is
+        # still a real bug (this `else` firing on an `ev::` node should
+        # never happen, `Evaluator.parse` has no eighth node kind), so
+        # this stays a hard failure — it just stops lying about which
+        # file is stale.
+        raise "unhandled evaluator node #{node.class} — no Rust rendering exists for it in this generator (rust/project/expr_emitter.rb#emit_bool)"
       end
     end
 
@@ -102,8 +116,25 @@ module RustProjection
       when r::Find
         "Expr::Find { receiver: Box::new(#{emit_resolver(node.receiver)}), param: #{node.param.inspect}, " \
           "predicate: Box::new(#{emit_bool(node.predicate)}), path: &[#{node.path.map(&:inspect).join(', ')}] }"
+      when r::ArrayLiteral
+        "Expr::Array(vec![#{node.elements.map { |element| emit_resolver(element) }.join(', ')}])"
+      when r::MatchesRegex
+        "Expr::MatchesRegex { receiver: Box::new(#{emit_resolver(node.receiver)}), pattern: #{node.pattern.inspect}.to_string(), flags: #{node.flags.inspect}.to_string() }"
+      when r::Presence
+        "Expr::Presence { receiver: Box::new(#{emit_resolver(node.receiver)}), negated: #{node.negated} }"
+      when r::Split
+        "Expr::Split { receiver: Box::new(#{emit_resolver(node.receiver)}), separator: #{node.separator.inspect}.to_string() }"
+      when r::StartsWith
+        "Expr::StartsWith { receiver: Box::new(#{emit_resolver(node.receiver)}), substring: #{node.substring.inspect}.to_string() }"
+      when r::EndsWith
+        "Expr::EndsWith { receiver: Box::new(#{emit_resolver(node.receiver)}), substring: #{node.substring.inspect}.to_string() }"
+      when r::First then "Expr::First(Box::new(#{emit_resolver(node.receiver)}))"
+      when r::Last  then "Expr::Last(Box::new(#{emit_resolver(node.receiver)}))"
       else
-        raise "unhandled resolver node #{node.class} — the real grammar has no such node; this generator is stale"
+        # See `emit_bool`'s own `else` arm for why this no longer blames
+        # the grammar unconditionally — the identical fix, mirrored here
+        # for the resolver's own leaf grammar.
+        raise "unhandled resolver node #{node.class} — no Rust rendering exists for it in this generator (rust/project/expr_emitter.rb#emit_resolver)"
       end
     end
   end

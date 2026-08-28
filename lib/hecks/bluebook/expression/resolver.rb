@@ -58,6 +58,26 @@ module Hecks
         Size           = Struct.new(:receiver, keyword_init: true)
         Lookup         = Struct.new(:path, keyword_init: true)
 
+        # UPDATE 2026-08-27: every "vendored addition, not (yet) upstream
+        # hecks" comment on this file's own MatchesRegex/Presence/Split/
+        # First/Last/StartsWith/EndsWith below (plus ArrayLiteral above)
+        # described a REAL gap, found the hard way, in the history each
+        # comment tells — and that history stays exactly as written,
+        # on purpose. What changed is the PRESENT TENSE claim "not (yet)
+        # upstream": a review of this exact migration found these eight
+        # symbols had working Ruby parse/interpret arms but had NEVER
+        # gone through Propose -> Render -> Admit
+        # (lib/hecks/grammar/expression_operators.json) the way every
+        # other operator here has — a closed-vocabulary guard
+        # (spec/operator_conformance_spec.rb) built entirely over TABLES
+        # structurally could not see hand-coded Struct/parse/interpret
+        # additions, so eight operators ran in Ruby, admitted nowhere,
+        # invisible to the one guard whose whole job was "reads in every
+        # target." All eight are now ledger-admitted for real, with full
+        # Rust kernel parity (rust/src/kernel/expression_operators/
+        # {pattern_match,presence,text,positional}.rs) — the two-tier
+        # gap is closed, not merely tracked.
+        #
         # `receiver.match?(/pattern/)` -- vendored addition, not (yet)
         # upstream hecks (migration plan task 8): confirmed the
         # SINGLE most impactful corpus-wide dispatch-time gap of the

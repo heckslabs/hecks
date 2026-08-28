@@ -14,6 +14,10 @@ pub mod sign_test;
 pub mod sized;
 pub mod to_string;
 pub mod enumeration;
+pub mod pattern_match;
+pub mod presence;
+pub mod text;
+pub mod positional;
 
 /// One variant per real expression-operator category the Ruby
 /// grammar admits, in the order Grammar.admitted_operators's own `category` field declares them. Every match
@@ -32,6 +36,10 @@ pub enum OperatorCategory {
     Sized,
     ToString,
     Enumeration,
+    PatternMatch,
+    Presence,
+    Text,
+    Positional,
 }
 
 impl OperatorCategory {
@@ -49,8 +57,12 @@ impl OperatorCategory {
             OperatorCategory::Sized => "sized",
             OperatorCategory::ToString => "to_string",
             OperatorCategory::Enumeration => "enumeration",
+            OperatorCategory::PatternMatch => "pattern_match",
+            OperatorCategory::Presence => "presence",
+            OperatorCategory::Text => "text",
+            OperatorCategory::Positional => "positional",
         }
     }
 
-    pub const ALL: &'static [OperatorCategory] = &[OperatorCategory::Logical, OperatorCategory::Membership, OperatorCategory::Comparison, OperatorCategory::Arithmetic, OperatorCategory::SignTest, OperatorCategory::Sized, OperatorCategory::ToString, OperatorCategory::Enumeration];
+    pub const ALL: &'static [OperatorCategory] = &[OperatorCategory::Logical, OperatorCategory::Membership, OperatorCategory::Comparison, OperatorCategory::Arithmetic, OperatorCategory::SignTest, OperatorCategory::Sized, OperatorCategory::ToString, OperatorCategory::Enumeration, OperatorCategory::PatternMatch, OperatorCategory::Presence, OperatorCategory::Text, OperatorCategory::Positional];
 }

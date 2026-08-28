@@ -135,9 +135,14 @@ RSpec.describe "the operator domain" do
   it "orders the inner grammar exactly the way grammar.md documents it" do
     # rule 1 (.length), 2-5 (literals), and 12 (dotted lookup) are
     # terminal productions, not operators — same exclusion. This is rules
-    # 6-11, in order.
+    # 6-11, in order, followed by the eight vendored operators
+    # (`.match?`/`.present?`/`.blank?`/`.split`/`.start_with?`/
+    # `.end_with?`/`.first`/`.last`) admitted after grammar.md was
+    # written — see this file's own header update for the finding that
+    # sent them through the ledger for the first time.
     expect(symbols(by_grammar("inner"))).to eq(
-      ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find"]
+      ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
+       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last"]
     )
   end
 
@@ -158,22 +163,30 @@ RSpec.describe "the operator domain" do
   # cases — so each is held by a behavioral probe, and direction B is
   # the probe table's keys equalling the admitted set.
   PROBES = {
-    "||"         => -> { Evaluator.parse("a || b").is_a?(Evaluator::Or) },
-    "&&"         => -> { Evaluator.parse("a && b").is_a?(Evaluator::And) },
-    "!"          => -> { Evaluator.parse("!a").is_a?(Evaluator::Not) },
-    ".include?"  => -> { Evaluator.parse("list.include?(x)").is_a?(Evaluator::Include) },
-    "+"          => -> { Resolver.parse("a + b").is_a?(Resolver::Addition) },
-    ".modulo"    => -> { Resolver.parse("a.modulo(b)").is_a?(Resolver::Modulo) },
-    ".positive?" => -> { Resolver.parse("a.positive?").is_a?(Resolver::SignTest) },
-    ".negative?" => -> { Resolver.parse("a.negative?").is_a?(Resolver::SignTest) },
-    ".zero?"     => -> { Resolver.parse("a.zero?").is_a?(Resolver::SignTest) },
-    ".empty?"    => -> { Resolver.parse("a.empty?").is_a?(Resolver::Empty) },
-    ".to_s"      => -> { Resolver.parse("a.to_s").is_a?(Resolver::ToS) },
-    ".size"      => -> { Resolver.parse("a.size").is_a?(Resolver::Size) },
-    ".any?"      => -> { Resolver.parse("a.any? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :any } },
-    ".none?"     => -> { Resolver.parse("a.none? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :none } },
-    ".all?"      => -> { Resolver.parse("a.all? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :all } },
-    ".find"      => -> { Resolver.parse("a.find { |x| x }.b").is_a?(Resolver::Find) }
+    "||"           => -> { Evaluator.parse("a || b").is_a?(Evaluator::Or) },
+    "&&"           => -> { Evaluator.parse("a && b").is_a?(Evaluator::And) },
+    "!"            => -> { Evaluator.parse("!a").is_a?(Evaluator::Not) },
+    ".include?"    => -> { Evaluator.parse("list.include?(x)").is_a?(Evaluator::Include) },
+    "+"            => -> { Resolver.parse("a + b").is_a?(Resolver::Addition) },
+    ".modulo"      => -> { Resolver.parse("a.modulo(b)").is_a?(Resolver::Modulo) },
+    ".positive?"   => -> { Resolver.parse("a.positive?").is_a?(Resolver::SignTest) },
+    ".negative?"   => -> { Resolver.parse("a.negative?").is_a?(Resolver::SignTest) },
+    ".zero?"       => -> { Resolver.parse("a.zero?").is_a?(Resolver::SignTest) },
+    ".empty?"      => -> { Resolver.parse("a.empty?").is_a?(Resolver::Empty) },
+    ".to_s"        => -> { Resolver.parse("a.to_s").is_a?(Resolver::ToS) },
+    ".size"        => -> { Resolver.parse("a.size").is_a?(Resolver::Size) },
+    ".any?"        => -> { Resolver.parse("a.any? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :any } },
+    ".none?"       => -> { Resolver.parse("a.none? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :none } },
+    ".all?"        => -> { Resolver.parse("a.all? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :all } },
+    ".find"        => -> { Resolver.parse("a.find { |x| x }.b").is_a?(Resolver::Find) },
+    ".match?"      => -> { Resolver.parse("a.match?(/x/)").is_a?(Resolver::MatchesRegex) },
+    ".present?"    => -> { Resolver.parse("a.present?").is_a?(Resolver::Presence) && !Resolver.parse("a.present?").negated },
+    ".blank?"      => -> { Resolver.parse("a.blank?").is_a?(Resolver::Presence) && Resolver.parse("a.blank?").negated },
+    ".split"       => -> { Resolver.parse('a.split("x")').is_a?(Resolver::Split) },
+    ".start_with?" => -> { Resolver.parse('a.start_with?("x")').is_a?(Resolver::StartsWith) },
+    ".end_with?"   => -> { Resolver.parse('a.end_with?("x")').is_a?(Resolver::EndsWith) },
+    ".first"       => -> { Resolver.parse("a.first").is_a?(Resolver::First) },
+    ".last"        => -> { Resolver.parse("a.last").is_a?(Resolver::Last) }
   }.freeze
 
   it "implements every admitted structural operator, and no other" do
@@ -183,6 +196,97 @@ RSpec.describe "the operator domain" do
     PROBES.each do |symbol, probe|
       expect(probe.call).to be(true), "#{symbol} is admitted but the machinery no longer parses it"
     end
+  end
+
+  # THE GAP THIS FILE'S OWN HEADER NOW NAMES: everything above holds the
+  # ledger equal to the evaluator's TABLES (COMPARISONS, PROBES) — but
+  # eight real node types (MatchesRegex/Presence/Split/StartsWith/
+  # EndsWith/First/Last, admitted above for the first time) used to
+  # reach `resolver.rb` as hand-coded Structs with a parse branch and an
+  # `interpret` arm and NOTHING ELSE — no ledger entry, no PROBES entry,
+  # nothing any table-shaped guard could see, because they were never
+  # table entries; they were leaf-grammar CODE. `operator_conformance_
+  # spec` checking tables could not structurally notice code the tables
+  # never mentioned.
+  #
+  # This closes it at the STRUCT level instead of the table level: every
+  # Class Resolver/Evaluator actually define, found by REFLECTION
+  # (`Module#constants`, not a hand-copied roster that could go stale
+  # exactly the way the ledger itself did), must be either a documented
+  # terminal/helper exclusion or point back to an admitted symbol via
+  # `NODE_TYPE_FOR_SYMBOL`. A ninth operator vendored the same way — a
+  # new Struct in resolver.rb, no ledger entry — fails HERE the moment
+  # the struct exists, whether or not anyone remembers to touch this
+  # file by hand.
+  NODE_TYPE_FOR_SYMBOL = {
+    "||" => Evaluator::Or, "&&" => Evaluator::And, "!" => Evaluator::Not, ".include?" => Evaluator::Include,
+    # All six comparison symbols (`>=`/`<=`/`</`>`/`==`/`!=`) share one
+    # node type — `Evaluator::Compare`, `operator:` naming which of the
+    # six — the identical reduction `SignTest` already applies for
+    # `.positive?`/`.negative?`/`.zero?` below. `COMPARISONS` (`==
+    # OPERATORS.map(&:symbol)`) is the ledger-derived roster itself
+    # (evaluator.rb), not a second hand-copied list of the six symbols.
+    **Evaluator::COMPARISONS.to_h { |symbol| [symbol, Evaluator::Compare] },
+    "+" => Resolver::Addition, ".modulo" => Resolver::Modulo,
+    ".positive?" => Resolver::SignTest, ".negative?" => Resolver::SignTest, ".zero?" => Resolver::SignTest,
+    ".empty?" => Resolver::Empty, ".to_s" => Resolver::ToS, ".size" => Resolver::Size,
+    ".any?" => Resolver::BlockPredicate, ".none?" => Resolver::BlockPredicate, ".all?" => Resolver::BlockPredicate,
+    ".find" => Resolver::Find,
+    ".match?" => Resolver::MatchesRegex, ".present?" => Resolver::Presence, ".blank?" => Resolver::Presence,
+    ".split" => Resolver::Split, ".start_with?" => Resolver::StartsWith, ".end_with?" => Resolver::EndsWith,
+    ".first" => Resolver::First, ".last" => Resolver::Last
+  }.freeze
+
+  # Every real Class either module defines DIRECTLY (`false` — no
+  # inherited constants), found mechanically rather than remembered.
+  # `Struct.new(...)` returns a genuine anonymous `Class`, same as the
+  # bare `NilLiteral = Class.new` (see its own comment in resolver.rb for
+  # why that one isn't a Struct) — `.is_a?(Class)` catches both and
+  # nothing else (the data-table constants beside them — `SIGN_TESTS`,
+  # `BLOCK_PREDICATE_MODES`, `PROJECTION`, `OPERATORS`, ... — are
+  # Array/Hash, never Class).
+  def node_classes(mod) = mod.constants(false).map { |name| mod.const_get(name) }.grep(Class)
+
+  # NOT AST nodes `parse` ever returns, excluded with the SAME reasoning
+  # expression.bluebook's own "WHAT IS NOT HERE" comment on the
+  # `Operator` aggregate already gives for the outer grammar's
+  # parenthesization/bare-leaf-fallback rules and the inner grammar's
+  # literal/dotted-lookup productions: nothing here has a per-target
+  # rendering to admit.
+  #   - literals + Lookup: a spelling that doesn't differ per target.
+  #     `ArrayLiteral` joins them for the identical reason (`expr.rs`'s
+  #     own `Expr::Array` is a LEAF, not routed through OperatorCategory).
+  #   - `Evaluator::Resolve`: the boolean grammar's own "fall through to
+  #     the leaf grammar" wrapper — structural, the same way the outer
+  #     grammar's bare-leaf-fallback rule is, never itself a symbol.
+  #   - `Evaluator::Operator`: a DATA shape (which comparison a `Compare`/
+  #     `SignTest` node carries as its `op:`/`operator:` field), not a
+  #     node `parse` ever returns on its own.
+  NON_OPERATOR_NODE_TYPES = [
+    Resolver::IntegerLiteral, Resolver::FloatLiteral, Resolver::StringLiteral, Resolver::BoolLiteral,
+    Resolver::NilLiteral, Resolver::ArrayLiteral, Resolver::Lookup,
+    Evaluator::Resolve, Evaluator::Operator
+  ].freeze
+
+  it "gives every non-terminal Resolver/Evaluator node type an admitted ledger symbol" do
+    all_nodes      = (node_classes(Evaluator) + node_classes(Resolver)).uniq
+    operator_nodes = all_nodes - NON_OPERATOR_NODE_TYPES
+    covered        = NODE_TYPE_FOR_SYMBOL.values_at(*symbols(ADMITTED)).compact.uniq
+
+    stranded = operator_nodes - covered
+    expect(stranded).to be_empty,
+                        "#{stranded.map(&:name).inspect} — a real AST node type with " \
+                        "no admitted ledger symbol pointing at it. Either it's a genuine terminal/" \
+                        "structural production (add it to NON_OPERATOR_NODE_TYPES, the same reasoning " \
+                        "grammar.md's own exclusions use) or it bypassed Propose/Render/Admit the way " \
+                        "eight vendored operators did (see this file's own header) — admit it in the " \
+                        "ledger, add its symbol to NODE_TYPE_FOR_SYMBOL and a PROBES entry, instead."
+
+    # THE OTHER DIRECTION — `NODE_TYPE_FOR_SYMBOL` itself drifting (a
+    # renamed or removed struct still named here) would silently defeat
+    # the check above by inflating `covered` with a class reflection no
+    # longer finds live.
+    expect(covered - all_nodes).to be_empty
   end
 
   it "orders precedence the way the grammar checks" do

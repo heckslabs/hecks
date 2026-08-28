@@ -10,11 +10,14 @@ Hecks.bluebook "Expression" do
     # has two rules that are not operators: parenthesization (a structural
     # strip-and-recurse, no symbol of its own) and the bare-leaf fallback
     # (whatever matches nothing else falls through to the inner grammar).
-    # Its inner grammar has three more: integer/float/string/bool/nil
-    # literals and the dotted-lookup fallback are TERMINAL productions —
-    # they recognize text, they do not combine operands, and they have
-    # nothing meaningful to render per target (a literal's spelling does
-    # not differ between targets the way an operation's might).
+    # Its inner grammar has three more: integer/float/string/bool/nil/
+    # array literals and the dotted-lookup fallback are TERMINAL
+    # productions — they recognize text, they do not combine operands,
+    # and they have nothing meaningful to render per target (a literal's
+    # spelling does not differ between targets the way an operation's
+    # might — `rust/src/kernel/expr.rs`'s own `Expr::Array` is a LEAF
+    # there too, for the identical reason, not routed through
+    # `OperatorCategory`).
     # Forcing them into this shape would stretch `renderings` and the
     # Arity invariant past what they mean. They stay declared only in
     # prose — named here rather than silently left out.

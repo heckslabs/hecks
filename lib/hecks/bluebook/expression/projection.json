@@ -149,6 +149,54 @@
       "category": "enumeration",
       "precedence": 10,
       "arity": 2
+    },
+    {
+      "symbol": ".match?",
+      "category": "pattern_match",
+      "precedence": 7,
+      "arity": 2
+    },
+    {
+      "symbol": ".present?",
+      "category": "presence",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".blank?",
+      "category": "presence",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".split",
+      "category": "text",
+      "precedence": 7,
+      "arity": 2
+    },
+    {
+      "symbol": ".start_with?",
+      "category": "text",
+      "precedence": 7,
+      "arity": 2
+    },
+    {
+      "symbol": ".end_with?",
+      "category": "text",
+      "precedence": 7,
+      "arity": 2
+    },
+    {
+      "symbol": ".first",
+      "category": "positional",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".last",
+      "category": "positional",
+      "precedence": 7,
+      "arity": 1
     }
   ],
   "normalisations": [
