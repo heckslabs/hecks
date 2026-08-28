@@ -439,6 +439,11 @@ impl crate::kernel::ToJson for Proposal {
         Proposal::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Proposal {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Proposal {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -541,6 +546,7 @@ pub fn dispatch_draft(
         &["ProposalDrafted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -626,6 +632,7 @@ pub fn dispatch_send(
         &["ProposalSent"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -695,6 +702,7 @@ pub fn dispatch_accept(
         &["ProposalAccepted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -764,6 +772,7 @@ pub fn dispatch_decline(
         &["ProposalDeclined"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -833,6 +842,7 @@ pub fn dispatch_expire(
         &["ProposalExpired"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

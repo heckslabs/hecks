@@ -127,10 +127,13 @@ RSpec.describe "the declared syntax" do
   #     named per-context below rather than by blanket File-level exclusion.
   NOT_A_WORD = {
     "Bluebook"  => {
-      classification:                  "an attr_reader BluebookBuilder.build reads when merging one chapter across files",
-      resolve_pending_chapter_givens!: "called by MetaValidator.judge_deferred! once a chapter split " \
-                                       "across files has fully loaded, to resolve any bare chapter-given " \
-                                       "reference an earlier file left pending"
+      classification:                         "an attr_reader BluebookBuilder.build reads when merging one chapter across files",
+      resolve_pending_chapter_givens!:        "called by MetaValidator.judge_deferred! once a chapter split " \
+                                              "across files has fully loaded, to resolve any bare chapter-given " \
+                                              "reference an earlier file left pending",
+      resolve_pending_chapter_entity_givens!: "the entity-scoped analogue, one level down — called by " \
+                                              "MetaValidator.judge_deferred! the same way, to resolve any " \
+                                              "bare entity-level given reference an earlier file left pending"
     },
     "File"      => {
       boot:             "the runtime facade, not a declaration",

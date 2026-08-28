@@ -42,6 +42,24 @@ module RustProjection
       "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };"
     end
 
+    # THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025) — the ONE line
+    # every generated `dispatch_*`/`dispatch_entity_*` body adds right
+    # after `with_references_binding`, mirroring that same line's own
+    # shape: `crate::kernel::seeded_projections`, read directly
+    # (reference_lookup.rs), off the SAME `with_references` just built —
+    # no new router-level parameter needed the way `owner_deref`/
+    # `command_deref` themselves are, since a projected field's own
+    # source (whichever reference `with_references` already resolves)
+    # is exactly what `owner_deref`/`command_deref` exist to answer.
+    # `#{AGGREGATE}_PROJECTED_FIELDS` (types.rb's own `emit_projected_
+    # field_table`) is always emitted, even empty — `seeded_projections`
+    # over an empty spec list is a real, cheap no-op, not a branch this
+    # generator needs to special-case away.
+    def seed_projections_binding(aggregate)
+      table = screaming_snake(aggregate[:name])
+      "let seed_projections = crate::kernel::seeded_projections(&with_references, #{table}_PROJECTED_FIELDS);"
+    end
+
     def command_skip_reason(command, aggregate, value_objects_by_name, creating_possible: true)
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)" if unsupported_ops.any?
@@ -387,7 +405,13 @@ module RustProjection
       emits_out = delegation ? delegation[:emits] : command[:emits]
 
       if creates
-        record_fields = aggregate[:attributes].map do |attr|
+        # `projected_field_pseudo_attributes` — a `projects` field is
+        # never a command argument (never `matched` below), so this
+        # always falls to the plain `None,` branch: correct, since
+        # `seed_projections` (this same dispatch's own trailing step,
+        # right before save) is what actually populates it, not
+        # anything a creating command's own args could set.
+        record_fields = (aggregate[:attributes] + Projector.projected_field_pseudo_attributes(aggregate)).map do |attr|
           matched = command[:attributes].find { |a| a[:name] == attr[:name] }
           field = rust_ident_field(attr[:name])
           if matched && matched[:optional]
@@ -456,6 +480,8 @@ module RustProjection
         "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
         "let tmpl_eval_fielded = tmpl_with_references_placeholder();" => with_references_binding,
         "&tmpl_eval_fielded," => "&with_references,",
+        "let tmpl_seed_projections = tmpl_seed_projections_placeholder();" => seed_projections_binding(aggregate),
+        "tmpl_seed_projections," => "seed_projections,",
         "tmpl_hydrate_placeholder()" => hydrate,
         "tmpl_prelude_placeholder();" => prelude,
         '"TmplCmdName"' => cmd.inspect,
@@ -794,6 +820,8 @@ module RustProjection
         "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
         "let tmpl_eval_fielded = tmpl_with_references_placeholder();" => with_references_binding,
         "&tmpl_eval_fielded," => "&with_references,",
+        "let tmpl_seed_projections = tmpl_seed_projections_placeholder();" => seed_projections_binding(parent_aggregate),
+        "tmpl_seed_projections," => "seed_projections,",
         "tmpl_list_field" => list_field,
         "TmplElement" => element_record,
         '"TmplQualifiedCommandName"' => qualified_command_name.inspect,

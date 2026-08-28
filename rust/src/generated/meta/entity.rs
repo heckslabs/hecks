@@ -495,7 +495,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "description", context: "Entity", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "identified_by", context: "Entity", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "identified_by", context: "Entity", body: "none", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "given", context: "Entity", body: "source", inner: "", opens: "", fills: "preconditions", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "given", context: "Entity", body: "source", inner: "", opens: "", fills: "preconditions", status: "admitted", was: "", resolves_via: "owner_keyed", disambiguator: "declared_by" },
     KeywordSeed { word: "invariant", context: "Entity", body: "source", inner: "", opens: "", fills: "invariants", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "command", context: "Entity", body: "keywords", inner: "Command", opens: "Command", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "query", context: "Entity", body: "keywords", inner: "Query", opens: "Query", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -557,6 +557,7 @@ pub struct ArgumentSeed {
 pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "description", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "false", blank_message: "" },
     ArgumentSeed { keyword: "given", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "given", context: "Entity", at: "", named: "declared_by", kind: "text", required: "false", fills: "declared_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "invariant", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "symbol", required: "false", fills: "identified_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true", minimum: "2", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", minimum: "", coerce: "", blank_message: "" },
@@ -717,6 +718,19 @@ impl crate::kernel::ToJson for Entity {
     }
 }
 
+impl crate::kernel::SetProjectedField for Entity {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static ENTITY_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Entity {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -768,6 +782,7 @@ pub fn dispatch_identify(
 ) -> crate::kernel::DispatchResult<Entity> {
         args.path.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -791,6 +806,7 @@ pub fn dispatch_identify(
         &["PieceIdentified"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -854,6 +870,7 @@ pub fn dispatch_seal(
 ) -> crate::kernel::DispatchResult<Entity> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -877,6 +894,7 @@ pub fn dispatch_seal(
         &["PieceSealed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -961,6 +979,7 @@ pub fn dispatch_attribute(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -984,6 +1003,7 @@ pub fn dispatch_attribute(
         &["PieceAttributeAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1082,6 +1102,7 @@ pub fn dispatch_reference(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1105,6 +1126,7 @@ pub fn dispatch_reference(
         &["PieceReferenceAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1203,6 +1225,7 @@ pub fn dispatch_holds(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1226,6 +1249,7 @@ pub fn dispatch_holds(
         &["PieceHeld"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1307,6 +1331,7 @@ pub fn dispatch_precondition(
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.canonical.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1331,6 +1356,7 @@ pub fn dispatch_precondition(
         &["PiecePreconditionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1400,6 +1426,7 @@ pub fn dispatch_invariant(
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.canonical.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1424,6 +1451,7 @@ pub fn dispatch_invariant(
         &["PieceInvariantAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1493,6 +1521,7 @@ pub fn dispatch_lifecycle(
         if let Some(v) = &args.state_field { v.check_invariants()?; }
         if let Some(v) = &args.state_start { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1517,6 +1546,7 @@ pub fn dispatch_lifecycle(
         &["PieceLifecycleNamed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1589,6 +1619,7 @@ pub fn dispatch_transition(
         if let Some(v) = &args.from_state { v.check_invariants()?; }
         args.to_state.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ENTITY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1612,6 +1643,7 @@ pub fn dispatch_transition(
         &["PieceTransitionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

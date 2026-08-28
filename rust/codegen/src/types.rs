@@ -292,3 +292,83 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
 
     format!("{struct_part}\n\n{fielded_part}")
 }
+
+/// Port of `rust/project/types.rb#projected_field_pseudo_attributes` —
+/// see that method's own header for the full reasoning (S12, ADR 0025).
+pub fn projected_field_pseudo_attributes(aggregate: &Json) -> Vec<Json> {
+    aggregate
+        .get("projected_fields")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|field| {
+            let name = field.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+            Json::Object(vec![
+                ("name".to_string(), Json::String(name)),
+                ("type".to_string(), Json::String("String".to_string())),
+                ("list".to_string(), Json::Bool(false)),
+                ("optional".to_string(), Json::Bool(true)),
+            ])
+        })
+        .collect()
+}
+
+/// Port of `rust/project/domain_generator.rb`'s own `record_for_struct`
+/// merge (`aggregate.merge(attributes: ...)`) — a shallow-copied `Json`
+/// object with `"attributes"` replaced by the original list plus
+/// `projected_field_pseudo_attributes`, so `emit_record`/
+/// `emit_fielded_record` (both read `aggregate.get("attributes")`
+/// internally) see the merge without either signature changing.
+pub fn with_projected_field_pseudo_attributes(aggregate: &Json) -> Json {
+    let mut attributes: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+    attributes.extend(projected_field_pseudo_attributes(aggregate));
+    let mut pairs: Vec<(String, Json)> = match aggregate {
+        Json::Object(pairs) => pairs.iter().filter(|(k, _)| k != "attributes").cloned().collect(),
+        _ => Vec::new(),
+    };
+    pairs.push(("attributes".to_string(), Json::Array(attributes)));
+    Json::Object(pairs)
+}
+
+/// Port of `rust/project/types.rb#emit_set_projected_field`.
+pub fn emit_set_projected_field(aggregate: &Json) -> String {
+    let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
+    let arms: Vec<String> = aggregate
+        .get("projected_fields")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|field| {
+            let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
+            let ident = naming::rust_ident_field(field_name);
+            format!("            {} => self.{} = value,", naming::ruby_inspect_string(field_name), ident)
+        })
+        .collect();
+    format!(
+        "impl crate::kernel::SetProjectedField for {name} {{\n    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {{\n        match name {{\n{}\n            _ => {{}}\n        }}\n    }}\n}}\n",
+        arms.join("\n")
+    )
+}
+
+/// Port of `rust/project/types.rb#emit_projected_field_table`.
+pub fn emit_projected_field_table(aggregate: &Json) -> String {
+    let name = naming::screaming_snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
+    let rows: Vec<String> = aggregate
+        .get("projected_fields")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|field| {
+            let field_name = field.get("name").and_then(Json::as_str).unwrap_or("");
+            let reference = field.get("reference").and_then(Json::as_str).unwrap_or("");
+            let remote_field = field.get("remote_field").and_then(Json::as_str).unwrap_or("");
+            format!(
+                "    crate::kernel::ProjectedFieldSpec {{ field: {}, reference: {}, remote_field: {} }},",
+                naming::ruby_inspect_string(field_name),
+                naming::ruby_inspect_string(reference),
+                naming::ruby_inspect_string(remote_field)
+            )
+        })
+        .collect();
+    format!("pub static {name}_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[\n{}\n];\n", rows.join("\n"))
+}

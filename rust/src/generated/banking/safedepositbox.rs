@@ -629,6 +629,7 @@ pub fn dispatch_entity_visit_annotate(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.note.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
@@ -660,6 +661,7 @@ pub fn dispatch_entity_visit_annotate(
         &["VisitAnnotated"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -800,6 +802,7 @@ pub fn dispatch_entity_keyissuance_return(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
@@ -830,6 +833,7 @@ pub fn dispatch_entity_keyissuance_return(
         &["KeyReturned"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -841,6 +845,7 @@ pub struct SafeDepositBox {
     pub size: Option<Size>,
     pub visits: Vec<Visit>,
     pub keys: Vec<KeyIssuance>,
+    pub customer_status: Option<String>,
     pub status: String,
 }
 
@@ -854,6 +859,7 @@ impl crate::kernel::Fielded for SafeDepositBox {
             "size" => self.size.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "visits" => Some(Field::Value(Value::List(self.visits.len()))),
             "keys" => Some(Field::Value(Value::List(self.keys.len()))),
+            "customer_status" => self.customer_status.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -883,6 +889,7 @@ impl SafeDepositBox {
         ("size".to_string(), self.size.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("visits".to_string(), crate::kernel::Json::Array(self.visits.iter().map(|x| x.to_json()).collect())),
         ("keys".to_string(), crate::kernel::Json::Array(self.keys.iter().map(|x| x.to_json()).collect())),
+        ("customer_status".to_string(), self.customer_status.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -897,6 +904,7 @@ impl SafeDepositBox {
         size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(&x.coerce_single_field("value"))?), },
         visits: match v.get("visits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Visit::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         keys: match v.get("keys").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(KeyIssuance::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        customer_status: match v.get("customer_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("SafeDepositBox.customer_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer_status: expected String".to_string()) })?), },
         status: v.require("status", "SafeDepositBox")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -907,6 +915,19 @@ impl crate::kernel::ToJson for SafeDepositBox {
         SafeDepositBox::to_json(self)
     }
 }
+
+impl crate::kernel::SetProjectedField for SafeDepositBox {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+            "customer_status" => self.customer_status = value,
+            _ => {}
+        }
+    }
+}
+
+pub static SAFE_DEPOSIT_BOX_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+    crate::kernel::ProjectedFieldSpec { field: "customer_status", reference: "customer", remote_field: "status" },
+];
 
 impl SafeDepositBox {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -966,6 +987,7 @@ pub fn dispatch_rent(
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -978,6 +1000,7 @@ pub fn dispatch_rent(
             size: Some(args.size.clone()),
             visits: vec![],
             keys: vec![],
+            customer_status: None,
             status: "vacant".to_string(),
         }),
     },
@@ -1004,6 +1027,7 @@ pub fn dispatch_rent(
         &["BoxRented"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1073,6 +1097,7 @@ pub fn dispatch_surrender(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1096,6 +1121,7 @@ pub fn dispatch_surrender(
         &["BoxSurrendered", "KeyReturnDue"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1166,6 +1192,7 @@ pub fn dispatch_log_visit(
         args.sequence.check_invariants()?;
         if let Some(v) = &args.note { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1189,6 +1216,7 @@ pub fn dispatch_log_visit(
         &["BoxOpened"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1257,6 +1285,7 @@ pub fn dispatch_issue_key(
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SAFE_DEPOSIT_BOX_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1280,6 +1309,7 @@ pub fn dispatch_issue_key(
         &["KeyIssued"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

@@ -580,6 +580,7 @@ pub fn dispatch_entity_withdrawal_dispute(
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.narrative.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
@@ -612,6 +613,7 @@ pub fn dispatch_entity_withdrawal_dispute(
         &["WithdrawalDisputed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -622,6 +624,8 @@ pub struct ATMCard {
     pub nickname: Option<CardNickname>,
     pub daily_fee: Option<DailyFee>,
     pub withdrawals: Vec<Withdrawal>,
+    pub account_status: Option<String>,
+    pub account_customer_status: Option<String>,
     pub status: String,
 }
 
@@ -634,6 +638,8 @@ impl crate::kernel::Fielded for ATMCard {
             "nickname" => self.nickname.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "daily_fee" => self.daily_fee.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "withdrawals" => Some(Field::Value(Value::List(self.withdrawals.len()))),
+            "account_status" => self.account_status.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account_customer_status" => self.account_customer_status.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -661,6 +667,8 @@ impl ATMCard {
         ("nickname".to_string(), self.nickname.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("daily_fee".to_string(), self.daily_fee.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("withdrawals".to_string(), crate::kernel::Json::Array(self.withdrawals.iter().map(|x| x.to_json()).collect())),
+        ("account_status".to_string(), self.account_status.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account_customer_status".to_string(), self.account_customer_status.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -674,6 +682,8 @@ impl ATMCard {
         nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(&x.coerce_single_field("value"))?), },
         daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(&x.coerce_single_field("amount"))?), },
         withdrawals: match v.get("withdrawals").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Withdrawal::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        account_status: match v.get("account_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ATMCard.account_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ATMCard.account_status: expected String".to_string()) })?), },
+        account_customer_status: match v.get("account_customer_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ATMCard.account_customer_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ATMCard.account_customer_status: expected String".to_string()) })?), },
         status: v.require("status", "ATMCard")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -684,6 +694,21 @@ impl crate::kernel::ToJson for ATMCard {
         ATMCard::to_json(self)
     }
 }
+
+impl crate::kernel::SetProjectedField for ATMCard {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+            "account_status" => self.account_status = value,
+            "account_customer_status" => self.account_customer_status = value,
+            _ => {}
+        }
+    }
+}
+
+pub static ATMCARD_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+    crate::kernel::ProjectedFieldSpec { field: "account_status", reference: "account", remote_field: "status" },
+    crate::kernel::ProjectedFieldSpec { field: "account_customer_status", reference: "account", remote_field: "customer_status" },
+];
 
 impl ATMCard {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -740,6 +765,7 @@ pub fn dispatch_issue(
         args.serial.check_invariants()?;
         args.daily_fee.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -751,6 +777,8 @@ pub fn dispatch_issue(
             nickname: None,
             daily_fee: Some(args.daily_fee.clone()),
             withdrawals: vec![],
+            account_status: None,
+            account_customer_status: None,
             status: "issued".to_string(),
         }),
     },
@@ -776,6 +804,7 @@ pub fn dispatch_issue(
         &["ATMCardIssued"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -844,6 +873,7 @@ pub fn dispatch_rename(
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.nickname.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -867,6 +897,7 @@ pub fn dispatch_rename(
         &["ATMCardRenamed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -934,6 +965,7 @@ pub fn dispatch_withdraw(
         args.cents.check_invariants()?;
         args.narrative.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -958,6 +990,7 @@ pub fn dispatch_withdraw(
         &["CashWithdrawn"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1023,6 +1056,7 @@ pub fn dispatch_activate(
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1046,6 +1080,7 @@ pub fn dispatch_activate(
         &["ATMCardActivated"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1109,6 +1144,7 @@ pub fn dispatch_retire(
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ATMCARD_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1132,6 +1168,7 @@ pub fn dispatch_retire(
         &["ATMCardRetired"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

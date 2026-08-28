@@ -267,6 +267,11 @@ impl crate::kernel::ToJson for FoundingAgreement {
         FoundingAgreement::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for FoundingAgreement {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl FoundingAgreement {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -347,6 +352,7 @@ pub fn dispatch_draft(
         &["FoundingAgreementDrafted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -422,6 +428,7 @@ pub fn dispatch_circulate(
         &["FoundingAgreementCirculated"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -493,6 +500,7 @@ pub fn dispatch_execute(
         &["FoundingAgreementExecuted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

@@ -74,7 +74,12 @@ Hecks.bluebook "Banking" do
 
       # DECLARED ONCE, ON THE PIECE (ADR 0028) — Amend and Reverse both
       # need the same two facts about the AGGREGATE they belong to;
-      # each used to retype both predicates verbatim.
+      # each used to retype both predicates verbatim. "customer is
+      # active" is now ALSO the chapter-wide declaration
+      # `SafeDepositBox::Visit` (safe_deposit_boxes.bluebook) bare-
+      # references as `declared_by: "Account.LedgerEntry"` — the same
+      # scope `AggregateBuilder#given_impl`'s own chapter-wide sharing
+      # already offers aggregates, one level down onto their own pieces.
       #
       # `parent.customer_status`, not `parent.customer.status` (S12,
       # ADR 0025) — `parent` (the owning Account record) is inside an
@@ -83,6 +88,12 @@ Hecks.bluebook "Banking" do
       # (declared above), already part of `parent.state`, so no
       # further hop is needed or allowed. `parent.status` was always
       # in bounds — Account's own local field, no reference crossed.
+      # `SafeDepositBox` carries the identical-named projected field
+      # (`projects :customer_status, from: :"customer.status"`,
+      # safe_deposit_boxes.bluebook), so this same block evaluates
+      # correctly against either aggregate's own `parent` — the reason
+      # the bare reference above can share this body verbatim rather
+      # than each site needing its own relative path.
       given("customer is active") { parent.customer_status == "active" }
       given("account is open")    { parent.status == "open" }
 

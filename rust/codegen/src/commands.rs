@@ -23,6 +23,14 @@ fn with_references_binding() -> String {
     "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };".to_string()
 }
 
+/// Port of `rust/project/commands.rb#seed_projections_binding` — the
+/// synchronous half of `projects` (S12, ADR 0025). See that method's own
+/// header for the full reasoning.
+fn seed_projections_binding(aggregate: &Json) -> String {
+    let table = naming::screaming_snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
+    format!("let seed_projections = crate::kernel::seeded_projections(&with_references, {table}_PROJECTED_FIELDS);")
+}
+
 fn target_type_for<'a>(target: &str, aggregate: &'a Json, lifecycle_field: Option<&str>) -> Option<&'a str> {
     if lifecycle_field == Some(target) {
         return Some("String");
@@ -391,7 +399,17 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let payload = if delegation.is_some() { "delegate_facts.clone()," } else { "args.to_json()," }.to_string();
 
     let (hydrate, fn_signature);
-    let record_agg_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    // `projected_field_pseudo_attributes` — a `projects` field is never
+    // a command argument (never `matched` below), so this always falls
+    // to the plain `None,` branch: correct, since `seed_projections`
+    // (this same dispatch's own trailing step, right before save) is
+    // what actually populates it, not anything a creating command's own
+    // args could set. Owned (`record_agg_attrs_owned`) because the
+    // pseudo-attributes are freshly built `Json` values, not borrowed
+    // from `aggregate`.
+    let mut record_agg_attrs_owned: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+    record_agg_attrs_owned.extend(crate::types::projected_field_pseudo_attributes(aggregate));
+    let record_agg_attrs = record_agg_attrs_owned.as_slice();
 
     if creates {
         let record_fields: Vec<String> = record_agg_attrs
@@ -485,6 +503,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             ("tmpl_invariant_check_placeholder()?;", invariant_checks.join("\n")),
             ("let tmpl_eval_fielded = tmpl_with_references_placeholder();", with_references_binding()),
             ("&tmpl_eval_fielded,", "&with_references,".to_string()),
+            ("let tmpl_seed_projections = tmpl_seed_projections_placeholder();", seed_projections_binding(aggregate)),
+            ("tmpl_seed_projections,", "seed_projections,".to_string()),
             ("tmpl_hydrate_placeholder()", hydrate),
             ("tmpl_prelude_placeholder();", prelude),
             ("\"TmplCmdName\"", naming::ruby_inspect_string(&cmd)),
@@ -810,6 +830,8 @@ pub fn emit_entity_command(
             ("tmpl_invariant_check_placeholder()?;", invariant_checks.join("\n")),
             ("let tmpl_eval_fielded = tmpl_with_references_placeholder();", with_references_binding()),
             ("&tmpl_eval_fielded,", "&with_references,".to_string()),
+            ("let tmpl_seed_projections = tmpl_seed_projections_placeholder();", seed_projections_binding(parent_aggregate)),
+            ("tmpl_seed_projections,", "seed_projections,".to_string()),
             ("tmpl_list_field", list_field),
             ("TmplElement", element_record),
             ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&qualified_command_name)),

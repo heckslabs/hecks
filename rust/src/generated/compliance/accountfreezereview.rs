@@ -131,6 +131,19 @@ impl crate::kernel::ToJson for AccountFreezeReview {
     }
 }
 
+impl crate::kernel::SetProjectedField for AccountFreezeReview {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static ACCOUNT_FREEZE_REVIEW_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl AccountFreezeReview {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -181,6 +194,7 @@ pub fn dispatch_open(
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
         args.number.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ACCOUNT_FREEZE_REVIEW_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -210,6 +224,7 @@ pub fn dispatch_open(
         &["AccountFreezeReviewOpened"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -273,6 +288,7 @@ pub fn dispatch_clear(
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ACCOUNT_FREEZE_REVIEW_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -296,6 +312,7 @@ pub fn dispatch_clear(
         &["AccountFreezeReviewCleared"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -359,6 +376,7 @@ pub fn dispatch_escalate(
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ACCOUNT_FREEZE_REVIEW_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -382,6 +400,7 @@ pub fn dispatch_escalate(
         &["AccountFreezeReviewEscalated"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

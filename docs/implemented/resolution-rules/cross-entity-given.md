@@ -61,7 +61,7 @@ aggregate's own execution context and wrong in a piece's own command's.
 | A piece bare-references a description ONLY the OWNING AGGREGATE declares (aggregate-scoped, not piece-scoped) | Still resolves normally through step 4.1 (the piece's own `named_givens` lookup already covers this when threaded correctly) — unaffected by this rule |
 | Two sibling pieces each independently write `given("x") { same predicate }` with their OWN block | Both keep their own LOCAL declaration; the pool holds whichever ran first. Not an error, but not maximally deduped either — a real, still-open hoisting opportunity `bin/query_ir duplicates` will keep surfacing until one becomes a bare reference to the other |
 | A piece bare-references a description NEITHER its own scope NOR any sibling under the same aggregate declares | `Malformed`, naming both places checked |
-| Two UNRELATED aggregates' own pieces happen to phrase a rule identically | Never shared — each aggregate holds its own separate pool; cross-AGGREGATE sharing is a different, larger, not-yet-built capability (see `docs/resolution-rules/README.md`'s own scoping note and this arc's own memory) |
+| Two UNRELATED aggregates' own pieces happen to phrase a rule identically | Never shared — each aggregate holds its own separate pool; cross-AGGREGATE sharing was, at the time this rule shipped, a different, larger, not-yet-built capability. It has SINCE been built, one level up (aggregate-to-aggregate, `chapter-given.md`) and one level down from THAT (piece-to-piece across aggregates, `chapter-entity-given.md`) — see that doc for the widened scope |
 
 ## Known limitations
 
@@ -69,8 +69,13 @@ aggregate's own execution context and wrong in a piece's own command's.
   aggregates — `Account`/`SafeDepositBox`/`OnboardingCase`'s own
   independent "customer is active" (aggregate-scoped, not this rule's
   concern) stays three separate declarations; that is real duplication too,
-  but a structurally different, bigger problem (no aggregate-to-aggregate
-  reference mechanism exists anywhere in this language yet).
+  but a structurally different, bigger problem. **Since resolved, one level
+  down from where `chapter-given.md` resolved the aggregate-to-aggregate
+  case**: see `docs/implemented/resolution-rules/chapter-entity-given.md`
+  for cross-AGGREGATE, piece-to-piece sharing (`Account::LedgerEntry` /
+  `SafeDepositBox::Visit`'s own real corpus duplication, structurally
+  identical to this rule's own motivation but crossing the one boundary
+  this rule itself could not).
 - First-declared-wins is a TEXTUAL-ORDER fact at declaration time inside one
   `instance_eval` pass (`given`'s own block form still builds eagerly,
   unlike `entity`/`command`/`query`, which ADR 0028 defers) — the first
@@ -102,4 +107,10 @@ aggregate's own execution context and wrong in a piece's own command's.
 
 ## Reference mirror
 
-NOT YET MIRRORED.
+**Mirrored** — commit `e1460b08` ("Rust mirror: cross-entity given
+sharing"). `rust/parser/src/parse/entity.rs` threads a mutable
+`entity_named_givens: &mut Vec<ir::Given>` through the same aggregate-wide
+entity tree the Ruby side threads `@entity_named_givens` through (see that
+file's own comment at line 45, and its use at lines 63, 230–234, 298–347).
+`spec/parser_parity_spec.rb --tag io` (including the `banking` corpus
+member) is the gate holding the two runtimes to the identical resolution.

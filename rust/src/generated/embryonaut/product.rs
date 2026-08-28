@@ -186,6 +186,11 @@ impl crate::kernel::ToJson for Product {
         Product::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Product {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Product {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -258,6 +263,7 @@ pub fn dispatch_conceive(
         &["ProductConceived"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -331,6 +337,7 @@ pub fn dispatch_set_vision(
         &["VisionSet"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -400,6 +407,7 @@ pub fn dispatch_begin_development(
         &["DevelopmentStarted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -469,6 +477,7 @@ pub fn dispatch_launch(
         &["ProductLaunched"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -538,6 +547,7 @@ pub fn dispatch_sunset(
         &["ProductSunset"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

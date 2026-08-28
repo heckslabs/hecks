@@ -213,6 +213,19 @@ impl crate::kernel::ToJson for RoleTransition {
     }
 }
 
+impl crate::kernel::SetProjectedField for RoleTransition {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static ROLE_TRANSITION_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl RoleTransition {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -271,6 +284,7 @@ pub fn dispatch_grant(
         args.to_role.check_invariants()?;
         args.starts_at.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROLE_TRANSITION_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -302,6 +316,7 @@ pub fn dispatch_grant(
         &["RoleTransitionGranted"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -370,6 +385,7 @@ pub fn dispatch_revoke(
 ) -> crate::kernel::DispatchResult<RoleTransition> {
         args.ends_at.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROLE_TRANSITION_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -393,6 +409,7 @@ pub fn dispatch_revoke(
         &["RoleTransitionRevoked"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

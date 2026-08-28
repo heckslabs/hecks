@@ -11,7 +11,8 @@ module Hecks
         include WordGate
 
         def initialize(name, owner_value_objects: [], owner_named_givens: {},
-                       identity_name_prefix: nil, identity_value_object_installer: nil)
+                       identity_name_prefix: nil, identity_value_object_installer: nil,
+                       aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
           @name         = name
           @commands     = []
           @queries      = []
@@ -30,6 +31,18 @@ module Hecks
           # reference reads from it via `CommandBuilder#
           # reference_named_given`.
           @owner_named_givens = owner_named_givens
+          # ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool
+          # (the piece analogue of `AggregateBuilder#@chapter_named_givens`,
+          # one level down). `@aggregate_name` names THIS piece's own
+          # root, so the write-through below can key itself
+          # "AggregateName.EntityName" — the same dotted addressing
+          # convention `declared_by:` already uses chapter-wide, one
+          # level up. See `#given_impl`'s own comment for what this
+          # closes and `docs/implemented/resolution-rules/
+          # chapter-entity-given.md` for the full algorithm.
+          @aggregate_name = aggregate_name || Naming.demodulise(name)
+          @chapter_entity_named_givens   = chapter_entity_named_givens
+          @chapter_entity_pending_givens = chapter_entity_pending_givens
           # DEFERRED CONSTRUCTION — see `AggregateBuilder#drain_pending!`'s
           # own comment; the identical mechanism, one level down, so a
           # nested piece's own commands (Dispatch inside Handler) see
@@ -150,7 +163,40 @@ module Hecks
         # magic.
         # RENAMED FROM `given` — item #13's full metaprogrammed dispatch
         # (slice 4b), same reasoning as reference_to_impl above.
-        def given_impl(description, &predicate)
+        #
+        # BARE — NO BLOCK — REFERENCES ANOTHER PIECE'S OWN DECLARATION,
+        # ANYWHERE IN THE CHAPTER, not just a sibling under this same
+        # aggregate — one level wider than round 4's own cross-entity
+        # sharing, mirroring `AggregateBuilder#given_impl`'s own
+        # chapter-wide shape exactly one level down. Real, live corpus
+        # this closes: `Account::LedgerEntry` and `SafeDepositBox::Visit`
+        # — two pieces under two DIFFERENT aggregates — independently
+        # typed `given("customer is active") { parent.customer.status ==
+        # "active" }` byte for byte; neither the aggregate-level chapter
+        # pool (a DIFFERENT canonical — bare `customer.status`, the
+        # wrong scope for a piece's own command) nor the existing
+        # same-aggregate cross-entity pool (`@owner_named_givens`, scoped
+        # to ONE aggregate's own entity tree) could reach across the
+        # aggregate boundary. Resolved against `@chapter_entity_named_
+        # givens`, keyed "AggregateName.EntityName" — see
+        # `#reference_named_chapter_entity_given`'s own comment for the
+        # algorithm and `docs/implemented/resolution-rules/
+        # chapter-entity-given.md` for the full write-up.
+        #
+        # `declared_by:` is a PLAIN STRING ("Account.LedgerEntry"), not a
+        # constant — unlike `AggregateBuilder#given_impl`'s own
+        # `declared_by:`, which names a real aggregate constant. A piece
+        # has no first-class, independently-addressable reference
+        # anywhere in this language (only its owning aggregate does);
+        # inventing one to make this ONE argument spelling symmetrical
+        # with the aggregate-level word is a real, separate, unscoped
+        # feature this fix does not need — ships textual now, the same
+        # way `admits:` shipped textual before its own constant-bridge
+        # existed, revisited only if a genuine, separate need for
+        # constant-addressed pieces shows up later.
+        def given_impl(description, declared_by: nil, &predicate)
+          return reference_named_chapter_entity_given(description, declared_by: declared_by) unless predicate
+
           named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
                               extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
           @named_givens[description] = named
@@ -163,6 +209,17 @@ module Hecks
           # by coincidence, same as an aggregate-level given already
           # tolerates today).
           @owner_named_givens[description] ||= named
+          # WRITE-THROUGH, PER OWNER — the chapter-wide analogue of the
+          # line above, keyed by [description, this piece's own dotted
+          # "Aggregate.Entity" name] rather than description alone, the
+          # identical reasoning `AggregateBuilder#given_impl`'s own
+          # chapter write-through gives: two DIFFERENT pieces (anywhere
+          # in the chapter) independently declaring the SAME description
+          # are two DISTINCT candidates a later bare reference chooses
+          # between (via `declared_by:` once there is more than one),
+          # never silently merged into one slot.
+          @chapter_entity_named_givens[description] ||= {}
+          @chapter_entity_named_givens[description]["#{@aggregate_name}.#{@name}"] ||= named
         end
 
         # A PIECE'S OWN SHAPE RULE (S10, ADR 0025's own "Rules" shape,
@@ -203,15 +260,80 @@ module Hecks
         end
 
         def self.build(name, owner_value_objects: [], owner_named_givens: {},
-                       identity_name_prefix: nil, identity_value_object_installer: nil, &block)
+                       identity_name_prefix: nil, identity_value_object_installer: nil,
+                       aggregate_name: nil, chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)
           builder = new(name, owner_value_objects: owner_value_objects, owner_named_givens: owner_named_givens,
                               identity_name_prefix: identity_name_prefix,
-                              identity_value_object_installer: identity_value_object_installer)
+                              identity_value_object_installer: identity_value_object_installer,
+                              aggregate_name: aggregate_name,
+                              chapter_entity_named_givens: chapter_entity_named_givens,
+                              chapter_entity_pending_givens: chapter_entity_pending_givens)
           builder.instance_eval(&block) if block
           builder.build
         end
 
         private
+
+        # PRIMITIVE 2 (RuleReference#resolve_owner_keyed) — the CHAPTER-
+        # WIDE, ENTITY-SCOPED analogue of `AggregateBuilder#
+        # reference_named_chapter_given`; the three branches below are
+        # this construct's OWN refusal wording, not shared, matching that
+        # method's own precedent (`declared_by:` only exists on `given`
+        # so far, at either scope). UNRESOLVED is deferred, not raised
+        # here — see `#pending_chapter_entity_given`, below.
+        #
+        # WRITES THROUGH TO `@owner_named_givens` TOO — not just
+        # `@named_givens` — or this piece resolving a description via the
+        # WIDER, chapter pool would leave the NARROWER, same-aggregate
+        # pool (`EntityBuilder#given_impl`'s own block-form write-through)
+        # never populated for this description, breaking any SIBLING
+        # piece's existing command-level bare reference
+        # (`CommandBuilder#reference_named_given`) that depends on it —
+        # real, live corpus: `SafeDepositBox::KeyIssuance.Return`'s own
+        # bare `given("customer is active")` resolves through
+        # `@owner_named_givens`, populated by `Visit`'s declaration
+        # whether `Visit` types the predicate itself OR (now) references
+        # `Account::LedgerEntry`'s instead — this write keeps that
+        # working unchanged either way, `||=` so nothing here overrides
+        # an actual local declaration if one is ever added later.
+        def reference_named_chapter_entity_given(description, declared_by:)
+          verify_resolves_via!("given", "Entity", "owner_keyed")
+          candidates = resolve_owner_keyed(@chapter_entity_named_givens, description)
+
+          named =
+            if declared_by
+              candidates[declared_by] || pending_chapter_entity_given(description, declared_by: declared_by)
+            elsif candidates.size == 1
+              candidates.values.first
+            elsif candidates.empty?
+              pending_chapter_entity_given(description, declared_by: nil)
+            else
+              raise(Malformed,
+                    "#{@aggregate_name}::#{@name}'s given #{description.inspect} is ambiguous " \
+                    "across the chapter's own pieces — #{candidates.keys.join(', ')} each declare " \
+                    "a DIFFERENT predicate under this same description; name which one with " \
+                    "declared_by: (e.g. given(#{description.inspect}, declared_by: " \
+                    "#{candidates.keys.first.inspect}))")
+            end
+
+          @named_givens[description] = named
+          @owner_named_givens[description] ||= named
+        end
+
+        # A CHAPTER MAY BE SPLIT ACROSS FILES — the identical reason
+        # `AggregateBuilder#pending_chapter_given` defers rather than
+        # raising the moment a bare reference outruns what's loaded so
+        # far. Hands back a PLACEHOLDER `Given`, embedded by Ruby object
+        # reference in this piece's own `preconditions`, and queues the
+        # request in `@chapter_entity_pending_givens` —
+        # `BluebookBuilder#resolve_pending_chapter_entity_givens!`
+        # mutates it in place once every file in the chapter has loaded.
+        def pending_chapter_entity_given(description, declared_by:)
+          placeholder = Given.new(description: description, canonical: nil, predicate: nil)
+          @chapter_entity_pending_givens << { entity: "#{@aggregate_name}.#{@name}", description: description,
+                                               declared_by: declared_by, placeholder: placeholder }
+          placeholder
+        end
 
         # A PIECE'S OWN `one_of` LANDS ON ITS AGGREGATE. A type-position
         # `one_of("never_moved", "moved")` on an entity attribute
@@ -257,6 +379,9 @@ module Hecks
                                       owner_named_givens:              @owner_named_givens,
                                       identity_name_prefix:            "#{@identity_name_prefix}#{Naming.demodulise(name)}",
                                       identity_value_object_installer: @identity_value_object_installer,
+                                      aggregate_name:                  @aggregate_name,
+                                      chapter_entity_named_givens:     @chapter_entity_named_givens,
+                                      chapter_entity_pending_givens:   @chapter_entity_pending_givens,
                                 &block)
           end
 

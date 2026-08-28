@@ -239,6 +239,11 @@ impl crate::kernel::ToJson for Engagement {
         Engagement::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Engagement {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Engagement {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -311,6 +316,7 @@ pub fn dispatch_schedule(
         &["EngagementScheduled"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -384,6 +390,7 @@ pub fn dispatch_complete_workshop(
         &["WorkshopCompleted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -455,6 +462,7 @@ pub fn dispatch_draft_domain(
         &["DomainDrafted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -526,6 +534,7 @@ pub fn dispatch_show_demo(
         &["DemoShown"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

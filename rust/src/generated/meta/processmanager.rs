@@ -831,6 +831,7 @@ pub fn dispatch_entity_handler_dispatch(
         args.command_name.check_invariants()?;
         args.position.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
@@ -860,6 +861,7 @@ pub fn dispatch_entity_handler_dispatch(
         &["SendDeclared"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -942,6 +944,19 @@ impl crate::kernel::ToJson for ProcessManager {
     }
 }
 
+impl crate::kernel::SetProjectedField for ProcessManager {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static PROCESS_MANAGER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl ProcessManager {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -993,6 +1008,7 @@ pub fn dispatch_state(
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1016,6 +1032,7 @@ pub fn dispatch_state(
         &["SagaStateAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1086,6 +1103,7 @@ pub fn dispatch_handler(
         args.from_state.check_invariants()?;
         args.to_state.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1109,6 +1127,7 @@ pub fn dispatch_handler(
         &["LegDeclared"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

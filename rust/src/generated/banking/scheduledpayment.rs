@@ -444,6 +444,8 @@ pub struct ScheduledPayment {
     pub due_on: Option<PaymentDueDate>,
     pub attempts: Option<RetryCount>,
     pub max_attempts: Option<RetryLimit>,
+    pub account_status: Option<String>,
+    pub account_customer_status: Option<String>,
     pub status: String,
 }
 
@@ -458,6 +460,8 @@ impl crate::kernel::Fielded for ScheduledPayment {
             "due_on" => self.due_on.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "attempts" => self.attempts.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "max_attempts" => self.max_attempts.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "account_status" => self.account_status.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account_customer_status" => self.account_customer_status.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -487,6 +491,8 @@ impl ScheduledPayment {
         ("due_on".to_string(), self.due_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("attempts".to_string(), self.attempts.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("max_attempts".to_string(), self.max_attempts.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("account_status".to_string(), self.account_status.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account_customer_status".to_string(), self.account_customer_status.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -502,6 +508,8 @@ impl ScheduledPayment {
         due_on: match v.get("due_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentDueDate::from_json(&x.coerce_single_field("value"))?), },
         attempts: match v.get("attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryCount::from_json(&x.coerce_single_field("value"))?), },
         max_attempts: match v.get("max_attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryLimit::from_json(&x.coerce_single_field("value"))?), },
+        account_status: match v.get("account_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ScheduledPayment.account_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ScheduledPayment.account_status: expected String".to_string()) })?), },
+        account_customer_status: match v.get("account_customer_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ScheduledPayment.account_customer_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ScheduledPayment.account_customer_status: expected String".to_string()) })?), },
         status: v.require("status", "ScheduledPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -512,6 +520,21 @@ impl crate::kernel::ToJson for ScheduledPayment {
         ScheduledPayment::to_json(self)
     }
 }
+
+impl crate::kernel::SetProjectedField for ScheduledPayment {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+            "account_status" => self.account_status = value,
+            "account_customer_status" => self.account_customer_status = value,
+            _ => {}
+        }
+    }
+}
+
+pub static SCHEDULED_PAYMENT_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+    crate::kernel::ProjectedFieldSpec { field: "account_status", reference: "account", remote_field: "status" },
+    crate::kernel::ProjectedFieldSpec { field: "account_customer_status", reference: "account", remote_field: "customer_status" },
+];
 
 impl ScheduledPayment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -574,6 +597,7 @@ pub fn dispatch_schedule(
         args.recipient.check_invariants()?;
         args.due_on.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -587,6 +611,8 @@ pub fn dispatch_schedule(
             due_on: Some(args.due_on.clone()),
             attempts: Some(RetryCount { value: 0 }),
             max_attempts: Some(RetryLimit { value: 3 }),
+            account_status: None,
+            account_customer_status: None,
             status: "scheduled".to_string(),
         }),
     },
@@ -614,6 +640,7 @@ pub fn dispatch_schedule(
         &["PaymentScheduled"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -685,6 +712,7 @@ pub fn dispatch_execute(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -709,6 +737,7 @@ pub fn dispatch_execute(
         &["ScheduledPaymentExecuted"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -772,6 +801,7 @@ pub fn dispatch_cancel(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -796,6 +826,7 @@ pub fn dispatch_cancel(
         &["ScheduledPaymentCancelled"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -859,6 +890,7 @@ pub fn dispatch_fail(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -883,6 +915,7 @@ pub fn dispatch_fail(
         &["ScheduledPaymentFailed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -946,6 +979,7 @@ pub fn dispatch_retry(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -972,6 +1006,7 @@ pub fn dispatch_retry(
         &["ScheduledPaymentFailed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1035,6 +1070,7 @@ pub fn dispatch_abandon(
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, SCHEDULED_PAYMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1060,6 +1096,7 @@ pub fn dispatch_abandon(
         &["ScheduledPaymentAbandoned"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

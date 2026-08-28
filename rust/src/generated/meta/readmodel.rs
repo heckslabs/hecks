@@ -700,6 +700,19 @@ impl crate::kernel::ToJson for ReadModel {
     }
 }
 
+impl crate::kernel::SetProjectedField for ReadModel {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static READ_MODEL_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl ReadModel {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -757,6 +770,7 @@ pub fn dispatch_gather(
         args.r#as.check_invariants()?;
         args.many.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -780,6 +794,7 @@ pub fn dispatch_gather(
         &["HeadGathered"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -848,6 +863,7 @@ pub fn dispatch_group_by(
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.field.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -871,6 +887,7 @@ pub fn dispatch_group_by(
         &["GroupByFieldAdded"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -935,6 +952,7 @@ pub fn dispatch_count(
 ) -> crate::kernel::DispatchResult<ReadModel> {
         if let Some(v) = &args.count { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -958,6 +976,7 @@ pub fn dispatch_count(
         &["CountDeclared"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1022,6 +1041,7 @@ pub fn dispatch_median(
 ) -> crate::kernel::DispatchResult<ReadModel> {
         if let Some(v) = &args.median_field { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1045,6 +1065,7 @@ pub fn dispatch_median(
         &["MedianFieldSet"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1118,6 +1139,7 @@ pub fn dispatch_option(
         if let Some(v) = &args.value { v.check_invariants()?; }
         if let Some(v) = &args.at { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, READ_MODEL_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1141,6 +1163,7 @@ pub fn dispatch_option(
         &["OptionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

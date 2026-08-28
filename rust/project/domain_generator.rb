@@ -402,11 +402,23 @@ module RustProjection
             end
           end
 
-          f.puts Projector.emit_record(aggregate, value_objects_by_name)
+          # `record_attributes` — `aggregate[:attributes]` PLUS a
+          # `String`-typed, always-optional pseudo-attribute per
+          # `projects` field (`types.rb`'s own `projected_field_pseudo_
+          # attributes` header) — the record's own struct/Fielded/JSON
+          # shape needs to carry a seeded projection exactly like any
+          # other attribute; a command's own Args struct (built
+          # elsewhere, from `command[:attributes]` alone) never sees
+          # this merge, since a projected field is never a command
+          # argument.
+          record_attributes = aggregate[:attributes] + Projector.projected_field_pseudo_attributes(aggregate)
+          record_for_struct = aggregate.merge(attributes: record_attributes)
+
+          f.puts Projector.emit_record(record_for_struct, value_objects_by_name)
           f.puts
-          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
+          f.puts Projector.emit_to_json_flat(record_name, record_attributes, value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
           f.puts
-          f.puts Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
+          f.puts Projector.emit_from_json_state(record_name, record_attributes, value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
           f.puts
           # `dispatch`/`dispatch_entity` (kernel/dispatch.rs) are generic
           # over the record type and need `record.to_json()` to build a
@@ -424,6 +436,10 @@ module RustProjection
                 }
             }
           RUST
+          f.puts
+          f.puts Projector.emit_set_projected_field(aggregate)
+          f.puts
+          f.puts Projector.emit_projected_field_table(aggregate)
           f.puts
           acting_router_reason = "identity #{aggregate[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
           if can_route

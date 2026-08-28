@@ -233,6 +233,25 @@ module Hecks
     # hand whether this is ALREADY a chapter-wide reference before
     # assuming it's fresh duplication," not as an automatic signal
     # either way.
+    #
+    # THE IDENTICAL GAP, ONE LEVEL DOWN: chapter-wide ENTITY-scoped
+    # sharing (`EntityBuilder#given`'s own bare form,
+    # `docs/implemented/resolution-rules/chapter-entity-given.md`) hits this same wall for
+    # the same structural reason — `SafeDepositBox.Visit` still shows
+    # as its own "(declared)" owner here even after becoming a bare
+    # reference to `Account.LedgerEntry`'s declaration, because a piece
+    # resolving a chapter-wide reference still write-throughs the
+    # resolved `Given` into its own `@named_givens` (so ITS OWN
+    # commands can read it back locally without a second hop). This is
+    # not a NEW limitation this feature introduces — it is the exact
+    # same IR-cannot-distinguish-declared-from-referenced fact, one
+    # scope wider. `bin/query_ir duplicates` confirms this directly:
+    # `Account.LedgerEntry (declared)` and `SafeDepositBox.Visit
+    # (declared)` both appear under the same `given: "customer is
+    # active"` group — verify by hand, same as the aggregate-level
+    # case above, before assuming a group naming two pieces under
+    # different aggregates is fresh duplication rather than an already-
+    # resolved chapter-wide reference.
     def declaration_count(rules)
       declared = rules.select { |r| r.location.end_with?(" (declared)") }
       declared_owners = declared.map { |r| owner_of(r.location) }.to_set

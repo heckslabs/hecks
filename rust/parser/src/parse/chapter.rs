@@ -46,7 +46,7 @@
 //! discarded `ir::Bluebook`, so a real syntax error inside a sibling
 //! block still refuses rather than being silently skipped.
 
-use super::{aggregate, command, policy, process_manager, read_model};
+use super::{aggregate, command, entity, policy, process_manager, read_model};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, SourceLine};
@@ -85,6 +85,23 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     // own `preconditions` — this one COPIES that result rather than
     // re-resolving from scratch.
     let mut pending_command_givens: Vec<(usize, usize, command::PendingCommandGiven)> = Vec::new();
+    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // piece analogue of `chapter_named_givens`, above). See
+    // `entity::parse_body`'s own header for what this closes.
+    let mut chapter_entity_named_givens: Vec<(String, ir::Given)> = Vec::new();
+    // EVERY BARE CHAPTER-ENTITY-GIVEN A FILE PARSED SO FAR LEFT PENDING —
+    // see `entity::PendingChapterEntityGiven`'s own comment; stamped with
+    // its own `aggregate_index` the same way `pending_chapter_givens`
+    // above is.
+    let mut pending_chapter_entity_givens: Vec<(usize, entity::PendingChapterEntityGiven)> =
+        Vec::new();
+    // ONE LEVEL DEEPER STILL — a COMMAND (owned by some entity) bare-
+    // referencing the same not-yet-resolved chapter-entity-given (`entity
+    // ::PendingEntityCommandGiven`'s own comment). Resolved in a pass
+    // AFTER every `PendingChapterEntityGiven` above has already patched
+    // its owning entity's own `preconditions`.
+    let mut pending_entity_command_givens: Vec<(usize, entity::PendingEntityCommandGiven)> =
+        Vec::new();
     let mut hecksagon_files: Vec<&(String, String)> = Vec::new();
 
     for entry @ (path, source) in files {
@@ -138,6 +155,9 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut chapter_named_givens,
                     &mut pending_chapter_givens,
                     &mut pending_command_givens,
+                    &mut chapter_entity_named_givens,
+                    &mut pending_chapter_entity_givens,
+                    &mut pending_entity_command_givens,
                 )?;
             }
             "Hecksagon" => hecksagon_files.push(entry),
@@ -254,6 +274,90 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             bluebook.aggregates[aggregate_index].preconditions[pending.precondition_index].clone();
         bluebook.aggregates[aggregate_index].commands[command_index].givens[pending.given_index] =
             resolved;
+    }
+
+    // A FOURTH LAYER — the ENTITY-SCOPED analogue of the chapter-given
+    // resolution pass above, one level down (`entity::
+    // try_reference_named_chapter_entity_given`'s own header). Resolved
+    // against the NOW-COMPLETE `chapter_entity_named_givens` — the
+    // IDENTICAL lookup that function already does, just late enough to
+    // see every piece's own declaration, not only the ones parsed before
+    // the referencing one. `entity::entity_at_path_mut` locates the
+    // (possibly nested — S17, ADR 0026) entity the placeholder actually
+    // lives on.
+    for (aggregate_index, pending) in pending_chapter_entity_givens {
+        let candidates: Vec<&(String, ir::Given)> = chapter_entity_named_givens
+            .iter()
+            .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
+            .collect();
+
+        let resolved = if let Some(owner) = &pending.declared_by {
+            candidates
+                .iter()
+                .find(|(candidate_owner, _)| candidate_owner == owner)
+                .map(|(_, given)| given.clone())
+                .ok_or_else(|| {
+                    Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                            "'{}' names no precondition {owner} declares in this chapter — {owner} \
+                             either hasn't declared '{}', or declared_by: named the wrong piece",
+                            pending.description, pending.description
+                        ),
+                    )
+                })?
+        } else {
+            match candidates.as_slice() {
+                [] => {
+                    return Err(Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                            "'{}' names no precondition any piece in this chapter ever declares \
+                             — declare it once with a block",
+                            pending.description
+                        ),
+                    ))
+                }
+                [(_, given)] => given.clone(),
+                _ => {
+                    let owners: Vec<&str> =
+                        candidates.iter().map(|(owner, _)| owner.as_str()).collect();
+                    return Err(Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                            "'{}' is ambiguous across the chapter's own pieces — {} each declare \
+                             a DIFFERENT predicate under this same description; name which one \
+                             with declared_by:",
+                            pending.description,
+                            owners.join(", ")
+                        ),
+                    ));
+                }
+            }
+        };
+
+        let target_entity = entity::entity_at_path_mut(
+            &mut bluebook.aggregates[aggregate_index].entities,
+            &pending.entity_path,
+        );
+        target_entity.preconditions[pending.precondition_index] = resolved;
+    }
+
+    // A FIFTH LAYER — a COMMAND (owned by some entity) bare-referencing
+    // the same chapter-entity-given (`entity::PendingEntityCommandGiven`
+    // 's own comment). Runs AFTER the loop above, on purpose — it COPIES
+    // the owning entity's own now-final `preconditions[precondition_
+    // index]`, so that placeholder has to be resolved for real first.
+    for (aggregate_index, pending) in pending_entity_command_givens {
+        let target_entity = entity::entity_at_path_mut(
+            &mut bluebook.aggregates[aggregate_index].entities,
+            &pending.entity_path,
+        );
+        let resolved = target_entity.preconditions[pending.inner.precondition_index].clone();
+        target_entity.commands[pending.command_index].givens[pending.inner.given_index] = resolved;
     }
 
     for (path, source) in hecksagon_files {
@@ -420,6 +524,12 @@ fn parse_body_into(
     // not-yet-resolved chapter-given (`command::PendingCommandGiven`'s
     // own comment).
     pending_command_givens: &mut Vec<(usize, usize, command::PendingCommandGiven)>,
+    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // piece analogue of `chapter_named_givens`, above). See
+    // `entity::parse_body`'s own header.
+    chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
+    pending_chapter_entity_givens: &mut Vec<(usize, entity::PendingChapterEntityGiven)>,
+    pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
 ) -> ParseResult<()> {
     // THE ROOT of the chapter-wide given pool
     // (`docs/implemented/resolution-rules/chapter-given.md`) belongs to the
@@ -476,8 +586,21 @@ fn parse_body_into(
             }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
-                let (built, policies, pending, command_pending) =
-                    aggregate::parse_body(file, lines, pos, &agg_name, chapter_named_givens)?;
+                let (
+                    built,
+                    policies,
+                    pending,
+                    command_pending,
+                    entity_given_pending,
+                    entity_command_pending,
+                ) = aggregate::parse_body(
+                    file,
+                    lines,
+                    pos,
+                    &agg_name,
+                    chapter_named_givens,
+                    chapter_entity_named_givens,
+                )?;
                 let aggregate_index = bluebook.aggregates.len();
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
@@ -487,6 +610,16 @@ fn parse_body_into(
                     command_pending
                         .into_iter()
                         .map(|(command_index, entry)| (aggregate_index, command_index, entry)),
+                );
+                pending_chapter_entity_givens.extend(
+                    entity_given_pending
+                        .into_iter()
+                        .map(|entry| (aggregate_index, entry)),
+                );
+                pending_entity_command_givens.extend(
+                    entity_command_pending
+                        .into_iter()
+                        .map(|entry| (aggregate_index, entry)),
                 );
             }
             "policy" => {

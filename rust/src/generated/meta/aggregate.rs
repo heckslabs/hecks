@@ -1225,6 +1225,19 @@ impl crate::kernel::ToJson for Aggregate {
     }
 }
 
+impl crate::kernel::SetProjectedField for Aggregate {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static AGGREGATE_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Aggregate {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -1276,6 +1289,7 @@ pub fn dispatch_identify(
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.path.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1299,6 +1313,7 @@ pub fn dispatch_identify(
         &["RootIdentified"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1383,6 +1398,7 @@ pub fn dispatch_attribute(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1406,6 +1422,7 @@ pub fn dispatch_attribute(
         &["AttributeAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1504,6 +1521,7 @@ pub fn dispatch_reference(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1527,6 +1545,7 @@ pub fn dispatch_reference(
         &["ReferenceAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1625,6 +1644,7 @@ pub fn dispatch_holds(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1648,6 +1668,7 @@ pub fn dispatch_holds(
         &["PieceHeld"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1729,6 +1750,7 @@ pub fn dispatch_lifecycle(
         args.state_field.check_invariants()?;
         args.state_start.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1753,6 +1775,7 @@ pub fn dispatch_lifecycle(
         &["LifecycleNamed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1825,6 +1848,7 @@ pub fn dispatch_transition(
         if let Some(v) = &args.from_state { v.check_invariants()?; }
         args.to_state.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1848,6 +1872,7 @@ pub fn dispatch_transition(
         &["TransitionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1915,6 +1940,7 @@ pub fn dispatch_seal(
 ) -> crate::kernel::DispatchResult<Aggregate> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1938,6 +1964,7 @@ pub fn dispatch_seal(
         &["RootSealed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -2002,6 +2029,7 @@ pub fn dispatch_value(
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -2025,6 +2053,7 @@ pub fn dispatch_value(
         &["ValueDeclared"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -2092,6 +2121,7 @@ pub fn dispatch_invariant(
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.canonical.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -2116,6 +2146,7 @@ pub fn dispatch_invariant(
         &["InvariantAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -2185,6 +2216,7 @@ pub fn dispatch_precondition(
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.canonical.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -2209,6 +2241,7 @@ pub fn dispatch_precondition(
         &["PreconditionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -2281,6 +2314,7 @@ pub fn dispatch_projects(
         args.reference.check_invariants()?;
         args.remote_field.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, AGGREGATE_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -2306,6 +2340,7 @@ pub fn dispatch_projects(
         &["ProjectedFieldAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

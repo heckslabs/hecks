@@ -1,0 +1,126 @@
+# A DEDICATED FIXTURE for the CHAPTER-WIDE, ENTITY-SCOPED `given`
+# scope — one level below `Aggregate`'s own existing chapter-wide
+# sharing (`spec/rule_reference_spec.rb`'s own "resolve_owner_keyed
+# (AggregateBuilder#given)"). Two DIFFERENT aggregates' own nested
+# entities share a `given` predicate across the aggregate boundary,
+# mirroring the real corpus shape this construct exists for:
+# `Account::LedgerEntry` and `SafeDepositBox::Visit` (examples/banking/)
+# both used to independently type `given("customer is active") {
+# parent.customer.status == "active" }`, byte for byte — `Visit` now
+# spells `given("customer is active", declared_by: "Account.LedgerEntry")`
+# instead.
+Hecks.bluebook "ChapterEntityGiven" do
+  vision "Two aggregates' own nested entities sharing one precondition across the aggregate boundary."
+  core
+
+  aggregate "Account" do
+    description "Declares the precondition a sibling aggregate's own entity references back."
+
+    identified_by :ref
+
+    attribute :ref, AccountRef
+    reference_to Customer
+
+    value_object "AccountRef" do
+      attribute :value, String
+    end
+
+    entity "LedgerEntry" do
+      description "The FIRST declaration — a plain block, resolved locally."
+
+      attribute :sequence, Sequence
+      identified_by :sequence
+
+      given("customer is active") { parent.customer.status == "active" }
+
+      command "Amend" do
+        role "Clerk"
+        goal "Amend a ledger entry"
+
+        attribute :sequence, Sequence
+        given("customer is active")
+        sets :sequence
+
+        emits "LedgerEntryAmended"
+      end
+    end
+
+    value_object "Sequence" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Open an account for a customer"
+
+      reference_to Customer
+      attribute :ref, AccountRef
+
+      emits "AccountOpened"
+    end
+  end
+
+  aggregate "SafeDepositBox" do
+    description "References Account::LedgerEntry's own precondition across the aggregate boundary."
+
+    identified_by :ref
+
+    attribute :ref, BoxRef
+
+    value_object "BoxRef" do
+      attribute :value, String
+    end
+
+    entity "Visit" do
+      description "The SECOND declaration — a bare reference, disambiguated with declared_by:."
+
+      attribute :note, Note
+      identified_by :note
+
+      given("customer is active", declared_by: "Account.LedgerEntry")
+
+      command "Log" do
+        role "Clerk"
+        goal "Log a visit"
+
+        attribute :note, Note
+        given("customer is active")
+        sets :note
+
+        emits "VisitLogged"
+      end
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Open a safe deposit box"
+
+      attribute :ref, BoxRef
+
+      emits "SafeDepositBoxOpened"
+    end
+  end
+
+  aggregate "Customer" do
+    description "The record both entities' own shared precondition reads through."
+
+    identified_by :status
+
+    attribute :status, Status
+
+    value_object "Status" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "Clerk"
+      goal "Register a customer"
+
+      emits "CustomerRegistered"
+    end
+  end
+end

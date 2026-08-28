@@ -249,6 +249,11 @@ impl crate::kernel::ToJson for Payment {
         Payment::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Payment {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Payment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -333,6 +338,7 @@ pub fn dispatch_record(
         &["PaymentRecorded"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -410,6 +416,7 @@ pub fn dispatch_refund(
         &["PaymentRefunded"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

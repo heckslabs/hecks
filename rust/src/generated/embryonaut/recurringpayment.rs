@@ -236,6 +236,11 @@ impl crate::kernel::ToJson for RecurringPayment {
         RecurringPayment::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for RecurringPayment {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl RecurringPayment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -321,6 +326,7 @@ pub fn dispatch_start(
         &["RecurringPaymentStarted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -401,6 +407,7 @@ pub fn dispatch_advance_cycle(
         &["CycleAdvanced"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -470,6 +477,7 @@ pub fn dispatch_pause(
         &["RecurringPaymentPaused"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -539,6 +547,7 @@ pub fn dispatch_resume(
         &["RecurringPaymentResumed"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -608,6 +617,7 @@ pub fn dispatch_cancel(
         &["RecurringPaymentCancelled"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

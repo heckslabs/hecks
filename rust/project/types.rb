@@ -256,5 +256,72 @@ module RustProjection
 
       "#{struct_part}\n\n#{emit_fielded_record(aggregate, value_objects_by_name)}"
     end
+
+    # THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025), the CODEGEN
+    # side — `CommandInterpreter#seed_projected_fields`'s own target is
+    # a genuinely dynamic Ruby Hash key; Rust's struct has no such thing,
+    # so a `projects` field is generated as an ordinary `String`-typed,
+    # always-optional ATTRIBUTE (struct field, `Fielded::field` read arm,
+    # `to_json`/`from_json_state` key) rather than inventing a second,
+    # parallel codegen path for it. `emit_record`'s caller
+    # (`domain_generator.rb`) merges this onto `aggregate[:attributes]`
+    # for exactly those four emissions — never for a command's own Args
+    # struct (a projected field is never a command argument) and never
+    # for `emit_from_json_flat` (command-args parsing), so the merge
+    # happens at the ONE call site that builds the record shape, not
+    # inside `emit_record`/`emit_fielded_record` themselves.
+    #
+    # `type: "String"` — every real `projects` declaration in the corpus
+    # today projects a lifecycle `status` field or another projected
+    # field, both always String; see `reference_lookup.rs`'s own
+    # `seeded_projections` header for the same scoping note on the Rust
+    # runtime side.
+    def projected_field_pseudo_attributes(aggregate)
+      (aggregate[:projected_fields] || []).map do |field|
+        { name: field[:name], type: "String", list: false, optional: true }
+      end
+    end
+
+    # `impl crate::kernel::SetProjectedField for X` — the write half a
+    # generic `Fielded::field` read has no counterpart for
+    # (`reference_lookup.rs`'s own trait header). One match arm per
+    # `projects` field this aggregate declares; an aggregate with none
+    # still implements the trait, empty match body, so `kernel::dispatch`
+    # can require the bound unconditionally rather than special-casing
+    # "this aggregate has no projections."
+    def emit_set_projected_field(aggregate)
+      name = rust_ident(aggregate[:name])
+      arms = (aggregate[:projected_fields] || []).map do |field|
+        ident = rust_ident_field(field[:name])
+        "            #{field[:name].inspect} => self.#{ident} = value,"
+      end
+      <<~RUST
+        impl crate::kernel::SetProjectedField for #{name} {
+            fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+                match name {
+        #{arms.join("\n")}
+                    _ => {}
+                }
+            }
+        }
+      RUST
+    end
+
+    # `#{NAME}_PROJECTED_FIELDS` — one static table per aggregate,
+    # `crate::kernel::ProjectedFieldSpec` rows read at dispatch time
+    # (`commands.rb`'s own `tmpl_seed_projections_placeholder`
+    # substitution) to compute `seeded_projections` off the SAME
+    # `with_references` already built for given/ensures evaluation.
+    # Empty for an aggregate with no `projects` fields, the same
+    # "always emitted, sometimes empty" shape `REFERENCE_TABLE`'s own
+    # per-aggregate rows already use (reference_specs.rb).
+    def emit_projected_field_table(aggregate)
+      name = screaming_snake(aggregate[:name])
+      rows = (aggregate[:projected_fields] || []).map do |field|
+        "    crate::kernel::ProjectedFieldSpec { field: #{field[:name].inspect}, reference: #{field[:reference].inspect}, " \
+          "remote_field: #{field[:remote_field].inspect} },"
+      end
+      "pub static #{name}_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[\n#{rows.join("\n")}\n];\n"
+    end
   end
 end

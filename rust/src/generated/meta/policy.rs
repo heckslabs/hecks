@@ -455,6 +455,19 @@ impl crate::kernel::ToJson for Policy {
     }
 }
 
+impl crate::kernel::SetProjectedField for Policy {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static POLICY_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Policy {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -509,6 +522,7 @@ pub fn dispatch_bind(
         args.key.check_invariants()?;
         args.value.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, POLICY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -532,6 +546,7 @@ pub fn dispatch_bind(
         &["TriggerBindingAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

@@ -252,8 +252,9 @@ Hecks.bluebook "Bluebook" do
       # WHICH DISAMBIGUATOR keyword argument a bare reference may supply
       # when `resolves_via` is `owner_keyed` — see `Disambiguator`'s own
       # comment. BLANK unless `resolves_via` is `owner_keyed` AND more
-      # than one candidate can register (today: only `given` on
-      # Aggregate).
+      # than one candidate can register (today: `given` on Aggregate,
+      # and `given` on Entity, one level down — chapter-wide sharing at
+      # each scope it has grown to).
       attribute :disambiguator,  KeywordSeedText, admits: "Syntax::Disambiguator", optional: true
       # THE ESCAPE HATCH — item #13's full metaprogrammed dispatch (slice
       # 3, whole-project table-unification survey). BLANK for every word

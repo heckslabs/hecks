@@ -752,6 +752,7 @@ pub fn dispatch_entity_member_retire(
 ) -> crate::kernel::DispatchResult<Roster> {
         if let Some(v) = &args.id { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
@@ -781,6 +782,7 @@ pub fn dispatch_entity_member_retire(
         &["MemberRetired"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -864,6 +866,19 @@ impl crate::kernel::ToJson for Roster {
     }
 }
 
+impl crate::kernel::SetProjectedField for Roster {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static ROSTER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Roster {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -914,6 +929,7 @@ pub fn dispatch_open(
 ) -> crate::kernel::DispatchResult<Roster> {
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -951,6 +967,7 @@ pub fn dispatch_open(
         &["RosterOpened"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1015,6 +1032,7 @@ pub fn dispatch_mark(
 ) -> crate::kernel::DispatchResult<Roster> {
         args.to.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1038,6 +1056,7 @@ pub fn dispatch_mark(
         &["SeatMarked"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1102,6 +1121,7 @@ pub fn dispatch_notice(
 ) -> crate::kernel::DispatchResult<Roster> {
         if let Some(v) = &args.to { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1125,6 +1145,7 @@ pub fn dispatch_notice(
         &["MarkNoticed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1189,6 +1210,7 @@ pub fn dispatch_honor(
 ) -> crate::kernel::DispatchResult<Roster> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1212,6 +1234,7 @@ pub fn dispatch_honor(
         &["RosterHonored"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1278,6 +1301,7 @@ pub fn dispatch_add_seat(
 ) -> crate::kernel::DispatchResult<Roster> {
         args.number.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1301,6 +1325,7 @@ pub fn dispatch_add_seat(
         &["SeatAdded"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1370,6 +1395,7 @@ pub fn dispatch_enlist(
         args.id.check_invariants()?;
         args.age.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1394,6 +1420,7 @@ pub fn dispatch_enlist(
         &["MemberEnlisted"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1463,6 +1490,7 @@ pub fn dispatch_assign(
         args.member.check_invariants()?;
         args.number.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -1491,6 +1519,7 @@ pub fn dispatch_assign(
         &["SeatAssigned"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -1557,6 +1586,7 @@ pub fn dispatch_retire(
 ) -> crate::kernel::DispatchResult<Roster> {
         args.id.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROSTER_PROJECTED_FIELDS);
     let delegate_facts = args.to_json().with_aliases(&[("id", "id")]);
     let target_args = MemberRetireEntityArgs::from_json(&delegate_facts)?;
     let element_id = Member::extract_id(&delegate_facts)?;
@@ -1608,6 +1638,7 @@ pub fn dispatch_retire(
         &["MemberRetired"],
         delegate_facts.clone(),
         mutations,
+        seed_projections,
     )
 }
 

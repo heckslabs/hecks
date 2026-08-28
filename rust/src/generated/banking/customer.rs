@@ -374,6 +374,19 @@ impl crate::kernel::ToJson for Customer {
     }
 }
 
+impl crate::kernel::SetProjectedField for Customer {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static CUSTOMER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Customer {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -430,6 +443,7 @@ pub fn dispatch_register(
         args.name.check_invariants()?;
         args.email.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, CUSTOMER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -464,6 +478,7 @@ pub fn dispatch_register(
         &["CustomerRegistered"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -532,6 +547,7 @@ pub fn dispatch_suspend(
 ) -> crate::kernel::DispatchResult<Customer> {
         args.standing.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, CUSTOMER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -556,6 +572,7 @@ pub fn dispatch_suspend(
         &["CustomerSuspended"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -619,6 +636,7 @@ pub fn dispatch_reinstate(
 ) -> crate::kernel::DispatchResult<Customer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, CUSTOMER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -643,6 +661,7 @@ pub fn dispatch_reinstate(
         &["CustomerReinstated"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -706,6 +725,7 @@ pub fn dispatch_close(
 ) -> crate::kernel::DispatchResult<Customer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, CUSTOMER_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -729,6 +749,7 @@ pub fn dispatch_close(
         &["CustomerClosed"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

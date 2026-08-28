@@ -214,6 +214,11 @@ impl crate::kernel::ToJson for Invoice {
         Invoice::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Invoice {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Invoice {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -296,6 +301,7 @@ pub fn dispatch_draft(
         &["InvoiceDrafted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -373,6 +379,7 @@ pub fn dispatch_send(
         &["InvoiceSent"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -442,6 +449,7 @@ pub fn dispatch_mark_paid(
         &["InvoicePaid"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -511,6 +519,7 @@ pub fn dispatch_mark_overdue(
         &["InvoiceOverdue"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -580,6 +589,7 @@ pub fn dispatch_void(
         &["InvoiceVoided"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

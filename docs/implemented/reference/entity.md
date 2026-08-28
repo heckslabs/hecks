@@ -188,11 +188,12 @@ entity's own.
 ## given
 
 <!-- generated:begin word=given -->
-`given description do ... end` — fills `preconditions`
+`given description, declared_by: do ... end` — fills `preconditions`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | description |
+| `declared_by:` | text | false | declared_by |
 <!-- generated:end -->
 
 The SAME word an aggregate declares (see aggregate.md's own "given"),
@@ -224,6 +225,30 @@ carries the entity's declared predicate, not a copy:
 ```ruby
 ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer_status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
 ```
+
+`given` also SHARES CHAPTER-WIDE, ACROSS AGGREGATES — a bare
+`given(description)`, written directly inside a DIFFERENT aggregate's
+own entity, resolves against whichever piece anywhere in the same
+chapter already declared that description, the identical move
+`aggregate.md`'s own "given" makes one level up
+(`docs/implemented/resolution-rules/chapter-entity-given.md`).
+`SafeDepositBox::Visit` names `Account::LedgerEntry`'s own "customer is
+active" back rather than retyping `parent.customer_status == "active"`
+a second time — a genuinely different aggregate, the identical
+canonical, since both pieces' own owning aggregate carries the
+identical-named projected field (`projects :customer_status`):
+
+```ruby
+visit = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox")
+               .entities.find { |e| e.hecks_name == "Visit" }
+visit.preconditions.map { |g| [g.description, g.canonical] }  # => [["customer is active", "parent.customer_status == \"active\""], ["box is rented", "parent.status == \"rented\""]]
+```
+
+`declared_by:` disambiguates the same way it does one level up — only
+needed once the same description means a genuinely different predicate
+somewhere else in the chapter's own pieces; omitted here because
+`Account::LedgerEntry` is currently the only piece in this chapter
+declaring "customer is active" with a block.
 
 ## invariant
 

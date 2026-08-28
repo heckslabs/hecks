@@ -154,6 +154,12 @@ module Hecks
           # dead code, never actually invoked.
           builder = registry.bluebook_builder(name) { raise "internal: no open builder for #{name}" }
           builder.resolve_pending_chapter_givens!
+          # THE ENTITY-SCOPED ANALOGUE, one level down — same reason,
+          # same timing: a bare entity-level given left PENDING by any
+          # file of this chapter (`EntityBuilder#pending_chapter_entity_
+          # given`) must resolve before anything below reads a piece's
+          # own `Given` fields too.
+          builder.resolve_pending_chapter_entity_givens!
 
           # `BluebookBuilder#build` skipped its own whole-chapter battery
           # (hops, projected fields, correlation keys, event shapes,

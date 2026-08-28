@@ -251,3 +251,67 @@ impl<'a> Fielded for WithReferences<'a> {
         self.args.items(name)
     }
 }
+
+// THE SYNCHRONOUS HALF OF `projects` (S12, ADR 0025) —
+// `CommandInterpreter#seed_projected_fields` (command_interpreter.rb),
+// read directly: "every time a record with `projects` fields is about to
+// save — creating or acting, either can be the first time a referenced
+// record resolves — read each one ONCE ... using the exact same
+// `RebuildSweep.remote_value` a sweep itself would compute."
+//
+// Built on the SAME pre-resolved `WithReferences` every dispatch call
+// already constructs for `given`/`ensures` evaluation, not a second
+// repository lookup — `owner_deref`/`command_deref` already fetch
+// exactly the referenced record a projected field's own `reference` name
+// points at (the SAME `ReferenceTable` row, since every reference a
+// `projects` field names is structurally a real `reference_to`/
+// `belongs_to` attribute too — `BluebookBuilder#validate_projected_
+// fields!` requires it), so this reads the remote field straight off the
+// ALREADY-fetched `DerefNode`, no new borrow-of-`store` needed (this
+// file's own header explains why a genuinely new lookup couldn't live
+// inside `dispatch` at all). Handles the chained case too
+// (`Transfer.source_customer_status` from `source.customer_status`,
+// itself a projected field on `Account`) for free: `DerefNode::field`
+// falls through to the fetched record's own generated `Fielded` impl,
+// which answers a projected field the identical way it answers any other
+// attribute once codegen has given it a struct field and a read arm.
+//
+// Scoped to `Option<String>` — String-typed remote fields (a lifecycle
+// `status`, or another projected field) cover every real `projects`
+// declaration in the corpus today; a numeric/boolean projected field
+// would need real generalizing here, not silently mis-seeding, so this
+// stays narrow rather than guessing a coercion nothing has exercised.
+pub struct ProjectedFieldSpec {
+    pub field: &'static str,
+    pub reference: &'static str,
+    pub remote_field: &'static str,
+}
+
+pub fn seeded_projections(with_references: &dyn Fielded, specs: &'static [ProjectedFieldSpec]) -> Vec<(&'static str, Option<String>)> {
+    specs
+        .iter()
+        .map(|spec| {
+            let value = match with_references.field(spec.reference) {
+                Some(Field::Nested(node)) => match node.field(spec.remote_field) {
+                    Some(Field::Value(Value::Str(s))) => Some(s),
+                    _ => None,
+                },
+                _ => None,
+            };
+            (spec.field, value)
+        })
+        .collect()
+}
+
+// THE WRITE HALF a generic `Fielded::field` read has no counterpart for
+// — every generated aggregate record implements this, one match arm per
+// `projects` field it declares (empty match body, `_ => {}`, for every
+// aggregate with none), so `kernel::dispatch` can apply `seeded_
+// projections`' own output generically without a per-command closure
+// the way `apply_mutations` needs one (a projected field's own shape
+// never varies per-command the way a command's OWN mutations do — it is
+// always exactly this aggregate's own declared `projects` list, so one
+// generated method per aggregate is enough).
+pub trait SetProjectedField {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>);
+}

@@ -437,6 +437,11 @@ impl crate::kernel::ToJson for Member {
         Member::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Member {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Member {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -530,6 +535,7 @@ pub fn dispatch_admit(
         &["MemberAdmitted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -609,6 +615,7 @@ pub fn dispatch_depart(
         &["MemberDeparted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -679,6 +686,7 @@ pub fn dispatch_grant_access(
         &["MemberAccessGranted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -749,6 +757,7 @@ pub fn dispatch_link_identity(
         &["MemberIdentityLinked"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

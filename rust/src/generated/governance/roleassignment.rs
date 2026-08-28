@@ -365,6 +365,19 @@ impl crate::kernel::ToJson for RoleAssignment {
     }
 }
 
+impl crate::kernel::SetProjectedField for RoleAssignment {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static ROLE_ASSIGNMENT_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl RoleAssignment {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -426,6 +439,7 @@ pub fn dispatch_assign(
         args.scope.check_invariants()?;
         args.starts_at.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROLE_ASSIGNMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -458,6 +472,7 @@ pub fn dispatch_assign(
         &["RoleAssigned"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -528,6 +543,7 @@ pub fn dispatch_revoke(
 ) -> crate::kernel::DispatchResult<RoleAssignment> {
         args.ends_at.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, ROLE_ASSIGNMENT_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -551,6 +567,7 @@ pub fn dispatch_revoke(
         &["RoleRevoked"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

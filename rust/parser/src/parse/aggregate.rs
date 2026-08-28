@@ -201,11 +201,19 @@ pub fn parse_body(
     pos: &mut usize,
     name: &str,
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
+    // ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool (the
+    // piece analogue of `chapter_named_givens`, above). See
+    // `entity::parse_body`'s own header for what this closes; threaded
+    // straight through, unchanged, to every top-level entity this
+    // aggregate builds.
+    chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
 ) -> ParseResult<(
     ir::Aggregate,
     Vec<ir::Policy>,
     Vec<PendingChapterGiven>,
     Vec<(usize, command::PendingCommandGiven)>,
+    Vec<entity::PendingChapterEntityGiven>,
+    Vec<entity::PendingEntityCommandGiven>,
 )> {
     let mut aggregate = ir::Aggregate {
         name: name.to_string(),
@@ -218,6 +226,14 @@ pub fn parse_body(
     // see `PendingChapterGiven`'s own comment for what each entry means
     // and where it drains.
     let mut pending_chapter_givens: Vec<PendingChapterGiven> = Vec::new();
+    // ONE LEVEL DEEPER — every bare chapter-ENTITY-given (and any
+    // command-level bare reference to one) some entity nested under this
+    // aggregate left pending — see `entity::PendingChapterEntityGiven`/
+    // `entity::PendingEntityCommandGiven`'s own comments. `entity_path`
+    // on each entry, at this point, is relative to `aggregate.entities`
+    // (the entity-drain loop below stamps it that way as it bubbles up).
+    let mut pending_chapter_entity_givens: Vec<entity::PendingChapterEntityGiven> = Vec::new();
+    let mut pending_entity_command_givens: Vec<entity::PendingEntityCommandGiven> = Vec::new();
     // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header.
     // `entity`/`command`/`query` only QUEUE here; built for real by the
     // drain below, once this aggregate's own top-level line-range is
@@ -637,23 +653,38 @@ pub fn parse_body(
     // LATER-declared piece sees an EARLIER sibling's write-through.
     let mut entities = Vec::with_capacity(pending_entities.len());
     for (e_name, pending) in pending_entities {
-        let built = super::build_deferred(file, lines, &pending, |f, l, p| {
-            entity::parse_body(
-                f,
-                l,
-                p,
-                &e_name,
-                &format!(
-                    "{}{}",
-                    naming::demodulise(name),
-                    naming::demodulise(&e_name)
-                ),
-                &mut aggregate.value_objects,
-                &mut identity_value_object_insert_at,
-                &mut entity_named_givens,
-            )
-        })?;
+        let entity_index = entities.len();
+        let (built, child_pending_given, child_pending_command) =
+            super::build_deferred(file, lines, &pending, |f, l, p| {
+                entity::parse_body(
+                    f,
+                    l,
+                    p,
+                    &e_name,
+                    &format!(
+                        "{}{}",
+                        naming::demodulise(name),
+                        naming::demodulise(&e_name)
+                    ),
+                    &mut aggregate.value_objects,
+                    &mut identity_value_object_insert_at,
+                    &mut entity_named_givens,
+                    name,
+                    chapter_entity_named_givens,
+                )
+            })?;
         entities.push(built);
+        // BUBBLE UP, PREPENDING THIS ENTITY'S OWN INDEX INTO
+        // `aggregate.entities` — see `entity::PendingChapterEntityGiven`'s
+        // own header on why `entity_path` is built bottom-up.
+        pending_chapter_entity_givens.extend(child_pending_given.into_iter().map(|mut entry| {
+            entry.entity_path.insert(0, entity_index);
+            entry
+        }));
+        pending_entity_command_givens.extend(child_pending_command.into_iter().map(|mut entry| {
+            entry.entity_path.insert(0, entity_index);
+            entry
+        }));
     }
     aggregate.entities = entities;
 
@@ -747,5 +778,7 @@ pub fn parse_body(
         policies,
         pending_chapter_givens,
         pending_command_givens,
+        pending_chapter_entity_givens,
+        pending_entity_command_givens,
     ))
 }

@@ -637,6 +637,19 @@ impl crate::kernel::ToJson for Query {
     }
 }
 
+impl crate::kernel::SetProjectedField for Query {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static QUERY_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Query {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -695,6 +708,7 @@ pub fn dispatch_filter(
         args.op.check_invariants()?;
         args.value.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, QUERY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -718,6 +732,7 @@ pub fn dispatch_filter(
         &["FilterAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -795,6 +810,7 @@ pub fn dispatch_option(
         if let Some(v) = &args.value { v.check_invariants()?; }
         if let Some(v) = &args.at { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, QUERY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -818,6 +834,7 @@ pub fn dispatch_option(
         &["OptionAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 
@@ -909,6 +926,7 @@ pub fn dispatch_argument(
         if let Some(v) = &args.admits { v.check_invariants()?; }
         if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, QUERY_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -932,6 +950,7 @@ pub fn dispatch_argument(
         &["AskArgumentAttached"],
         args.to_json(),
         mutations,
+        seed_projections,
     )
 }
 

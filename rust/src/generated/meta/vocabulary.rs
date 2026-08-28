@@ -968,6 +968,19 @@ impl crate::kernel::ToJson for Vocabulary {
     }
 }
 
+impl crate::kernel::SetProjectedField for Vocabulary {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        match name {
+
+            _ => {}
+        }
+    }
+}
+
+pub static VOCABULARY_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[
+
+];
+
 impl Vocabulary {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {

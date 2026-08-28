@@ -312,6 +312,11 @@ impl crate::kernel::ToJson for Contract {
         Contract::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Contract {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Contract {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -400,6 +405,7 @@ pub fn dispatch_draft(
         &["ContractDrafted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -479,6 +485,7 @@ pub fn dispatch_send(
         &["ContractSent"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -548,6 +555,7 @@ pub fn dispatch_sign(
         &["ContractSigned"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -617,6 +625,7 @@ pub fn dispatch_activate(
         &["ContractActivated"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -686,6 +695,7 @@ pub fn dispatch_complete(
         &["ContractCompleted"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -755,6 +765,7 @@ pub fn dispatch_terminate(
         &["ContractTerminated"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -827,6 +838,7 @@ pub fn dispatch_revise(
         &["ContractRevised"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

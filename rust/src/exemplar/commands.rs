@@ -85,6 +85,11 @@ impl crate::kernel::ToJson for TmplRecord {
         crate::kernel::Json::Null
     }
 }
+impl crate::kernel::SetProjectedField for TmplRecord {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TmplArgs {
@@ -107,12 +112,17 @@ fn tmpl_hydrate_placeholder() -> crate::kernel::Hydrate<'static, TmplRecord> {
 
 fn tmpl_mutation_lines_placeholder(record: &mut TmplRecord) {}
 
+fn tmpl_seed_projections_placeholder() -> Vec<(&'static str, Option<String>)> {
+    Vec::new()
+}
+
 // TMPL:dispatch_fn BEGIN
 pub fn dispatch_tmpl(
     repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
     let tmpl_eval_fielded = tmpl_with_references_placeholder();
+    let tmpl_seed_projections = tmpl_seed_projections_placeholder();
 tmpl_prelude_placeholder();
     crate::kernel::dispatch(
         repo,
@@ -136,6 +146,7 @@ tmpl_ensures_spec_placeholder(),
         &[tmpl_emit_placeholder()],
         args.to_json(),
         mutations,
+        tmpl_seed_projections,
     )
 }
 // TMPL:dispatch_fn END
@@ -275,6 +286,7 @@ pub fn dispatch_entity_tmpl(
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
     let tmpl_eval_fielded = tmpl_with_references_placeholder();
+    let tmpl_seed_projections = tmpl_seed_projections_placeholder();
 
     crate::kernel::dispatch_entity(
         repo,
@@ -304,6 +316,7 @@ tmpl_ensures_spec_placeholder(),
         &[tmpl_emit_placeholder()],
         args.to_json(),
         mutations,
+        tmpl_seed_projections,
     )
 }
 // TMPL:entity_dispatch_fn END

@@ -9746,6 +9746,14 @@
                 "preconditions"
               ],
               [
+                "resolves_via",
+                "owner_keyed"
+              ],
+              [
+                "disambiguator",
+                "declared_by"
+              ],
+              [
                 "calls",
                 "given_impl"
               ]
@@ -10283,6 +10291,36 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "declared_by"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "declared_by"
               ]
             ],
             [

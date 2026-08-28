@@ -129,6 +129,7 @@ module Hecks
         # the real table, every time, no exception.
         BOOTSTRAP_FALLBACK = {
           %w[given Aggregate]       => { resolves_via: "owner_keyed", disambiguator: "declared_by" },
+          %w[given Entity]          => { resolves_via: "owner_keyed", disambiguator: "declared_by" },
           %w[given Command]         => { resolves_via: "hash_chain" },
           %w[invariant ValueObject] => { resolves_via: "sibling_scan" }
         }.freeze

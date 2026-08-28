@@ -315,7 +315,7 @@ Hecks.bluebook "Bluebook" do
       member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
       member word: "identified_by",   context: "Entity", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "identified_by", calls: "identified_by_impl"
       member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by", calls: "identified_by_impl"
-      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions", calls: "given_impl"
+      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
       member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants", calls: "invariant_impl"
       member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: "", calls: "command_impl"
       member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: "", calls: "query_impl"
@@ -349,6 +349,15 @@ Hecks.bluebook "Bluebook" do
 
       member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       member keyword: "given",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # PLAIN TEXT, not `kind: "constant"` — unlike `Aggregate`'s own
+      # `declared_by:` (which names a real aggregate constant), a piece
+      # has no first-class, independently-addressable reference anywhere
+      # in this language. "AggregateName.EntityName" ships as a string,
+      # the same way `admits:` shipped textual before its own
+      # constant-bridge existed — see `EntityBuilder#given_impl`'s own
+      # comment for why this is a deliberate, not temporary-by-oversight,
+      # divergence.
+      member keyword: "given",           context: "Entity", at: "",  named: "declared_by", kind: "text",     required: "false", fills: "declared_by"
       member keyword: "invariant",       context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true", minimum: "2"
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type"

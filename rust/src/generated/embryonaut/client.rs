@@ -181,6 +181,11 @@ impl crate::kernel::ToJson for Client {
         Client::to_json(self)
     }
 }
+impl crate::kernel::SetProjectedField for Client {
+    fn set_projected_field(&mut self, name: &'static str, value: Option<String>) {
+        let _ = (name, value);
+    }
+}
 
 impl Client {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
@@ -257,6 +262,7 @@ pub fn dispatch_add_prospect(
         &["ProspectAdded"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -330,6 +336,7 @@ pub fn dispatch_engage(
         &["ClientEngaged"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -399,6 +406,7 @@ pub fn dispatch_pause(
         &["ClientPaused"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -468,6 +476,7 @@ pub fn dispatch_reactivate(
         &["ClientReactivated"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 
@@ -537,6 +546,7 @@ pub fn dispatch_churn(
         &["ClientChurned"],
         args.to_json(),
         mutations,
+        Vec::new(),
     )
 }
 

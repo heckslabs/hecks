@@ -10,7 +10,8 @@ module Hecks
         include RuleReference
         include WordGate
 
-        def initialize(name, chapter_named_givens: {}, chapter_pending_givens: [])
+        def initialize(name, chapter_named_givens: {}, chapter_pending_givens: [],
+                       chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
           @name          = name
           @value_objects = []
           @commands      = []
@@ -37,6 +38,15 @@ module Hecks
           # here and `BluebookBuilder#resolve_pending_chapter_givens!`
           # for where it drains.
           @chapter_pending_givens = chapter_pending_givens
+          # ONE LEVEL WIDER STILL, PAST THE CHAPTER'S OWN AGGREGATE-LEVEL
+          # POOL — the chapter's own entity-scoped pool, threaded from
+          # `BluebookBuilder#aggregate_impl` the same way
+          # `@chapter_named_givens` is, and passed straight through
+          # (unchanged) to every top-level piece this aggregate builds
+          # (`#drain_pending!`). See `EntityBuilder#given_impl`'s own
+          # comment for what this closes.
+          @chapter_entity_named_givens   = chapter_entity_named_givens
+          @chapter_entity_pending_givens = chapter_entity_pending_givens
           # DEFERRED CONSTRUCTION — `entity`/`command`/`query` push a
           # pending descriptor here instead of building immediately; see
           # `#drain_pending!`'s own comment for why.
@@ -446,8 +456,11 @@ module Hecks
           ir
         end
 
-        def self.build(name, chapter_named_givens: {}, chapter_pending_givens: [], &block)
-          builder = new(name, chapter_named_givens: chapter_named_givens, chapter_pending_givens: chapter_pending_givens)
+        def self.build(name, chapter_named_givens: {}, chapter_pending_givens: [],
+                       chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)
+          builder = new(name, chapter_named_givens: chapter_named_givens, chapter_pending_givens: chapter_pending_givens,
+                              chapter_entity_named_givens: chapter_entity_named_givens,
+                              chapter_entity_pending_givens: chapter_entity_pending_givens)
           builder.instance_eval(&block) if block
           builder.build
         end
@@ -497,6 +510,9 @@ module Hecks
                                       owner_named_givens:              @entity_named_givens,
                                       identity_name_prefix:            "#{Naming.demodulise(@name)}#{Naming.demodulise(name)}",
                                       identity_value_object_installer: ->(value_object) { @value_objects << value_object },
+                                      aggregate_name:                  @name,
+                                      chapter_entity_named_givens:     @chapter_entity_named_givens,
+                                      chapter_entity_pending_givens:   @chapter_entity_pending_givens,
                                 &block)
           end
 

@@ -74,10 +74,17 @@ extracted."
   fields inside `sets :list, append: { ... }` import the list element's own
   attribute, position-preserving. **Implemented** — moved to
   `docs/implemented/resolution-rules/`.
-- [Cross-entity given sharing](cross-entity-given.md) — a piece's own
+- [Cross-entity given sharing](../implemented/resolution-rules/cross-entity-given.md) — a piece's own
   `given`, shared across ANY piece nested under the same aggregate, not just
-  that one piece's own commands. Rust mirror not yet built — stays here.
+  that one piece's own commands. **Implemented** — moved to
+  `docs/implemented/resolution-rules/`.
 - [Chapter-wide given sharing](../implemented/resolution-rules/chapter-given.md) — an aggregate's own
   `given`, shared across any OTHER aggregate in the same chapter, when the
   two verifiably resolve the identical predicate. **Implemented** — moved to
   `docs/implemented/resolution-rules/`.
+- [Chapter-wide entity-scoped given sharing](chapter-entity-given.md) — a
+  piece's own `given`, shared across any OTHER piece anywhere in the same
+  chapter, even nested under a DIFFERENT aggregate — one level down from
+  chapter-wide given sharing, the same way cross-entity given sharing is one
+  level down from an aggregate's own `given`. Rust mirror not yet built —
+  stays here.

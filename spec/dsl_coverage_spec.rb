@@ -24,7 +24,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # `attaches_to`/`aggregate` -> `*_impl` — item #13's full
       # metaprogrammed dispatch (slice 4c).
       %i[vision formerly_known_as attaches_to_impl core supporting generic aggregate_impl report read_model policy
-         process_manager classification resolve_pending_chapter_givens!]
+         process_manager classification resolve_pending_chapter_givens! resolve_pending_chapter_entity_givens!]
     ],
     "AggregateBuilder"            => [
       Hecks::Bluebook::DSL::AggregateBuilder,

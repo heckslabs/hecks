@@ -482,12 +482,21 @@ pub fn generate(
             }
         }
 
+        // `record_for_struct`/`record_attrs` — `aggregate[:attributes]`
+        // plus a pseudo-attribute per `projects` field (`types.rs`'s own
+        // `projected_field_pseudo_attributes` header), matching
+        // `domain_generator.rb`'s identical merge: the record's own
+        // struct/Fielded/JSON shape carries a seeded projection exactly
+        // like any other attribute; a command's own Args struct never
+        // sees this (built elsewhere, from `command[:attributes]` alone).
+        let record_for_struct = types::with_projected_field_pseudo_attributes(aggregate);
         puts_str(
             &mut out,
-            &types::emit_record(exemplar, aggregate, &value_objects_by_name),
+            &types::emit_record(exemplar, &record_for_struct, &value_objects_by_name),
         );
         puts_blank(&mut out);
-        let record_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+        let record_attrs_owned = record_for_struct.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+        let record_attrs = record_attrs_owned.as_slice();
         let extra = lifecycle_extra_field(aggregate);
         puts_str(
             &mut out,
@@ -516,6 +525,10 @@ pub fn generate(
         );
         puts_blank(&mut out);
         puts_str(&mut out, &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        {record_name}::to_json(self)\n    }}\n}}\n"));
+        puts_blank(&mut out);
+        puts_str(&mut out, &types::emit_set_projected_field(aggregate));
+        puts_blank(&mut out);
+        puts_str(&mut out, &types::emit_projected_field_table(aggregate));
         puts_blank(&mut out);
 
         if can_route {

@@ -28,6 +28,13 @@ module Hecks
           # what queues here and `#resolve_pending_chapter_givens!`,
           # below, for where it drains.
           @chapter_pending_givens = []
+          # ONE LEVEL WIDER STILL — the CHAPTER-WIDE, ENTITY-SCOPED pool
+          # (the piece analogue of `@chapter_named_givens`, above). See
+          # `EntityBuilder#given_impl`'s own comment for what this
+          # closes; `docs/implemented/resolution-rules/
+          # chapter-entity-given.md` for the full algorithm.
+          @chapter_entity_named_givens   = {}
+          @chapter_entity_pending_givens = []
         end
 
         # Chapter metadata belongs to the composed folder, not whichever file
@@ -85,8 +92,10 @@ module Hecks
         # chapter's own top-level shape is written with it), so also
         # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         def aggregate_impl(name, &block)
-          @aggregates << AggregateBuilder.build(name, chapter_named_givens:   @chapter_named_givens,
-                                                      chapter_pending_givens: @chapter_pending_givens, &block)
+          @aggregates << AggregateBuilder.build(name, chapter_named_givens:          @chapter_named_givens,
+                                                      chapter_pending_givens:        @chapter_pending_givens,
+                                                      chapter_entity_named_givens:   @chapter_entity_named_givens,
+                                                      chapter_entity_pending_givens: @chapter_entity_pending_givens, &block)
         end
 
         # `read_model` is the word (ADR 0025 reverts `report` — the IR
@@ -143,6 +152,7 @@ module Hecks
           # `validate_assembled!` there — nothing downstream should ever
           # read an unresolved placeholder's fields.
           resolve_pending_chapter_givens! unless MetaValidator.deferring?
+          resolve_pending_chapter_entity_givens! unless MetaValidator.deferring?
 
           # A CHAPTER MAY BE SPLIT ACROSS FILES (see `self.build`'s own
           # comment). Every check below needs the WHOLE chapter present —
@@ -224,6 +234,47 @@ module Hecks
           end
         end
         private :resolve_pending_chapter_given
+
+        # THE ENTITY-SCOPED ANALOGUE, one level down — see
+        # `#resolve_pending_chapter_givens!`'s own comment; identical
+        # shape, resolved against `@chapter_entity_named_givens` instead.
+        def resolve_pending_chapter_entity_givens!
+          @chapter_entity_pending_givens.each do |entry|
+            resolved = resolve_pending_chapter_entity_given(entry)
+            entry[:placeholder].description = resolved.description
+            entry[:placeholder].canonical   = resolved.canonical
+            entry[:placeholder].predicate   = resolved.predicate
+          end
+          @chapter_entity_pending_givens.clear
+        end
+
+        def resolve_pending_chapter_entity_given(entry)
+          description = entry[:description]
+          candidates  = RuleReference.resolve_owner_keyed(@chapter_entity_named_givens, description)
+
+          if entry[:declared_by]
+            candidates[entry[:declared_by]] ||
+              raise(Malformed,
+                    "#{entry[:entity]}'s given #{description.inspect} names no precondition " \
+                    "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
+                    "either hasn't declared #{description.inspect}, or declared_by: named the " \
+                    "wrong piece")
+          elsif candidates.size == 1
+            candidates.values.first
+          elsif candidates.empty?
+            raise(Malformed,
+                  "#{entry[:entity]}'s given #{description.inspect} names no precondition " \
+                  "any piece in this chapter ever declares — declare it once with a block " \
+                  "(some piece's own given(#{description.inspect}) { ... })")
+          else
+            raise(Malformed,
+                  "#{entry[:entity]}'s given #{description.inspect} is ambiguous across the " \
+                  "chapter's own pieces — #{candidates.keys.join(', ')} each declare a DIFFERENT " \
+                  "predicate under this same description; name which one with declared_by: (e.g. " \
+                  "given(#{description.inspect}, declared_by: #{candidates.keys.first.inspect}))")
+          end
+        end
+        private :resolve_pending_chapter_entity_given
 
         # EVERY WHOLE-CHAPTER CHECK, IN ONE PLACE — the battery `#build`
         # used to run inline, now a pure function of an assembled
