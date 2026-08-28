@@ -56,6 +56,8 @@ module Hecks
         {"name"=>"UnknownVerb"}.freeze
       ].freeze,
       "EntityDispatchOrder" => [
+        {"step"=>"refuse_unknown_arguments"}.freeze,
+        {"step"=>"refuse_absent_arguments"}.freeze,
         {"step"=>"normalize_args"}.freeze,
         {"step"=>"refuse_role_mismatch"}.freeze,
         {"step"=>"resolve_references"}.freeze,

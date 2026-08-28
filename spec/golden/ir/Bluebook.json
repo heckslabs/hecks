@@ -21430,6 +21430,18 @@
             [
               [
                 "step",
+                "refuse_unknown_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
+                "refuse_absent_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
                 "normalize_args"
               ]
             ],

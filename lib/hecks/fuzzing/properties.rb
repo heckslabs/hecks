@@ -236,9 +236,9 @@ module Hecks
       # comparison depended on, anything. Two independent replays, not a
       # cached one compared to itself, so a bug that corrupts the FIRST
       # run's own bookkeeping cannot pass by agreeing with itself.
-      def replay_is_deterministic(domain_path, steps)
-        first  = Replay.call(domain_path, steps)
-        second = Replay.call(domain_path, steps)
+      def replay_is_deterministic(domain_path, steps, adapter: :memory)
+        first  = Replay.call(domain_path, steps, adapter: adapter)
+        second = Replay.call(domain_path, steps, adapter: adapter)
 
         comparable = ->(history) { history.reject { |key, _| key == :bluebook || key == :bluebooks } }
         return true if comparable.call(first) == comparable.call(second)

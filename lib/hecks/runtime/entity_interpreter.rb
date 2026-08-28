@@ -10,11 +10,25 @@ require_relative "routing"
 require_relative "dependency_planning"
 require_relative "../ports/persistence/execution"
 require_relative "entity_element"
+require_relative "command_interpreter/argument_gate"
 
 module Hecks
   module Runtime
     class EntityInterpreter
       include Interpreting
+      # THE SAME PAYLOAD GATE aggregate commands and port operations already
+      # run — bug audit H1 (docs/audits/2026-08-10-main-bug-audit.md): this
+      # class used to run NEITHER refuse_unknown_arguments NOR
+      # refuse_absent_arguments, on a comment claiming "an entity inherits
+      # its aggregate's own gate." Nothing on the entity dispatch path ever
+      # ran one — confirmed live, `LedgerEntry.Reverse` accepted an
+      # unrecognized `bogus_arg:` outright, and dispatching it with no
+      # `narrative:` silently overwrote the stored narrative with `nil`
+      # (`sets :narrative`'s bare self-referential form reads `args[:narrative]`
+      # unconditionally). See `step_refuse_unknown_arguments`/
+      # `step_refuse_absent_arguments`, below, for how the shared gate is
+      # reused rather than reimplemented.
+      include CommandInterpreter::ArgumentGate
 
       attr_reader :registry
 
@@ -23,10 +37,10 @@ module Hecks
       # spec/vocabulary_conformance_spec.rb the same way CommandInterpreter's
       # own DISPATCH_ORDER is; see that constant's doc comment for why this is
       # hand-typed rather than read live off the meta-domain at every dispatch.
-      # Shorter than the aggregate order for the same reasons the declaration
-      # itself gives : no refuse_unknown_arguments/refuse_absent_arguments (an
-      # entity inherits its aggregate's own gate) and no
-      # assign_creation_attributes (an entity is never created through this
+      # `refuse_unknown_arguments`/`refuse_absent_arguments` now lead it, same
+      # position `AggregateDispatchOrder` holds them at (H1, above) — the only
+      # remaining difference from the aggregate order is no
+      # `assign_creation_attributes` (an entity is never created through this
       # path).
       DISPATCH_ORDER = Hecks::Vocabulary.symbols("EntityDispatchOrder")
 
@@ -117,6 +131,31 @@ module Hecks
           owner = found
           found
         end
+      end
+
+      # `extra_identity_heads:` — every entity `ctx.chain` walks through, not
+      # just the root aggregate `ArgumentGate` already knows about. A
+      # two-hop dispatch (`Handler.Dispatch.Bind`) is addressed by BOTH
+      # hops' own identity, each read straight out of `args` by
+      # `EntityElement#element_of` — refusing those as unknown would refuse
+      # every legitimate nested-entity dispatch there is, the same reasoning
+      # `ArgumentGate#refuse_unknown_arguments`'s own header gives for `:id`/
+      # the root's `identity_heads`.
+      def step_refuse_unknown_arguments(ctx)
+        step(:refuse_unknown_arguments) {
+          refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args,
+                                   extra_identity_heads: ctx.chain.flat_map(&:identity_heads))
+        }
+      end
+
+      # No `aggregate:` exemption to pass — that kwarg exists only for a
+      # port operation's own self-address (`ArgumentGate#refuse_absent_
+      # arguments`'s own comment); an entity command's chain identity never
+      # reaches `command.attributes` in the first place (resolved as
+      # addressing above, not as a declared fact), so there is nothing here
+      # for the exemption to need to strip.
+      def step_refuse_absent_arguments(ctx)
+        step(:refuse_absent_arguments) { refuse_absent_arguments(ctx.command, ctx.args) }
       end
 
       def step_normalize_args(ctx)

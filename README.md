@@ -542,8 +542,12 @@ arguing for.
 
 `0.3.0`, pre-1.0. No stability guarantee on either the DSL or the
 runtime API, and no published gem — see [Quickstart](#quickstart).
+[`docs/1.0-readiness.md`](docs/1.0-readiness.md) states plainly what
+1.0 will mean and why it isn't tagged yet (short version: blocked on
+[ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
+a real breaking DSL redesign, Accepted but not yet implemented).
 
-**Working today**, exercised in CI on every push (1,937 rspec examples
+**Working today**, exercised in CI on every push (2,212 rspec examples
 across the full suite, alongside `bin/model_check` and `bin/fuzz`):
 
 - The DSL → IR → dispatch pipeline; the Ruby reference runtime.
@@ -563,14 +567,21 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
 
 **Experimental or partial:**
 
-- Property-based fuzzing only runs against the Memory adapter; Sqlite
-  and Postgres are unexercised by it.
+- Property-based fuzzing defaults to the Memory adapter but also runs
+  against real Sqlite and Postgres (`bin/fuzz --adapter sqlite|postgres`
+  — Postgres needs a real reachable local server and is noticeably
+  slower per seed, so pass smaller `--seeds`/`--steps` than the default
+  sweep). Whether a reference-hop query field (`owner/field`) can be
+  *queried*, not just indexed, against a SQL adapter is still open.
 - The query DSL has no aggregation yet — no `count`, `sum`, `group_by`.
 - `PostgresEra`'s schema-evolution/translation system works and is
-  exercised in CI, but has open, documented gaps in
-  migration/rekey edge cases.
-- A known, diagnosed, unfixed race exists in nested reaction dispatch
-  (a thread-shared counter) — see `docs/future-features.md`.
+  exercised in CI; the migration/rekey data-loss findings tracked
+  against it (era-migrated deletes resurrecting, rekey SQL invisible
+  to the approval digest, a dotted `compute` exempting its whole
+  parent attribute from the equivalence gate) are fixed and
+  live-verified against real Postgres as of 2026-08-27 — see
+  `docs/future-features.md`'s "Bug audits" section for the specifics
+  and what's *not* independently re-checked yet.
 - Rust codegen has no generated path for `read_model` queries yet;
   those still require Ruby.
 
@@ -581,6 +592,16 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
   in the hecksagon).
 - A durable outbox for effect ports.
 - Mutation testing and coverage-guided fuzzing.
+- **[ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md)**
+  — Accepted, not yet implemented, and not cosmetic: a real breaking
+  redesign of core DSL surface (`has_many`/`has_one`/`belongs_to`
+  removed, `identified_by`'s allowed forms narrowed, reference-hop
+  traversal moves to its own `/` operator, the quoted-type and
+  default-type attribute forms removed, the closed-set wrapper block
+  removed). Read this before writing a bluebook you intend to keep —
+  what's frozen for a future 1.0 is deliberately blocked on this
+  landing first, precisely so a stability promise isn't made over
+  syntax already scheduled to change.
 
 [`docs/future-features.md`](docs/future-features.md) is the project's
 own running list of gaps, ranked by how much depends on them — read it
@@ -667,6 +688,7 @@ Beyond the guides and the DSL reference:
 - **[Decision log](docs/decisions/)** and
   **[implemented decisions](docs/implemented/decisions/)** — one
   document per architectural decision, kept even after superseded.
+- **[Changelog](CHANGELOG.md)** and **[1.0 readiness](docs/1.0-readiness.md)**.
 - **[The query DSL](docs/query-dsl.md)**,
   **[command/query form](docs/command-form-and-query-form-bluebook.md)**,
   **[Rails integration](docs/rails-integration.md)** (design only).

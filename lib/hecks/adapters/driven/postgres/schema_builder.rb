@@ -132,6 +132,25 @@ module Hecks
         # compiles a list `contains` to. An index here would be dead
         # weight, not free correctness, so none is attempted.
         def index_field!(field)
+          # A HOP PATH ("owner/field" — `Bluebook::AggregateBuilder`'s own
+          # convention for a field reached by crossing a reference,
+          # `aggregate_builder.rb`'s own `field.to_s.include?("/")`
+          # checks) IS NEVER INDEXED HERE — same reasoning as `list_of`
+          # below: `query_expression`/`nested_expression` below have no
+          # dialect for this shape at all (they'd compile the whole
+          # "owner/field" string as one bare column/jsonb-path segment,
+          # which is not a real column and errors PG::UndefinedColumn on
+          # `CREATE INDEX`, discovered fuzzing a real Postgres boot of
+          # `examples/banking` — Account's own `projects :customer_status,
+          # from: :"customer.status"` compiles to exactly this shape).
+          # Skipping the index is always safe, the same way skipping a
+          # `list_of` index is: an index is a perf optimization, not
+          # correctness, so "never built" beats "built wrong." Whether a
+          # hop-path field can be QUERIED at all against this adapter is
+          # a separate, still-open question this skip does not answer —
+          # see docs/future-features.md's fuzzer-adapter entry.
+          return if field.to_s.include?("/")
+
           name, *_path = field.to_s.split(".")
           attribute = @aggregate.attribute(name)
           return if attribute&.list?

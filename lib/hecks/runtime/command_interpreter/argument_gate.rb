@@ -19,8 +19,19 @@ module Hecks
         # the aggregate rather than describe it : `id`, whatever the aggregate is
         # identified by, and the reference key of the root a command reaches
         # through. Refusing those would refuse every dispatch there is.
-        def refuse_unknown_arguments(domain, aggregate, command, args)
-          addressing = [:id, *aggregate.identity_heads, reference_key(command)] + correlation_keys(domain)
+        #
+        # `extra_identity_heads:` — EntityInterpreter's own callers only. An
+        # entity dispatch addresses not just the root aggregate but every
+        # entity ALONG THE CHAIN it walks to reach the piece the command
+        # actually belongs to (`Handler.Dispatch.Bind` is two hops), and each
+        # hop's own `identity_heads` is addressing the same way the root's
+        # are — `element_of` (entity_element.rb) reads them straight out of
+        # `args` to find the element, never as a fact the command itself
+        # declares. `[]` for a plain aggregate/port-operation dispatch, which
+        # has no chain to add.
+        def refuse_unknown_arguments(domain, aggregate, command, args, extra_identity_heads: [])
+          addressing = [:id, *aggregate.identity_heads, *extra_identity_heads, reference_key(command)] +
+                       correlation_keys(domain)
           known      = (command.attributes.map(&:name) + addressing).compact.map(&:to_sym)
           # SORTED. Payload order is whatever the caller happened to write, and
           # refusal wording is contract — pinned byte-for-byte by the corpus, so

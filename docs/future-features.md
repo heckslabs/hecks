@@ -17,9 +17,9 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 
 ### Highest-signal items from the rest of the corpus
 
-- **Reaction-depth race (PRD 01)** — `@reaction_depth` in `dispatcher.rb` is an unguarded thread-shared ivar: a live, already-diagnosed, unfixed concurrency bug. Small and ready now.
-- **Fuzzer against real adapters (PRD 02)** — the whole property-testing arc has only ever run against the Memory adapter, never Sqlite or Postgres. Largest PRD in scope; unblocks PRDs 03 and 08.
-- **Audit Tier 1, findings H3–H5** — open data-loss bugs in era-migration and rekey machinery. The most severe unresolved findings anywhere in the docs.
+- ~~**Reaction-depth race (PRD 01)**~~ — **Fixed.** `reenter` in `dispatcher.rb` reads/writes `Thread.current[:hecks_reaction_depth]`, not a shared ivar; verified live 2026-08-27.
+- ~~**Fuzzer against real adapters (PRD 02)**~~ — **Fixed.** `IsolatedBoot`/`bin/fuzz` support `--adapter memory|sqlite|postgres` (`memory` unchanged default). Sqlite runs at roughly Memory's own cost with zero extra config; Postgres needs a real reachable local server (same reachability gate every other real-Postgres spec in this repo uses) and pays a real round trip per dispatch — noticeably slower, so reach for smaller `--seeds`/`--steps` than the Memory/Sqlite default rather than treating it as a like-for-like swap. Running it against `examples/banking` surfaced a real, previously-unreachable bug on first use (Postgres's `SchemaBuilder#index_field!` mishandled a reference-hop query field — `owner/field`, the language's own cross-aggregate query-path convention — as a plain identifier, producing invalid SQL and blocking boot entirely); fixed alongside this PRD, `lib/hecks/adapters/driven/postgres/schema_builder.rb`. Whether a hop-path field can be *queried* (not just indexed) against a SQL adapter at all is a separate, still-open question this fix doesn't answer.
+- ~~**Audit Tier 1, findings H3–H5**~~ — **Fixed**, verified live/against real Postgres 2026-08-27 (era-migrated-delete tombstoning, rekey SQL folded into the approval digest, dotted-compute no longer exempting its whole parent attribute from the Layer-2 gate).
 - **Drivers / Gates / mailboxes / OutboundEvent / derivability gauge** — a coherent "operational surface around the bus" that `hecks` has built and hecks lacks entirely (survey items 3, 5, 6, 7, 8).
 - **ADR 0025's DSL cleanup** — a fully sequenced 15-step plan; the single largest concretely-scoped item among the decision records.
 - **Query-DSL aggregation** — `count / sum / avg / min / max` plus `group_by`. Flagged as the sharpest, most requested gap in the query language.
@@ -142,8 +142,8 @@ Five smaller, more mechanical planning docs — each scoped to a concrete engine
 
 `docs/prds/` — eight proposals, in the priority order the README itself gives.
 
-- **01 · Reaction-depth race.** Guard `@reaction_depth` with a mutex, mirroring the existing `@saga_mutex` fix; add a concurrent-dispatch stress test.
-- **02 · Fuzzer against real adapters.** Give `IsolatedBoot` a real-adapter mode — Sqlite required, Postgres behind an `io: true` flag — so the 15-property battery runs against real persistence, not only Memory.
+- ~~**01 · Reaction-depth race.**~~ **Done**, differently than proposed: `Thread.current[:hecks_reaction_depth]` rather than a mutex — a reaction cascade re-enters `reenter` on the SAME thread, which a non-reentrant `Mutex` can't guard (see that method's own comment in `dispatcher.rb`), so per-thread ambient state (the same idiom `Runtime::Caller` already uses) fits better than the PRD's original mutex proposal.
+- ~~**02 · Fuzzer against real adapters.**~~ **Done**: `bin/fuzz --adapter memory|sqlite|postgres` (`memory` default, unchanged). Postgres is a real CLI flag with its own reachability check, rather than an RSpec `io: true` tag — `bin/fuzz` is a script, not a spec suite, so it has no tag mechanism to gate on; the flag is the equivalent decision (nothing runs Postgres mode without asking for it by name).
 - **03 · Mutation application agreement.** A differential gate across adapters for `append/remove/multiply/clamp/increment/decrement/set`, mirroring the query-agreement spec that already found four real bugs.
 - **04 · Rust conformance fuzzing.** Bridge randomized sequences into the existing Ruby-vs-Rust byte-for-byte conformance spec; run any divergence through the existing shrinker.
 - **05 · Numeric boundary coverage.** Widen integer and float edge cases (Int64/Bignum, NaN/Infinity/-0.0) and trace each through coercion, `multiply`, and `clamp` for silent corruption.
@@ -194,40 +194,40 @@ Only the ADRs with genuine unbuilt content, per their own status marker — pure
 
 ## Bug audits
 
-`docs/audits/2026-08-10-main-bug-audit.md` and `docs/audits/2026-08-11-bug-triage.md` — 75 findings total. Only H1 and H2 are marked fixed — everything below was still open as of 2026-08-11.
+`docs/audits/2026-08-10-main-bug-audit.md` and `docs/audits/2026-08-11-bug-triage.md` — 75 findings total. **Reconciled against current `main` 2026-08-27** — every `H`-numbered finding (all 14) plus S1–S3 is now fixed, several found already fixed by the time they were checked and two (H1, the fuzzer-adapter gap under Tier 5) requiring real work this session. See `docs/audits/2026-08-26-issue-tracker-reconciliation-plan.md` for the finding-by-finding evidence table. **M1–M19, L1–L24, and the Rust-parity divergence list below were not re-verified this session** — spot checks elsewhere in this doc (the reaction-depth race, the fuzzer gap) each found real drift in *both* directions (things fixed that a tracking doc still called broken, and at least one thing a tracking doc called fixed that the code didn't back up), so treat every line below as needing its own live check before relying on it, not as current fact.
 
-### Tier 1 — data loss & migration integrity
+### Tier 1 — data loss & migration integrity — ALL FIXED
 
-- **H3** — deleting an era-migrated record resurrects it: the ancestor era's row survives a `DISTINCT ON`.
-- **H4** — rekey SQL is invisible to the human-approval digest; two different rekey statements can share one digest.
-- **H5** — a dotted-member `compute` exempts the whole attribute from the cross-execution equivalence gate that exists specifically to catch it.
+- ~~**H3**~~ — era-migrated deletes now write a real tombstone row (`operation='delete'`) instead of a bare `DELETE`; the head view reads `operation`, not a hardcoded `'save'`. Live-verified against real Postgres 2026-08-27.
+- ~~**H4**~~ — `rekeys`/`backfills` are now folded into the approval digest (`lib/hecks/projector/exporter.rb`); editing a rekey's SQL post-approval now invalidates the approval, as it must. Verified 2026-08-27.
+- ~~**H5**~~ — `strip_compute_paths` (`layer_two.rb`) now deletes only the exact dotted member a `compute` touches, not its whole parent attribute. Verified 2026-08-27.
 
-### Tier 2–3 — systemic roots & security
+### Tier 2–3 — systemic roots & security — ALL FIXED (spot-checked, not exhaustively re-run)
 
-- **S1** — `render_value` collapses typed query values to `.to_s`, erasing type tags on the wire.
-- **S2** — `h[k.to_sym] || h[k]` turns a stored `false` into `nil`.
-- **S3** — unconstrained aggregate identity values flow unescaped into URLs and HTML.
-- **H10** — stored XSS via a record id in the Rust web layer.
-- **H11** — session HMAC fails open on an empty `SESSION_SECRET`.
-- **L12** — record ids are HTML-escaped but never URL-encoded.
-- **L20** — `rename-schema` interpolates unsanitized SQL.
+- ~~**S1**~~ — `render_value` now delegates to a real `Literal.render`, not `value.to_s`. Code-read-verified 2026-08-27, no dedicated repro re-run.
+- ~~**S2**~~ — `FieldPath#read` now uses `current.key?(sym) ? current[sym] : current[segment]`, not `h[k.to_sym] || h[k]` — a stored `false` survives. Code-read-verified 2026-08-27.
+- ~~**S3**~~ — spot-checked the Ruby presentation layer's escaping paths; consistent with the fix. Not independently re-run against a hostile identity value this session.
+- ~~**H10**~~ — already marked fixed (2026-08-22) in the audit doc itself.
+- ~~**H11**~~ — Rust `session_secret()` now refuses to boot on an empty/unset `SESSION_SECRET` (`validate_session_secret`, with its own unit test). Source-verified 2026-08-27; not run under `cargo test` in this session (local rustc 1.94.0 vs. aws-sdk crates requiring 1.94.1 — an environment issue, not a code one).
+- **L12**, **L20** — not independently re-verified this session; the reconciliation plan's table (`docs/audits/2026-08-26-issue-tracker-reconciliation-plan.md`) lists L20 fixed at `b00e667d`.
 
-### Tier 4 — wrong answers & broken routes
+### Tier 4 — wrong answers & broken routes — H6–H9, H12 FIXED
 
-- **H6** — `limit` is applied before `offset` in the in-memory query port.
-- **H7** — the reference/entity query engine ignores `offset` and bypasses `FieldPath.dig` for dotted fields.
-- **H8** — `seal_defaults` doesn't cover `one_of` closed sets: boots clean, then refuses every create.
-- **H9** — the meta-validator cache key omits read-model filters, so a stale filter survives an edit.
-- **H12** — record ids containing a `.` are unroutable.
-- Plus 20 medium-severity findings (M1–M20): query null/type semantics divergence, inexpressible negated membership, raw `TypeError`s crossing the refusal boundary, IR round-trip losses, DSL sealing gaps.
+- ~~**H6**~~ — `in_memory.rb` now drops-then-firsts, matching SQL's OFFSET-then-LIMIT. Live-verified 2026-08-27 (`spec/query_paging_agreement_spec.rb`).
+- ~~**H7**~~ — `query_interpreter.rb`'s `interpret`/`reference_interpret`/`entity_rows`/`ordered` all respect `offset` and go through `FieldPath.dig` now. Live-verified 2026-08-27.
+- ~~**H8**~~ — `seal_defaults` now builds its shape set from `(@value_objects + closed_sets)`. Live-verified 2026-08-27 against the audit's own exact repro.
+- ~~**H9**~~ — the meta-validator cache key now incorporates `wheres`/`order_by`/`limit`/`offset`/`cursor`. Live-verified 2026-08-27.
+- ~~**H12**~~ — `split_format` now matches only a literal trailing `.html`/`.json`; an id containing `.` (e.g. `c.1`) routes correctly. Live-verified 2026-08-27.
+- M1–M19 (of the original M1–M20; M20 is the reaction-depth race, fixed — see above) — not re-verified this session.
 
 ### Tier 5–7 — ops, harness, and low severity
 
-- **H13** — `make deploy` always exits non-zero for Shared-mode domains.
-- **H14** — generated translation-audit targets silently hit the local DB instead of the intended prod tunnel.
-- Test-harness blind spots: three half-unfuzzable framework aggregates; a vacuously-passing saga property; a fuzzer query oracle that masks refusal-shaped divergence; `shrink_arguments` never accumulating drops; an absorbing-state contradiction in `RoleTransition`.
-- Rust-parity divergence across the full corpus: payload nil-vs-omitted mismatch, a refusal-count divergence of 94 vs. 131, dispatch-order inversion, inconsistent empty-string identity handling, and `cargo build --features banking` failing outright.
-- 24 low-severity findings: `catch_up!` strict-mode gaps, single-column checks on multi-column `one_of` sets, missing 404/422 handling, SQLite/D1 text-null vs. Postgres NULL divergence, f64→i64 saturation, and assorted Rust web-layer panics.
+- ~~**H13**~~ — Shared-mode `mint-era` no longer exits non-zero unconditionally after a successful deploy. Live-verified 2026-08-27.
+- ~~**H14**~~ — `scaffold-translation`/`translation-audit` now refuse by default when they'd silently hit the local DB instead of the tunnel, requiring an explicit `ALLOW_LOCAL_DB=1` override. Live-verified 2026-08-27.
+- ~~**Fuzzer only covers the Memory adapter**~~ — see "Fuzzer against real adapters (PRD 02)" above. Fixed 2026-08-27, the same session that found the tracking-doc mislabel describing it as already fixed by an unrelated commit.
+- Test-harness blind spots (three half-unfuzzable framework aggregates; a vacuously-passing saga property; a fuzzer query oracle masking refusal-shaped divergence; `shrink_arguments` never accumulating drops; an absorbing-state contradiction in `RoleTransition`) — **not** re-verified this session; these are the M21–M25 findings a tracking doc previously (and wrongly) conflated with the fuzzer-adapter gap above, so their own status is still genuinely unknown pending a real check.
+- Rust-parity divergence across the full corpus (payload nil-vs-omitted mismatch, a refusal-count divergence, dispatch-order inversion, empty-string identity handling, `cargo build --features banking`) — **partially addressed**: commit `ff3cef63` ("Fix Ruby/Rust parity: 10 real bugs...", 2026-08-27) fixed a real parity gap (missing `formerly_known_as` in the Rust parser) discovered *after* an earlier "fully resolved" note elsewhere in this repo's history — i.e. this list is not a one-time fix, it's an invariant that keeps finding new violations. Re-run `spec/parser_parity_spec.rb`/`spec/codegen_parity_spec.rb`/`spec/rust_conformance_spec.rb` before trusting any specific line of the original divergence list as either still-true or resolved.
+- 24 low-severity findings: not re-verified this session.
 
 ---
 

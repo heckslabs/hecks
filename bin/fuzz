@@ -53,8 +53,8 @@ end
 # escaped that isolation : a real interpreter defect, not an expected
 # refusal. That is the whole reason this needs no second-opinion
 # subprocess : "did this break" is answerable from inside the one runtime.
-def outcome(domain, steps)
-  history = Hecks::Fuzzing::Replay.call(domain, steps)
+def outcome(domain, steps, adapter = :memory)
+  history = Hecks::Fuzzing::Replay.call(domain, steps, adapter: adapter)
   violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
   return [:clean, nil] if violations.empty?
 
@@ -76,10 +76,10 @@ end
 
 DRAW_LIMIT = 5
 
-def fuzz_domain(domain, seeds, steps)
+def fuzz_domain(domain, seeds, steps, adapter = :memory)
   domain = domain.chomp("/")
   name = File.basename(domain)
-  puts "── #{name}"
+  puts "── #{name}#{adapter == :memory ? '' : " (#{adapter})"}"
 
   failures = []
   clean = 0
@@ -89,11 +89,11 @@ def fuzz_domain(domain, seeds, steps)
   while (clean + failures.length) < seeds && drawn < cap
     drawn += 1
     seed = drawn
-    generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
-    verdict, message = outcome(domain, generated)
+    generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps, adapter: adapter)
+    verdict, message = outcome(domain, generated, adapter)
 
     if verdict == :clean
-      determinism = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, generated)
+      determinism = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, generated, adapter: adapter)
       if determinism == true
         clean += 1
         next
@@ -105,14 +105,14 @@ def fuzz_domain(domain, seeds, steps)
                   signature: "#{verdict}: #{signature_of(message)}" }
   end
 
-  report(domain, name, seeds, drawn, clean, failures)
+  report(domain, name, seeds, drawn, clean, failures, adapter)
 end
 
 # One sweep at a time, trying to remove each remaining step ; keep the
 # removal only when the SAME finding still reproduces without it. Repeats
 # full sweeps until one changes nothing. Not globally minimal, but reliably
 # strips the steps that were never relevant to the finding.
-def shrink(domain, steps, signature)
+def shrink(domain, steps, signature, adapter = :memory)
   current = steps.dup
   begin
     changed = false
@@ -123,7 +123,7 @@ def shrink(domain, steps, signature)
         index += 1
         next
       end
-      verdict, message = outcome(domain, candidate)
+      verdict, message = outcome(domain, candidate, adapter)
       if "#{verdict}: #{signature_of(message)}" == signature
         current = candidate
         changed = true
@@ -132,7 +132,7 @@ def shrink(domain, steps, signature)
       end
     end
   end while changed
-  shrink_arguments(domain, current, signature)
+  shrink_arguments(domain, current, signature, adapter)
 end
 
 # THEN INSIDE EACH SURVIVING STEP. Removing whole steps leaves every
@@ -159,7 +159,7 @@ def args_of(step)
   step.key?("args") ? step["args"] : step[:args]
 end
 
-def shrink_arguments(domain, steps, signature)
+def shrink_arguments(domain, steps, signature, adapter = :memory)
   steps.each_with_index do |step, position|
     original_keys = args_of(step)
     next unless original_keys.is_a?(Hash)
@@ -170,7 +170,7 @@ def shrink_arguments(domain, steps, signature)
       candidate = steps.map(&:dup)
       candidate[position] = step.merge("args" => trimmed)
 
-      verdict, message = outcome(domain, candidate)
+      verdict, message = outcome(domain, candidate, adapter)
       next unless "#{verdict}: #{signature_of(message)}" == signature
 
       steps = candidate
@@ -180,7 +180,7 @@ def shrink_arguments(domain, steps, signature)
   steps
 end
 
-def report(domain, name, seeds, drawn, clean, failures)
+def report(domain, name, seeds, drawn, clean, failures, adapter = :memory)
   executed = clean + failures.length
   puts "   #{executed} seeds executed (#{drawn} drawn) — #{clean} clean, #{failures.length} found something"
 
@@ -207,7 +207,7 @@ def report(domain, name, seeds, drawn, clean, failures)
     puts "   (#{number}) #{group.first[:signature]} — #{group.first[:message]}"
     puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(', ')}#{seeds_hit.length > 8 ? ', …' : ''}"
 
-    shrunk = shrink(domain, smallest[:steps], smallest[:signature])
+    shrunk = shrink(domain, smallest[:steps], smallest[:signature], adapter)
     save_path = File.join(save_dir, "#{name}-seed#{smallest[:seed]}.json")
     write_script(shrunk, save_path, smallest[:seed], name)
 
@@ -222,11 +222,42 @@ end
 seeds = 20
 steps = 30
 domain_arg = nil
+# PRD 02 (docs/future-features.md) — which persistence this run's every
+# ephemeral boot answers through (IsolatedBoot#call's own `adapter:`).
+# `memory` (default) is unchanged from before this flag existed. `sqlite`
+# is a real on-disk adapter at roughly the same cost as Memory — safe to
+# reach for whenever Memory-only coverage is in doubt. `postgres` needs a
+# real, reachable local server (same `PostgresProbe`-shaped reachability
+# every other real-Postgres spec in this repo already requires) and pays
+# a real round trip per dispatch, so it is meaningfully slower — pass
+# smaller `--seeds`/`--steps` than the Memory/Sqlite default, this flag
+# does not scale them down for you.
+adapter = :memory
 until ARGV.empty?
   case (arg = ARGV.shift)
   when "--seeds" then seeds = Integer(ARGV.shift)
   when "--steps" then steps = Integer(ARGV.shift)
+  when "--adapter"
+    adapter = ARGV.shift.to_s.downcase.to_sym
+    unless [:memory, :sqlite, :postgres].include?(adapter)
+      warn "unknown --adapter #{adapter} — memory, sqlite, or postgres"
+      exit 1
+    end
   else domain_arg = arg
+  end
+end
+
+if adapter == :postgres
+  # NOT spec/support/postgres_probe.rb — bin/ ships independently of
+  # spec/, so this repeats that file's own tiny reachability probe
+  # rather than reaching across the tree for it. Same check, same
+  # reasoning: a real `PG.connect` round trip, asked once, up front.
+  begin
+    require "pg"
+    PG.connect(dbname: "postgres").close
+  rescue LoadError, PG::Error => e
+    warn "--adapter postgres needs a reachable local Postgres — #{e.class}: #{e.message}"
+    exit 1
   end
 end
 
@@ -275,7 +306,7 @@ end
 
 domains = domain_arg ? [domain_arg] : sweepable_domains(ROOT)
 
-ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps) && all_ok }
+ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps, adapter) && all_ok }
 
 if ok
   puts "CLEAN — no generated sequence broke a property or the interpreter."

@@ -2,6 +2,12 @@
 .DS_Store
 *.db
 *.db-journal
+# Gemfile.lock is committed (see below) — every dependency this project
+# resolves, not just json (which the Gemfile itself pins to an exact
+# version), is fixed for CI. Without this file tracked, ruby/setup-ruby's
+# bundler-cache generates its own lockfile from whatever the resolver
+# picks on cache miss, so an unrelated gem's release can silently change
+# CI's dependency graph between runs with no diff to review.
 # The RUNTIME era store, which a file adapter writes under each domain's own
 # `<root>/data/eras/<domain>/`. Anchored to `data/`, and deliberately: this was
 # a bare `eras/`, which matches a directory of that name at ANY depth — so it
@@ -9,7 +15,6 @@
 # runtimes' storage-shape tests walk. They were never committed, nobody saw
 # them missing, and the Ruby suite aborted at load rather than failing a test.
 **/data/eras/
-Gemfile.lock
 tmp/
 vendor/bundle/
 coverage/

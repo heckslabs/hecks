@@ -1,7 +1,14 @@
 # PRD 02 — Run the fuzzer/property suite against real adapters, not just Memory
 
-**Status:** Done for Sqlite (this PRD's own acceptance criteria, in full).
-Postgres/PostgresEra scoped OUT — see "What shipped," below, for why.
+**Status:** Done for Sqlite and Postgres (2026-08-27). Postgres was
+initially scoped out of this PRD's first round (see the original "What
+shipped" below for why) and shipped as the follow-up round that section
+called for, in a parallel branch merged the same day — `IsolatedBoot`
+gained an actual settings-injection path for Postgres (a real `.world`
+written per boot, a shared `hecks_fuzz` database/schema dropped and
+recreated before every ephemeral boot, plus a `GC.start` fix for a real
+`max_connections` exhaustion bug hit live). PostgresEra specifically
+remains out of scope — nothing here touches era/lineage machinery.
 
 ## The problem
 
@@ -112,17 +119,47 @@ No Memory-vs-Sqlite query/mutation divergence found, unlike
 shapes evidently don't hit whatever those four needed, at the volume
 tested here.
 
-**Postgres/PostgresEra deliberately NOT added**, unlike this PRD's
-original acceptance criteria: Memory and Sqlite both need ZERO `.world`
-settings to boot (see above) — that's exactly what let `IsolatedBoot`
-stay a simple regex-rewrite-then-delete-`.world`, no settings-injection
-mechanism needed at all. Postgres/PostgresEra have no such zero-config
-default — they need a real, shared connection string (`database
-"postgres://..."`), which this rewrite-and-delete mechanism has nowhere
-safe to source from an unconditional, in-process, no-service-required
-spec. Adding it needs `IsolatedBoot` to gain an actual settings-injection
-path (write a real `.world` with a real DSN, gated the same `io: true` +
-`PostgresProbe.available?` convention `domain_refusal_spec.rb` already
-uses) — a real, separate, larger piece of work than the regex-rewrite this
-round shipped, left for a follow-up round rather than shipped half-verified
-in an environment with no reachable Postgres to prove it against.
+**Postgres was initially NOT added** in this PRD's first round, for the
+reasons the paragraph above this one used to explain: Memory and Sqlite
+both need zero `.world` settings, so the simple regex-rewrite-then-
+delete-`.world` mechanism had nowhere safe to source a real connection
+string from.
+
+**Shipped as the follow-up round, same day (2026-08-27):**
+`IsolatedBoot#rebind_to_postgres!` writes a real, fresh `.world` per
+`.hecksagon` file (one per directory a `.hecksagon` actually lives in —
+`Folder#load_domain` globs `*.world` non-recursively, so it has to match
+that exactly or the world silently never loads; cost a debugging loop the
+first time), pointing every domain at a shared `hecks_fuzz`
+database/schema that's dropped and recreated before every ephemeral boot
+(`ensure_fuzz_schema!`) — safe because `bin/fuzz` drives every boot
+sequentially, never concurrently. A real bug surfaced live in the process:
+`Adapters::Postgres` never explicitly closes a connection, and a tight
+fuzzing loop (dozens to hundreds of ephemeral boots per run) hits
+Postgres's own `max_connections` in about a dozen boots without help;
+fixed with an explicit `GC.start` right before each boot's connections
+open, reclaiming the previous boot's now-unreferenced ones.
+
+A second real bug, unrelated to the fuzz harness itself, blocked even
+booting: `SchemaBuilder#index_field!` didn't recognize the DSL's own
+reference-hop convention (`"owner/field"`) and tried to index it as a
+plain identifier, producing invalid SQL — any Postgres-bound domain with
+a hop-derived field (banking's `projects :customer_status, from:
+:"customer.status"`) failed to boot on real Postgres at all, previously
+unreachable because banking had never run on real Postgres before this
+PRD's real-adapter mode existed to try it. Fixed with the same
+never-indexed-is-always-safe skip the DSL layer already applies
+elsewhere.
+
+Verified against `examples/banking`: `--adapter postgres --seeds 15
+--steps 25` → 40.7s, 15/15 clean. Postgres is real work per dispatch, so
+this mode is meant to run with smaller seed/step counts than Memory/
+Sqlite's default sweep, not as a like-for-like swap.
+
+**Still open, flagged rather than silently assumed solved:** the fix
+above unblocks *booting* a hop-field domain on Postgres; whether the
+query compiler can actually *execute* a hop-path `where`/`order_by`
+against Postgres/Sqlite is untested and likely has the same class of
+gap. **PostgresEra remains fully out of scope** — nothing here touches
+era/lineage machinery; a fuzzed sequence against `PostgresEra` would need
+its own PRD.

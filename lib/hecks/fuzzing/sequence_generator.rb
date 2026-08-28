@@ -73,8 +73,8 @@ module Hecks
       # the generating end rather than the scoring end.
       UNEXERCISED_WEIGHT = 4
 
-      def self.generate(domain_path, seed:, steps:)
-        new(domain_path, seed: seed, steps: steps).call
+      def self.generate(domain_path, seed:, steps:, adapter: :memory)
+        new(domain_path, seed: seed, steps: steps, adapter: adapter).call
       end
 
       # How many EVENTS the generated sequence actually produced — not
@@ -87,10 +87,11 @@ module Hecks
       # replay one.
       attr_reader :event_count
 
-      def initialize(domain_path, seed:, steps:)
+      def initialize(domain_path, seed:, steps:, adapter: :memory)
         @domain_path      = domain_path
         @seed             = seed
         @step_count       = steps
+        @adapter          = adapter
         @random           = Random.new(seed)
         @known_ids        = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids = Hash.new { |h, k| h[k] = [] }
@@ -106,7 +107,7 @@ module Hecks
         # a Postgres-bound domain's real store lives outside the copied
         # directory entirely and `rm_rf`ing data/ alone cannot reach it —
         # see isolated_boot.rb's own header.
-        IsolatedBoot.call(@domain_path) do |copy|
+        IsolatedBoot.call(@domain_path, adapter: @adapter) do |copy|
           runtime = Hecks.boot(copy)
           catalog = build_catalog(runtime)
           Array.new(@step_count) { attempt_step(runtime, catalog) }.compact

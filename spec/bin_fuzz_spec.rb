@@ -44,7 +44,7 @@ RSpec.describe "bin/fuzz" do
     # with no other consideration (which argument is "really" relevant)
     # confounding the result.
     def always_reproduces(fuzz)
-      fuzz.define_singleton_method(:outcome) { |_domain, _steps| [:crash, "boom"] }
+      fuzz.define_singleton_method(:outcome) { |_domain, _steps, _adapter = :memory| [:crash, "boom"] }
     end
 
     it "accumulates every accepted drop instead of reverting earlier ones" do
@@ -67,7 +67,7 @@ RSpec.describe "bin/fuzz" do
       # (no longer reproduces), so it must come straight back, the same
       # way `StepBuilder#malform`'s own doc names an argument the domain
       # requires as changing the refusal and un-reverting itself.
-      fuzz.define_singleton_method(:outcome) do |_domain, steps|
+      fuzz.define_singleton_method(:outcome) do |_domain, steps, _adapter = :memory|
         steps.first["args"].key?("b") ? [:crash, "boom"] : [:clean, nil]
       end
 

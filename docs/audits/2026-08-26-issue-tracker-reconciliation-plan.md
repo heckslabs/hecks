@@ -71,7 +71,7 @@ sweep. Cross-referencing the user's specific concerns against that sweep:
 | --- | --- | --- |
 | Race in nested reaction dispatch (`@reaction_depth`) | M20 | Fixed — `e4b7a473`, and the *same bug class* re-found and fixed in the registry (`80950212`, with a forced-interleaving regression spec) |
 | No count/sum/group_by in query DSL | (pre-audit) | Added 2026-08-13 (`c84f9f3e`); Judge round-trip tracked as open issue #113 |
-| Fuzzing only covers in-memory adapter | M21-M25 | Fixed — `4839adae` (Tier 6) |
+| Fuzzing only covers in-memory adapter | — | **Was wrongly marked fixed here.** M21-M25 (`docs/audits/2026-08-11-bug-triage.md:169-173`) are five unrelated fuzzer-quality bugs — none of them "the fuzzer now runs against real persistence." Independently re-checked 2026-08-27: `lib/hecks/fuzzing/isolated_boot.rb`'s `rebind_to_memory!` really did still force every `persisted_by` to Memory and delete every `.world` before fuzzing. Fixed for real as of this row's own correction — `bin/fuzz --adapter sqlite\|postgres` (PRD 02, `docs/future-features.md`), see that PRD entry for exactly what's covered. |
 | Postgres schema migration holes | H3, H4, H5 | Fixed — `b34a09b1` (H4 was already fixed pre-audit) |
 | Stored XSS, Rust web layer | H10 | Fixed 2026-08-22 (predates today's sweep) |
 | Session HMAC fails open on empty secret | H11 | Fixed — `b00e667d` (Tier 3) |
@@ -81,6 +81,22 @@ sweep. Cross-referencing the user's specific concerns against that sweep:
 
 So: of the concerns raised, only **Rails integration** is a real, currently
 unaddressed gap — and it was scoped out deliberately, not missed.
+
+**2026-08-27 addendum:** this table's "Status" column is not the full
+audit-reconciliation picture, and shouldn't be read as one — it only
+answers the specific concerns one prior session raised. A fuller pass this
+session (see `docs/future-features.md`'s "Bug audits" section, which is now
+the more current tracking doc) found H1 — omitted from this table entirely
+— was, contrary to what the underlying audit's own narrative implied by
+that point, still genuinely broken: `EntityInterpreter` ran no argument
+gate at all, silently accepting unknown args and silently nil-ing absent
+declared ones on every entity command in every domain. Fixed this session
+(`a830b472`), independent of everything tracked here. Combined with the
+fuzzer-gap mislabel this table already documents above, the honest
+takeaway is: this project's status docs have drifted in *both* directions
+at once (things marked open that are fixed, and at least one thing marked
+fixed that wasn't) — treat any single line in either doc as a claim to
+verify, not a settled fact, until it's carried a live re-check.
 
 ## The one real caveat: nothing above is independently re-verified
 

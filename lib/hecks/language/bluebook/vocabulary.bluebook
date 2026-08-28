@@ -182,17 +182,23 @@ Hecks.bluebook "Bluebook" do
 
     # EntityInterpreter#call — the same shape
     # one level down, on a piece an aggregate holds rather than the aggregate
-    # itself. Shorter than AggregateDispatchOrder because an entity is never
-    # CREATED through this path (no assign_creation_attributes) and inherits
-    # its aggregate's own argument gate rather than running one of its own (no
-    # refuse_unknown_arguments) — hydrating the parent and locating the
+    # itself. `refuse_unknown_arguments`/`refuse_absent_arguments` lead it,
+    # the same position they hold in AggregateDispatchOrder — bug audit H1
+    # (docs/audits/2026-08-10-main-bug-audit.md): an entity command used to
+    # run NEITHER at all, on a since-corrected comment claiming it "inherits
+    # its aggregate's own gate" — nothing on this path ever ran one, and a
+    # bogus argument or a silently-nil'd absent one both went straight
+    # through. The only real difference from AggregateDispatchOrder now is
+    # that an entity is never CREATED through this path (no
+    # assign_creation_attributes) — hydrating the parent and locating the
     # element replace a single hydrate. resolve_references stayed, though —
     # an entity command can declare a reference-typed attribute the same way
     # an aggregate command can (CommandRules#resolve_references is shared by
     # both interpreters), even though nothing in the real corpus does yet.
     value_object "EntityDispatchOrder" do
       attribute :step, String,
-                one_of: ["normalize_args", "refuse_role_mismatch", "resolve_references", "hydrate_parent",
+                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                         "refuse_role_mismatch", "resolve_references", "hydrate_parent",
                          "locate_element", "enforce_givens", "admissible_transition", "apply_mutations",
                          "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
     end

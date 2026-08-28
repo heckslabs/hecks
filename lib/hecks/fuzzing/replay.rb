@@ -59,7 +59,7 @@ module Hecks
 
       def call(domain_path, steps, adapter: :memory)
         # See isolated_boot.rb's own header: resets data/ AND rebinds
-        # persistence to Memory (or, PRD 02, real SQLite) — since a
+        # persistence to the chosen adapter (Memory by default), since a
         # Postgres-bound domain's real store lives outside the copied
         # directory and cannot be reached by resetting data/ alone.
         IsolatedBoot.call(domain_path, adapter: adapter) do |copy|

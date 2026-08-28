@@ -69,6 +69,20 @@ means more than a bad refusal message:
   and stored as canonical text, not held as a closure; anything that
   lets an admitted operator's rendering diverge from what actually
   evaluates is worth reporting even without an obvious exploit in mind.
+- **Argument-gate coverage on every dispatch path.** `CommandInterpreter`
+  (aggregate commands) and `PortOperationInterpreter` both refuse
+  unknown/absent arguments; `EntityInterpreter` (a piece an aggregate
+  holds — `Account.LedgerEntry.Reverse`, say) silently ran with no such
+  gate at all until 2026-08-27, on a comment claiming it "inherited" a
+  check that nothing on its dispatch path ever actually ran — a bogus
+  argument was accepted, and an omitted declared one silently nil'd the
+  field it should have set. Fixed, but the class is worth naming here:
+  any new dispatch path (a future entity-chain hop, a new interpreter)
+  needs its own explicit `refuse_unknown_arguments`/
+  `refuse_absent_arguments` step — nothing enforces that structurally,
+  and this is exactly the kind of gap a full test suite passing green
+  does not catch, because the missing check has no positive assertion
+  to fail.
 
 ## Supported versions
 
