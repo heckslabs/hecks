@@ -190,7 +190,14 @@ Hecks.bluebook "Chess" do
       emits "GameStarted"
     end
 
-    command "PlacePiece" do
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025). `PlacePiece`/
+    # `OfferDraw` name no matching `transition` — placing a piece or
+    # offering a draw doesn't move the game's own status — so `from:`
+    # is the only thing gating them. `AdvanceTurn`, below, DOES match a
+    # transition; its own `from:` there is redundant-but-kept, same
+    # reason `Account`'s FreezeAccount/Unfreeze/CloseAccount already do
+    # both.
+    command "PlacePiece", from: ["in_progress", "check"] do
       goal "Set a piece down on the board — used to build the starting position, or any position a test needs"
 
       reference_to Game
@@ -199,7 +206,6 @@ Hecks.bluebook "Chess" do
       attribute :color,  Color
       attribute :square, Square
 
-      given("only an active game accepts new pieces") { status == "in_progress" || status == "check" }
       given("a piece id is not reused") { pieces.none? { |p| p.id.value == id.value } }
       given("no two pieces already share a square") do
         pieces.none? { |p| p.status == "on_board" && p.square.file == square.file && p.square.rank == square.rank }
@@ -241,13 +247,12 @@ Hecks.bluebook "Chess" do
       delegates_to "Piece.Capture", with: { id: :id, by: :by }
     end
 
-    command "AdvanceTurn" do
+    command "AdvanceTurn", from: ["in_progress", "check"] do
       goal "Pass the move to the other color and clear any prior check, after a piece has moved"
 
       reference_to Game
       attribute :turn, Color
 
-      given("only an active game continues") { status == "in_progress" || status == "check" }
 
       sets :turn
       sets :ply, increment: 1
@@ -291,13 +296,12 @@ Hecks.bluebook "Chess" do
       emits "GameResigned"
     end
 
-    command "OfferDraw" do
+    command "OfferDraw", from: ["in_progress", "check"] do
       goal "Offer a draw to the other side"
 
       reference_to Game
       attribute :by, Color
 
-      given("only an active game accepts a draw offer") { status == "in_progress" || status == "check" }
       given("a side does not re-offer a draw already on the table") { draw_offer.value == "none" }
 
       sets :draw_offer, to: :by

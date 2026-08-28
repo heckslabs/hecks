@@ -115,12 +115,8 @@
           "ensures": [
 
           ],
-          "from": null,
+          "from": "available",
           "givens": [
-            {
-              "canonical": "status == \"available\"",
-              "description": "a sold pizza cannot be changed"
-            },
             {
               "canonical": "toppings.size < 10",
               "description": "at most 10 toppings"
@@ -172,15 +168,11 @@
           "ensures": [
 
           ],
-          "from": null,
+          "from": "available",
           "givens": [
             {
               "canonical": "toppings.size.positive?",
               "description": "a pizza needs at least one topping"
-            },
-            {
-              "canonical": "status == \"available\"",
-              "description": "it must still be available"
             },
             {
               "canonical": "amount.cents.positive?",

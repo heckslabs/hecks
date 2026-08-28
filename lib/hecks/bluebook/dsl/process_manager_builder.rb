@@ -85,8 +85,19 @@ module Hecks
           handler.instance_eval(&block) if block
 
           mapping.each do |event_type, target|
+            # BARE CONSTANT ACCEPTED (ADR 0025, S6 — "events first-
+            # class"), `transition Account::AccountDebited => "state"`,
+            # same `Naming.event_ref` transform `PolicyBuilder#on_impl`
+            # uses. Deliberately QUALIFIED, not the ADR's own bare
+            # top-level illustration (`transition AccountDebited =>
+            # ...`) — an unqualified constant would need a global
+            # `const_missing` hook, exactly the collision risk S0b's own
+            # header warns against (two domains in one registry). A
+            # plain String still passes through unchanged, both for
+            # `shadow_parse` and for every corpus site this pass didn't
+            # migrate.
             state_transition = StateTransition.new(target: target, from: from)
-            expand(event_type.to_s, state_transition, handler.dispatches).each { |row| @handlers << row }
+            expand(Naming.event_ref(event_type), state_transition, handler.dispatches).each { |row| @handlers << row }
           end
         end
 

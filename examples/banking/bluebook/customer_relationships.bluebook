@@ -58,35 +58,40 @@ Hecks.bluebook "Banking" do
       emits "CustomerRegistered"
     end
 
-    command "Suspend" do
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
+    # replaces a `given` that only re-checked the exact state the
+    # matching `lifecycle` transition above already gates. Removing it
+    # is not just tidiness: `admissible_transition` and the given-based
+    # `enforce_lifecycle_guard` both route through the identical
+    # `LifecycleRefused`/`transition_blocked` wording (`RefusalWording`,
+    # `command_rules/admissibility.rb`), so the caller-visible refusal
+    # is byte-for-byte unchanged — only the duplicate check goes away.
+    command "Suspend", from: "active" do
       role "Compliance officer"
       goal "Stop a customer transacting while something is investigated"
 
       reference_to Customer
-      given("customer is active") { status == "active" }
 
       sets :standing
 
       emits "CustomerSuspended"
     end
 
-    command "Reinstate" do
+    command "Reinstate", from: "suspended" do
       role "Compliance officer"
       goal "Let a cleared customer transact again"
 
       reference_to Customer
-      given("customer is suspended") { status == "suspended" }
       sets :standing, to: { value: "good" }
 
       emits "CustomerReinstated"
     end
 
-    command "Close" do
+    command "Close", from: ["active", "suspended"] do
       role "Branch clerk"
       goal "End the relationship"
 
       reference_to Customer
-      given("customer is active or suspended") { ["active", "suspended"].include?(status) }
       emits "CustomerClosed"
     end
 

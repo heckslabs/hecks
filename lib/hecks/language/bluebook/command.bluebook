@@ -435,6 +435,15 @@ Hecks.bluebook "Bluebook" do
       member keyword: "then_set",        context: "Command", at: "",  named: "remove",     kind: "literal",  required: "false", fills: "source", selects: "op=remove"
       member keyword: "delegates_to",    context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "target"
       member keyword: "delegates_to",    context: "Command", at: "",  named: "with",      kind: "literal",  required: "false", fills: "source", selects: "op=delegate"
+      # BARE CONSTANT ACCEPTED (ADR 0025, S6 — "events first-class"),
+      # `emits Account::AccountFrozen`, same `kind: "constant"` +
+      # `kind: "text"` pair `on`'s own row in `policy.bluebook` carries
+      # — both stay admitted, the old spelling not refused, for the
+      # same reason (event names aren't 100% corpus-migrated the way
+      # command references are). `CommandBuilder#emits` (hand-written,
+      # no `calls:` needed — the single-fill path already invokes it by
+      # its own word name) resolves either shape via `Naming.event_ref`.
+      member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "constant", required: "true",  fills: "emits"
       member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
       member keyword: "state",           context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "source"
       member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"

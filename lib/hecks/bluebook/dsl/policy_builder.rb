@@ -11,9 +11,24 @@ module Hecks
           @name = name
         end
 
-        # `on` — item #13's full metaprogrammed dispatch, slice 1
-        # (whole-project table-unification survey): a bare, kind-driven
-        # coerce-and-assign, now executed by `GenericDispatch`.
+        # `on Account::AccountFrozen` — A BARE CONSTANT ACCEPTED (ADR
+        # 0025, S6 — "events first-class"), resolved through `ConstShim`
+        # the same way `trigger`/`dispatch` already resolve a command
+        # reference (`Naming.event_ref`, that method's own header). NOT
+        # a required spelling yet, unlike `trigger`'s own quoted-text
+        # refusal — see `policy.bluebook`'s own KeywordSeed comment for
+        # why: event names aren't 100% migrated across the live corpus
+        # the way command references are, so both `on "Account.
+        # AccountFrozen"` (quoted) and `on Account::AccountFrozen`
+        # (bare) stay admitted until a full migration lands.
+        #
+        # RENAMED FROM the generic single-fill coercion — item #13's
+        # full metaprogrammed dispatch, slice 1 (whole-project
+        # table-unification survey), now overridden here the same way
+        # `trigger_impl` overrides its own generic default.
+        def on_impl(event_ref)
+          @on_event = Naming.event_ref(event_ref)
+        end
 
         # `with:` — WHAT THE TRIGGER IS GIVEN, when the event's own shape
         # is not it. Omitted, the whole event payload forwards verbatim,

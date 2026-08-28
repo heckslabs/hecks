@@ -131,5 +131,16 @@ module Hecks
       path, _, command = text.rpartition("::")
       path.empty? ? text : "#{path}.#{command}"
     end
+
+    # `emits Account::AccountFrozen` / `on Account::AccountFrozen` — the
+    # event-side twin of `command_ref`, above (ADR 0025, S6 — "events
+    # first-class"). Identical transform (a bare `ScopedConstant`'s last
+    # `::` becomes `.`, a String passes through unchanged for legacy
+    # `shadow_parse` text and for corpus sites this pass didn't migrate —
+    # see that method's own comment for why both rules exist), given its
+    # own name because the two references mean different things even
+    # though the rewrite is byte-identical: an event name is not a
+    # command name that happens to share a format.
+    def event_ref(value) = command_ref(value)
   end
 end

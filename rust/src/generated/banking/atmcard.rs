@@ -599,7 +599,6 @@ pub fn dispatch_entity_withdrawal_dispute(
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "card is not retired", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("retired".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "withdrawal is taken", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("taken".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["taken"] }),
         |record| {
@@ -856,9 +855,8 @@ pub fn dispatch_rename(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })), corrects_event: None },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued", "active"] }),
         |record| {
         record.nickname = Some(args.nickname.clone());
             Ok(())
@@ -948,9 +946,8 @@ pub fn dispatch_withdraw(
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "card is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
         record.withdrawals.push(Withdrawal { cents: args.cents.clone(), narrative: args.narrative.clone(), sequence: WithdrawalSequence { value: (record.withdrawals.len() as i64) + 1 }, state: "taken".to_string() });
             Ok(())
@@ -1037,7 +1034,6 @@ pub fn dispatch_activate(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "card is issued", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
         |record| {
@@ -1124,7 +1120,6 @@ pub fn dispatch_retire(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })), corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued", "active"] }),
         |record| {

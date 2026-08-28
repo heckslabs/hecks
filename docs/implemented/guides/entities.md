@@ -120,13 +120,11 @@ aggregate "SafeDepositBox" do
       transition "Return" => "returned", from: "issued"
     end
 
-    command "Return" do
+    command "Return", from: "issued" do
       role "Vault officer"
       goal "Take a key back when a holder is done with it"
 
       attribute :serial, KeySerial
-
-      given("only an issued key is returned") { status == "issued" }
 
       emits "KeyReturned"
     end
@@ -379,13 +377,13 @@ box = Banking::SafeDepositBox.find("DOWNTOWN:12")
 box.keys.map { |k| k[:status] }   # => ["returned"]
 ```
 
-Run the identical dispatch again and the SAME `given` refuses it —
-not because the runtime remembers this particular call happened
-before, but because it re-evaluates `status` against the key's current
-state every time, and that state changed underneath it:
+Run the identical dispatch again and the SAME lifecycle guard refuses
+it — not because the runtime remembers this particular call happened
+before, but because `admissible_transition` re-checks the key's
+current state every time, and that state changed underneath it:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })   # ~> GivenNotMet: only an issued key is returned
+runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 }, serial: { value: "KEY-1" })   # ~> LifecycleRefused: Return refused — status is "returned", and Return moves it only from "issued"
 ```
 
 The event it would have announced never happens; the ones that already

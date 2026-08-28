@@ -542,7 +542,7 @@ pub fn dispatch_suspend(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
@@ -629,7 +629,7 @@ pub fn dispatch_reinstate(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is suspended", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) }, corrects_event: None },
+
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["suspended"] }),
         |record| {
@@ -716,7 +716,7 @@ pub fn dispatch_close(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active or suspended", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) })), corrects_event: None },
+
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active", "suspended"] }),
         |record| {

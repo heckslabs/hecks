@@ -1,6 +1,14 @@
 # The DSL names one idea one way, and a word earns its place by being used
 
-**Status:** Accepted — not yet implemented. Sequenced work plan at the end of this document.
+**Status:** Accepted — partially implemented. Sequenced work plan at the
+end of this document, but **read
+[`docs/dsl-work-slices.md`](../dsl-work-slices.md) first** — it re-cuts
+this plan into parallelizable slices (S0a-S13) and tracks real, current,
+per-slice status against the code, which has moved since this ADR's text
+was written (two corrections inline below: `has_many`/`has_one`/
+`belongs_to` were kept, not deleted; `then_set`→`sets` already landed).
+Trust that doc's status table over this one's prose before starting any
+slice — this document records the *decision*, not a live status feed.
 
 ## Context
 
@@ -45,7 +53,9 @@ Four principles, and the decisions that follow from them.
 
   This is what makes dropping `_id` possible rather than merely desirable. `Naming.reference_hop` currently derives the traversal name from the field name — `account_id` donates `account` to the hop, and a field named `account` would force `account_account`. An explicit operator removes the derivation, and with it `HopPath.hop_head?`'s disambiguation rule (*"a real LOCAL attribute of that name wins first"*), which exists only to arbitrate the collision.
 - On a `Handle`, **`piece.account` hydrates the record and `piece[:account]` reads the raw id.** The bracket form already reads as raw storage. This preserves today's hydrating accessor and moves only the id read.
-- **`has_many`, `has_one`, and `belongs_to` are deleted**, and nothing replaces them. All three were `reference_to` with a different minted name — now the default — so they have no work left. `has_many` additionally lied: it singularised its target and minted one scalar, so `film.backers` reads `nil` and never `[]`. Combined corpus uses: one.
+- ~~**`has_many`, `has_one`, and `belongs_to` are deleted**, and nothing replaces them.~~ **Superseded (2026-08-27) — kept, not deleted.** All three were `reference_to` with a different minted name at the time this ADR was written, so deletion looked free. Since then, a separate slice (referenced in `spec/evolve_spec.rb:45-47` as "S17/ADR 0026's relationship-cardinality slice") deliberately un-deprecated all three — they build and dispatch for real today (`aggregate_builder.rb`/`entity_builder.rb`'s `has_many_impl`/`has_one_impl`/`belongs_to_impl`), not merely refuse outside `shadow_parse`. That's a real, working, presumably-relied-on part of the live DSL now, not dead syntax nobody got around to removing — deleting it would be a regression, not a cleanup. `has_many`'s original bug (`film.backers` singularising and reading `nil` instead of `[]`) needs verifying separately; if it still reproduces, fix it in place rather than deleting the construct.
+
+  **What this changes for S2 (references, the sequenced-work-plan slice this decision lives under):** scope narrows to the `_id`-minting removal and the new `/` hop-traversal operator. `reference_to`, `has_many`, `has_one`, and `belongs_to` all stay as words; only the identity-suffix minting and the overloaded `.` traversal are what's actually being fixed. See `docs/dsl-work-slices.md`'s S2 entry, which should be read alongside this note before starting that slice.
 
   No one-to-many word is added. Owned `entity` declarations, `list_of` value fields, and the many side pointing back at the one side already cover every case in five domains — which is also the shape Vernon argues for, since a root holding a collection of foreign roots is the pattern to avoid.
 - **The no-bidirectional rule becomes acyclic within a chapter.** Today `validate_no_bidirectional_references!` catches direct pairs only; `A → B → C → A` passes, and `hop_path.rb:11` records that as deliberate (*"explicitly declines to take a position on a longer ring"*). Self-reference stays legal — `parent.parent.name` for a hierarchy is real and safe. Cross-chapter rings are unreachable rather than unchecked: `Reference#resolve` is scoped to its own chapter by construction, so a cross-chapter reference is a dangling name, not an edge. If cross-domain references ever become resolvable edges, this rule has to move to a registry-wide phase.
@@ -84,7 +94,7 @@ Four principles, and the decisions that follow from them.
 
 ### Commands
 
-- **`sets` everywhere.** The grammar already declares it with `was: "then_set"`; the corpus is 143 `then_set` and zero `sets`. `then_set` reads as sequencing, which is a promise the language does not keep — mutations are a declared set, not an ordered one.
+- ~~**`sets` everywhere.** The grammar already declares it with `was: "then_set"`; the corpus is 143 `then_set` and zero `sets`.~~ **Done, ahead of this ADR's own sequencing (verified 2026-08-27).** The corpus is now 119 `sets` and 1 `then_set` — the reverse of the count above, and that one surviving `then_set` is the deliberately-kept `deprecated` grammar row `spec/evolve_spec.rb:47-49` describes, refusing live and readable only via `shadow_parse`. `then_set` reads as sequencing, which is a promise the language does not keep — mutations are a declared set, not an ordered one.
 - **`to:` is omittable when it is the identity, and the redundant form is refused.** All 35 `to:` mappings in live bluebooks are `x → x`. `sets :opening, to: :starting_balance` still spells a genuine remap. `increment:`, `decrement:`, and `append:` are unaffected — they name a genuinely different source.
 
   Inferring the mutation entirely from a declared attribute was rejected: a command attribute that feeds only a `given` (`Debit`'s `amount`, guarding the balance) would silently start writing a field.
@@ -110,7 +120,7 @@ Four principles, and the decisions that follow from them.
   end
   ```
 
-  `state`, `transition:`, `starts_on`, and `ends_on` are retired; states are whatever the transitions name, exactly as on an aggregate, and the first and terminal states carry what `starts_on`/`ends_on` said.
+  ~~`state`, `transition:`, `starts_on`, and `ends_on` are retired; states are whatever the transitions name, exactly as on an aggregate, and the first and terminal states carry what `starts_on`/`ends_on` said.~~ **Amended (2026-08-27) — `starts_on`/`ends_on` kept, not retired.** `state`/`transition:` are gone: every process manager in the corpus now uses the `transition EVENT => "state", from: "prior"` shape shown above, states derived from the transition graph (`ProcessManagerBuilder#derived_states`), exactly as this section originally specified. `starts_on`/`ends_on` were checked against the real corpus rather than assumed away, and deliberately kept: `Settlement`'s own `ends_on "TransferSettled"` names an event NONE of its own transitions handle (`Transfer.Settle`'s emission is a step downstream of the transition that dispatches it) — "the terminal state's own event" is not a fact the transition graph carries for this real corpus member, so deriving it would either be wrong here or need a second new word, which is not less vocabulary than keeping the one that already says it correctly. See `ProcessManagerBuilder`'s own header comment for the full reasoning. The event-trigger-as-bare-constant form shown in the example above (`AccountDebited =>`, not `"AccountDebited" =>`) is NOT yet live — it depends on events being first-class with a real resolvable constant (this section's own first bullet, "Events become first-class, with declared payloads"), which is still open; today's corpus correctly uses quoted event names on the trigger side (`transition "AccountDebited" => ...`) until that lands. Command references on the dispatch side ARE already first-class (`dispatch Account::Debit`, bare constant, refused as quoted text outside `shadow_parse`).
 
 ### Aggregates and entities
 
@@ -138,7 +148,7 @@ Four principles, and the decisions that follow from them.
 
   This is Evans's own line, not an extrapolation: apply consistency rules synchronously **within** an aggregate boundary, and handle updates across aggregates asynchronously — *"any rule that spans AGGREGATES will not be expected to be up to date at all times."* Forty-five preconditions in the corpus (`given("customer is active")`) are exactly such a rule, read transactionally.
 
-  Query hops are unaffected. `dereference`'s only two call sites are `enforce_givens` and `enforce_ensures`; queries traverse through `HopPath` and keep doing so.
+  Query hops are unaffected. ~~`dereference`'s only two call sites are `enforce_givens` and `enforce_ensures`~~ **Stale as of S10 (2026-08-27)** — aggregate `invariant` didn't exist when this line was written; now that it does (S10, this same ADR), `dereference` has two more call sites, `enforce_invariants` and `check_entity_invariants` (`command_rules/admissibility.rb`), both reachable the same way `enforce_givens`/`enforce_ensures` are. The boundary rule still applies to them identically — an invariant may not read through a `reference_to` either — this just widens where the deletion has to reach. Queries still traverse through `HopPath` and keep doing so.
 - **Cross-aggregate state is declared as a projection**, and the language knows it is a copy:
 
   ```ruby

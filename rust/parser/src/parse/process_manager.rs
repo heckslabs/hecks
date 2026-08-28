@@ -183,7 +183,19 @@ fn parse_transition(
         Diagnostic::new(file, line, "'transition' names no 'event => state' pair")
     })?;
     let (event_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
-    let event_type = text_value(event_raw);
+    // ADR 0025, S6 — "events first-class": the trigger side of a
+    // `transition EVENT => "state"` pair accepts a bare constant the
+    // same way `policy.rs`'s own `on`/`emits` now do (2026-08-27,
+    // qualified only — `Account::AccountDebited`, not the ADR's own
+    // bare top-level illustration, matching `process_manager_builder
+    // .rb#transition_impl`'s own comment on why). `crate::build::
+    // naming::command_ref`, not `text_value`, so a qualified
+    // constant's `::` rewrites to `.` the same way `on`/`emits`
+    // already do; a plain string still passes through unchanged.
+    // Nothing in the corpus uses this shape yet — kept in step with
+    // the Ruby side rather than left to silently diverge the day
+    // something does.
+    let event_type = crate::build::naming::command_ref(event_raw.trim());
     let to_state = text_value(to_state_raw);
 
     let from_raw = super::named_raw(&gated.args, "from").ok_or_else(|| {

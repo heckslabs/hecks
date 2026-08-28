@@ -374,10 +374,11 @@ door.
 ## emits
 
 <!-- generated:begin word=emits -->
-`emits emits` — fills `emits`
+`emits emits, emits` — fills `emits`
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | emits |
 | positional 1 | text | true | emits |
 <!-- generated:end -->
 

@@ -21,7 +21,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
   def rented_box(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: { value: "c" }, branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                      box_number: { value: 12 }, size: { value: "medium" })
   end
 
@@ -31,11 +31,40 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rent = box.command("Rent")
 
     expect(box.attribute(:customer).relationship).to eq("belongs_to")
+    # `Rent` used to redeclare `attribute :customer, CustomerNumber` — a
+    # plain value-object type (Customer's own identity VO), which SHADOWED
+    # the aggregate's own `belongs_to Customer` (a real Reference type) and
+    # meant `Rent`'s own `customer` attribute was never dereferenced at
+    # CREATE time. Harmless as long as nothing needed to read through it —
+    # until a `given("customer is active")` guard (issue #278) tried to and
+    # was silently refused for every customer, active or not. Fixed by
+    # removing the redundant redeclaration: `sets :customer` alone (same
+    # shape `Account.Open` already used successfully) inherits the
+    # aggregate's own Reference-typed attribute instead of shadowing it.
     expect([rent.attribute(:customer).type.to_s, rent.attribute(:customer).reference?])
-      .to eq(["CustomerNumber", false])
+      .to eq(["Reference<Customer>", true])
 
     rented_box(runtime)
     expect(Banking::SafeDepositBox.find("DOWNTOWN:12")[:customer]).to eq("c")
+  end
+
+  it "refuses Rent for a suspended customer, and accepts it for an active one (#278)" do
+    runtime = boot_banking
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "active" },
+                     name: { given: "A", family: "One" }, email: { address: "a@example.com" })
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "flagged" },
+                     name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
+    runtime.dispatch("Banking::Customer.Suspend", reference: "flagged", standing: { value: "flagged" })
+
+    expect do
+      runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "active", branch_code: { value: "DOWNTOWN" },
+                                                        box_number: { value: 1 }, size: { value: "small" })
+    end.not_to raise_error
+
+    expect do
+      runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "flagged", branch_code: { value: "DOWNTOWN" },
+                                                        box_number: { value: 2 }, size: { value: "small" })
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /customer is active/)
   end
 
   it "is born at the join of its two identity paths" do
@@ -100,7 +129,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                             date: { value: "2026-01-05" }, sequence: { value: 1 })
-    end.to raise_error(Hecks::Runtime::GivenNotMet, /only a rented box is opened/)
+    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
   end
 
   it "refuses to return a key that is not issued" do
@@ -114,7 +143,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect do
       runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                                                       serial: { value: "KEY-1" })
-    end.to raise_error(Hecks::Runtime::GivenNotMet, /only an issued key is returned/)
+    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "issued"/)
   end
 
   it "announces two facts from one dispatch, and refuses a second surrender" do
@@ -128,7 +157,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
 
     expect do
       runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
-    end.to raise_error(Hecks::Runtime::GivenNotMet, /only a rented box is surrendered/)
+    end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "rented"/)
   end
 
   it "answers a query with the closed-set attribute the inline shorthand declared" do

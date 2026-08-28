@@ -85,57 +85,55 @@ Hecks.bluebook "Banking" do
       emits "TransferRequested"
     end
 
-    command "Debited" do
+    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
+    # below matches a `transition` above; the removed given only
+    # duplicated what `admissible_transition` already gates.
+    command "Debited", from: "requested" do
       role "System"
       goal "Record that the source account has given up the money"
 
       reference_to Transfer
       given("source customer is active")
       given("source account is open")
-      given("transfer is requested")
       emits "TransferDebited"
     end
 
-    command "Settle" do
+    command "Settle", from: "credited" do
       role "System"
       goal "Record that the destination has received it"
 
       reference_to Transfer
       given("destination customer is active")
       given("destination account is open")
-      given("transfer is credited") { status == "credited" }
       emits "TransferSettled"
     end
 
-    command "Credited" do
+    command "Credited", from: "debited" do
       role "System"
       goal "Record that the destination credit committed"
 
       reference_to Transfer
       given("destination customer is active")
       given("destination account is open")
-      given("transfer is debited")
       emits "TransferCredited"
     end
 
-    command "Reverse" do
+    command "Reverse", from: "debited" do
       role "System"
       goal "Put the money back when the credit could not be made"
 
       reference_to Transfer
       given("source customer is active")
       given("source account is open")
-      given("transfer is debited")
       emits "TransferReversed"
     end
 
-    command "Reject" do
+    command "Reject", from: "requested" do
       role "System"
       goal "Refuse a transfer before any money moved"
 
       reference_to Transfer
       given("source customer is active")
-      given("transfer is requested")
       given("source account is open")
       emits "TransferRejected"
     end
@@ -213,32 +211,31 @@ Hecks.bluebook "Banking" do
       emits "ExternalTransferRequested"
     end
 
-    command "SendTransfer" do
+    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
+    # below matches a `transition` above.
+    command "SendTransfer", from: "requested" do
       role "System"
 
       reference_to ExternalTransfer
       given("customer is active")
       given("account is open")
-      given("transfer is requested")
       emits "ExternalTransferSent"
     end
 
-    command "Recall" do
+    command "Recall", from: "sent" do
       role "Customer"
 
       reference_to ExternalTransfer
       given("customer is active")
-      given("transfer is sent")
       given("account is open")
       emits "ExternalTransferRecalled"
     end
 
-    command "Return" do
+    command "Return", from: "sent" do
       role "System"
 
       reference_to ExternalTransfer
       given("customer is active")
-      given("transfer is sent")
       given("account is open")
       emits "ExternalTransferReturned"
     end
@@ -319,34 +316,33 @@ Hecks.bluebook "Banking" do
       emits "PaymentScheduled"
     end
 
-    command "Execute" do
+    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
+    # below matches a `transition` above.
+    command "Execute", from: "scheduled" do
       role "System"
 
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      given("payment is scheduled")
       emits "ScheduledPaymentExecuted"
     end
 
-    command "Cancel" do
+    command "Cancel", from: "scheduled" do
       role "Customer"
 
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      given("payment is scheduled")
       emits "ScheduledPaymentCancelled"
     end
 
-    command "Fail" do
+    command "Fail", from: "scheduled" do
       role "System"
       goal "Record that today's presentment could not be collected"
 
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      given("payment is scheduled")
 
       emits "ScheduledPaymentFailed"
     end
@@ -365,14 +361,13 @@ Hecks.bluebook "Banking" do
     # re-dispatches this against the SAME record every time it re-enters,
     # and a creating command now refuses a second creation over one
     # identity (AlreadyExists).
-    command "Retry" do
+    command "Retry", from: "failed" do
       role "System"
       goal "Re-present a failed payment, up to the limit the schedule names"
 
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      given("payment is failed")
 
       given("a retry is still allowed") { attempts.value < max_attempts.value }
 
@@ -383,14 +378,13 @@ Hecks.bluebook "Banking" do
       emits "ScheduledPaymentFailed"
     end
 
-    command "Abandon" do
+    command "Abandon", from: "failed" do
       role "Back office"
       goal "Give up on a payment that could not be collected after every retry"
 
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      given("payment is failed")
 
       given("every retry is exhausted") { attempts.value >= max_attempts.value }
 

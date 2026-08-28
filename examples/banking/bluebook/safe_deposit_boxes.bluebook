@@ -111,14 +111,17 @@ Hecks.bluebook "Banking" do
         transition "Annotate" => "logged", from: "logged"
       end
 
-      command "Annotate" do
+      # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
+      # replaces `given("visit is logged")`; the matching `transition`
+      # above already gates the identical check via
+      # `admissible_transition`.
+      command "Annotate", from: "logged" do
         role "Vault officer"
         goal "Note something unusual about a visit after the fact"
 
         attribute :note,     VisitNote
         given("customer is active")
         given("box is rented")
-        given("visit is logged") { state == "logged" }
 
         sets :note
 
@@ -158,7 +161,6 @@ Hecks.bluebook "Banking" do
         # when its OWN piece declares nothing under this name).
         given("customer is active")
         given("box is rented")
-        given("only an issued key is returned") { status == "issued" }
 
         emits "KeyReturned"
       end
@@ -169,15 +171,19 @@ Hecks.bluebook "Banking" do
       transition "Surrender" => "vacant", from: "rented"
     end
 
-    command "Rent" do
+    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025). `Rent`/`Surrender`
+    # each match a `transition` above (redundant-but-kept, same reason
+    # `Account`'s own already do both). `LogVisit`/`IssueKey` have no
+    # matching transition — opening the box or cutting a key doesn't move
+    # its own state — so `from:` is the ONLY thing gating them now.
+    command "Rent", from: "vacant" do
       role "Branch clerk"
       goal "Assign the box to a customer"
 
-      attribute :customer,    CustomerNumber
       attribute :branch_code, BranchCode
       attribute :box_number,  BoxNumber
       attribute :size,        Size
-      given("box is vacant") { status == "vacant" }
+      given("customer is active")
 
       sets :customer
       sets :branch_code
@@ -187,14 +193,13 @@ Hecks.bluebook "Banking" do
       emits "BoxRented"
     end
 
-    command "Surrender" do
+    command "Surrender", from: "rented" do
       role "Customer"
       goal "Give the box back and take the keys off the account"
 
       reference_to SafeDepositBox
 
       given("customer is active")
-      given("only a rented box is surrendered") { status == "rented" }
 
       # TWO FACTS FROM ONE ACT, on a head that is composite-identified and
       # holds two entities — the surrender itself, and the keys it leaves
@@ -203,27 +208,25 @@ Hecks.bluebook "Banking" do
       emits "KeyReturnDue"
     end
 
-    command "LogVisit" do
+    command "LogVisit", from: "rented" do
       role "Vault officer"
       goal "Record that the box was opened"
 
       reference_to SafeDepositBox
 
       given("customer is active")
-      given("only a rented box is opened") { status == "rented" }
 
       sets :visits, append: { date: :date, sequence: :sequence, note: :note }
 
       emits "BoxOpened"
     end
 
-    command "IssueKey" do
+    command "IssueKey", from: "rented" do
       role "Vault officer"
       goal "Cut a key for the box"
 
       reference_to SafeDepositBox
       given("customer is active")
-      given("box is rented") { status == "rented" }
 
       sets :keys, append: { serial: :serial }
 

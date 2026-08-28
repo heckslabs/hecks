@@ -156,10 +156,20 @@ Verified against `examples/banking`: `--adapter postgres --seeds 15
 this mode is meant to run with smaller seed/step counts than Memory/
 Sqlite's default sweep, not as a like-for-like swap.
 
-**Still open, flagged rather than silently assumed solved:** the fix
-above unblocks *booting* a hop-field domain on Postgres; whether the
-query compiler can actually *execute* a hop-path `where`/`order_by`
-against Postgres/Sqlite is untested and likely has the same class of
-gap. **PostgresEra remains fully out of scope** — nothing here touches
+**Resolved, not a gap (2026-08-27 follow-up):** the fix above unblocks
+*booting* a hop-field domain on Postgres. Whether the query compiler can
+actually *execute* a hop-path `where` was the open question — turns out
+it already does, for a structural reason, not by accident:
+`Runtime::ReferenceHop.apply` runs inside `QueryInterpreter#call`,
+*before* `Ports::Query.execute` ever reaches an adapter
+(`lib/hecks/runtime/query_interpreter.rb:34`), folding a hop where-clause
+into a synthetic local `in:` clause for every engine alike — `owner/field`
+never reaches `SqlQueryBuilder#query_expression` at all, so it can't hit
+the same class of bug `index_field!` had. `order_by` on a hop needs no
+runtime proof: it's refused at DSL-seal time
+(`aggregate_builder.rb`'s `seal_query_hop`), so no bluebook can declare
+one on any adapter. Live-verified against real Postgres and real Sqlite —
+`spec/adapters/query_hop_agreement_spec.rb`, 8 examples, both green.
+**PostgresEra remains fully out of scope** — nothing here touches
 era/lineage machinery; a fuzzed sequence against `PostgresEra` would need
 its own PRD.

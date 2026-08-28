@@ -264,10 +264,7 @@
             }
           ],
           "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "status == \"active\""
-            }
+
           ],
           "ensures": [
 
@@ -286,7 +283,7 @@
           "emits": [
             "CustomerSuspended"
           ],
-          "from": null,
+          "from": "active",
           "provenance": null
         },
         {
@@ -298,10 +295,7 @@
 
           ],
           "givens": [
-            {
-              "description": "customer is suspended",
-              "canonical": "status == \"suspended\""
-            }
+
           ],
           "ensures": [
 
@@ -322,7 +316,7 @@
           "emits": [
             "CustomerReinstated"
           ],
-          "from": null,
+          "from": "suspended",
           "provenance": null
         },
         {
@@ -334,10 +328,7 @@
 
           ],
           "givens": [
-            {
-              "description": "customer is active or suspended",
-              "canonical": "[\"active\", \"suspended\"].include?(status)"
-            }
+
           ],
           "ensures": [
 
@@ -348,7 +339,10 @@
           "emits": [
             "CustomerClosed"
           ],
-          "from": null,
+          "from": [
+            "active",
+            "suspended"
+          ],
           "provenance": null
         }
       ],
@@ -2054,10 +2048,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "case is screening",
-              "canonical": "status == \"screening\""
             }
           ],
           "ensures": [
@@ -2069,7 +2059,7 @@
           "emits": [
             "OnboardingCleared"
           ],
-          "from": null,
+          "from": "screening",
           "provenance": null
         },
         {
@@ -2084,10 +2074,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "case is screening",
-              "canonical": "status == \"screening\""
             }
           ],
           "ensures": [
@@ -2099,7 +2085,7 @@
           "emits": [
             "OnboardingDeclined"
           ],
-          "from": null,
+          "from": "screening",
           "provenance": null
         }
       ],
@@ -2478,10 +2464,6 @@
             {
               "description": "customer is active",
               "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "card is issued or active",
-              "canonical": "[\"issued\", \"active\"].include?(status)"
             }
           ],
           "ensures": [
@@ -2501,7 +2483,10 @@
           "emits": [
             "ATMCardRenamed"
           ],
-          "from": null,
+          "from": [
+            "issued",
+            "active"
+          ],
           "provenance": null
         },
         {
@@ -2539,10 +2524,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "card is active",
-              "canonical": "status == \"active\""
             }
           ],
           "ensures": [
@@ -2562,7 +2543,7 @@
           "emits": [
             "CashWithdrawn"
           ],
-          "from": null,
+          "from": "active",
           "provenance": null
         },
         {
@@ -2577,10 +2558,6 @@
             {
               "description": "customer is active",
               "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "card is issued",
-              "canonical": "status == \"issued\""
             }
           ],
           "ensures": [
@@ -2592,7 +2569,7 @@
           "emits": [
             "ATMCardActivated"
           ],
-          "from": null,
+          "from": "issued",
           "provenance": null
         },
         {
@@ -2607,10 +2584,6 @@
             {
               "description": "customer is active",
               "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "card is issued or active",
-              "canonical": "[\"issued\", \"active\"].include?(status)"
             }
           ],
           "ensures": [
@@ -2622,7 +2595,10 @@
           "emits": [
             "ATMCardRetired"
           ],
-          "from": null,
+          "from": [
+            "issued",
+            "active"
+          ],
           "provenance": null
         }
       ],
@@ -2736,10 +2712,6 @@
                 {
                   "description": "card is not retired",
                   "canonical": "status != \"retired\""
-                },
-                {
-                  "description": "withdrawal is taken",
-                  "canonical": "state == \"taken\""
                 }
               ],
               "ensures": [
@@ -2759,7 +2731,7 @@
               "emits": [
                 "WithdrawalDisputed"
               ],
-              "from": null,
+              "from": "taken",
               "provenance": null
             }
           ],
@@ -3165,10 +3137,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is authorized",
-              "canonical": "status == \"authorized\""
             }
           ],
           "ensures": [
@@ -3180,7 +3148,7 @@
           "emits": [
             "CardCaptured"
           ],
-          "from": null,
+          "from": "authorized",
           "provenance": null
         },
         {
@@ -3199,10 +3167,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is authorized",
-              "canonical": "status == \"authorized\""
             }
           ],
           "ensures": [
@@ -3214,7 +3178,7 @@
           "emits": [
             "CardVoided"
           ],
-          "from": null,
+          "from": "authorized",
           "provenance": null
         },
         {
@@ -3233,10 +3197,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is captured",
-              "canonical": "status == \"captured\""
             }
           ],
           "ensures": [
@@ -3248,7 +3208,7 @@
           "emits": [
             "CardRefunded"
           ],
-          "from": null,
+          "from": "captured",
           "provenance": null
         },
         {
@@ -3267,10 +3227,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is captured",
-              "canonical": "status == \"captured\""
             }
           ],
           "ensures": [
@@ -3282,7 +3238,7 @@
           "emits": [
             "CardReversed"
           ],
-          "from": null,
+          "from": "captured",
           "provenance": null
         },
         {
@@ -3310,10 +3266,6 @@
             {
               "description": "customer is active",
               "canonical": "disputed_by.status == \"active\""
-            },
-            {
-              "description": "payment is captured or refunded",
-              "canonical": "[\"captured\", \"refunded\"].include?(status)"
             }
           ],
           "ensures": [
@@ -3333,7 +3285,10 @@
           "emits": [
             "CardDisputed"
           ],
-          "from": null,
+          "from": [
+            "captured",
+            "refunded"
+          ],
           "provenance": null
         },
         {
@@ -3352,10 +3307,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is disputed",
-              "canonical": "status == \"disputed\""
             }
           ],
           "ensures": [
@@ -3367,7 +3318,7 @@
           "emits": [
             "CardChargedBack"
           ],
-          "from": null,
+          "from": "disputed",
           "provenance": null
         },
         {
@@ -3386,10 +3337,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is disputed",
-              "canonical": "status == \"disputed\""
             }
           ],
           "ensures": [
@@ -3401,7 +3348,7 @@
           "emits": [
             "CardDisputeRejected"
           ],
-          "from": null,
+          "from": "disputed",
           "provenance": null
         }
       ],
@@ -3804,16 +3751,6 @@
           "references": null,
           "attributes": [
             {
-              "name": "customer",
-              "type": "CustomerNumber",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
               "name": "branch_code",
               "type": "BranchCode",
               "list": false,
@@ -3842,12 +3779,22 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "customer",
+              "type": "Reference<Customer>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "belongs_to"
             }
           ],
           "givens": [
             {
-              "description": "box is vacant",
-              "canonical": "status == \"vacant\""
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
             }
           ],
           "ensures": [
@@ -3894,7 +3841,7 @@
           "emits": [
             "BoxRented"
           ],
-          "from": null,
+          "from": "vacant",
           "provenance": null
         },
         {
@@ -3909,10 +3856,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "only a rented box is surrendered",
-              "canonical": "status == \"rented\""
             }
           ],
           "ensures": [
@@ -3925,7 +3868,7 @@
             "BoxSurrendered",
             "KeyReturnDue"
           ],
-          "from": null,
+          "from": "rented",
           "provenance": null
         },
         {
@@ -3969,10 +3912,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "only a rented box is opened",
-              "canonical": "status == \"rented\""
             }
           ],
           "ensures": [
@@ -3993,7 +3932,7 @@
           "emits": [
             "BoxOpened"
           ],
-          "from": null,
+          "from": "rented",
           "provenance": null
         },
         {
@@ -4017,10 +3956,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "box is rented",
-              "canonical": "status == \"rented\""
             }
           ],
           "ensures": [
@@ -4039,7 +3974,7 @@
           "emits": [
             "KeyIssued"
           ],
-          "from": null,
+          "from": "rented",
           "provenance": null
         }
       ],
@@ -4141,10 +4076,6 @@
                 {
                   "description": "box is rented",
                   "canonical": "parent.status == \"rented\""
-                },
-                {
-                  "description": "visit is logged",
-                  "canonical": "state == \"logged\""
                 }
               ],
               "ensures": [
@@ -4164,7 +4095,7 @@
               "emits": [
                 "VisitAnnotated"
               ],
-              "from": null,
+              "from": "logged",
               "provenance": null
             }
           ],
@@ -4263,10 +4194,6 @@
                 {
                   "description": "box is rented",
                   "canonical": "parent.status == \"rented\""
-                },
-                {
-                  "description": "only an issued key is returned",
-                  "canonical": "status == \"issued\""
                 }
               ],
               "ensures": [
@@ -4977,10 +4904,6 @@
             {
               "description": "source account is open",
               "canonical": "source.status == \"open\""
-            },
-            {
-              "description": "transfer is requested",
-              "canonical": "status == \"requested\""
             }
           ],
           "ensures": [
@@ -4992,7 +4915,7 @@
           "emits": [
             "TransferDebited"
           ],
-          "from": null,
+          "from": "requested",
           "provenance": null
         },
         {
@@ -5011,10 +4934,6 @@
             {
               "description": "destination account is open",
               "canonical": "destination.status == \"open\""
-            },
-            {
-              "description": "transfer is credited",
-              "canonical": "status == \"credited\""
             }
           ],
           "ensures": [
@@ -5026,7 +4945,7 @@
           "emits": [
             "TransferSettled"
           ],
-          "from": null,
+          "from": "credited",
           "provenance": null
         },
         {
@@ -5045,10 +4964,6 @@
             {
               "description": "destination account is open",
               "canonical": "destination.status == \"open\""
-            },
-            {
-              "description": "transfer is debited",
-              "canonical": "status == \"debited\""
             }
           ],
           "ensures": [
@@ -5060,7 +4975,7 @@
           "emits": [
             "TransferCredited"
           ],
-          "from": null,
+          "from": "debited",
           "provenance": null
         },
         {
@@ -5079,10 +4994,6 @@
             {
               "description": "source account is open",
               "canonical": "source.status == \"open\""
-            },
-            {
-              "description": "transfer is debited",
-              "canonical": "status == \"debited\""
             }
           ],
           "ensures": [
@@ -5094,7 +5005,7 @@
           "emits": [
             "TransferReversed"
           ],
-          "from": null,
+          "from": "debited",
           "provenance": null
         },
         {
@@ -5111,10 +5022,6 @@
               "canonical": "source.customer.status == \"active\""
             },
             {
-              "description": "transfer is requested",
-              "canonical": "status == \"requested\""
-            },
-            {
               "description": "source account is open",
               "canonical": "source.status == \"open\""
             }
@@ -5128,7 +5035,7 @@
           "emits": [
             "TransferRejected"
           ],
-          "from": null,
+          "from": "requested",
           "provenance": null
         }
       ],
@@ -5527,10 +5434,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "transfer is requested",
-              "canonical": "status == \"requested\""
             }
           ],
           "ensures": [
@@ -5542,7 +5445,7 @@
           "emits": [
             "ExternalTransferSent"
           ],
-          "from": null,
+          "from": "requested",
           "provenance": null
         },
         {
@@ -5559,10 +5462,6 @@
               "canonical": "account.customer.status == \"active\""
             },
             {
-              "description": "transfer is sent",
-              "canonical": "status == \"sent\""
-            },
-            {
               "description": "account is open",
               "canonical": "account.status == \"open\""
             }
@@ -5576,7 +5475,7 @@
           "emits": [
             "ExternalTransferRecalled"
           ],
-          "from": null,
+          "from": "sent",
           "provenance": null
         },
         {
@@ -5593,10 +5492,6 @@
               "canonical": "account.customer.status == \"active\""
             },
             {
-              "description": "transfer is sent",
-              "canonical": "status == \"sent\""
-            },
-            {
               "description": "account is open",
               "canonical": "account.status == \"open\""
             }
@@ -5610,7 +5505,7 @@
           "emits": [
             "ExternalTransferReturned"
           ],
-          "from": null,
+          "from": "sent",
           "provenance": null
         }
       ],
@@ -6052,10 +5947,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is scheduled",
-              "canonical": "status == \"scheduled\""
             }
           ],
           "ensures": [
@@ -6067,7 +5958,7 @@
           "emits": [
             "ScheduledPaymentExecuted"
           ],
-          "from": null,
+          "from": "scheduled",
           "provenance": null
         },
         {
@@ -6086,10 +5977,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is scheduled",
-              "canonical": "status == \"scheduled\""
             }
           ],
           "ensures": [
@@ -6101,7 +5988,7 @@
           "emits": [
             "ScheduledPaymentCancelled"
           ],
-          "from": null,
+          "from": "scheduled",
           "provenance": null
         },
         {
@@ -6120,10 +6007,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is scheduled",
-              "canonical": "status == \"scheduled\""
             }
           ],
           "ensures": [
@@ -6135,7 +6018,7 @@
           "emits": [
             "ScheduledPaymentFailed"
           ],
-          "from": null,
+          "from": "scheduled",
           "provenance": null
         },
         {
@@ -6154,10 +6037,6 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is failed",
-              "canonical": "status == \"failed\""
             },
             {
               "description": "a retry is still allowed",
@@ -6186,7 +6065,7 @@
           "emits": [
             "ScheduledPaymentFailed"
           ],
-          "from": null,
+          "from": "failed",
           "provenance": null
         },
         {
@@ -6207,10 +6086,6 @@
               "canonical": "account.status == \"open\""
             },
             {
-              "description": "payment is failed",
-              "canonical": "status == \"failed\""
-            },
-            {
               "description": "every retry is exhausted",
               "canonical": "attempts.value >= max_attempts.value"
             }
@@ -6224,7 +6099,7 @@
           "emits": [
             "ScheduledPaymentAbandoned"
           ],
-          "from": null,
+          "from": "failed",
           "provenance": null
         }
       ],

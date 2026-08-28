@@ -199,14 +199,15 @@ narrative: { text: "Opening" })
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
 
-      # Settle now carries its own `given("transfer is credited")`, which
-      # pre-empts the aggregate's own lifecycle machine the same way
-      # Account.FreezeAccount's and LedgerEntry.Amend's guards do above —
-      # GivenNotMet, not LifecycleRefused. Still refused before any
-      # destination credit was recorded, same guarantee as before.
+      # S10, ADR 0025 — Settle's own `given("transfer is credited")` moved
+      # to `from: "credited"` on the command itself; the refusal is
+      # LifecycleRefused now, same shape as Account.FreezeAccount above.
+      # Still refused before any destination credit was recorded, same
+      # guarantee as before.
       expect do
         runtime.dispatch("Banking::Transfer.Settle", transfer: "x1")
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Settle refused — transfer is credited")
+      end.to raise_error(Hecks::Runtime::LifecycleRefused,
+                         'Settle refused — status is "debited", and Settle moves it only from "credited"')
     end
 
     it "refuses duplicate and out-of-order transfer legs without changing their state" do
@@ -223,19 +224,20 @@ narrative: { text: "Opening" })
                        reference: { value: "x1" }, source: "src", destination: "dst",
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
 
-      # Settle/Credited each now carry their own explicit status guards,
-      # which pre-empt the aggregate's own lifecycle machine (same overlap
-      # documented above on Account.FreezeAccount/LedgerEntry.Amend/Settle) —
-      # GivenNotMet, not LifecycleRefused. Still refused at every one of
-      # these out-of-order points, same guarantee as before.
+      # S10, ADR 0025 — Settle/Credited's own status guards moved to
+      # `from:` on each command; both refusals are LifecycleRefused now.
+      # Still refused at every one of these out-of-order points, same
+      # guarantee as before.
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }
-        .to raise_error(Hecks::Runtime::GivenNotMet, "Settle refused — transfer is credited")
+        .to raise_error(Hecks::Runtime::LifecycleRefused,
+                        'Settle refused — status is "requested", and Settle moves it only from "credited"')
 
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
       runtime.dispatch("Banking::Transfer.Credited", transfer: "x1")
 
       expect { runtime.dispatch("Banking::Transfer.Credited", transfer: "x1") }
-        .to raise_error(Hecks::Runtime::GivenNotMet, "Credited refused — transfer is debited")
+        .to raise_error(Hecks::Runtime::LifecycleRefused,
+                        'Credited refused — status is "credited", and Credited moves it only from "debited"')
       expect(runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Transfer"))
                     .find("x1")[:status]).to eq("credited")
     end
@@ -425,9 +427,15 @@ narrative: { text: "Opening" })
                        serial: { value: "s1" }, daily_fee: { cents: 100 })
       runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
 
+      # S10, ADR 0025 — `Retire`'s own guard moved from a free-text given
+      # ("card is issued or active") to `from: ["issued", "active"]` on
+      # the command itself, redundant-but-kept alongside the matching
+      # `transition` — the refusal is now LifecycleRefused, naming the
+      # actual state machine, not a hand-typed GivenNotMet string.
       expect do
         runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
-      end.to raise_error(Hecks::Runtime::GivenNotMet, "Retire refused — card is issued or active")
+      end.to raise_error(Hecks::Runtime::LifecycleRefused,
+                         'Retire refused — status is "retired", and Retire moves it only from "issued" or "active"')
     end
   end
 

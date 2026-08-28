@@ -46,24 +46,26 @@ Hecks.bluebook "Banking" do
       emits "OnboardingOpened"
     end
 
-    command "Clear" do
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
+    # replaces `given("case is screening")` on both commands below; the
+    # matching `transition` above already gates the identical check via
+    # `admissible_transition`, so the redundant given only duplicated it.
+    command "Clear", from: "screening" do
       role "Compliance officer"
       goal "Pass a customer's identity and screening checks"
 
       reference_to OnboardingCase
       given("customer is active")
-      given("case is screening")
 
       emits "OnboardingCleared"
     end
 
-    command "Decline" do
+    command "Decline", from: "screening" do
       role "Compliance officer"
       goal "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone"
 
       reference_to OnboardingCase
       given("customer is active")
-      given("case is screening")
 
       emits "OnboardingDeclined"
     end

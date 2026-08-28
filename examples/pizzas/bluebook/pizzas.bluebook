@@ -115,7 +115,12 @@ Hecks.bluebook "Pizzas" do
       emits "PizzaCreated"
     end
 
-    command "AddTopping" do
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `AddTopping`
+    # has no matching `transition` (customizing a pizza doesn't move its
+    # own state), so `from:` is the only thing gating it. `Purchase`
+    # DOES match the `transition` above; its own `from:` here is
+    # redundant with `admissible_transition` in the harmless direction.
+    command "AddTopping", from: "available" do
       role "Chef"
       goal "Customize a pizza with an ingredient"
 
@@ -123,7 +128,6 @@ Hecks.bluebook "Pizzas" do
       attribute :topping, ToppingName
       attribute :amount, ToppingAmount
 
-      given("a sold pizza cannot be changed") { status == "available" }
       given("at most 10 toppings")            { toppings.size < 10 }
 
       sets :toppings, append: { name: :topping, amount: :amount }
@@ -131,7 +135,7 @@ Hecks.bluebook "Pizzas" do
       emits "ToppingAdded"
     end
 
-    command "Purchase" do
+    command "Purchase", from: "available" do
       role "Customer"
       goal "Buy the pizza"
 
@@ -139,7 +143,6 @@ Hecks.bluebook "Pizzas" do
       attribute :amount, Price
 
       given("a pizza needs at least one topping") { toppings.size.positive? }
-      given("it must still be available")         { status == "available" }
       given("a payment was actually made")         { amount.cents.positive? }
       # NOT re-deciding WHETHER a payment happened — that's the external
       # fact the comment below this command explains. This checks the

@@ -627,12 +627,12 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::banking::safedepositbox::RentArgs::from_json(facts_json)?;
-                      args.customer.check_invariants()?;
                       args.branch_code.check_invariants()?;
                       args.box_number.check_invariants()?;
               crate::kernel::check_role(Some("Branch clerk"), "Rent", caller_role)?;
+              crate::kernel::check_reference(&store.customer, &args.customer, "Customer", "reference")?;
               let owner_deref = Vec::new();
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "customer", as_name: "customer", target: "Banking::Customer" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::banking::safedepositbox::dispatch_rent(&mut store.safedepositbox, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
@@ -1301,7 +1301,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Banking::CardPayment.Dispute" => &["disputed_by"],
         "Banking::CardPayment.Chargeback" => &[],
         "Banking::CardPayment.RejectDispute" => &[],
-        "Banking::SafeDepositBox.Rent" => &["customer", "branch_code", "box_number", "size"],
+        "Banking::SafeDepositBox.Rent" => &["branch_code", "box_number", "size", "customer"],
         "Banking::SafeDepositBox.Surrender" => &[],
         "Banking::SafeDepositBox.LogVisit" => &["date", "sequence", "note"],
         "Banking::SafeDepositBox.IssueKey" => &["serial"],

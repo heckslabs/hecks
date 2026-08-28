@@ -63,14 +63,13 @@ Hecks.bluebook "Banking" do
         transition "Dispute" => "disputed", from: "taken"
       end
 
-      command "Dispute" do
+      command "Dispute", from: "taken" do
         role "Customer"
         goal "Challenge a withdrawal that was not mine"
 
         given("customer is active") { parent.account.customer.status == "active" }
         given("account is open") { parent.account.status == "open" }
         given("card is not retired") { status != "retired" }
-        given("withdrawal is taken") { state == "taken" }
         sets :narrative
 
         emits "WithdrawalDisputed"
@@ -102,58 +101,62 @@ Hecks.bluebook "Banking" do
       emits "ATMCardIssued"
     end
 
-    command "Rename" do
+    # LIFECYCLE STATE AS A COMMAND GUARDS (S10, ADR 0025) — `from:`
+    # below. `Rename`/`Withdraw` have no matching `transition` (naming
+    # or spending doesn't move the card's own state), so `from:` is the
+    # ONLY thing gating them — no `admissible_transition` fallback
+    # exists for either. `Activate`/`Retire` DO have a matching
+    # transition above; their own `from:` here is therefore redundant
+    # with `admissible_transition` in the harmless direction (same
+    # check, same refusal wording, checked twice) but kept for the same
+    # reason `Account`'s `FreezeAccount`/`Unfreeze`/`CloseAccount`
+    # already do both — the command's own signature is where a reader
+    # looks first for what state it needs, not a separate `lifecycle`
+    # block three screens away.
+    command "Rename", from: ["issued", "active"] do
       role "Customer"
       goal "Name a card so it is recognisable"
 
       reference_to ATMCard
       attribute :nickname, CardNickname
       given("customer is active")
-      given("card is issued or active")
       sets :nickname
 
       emits "ATMCardRenamed"
     end
 
-    command "Withdraw" do
+    command "Withdraw", from: "active" do
       role "Customer"
       goal "Take cash out at a machine"
 
       reference_to ATMCard
       given("customer is active")
       given("account is open")
-      # A card fresh off `Issue` sits in "issued" until its holder
-      # activates it (`Activate`, below) — the SAME gap `given("card is
-      # issued or active")`, declared once above, deliberately papers
-      # over for Rename/Retire (naming or decommissioning a card needs
-      # no activation first). Cash does. Bare `status == "active"`
-      # rather than that shared predicate, on purpose: "issued or
-      # active" would let this command through in exactly the state it
-      # exists to refuse.
-      given("card is active") { status == "active" }
+      # `from: "active"`, not `["issued", "active"]` like Rename/Retire
+      # get — deliberately narrower: a card fresh off `Issue` sits in
+      # "issued" until its holder activates it, and cash withdrawal is
+      # exactly the operation that gap exists to refuse.
 
       sets :withdrawals, append: { cents: :cents, narrative: :narrative }
 
       emits "CashWithdrawn"
     end
 
-    command "Activate" do
+    command "Activate", from: "issued" do
       role "Customer"
       goal "Start using a card"
 
       reference_to ATMCard
       given("customer is active")
-      given("card is issued") { status == "issued" }
       emits "ATMCardActivated"
     end
 
-    command "Retire" do
+    command "Retire", from: ["issued", "active"] do
       role "Back office"
       goal "Take a card out of service"
 
       reference_to ATMCard
       given("customer is active")
-      given("card is issued or active")
       emits "ATMCardRetired"
     end
 
@@ -266,47 +269,46 @@ Hecks.bluebook "Banking" do
       emits "CardAuthorized"
     end
 
-    command "Capture" do
+    # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — every `from:`
+    # below matches a `transition` above; the removed given only
+    # duplicated what `admissible_transition` already gates.
+    command "Capture", from: "authorized" do
       role "System"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is authorized")
       emits "CardCaptured"
     end
 
-    command "Void" do
+    command "Void", from: "authorized" do
       role "System"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is authorized")
       emits "CardVoided"
     end
 
-    command "Refund" do
+    command "Refund", from: "captured" do
       role "System"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is captured")
       emits "CardRefunded"
     end
 
-    command "Reverse" do
+    command "Reverse", from: "captured" do
       role "System"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is captured")
       emits "CardReversed"
     end
 
-    command "Dispute" do
+    command "Dispute", from: ["captured", "refunded"] do
       role "Customer"
       goal "Challenge a payment that already settled"
 
@@ -327,30 +329,27 @@ Hecks.bluebook "Banking" do
       reference_to Customer, as: :disputed_by
       given("account is open")
       given("customer is active") { disputed_by.status == "active" }
-      given("payment is captured or refunded") { ["captured", "refunded"].include?(status) }
 
       sets :disputed_by
 
       emits "CardDisputed"
     end
 
-    command "Chargeback" do
+    command "Chargeback", from: "disputed" do
       role "Compliance officer"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is disputed")
       emits "CardChargedBack"
     end
 
-    command "RejectDispute" do
+    command "RejectDispute", from: "disputed" do
       role "Compliance officer"
 
       reference_to CardPayment
       given("customer is active")
       given("account is open")
-      given("payment is disputed")
       emits "CardDisputeRejected"
     end
 

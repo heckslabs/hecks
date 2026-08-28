@@ -777,10 +777,9 @@ pub fn dispatch_add_topping(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a sold pizza cannot be changed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) }, corrects_event: None },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
         |record| {
         record.toppings.push(Topping { name: args.topping.value.clone(), amount: args.amount.value.clone() });
             Ok(())
@@ -871,7 +870,6 @@ pub fn dispatch_purchase(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "it must still be available", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "a payment was actually made", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "the payment covers the price", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("amount.cents")), right: Box::new(Expr::Lookup("pizza.price_cents.cents")) }, corrects_event: None },
         ],

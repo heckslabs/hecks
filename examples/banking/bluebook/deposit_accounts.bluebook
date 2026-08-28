@@ -259,7 +259,11 @@ Hecks.bluebook "Banking" do
       # closed in this same change; see FreezeAccountsOnSuspension's own
       # comment below.
       given("customer is not closed")
-      emits "AccountFrozen"
+      # BARE CONSTANT (ADR 0025, S6 — "events first-class"), a real
+      # proof-of-concept migration for this one event — see
+      # ReviewOnFreeze's own `on Account::AccountFrozen` below, the
+      # matching bare-constant migration on the receiving side.
+      emits AccountFrozen
     end
 
     command "Unfreeze", from: "frozen" do
@@ -423,7 +427,9 @@ Hecks.bluebook "Banking" do
     end
 
     policy "ReviewOnFreeze" do
-      on      "Account.AccountFrozen"
+      # BARE CONSTANT (ADR 0025, S6 — "events first-class"), matching
+      # FreezeAccount's own `emits AccountFrozen`, above.
+      on      Account::AccountFrozen
       trigger AccountFreezeReview::Open
       across  "Compliance"
     end

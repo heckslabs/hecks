@@ -132,10 +132,11 @@ account = Banking::Account.open!(customer: "po-1", number: { value: "po-a1" },
 ## on
 
 <!-- generated:begin word=on -->
-`on on_event` — fills `on_event`
+`on on_event, on_event` — fills `on_event`
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | on_event |
 | positional 1 | text | true | on_event |
 <!-- generated:end -->
 

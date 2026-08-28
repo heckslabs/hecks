@@ -329,6 +329,7 @@ pub struct ArgumentSeed {
 }
 
 pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
+    ArgumentSeed { keyword: "on", context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "on_event", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "on", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },

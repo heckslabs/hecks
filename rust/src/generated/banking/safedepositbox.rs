@@ -2,7 +2,6 @@
 // Do not hand-edit — re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 use crate::kernel::Expr;
-use crate::generated::banking::customer::CustomerNumber;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BranchCode {
@@ -648,7 +647,6 @@ pub fn dispatch_entity_visit_annotate(
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "visit is logged", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("logged".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["logged"] }),
         |record| {
@@ -820,7 +818,6 @@ pub fn dispatch_entity_keyissuance_return(
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
         |record| {
@@ -930,12 +927,12 @@ impl SafeDepositBox {
 impl crate::kernel::Fielded for RentArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
-            "customer" => Some(Field::Nested(&self.customer)),
             "branch_code" => Some(Field::Nested(&self.branch_code)),
             "box_number" => Some(Field::Nested(&self.box_number)),
             "size" => Some(Field::Nested(&self.size)),
+            "customer" => Some(Field::Value(Value::Str(self.customer.clone()))),
             _ => None,
         }
     }
@@ -957,16 +954,15 @@ impl crate::kernel::Fielded for RentArgs {
 
 #[derive(Debug, Clone)]
 pub struct RentArgs {
-    pub customer: CustomerNumber,
     pub branch_code: BranchCode,
     pub box_number: BoxNumber,
     pub size: Size,
+    pub customer: String,
 }
 
 pub fn dispatch_rent(
     repo: &mut impl crate::kernel::Repository<SafeDepositBox>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
-        args.customer.check_invariants()?;
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -976,7 +972,7 @@ pub fn dispatch_rent(
         crate::kernel::Hydrate::Create {
         id: format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()),
         build: Box::new(|| SafeDepositBox {
-            customer: Some(args.customer.value.clone()),
+            customer: Some(args.customer.clone()),
             branch_code: Some(args.branch_code.clone()),
             box_number: Some(args.box_number.clone()),
             size: Some(args.size.clone()),
@@ -991,11 +987,11 @@ pub fn dispatch_rent(
         "branch_code.value, box_number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "box is vacant", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("vacant".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["vacant"] }),
         |record| {
-        record.customer = Some(args.customer.value.clone());
+        record.customer = Some(args.customer.clone());
         record.branch_code = Some(args.branch_code.clone());
         record.box_number = Some(args.box_number.clone());
         record.size = Some(args.size.clone());
@@ -1014,10 +1010,10 @@ pub fn dispatch_rent(
 impl RentArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("customer".to_string(), self.customer.to_json()),
-        ("branch_code".to_string(), self.branch_code.to_json()),
+            vec![        ("branch_code".to_string(), self.branch_code.to_json()),
         ("box_number".to_string(), self.box_number.to_json()),
-        ("size".to_string(), self.size.to_json()),]
+        ("size".to_string(), self.size.to_json()),
+        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),]
                 .into_iter()
                 .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
                 .collect(),
@@ -1027,18 +1023,18 @@ impl RentArgs {
 
 impl RentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["customer", "branch_code", "box_number", "size", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["branch_code", "box_number", "size", "customer", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Rent does not declare {} — it takes customer, branch_code, box_number, size",
+        "Rent does not declare {} — it takes branch_code, box_number, size, customer",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        customer: CustomerNumber::from_json(&v.require("customer", "RentArgs")?.coerce_single_field("value"))?,
         branch_code: BranchCode::from_json(&v.require("branch_code", "RentArgs")?.coerce_single_field("value"))?,
         box_number: BoxNumber::from_json(&v.require("box_number", "RentArgs")?.coerce_single_field("value"))?,
         size: Size::from_json(&v.require("size", "RentArgs")?.coerce_single_field("value"))?,
+        customer: { let x = v.require("customer", "RentArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RentArgs.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RentArgs.customer: expected String".to_string()) })? },
         })
     }
 }
@@ -1088,7 +1084,6 @@ pub fn dispatch_surrender(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "only a rented box is surrendered", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
@@ -1182,9 +1177,8 @@ pub fn dispatch_log_visit(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "only a rented box is opened", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
         record.visits.push(Visit { date: args.date.clone(), sequence: args.sequence.clone(), note: args.note.clone(), state: "logged".to_string() });
             Ok(())
@@ -1274,9 +1268,8 @@ pub fn dispatch_issue_key(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
-        None,
+        Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
         record.keys.push(KeyIssuance { serial: args.serial.clone(), status: "issued".to_string() });
             Ok(())

@@ -7178,6 +7178,36 @@
               ],
               [
                 "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "emits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "emits"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
                 "text"
               ],
               [
@@ -11458,6 +11488,10 @@
               [
                 "fills",
                 "on_event"
+              ],
+              [
+                "calls",
+                "on_impl"
               ]
             ],
             [
@@ -11729,6 +11763,36 @@
           ],
           "closed_set": true,
           "members": [
+            [
+              [
+                "keyword",
+                "on"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "on_event"
+              ]
+            ],
             [
               [
                 "keyword",

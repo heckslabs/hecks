@@ -91,12 +91,15 @@ amount: { value: 2 }).state
         .to raise_error(Hecks::Runtime::GivenNotMet, /at least one topping/)
     end
 
+    # S10, ADR 0025 — Purchase/AddTopping's own "still available"/"cannot
+    # be changed" givens moved to `from: "available"` on the command
+    # itself; the refusal is LifecycleRefused now, not GivenNotMet.
     it "refuses a second purchase" do
       pizza = topped
       runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect { runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Someone" }, amount: { cents: 1200 }) }
-        .to raise_error(Hecks::Runtime::GivenNotMet, /still be available/)
+        .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "available"/)
     end
 
     it "refuses a topping on a sold pizza" do
@@ -104,7 +107,7 @@ amount: { value: 2 }).state
       runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect { runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Late" }, amount: { value: 1 }) }
-        .to raise_error(Hecks::Runtime::GivenNotMet, /cannot be changed/)
+        .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "available"/)
     end
 
     it "enforces the ToppingAmount invariant before the value reaches the pizza" do

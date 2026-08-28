@@ -7,11 +7,13 @@ module Hecks
     # sibling, not its member. FieldPath walks a SHAPE, which cannot
     # loop, and answers nil, never raising, because there is nothing
     # left to say beyond "not found." HopPath walks the REFERENCE
-    # GRAPH instead, which the language does not guarantee acyclic —
-    # aggregates only refuse a DIRECT bidirectional pair
-    # (BluebookBuilder#validate_no_bidirectional_references! explicitly
-    # declines to take a position on a longer ring) — so a walk here
-    # needs to say WHY it stopped, not just that it did.
+    # GRAPH instead — `BluebookBuilder#validate_no_bidirectional_references!`
+    # refuses any reference CYCLE at declaration time (ADR 0025,
+    # "References" — widened from a direct pair to any ring, DFS over
+    # the chapter's own reference graph), so what's left to guard here
+    # is depth, not cycles: MAX_HOPS below, and this module's own
+    # `refusal` states for a target the chapter doesn't resolve. A walk
+    # here still needs to say WHY it stopped, not just that it did.
     #
     # Every method below takes an ATTRIBUTE ARRAY, never a "shape"
     # object — deliberately, because the two real callers hold their

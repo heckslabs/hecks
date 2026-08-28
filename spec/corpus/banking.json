@@ -17,7 +17,7 @@
       },
       {
         "verb": "Banking::Transfer.Settle",
-        "includes": "transfer is credited"
+        "includes": "Settle moves it only from \"credited\""
       },
       {
         "verb": "Banking::Account.ApplyFee",

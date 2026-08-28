@@ -46,8 +46,19 @@ pub fn parse_body(
         };
 
         match gated.row.word {
+            // ADR 0025, S6 — "events first-class": `on` gained a
+            // `kind: "constant"` argument row alongside its existing
+            // `kind: "text"` one (2026-08-27), same shape `trigger`'s
+            // own pair carries below — `on Account::AccountFrozen`, a
+            // bare constant, now parses the same way `trigger
+            // AccountFreezeReview::Open` already did.
+            // `positional_command_ref` (not `positional_text`) so a
+            // qualified constant's `::` rewrites to `.`, matching
+            // Ruby's own `Naming.event_ref` — same underlying
+            // `build::naming::command_ref` transform either word uses,
+            // named for what it means at each call site.
             "on" => {
-                policy.on_event = Some(super::positional_text(
+                policy.on_event = Some(super::positional_command_ref(
                     file,
                     gated.line.number,
                     "on",

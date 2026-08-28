@@ -303,11 +303,17 @@ pub fn parse_body(
             "attribute" => command
                 .attributes
                 .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
-            "emits" => {
-                command
-                    .emits
-                    .push(super::positional_text(file, line, "emits", &gated.args, 1)?)
-            }
+            // ADR 0025, S6 — "events first-class": `emits` gained a
+            // `kind: "constant"` argument row (2026-08-27) — see
+            // `parse/policy.rs`'s own `on` comment for the full
+            // reasoning, same transform either side.
+            "emits" => command.emits.push(super::positional_command_ref(
+                file,
+                line,
+                "emits",
+                &gated.args,
+                1,
+            )?),
             "reference_to" => apply_reference_to(file, line, &gated.args, owner, &mut command)?,
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;

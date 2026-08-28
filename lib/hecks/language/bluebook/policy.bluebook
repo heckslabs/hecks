@@ -123,6 +123,22 @@ Hecks.bluebook "Bluebook" do
     # HOW POLICY IS SPELLED. These rows live with the concept
     # they describe; SyntaxBoot discovers every aggregate-local seed table.
     # Contexts represented here: Policy.
+    #
+    # `on`'s ArgumentSeed gained a `kind: "constant"` row alongside its
+    # existing `kind: "text"` one (ADR 0025, S6 — "events first-class"),
+    # same shape `trigger`'s own pair already carries — `on
+    # Account::AccountFrozen`, a bare constant, now parses the same way
+    # `trigger Account::Debit` does. `calls: "on_impl"` routes the word
+    # through a hand-written method (`PolicyBuilder#on_impl`) instead of
+    # the generic single-fill coercion, mirroring `trigger`'s own
+    # `calls: "trigger_impl"` on the row below. UNLIKE `trigger`,
+    # `on_impl` does NOT refuse the quoted-text form outside
+    # `shadow_parse` — command references were safe to refuse that way
+    # only because they're 100% migrated across the live corpus; event
+    # names (`emits`/`on`) are not (only Account's `AccountFrozen` is,
+    # this pass), so refusing the old spelling here would break every
+    # live `.bluebook` site this pass didn't touch. Both forms stay
+    # admitted until a full corpus migration lands.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -135,7 +151,7 @@ Hecks.bluebook "Bluebook" do
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
-      member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
+      member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event", calls: "on_impl"
       member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command", calls: "trigger_impl"
       member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
       member word: "where",           context: "Policy",    body: "source", inner: "", opens: "", fills: "where"
@@ -160,7 +176,8 @@ Hecks.bluebook "Bluebook" do
       attribute :coerce,           String
       attribute :blank_message,    String
 
-      member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
+      member keyword: "on",              context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "on_event"
+      member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text",     required: "true", fills: "on_event"
       member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command"
       member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text",     required: "true", fills: "trigger_command"
       member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"

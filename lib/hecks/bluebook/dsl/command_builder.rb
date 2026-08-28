@@ -319,8 +319,23 @@ module Hecks
         # enforces it. This is the first rule to move ACROSS rather than be
         # duplicated : delete the declaration and an unnamed event is accepted,
         # which is what makes the meta-domain load-bearing rather than decorative.
+        #
+        # BARE CONSTANT ACCEPTED (ADR 0025, S6 — "events first-class"),
+        # `emits Account::AccountFrozen`, resolved through `ConstShim` the
+        # same way `trigger`/`dispatch` already resolve a command
+        # reference (`Naming.event_ref`, that method's own header). NOT
+        # yet a REQUIRED spelling, deliberately, unlike `trigger`/
+        # `dispatch`'s own quoted-text refusal: those were safe to refuse
+        # only because command references are already 100% migrated
+        # across the live corpus (verified 2026-08-27) — `emits`/`on`
+        # are not, so refusing the quoted form here would break every
+        # live `.bluebook` site this pass didn't touch, not just frozen
+        # era text `shadow_parse` exists to keep readable. Both forms
+        # are accepted in live source until a full corpus migration
+        # lands and the same refusal this file's `reference_to`/
+        # `trigger_impl` already carry can be added here safely.
         def emits(event_name)
-          @emits << event_name.to_s
+          @emits << Naming.event_ref(event_name)
         end
 
         # THE RECORD'S OWN VALUE AS A MUTATION SOURCE — `sets :positions,
