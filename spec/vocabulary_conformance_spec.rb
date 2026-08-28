@@ -239,11 +239,26 @@ RSpec.describe "the declared vocabularies" do
     Hecks::Runtime::Dispatcher.new(registry)
   end
 
-  # COVERAGE : every step DISPATCH_ORDER names must resolve to a real
-  # `step_<name>` handler `call` can actually `send` to — the thing that
-  # would have silently no-op'd (NoMethodError at dispatch time, really,
-  # but only the FIRST time that step's preconditions were ever met) if a
-  # declared step and its handler ever drifted apart.
+  # COVERAGE, BOTH DIRECTIONS. A declared step with no handler and a handler
+  # with no declaration are the same class of drift — a step DISPATCH_ORDER
+  # never reaches — but only the first direction used to be gated:
+  #
+  #   every DISPATCH_ORDER name must resolve to a real `step_<name>` handler
+  #   `call` can actually `send` to — the thing that would have silently
+  #   no-op'd (NoMethodError at dispatch time, really, but only the FIRST
+  #   time that step's preconditions were ever met) if a declared step and
+  #   its handler ever drifted apart.
+  #
+  # The reverse was ungated: a `step_` method that exists but is missing
+  # from the vocabulary is simply never called, with nothing failing — the
+  # exact shape of bug audit H1 (see EntityDispatchOrder's own bluebook
+  # comment above), where an entity command ran neither
+  # refuse_unknown_arguments nor refuse_absent_arguments because a since-
+  # corrected comment claimed the aggregate's own gate covered it, and no
+  # spec here noticed the handler side had nothing declaring it. A live
+  # orphan today would silently skip whatever it implements (a payload
+  # gate, an invariant check, ...) on every single dispatch, forever — not
+  # a NoMethodError, not a raised anything.
   [
     ["AggregateDispatchOrder", Hecks::Runtime::CommandInterpreter],
     ["EntityDispatchOrder", Hecks::Runtime::EntityInterpreter]
@@ -253,6 +268,21 @@ RSpec.describe "the declared vocabularies" do
         expect(interpreter.private_method_defined?(:"step_#{step_name}"))
           .to be(true), "#{interpreter} declares #{step_name} but defines no step_#{step_name} handler"
       end
+    end
+
+    it "every #{interpreter} step_ handler appears in the declared #{vocabulary}" do
+      # `private_instance_methods(false)`, not `private_method_defined?` —
+      # only methods this class itself defines, so a `step_` helper picked
+      # up from an included module (there are none today, but nothing stops
+      # one tomorrow) can't be mistaken for an orphaned dispatch step.
+      handler_steps = interpreter.private_instance_methods(false)
+                                 .grep(/\Astep_/) { |m| m.to_s.delete_prefix("step_") }
+      orphans = handler_steps - declared(vocabulary)
+
+      expect(orphans).to be_empty,
+                         "#{interpreter} defines #{orphans.map { |s| "step_#{s}" }.join(', ')}, but " \
+                         "#{vocabulary} does not declare #{orphans.length == 1 ? 'it' : 'them'} — " \
+                         "dispatch will never call #{orphans.length == 1 ? 'this handler' : 'these handlers'}"
     end
   end
 
