@@ -96,8 +96,20 @@ pub fn parse_body(
                 pm.correlates_by =
                     super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?
             }
+            // ADR 0025, S6 — "events first-class": `starts_on`/`ends_on`
+            // gained a `kind: "constant"` argument row alongside their
+            // existing `kind: "text"` one (2026-08-28), same shape
+            // `on`/`emits` already carry — `positional_event_name_ref`
+            // (not `positional_text`, and NOT `positional_command_ref`
+            // either) so a qualified constant keeps only its bare final
+            // segment, matching Ruby's own `Naming.event_name_ref`
+            // (`ProcessManagerBuilder#starts_on_impl`/`#ends_on_impl`,
+            // and that method's own header for why a process manager's
+            // own event references never keep their `::` qualifier —
+            // `SagaInterpreter` matches them against a bare
+            // `event.name`).
             "starts_on" => {
-                pm.starts_on = Some(super::positional_text(
+                pm.starts_on = Some(super::positional_event_name_ref(
                     file,
                     line,
                     "starts_on",
@@ -106,7 +118,7 @@ pub fn parse_body(
                 )?)
             }
             "ends_on" => {
-                pm.ends_on = Some(super::positional_text(
+                pm.ends_on = Some(super::positional_event_name_ref(
                     file,
                     line,
                     "ends_on",
@@ -196,18 +208,18 @@ fn parse_transition(
     })?;
     let (event_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
     // ADR 0025, S6 — "events first-class": the trigger side of a
-    // `transition EVENT => "state"` pair accepts a bare constant the
-    // same way `policy.rs`'s own `on`/`emits` now do (2026-08-27,
-    // qualified only — `Account::AccountDebited`, not the ADR's own
-    // bare top-level illustration, matching `process_manager_builder
-    // .rb#transition_impl`'s own comment on why). `crate::build::
-    // naming::command_ref`, not `text_value`, so a qualified
-    // constant's `::` rewrites to `.` the same way `on`/`emits`
-    // already do; a plain string still passes through unchanged.
-    // Nothing in the corpus uses this shape yet — kept in step with
-    // the Ruby side rather than left to silently diverge the day
-    // something does.
-    let event_type = crate::build::naming::command_ref(event_raw.trim());
+    // `transition EVENT => "state"` pair accepts a bare constant, the
+    // same lexical shape `policy.rs`'s own `on`/`emits` accept —
+    // `Account::AccountDebited` still reads as a qualified reference,
+    // but `crate::build::naming::event_name_ref` (NOT `command_ref`)
+    // keeps only its bare final segment: `Naming.event_name_ref`'s own
+    // Ruby-side header has the full account (found live, 2026-08-28,
+    // wiring a real migrated corpus site into `bin/model_check` for
+    // the first time) — `SagaInterpreter#advance_saga` matches
+    // `handler.event_type` against a BARE `event.name`, never a `.`
+    // qualified one, unlike a policy's own cross-aggregate `on`. A
+    // plain string still passes through unchanged.
+    let event_type = crate::build::naming::event_name_ref(event_raw.trim());
     let to_state = text_value(to_state_raw);
 
     let from_raw = super::named_raw(&gated.args, "from").ok_or_else(|| {

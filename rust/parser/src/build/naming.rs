@@ -43,6 +43,25 @@ pub fn command_ref(raw: &str) -> String {
     }
 }
 
+/// `Hecks::Naming.event_name_ref` — a process manager's OWN event
+/// references (`transition Account::AccountDebited => "state"`,
+/// `starts_on Transfer::TransferRequested`, `ends_on Transfer::
+/// TransferSettled`), DELIBERATELY NOT `command_ref` — that method's
+/// own Ruby-side header (`lib/hecks/naming.rb`) has the full account:
+/// `SagaInterpreter` matches these against a BARE `event.name`, never
+/// a `.`-qualified one (unlike a policy's own cross-aggregate `on`,
+/// matched by splitting the qualifier apart from the name instead of
+/// comparing the whole string). A String passes through unchanged,
+/// same as `command_ref`; a bare constant chain keeps only its FINAL
+/// segment (`demodulise`, above) rather than being rejoined with `.`.
+pub fn event_name_ref(raw: &str) -> String {
+    match crate::ruby_value::read(raw.trim()) {
+        crate::ruby_value::Value::Str(s) => s,
+        crate::ruby_value::Value::Bare(bare) => demodulise(&bare),
+        other => crate::ruby_value::to_s(&other),
+    }
+}
+
 /// `Hecks::Naming.snake` — `"PizzaName" -> "pizza_name"`. Mirrors
 /// the two-pass regex exactly: first split a run of capitals followed by
 /// a Capital+lowercase (`"HTTPServer"` -> `"HTTP_Server"`), then split a

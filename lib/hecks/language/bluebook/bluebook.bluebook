@@ -136,7 +136,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       sets :version
       sets :formerly_known_as
 
-      emits "ChapterDeclared"
+      emits ChapterDeclared
     end
 
     # ONE CONTEXT THE CHAPTER ATTACHES TO, appended the way one identity
@@ -156,7 +156,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       # ledger entry was posted") { ledger.size == old.ledger.size + 1
       # } — one more row than before, never fewer, never the same.
       ensures("the list grew by exactly one") { attaches_to.size == old.attaches_to.size + 1 }
-      emits "ChapterAttached"
+      emits ChapterAttached
     end
 
     # THE WAY BACK.
@@ -192,7 +192,7 @@ Hecks.bluebook "Bluebook", version: "1" do
         replacement: :replacement, boundary: :boundary, position: :position
       }
 
-      emits "NormalisationAttached"
+      emits NormalisationAttached
     end
 
     # HOW BLUEBOOK IS SPELLED. These rows live with the concept

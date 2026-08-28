@@ -118,7 +118,7 @@ Hecks.bluebook "Bluebook" do
       sets :starts_on
       sets :ends_on
       sets :position
-      emits "SagaDeclared"
+      emits SagaDeclared
     end
 
     command "State" do
@@ -129,7 +129,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :states, append: { name: :name }
 
-      emits "SagaStateAttached"
+      emits SagaStateAttached
     end
 
     # THE HANDLER'S OWN CREATION. S17, ADR 0026 — Handler is a genuine
@@ -158,7 +158,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :handlers, append: { event_type: :event_type, from_state: :from_state, to_state: :to_state }
 
-      emits "LegDeclared"
+      emits LegDeclared
     end
 
     # S17, ADR 0026 — ONE HANDLER, nested rather than its own root
@@ -218,7 +218,7 @@ Hecks.bluebook "Bluebook" do
 
         sets :dispatches, append: { command_name: :command_name, position: :position }
 
-        emits "SendDeclared"
+        emits SendDeclared
       end
 
       # S17, ADR 0026 — ONE COMMAND A HANDLER DISPATCHES, nested two
@@ -253,7 +253,7 @@ Hecks.bluebook "Bluebook" do
 
           sets :with_spec, append: { key: :key, value: :value }
 
-          emits "BindingAttached"
+          emits BindingAttached
         end
 
         # THE COMPENSATING DISPATCH THIS ONE COMPENSATES FOR, IF ANY —
@@ -317,8 +317,18 @@ Hecks.bluebook "Bluebook" do
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
       member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
-      member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
-      member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
+      # BARE CONSTANT ACCEPTED (ADR 0025, S6 — "events first-class"),
+      # `starts_on Transfer::TransferRequested` / `ends_on
+      # Transfer::TransferSettled`, same `kind: "constant"` + `kind:
+      # "text"` ArgumentSeed pair `emits`/policy's own `on` already
+      # carry (this row's own comment there). Now `calls:`-routed
+      # (`starts_on_impl`/`ends_on_impl`, hand-written — GenericDispatch's
+      # own `COERCE_BY_KIND` has no "constant" entry, so a bare
+      # constant needs the same `Naming.event_ref` resolution `on_impl`/
+      # `transition_impl` already do, not the plain `.to_s` a single
+      # `kind: "text"` row used to get for free).
+      member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "starts_on_impl"
+      member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "ends_on_impl"
       member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
       member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
       # TWO ROWS, the SAME PAIR SHAPE `transition` takes just above —
@@ -352,7 +362,9 @@ Hecks.bluebook "Bluebook" do
       attribute :blank_message,    String
 
       member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "starts_on"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
+      member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "ends_on"
       member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
       member keyword: "transition",      context: "ProcessManager", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
       member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"

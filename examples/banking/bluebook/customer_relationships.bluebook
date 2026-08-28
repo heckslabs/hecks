@@ -55,7 +55,7 @@ Hecks.bluebook "Banking" do
       sets :name
       sets :email
 
-      emits "CustomerRegistered"
+      emits CustomerRegistered
     end
 
     # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
@@ -74,7 +74,7 @@ Hecks.bluebook "Banking" do
 
       sets :standing
 
-      emits "CustomerSuspended"
+      emits CustomerSuspended
     end
 
     command "Reinstate", from: "suspended" do
@@ -84,7 +84,7 @@ Hecks.bluebook "Banking" do
       reference_to Customer
       sets :standing, to: { value: "good" }
 
-      emits "CustomerReinstated"
+      emits CustomerReinstated
     end
 
     command "Close", from: ["active", "suspended"] do
@@ -92,7 +92,7 @@ Hecks.bluebook "Banking" do
       goal "End the relationship"
 
       reference_to Customer
-      emits "CustomerClosed"
+      emits CustomerClosed
     end
 
     query "InGoodStanding" do

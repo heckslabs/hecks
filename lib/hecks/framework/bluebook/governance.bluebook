@@ -48,7 +48,7 @@ Hecks.bluebook "Governance" do
       attribute :scope,     Scope
       attribute :starts_at, Timestamp
 
-      emits "RoleAssigned"
+      emits RoleAssigned
     end
 
     command "Revoke" do
@@ -59,7 +59,7 @@ Hecks.bluebook "Governance" do
       attribute :ends_at, Timestamp
 
       sets :ends_at
-      emits "RoleRevoked"
+      emits RoleRevoked
     end
 
     query "AssignmentsForActor" do
@@ -112,7 +112,7 @@ Hecks.bluebook "Governance" do
       attribute :to_role,   RoleName
       attribute :starts_at, Timestamp
 
-      emits "RoleTransitionGranted"
+      emits RoleTransitionGranted
     end
 
     command "Revoke" do
@@ -123,7 +123,7 @@ Hecks.bluebook "Governance" do
       attribute :ends_at, Timestamp
 
       sets :ends_at
-      emits "RoleTransitionRevoked"
+      emits RoleTransitionRevoked
     end
 
     # EVERY GRANT OF THIS PAIR, current or historical — same deferral

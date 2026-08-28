@@ -107,7 +107,7 @@ Hecks.bluebook "Bluebook" do
       sets :name
       sets :description
       sets :position
-      emits "PieceDeclared"
+      emits PieceDeclared
     end
 
     # ONE PART OF THE PIECE'S IDENTITY, attached exactly as an aggregate's is.
@@ -134,7 +134,7 @@ Hecks.bluebook "Bluebook" do
       given("an identity part names something") { !path.value.to_s.empty? }
 
       sets :identified_by, append: { value: :path }
-      emits "PieceIdentified"
+      emits PieceIdentified
     end
 
     command "Seal" do
@@ -146,7 +146,7 @@ Hecks.bluebook "Bluebook" do
 
       given("an entity says what it is known by") { !identified_by.empty? }
 
-      emits "PieceSealed"
+      emits PieceSealed
     end
 
     command "Attribute" do
@@ -172,7 +172,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "PieceAttributeAttached"
+      emits PieceAttributeAttached
     end
 
     # An attribute that points at ANOTHER AGGREGATE'S HEAD — the SAME
@@ -202,7 +202,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "PieceReferenceAttached"
+      emits PieceReferenceAttached
     end
 
     # An attribute whose type names a PIECE NESTED INSIDE THIS ONE — the
@@ -231,7 +231,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "PieceHeld"
+      emits PieceHeld
     end
 
 
@@ -251,7 +251,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :preconditions, append: { description: :description, canonical: :canonical }
 
-      emits "PiecePreconditionAttached"
+      emits PiecePreconditionAttached
     end
 
     # A PIECE'S OWN SHAPE RULE, DECLARED ONCE (round 7) — see
@@ -270,7 +270,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :invariants, append: { description: :description, canonical: :canonical }
 
-      emits "PieceInvariantAttached"
+      emits PieceInvariantAttached
     end
 
     command "Lifecycle" do
@@ -281,7 +281,7 @@ Hecks.bluebook "Bluebook" do
       sets :state_field
       sets :state_start
 
-      emits "PieceLifecycleNamed"
+      emits PieceLifecycleNamed
     end
 
     command "Transition" do
@@ -294,7 +294,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
 
-      emits "PieceTransitionAttached"
+      emits PieceTransitionAttached
     end
 
     # HOW ENTITY IS SPELLED. These rows live with the concept

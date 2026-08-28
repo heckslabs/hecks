@@ -109,7 +109,7 @@ Hecks.bluebook "Bluebook" do
       sets :aggregate
       sets :name
       sets :position
-      emits "ShapeDeclared"
+      emits ShapeDeclared
     end
 
     command "Field" do
@@ -134,7 +134,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "ShapeFieldAttached"
+      emits ShapeFieldAttached
     end
 
     command "Close" do
@@ -150,7 +150,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :rows
 
-      emits "ShapeClosed"
+      emits ShapeClosed
     end
 
     command "Assert" do
@@ -165,7 +165,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :invariants, append: { description: :description, canonical: :canonical }
 
-      emits "AssertionAttached"
+      emits AssertionAttached
     end
 
     value_object "ValueObjectText" do
@@ -192,7 +192,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :members, append: { position: :position }
 
-      emits "MemberDeclared"
+      emits MemberDeclared
     end
 
     # S17, ADR 0026 — ONE ADMITTED ROW, nested rather than its own root
@@ -228,7 +228,7 @@ Hecks.bluebook "Bluebook" do
 
         sets :pairs, append: { key: :key, value: :value }
 
-        emits "PairBound"
+        emits PairBound
       end
     end
 

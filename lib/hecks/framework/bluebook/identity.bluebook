@@ -30,7 +30,7 @@ Hecks.bluebook "Identity" do
       goal "Recognize an identity"
 
       attribute :identity_id, IdentityId
-      emits "IdentityRegistered"
+      emits IdentityRegistered
     end
   end
 
@@ -71,7 +71,7 @@ Hecks.bluebook "Identity" do
       attribute :issuer,  Issuer
       attribute :subject, Subject
 
-      emits "ExternalIdentifierLinked"
+      emits ExternalIdentifierLinked
     end
 
     # THE OIDC-SHAPED LOOKUP — a token hands over `(issuer, subject)`,

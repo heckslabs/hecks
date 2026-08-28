@@ -116,7 +116,7 @@ Hecks.bluebook "Banking" do
         sets :amount,    increment: :adjustment
         sets :narrative
 
-        emits "LedgerEntryAmended"
+        emits LedgerEntryAmended
       end
 
       command "Reverse" do
@@ -128,7 +128,7 @@ Hecks.bluebook "Banking" do
         given("entry is posted")
         sets :narrative
 
-        emits "LedgerEntryReversed"
+        emits LedgerEntryReversed
       end
 
       query "Reversed" do
@@ -226,7 +226,7 @@ Hecks.bluebook "Banking" do
       sets :kind
       sets :daily_limit
 
-      emits "AccountOpened"
+      emits AccountOpened
     end
 
     # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from: "open"`
@@ -247,7 +247,7 @@ Hecks.bluebook "Banking" do
       sets :balance, increment: :amount
       sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
-      emits "AccountCredited"
+      emits AccountCredited
     end
 
     command "Debit", from: "open" do
@@ -270,7 +270,7 @@ Hecks.bluebook "Banking" do
       ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
       ensures("a ledger entry was posted") { ledger.size == old.ledger.size + 1 }
 
-      emits "AccountDebited"
+      emits AccountDebited
     end
 
     command "FreezeAccount", from: "open" do
@@ -311,7 +311,7 @@ Hecks.bluebook "Banking" do
 
       reference_to Account
       given("customer is active")
-      emits "AccountUnfrozen"
+      emits AccountUnfrozen
     end
 
     command "CloseAccount", from: ["open", "frozen"] do
@@ -323,7 +323,7 @@ Hecks.bluebook "Banking" do
 
       given("an account closes empty") { balance.cents.zero? }
 
-      emits "AccountClosed"
+      emits AccountClosed
     end
 
     command "ApplyFee", from: "open" do
@@ -336,7 +336,7 @@ Hecks.bluebook "Banking" do
       given("the balance covers a fee") { balance.cents >= amount.cents }
       sets :balance, decrement: :amount
       sets :fees_cents, increment: :amount
-      emits "FeeApplied"
+      emits FeeApplied
     end
 
     command "CorrectFee", from: "open" do
@@ -353,7 +353,7 @@ Hecks.bluebook "Banking" do
       given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
       sets :balance, increment: :amount
       sets :fees_cents, decrement: :amount
-      emits "FeeCorrected"
+      emits FeeCorrected
     end
 
     command "AccrueInterest", from: "open" do
@@ -364,7 +364,7 @@ Hecks.bluebook "Banking" do
       given("customer is active")
       sets :balance, increment: :amount
       sets :interest_cents, increment: :amount
-      emits "InterestAccrued"
+      emits InterestAccrued
     end
 
     command "CorrectInterest", from: "open" do
@@ -377,7 +377,7 @@ Hecks.bluebook "Banking" do
       given("the balance covers an interest correction") { balance.cents >= amount.cents }
       sets :balance, decrement: :amount
       sets :interest_cents, decrement: :amount
-      emits "InterestCorrected"
+      emits InterestCorrected
     end
 
     query "Open" do
@@ -553,7 +553,7 @@ Hecks.bluebook "Banking" do
   # `FreezeAccount` has to declare a `standing` it never reads; naming
   # the row sends that and nothing else.
   policy "FreezeAccountsOnSuspension" do
-    on       "CustomerSuspended"
+    on       Customer::CustomerSuspended
     for_each "Account.OpenForCustomer"
     # THE ROW, AND NOTHING ELSE. `account` is the key the fan-out merges
     # for each row it answers, and naming it here is what keeps
@@ -564,7 +564,7 @@ Hecks.bluebook "Banking" do
   end
 
   policy "NotifyOnClosure" do
-    on      "AccountClosed"
+    on      Account::AccountClosed
     trigger Notifications::Send
     across  "Notifications"
   end

@@ -50,7 +50,7 @@ Hecks.bluebook "Banking" do
       sets :reference
       sets :account_number
 
-      emits "OnboardingOpened"
+      emits OnboardingOpened
     end
 
     # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from:`
@@ -64,7 +64,7 @@ Hecks.bluebook "Banking" do
       reference_to OnboardingCase
       given("customer is active")
 
-      emits "OnboardingCleared"
+      emits OnboardingCleared
     end
 
     command "Decline", from: "screening" do
@@ -74,7 +74,7 @@ Hecks.bluebook "Banking" do
       reference_to OnboardingCase
       given("customer is active")
 
-      emits "OnboardingDeclined"
+      emits OnboardingDeclined
     end
 
     query "Screening" do
@@ -93,10 +93,10 @@ Hecks.bluebook "Banking" do
   # `transfers_and_payments.bluebook` rather than trusting the claim.
   process_manager "Onboarding" do
     correlates_by :"reference.value"
-    starts_on "OnboardingOpened"
-    ends_on   "AccountOpened"
+    starts_on OnboardingCase::OnboardingOpened
+    ends_on   Account::AccountOpened
 
-    transition "OnboardingCleared" => "cleared", from: "screening" do
+    transition OnboardingCase::OnboardingCleared => "cleared", from: "screening" do
       # A STANDARD ACCOUNT, OPENED AUTOMATICALLY — kind and opening limit are
       # the bank's default terms for a just-cleared customer, not something
       # onboarding negotiates; a customer who wants something else changes it
@@ -111,6 +111,6 @@ Hecks.bluebook "Banking" do
 
     # THE NON-COMPENSATING LEG — no dispatch, because nothing was ever
     # created to undo.
-    transition "OnboardingDeclined" => "declined", from: "screening"
+    transition OnboardingCase::OnboardingDeclined => "declined", from: "screening"
   end
 end

@@ -227,9 +227,9 @@ if target == "Roster::Roster" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedMark", event_name: "SeatAssigned", event_qualifier: None, target_verb: "Roster::Roster.Mark", for_each: None, for_each_key: None, with_spec: &[("to", ":number")], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnSeatMarkedNotice", event_name: "SeatMarked", event_qualifier: None, target_verb: "Roster::Roster.Notice", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedHonorFront", event_name: "SeatAssigned", event_qualifier: None, target_verb: "Roster::Roster.Honor", for_each: None, for_each_key: None, with_spec: &[("rank", "\"officer\"")], where_expr: Some(where_on_seat_assigned_honor_front) },
+    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedMark", event_name: "SeatAssigned", event_qualifier: Some("Roster"), target_verb: "Roster::Roster.Mark", for_each: None, for_each_key: None, with_spec: &[("to", ":number")], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "OnSeatMarkedNotice", event_name: "SeatMarked", event_qualifier: Some("Roster"), target_verb: "Roster::Roster.Notice", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "OnSeatAssignedHonorFront", event_name: "SeatAssigned", event_qualifier: Some("Roster"), target_verb: "Roster::Roster.Honor", for_each: None, for_each_key: None, with_spec: &[("rank", "\"officer\"")], where_expr: Some(where_on_seat_assigned_honor_front) },
 ];
 
 fn where_on_seat_assigned_honor_front() -> crate::kernel::Expr {

@@ -1140,14 +1140,14 @@ if target == "Identity::ExternalIdentifier" {
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
     crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },
-    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.FreezeAccount", for_each: Some("Banking::Account.OpenForCustomer"), for_each_key: Some("account"), with_spec: &[("account", ":account")], where_expr: None },
+    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: Some("Customer"), target_verb: "Banking::Account.FreezeAccount", for_each: Some("Banking::Account.OpenForCustomer"), for_each_key: Some("account"), with_spec: &[("account", ":account")], where_expr: None },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
     crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance::AccountFreezeReview.Open", where_expr: None },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance::BoxSurrenderReview.Open", where_expr: None },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: Some("Account"), target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: Some("SafeDepositBox"), target_domain: "Compliance", target_verb: "Compliance::BoxSurrenderReview.Open", where_expr: None },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: Some("SafeDepositBox"), target_domain: "Notifications", target_verb: "Notifications::Notifications.Send", where_expr: None },
 ];
 
 fn pm_literal_0() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("name".to_string(), crate::kernel::Json::Str("current".to_string()))]) }

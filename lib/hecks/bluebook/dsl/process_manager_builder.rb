@@ -14,10 +14,38 @@ module Hecks
           @handlers = []
         end
 
-        # `correlates_by`/`starts_on`/`ends_on` — item #13's full
-        # metaprogrammed dispatch, slice 1 (whole-project table-
-        # unification survey): each a bare, kind-driven coerce-and-
-        # assign with nothing else, now executed by `GenericDispatch`.
+        # `starts_on Transfer::TransferRequested` — BARE CONSTANT
+        # ACCEPTED (ADR 0025, S6 — "events first-class"), resolved
+        # through `ConstShim` the same way `on_impl`/`transition_impl`
+        # resolve an event reference — but through `Naming.
+        # event_name_ref`, NOT `Naming.event_ref` (that method's own
+        # header has the full account: `SagaInterpreter` matches
+        # `pm.starts_on`/`pm.ends_on` against a BARE `event.name`, never
+        # a "." qualified one). A plain String still passes through
+        # unchanged, both for `shadow_parse` and for any corpus site a
+        # future pass hasn't migrated yet.
+        def starts_on_impl(event_ref)
+          @starts_on = Naming.event_name_ref(event_ref)
+        end
+
+        # `ends_on` — same reasoning as `starts_on_impl`, above.
+        def ends_on_impl(event_ref)
+          @ends_on = Naming.event_name_ref(event_ref)
+        end
+
+        # `correlates_by` — item #13's full metaprogrammed dispatch,
+        # slice 1 (whole-project table-unification survey): a bare,
+        # kind-driven coerce-and-assign with nothing else, executed by
+        # `GenericDispatch`.
+        #
+        # `starts_on`/`ends_on` USED TO be table-driven the same way,
+        # until ADR 0025 S6 gave each a second, `kind: "constant"`
+        # ArgumentSeed row (`starts_on Transfer::TransferRequested`) —
+        # `GenericDispatch::COERCE_BY_KIND` only knows `"text"`/
+        # `"symbol"`, and `shape_for` refuses to pick a `single_fill`
+        # shape at all once two Argument rows share a `fills:` target
+        # (`arguments.size == 1` below), so both words are hand-written
+        # again, `calls:`-routed like `transition` already is.
 
         # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025 — "events and
         # reactions"): the SAME word `Lifecycle#transition` already
@@ -86,18 +114,24 @@ module Hecks
 
           mapping.each do |event_type, target|
             # BARE CONSTANT ACCEPTED (ADR 0025, S6 — "events first-
-            # class"), `transition Account::AccountDebited => "state"`,
-            # same `Naming.event_ref` transform `PolicyBuilder#on_impl`
-            # uses. Deliberately QUALIFIED, not the ADR's own bare
-            # top-level illustration (`transition AccountDebited =>
-            # ...`) — an unqualified constant would need a global
-            # `const_missing` hook, exactly the collision risk S0b's own
-            # header warns against (two domains in one registry). A
-            # plain String still passes through unchanged, both for
-            # `shadow_parse` and for every corpus site this pass didn't
-            # migrate.
+            # class"), `transition Account::AccountDebited => "state"` —
+            # `Naming.event_name_ref`, NOT the DOTTED `Naming.event_ref`
+            # transform `PolicyBuilder#on_impl` uses (that method's own
+            # header has the full account, found live wiring a real
+            # migrated corpus site into `bin/model_check` for the first
+            # time: `SagaInterpreter#advance_saga` matches `handler.
+            # event_type` against a BARE `event.name`, never a "."
+            # qualified one — a policy's own cross-aggregate match
+            # works differently, splitting the qualifier apart from the
+            # name rather than comparing the whole string). Writing the
+            # qualifier is still worth it (the same provenance `trigger
+            # Account::Debit` gives a reader) — `event_name_ref` keeps
+            # only the final segment, so `Account::AccountDebited` and a
+            # bare `AccountDebited` store identically. A plain String
+            # still passes through unchanged, both for `shadow_parse`
+            # and for every corpus site this pass didn't migrate.
             state_transition = StateTransition.new(target: target, from: from)
-            expand(Naming.event_ref(event_type), state_transition, handler.dispatches).each { |row| @handlers << row }
+            expand(Naming.event_name_ref(event_type), state_transition, handler.dispatches).each { |row| @handlers << row }
           end
         end
 

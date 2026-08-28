@@ -6440,7 +6440,7 @@
     },
     {
       "name": "FreezeAccountsOnSuspension",
-      "on_event": "CustomerSuspended",
+      "on_event": "Customer.CustomerSuspended",
       "trigger_command": "Account.FreezeAccount",
       "target_domain": null,
       "where": null,
@@ -6454,7 +6454,7 @@
     },
     {
       "name": "NotifyOnClosure",
-      "on_event": "AccountClosed",
+      "on_event": "Account.AccountClosed",
       "trigger_command": "Notifications.Send",
       "target_domain": "Notifications",
       "where": null,
@@ -6465,7 +6465,7 @@
     },
     {
       "name": "ReviewOnBoxSurrender",
-      "on_event": "BoxSurrendered",
+      "on_event": "SafeDepositBox.BoxSurrendered",
       "trigger_command": "BoxSurrenderReview.Open",
       "target_domain": "Compliance",
       "where": null,
@@ -6476,7 +6476,7 @@
     },
     {
       "name": "FlagKeyReturn",
-      "on_event": "KeyReturnDue",
+      "on_event": "SafeDepositBox.KeyReturnDue",
       "trigger_command": "Notifications.Send",
       "target_domain": "Notifications",
       "where": null,

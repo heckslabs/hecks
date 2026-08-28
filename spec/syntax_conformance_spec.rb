@@ -248,6 +248,13 @@ RSpec.describe "the declared syntax" do
       include_impl:       "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       group_by_impl:      "ReadModelBuilder's own real implementation, called by GenericDispatch's calls:",
       transition_impl:    "the owning builder's own real implementation, called by GenericDispatch's calls:",
+      # ADR 0025, S6 — "events first-class": starts_on/ends_on gained
+      # calls: "starts_on_impl"/"ends_on_impl" (2026-08-28) — no longer
+      # table-safe for GenericDispatch's own single_fill shape once a
+      # second, kind: "constant" Argument row existed for each (see
+      # ProcessManagerBuilder's own header comment for why).
+      starts_on_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
+      ends_on_impl:       "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: — also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:          "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
       rename_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",

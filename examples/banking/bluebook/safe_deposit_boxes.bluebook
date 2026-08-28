@@ -136,7 +136,7 @@ Hecks.bluebook "Banking" do
 
         sets :note
 
-        emits "VisitAnnotated"
+        emits VisitAnnotated
       end
 
       query "Recent" do
@@ -173,7 +173,7 @@ Hecks.bluebook "Banking" do
         given("customer is active")
         given("box is rented")
 
-        emits "KeyReturned"
+        emits KeyReturned
       end
     end
 
@@ -209,7 +209,7 @@ Hecks.bluebook "Banking" do
       sets :box_number
       sets :size
 
-      emits "BoxRented"
+      emits BoxRented
     end
 
     command "Surrender", from: "rented" do
@@ -223,8 +223,8 @@ Hecks.bluebook "Banking" do
       # TWO FACTS FROM ONE ACT, on a head that is composite-identified and
       # holds two entities — the surrender itself, and the keys it leaves
       # outstanding until the vault confirms every one of them is back.
-      emits "BoxSurrendered"
-      emits "KeyReturnDue"
+      emits BoxSurrendered
+      emits KeyReturnDue
     end
 
     command "LogVisit", from: "rented" do
@@ -237,7 +237,7 @@ Hecks.bluebook "Banking" do
 
       sets :visits, append: { date: :date, sequence: :sequence, note: :note }
 
-      emits "BoxOpened"
+      emits BoxOpened
     end
 
     command "IssueKey", from: "rented" do
@@ -249,7 +249,7 @@ Hecks.bluebook "Banking" do
 
       sets :keys, append: { serial: :serial }
 
-      emits "KeyIssued"
+      emits KeyIssued
     end
 
     query "Rented" do
@@ -265,13 +265,13 @@ Hecks.bluebook "Banking" do
   # TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS — Surrender's own comment
   # names why both facts are real; this is where each finds its audience.
   policy "ReviewOnBoxSurrender" do
-    on      "BoxSurrendered"
+    on      SafeDepositBox::BoxSurrendered
     trigger BoxSurrenderReview::Open
     across  "Compliance"
   end
 
   policy "FlagKeyReturn" do
-    on      "KeyReturnDue"
+    on      SafeDepositBox::KeyReturnDue
     trigger Notifications::Send
     across  "Notifications"
   end

@@ -517,8 +517,8 @@ pub struct KeywordSeed {
 
 pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "correlates_by", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "correlates_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "starts_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "starts_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "ends_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "ends_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "starts_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "ends_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "transition", context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "transition", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "dispatch", context: "Handler", body: "keywords", inner: "Dispatch", opens: "Dispatch", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -573,7 +573,9 @@ pub struct ArgumentSeed {
 
 pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "correlates_by", context: "ProcessManager", at: "1", named: "", kind: "symbol", required: "true", fills: "correlates_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "starts_on", context: "ProcessManager", at: "1", named: "", kind: "constant", required: "true", fills: "starts_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "starts_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "starts_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "ends_on", context: "ProcessManager", at: "1", named: "", kind: "constant", required: "true", fills: "ends_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "ends_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "ends_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "", named: "from", kind: "text", required: "true", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },

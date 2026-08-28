@@ -79,10 +79,11 @@ runtime.registry.saga_instances["Onboarding"].keys  # => ["pm-c1"]
 ## starts_on
 
 <!-- generated:begin word=starts_on -->
-`starts_on starts_on` — fills `starts_on`
+`starts_on starts_on, starts_on`
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | starts_on |
 | positional 1 | text | true | starts_on |
 <!-- generated:end -->
 
@@ -99,10 +100,11 @@ runtime.registry.saga_log.first[:born]  # => true
 ## ends_on
 
 <!-- generated:begin word=ends_on -->
-`ends_on ends_on` — fills `ends_on`
+`ends_on ends_on, ends_on`
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | ends_on |
 | positional 1 | text | true | ends_on |
 <!-- generated:end -->
 

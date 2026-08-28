@@ -65,7 +65,7 @@ Hecks.bluebook "Compliance" do
 
       sets :number
 
-      emits "AccountFreezeReviewOpened"
+      emits AccountFreezeReviewOpened
     end
 
     command "Clear" do
@@ -74,7 +74,7 @@ Hecks.bluebook "Compliance" do
 
       reference_to AccountFreezeReview
 
-      emits "AccountFreezeReviewCleared"
+      emits AccountFreezeReviewCleared
     end
 
     command "Escalate" do
@@ -83,7 +83,7 @@ Hecks.bluebook "Compliance" do
 
       reference_to AccountFreezeReview
 
-      emits "AccountFreezeReviewEscalated"
+      emits AccountFreezeReviewEscalated
     end
   end
 
@@ -111,7 +111,7 @@ Hecks.bluebook "Compliance" do
     end
 
     # Matches `BoxSurrendered`'s own payload field for field
-    # (`ReviewOnBoxSurrender`'s own `on "BoxSurrendered"`) — the same
+    # (`ReviewOnBoxSurrender`'s own `on SafeDepositBox::BoxSurrendered`) — the same
     # discipline `AccountFreezeReview.Open` holds itself to, above.
     command "Open" do
       role "System"
@@ -120,7 +120,7 @@ Hecks.bluebook "Compliance" do
       sets :branch_code
       sets :box_number
 
-      emits "BoxSurrenderReviewOpened"
+      emits BoxSurrenderReviewOpened
     end
 
     command "Clear" do
@@ -129,7 +129,7 @@ Hecks.bluebook "Compliance" do
 
       reference_to BoxSurrenderReview
 
-      emits "BoxSurrenderReviewCleared"
+      emits BoxSurrenderReviewCleared
     end
 
     command "Escalate" do
@@ -138,7 +138,7 @@ Hecks.bluebook "Compliance" do
 
       reference_to BoxSurrenderReview
 
-      emits "BoxSurrenderReviewEscalated"
+      emits BoxSurrenderReviewEscalated
     end
   end
 end

@@ -292,14 +292,14 @@ Hecks.bluebook "Bluebook" do
         role "Language"
         goal "Mark a word as on its way out, still read"
 
-        emits "KeywordDeprecated"
+        emits KeywordDeprecated
       end
 
       command "Retire" do
         role "Language"
         goal "Remove a word from every generated parser table"
 
-        emits "KeywordRetired"
+        emits KeywordRetired
       end
     end
 
@@ -376,14 +376,14 @@ Hecks.bluebook "Bluebook" do
         role "Language"
         goal "Mark an argument as on its way out, still read"
 
-        emits "ArgumentDeprecated"
+        emits ArgumentDeprecated
       end
 
       command "Retire" do
         role "Language"
         goal "Remove an argument from every generated parser table"
 
-        emits "ArgumentRetired"
+        emits ArgumentRetired
       end
     end
 
@@ -409,7 +409,7 @@ Hecks.bluebook "Bluebook" do
       sets :bluebook
       sets :name
 
-      emits "SyntaxDeclared"
+      emits SyntaxDeclared
     end
 
     # THE KEYWORD'S OWN CREATION. An entity is never created through its
@@ -427,7 +427,7 @@ Hecks.bluebook "Bluebook" do
                                  inner: :inner, opens: :opens, fills: :fills, was: :was,
                                  resolves_via: :resolves_via, disambiguator: :disambiguator, calls: :calls }
 
-      emits "KeywordAdmitted"
+      emits KeywordAdmitted
     end
 
     command "Argument" do
@@ -442,7 +442,7 @@ Hecks.bluebook "Bluebook" do
                                   variadic: :variadic, minimum: :minimum,
                                   coerce: :coerce, blank_message: :blank_message }
 
-      emits "ArgumentAdmitted"
+      emits ArgumentAdmitted
     end
   end
 end

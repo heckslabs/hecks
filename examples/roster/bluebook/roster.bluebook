@@ -103,7 +103,7 @@ Hecks.bluebook "Roster" do
 
         ensures("someone still serves") { parent.crew.any? { |m| m.status == "active" } }
 
-        emits "MemberRetired"
+        emits MemberRetired
       end
     end
 
@@ -116,7 +116,7 @@ Hecks.bluebook "Roster" do
       sets :mood,     to: "open"
       sets :standing, to: "none"
 
-      emits "RosterOpened"
+      emits RosterOpened
     end
 
     # TWO REACTION SHAPES A CHESS BOARD LEANS ON. `Mark` takes an argument
@@ -134,7 +134,7 @@ Hecks.bluebook "Roster" do
 
       sets :last_marked, to: :to
 
-      emits "SeatMarked"
+      emits SeatMarked
     end
 
     command "Notice" do
@@ -143,7 +143,7 @@ Hecks.bluebook "Roster" do
       reference_to Roster
       attribute :to, SeatNumber, optional: true
 
-      emits "MarkNoticed"
+      emits MarkNoticed
     end
 
     command "Honor" do
@@ -154,7 +154,7 @@ Hecks.bluebook "Roster" do
 
       sets :standing, to: :rank
 
-      emits "RosterHonored"
+      emits RosterHonored
     end
 
     command "AddSeat" do
@@ -168,7 +168,7 @@ Hecks.bluebook "Roster" do
 
       sets :seats, append: { number: :number, row: :row }
 
-      emits "SeatAdded"
+      emits SeatAdded
     end
 
     command "Enlist" do
@@ -185,7 +185,7 @@ Hecks.bluebook "Roster" do
 
       sets :crew, append: { id: :id, age: :age, rank: "hand" }
 
-      emits "MemberEnlisted"
+      emits MemberEnlisted
     end
 
     command "Assign" do
@@ -209,7 +209,7 @@ Hecks.bluebook "Roster" do
       sets :assignments, append: { member: :member, number: :number }
       sets :mood, to: "busy"
 
-      emits "SeatAssigned"
+      emits SeatAssigned
     end
 
     # THE DOOR — `delegates_to`: the roster-level command a caller
@@ -228,12 +228,12 @@ Hecks.bluebook "Roster" do
   end
 
   policy "OnSeatAssignedMark" do
-    on "SeatAssigned"
+    on Roster::SeatAssigned
     trigger Roster::Mark, with: { to: :number }
   end
 
   policy "OnSeatMarkedNotice" do
-    on "SeatMarked"
+    on Roster::SeatMarked
     trigger Roster::Notice
   end
 
@@ -241,7 +241,7 @@ Hecks.bluebook "Roster" do
   # (chess: four crowning policies on one PawnPromoted, each `where {
   # piece == "…" }`); `with:` here carries a LITERAL, not a payload field.
   policy "OnSeatAssignedHonorFront" do
-    on "SeatAssigned"
+    on Roster::SeatAssigned
     where { number.value == 1 }
     trigger Roster::Honor, with: { rank: "officer" }
   end

@@ -563,7 +563,7 @@
     {
       "for_each": null,
       "name": "OnPizzaPaymentReceived",
-      "on_event": "PizzaPaymentReceived",
+      "on_event": "Order.PizzaPaymentReceived",
       "target_domain": null,
       "trigger_command": "Order.Purchase",
       "where": null,

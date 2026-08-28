@@ -118,7 +118,7 @@ Hecks.bluebook "Bluebook" do
       sets :order_way
       sets :limit
       sets :position
-      emits "AskDeclared"
+      emits AskDeclared
     end
 
     command "Filter" do
@@ -132,7 +132,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :wheres, append: { field: :field, op: :op, value: :value }
 
-      emits "FilterAttached"
+      emits FilterAttached
     end
 
     command "Option" do
@@ -153,7 +153,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :options, append: { option: :option, key: :key, value: :value, at: :at }
 
-      emits "OptionAttached"
+      emits OptionAttached
     end
 
     command "Argument" do
@@ -176,7 +176,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "AskArgumentAttached"
+      emits AskArgumentAttached
     end
 
 

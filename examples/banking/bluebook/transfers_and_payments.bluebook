@@ -100,7 +100,7 @@ Hecks.bluebook "Banking" do
       sets :destination
       sets :reference
 
-      emits "TransferRequested"
+      emits TransferRequested
     end
 
     # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
@@ -113,7 +113,7 @@ Hecks.bluebook "Banking" do
       reference_to Transfer
       given("source customer is active")
       given("source account is open")
-      emits "TransferDebited"
+      emits TransferDebited
     end
 
     command "Settle", from: "credited" do
@@ -123,7 +123,7 @@ Hecks.bluebook "Banking" do
       reference_to Transfer
       given("destination customer is active")
       given("destination account is open")
-      emits "TransferSettled"
+      emits TransferSettled
     end
 
     command "Credited", from: "debited" do
@@ -133,7 +133,7 @@ Hecks.bluebook "Banking" do
       reference_to Transfer
       given("destination customer is active")
       given("destination account is open")
-      emits "TransferCredited"
+      emits TransferCredited
     end
 
     command "Reverse", from: "debited" do
@@ -143,7 +143,7 @@ Hecks.bluebook "Banking" do
       reference_to Transfer
       given("source customer is active")
       given("source account is open")
-      emits "TransferReversed"
+      emits TransferReversed
     end
 
     command "Reject", from: "requested" do
@@ -153,7 +153,7 @@ Hecks.bluebook "Banking" do
       reference_to Transfer
       given("source customer is active")
       given("source account is open")
-      emits "TransferRejected"
+      emits TransferRejected
     end
 
     query "InFlight" do
@@ -233,7 +233,7 @@ Hecks.bluebook "Banking" do
       sets :beneficiary
       sets :direction
       sets :end_to_end
-      emits "ExternalTransferRequested"
+      emits ExternalTransferRequested
     end
 
     # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
@@ -244,7 +244,7 @@ Hecks.bluebook "Banking" do
       reference_to ExternalTransfer
       given("customer is active")
       given("account is open")
-      emits "ExternalTransferSent"
+      emits ExternalTransferSent
     end
 
     command "Recall", from: "sent" do
@@ -253,7 +253,7 @@ Hecks.bluebook "Banking" do
       reference_to ExternalTransfer
       given("customer is active")
       given("account is open")
-      emits "ExternalTransferRecalled"
+      emits ExternalTransferRecalled
     end
 
     command "Return", from: "sent" do
@@ -262,7 +262,7 @@ Hecks.bluebook "Banking" do
       reference_to ExternalTransfer
       given("customer is active")
       given("account is open")
-      emits "ExternalTransferReturned"
+      emits ExternalTransferReturned
     end
 
     query "Sent" do
@@ -345,7 +345,7 @@ Hecks.bluebook "Banking" do
       sets :recipient
       sets :due_on
       sets :instruction
-      emits "PaymentScheduled"
+      emits PaymentScheduled
     end
 
     # LIFECYCLE STATE AS COMMAND GUARDS (S10, ADR 0025) — each `from:`
@@ -356,7 +356,7 @@ Hecks.bluebook "Banking" do
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      emits "ScheduledPaymentExecuted"
+      emits ScheduledPaymentExecuted
     end
 
     command "Cancel", from: "scheduled" do
@@ -365,7 +365,7 @@ Hecks.bluebook "Banking" do
       reference_to ScheduledPayment
       given("customer is active")
       given("account is open")
-      emits "ScheduledPaymentCancelled"
+      emits ScheduledPaymentCancelled
     end
 
     command "Fail", from: "scheduled" do
@@ -376,7 +376,7 @@ Hecks.bluebook "Banking" do
       given("customer is active")
       given("account is open")
 
-      emits "ScheduledPaymentFailed"
+      emits ScheduledPaymentFailed
     end
 
     # SELF-TRIGGERING, ON PURPOSE — the same shape reflex.bluebook's Echo/Ring
@@ -407,7 +407,7 @@ Hecks.bluebook "Banking" do
 
       ensures("a retry never lowers the attempt count") { attempts.value == old.attempts.value + 1 }
 
-      emits "ScheduledPaymentFailed"
+      emits ScheduledPaymentFailed
     end
 
     command "Abandon", from: "failed" do
@@ -420,7 +420,7 @@ Hecks.bluebook "Banking" do
 
       given("every retry is exhausted") { attempts.value >= max_attempts.value }
 
-      emits "ScheduledPaymentAbandoned"
+      emits ScheduledPaymentAbandoned
     end
 
     query "Due" do
@@ -429,7 +429,7 @@ Hecks.bluebook "Banking" do
     end
 
     policy "RetryOnPaymentFailure" do
-      on      "ScheduledPayment.ScheduledPaymentFailed"
+      on      ScheduledPayment::ScheduledPaymentFailed
       trigger ScheduledPayment::Retry
     end
   end
@@ -442,15 +442,15 @@ Hecks.bluebook "Banking" do
     # own reference key happening to spell the same as the correlation
     # name). Named, not guessed.
     correlates_by :"reference.value"
-    starts_on "TransferRequested"
-    ends_on   "TransferSettled"
+    starts_on Transfer::TransferRequested
+    ends_on   Transfer::TransferSettled
 
     # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025) — the SAME word
     # `lifecycle`'s own `transition` already carries, one level over;
     # `state "x"` lines are gone, since every state here is already
     # named by some transition's own `from:`/target — declaring them
     # again said nothing the transitions below didn't already say.
-    transition "TransferRequested" => "requested", from: "requested" do
+    transition Transfer::TransferRequested => "requested", from: "requested" do
       # Debit never declared :destination — the credit leg reads it from the saga's
       # memory of the opening payload. `reference:` carries the correlation
       # forward — Account.Debit does not reference Transfer, so this is pure
@@ -472,7 +472,7 @@ Hecks.bluebook "Banking" do
       end
     end
 
-    transition "AccountDebited" => "awaiting_credit", from: "requested" do
+    transition Account::AccountDebited => "awaiting_credit", from: "requested" do
       # `transfer:` HERE IS DIFFERENT — Transfer.Debited references Transfer
       # itself, so `transfer:` is its own reference key (Naming.reference_key
       # ("Banking::Transfer") == "transfer"), addressing which record to act
@@ -489,11 +489,11 @@ Hecks.bluebook "Banking" do
       dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
     end
 
-    transition "AccountCredited" => "awaiting_credit", from: "awaiting_credit" do
+    transition Account::AccountCredited => "awaiting_credit", from: "awaiting_credit" do
       dispatch Transfer::Credited, with: { transfer: :reference }
     end
 
-    transition "TransferCredited" => "settled", from: "awaiting_credit" do
+    transition Transfer::TransferCredited => "settled", from: "awaiting_credit" do
       dispatch Transfer::Settle, with: { transfer: :reference }
     end
 
@@ -527,10 +527,10 @@ Hecks.bluebook "Banking" do
   # :end_to_end` already does on the aggregate this saga watches.
   process_manager "ExternalSettlement" do
     correlates_by :"end_to_end.value"
-    starts_on "ExternalTransferRequested"
-    ends_on   "ExternalTransferSent"
+    starts_on ExternalTransfer::ExternalTransferRequested
+    ends_on   ExternalTransfer::ExternalTransferSent
 
-    transition "ExternalTransferRequested" => "requested", from: "requested" do
+    transition ExternalTransfer::ExternalTransferRequested => "requested", from: "requested" do
       dispatch ExternalTransfer::SendTransfer, with: { end_to_end: :end_to_end }
     end
 

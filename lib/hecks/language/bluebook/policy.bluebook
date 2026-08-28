@@ -105,7 +105,7 @@ Hecks.bluebook "Bluebook" do
       sets :where
       sets :for_each
       sets :position
-      emits "ReactionDeclared"
+      emits ReactionDeclared
     end
 
     command "Bind" do
@@ -117,7 +117,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :with_spec, append: { key: :key, value: :value }
 
-      emits "TriggerBindingAttached"
+      emits TriggerBindingAttached
     end
 
     # HOW POLICY IS SPELLED. These rows live with the concept

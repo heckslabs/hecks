@@ -1014,6 +1014,26 @@ pub(crate) fn positional_command_ref(
     Ok(crate::build::naming::command_ref(raw))
 }
 
+/// A PROCESS MANAGER'S OWN EVENT-REFERENCE positional argument —
+/// `starts_on Transfer::TransferRequested` / `ends_on Transfer::
+/// TransferSettled` (a bare event constant, `kind: "constant"`) or the
+/// legacy quoted spelling (`kind: "text"`) — both declared as argument
+/// rows for the same `fills` slot, same as `positional_command_ref`
+/// above, but derives `Hecks::Naming.event_name_ref` instead of
+/// `Naming.event_ref`: that method's own header explains why a process
+/// manager's own event references keep only their bare final segment
+/// rather than being rejoined with `.`.
+pub(crate) fn positional_event_name_ref(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?;
+    Ok(crate::build::naming::event_name_ref(raw))
+}
+
 /// A NAMED argument's raw captured text, if the call gave one —
 /// `as: :name`, `optional: true`, `to: "sold"`.
 pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {

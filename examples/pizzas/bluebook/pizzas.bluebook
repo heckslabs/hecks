@@ -112,7 +112,7 @@ Hecks.bluebook "Pizzas" do
       attribute :name,  PizzaName
       attribute :pizza, Pizza
 
-      emits "PizzaCreated"
+      emits PizzaCreated
     end
 
     # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `AddTopping`
@@ -132,7 +132,7 @@ Hecks.bluebook "Pizzas" do
 
       sets :toppings, append: { name: :topping, amount: :amount }
 
-      emits "ToppingAdded"
+      emits ToppingAdded
     end
 
     command "Purchase", from: "available" do
@@ -155,7 +155,7 @@ Hecks.bluebook "Pizzas" do
       sets :customer_name
       sets :status,        to: "sold"
 
-      emits "PizzaPurchased"
+      emits PizzaPurchased
     end
   end
 
@@ -164,7 +164,7 @@ Hecks.bluebook "Pizzas" do
   # stay on Purchase itself, reached only through this. See
   # pizzas.hecksagon for the port this reacts to.
   policy "OnPizzaPaymentReceived" do
-    on "PizzaPaymentReceived"
+    on Order::PizzaPaymentReceived
     trigger Order::Purchase
   end
 end

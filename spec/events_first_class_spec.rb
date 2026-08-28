@@ -145,6 +145,84 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /off "Widget\.WidgetMade", which does not declare it/)
   end
 
+  it "accepts a bare, qualified event constant on a process_manager's starts_on/ends_on/transition, but " \
+     "stores only the bare event name — SagaInterpreter matches a bare event.name, never a dotted one" do
+    ir = Hecks::Bluebook::DSL::BluebookBuilder.build("EventsBareStartsEndsOn") do
+      vision "a bare qualified event constant on starts_on/ends_on/transition resolves to the SAME bare " \
+             "name a same-aggregate emits already stores — unlike on, which keeps its qualifier"
+
+      aggregate "Widget" do
+        identified_by do
+          attribute :number, String
+        end
+
+        command "Make" do
+          role "Maker"
+          goal "Make one"
+
+          emits WidgetMade
+        end
+
+        command "Finish" do
+          role "Maker"
+          goal "Finish one"
+
+          emits WidgetFinished
+        end
+      end
+
+      process_manager "WidgetLifecycle" do
+        correlates_by :"number.value"
+        starts_on Widget::WidgetMade
+        ends_on   Widget::WidgetFinished
+
+        transition Widget::WidgetMade => "made", from: "made"
+      end
+    end
+
+    pm = ir.process_managers.first
+    # BARE, matching what `emits WidgetMade` actually stores
+    # (`ir.aggregates.first.commands.first.emits`) — a qualified
+    # `Widget::WidgetMade` still resolves to the SAME stored string a
+    # bare `WidgetMade` would, unlike `on`/`emits` themselves, which
+    # keep the "." qualifier.
+    expect(pm.starts_on).to eq("WidgetMade")
+    expect(pm.ends_on).to eq("WidgetFinished")
+    expect(pm.handlers.first.event_type).to eq("WidgetMade")
+    expect(ir.aggregates.first.commands.first.emits).to eq(["WidgetMade"])
+  end
+
+  it "still accepts the old quoted-string form for starts_on/ends_on, unchanged" do
+    ir = Hecks::Bluebook::DSL::BluebookBuilder.build("EventsQuotedStartsEndsOnStillWorks") do
+      vision "the quoted-string spelling is not refused for starts_on/ends_on either"
+
+      aggregate "Widget" do
+        identified_by do
+          attribute :number, String
+        end
+
+        command "Make" do
+          role "Maker"
+          goal "Make one"
+
+          emits "WidgetMade"
+        end
+      end
+
+      process_manager "WidgetLifecycle" do
+        correlates_by :"number.value"
+        starts_on "WidgetMade"
+        ends_on   "WidgetMade"
+
+        transition "WidgetMade" => "made", from: "made"
+      end
+    end
+
+    pm = ir.process_managers.first
+    expect(pm.starts_on).to eq("WidgetMade")
+    expect(pm.ends_on).to eq("WidgetMade")
+  end
+
   it "dispatches a real migrated corpus reaction end to end — FreezeAccount emits, ReviewOnFreeze reacts" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do

@@ -42,7 +42,7 @@ Hecks.bluebook "Directory" do
       attribute :email, MemberEmail
       attribute :title, MemberTitle
 
-      emits "MemberEnlisted"
+      emits MemberEnlisted
     end
   end
 end

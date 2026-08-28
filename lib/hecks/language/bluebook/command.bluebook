@@ -161,7 +161,7 @@ Hecks.bluebook "Bluebook" do
       sets :provenance
       sets :from
       sets :position
-      emits "VerbDeclared"
+      emits VerbDeclared
     end
 
     command "Argument" do
@@ -190,7 +190,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "ArgumentAttached"
+      emits ArgumentAttached
     end
 
     # An argument that points at ANOTHER aggregate's head — the same word
@@ -223,7 +223,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "ArgumentReferenceAttached"
+      emits ArgumentReferenceAttached
     end
 
     value_object "ArgName" do
@@ -248,7 +248,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :givens, append: { description: :description, canonical: :canonical }
 
-      emits "RuleAttached"
+      emits RuleAttached
     end
 
     command "Ensure" do
@@ -263,7 +263,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :ensures, append: { description: :description, canonical: :canonical }
 
-      emits "EnsureAttached"
+      emits EnsureAttached
     end
 
     value_object "RuleText" do
@@ -289,7 +289,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
 
-      emits "ChangeAttached"
+      emits ChangeAttached
     end
 
     value_object "FieldRef" do
@@ -319,7 +319,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :references, to: :root
 
-      emits "ReferenceNamed"
+      emits ReferenceNamed
     end
 
     command "Announce" do
@@ -332,7 +332,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :emits, append: { name: :announces }
 
-      emits "AnnouncementNamed"
+      emits AnnouncementNamed
     end
 
     # HOW COMMAND IS SPELLED. These rows live with the concept

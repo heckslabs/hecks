@@ -142,5 +142,33 @@ module Hecks
     # though the rewrite is byte-identical: an event name is not a
     # command name that happens to share a format.
     def event_ref(value) = command_ref(value)
+
+    # `transition Account::AccountDebited => "state"` / `starts_on
+    # Transfer::TransferRequested` / `ends_on Transfer::TransferSettled`
+    # — a process manager's OWN event references (ADR 0025, S6),
+    # DELIBERATELY NOT `event_ref` — found live, not assumed, wiring a
+    # real migrated corpus site into `bin/model_check` for the first
+    # time (2026-08-28): `SagaInterpreter#begin_saga`/`#advance_saga`
+    # match `pm.starts_on`/`pm.handler_for` against `event.name`, which
+    # `CommandRules::Emission#emit` stamps BARE — a command's own
+    # `emits AccountDebited` never carries its aggregate's name at all
+    # (unlike a policy's cross-aggregate `on`, matched instead by
+    # `Naming.demodulise(event.aggregate)` split apart from the bare
+    # name — `PolicyInterpreter#policies_for`). Handing a saga's own
+    # matcher the DOTTED `event_ref` form ("Account.AccountDebited")
+    # would silently name an event no command in the domain ever
+    # actually emits — caught by `bin/model_check`'s own `deaf_handler`/
+    # `deaf_trigger` findings the moment a real qualified corpus site
+    # existed to trip them, not by any unit test in isolation.
+    #
+    # A qualifier is still worth WRITING (`Account::`) — the same
+    # provenance a reader gets from `trigger Account::Debit` — it is
+    # only not worth KEEPING: `demodulise` drops everything but the
+    # final segment, so `Account::AccountDebited` and a bare
+    # `AccountDebited` resolve to the identical stored string. A String
+    # passes through unchanged either way, exactly like `command_ref`'s
+    # own legacy branch — this corpus never spelled one dotted to begin
+    # with, so there is nothing here to strip.
+    def event_name_ref(value) = demodulise(value)
   end
 end

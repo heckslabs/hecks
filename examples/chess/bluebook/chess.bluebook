@@ -132,7 +132,7 @@ Hecks.bluebook "Chess" do
 
         ensures("the piece is exactly where it was told to move") { square.file == destination.file && square.rank == destination.rank }
 
-        emits "PieceMoved"
+        emits PieceMoved
       end
 
       command "Capture", from: "on_board" do
@@ -145,7 +145,7 @@ Hecks.bluebook "Chess" do
         given("only the color to move may capture") { parent.turn.value == by.value }
         given("a side may only capture the opposing color's piece") { by.value != color.value }
 
-        emits "PieceCaptured"
+        emits PieceCaptured
       end
 
       query "OnBoard" do
@@ -187,7 +187,7 @@ Hecks.bluebook "Chess" do
       sets :draw_offer, to: "none"
       sets :ply,        to: 0
 
-      emits "GameStarted"
+      emits GameStarted
     end
 
     # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025). `PlacePiece`/
@@ -213,7 +213,7 @@ Hecks.bluebook "Chess" do
 
       sets :pieces, append: { id: :id, kind: :kind, color: :color, square: :square, moved: "unmoved" }
 
-      emits "PiecePlaced"
+      emits PiecePlaced
     end
 
     # THE ONLY DOOR A CALLER USES TO MOVE A PIECE — Piece.Move itself is
@@ -257,7 +257,7 @@ Hecks.bluebook "Chess" do
       sets :turn
       sets :ply, increment: 1
 
-      emits "TurnAdvanced"
+      emits TurnAdvanced
     end
 
     command "DeclareCheck" do
@@ -266,7 +266,7 @@ Hecks.bluebook "Chess" do
       reference_to Game
       attribute :by, Color
 
-      emits "CheckDeclared"
+      emits CheckDeclared
     end
 
     command "DeclareCheckmate" do
@@ -275,7 +275,7 @@ Hecks.bluebook "Chess" do
       reference_to Game
       attribute :by, Color
 
-      emits "GameEnded"
+      emits GameEnded
     end
 
     command "DeclareStalemate" do
@@ -284,7 +284,7 @@ Hecks.bluebook "Chess" do
       reference_to Game
       attribute :by, Color
 
-      emits "GameEnded"
+      emits GameEnded
     end
 
     command "Resign" do
@@ -293,7 +293,7 @@ Hecks.bluebook "Chess" do
       reference_to Game
       attribute :by, Color
 
-      emits "GameResigned"
+      emits GameResigned
     end
 
     command "OfferDraw", from: ["in_progress", "check"] do
@@ -306,7 +306,7 @@ Hecks.bluebook "Chess" do
 
       sets :draw_offer, to: :by
 
-      emits "DrawOffered"
+      emits DrawOffered
     end
 
     command "AcceptDraw" do
@@ -319,7 +319,7 @@ Hecks.bluebook "Chess" do
 
       sets :draw_offer, to: "none"
 
-      emits "DrawAgreed"
+      emits DrawAgreed
     end
 
     command "DeclineDraw" do
@@ -332,7 +332,7 @@ Hecks.bluebook "Chess" do
 
       sets :draw_offer, to: "none"
 
-      emits "DrawDeclined"
+      emits DrawDeclined
     end
 
     query "InProgress" do
@@ -346,13 +346,13 @@ Hecks.bluebook "Chess" do
   # matches a given "PieceMoved" event, since `by` is always exactly one
   # Color.
   policy "OnWhiteMovedAdvanceTurn" do
-    on "PieceMoved"
+    on Game::PieceMoved
     where { by.value == "white" }
     trigger Game::AdvanceTurn, with: { turn: "black" }
   end
 
   policy "OnBlackMovedAdvanceTurn" do
-    on "PieceMoved"
+    on Game::PieceMoved
     where { by.value == "black" }
     trigger Game::AdvanceTurn, with: { turn: "white" }
   end
@@ -362,19 +362,19 @@ Hecks.bluebook "Chess" do
   # `outcome` the mover declared on the very event `AdvanceTurn`, above,
   # already reacted to.
   policy "OnCheckDeclaredAfterMove" do
-    on "PieceMoved"
+    on Game::PieceMoved
     where { outcome.value == "check" }
     trigger Game::DeclareCheck, with: { by: :by }
   end
 
   policy "OnCheckmateDeclaredAfterMove" do
-    on "PieceMoved"
+    on Game::PieceMoved
     where { outcome.value == "checkmate" }
     trigger Game::DeclareCheckmate, with: { by: :by }
   end
 
   policy "OnStalemateDeclaredAfterMove" do
-    on "PieceMoved"
+    on Game::PieceMoved
     where { outcome.value == "stalemate" }
     trigger Game::DeclareStalemate, with: { by: :by }
   end

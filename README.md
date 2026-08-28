@@ -46,9 +46,8 @@ So does every other `ruby`-fenced example in this README and in
 [the guides](docs/implemented/guides/); `spec/guides_spec.rb` is the
 harness.
 
-**Status:** pre-1.0 (`0.3.0`), no published gem, actively developed.
-See [Project status](#project-status) before depending on this for
-anything real.
+**Status:** `1.0.0`. See [Project status](#project-status) for what the
+1.0 stability promise covers and what it explicitly doesn't yet.
 
 ## Why
 
@@ -553,12 +552,15 @@ arguing for.
 
 ## Project status
 
-`0.3.0`, pre-1.0. No stability guarantee on either the DSL or the
-runtime API, and no published gem — see [Quickstart](#quickstart).
-[`docs/1.0-readiness.md`](docs/1.0-readiness.md) states plainly what
-1.0 will mean and why it isn't tagged yet (short version: blocked on
-[ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
-a real breaking DSL redesign, Accepted but not yet implemented).
+`1.0.0`. [`docs/1.0-readiness.md`](docs/1.0-readiness.md) states plainly
+what the 1.0 stability promise covers — the DSL and runtime API in
+[the DSL reference](docs/implemented/reference/index.md) won't change in
+a breaking way without a major-version bump — and what it explicitly
+doesn't cover yet (query DSL aggregation, Rust codegen's `read_model`
+gap, Rails integration, Drivers, a durable outbox — see that doc's
+"Explicitly not covered" section). [ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
+the breaking DSL redesign this release was blocked on, is fully landed —
+see [Quickstart](#quickstart) for the current syntax.
 
 **Working today**, exercised in CI on every push (2,212 rspec examples
 across the full suite, alongside `bin/model_check` and `bin/fuzz`):
@@ -724,7 +726,7 @@ The example domains this README draws from:
 ## Contributing
 
 Issues, examples, and runtime/adapter work are all welcome — this is
-pre-1.0 research software, and the gaps in [Project
+still research software, and the gaps in [Project
 status](#project-status) are real starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `bin/model_check`, and
 `bin/fuzz` are what CI runs, and every `ruby`-fenced example in a guide

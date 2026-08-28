@@ -110,7 +110,7 @@ Hecks.bluebook "Bluebook" do
       sets :reference_name
       sets :reference_target
       sets :position
-      emits "ProjectionDeclared"
+      emits ProjectionDeclared
     end
 
     command "Gather" do
@@ -140,7 +140,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
-      emits "HeadGathered"
+      emits HeadGathered
     end
 
     command "GroupBy" do
@@ -153,7 +153,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :group_by, append: { field: :field }
 
-      emits "GroupByFieldAdded"
+      emits GroupByFieldAdded
     end
 
     # `count`/`median` are LATE-SET scalars, the same shape `Lifecycle`'s
@@ -171,7 +171,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :count
 
-      emits "CountDeclared"
+      emits CountDeclared
     end
 
     command "Median" do
@@ -183,7 +183,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :median_field
 
-      emits "MedianFieldSet"
+      emits MedianFieldSet
     end
 
     command "Option" do
@@ -200,7 +200,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :options, append: { option: :option, key: :key, value: :value, at: :at }
 
-      emits "OptionAttached"
+      emits OptionAttached
     end
 
     # HOW READMODEL IS SPELLED. These rows live with the concept

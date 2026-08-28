@@ -2,11 +2,60 @@
 
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 Dates are when a change landed on `main`, not when this file was written.
-`hecks` is pre-1.0 (see [`docs/1.0-readiness.md`](docs/1.0-readiness.md)) —
-entries below are grouped by theme, not itemized commit-by-commit; see
+Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-08-28
+
+**ADR 0025 lands: the DSL redesign this whole cycle was blocked on.** All 15
+slices (S0a/S0b, S1–S13) are done — see `docs/dsl-work-slices.md` for the
+full per-slice record. This is the breaking cleanup the 1.0 promise is being
+made *about*, not incidental to it:
+
+- `has_many` / `has_one` / `belongs_to` deleted; `reference_to` is the one
+  spelling for a reference.
+- `identified_by`'s three forms collapsed to one.
+- Reference traversal gets its own `/` hop operator, split from `.`'s
+  field-walk.
+- The attribute type position loses the quoted-string and default-to-`String`
+  forms — a bare constant is the only spelling; `one_of:` replaces the
+  closed-set wrapper block for the single-field case.
+- Events are first-class: `emits`/policy `on`/saga `transition`/`starts_on`/
+  `ends_on` all take a bare constant (`Order::Placed`), not a quoted string.
+  The full corpus (`examples/`, `lib/hecks/framework/bluebook/`, the
+  self-hosted language's own grammar) is migrated — 136 sites moved off the
+  quoted spelling; the 2 remaining (`PortOperation#emits` in pizzas'
+  `PaymentGateway` port) are a deliberately different, text-kind grammar
+  context, not an oversight. The old quoted spelling is still accepted
+  everywhere, not refused — refusing it is a separate, undecided design call.
+- `projects` gives an aggregate a synchronously-seeded local copy of a
+  cross-aggregate field, replacing direct stored-reference dereferencing in
+  `given`/`ensures`/`invariant` — an explicit, documented eventual-consistency
+  tradeoff (`RebuildSweep` covers out-of-band drift).
+- A real corpus use or a named, reasoned exemption for every documented DSL
+  word (`spec/word_coverage_spec.rb`), so the reference docs can't silently
+  drift from what the language actually does.
+
+`docs/1.0-readiness.md`'s gate is satisfied: ADR 0025 landed with the corpus
+migrated and docs regenerated, the property fuzzer's real-adapter mode
+covers Postgres/Sqlite, the 8 previously-open GitHub issues and the full
+issue-tracker reconciliation (`hecks-hecksagain` epic, `qa-legacy`, misc) are
+closed at 0 open, and the M1–M19/L1–L24/Rust-parity divergence list is
+re-verified (53 of 55 fixed or no longer applicable; the 2 remaining carry
+an honest caveat rather than a false "fixed" — see
+`docs/audits/2026-08-28-m1-m19-l1-l24-rust-parity-reverify.md`).
+
+**Known, out-of-scope-for-1.0 gaps**, tracked separately rather than
+silently shipped: the Rust runtime doesn't yet read `projects`-seeded fields
+at dispatch time (`rust_conformance_spec` 14/22, unchanged since S12); a real
+dangling-reference data-integrity gap found by the generated-sequence fuzz
+bridge (ADR 0037 Finding 5); S18 (migrating `raise Malformed` call sites into
+the meta-domain — scoped, not started, ADR 0026).
+
+Everything below this line is unchanged content from `[Unreleased]`, carried
+forward as this release's own history.
 
 ### Fixed
 
@@ -122,4 +171,5 @@ entries below are grouped by theme, not itemized commit-by-commit; see
   found independently, alongside H1 above, while reconciling docs
   against code in both directions.
 
-[Unreleased]: https://github.com/heckslabs/hecks/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/heckslabs/hecks/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/heckslabs/hecks/compare/v0.3.0...v1.0.0

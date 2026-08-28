@@ -146,7 +146,7 @@ Hecks.bluebook "Bluebook" do
       sets :description
       sets :provenance
       sets :position
-      emits "RootDeclared"
+      emits RootDeclared
     end
 
     # ONE PART OF THE IDENTITY, attached the way one attribute is. It was an
@@ -182,7 +182,7 @@ Hecks.bluebook "Bluebook" do
       given("an identity part names something") { !path.value.to_s.empty? }
 
       sets :identified_by, append: { value: :path }
-      emits "RootIdentified"
+      emits RootIdentified
     end
 
     # The way back, one level down: the aggregates DECLARED IN a chapter, found by
@@ -238,7 +238,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "AttributeAttached"
+      emits AttributeAttached
     end
 
     # An attribute that points at ANOTHER aggregate's head.
@@ -276,7 +276,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "ReferenceAttached"
+      emits ReferenceAttached
     end
 
     # An attribute whose type names a PIECE this aggregate holds.
@@ -303,7 +303,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits "PieceHeld"
+      emits PieceHeld
     end
 
     # THE ONLY RULE THAT CAN REFUSE AN UNNAMED ATTRIBUTE, and it lives here.
@@ -357,7 +357,7 @@ Hecks.bluebook "Bluebook" do
       sets :state_field
       sets :state_start
 
-      emits "LifecycleNamed"
+      emits LifecycleNamed
     end
 
     command "Transition" do
@@ -370,7 +370,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
 
-      emits "TransitionAttached"
+      emits TransitionAttached
     end
 
     command "Seal" do
@@ -410,7 +410,7 @@ Hecks.bluebook "Bluebook" do
       # is Identify's rule ; this one only asks that there be one.
       given("an aggregate says what it is known by") { !identified_by.empty? }
 
-      emits "RootSealed"
+      emits RootSealed
     end
 
     command "Value" do
@@ -421,7 +421,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :value_objects, append: { name: :name }
 
-      emits "ValueDeclared"
+      emits ValueDeclared
     end
 
     # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — the same shape
@@ -438,7 +438,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :invariants, append: { description: :description, canonical: :canonical }
 
-      emits "InvariantAttached"
+      emits InvariantAttached
     end
 
     # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
@@ -456,7 +456,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :preconditions, append: { description: :description, canonical: :canonical }
 
-      emits "PreconditionAttached"
+      emits PreconditionAttached
     end
 
     # THE LOCAL HALF OF A CROSS-AGGREGATE READ (S12, ADR 0025) — the
@@ -478,7 +478,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :projected_fields, append: { name: :name, reference: :reference, remote_field: :remote_field }
 
-      emits "ProjectedFieldAttached"
+      emits ProjectedFieldAttached
     end
 
     # HOW AGGREGATE IS SPELLED. These rows live with the concept
