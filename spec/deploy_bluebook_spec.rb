@@ -182,6 +182,67 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       expect(status).to be_success, stderr
     end
 
+    # `owner_stack` — an escape hatch for a REAL drift already live in
+    # this account: Embryonaut's own stack is "hecksagain-embryonaut"
+    # (a legacy prefix, generated before the "hecks-<name>" convention
+    # existed), not "hecks-embryonaut" the ordinary convention would
+    # compute. Without this, `deploy:`'s own owner-outputs lookup below
+    # would `describe-stacks --stack-name hecks-embryonaut` against a
+    # stack that has never existed and fail before a Shared-mode
+    # domain naming Embryonaut as owner ever got to `sam deploy` at
+    # all. Read straight out of the generated Makefile, not the
+    # `run_project_deploy` helper's own return values (stdout/stderr/
+    # status only — its `ensure FileUtils.rm_rf(generated_dir)` deletes
+    # the files this test needs to inspect before returning).
+    it "uses a declared owner_stack override instead of the ordinary hecks-<owner> convention" do
+      root = File.expand_path("..", __dir__)
+      generated_dir = File.join(root, "deploy", FIXTURE_BASENAME)
+
+      Dir.mktmpdir do |dir|
+        domain_dir = File.join(dir, FIXTURE_BASENAME)
+        bluebook_dir = File.join(domain_dir, "bluebook")
+        FileUtils.mkdir_p(bluebook_dir)
+
+        File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
+          Hecks.bluebook "Scratch" do
+            aggregate "Thing" do
+              identified_by :name
+              attribute :name, ThingName
+              value_object "ThingName" do
+                attribute :value, String
+                invariant("named") { !value.to_s.empty? }
+              end
+              command "Create" do
+                attribute :name, ThingName
+                sets :name
+                emits "ThingCreated"
+              end
+            end
+          end
+        BLUEBOOK
+
+        File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), <<~WORLD)
+          Hecks.world "Scratch" do
+            deployed_to("AwsLambda") do
+              region "us-east-1"
+              database "Shared"
+              owner "Embryonaut"
+              owner_stack "hecksagain-embryonaut"
+            end
+          end
+        WORLD
+
+        _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+        status.success? or raise "bin/project_deploy failed: #{stderr}"
+
+        makefile = File.read(File.join(generated_dir, "Makefile"))
+        expect(makefile).to include("--stack-name hecksagain-embryonaut")
+        expect(makefile).not_to include("--stack-name hecks-embryonaut")
+      end
+    ensure
+      FileUtils.rm_rf(generated_dir)
+    end
+
     it 'refuses database "Shared" with no owner declared' do
       _stdout, stderr, status = run_project_deploy(<<~WORLD)
         Hecks.world "Scratch" do
