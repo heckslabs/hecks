@@ -67,4 +67,5 @@ port, error = Hecks::Forms::PortArgument.parse(ARGV)
 abort "bin/present: #{error}" if error
 
 puts "command_form.bluebook/query_form.bluebook — Banking, in memory — http://localhost:#{port}/"
+puts "development server: no authentication, no CSRF protection, no caller identity — do not expose beyond localhost"
 Rackup::Server.start(app: app, Port: port, server: "webrick")

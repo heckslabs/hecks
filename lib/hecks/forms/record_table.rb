@@ -46,7 +46,7 @@ module Hecks
         # is itself attribute-escaped (belt-and-suspenders — nothing else
         # in `href` is untrusted, but this matches the convention used
         # everywhere else an href is built from parts).
-        href = "/#{domain}/#{aggregate.hecks_name}/#{Escape.url(instance.id)}.html"
+        href = "/#{domain}/#{aggregate.hecks_name}/#{Escape.path(instance.id)}.html"
         "<tr><td><a href=\"#{Escape.attr(href)}\">#{Escape.html(instance.id)}</a></td>#{cells}</tr>"
       end
 

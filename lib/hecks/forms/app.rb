@@ -189,7 +189,7 @@ module Hecks
         result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
         # L12 — the id is free-form (S3), so it must be percent-encoded as
         # a path segment here, not just interpolated raw.
-        redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.url(result.id)}.html")
+        redirect("/#{domain}/#{aggregate.hecks_name}/#{Escape.path(result.id)}.html")
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         status = e.is_a?(Runtime::NotFound) ? 404 : 422
         command_form(domain, aggregate, command, action, status: status, values: raw, error: e)

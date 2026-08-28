@@ -250,9 +250,23 @@ splitting it would mean two copies drifting, for no reader's benefit:
   pass does; what's here is the forms/views layer and the content
   negotiation underneath it, nothing about styling frameworks or
   push-updated pages.
-- **Not deployed.** `bin/present` boots the banking example in memory, for
-  local use — the same `webrick`/`rackup` dev-server shape `bin/console`
-  and friends already use, not a production server story.
+- **No authentication, no CSRF protection, no caller identity.** Every
+  command dispatches via `@dispatcher.dispatch(...)` with no
+  `Hecks.as_caller` anywhere in the directory — nobody is bound, so
+  `CommandRules::Authorization`'s `refuse_role_mismatch` (opt-in on both
+  sides) never runs, even though `command_form_renderer.rb` prints the
+  command's `role:` next to the form. There is no CSRF token, no
+  Origin/Referer check, no SameSite handling, and no session anywhere in
+  the directory — any page open in the same browser can POST a
+  state-changing command to a running `bin/present`. This is a security
+  boundary, not a packaging detail: see the next item.
+- **Not deployed, and not safe to expose.** `bin/present` boots the
+  banking example in memory, for local use — the same
+  `webrick`/`rackup` dev-server shape `bin/console` and friends already
+  use, not a production server story. Concretely, because of the item
+  above: do not put this behind a public URL or bind it to
+  anything but localhost. It is a prototype for exploring the forms
+  shape, not a hardened surface.
 
 ## Running it
 

@@ -57,7 +57,7 @@ module Hecks
       def self.header(domain, aggregate, command)
         <<~HTML
           <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}")}</h1>
-          #{command.role ? %(<span class="badge role">role: #{Escape.html(command.role)}</span>) : ''}
+          #{command.role ? %(<span class="badge role" title="Declared on the command; this prototype dispatches with no caller bound, so the check does not run.">role: #{Escape.html(command.role)} (not enforced here)</span>) : ''}
           #{command.creates? ? %(<span class="badge">creates a new #{Escape.html(aggregate.hecks_name)}</span>) : ''}
           #{command.goal ? %(<p class="goal">#{Escape.html(command.goal)}</p>) : ''}
           #{givens_callout(command)}
