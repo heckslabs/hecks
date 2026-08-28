@@ -1,0 +1,15 @@
+# `loads` resolving an aggregate to a non-Memory adapter (here: the
+# same `delegates_to` fixture bound to Sqlite instead of its default
+# Memory) should refuse at boot — a behaviors suite's isolation
+# between tests only holds for Memory (registry.rb's
+# `reset_runtime_state!` drops repository OBJECTS, not rows).
+Hecks.behaviors "SqliteBinding" do
+  vision "loads pointed at a non-Memory-bound hecksagon should refuse at boot."
+  loads "../../fixtures/delegates_to/delegates_to.bluebook", "../../fixtures/delegates_to/delegates_to_sqlite.hecksagon"
+
+  test "would touch a real sqlite file" do
+    tests "OpenBoard"
+    input name: { value: "b1" }
+    expect ok: true
+  end
+end

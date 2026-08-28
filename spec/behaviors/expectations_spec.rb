@@ -137,4 +137,47 @@ RSpec.describe Hecks::Behaviors::Expectations do
       expect(run.message).to include("dispatch succeeded")
     end
   end
+
+  # run_query used to never call check_fields at all — a field
+  # expectation (or a typo'd key) on a query silently passed no matter
+  # what the query actually answered.
+  describe "field expectations on a query" do
+    let(:suite) { Hecks::Behaviors::BehaviorsSuite.new(loads: [File.join(root, "pizzas.bluebook"), memory_hecksagon]) }
+
+    def create_setup(name)
+      Hecks::Behaviors::TestSetup.new(command: "CreatePizza",
+                                      args:    { name: { value: name }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
+    end
+
+    def query_test(setups:, expect:)
+      Hecks::Behaviors::TestCase.new(description: "q", tests_command: "Available", on_aggregate: "Order",
+                                     kind: :query, setups: setups, input: {}, expect: expect)
+    end
+
+    it "checks a field on the query's single row" do
+      test = query_test(setups: [create_setup("Solo")], expect: { status: "available" })
+      expect(described_class.run_one(test, suite).status).to eq(:pass)
+    end
+
+    it "fails when the field doesn't match" do
+      test = query_test(setups: [create_setup("Solo2")], expect: { status: "sold" })
+      run = described_class.run_one(test, suite)
+      expect(run.status).to eq(:fail)
+      expect(run.message).to include("status")
+    end
+
+    it "fails a typo'd key instead of silently ignoring it" do
+      test = query_test(setups: [create_setup("Solo3")], expect: { staytus: "available" })
+      run = described_class.run_one(test, suite)
+      expect(run.status).to eq(:fail)
+      expect(run.message).to include("staytus")
+    end
+
+    it "refuses to guess which row a field expectation describes when more than one comes back" do
+      test = query_test(setups: [create_setup("A"), create_setup("B")], expect: { status: "available" })
+      run = described_class.run_one(test, suite)
+      expect(run.status).to eq(:fail)
+      expect(run.message).to include("2 rows")
+    end
+  end
 end

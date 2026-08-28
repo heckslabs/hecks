@@ -1,0 +1,9 @@
+# A NON-MEMORY BINDING for the same fixture `delegates_to.bluebook` — a
+# behaviors suite that loads this instead of the default (unhecksagon'd,
+# Memory) binding exercises the isolation guard
+# (Expectations.guard_memory_only!) without ever touching a real
+# sqlite file: the guard reads BindingPolicy's own resolved adapter
+# name and refuses before any repository is built.
+Hecks.hecksagon "DelegatesTo" do
+  DelegatesTo::Board.persisted_by("SqlitePersistence")
+end

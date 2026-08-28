@@ -1,0 +1,11 @@
+# A test with no `expect` at all used to pass vacuously whenever
+# dispatch didn't raise — build-time validation refuses this instead.
+Hecks.behaviors "NoExpect" do
+  vision "A test asserting nothing should refuse to build, not pass."
+  loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"
+
+  test "asserts nothing" do
+    tests "CreatePizza", on: "Order"
+    input name: { value: "Ghost" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+  end
+end

@@ -41,9 +41,38 @@ module Hecks
                            "say which command or query this example exercises"
         end
 
+        validate_expect!
+
         TestCase.new(description: @description, tests_command: @tests_command,
                      on_aggregate: @on_aggregate, kind: @kind,
                      setups: @setups, input: @input, expect: @expect)
+      end
+
+      private
+
+      # Closes the silent-pass paths a free-form `expect(**kwargs)` merge
+      # otherwise leaves open: a test with no `expect` at all asserts
+      # nothing and passes whenever dispatch doesn't raise; `count:` on a
+      # command and `emits:` on a query are each read by neither runner
+      # (Expectations#run_command/#run_query), so they're accepted here
+      # and then silently ignored at run time. Checking both at BUILD
+      # time, not in the runners, makes them errors on the file that
+      # wrote them rather than green checks nobody questions.
+      def validate_expect!
+        if @expect.empty?
+          raise Malformed, "test #{@description.inspect} has no `expect` — say what this " \
+                           "example proves (ok:, refused:, emits:, count:, or a field name)"
+        end
+
+        if @kind == :command && @expect.key?(:count)
+          raise Malformed, "test #{@description.inspect}: `expect count:` only applies to " \
+                           "queries — a command has no row count to check"
+        end
+
+        if @kind == :query && @expect.key?(:emits)
+          raise Malformed, "test #{@description.inspect}: `expect emits:` only applies to " \
+                           "commands — a query never dispatches, so it never emits"
+        end
       end
     end
 

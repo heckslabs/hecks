@@ -3,6 +3,7 @@ require_relative "../runtime/loader"
 require_relative "../runtime/errors"
 require_relative "../runtime/value"
 require_relative "../runtime/reaction_invocation"
+require_relative "../ports/persistence/binding_policy"
 
 # Hecks::Behaviors::Expectations
 #
@@ -83,7 +84,40 @@ module Hecks
         key   = files.map { |file| [file, File.exist?(file) ? File.mtime(file).to_f : nil] }
 
         RUNTIMES_LOCK.synchronize do
-          RUNTIMES[key] ||= Hecks::Runtime::Loader.boot_files(files, install_facade: false)
+          RUNTIMES[key] ||= boot_and_guard(files)
+        end
+      end
+
+      # `reset_runtime_state!` only drops repository OBJECTS between
+      # tests (registry.rb) — sufficient isolation for `Memory`, whose
+      # `@records` is a plain per-instance ivar, so a fresh object really
+      # is a fresh store. Against anything else (Sqlite, Postgres) the
+      # rows themselves stay put: tests leak into each other, and a
+      # suite booted against a domain's REAL hecksagon writes to a real
+      # database. Refusing that wiring here, at boot, is the same shape
+      # of guard `BindingPolicy` already applies to a missing bind — the
+      # project's identity is refusing bad wiring up front, not
+      # discovering it mid-suite.
+      def boot_and_guard(files)
+        runtime = Hecks::Runtime::Loader.boot_files(files, install_facade: false)
+        guard_memory_only!(runtime)
+        runtime
+      end
+
+      def guard_memory_only!(runtime)
+        runtime.registry.bluebooks.each_value do |bluebook|
+          bluebook.aggregates.each do |aggregate|
+            bind = Ports::Persistence::BindingPolicy.resolve(runtime.registry, bluebook.name, aggregate)
+            next if bind.adapter == Ports::Persistence::DEFAULT_ADAPTER
+
+            raise Malformed,
+                  "#{bluebook.name}::#{aggregate.hecks_name} is persisted_by " \
+                  "#{bind.adapter.inspect}, not #{Ports::Persistence::DEFAULT_ADAPTER.inspect} — " \
+                  "a behaviors suite's `loads` must resolve every aggregate to an in-memory " \
+                  "binding, or tests leak state into each other and write to a real database. " \
+                  "Load a Memory-bound sibling hecksagon instead of the domain's real one — see " \
+                  "examples/pizzas/bluebook/pizzas.behaviors's own `loads` comment for the pattern."
+          end
         end
       end
 
@@ -182,7 +216,33 @@ module Hecks
           return fail_result(test, "expected count: #{expected}, got #{count}") if count != expected
         end
 
-        check_ok(test) || pass_result(test)
+        return check_ok(test) || pass_result(test) unless field_expectations?(test)
+
+        row = query_row(test, rows)
+        return row if row.is_a?(Result)
+
+        check_ok(test) || check_fields(test, row) || pass_result(test)
+      end
+
+      def field_expectations?(test)
+        test.expect.keys.any? { |key| !SPECIAL_KEYS.include?(key) }
+      end
+
+      # A field expectation on a query names one row's shape, so it only
+      # makes sense once the query has settled on exactly one — the same
+      # reason `expect status: "sold"` on a multi-row answer would be
+      # ambiguous about which row it's describing. `check_fields` itself
+      # stays row-shaped (it already is, for `run_command`'s settled
+      # state); this picks which row it reads.
+      def query_row(test, rows)
+        return rows unless rows.is_a?(Array)
+
+        case rows.size
+        when 1 then rows.first
+        when 0 then fail_result(test, "expect names a field, but the query returned no rows")
+        else fail_result(test, "expect names a field, but the query returned #{rows.size} rows — " \
+                               "narrow it with `input`/`expect count: 1` first")
+        end
       end
 
       def check_ok(test)

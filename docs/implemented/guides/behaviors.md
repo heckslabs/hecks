@@ -136,8 +136,15 @@ that is a missing word in the bluebook, not a reason to add a sixth
 `Hecks::Behaviors.run(path)` runs one file and returns one result
 per test — `:pass`, `:fail`, or `:error`, each with a message.
 `Hecks::Behaviors.run_all(dir)` sweeps every `.behaviors` file under
-a directory. Boot is a fresh `Hecks.boot_files` call per test — cheap,
-and never shared, so one test's state can never leak into the next's.
+a directory. Boot is ONE `Hecks.boot_files` call per SUITE, not per
+test — a real boot is expensive enough (chess: 76 tests, 155s of pure
+boot time) that per-test booting doesn't scale — and the runtime is
+reset between tests instead (`Registry#reset_runtime_state!`).
+Isolation from that reset is real for `Memory`-bound aggregates, which
+is why a behaviors suite's `loads` is required to resolve every
+aggregate to a `Memory` binding: pointing `loads` at a domain's real,
+non-`Memory` hecksagon is refused at boot, precisely so state can never
+leak from one test into the next — or into a real database.
 
 ```ruby
 require "hecks/behaviors"
@@ -146,7 +153,7 @@ path   = File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.behavi
 result = Hecks::Behaviors.run(path)
 
 result.parse_error                              # => nil
-result.runs.size                                 # => 6
+result.runs.size                                 # => 7
 result.runs.map(&:status).uniq                   # => [:pass]
 result.runs.first.description                    # => "CreatePizza puts a fresh pizza on the menu, available for sale"
 ```

@@ -62,4 +62,10 @@ Hecks.behaviors "Pizzas" do
     input  ceiling: { cents: 1000 }
     expect count: 1
   end
+
+  test "Available's own row can be checked directly, not just counted" do
+    tests "Available", on: "Order", kind: :query
+    setup  "CreatePizza", name: { value: "Only One" }, pizza: { price_cents: { cents: 950 }, size: { value: "small" } }
+    expect status: "available", name: { value: "Only One" }
+  end
 end

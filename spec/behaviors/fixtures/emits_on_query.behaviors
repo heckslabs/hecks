@@ -1,0 +1,11 @@
+# `emits:` is never read by run_query — it used to build and pass
+# unconditionally. Build-time validation refuses it instead.
+Hecks.behaviors "EmitsOnQuery" do
+  vision "emits: on a query is meaningless and should refuse to build."
+  loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"
+
+  test "emits from a query" do
+    tests "Available", on: "Order", kind: :query
+    expect emits: ["Whatever"]
+  end
+end
