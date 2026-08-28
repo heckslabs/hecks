@@ -87,6 +87,58 @@ RSpec.describe Hecks::Adapters::Heki do
     end
   end
 
+  describe "crash safety and concurrency" do
+    it "writes the snapshot through a temp file and rename, never in place" do
+      adapter.save(instance("p1", name: { value: "First" }))
+      original = File.binread(adapter.path)
+
+      allow(File).to receive(:rename).and_raise("boom")
+      expect { adapter.save(instance("p2", name: { value: "Second" })) }.to raise_error("boom")
+
+      # The rename never happened, so the snapshot on disk is exactly
+      # what it was before the failed save — never truncated, never
+      # partially overwritten.
+      expect(File.binread(adapter.path)).to eq(original)
+
+      # The journal append already landed (and fsynced) before the
+      # snapshot write was attempted, so the save isn't lost — a fresh
+      # boot recovers it by replaying the journal over the stale snapshot.
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.find("p2")[:name].to_h).to eq(value: "Second")
+    end
+
+    it "leaves no temp file behind after a successful save" do
+      adapter.save(instance("p1", name: { value: "X" }))
+
+      expect(Dir.glob(File.join(@dir, "*.tmp.*"))).to be_empty
+    end
+
+    it "holds a lock file beside the snapshot" do
+      adapter.save(instance("p1", name: { value: "X" }))
+
+      expect(File.exist?("#{adapter.path}.lock")).to be true
+    end
+
+    it "survives concurrent writers without any of them clobbering another's record" do
+      skip "no fork on this platform" unless Process.respond_to?(:fork)
+
+      ids = (1..8).to_a
+      pids = ids.map do |i|
+        fork do
+          described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+                         .save(instance("p#{i}", name: { value: "V#{i}" }))
+        end
+      end
+      pids.each { |pid| Process.waitpid(pid) }
+
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.all.map(&:id)).to eq(ids.map { |i| "p#{i}" }.sort)
+      # Every journal line parses — none was split by another process's
+      # concurrent append landing mid-line.
+      expect { reopened.entries }.not_to raise_error
+    end
+  end
+
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",

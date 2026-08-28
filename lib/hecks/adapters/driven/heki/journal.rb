@@ -38,9 +38,14 @@ module Hecks
         end
 
         def append_entry(operation, id, state)
+          line = "#{JSON.generate(operation: operation, id: id.to_s, state: state, mirrors: @entry_mirrors)}\n"
+
+          # One write, not JSON-then-newline as two: two concurrent
+          # appends can only interleave *between* writes, never inside
+          # one, so this line can't come out split by another process's
+          # line landing in the middle of it.
           File.open(@journal_path, "ab") do |journal|
-            journal.write(JSON.generate(operation: operation, id: id.to_s, state: state, mirrors: @entry_mirrors))
-            journal.write("\n")
+            journal.write(line)
             journal.flush
             journal.fsync
           end

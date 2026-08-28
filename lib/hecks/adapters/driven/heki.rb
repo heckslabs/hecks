@@ -80,8 +80,12 @@ module Hecks
         @entry_mirrors = nil
       end
 
+      # Reads fresh rather than trusting the memoized `store` — under
+      # `with_lock`, another process may have projected a snapshot since
+      # this one last read it, and mutating *its* stale copy would
+      # overwrite that write on disk rather than layer on top of it.
       def project(entry)
-        current = store
+        current = read
         entry.save? ? current[entry.id] = entry.state.dup : current.delete(entry.id)
         write(current)
         @store = current
@@ -90,8 +94,10 @@ module Hecks
 
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        append(entry)
-        project(entry)
+        with_lock do
+          append(entry)
+          project(entry)
+        end
         instance
       end
 
@@ -99,8 +105,10 @@ module Hecks
         return false unless find(id)
 
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
-        append(entry)
-        project(entry)
+        with_lock do
+          append(entry)
+          project(entry)
+        end
         true
       end
 

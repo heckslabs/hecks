@@ -15,6 +15,13 @@
 # runtimes' storage-shape tests walk. They were never committed, nobody saw
 # them missing, and the Ruby suite aborted at load rather than failing a test.
 **/data/eras/
+# Heki's own on-disk artifacts, never checked-in state: the flock lock
+# file beside every `.heki` snapshot (created on first save, left in
+# place — flock needs no cleanup), and the temp file `write` renames
+# over the snapshot from (only survives a crash between the write and
+# the rename).
+*.heki.lock
+*.heki.tmp.*
 tmp/
 vendor/bundle/
 coverage/
