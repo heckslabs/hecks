@@ -1,4 +1,5 @@
 Hecks.port "extraction" do
-  verb   "extracted_by"   
-  signal :reply           
+  verb    "extracted_by"
+  signal  :reply
+  answers :canonical
 end

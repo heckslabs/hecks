@@ -12,6 +12,7 @@ module Hecks
       module Verification
         def verify!
           verify_default_adapter!
+          verify_singleton_port_answers!
 
           @hecksagons.each_value do |hexagon|
             refuse_ungoverned_roles!(hexagon)
@@ -68,11 +69,61 @@ module Hecks
 
         def check_verb(bind)
           port = port_for(bind)
+          check_answers(port, bind.adapter)
           return if port.verb.to_s == bind.verb.to_s
 
           raise WiringError,
                 "#{bind.adapter} implements the #{port.name} port (verb #{port.verb}) " \
                 "and cannot satisfy #{bind.verb}"
+        end
+
+        # THE METHOD CONTRACT A `.port` FILE'S `verb`/`signal` NEVER
+        # CARRIED — an adapter can name the right port, satisfy the right
+        # verb, and admit every `.world` setting `check_settings` checks,
+        # and still be missing the one method a live dispatch will
+        # actually call. `answers` is optional per port (an empty list is
+        # today's pre-existing behavior, unchecked), so this only ever
+        # tightens a port that opted in.
+        def check_answers(port, adapter_name)
+          answers = Array(port.answers)
+          return if answers.empty?
+
+          klass   = adapter_class(adapter_name)
+          missing = answers.reject { |method_name| klass.respond_to?(method_name) }
+          return if missing.empty?
+
+          raise WiringError,
+                "#{adapter_name} declares the #{port.name} port but does not respond to " \
+                "#{missing.map(&:inspect).join(', ')} — #{port.name}.port declares answers " \
+                "#{answers.map(&:inspect).join(', ')}"
+        end
+
+        # THE NINE SINGLETON PORTS' OWN GAP — `persistence`, `projection`
+        # and `loading` are per-aggregate bindings, checked above through
+        # every real `bind` a hexagon declares; a singleton port
+        # (`clock`, `authorization`, …) is never bound to an aggregate at
+        # all, so nothing above ever resolves one and nothing above ever
+        # ran `check_answers` against it. Each one's own `Ports::*.adapter`
+        # already refuses zero or multiple implementations, live, at
+        # first dispatch — that stays exactly as-is here (0 or 2+ is
+        # ambiguity, not a method-contract question, and asserting every
+        # declared port MUST have exactly one adapter would wrongly
+        # refuse a boot that simply never wires a port it doesn't use).
+        # This only ever tightens the ONE case those checks don't cover:
+        # exactly one adapter, wired, missing a method `answers` names.
+        PER_AGGREGATE_PORTS = %w[persistence projection loading].freeze
+
+        def verify_singleton_port_answers!
+          @ports.each_value do |port|
+            next if PER_AGGREGATE_PORTS.include?(port.name)
+            next if Array(port.answers).empty?
+
+            implementations = @adapters.values.select { |a| a.port == port.name }
+            next unless implementations.size == 1
+
+            check_answers(port, implementations.first.name)
+          end
+          self
         end
 
         def check_settings(bind, settings)

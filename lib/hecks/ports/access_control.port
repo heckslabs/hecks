@@ -1,4 +1,9 @@
 Hecks.port "access_control" do
-  verb   "granted_by"
-  signal :reply
+  verb    "granted_by"
+  signal  :reply
+  answers :session_for_identity
+  answers :provision
+  answers :available_roles
+  answers :grant
+  answers :all_people
 end

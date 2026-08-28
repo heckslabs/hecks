@@ -35,7 +35,7 @@ module Hecks
         implementations = registry.adapters.values.select { |a| a.port == NAME }
 
         case implementations.size
-        when 1 then Adapters.const_get(implementations.first.name)
+        when 1 then registry.adapter_class(implementations.first.name)
         when 0
           raise Runtime::WiringError,
                 "no adapter implements the #{NAME} port — nothing can authenticate a sign-in"

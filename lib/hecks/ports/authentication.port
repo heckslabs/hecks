@@ -1,4 +1,6 @@
 Hecks.port "authentication" do
-  verb   "authenticated_by"
-  signal :reply
+  verb    "authenticated_by"
+  signal  :reply
+  answers :authorization_url
+  answers :verify
 end

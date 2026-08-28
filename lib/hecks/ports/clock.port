@@ -1,4 +1,5 @@
 Hecks.port "clock" do
-  verb   "timed_by"
-  signal :reply
+  verb    "timed_by"
+  signal  :reply
+  answers :now
 end

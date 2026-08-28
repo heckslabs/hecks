@@ -317,14 +317,20 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # gate quietly stops gating (plurality_coverage_spec.rb's own sibling
   # check, same reasoning).
   it "carries no exemption the corpus has outgrown" do
+    # `DomainPort`'s AND `PortOperation`'s own words can never appear for
+    # real in a `.port` file (a structurally different context/file
+    # type — see corpus_uses?'s own header) — excluded here so adding
+    # real `.port` coverage for `Port`'s own words (verb/signal/answers)
+    # doesn't collide with a SIBLING context's own, still-genuinely-
+    # unused claim. `answers (PortOperation)` is the word `Port#answers`
+    # (the method-contract declaration, item #1's own fix) collided
+    # with the moment it landed in a real `.port` file — same shape
+    # `verb (DomainPort)` already needed this for.
+    PORT_FILE_ONLY_CONTEXTS = %w[DomainPort PortOperation].freeze
+
     stale = EXEMPT.keys.select do |name|
       word, context = name.match(/\A(.+) \((.+)\)\z/)&.captures
-      # `DomainPort`'s own words can never appear for real in a `.port`
-      # file (a structurally different context/file type — see
-      # corpus_uses?'s own header) — excluded here so adding real `.port`
-      # coverage for `Port`'s own words (verb/signal) doesn't collide
-      # with this SIBLING context's own, still-genuinely-unused claim.
-      word && corpus_uses?(word, exclude_extension: context == "DomainPort" ? ".port" : nil)
+      word && corpus_uses?(word, exclude_extension: PORT_FILE_ONLY_CONTEXTS.include?(context) ? ".port" : nil)
     end
 
     expect(stale).to be_empty,

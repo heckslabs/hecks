@@ -57,7 +57,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "PortBuilder"                 => [
       Hecks::Bluebook::DSL::PortBuilder,
-      %i[verb signal]
+      %i[verb signal answers]
     ],
     "DomainPortBuilder"           => [
       Hecks::Bluebook::DSL::DomainPortBuilder,

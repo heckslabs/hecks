@@ -1,4 +1,5 @@
 Hecks.port "identity_resolution" do
-  verb   "resolved_by"
-  signal :reply
+  verb    "resolved_by"
+  signal  :reply
+  answers :resolve
 end

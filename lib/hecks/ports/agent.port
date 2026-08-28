@@ -1,4 +1,8 @@
 Hecks.port "agent" do
-  verb   "asked_by"
-  signal :reply
+  verb    "asked_by"
+  signal  :reply
+  answers :ask
+  answers :interpret
+  answers :critique
+  answers :suggest_name
 end

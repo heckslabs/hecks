@@ -8,15 +8,24 @@ module Hecks
         include WordGate
 
         def initialize(name)
-          @name   = name
-          @signal = :reply
+          @name    = name
+          @signal  = :reply
+          @answers = []
         end
 
         def verb(value)   = @verb = value.to_s
         def signal(value) = @signal = value.to_sym
 
+        # THE METHOD CONTRACT — the fact a `.port` file's `verb`/`signal`
+        # never carried: what an adapter must actually RESPOND TO for a
+        # dispatch to reach it without a bare `NoMethodError`. Declared the
+        # same repeatable way `AdapterBuilder#field`/`#secret` already are,
+        # so `verify!` can check it with `respond_to?` at boot instead of
+        # the runtime discovering it live.
+        def answers(name) = @answers << name.to_sym
+
         def build
-          MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal))
+          MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal, answers: @answers))
         end
 
         def self.build(name, &block)

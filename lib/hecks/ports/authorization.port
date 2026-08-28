@@ -1,4 +1,7 @@
 Hecks.port "authorization" do
-  verb   "authorized_by"
-  signal :reply
+  verb    "authorized_by"
+  signal  :reply
+  answers :holds_role?
+  answers :authorized_as?
+  answers :live_role_for
 end

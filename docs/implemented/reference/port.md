@@ -14,8 +14,9 @@ and `extraction`, the two every domain needs, are the working examples:
 
 ```ruby boot
 Hecks.port("reference_persistence") do
-  verb   "persisted_by"
-  signal :reply
+  verb    "persisted_by"
+  signal  :reply
+  answers :find_by_id
 end
 ```
 
@@ -49,5 +50,21 @@ Whether calling this port answers with a value (`:reply`) or fires an effect wit
 
 ```ruby
 runtime.registry.ports["reference_persistence"].signal  # => :reply
+```
+
+## answers
+
+<!-- generated:begin word=answers -->
+`answers answers` — fills `answers`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | answers |
+<!-- generated:end -->
+
+The method contract — the name of a method a real adapter for this port must `respond_to?`. Repeatable: call `answers` once per method a caller will actually dispatch to (`clock`'s own real declaration is `answers :now`). Optional to declare at all, the same way `verb` is; a port with none is exactly today's pre-existing behavior, unchecked by `verify!` past the existing adapter/verb/settings gates. Declared, an adapter bound to this port that does not respond to every named method fails at boot with a `WiringError` naming the adapter and the missing method, instead of a bare `NoMethodError` the first time a live dispatch actually needed it.
+
+```ruby
+runtime.registry.ports["reference_persistence"].answers  # => [:find_by_id]
 ```
 

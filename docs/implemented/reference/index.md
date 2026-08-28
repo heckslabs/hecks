@@ -23,7 +23,7 @@ survives regeneration.
 - [DomainPort](domain_port.md) — 4 words
 - [Hecksagon](hecksagon.md) — 4 words
 - [PortOperation](port_operation.md) — 5 words
-- [Port](port.md) — 2 words
+- [Port](port.md) — 3 words
 - [Adapter](adapter.md) — 3 words
 - [Translation](translation.md) — 2 words
 - [TranslationAggregate](translation_aggregate.md) — 9 words

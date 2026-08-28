@@ -1,4 +1,5 @@
 Hecks.port "identity_generation" do
-  verb   "generated_by"
-  signal :reply
+  verb    "generated_by"
+  signal  :reply
+  answers :uuid
 end

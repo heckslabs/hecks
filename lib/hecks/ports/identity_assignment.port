@@ -1,4 +1,5 @@
 Hecks.port "identity_assignment" do
-  verb   "assigned_by"
-  signal :reply
+  verb    "assigned_by"
+  signal  :reply
+  answers :assign
 end

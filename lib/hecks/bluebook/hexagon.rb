@@ -3,7 +3,7 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    Port = Struct.new(:name, :verb, :signal, keyword_init: true) do
+    Port = Struct.new(:name, :verb, :signal, :answers, keyword_init: true) do
       def reply?  = signal == :reply
       def effect? = signal == :effect
     end

@@ -40,6 +40,10 @@ module Hecks
         def judge!
           send_to("Port::Port.Declare", @port.name, name: v(@port.name),
                   verb: v(@port.verb), signal: v(@port.signal))
+
+          Array(@port.answers).each do |answer|
+            send_to("Port::Port.AddAnswer", @port.name, name: @port.name, value: v(answer))
+          end
         end
       end
     end
