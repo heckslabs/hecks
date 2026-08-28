@@ -7,6 +7,24 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-28
+
+**Cross-tenant boot-isolation gap closed.** `refuse_unless_tenant_capable!`
+existed and was directly tested (ADR 0025's gate), but nothing in the boot
+path actually called it — a second tenant booting the same directory on a
+tenant-incapable adapter went unrefused. Wired into
+`ProjectRegister#register` rather than `run_boot_gates!`: boot gates run
+per-boot and have no way to see a prior boot, while `ProjectRegister` is the
+shared route table where two tenant boots of one directory actually
+converge, keyed on `[directory, bluebook.name]`. The first registration of a
+directory is never refused, so a plain single-tenant deployment boots
+unchanged; a second, incompatible tenant is refused before its routes are
+added to the table, so a leaking tenant is never reachable through
+`Router#resolve`. `1.0.0` shipped with this gate unwired; anyone who pinned
+that version should move to `1.0.1`. See `docs/1.0-readiness.md`'s "Known
+gaps at 1.0" section for what's still open (read-model cross-engine
+agreement, ADR 0037 findings 3-5).
+
 ## [1.0.0] - 2026-08-28
 
 **ADR 0025 lands: the DSL redesign this whole cycle was blocked on.** All 15
