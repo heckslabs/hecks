@@ -8,16 +8,39 @@ module Hecks
     # `lib/hecks/language/bluebook/` declares what a bluebook IS —
     # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across files
     # by domain concept and merged into one chapter at load time (see
-    # GRAMMAR_FILES below) — and carries the language's rules as `given` and
-    # `invariant` rather than as `raise Malformed` scattered across seven
-    # builder files. This replays a built IR into that domain and turns any
-    # refusal into a Malformed, so the meta-domain is what actually judges
-    # rather than a description sitting beside the code.
+    # GRAMMAR_FILES below). This replays a built IR into that domain and turns
+    # any refusal into a Malformed, so the meta-domain is what actually judges
+    # rather than a description sitting beside the code — for whatever rules
+    # it carries. `spec/meta_rules_spec.rb`'s own header names the plan: port
+    # the language's rules OUT of builder `raise Malformed` calls and INTO
+    # `given`/`invariant` here, where they are declarations any reader of the
+    # meta-domain can consume instead of behavior buried in a builder.
     #
-    # Delete language/bluebook/ and validation stops. That is the whole
-    # point : a self-description that only describes is indistinguishable from
-    # enforcement, and the first version of this file was deleted for exactly
-    # that reason.
+    # THIS MIGRATION IS PARTIAL, NOT DONE. As of this writing the meta-domain
+    # declares 62 given/invariant/ensures rules (`Hecks::QueryIR.collect_rules`
+    # against `grammar_registry.bluebook("Bluebook")` enumerates them) —
+    # `spec/meta_rule_reachability_spec.rb` is what proves, per declaration,
+    # not per verb, that most of them still lack a spec exercising the
+    # refusal at all (see that file's own KNOWN_GAPS for the current count).
+    # Meanwhile `lib/hecks/bluebook/dsl/` still carries well over a hundred
+    # `raise Malformed` calls of its own — some are genuinely pre-IR
+    # construction errors (arity, argument shape) that cannot become
+    # meta-domain rules, and some are exactly the semantic kind this file
+    # claims to have moved (see `aggregate_builder.rb`'s `seal_*` passes:
+    # a mutation into a field the aggregate never declares, a lifecycle guard
+    # on an aggregate with no lifecycle). No doc currently inventories which
+    # is which, or tracks migrating the latter — that inventory is the actual
+    # next step, not a "delete the folder" thought experiment.
+    #
+    # So: "delete language/bluebook/ and validation stops" is true for the 62
+    # rules actually declared here, and false for whatever a builder's own
+    # `raise Malformed` still checks — the language does not yet own its own
+    # enforcement end to end, and this comment used to claim it already did.
+    # The self-hosting mechanism itself is real and is the point worth
+    # keeping : a self-description that only describes is indistinguishable
+    # from enforcement, and the first version of this file was deleted for
+    # exactly that reason. What is not yet real is that self-hosting being
+    # the WHOLE of validation.
     #
     # The meta-domain is loaded ONCE and its registry reused ; each bluebook is
     # judged in a fresh in-memory store so no domain can see another's records.
@@ -147,23 +170,48 @@ module Hecks
         end
       end
 
-      # `&& !@forcing_fixpoint` — see `while_forcing_fixpoint` below. Unlike
-      # `bootstrapping?`/`shadow_parsing?`, this reads a bare env toggle with
-      # no stack-restore shape of its own (the comment on `shadow_parsing?`
-      # already called that difference out) — which let a test's own
-      # temporary `ENV["HECKS_META_VALIDATION"] = "off"` window reach code
-      # it was never meant to touch: if `grammar_registry`'s ONE-TIME lazy
-      # build (below) happened to land inside that window, EVERY language
-      # chapter got cached in its raw, never-judged form for the rest of
-      # the process — `unmark_scalar`'s String->Integer/Boolean fix
-      # (assembly/marks.rb) never ran, so a `Command`'s own `required: true`
-      # stayed `required: "true"` forever after, permanently memoized.
-      # Found live: an intermittent, parallel_rspec-only ir_golden_spec.rb
-      # failure, order-dependent on whether identifier_numeric_coercion_
-      # growth_spec.rb's disabled-validation window raced the ONE lazy
-      # build in its own worker process — reproduced in isolation by
-      # setting the env var off before the first `grammar_registry` call.
-      def self.disabled? = ENV["HECKS_META_VALIDATION"] == "off" && !@forcing_fixpoint
+      # `&& !@forcing_fixpoint` — see `while_forcing_fixpoint` below, whose own
+      # window must win even while a growth spec's `while_disabled` is open,
+      # for the reason recorded there. Otherwise the SAME stack-restore shape
+      # `while_shadow_parsing`/`while_forcing_fixpoint` use, not a bare env
+      # toggle any more — it used to be exactly that (`ENV["HECKS_META_
+      # VALIDATION"] == "off"`, read directly, with no `previous`/`ensure` of
+      # its own), and the gap between "bare toggle" and "stack-restore" was
+      # not cosmetic: a test's temporary window could reach code it was never
+      # meant to touch. If `grammar_registry`'s ONE-TIME lazy build (below)
+      # happened to land inside that window, EVERY language chapter got
+      # cached in its raw, never-judged form for the rest of the process —
+      # `unmark_scalar`'s String->Integer/Boolean fix (assembly/marks.rb)
+      # never ran, so a `Command`'s own `required: true` stayed
+      # `required: "true"` forever after, permanently memoized. Found live:
+      # an intermittent, parallel_rspec-only ir_golden_spec.rb failure,
+      # order-dependent on whether identifier_numeric_coercion_growth_spec.rb's
+      # disabled-validation window raced the ONE lazy build in its own worker
+      # process — reproduced in isolation by disabling validation before the
+      # first `grammar_registry` call. `&& !@forcing_fixpoint` was the first
+      # fix and is kept ; converting `@disabled` itself to this shape closes
+      # the gap for every OTHER caller of `while_disabled`, not just the one
+      # race that was actually observed — nothing outside this file reads
+      # `ENV["HECKS_META_VALIDATION"]` any more (confirmed: every one of the
+      # dozen growth specs that used to hand-roll `previous = ENV[...] ;
+      # ENV[...] = "off" ; ... ; ensure ENV[...] = previous` now calls
+      # `while_disabled` instead), so there is no bare global left to race.
+      def self.disabled? = @disabled && !@forcing_fixpoint
+
+      # THE SAME STACK-RESTORE SHAPE `while_shadow_parsing`/`while_forcing_
+      # fixpoint` USE. This toggle's real, intended use is a growth spec
+      # that boots a scratch bluebook from a tempfile and wants the runtime
+      # behaviour without the validation overhead ; that is always a single
+      # bounded window around one boot, never a flag meant to survive past
+      # it, so the flag itself is scoped in the same `previous`/`ensure`
+      # shape rather than a plain assignment a caller could forget to undo.
+      def self.while_disabled
+        previous  = @disabled
+        @disabled = true
+        yield
+      ensure
+        @disabled = previous
+      end
 
       # ADR 0025's own prerequisite (docs/dsl-work-slices.md, S0a): a word
       # a later slice removes from the LIVE grammar must still parse
@@ -379,8 +427,8 @@ module Hecks
           # judged from here on is judged by the language the language itself
           # produced. Outside load_grammar_into on purpose : its ensure clears
           # @bootstrapping, and call() must see bootstrapping? == false to do
-          # anything at all. `while_forcing_fixpoint`-wrapped so a test's
-          # own `HECKS_META_VALIDATION=off` window can never leave this
+          # anything at all. `while_forcing_fixpoint`-wrapped so a growth
+          # spec's own `while_disabled` window can never leave this
           # ONE-TIME build cached in its raw, never-judged form — see
           # `disabled?`'s own comment.
           while_forcing_fixpoint do

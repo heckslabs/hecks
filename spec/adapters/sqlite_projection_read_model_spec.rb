@@ -84,29 +84,28 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
     file.write(SOURCE)
     file.flush
 
-    previous = ENV.fetch("HECKS_META_VALIDATION", nil)
-    ENV["HECKS_META_VALIDATION"] = "off"
-
     registry = Hecks::Runtime::Registry.new(root: dir)
-    Hecks.with_registry(registry) do
-      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
-      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
-      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.eval(SOURCE, TOPLEVEL_BINDING, file.path, 1)
-      Hecks.hecksagon("ChainProjectionGrowth") do
-        ::ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
-        ::ChainProjectionGrowth::Root.projected_by("SqliteProjection")
-        ::ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
-        ::ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
-        ::ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
-        ::ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
-      end
-      Hecks.world("ChainProjectionGrowth") do
-        persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }
-        projected_by("SqliteProjection") { database(File.join(dir, "chain-projection.db")) }
+    Hecks::Bluebook::MetaValidator.while_disabled do
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.eval(SOURCE, TOPLEVEL_BINDING, file.path, 1)
+        Hecks.hecksagon("ChainProjectionGrowth") do
+          ::ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
+          ::ChainProjectionGrowth::Root.projected_by("SqliteProjection")
+          ::ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
+          ::ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
+          ::ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
+          ::ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
+        end
+        Hecks.world("ChainProjectionGrowth") do
+          persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }
+          projected_by("SqliteProjection") { database(File.join(dir, "chain-projection.db")) }
+        end
       end
     end
 
@@ -124,7 +123,6 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
 
     runtime
   ensure
-    ENV["HECKS_META_VALIDATION"] = previous
     file&.close!
   end
 
