@@ -11,7 +11,7 @@ and will be taken seriously.
 ## Reporting a vulnerability
 
 **Preferred: GitHub Security Advisories.** Use this repository's
-["Report a vulnerability"](https://github.com/chrisyoung/hecks/security/advisories/new)
+["Report a vulnerability"](https://github.com/heckslabs/hecks/security/advisories/new)
 form (under the Security tab) to open a private advisory. It reaches
 the maintainer without ever becoming a public issue, and keeps
 discussion, a fix, and the disclosure timeline attached to one thread.

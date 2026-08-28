@@ -13,7 +13,7 @@ has to re-verify by hand.
 ## Getting running
 
 ```sh
-git clone https://github.com/chrisyoung/hecks
+git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
 bin/console          # boots the pizzas example, drops you into IRB with its door installed

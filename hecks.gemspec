@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
     Nothing is scripted: no handler body, no class you write, no schema
     you migrate.
   DESC
-  spec.homepage = "https://github.com/chrisyoung/hecks"
+  spec.homepage = "https://github.com/heckslabs/hecks"
   spec.license  = "Apache-2.0"
 
   spec.required_ruby_version = ">= 3.2"

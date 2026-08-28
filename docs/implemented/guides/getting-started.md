@@ -20,7 +20,7 @@ This is a research language, published as the `hecks` gem (currently
 it — clone it and the repository is the tool:
 
 ```sh
-git clone https://github.com/chrisyoung/hecks
+git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
 bin/console          # boots the pizzas example — try it first

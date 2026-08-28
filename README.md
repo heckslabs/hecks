@@ -626,7 +626,7 @@ There is no published gem. You clone the repository, and the
 repository is the tool:
 
 ```sh
-git clone https://github.com/chrisyoung/hecks
+git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
 bin/console examples/banking     # drops into IRB with the domain booted

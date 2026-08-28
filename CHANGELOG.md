@@ -122,4 +122,4 @@ entries below are grouped by theme, not itemized commit-by-commit; see
   found independently, alongside H1 above, while reconciling docs
   against code in both directions.
 
-[Unreleased]: https://github.com/chrisyoung/hecks/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/heckslabs/hecks/compare/v0.3.0...HEAD
