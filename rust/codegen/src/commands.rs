@@ -44,12 +44,19 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
     let mut unsupported_ops: Vec<String> = Vec::new();
     for m in mutations_list {
         let op = m.get("op").map(Json::to_s).unwrap_or_default();
-        if !["append", "set", "increment", "decrement", "delegate"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
+        if !["append", "set", "increment", "decrement", "multiply", "clamp", "delegate", "corrects"].contains(&op.as_str()) && !unsupported_ops.contains(&op) {
             unsupported_ops.push(op);
         }
     }
     if !unsupported_ops.is_empty() {
-        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/delegate are)", unsupported_ops.join(", ")));
+        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)", unsupported_ops.join(", ")));
+    }
+
+    if let Some(corrects) = crate::bridging::corrects_of(command) {
+        if crate::bridging::corrects_reverses(corrects) {
+            let event = corrects.get("target").map(Json::to_s).unwrap_or_default();
+            return Some(format!("corrects {event}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet"));
+        }
     }
 
     if let Some(problem) = delegate_skip_reason(command, aggregate, value_objects_by_name) {
@@ -110,7 +117,7 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         return Some(format!("sets :{} sources an argument no single-field rewrap can bridge to the target's type — not generated yet", mismatched_sets.join(", ")));
     }
 
-    let arithmetic_targets: Vec<&Json> = mutations_list.iter().filter(|m| ["increment", "decrement"].contains(&m.get("op").map(Json::to_s).unwrap_or_default().as_str())).collect();
+    let arithmetic_targets: Vec<&Json> = mutations_list.iter().filter(|m| ["increment", "decrement", "multiply"].contains(&m.get("op").map(Json::to_s).unwrap_or_default().as_str())).collect();
     let unsupported_arithmetic: Vec<String> = arithmetic_targets
         .iter()
         .filter(|m| {
@@ -123,17 +130,30 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !unsupported_arithmetic.is_empty() {
-        return Some(format!("sets :{} increment/decrement amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
+        return Some(format!("sets :{} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
+    }
+
+    // `:clamp` — see rust/project/commands.rs's own comment on this same
+    // check for the full reasoning. No amount to resolve at all; the
+    // target half is identical to increment/decrement/multiply, the
+    // bounds half is `clamp_bounds_ints` (bridging.rs).
+    let clamp_targets: Vec<&Json> = mutations_list.iter().filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "clamp").collect();
+    let unsupported_clamp: Vec<String> = clamp_targets
+        .iter()
+        .filter(|m| {
+            let target = crate::bridging::arithmetic_target_field(m, aggregate, value_objects_by_name);
+            let bounds = m.get("source").and_then(crate::bridging::clamp_bounds_ints);
+            target.is_none() || bounds.is_none()
+        })
+        .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
+        .collect();
+    if !unsupported_clamp.is_empty() {
+        return Some(format!("sets :{} clamp target field or bounds isn't bridgeable — not generated yet", unsupported_clamp.join(", ")));
     }
 
     let optional_problems = optional_source_mismatches_with(command, aggregate, value_objects_by_name, creating_possible);
     if !optional_problems.is_empty() {
         return Some(format!("optional argument feeds a non-optional target: {} — not generated yet", optional_problems.join("; ")));
-    }
-
-    let constraint_problems = constraint_list_problems(command);
-    if !constraint_problems.is_empty() {
-        return Some(constraint_problems.join("; "));
     }
 
     None
@@ -221,7 +241,21 @@ fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objec
     problems
 }
 
-/// Shared by `emit_command`/`emit_entity_command`.
+/// Shared by `emit_command`/`emit_entity_command`. `pattern:` at this
+/// usage-level door is deliberately NOT checked (docs/decisions/0051) —
+/// confirmed, by tracing `Runtime::CommandInterpreter`'s full dispatch
+/// pipeline exhaustively and against Ruby's real interpreter, that a
+/// bare command-attribute's own `pattern:` is never enforced: `check_
+/// patterns` fires only via a value object's own `build`, which a usage-
+/// level scalar attribute never triggers. Generating a check here made
+/// Rust STRICTER than Ruby — removed per ADR 0010 (Ruby is the reference
+/// implementation). `admits:` at this same door IS genuinely enforced
+/// unconditionally by Ruby's own `normalize_args`, so it's kept exactly
+/// as it was. List attributes get NEITHER check (`admit_declared_set` is
+/// reached only via the scalar branch of `Value.for_attribute` — a list
+/// attribute returns early into `hydrate_entity_list` first) — matching
+/// that silent non-enforcement, rather than refusing to generate the
+/// command at all the way `constraint_list_problems` used to (removed).
 pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_name: &HashMap<String, &Json>, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let mut lines: Vec<String> = Vec::new();
@@ -230,23 +264,12 @@ pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_n
         let field = naming::rust_ident_field(crate::attr::name(attr));
 
         if !crate::attr::list(attr) {
-            // RAW FIELD EXPRESSION, UNCONDITIONALLY — port of `rust/project/
-            // commands.rb#invariant_checks_for`'s own fix; see that file's
-            // comment for the full argument. `types.rs`'s own value-object-
-            // field door passes `self.{field}` raw and never wraps the
-            // result itself, trusting `constraints.rs`'s own internal
-            // optional-handling to be self-contained — this door used to
-            // double-wrap whenever an attribute was BOTH `optional: true`
-            // and carried `admits:`/`pattern:`, a real compile failure.
+            // RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rs`'s own
+            // value-object-field door passes `self.{field}` raw and never
+            // wraps the result itself, trusting `constraints.rs`'s own
+            // internal optional-handling to be self-contained.
             let value_expr = format!("args.{field}");
-            let constraints: Vec<String> = [
-                crate::constraints::emit_admits_check(exemplar, &value_expr, attr, aggregates_by_name, value_objects_by_name),
-                crate::constraints::emit_pattern_check(exemplar, &value_expr, attr, &crate::attr::name(attr).to_string(), value_objects_by_name),
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
-            for c in constraints {
+            if let Some(c) = crate::constraints::emit_admits_check(exemplar, &value_expr, attr, aggregates_by_name, value_objects_by_name) {
                 lines.push(format!("        {c}"));
             }
         }
@@ -271,17 +294,6 @@ pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_n
     }
 
     lines
-}
-
-/// A LIST-typed attribute carrying `admits:`/`pattern:` — no real command
-/// generates one; skipped loudly rather than silently dropping it.
-pub fn constraint_list_problems(command: &Json) -> Vec<String> {
-    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-    attrs
-        .iter()
-        .filter(|attr| crate::attr::list(attr) && (crate::attr::admits(attr).is_some() || crate::attr::pattern(attr).is_some()))
-        .map(|attr| format!("{} is a list carrying admits:/pattern: — not generated yet", crate::attr::name(attr)))
-        .collect()
 }
 
 /// ONE emitter for every command shape `kernel::dispatch` can run.
@@ -309,14 +321,12 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let invariant_checks = invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
     let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
-    let given_specs: Vec<String> = givens
-        .iter()
-        .map(|g| {
-            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
-        })
-        .collect();
+    let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
+    given_specs.extend(givens.iter().map(|g| {
+        let description = g.get("description").and_then(Json::as_str).unwrap_or("");
+        let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
+        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+    }));
 
     let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
     let ensures_specs: Vec<String> = ensures
@@ -339,7 +349,31 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     };
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
-    let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, aggregate, command, value_objects_by_name, true)).collect();
+    let mut mutation_lines: Vec<String> = mutations_list
+        .iter()
+        .filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() != "corrects")
+        .map(|m| mutations::emit_mutation_line(exemplar, m, aggregate, command, value_objects_by_name, true))
+        .collect();
+    // `corrects`'s own OTHER half — see `rust/project/commands.rb`'s own
+    // `corrects_flag_mutation_lines` for the full reasoning: stamp the
+    // fact forward onto the record for every command whose own `emits`
+    // names an event some `corrects` mutation elsewhere on this
+    // aggregate targets.
+    let correctable = crate::bridging::correctable_event_names(aggregate);
+    let mut emitted_names: Vec<String> = Vec::new();
+    for name in command.get("emits").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s) {
+        // `.uniq` — first-occurrence order preserved, not sorted; matches
+        // `rust/project/commands.rb`'s own `Array(command[:emits]).map(&
+        // :to_s).uniq` exactly.
+        if !emitted_names.contains(&name) {
+            emitted_names.push(name);
+        }
+    }
+    for name in &emitted_names {
+        if correctable.contains(name) {
+            mutation_lines.push(format!("        record.{} = true;", crate::bridging::corrects_flag_field(name)));
+        }
+    }
     if let Some(t) = &transition {
         if !t.to_state.is_empty() {
             mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
@@ -409,6 +443,9 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
             let default = lifecycle.get("default").map(Json::to_s).unwrap_or_default();
             record_fields.push(format!("            {}: {}.to_string(),", naming::rust_ident_field(field), naming::ruby_inspect_string(&default)));
+        }
+        for ev in crate::bridging::correctable_event_names(aggregate) {
+            record_fields.push(format!("            {}: false,", crate::bridging::corrects_flag_field(&ev)));
         }
 
         hydrate = format!(
@@ -525,7 +562,18 @@ pub fn delegate_skip_reason(command: &Json, aggregate: &Json, value_objects_by_n
             }
             return Some(format!("{label}: target argument {name} has no source on the door"));
         };
-        if crate::attr::type_name(source) != crate::attr::type_name(attr) || crate::attr::list(source) != crate::attr::list(attr) {
+        if crate::attr::list(source) != crate::attr::list(attr) {
+            return Some(format!("{label}: door argument {source_name} is a list, target wants a scalar (or vice versa) — not generated yet"));
+        }
+        // `bridgeable_value_types`, not exact type-name equality — see
+        // rust/project/commands.rs's own comment on this same check
+        // (docs/decisions/0045) for the full reasoning: the JSON-level
+        // alias-then-deserialize delegate mechanism never compares the
+        // two arguments' declared type names to each other, only Ruby's
+        // real behavior does (nothing, empirically confirmed) — so this
+        // generator shouldn't either, past the same semantic-soundness
+        // check `mutation_set_rhs`'s own RHS already trusts.
+        if !crate::bridging::bridgeable_value_types(crate::attr::type_name(source), crate::attr::type_name(attr), value_objects_by_name) {
             return Some(format!("{label}: door argument {source_name} is {}, target wants {} — not generated yet", crate::attr::type_name(source), crate::attr::type_name(attr)));
         }
         if crate::attr::optional(source) && !crate::attr::optional(attr) {
@@ -579,7 +627,7 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         .map(|g| {
             let description = g.get("description").and_then(Json::as_str).unwrap_or("");
             let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
         })
         .collect();
     let ensures_specs: Vec<String> = target
@@ -711,7 +759,7 @@ pub fn emit_entity_command(
         .map(|g| {
             let description = g.get("description").and_then(Json::as_str).unwrap_or("");
             let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
         })
         .collect();
 

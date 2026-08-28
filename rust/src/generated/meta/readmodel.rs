@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ReadModelName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ReadModelName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ReadModelName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -132,7 +132,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ReadModelText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ReadModelText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ReadModelText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -206,7 +206,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ProjectionPurpose")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ProjectionPurpose")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProjectionPurpose.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()) })? },
         })
     }
 }
@@ -272,9 +272,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        aggregate: { let x = v.require("aggregate", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()))? },
-        r#as: { let x = v.require("as", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()))? },
-        many: { let x = v.require("many", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.many: expected String".to_string()))? },
+        aggregate: { let x = v.require("aggregate", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Head.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()) })? },
+        r#as: { let x = v.require("as", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Head.as expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()) })? },
+        many: { let x = v.require("many", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Head.many expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Head.many: expected String".to_string()) })? },
         })
     }
 }
@@ -343,10 +343,10 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        option: { let x = v.require("option", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))? },
-        key: { let x = v.require("key", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))? },
-        value: match v.get("value") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))?), None => None, },
-        at: match v.get("at") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))?), None => None, },
+        option: { let x = v.require("option", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProjectionOption.option expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()) })? },
+        key: { let x = v.require("key", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProjectionOption.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()) })? },
+        value: match v.get("value") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProjectionOption.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()) })?), None => None, },
+        at: match v.get("at") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProjectionOption.at expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()) })?), None => None, },
         })
     }
 }
@@ -420,7 +420,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        field: { let x = v.require("field", "GroupByField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByField.field: expected String".to_string()))? },
+        field: { let x = v.require("field", "GroupByField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("GroupByField.field expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GroupByField.field: expected String".to_string()) })? },
         })
     }
 }
@@ -678,7 +678,7 @@ impl ReadModel {
 impl ReadModel {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ReadModel.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelName::from_json(&x.coerce_single_field("value"))?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(&x.coerce_single_field("value"))?), },
         query_name: match v.get("query_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
@@ -858,7 +858,7 @@ pub fn dispatch_group_by(
         "bluebook, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a group_by field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field.value"))))))) },
+            crate::kernel::GivenSpec { description: "a group_by field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field.value"))))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1032,7 +1032,7 @@ pub fn dispatch_median(
         "bluebook, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a median field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("median_field.value"))))))) },
+            crate::kernel::GivenSpec { description: "a median field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("median_field.value"))))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1128,7 +1128,7 @@ pub fn dispatch_option(
         "bluebook, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
+            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))), corrects_event: None },
         ],
         None,
         |record| {

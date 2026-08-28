@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "StatementPeriod")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "StatementPeriod")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("StatementPeriod.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()) })? },
         })
     }
 }
@@ -208,7 +208,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "StatementDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "StatementDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("StatementDate.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()) })? },
         })
     }
 }
@@ -298,7 +298,7 @@ impl Statement {
 impl Statement {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Statement.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()) })?), },
         period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(&x.coerce_single_field("value"))?), },
         opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
         closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
@@ -397,8 +397,8 @@ pub fn dispatch_generate(
         "account, period.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -445,7 +445,7 @@ if !unknown.is_empty() {
         closing_balance: StatementAmount::from_json(&v.require("closing_balance", "GenerateArgs")?.coerce_single_field("cents"))?,
         generated_on: StatementDate::from_json(&v.require("generated_on", "GenerateArgs")?.coerce_single_field("value"))?,
         frequency: StatementFrequency::from_json(v.require("frequency", "GenerateArgs")?)?,
-        account: { let x = v.require("account", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()))? },
+        account: { let x = v.require("account", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()) })? },
         })
     }
 }

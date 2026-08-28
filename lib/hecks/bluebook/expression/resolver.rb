@@ -401,9 +401,19 @@ module Hecks
               quote = nil if char == quote
             elsif ['"', "'"].include?(char)
               quote = char
-            elsif ["(", "{"].include?(char)
+            # `[`/`]` -- the identical lesson this method's own `(`/`{`
+            # comment already names, a third time (found live via the
+            # type-directed bounded-exhaustive expression generator,
+            # Phase 7 of the equivalence-gap plan): `ArrayLiteral` can
+            # appear as a general sub-expression now, not only as
+            # `.include?`'s own haystack, so an array element containing
+            # its own top-level `+` (`[0, 0 + 0]`) used to read as THIS
+            # expression's own addition split point -- the whole
+            # receiver before `.all?`/`.any?`/etc. torn in half before
+            # `parse_block_opener` ever saw it as one atomic leaf.
+            elsif ["(", "{", "["].include?(char)
               depth += 1
-            elsif [")", "}"].include?(char)
+            elsif [")", "}", "]"].include?(char)
               depth -= 1
             elsif char == "+" && depth.zero?
               return [expr[0...index].strip, expr[(index + 1)..].strip]
@@ -527,11 +537,84 @@ module Hecks
           Evaluator.apply(node.operator, number, 0)
         end
 
+        # FOUND LIVE via the type-directed bounded-exhaustive expression
+        # generator (Phase 7, equivalence-gap plan — spec/
+        # bounded_exhaustive_expression_spec.rb): `.modulo(`'s own
+        # argument position accepts any numeric sub-expression, including
+        # ANOTHER `.modulo(...)` call — `0.modulo(num_b.modulo(-1))` is
+        # perfectly well-typed — but `expr.rindex(marker)` finds the
+        # RIGHTMOST (innermost) `.modulo(` in the whole string, not the
+        # OUTERMOST one a nested call needs split at. For that expression
+        # it found the INNER `.modulo(` (inside `num_b.modulo(-1)`) and
+        # split there, producing a receiver of `"0.modulo(num_b"` and a
+        # divisor of `"-1)"` — both garbage, both re-parsed as bogus
+        # `Lookup` paths, both then refusing with "cannot resolve" — a
+        # SILENT MISPARSE that happened to fail safe into a real
+        # `EvaluationError` rather than a raw crash, which is exactly why
+        # this had gone unnoticed: nothing before this generator existed
+        # ever fed `.modulo` a nested `.modulo` call, random fuzzing
+        # essentially never manufactures that specific shape by chance,
+        # and the resulting refusal LOOKS like an ordinary, correct one
+        # unless you already know every name this generator's own
+        # synthetic state declares (real corpus authors would see this as
+        # a mysterious "cannot resolve" on text they never wrote).
+        #
+        # Fixed the same way `split_addition`/`Evaluator.top_level_index`
+        # already handle nested `(`/`{` elsewhere in this exact file:
+        # find the FIRST (leftmost, outermost) occurrence of the marker,
+        # then track paren/quote depth from there to find ITS OWN
+        # matching close — not just strip the string's own trailing `)`
+        # and hope it belongs to this call.
+        # Not just the FIRST occurrence, either — `.modulo` also CHAINS
+        # (`x.modulo(a).modulo(b)`, the receiver of the OUTER call itself
+        # ending in a `.modulo(...)` call), a second real shape the
+        # leftmost-occurrence-only version of this fix still mis-parsed:
+        # the first `.modulo(`'s own matching close paren lands mid-
+        # string (right after `a)`, before the second `.modulo(b)`), so
+        # it correctly fails the "reaches the end" check below and must
+        # be tried again at the NEXT occurrence rather than giving up.
+        # Trying occurrences strictly left to right and taking the FIRST
+        # one whose matching close reaches the string's last character
+        # handles both shapes with the same rule: for NESTING
+        # (`.modulo(x.modulo(y))`), the leftmost (outer) occurrence's own
+        # paren-depth tracking already walks straight through the inner
+        # call to the true final `)`; for CHAINING, the leftmost
+        # occurrence's close lands short and is rejected, so the next
+        # occurrence (the true outermost call) is tried instead.
         def match_call(expr, marker)
-          index = expr.rindex(marker)
-          return nil unless index && expr.end_with?(")")
+          start = 0
+          while (index = expr.index(marker, start))
+            close = matching_paren(expr, index + marker.length)
+            return [expr[0...index], expr[(index + marker.length)...close]] if close == expr.length - 1
 
-          [expr[0...index], expr[(index + marker.length)...-1]]
+            start = index + 1
+          end
+          nil
+        end
+
+        # `matching_brace` (resolver/block_predicates.rb)'s own twin, one
+        # bracket pair over: `start` is the index just past the OPENING
+        # `(` already consumed by the caller (depth starts at 1, not 0,
+        # for the same reason).
+        def matching_paren(expr, start)
+          depth = 1
+          quote = nil
+          index = start
+          while index < expr.length
+            char = expr[index]
+            if quote
+              quote = nil if char == quote
+            elsif ['"', "'"].include?(char)
+              quote = char
+            elsif char == "("
+              depth += 1
+            elsif char == ")"
+              depth -= 1
+              return index if depth.zero?
+            end
+            index += 1
+          end
+          nil
         end
 
         # Both operands are coerced to a real Integer/Float BEFORE the

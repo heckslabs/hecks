@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "PizzaName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PizzaName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "PizzaName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("PizzaName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PizzaName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -222,7 +222,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CustomerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CustomerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CustomerName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CustomerName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -297,7 +297,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ToppingName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ToppingName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ToppingName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ToppingName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ToppingName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -434,7 +434,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: { let x = v.require("name", "Topping")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Topping.name: expected String".to_string()))? },
+        name: { let x = v.require("name", "Topping")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Topping.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Topping.name: expected String".to_string()) })? },
         amount: { let x = v.require("amount", "Topping")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())))? },
         })
     }
@@ -777,8 +777,8 @@ pub fn dispatch_add_topping(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a sold pizza cannot be changed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },
-            crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) } },
+            crate::kernel::GivenSpec { description: "a sold pizza cannot be changed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -870,9 +870,10 @@ pub fn dispatch_purchase(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) } },
-            crate::kernel::GivenSpec { description: "it must still be available", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },
-            crate::kernel::GivenSpec { description: "a payment was actually made", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("amount.cents")) } },
+            crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "it must still be available", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "a payment was actually made", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "the payment covers the price", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("amount.cents")), right: Box::new(Expr::Lookup("pizza.price_cents.cents")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
         |record| {

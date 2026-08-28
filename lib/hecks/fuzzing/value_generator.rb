@@ -41,8 +41,31 @@ module Hecks
         "", "x", "with \"quotes\"", "with, a comma", "with a \\backslash",
         "unicode héllo wörld 🎉", "x" * 200, "  leading and trailing  "
       ].freeze
-      INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648].freeze
-      FLOAT_EDGE_CASES   = [0.0, -0.5, -100.25].freeze
+      # PRD 05 (numeric-boundary-coverage) — Bignum (`2**100`, past i64's
+      # own ceiling, which Ruby's own `Integer` has no such ceiling for —
+      # `rust/src/kernel/json.rs`'s own `integral_i64` doc comment names
+      # exactly this: a Rust kernel value CANNOT represent it, so this
+      # exercises a real cross-runtime capability gap, not a Ruby-only
+      # edge) and its negative twin. Both round-trip through Ruby's own
+      # arithmetic/JSON cleanly (confirmed directly: `(2**100).clamp(...)`
+      # and `JSON.generate(2**100)` both just work — Integer has no
+      # ceiling here), so nothing in THIS runtime needed a fix for these;
+      # they're included so a real generated sequence occasionally
+      # produces the value at all, since nothing had, repo-wide, before.
+      INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648, 2**100, -(2**100)].freeze
+      # NaN and +/-Infinity — the real find (see `spec/runtime/
+      # numeric_boundary_spec.rb`): `Value::Coercion#check_numeric_fields`
+      # used to let all three sail through untyped-checked (each really
+      # is a Float), reaching either `CommandRules::Arithmetic#clamp`
+      # (raw `ArgumentError`, not a domain refusal) or `JSON.generate`
+      # (`JSON::GeneratorError`, also not a domain refusal) — both fixed
+      # at the source now, so these are safe to generate. -0.0 is
+      # deliberately included too even though it was ALREADY safe
+      # (finite, round-trips through JSON as `-0.0` cleanly) — a signed
+      # zero is exactly the kind of boundary a hand-written corpus never
+      # happens to type, and the fuzzer existing to cover it is the
+      # point.
+      FLOAT_EDGE_CASES = [0.0, -0.0, -0.5, -100.25, Float::NAN, Float::INFINITY, -Float::INFINITY].freeze
       WORDS = %w[alpha bravo charlie delta echo foxtrot golf hotel india juliet].freeze
       CURRENCY_CODES = %w[USD EUR GBP JPY].freeze
 

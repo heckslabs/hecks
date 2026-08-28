@@ -119,6 +119,10 @@ pub fn emit_fielded_record(exemplar: &Exemplar, aggregate: &Json, value_objects_
         let ident = naming::rust_ident_field(field);
         arms.push(exemplar.render("fielded_lifecycle_arm", &[("\"tmpl_field\"", naming::ruby_inspect_string(&key)), ("tmpl_ident", ident)]));
     }
+    for ev in crate::bridging::correctable_event_names(aggregate) {
+        let ident = crate::bridging::corrects_flag_field(&ev);
+        arms.push(exemplar.render("fielded_corrects_flag_arm", &[("\"tmpl_field\"", naming::ruby_inspect_string(&ident)), ("tmpl_ident", ident)]));
+    }
 
     let arms: Vec<String> = arms.iter().map(|a| format!("            {a}")).collect();
 

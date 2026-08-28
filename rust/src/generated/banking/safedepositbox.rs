@@ -74,7 +74,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "BranchCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "BranchCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("BranchCode.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()) })? },
         })
     }
 }
@@ -297,7 +297,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "VisitDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitDate.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "VisitDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("VisitDate.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VisitDate.value: expected String".to_string()) })? },
         })
     }
 }
@@ -357,7 +357,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        text: { let x = v.require("text", "VisitNote")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitNote.text: expected String".to_string()))? },
+        text: { let x = v.require("text", "VisitNote")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("VisitNote.text expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VisitNote.text: expected String".to_string()) })? },
         })
     }
 }
@@ -432,7 +432,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "KeySerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeySerial.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "KeySerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("KeySerial.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("KeySerial.value: expected String".to_string()) })? },
         })
     }
 }
@@ -646,9 +646,9 @@ pub fn dispatch_entity_visit_annotate(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) } },
-            crate::kernel::GivenSpec { description: "visit is logged", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("logged".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "visit is logged", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("logged".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["logged"] }),
         |record| {
@@ -818,9 +818,9 @@ pub fn dispatch_entity_keyissuance_return(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) } },
-            crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
         |record| {
@@ -894,7 +894,7 @@ impl SafeDepositBox {
 impl SafeDepositBox {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer: expected String".to_string()))?), },
+        customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("SafeDepositBox.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer: expected String".to_string()) })?), },
         branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(&x.coerce_single_field("value"))?), },
         box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(&x.coerce_single_field("value"))?), },
         size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(&x.coerce_single_field("value"))?), },
@@ -991,7 +991,7 @@ pub fn dispatch_rent(
         "branch_code.value, box_number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "box is vacant", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("vacant".to_string())) } },
+            crate::kernel::GivenSpec { description: "box is vacant", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("vacant".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["vacant"] }),
         |record| {
@@ -1087,8 +1087,8 @@ pub fn dispatch_surrender(
         "branch_code.value, box_number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "only a rented box is surrendered", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "only a rented box is surrendered", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
@@ -1181,8 +1181,8 @@ pub fn dispatch_log_visit(
         "branch_code.value, box_number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "only a rented box is opened", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "only a rented box is opened", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -1273,8 +1273,8 @@ pub fn dispatch_issue_key(
         "branch_code.value, box_number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {

@@ -51,11 +51,37 @@ use super::{query_comparators, Json};
 /// exactly like `QuerySpecification::Common::OrderBy` (lib/hecks/
 /// query_specification/common/order_by.rb); `descending` collapses Ruby's
 /// own `direction.to_s == "desc"` test to a bool once, at codegen time,
-/// rather than re-testing a string on every row compared.
+/// rather than re-testing a string on every row compared. `nulls` is a
+/// declared `nulls :first`/`:last` (`QuerySpecification::Common::
+/// NullSemantics`, Phase 10 of the equivalence-gap plan) — a SEPARATE,
+/// top-level query option in Ruby's own IR (not nested inside `order_by`
+/// there), but folded into this same struct here since it only ever means
+/// anything alongside a declared order, and every real generated
+/// `OrderBy` already carries one.
 #[derive(Debug, Clone, Copy)]
 pub struct OrderBy {
     pub field: &'static str,
     pub descending: bool,
+    pub nulls: NullsMode,
+}
+
+/// `QuerySpecification::Common::NullSemantics#mode` — `native` (the
+/// default; `Query#to_h`'s own `extra_options_to_h` strips a `{mode:
+/// "native"}` null_semantics off the wire entirely, so a generated
+/// `OrderBy` reads this variant whenever the source declared no `nulls`
+/// at all) plus the two real overrides. `NullPolicy.order`'s own `case
+/// policy&.mode.to_s; when "first"...when "last"...else...` has no
+/// validation on `mode` at all (`nulls(mode)` — lib/hecks/
+/// query_specification/common/dsl.rb — accepts anything) — an
+/// unrecognized mode falls through to the SAME `else` (native) arm a
+/// real absence does, never a refusal, so this generator matches that:
+/// `rust/project/queries.rb`'s own `null_semantics_variant` maps anything
+/// that isn't literally `"first"`/`"last"` to `Native` too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NullsMode {
+    Native,
+    First,
+    Last,
 }
 
 /// A declared `limit N` — either a literal count baked in at codegen
@@ -72,14 +98,27 @@ pub enum Limit {
     Arg(&'static str),
 }
 
+/// A declared `offset N` reuses `Limit` directly rather than a separate
+/// `Offset` enum — `Runtime::QueryInterpreter#interpret`'s own
+/// `resolve_query_value(declared.offset.value, args).to_i` is the
+/// IDENTICAL Literal/Arg resolution `declared.limit.value` already gets
+/// (both ride `QuerySpecification.render_value`'s same wire encoding),
+/// so two fields with the same shape and the same resolution rule share
+/// one Rust type instead of duplicating it. Only `named_query::QueryDef`
+/// carries this field today — `read_model::ReadModelDef` still refuses a
+/// declared `offset` at codegen time (`read_models.rb`'s own eligibility
+/// gate, unchanged by this), so `apply`'s `offset` param is always `None`
+/// on that caller's path.
+pub type Offset = Limit;
+
 /// THE SHARED TAIL of both callers' own answer: sort by identity, layer a
-/// declared order on top if there is one, cap at a declared limit if
-/// there is one. Where-FILTERING happens before this runs and is each
-/// caller's own job (`repository::filter_entries`, chained per condition
-/// — identical in both `read_model::apply_filtered_head_options` and
-/// `named_query::run`, so there was nothing to extract there; the
-/// dedicated logic to a query/read model was never the filtering, it was
-/// always this tail).
+/// declared order on top if there is one, skip a declared offset if there
+/// is one, cap at a declared limit if there is one. Where-FILTERING
+/// happens before this runs and is each caller's own job
+/// (`repository::filter_entries`, chained per condition — identical in
+/// both `read_model::apply_filtered_head_options` and `named_query::run`,
+/// so there was nothing to extract there; the dedicated logic to a
+/// query/read model was never the filtering, it was always this tail).
 ///
 /// TIER 1 — IDENTITY. `Ports::Query::Ordering.apply`'s own header: "the
 /// identity tier is what makes an ask total" — every answer is sorted by
@@ -93,11 +132,28 @@ pub enum Limit {
 /// no-op then, but a caller declaring ONLY `order_by`/`limit` (no `where`
 /// at all) still needs the same identity base Ruby's own two-tier scheme
 /// guarantees on every path.
-pub fn apply(mut rows: Vec<(String, Json)>, order_by: Option<&OrderBy>, limit: Option<&Limit>, args: &Json) -> Vec<(String, Json)> {
+///
+/// OFFSET FIRST, THEN LIMIT — `Runtime::QueryInterpreter#interpret`'s own
+/// order: `skipped = declared.offset ? ordered.drop(...) : ordered;
+/// capped = declared.limit ? skipped.first(...) : skipped` — the order
+/// SQL means by `LIMIT n OFFSET m` (skip m, then take n of what's left),
+/// not the reverse.
+pub fn apply(
+    mut rows: Vec<(String, Json)>,
+    order_by: Option<&OrderBy>,
+    offset: Option<&Offset>,
+    limit: Option<&Limit>,
+    args: &Json,
+) -> Vec<(String, Json)> {
     rows.sort_by(|a, b| a.0.cmp(&b.0));
 
     if let Some(order_by) = order_by {
         rows = apply_declared_order(rows, order_by);
+    }
+
+    if let Some(offset) = offset {
+        let n = resolve_limit(offset, args).min(rows.len());
+        rows.drain(0..n);
     }
 
     if let Some(limit) = limit {
@@ -114,24 +170,30 @@ pub fn apply(mut rows: Vec<(String, Json)>, order_by: Option<&OrderBy>, limit: O
 /// (Rust's `Vec::sort_by` is STABLE — unlike Ruby's `Array#sort_by` — so the
 /// identity order the caller already established survives ties for free,
 /// with no index tie-break to carry along by hand the way Ruby's own
-/// `NullPolicy.order` has to); reverse BOTH partitions for `desc`; then
-/// combine under the DEFAULT ("native") null policy — the only one either
-/// generator calling into this admits (`read_models.rb`'s own eligibility
-/// gate, `queries.rb`'s own, both refuse a declared `null_semantics`
-/// beyond it) — which is `NullPolicy.order`'s own `else` arm: nulls sort
-/// FIRST for ascending, LAST for descending.
+/// `NullPolicy.order` has to); reverse BOTH partitions for `desc`; THEN —
+/// same order Ruby's own `case policy&.mode.to_s` runs in, direction
+/// reversal always happens first — decide final placement by `nulls`:
+/// `First`/`Last` pin nulls to that end regardless of direction; `Native`
+/// (no declared `nulls`, or an unrecognized mode — see `NullsMode`'s own
+/// doc) falls through to the direction-dependent default: FIRST for
+/// ascending, LAST for descending.
 fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &OrderBy) -> Vec<(String, Json)> {
     let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) =
         rows.into_iter().partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
 
     valued_rows.sort_by(|(_, a), (_, b)| compare_comparable(&order_key(a, order_by.field), &order_key(b, order_by.field)));
 
-    if !order_by.descending {
-        return null_rows.into_iter().chain(valued_rows).collect();
+    if order_by.descending {
+        valued_rows.reverse();
+        null_rows.reverse();
     }
-    valued_rows.reverse();
-    null_rows.reverse();
-    valued_rows.into_iter().chain(null_rows).collect()
+
+    match order_by.nulls {
+        NullsMode::First => null_rows.into_iter().chain(valued_rows).collect(),
+        NullsMode::Last => valued_rows.into_iter().chain(null_rows).collect(),
+        NullsMode::Native if !order_by.descending => null_rows.into_iter().chain(valued_rows).collect(),
+        NullsMode::Native => valued_rows.into_iter().chain(null_rows).collect(),
+    }
 }
 
 /// A row's own declared-field value, `comparable`-reduced exactly like a

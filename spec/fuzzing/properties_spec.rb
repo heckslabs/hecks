@@ -25,9 +25,14 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
   # bluebook happened to load first.
   PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecks/grammar")
 
-  def generated_history(domain, seed)
+  # `adapter:` only ever changes WHICH REPOSITORY the replayed steps run
+  # against (IsolatedBoot's own rebind) — sequence GENERATION itself stays
+  # Memory always (SequenceGenerator's own job is discovering a valid step
+  # list, not observing storage behavior, so paying Sqlite's real-file cost
+  # there buys nothing; see isolated_boot.rb's own `adapter:` doc).
+  def generated_history(domain, seed, adapter: :memory)
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
-    Hecks::Fuzzing::Replay.call(domain, steps)
+    Hecks::Fuzzing::Replay.call(domain, steps, adapter: adapter)
   end
 
   describe "the standard battery, over real generated sequences" do
@@ -49,6 +54,41 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
           result = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, steps)
 
           expect(result).to eq(true), "#{domain} seed #{seed}: #{result}"
+        end
+      end
+    end
+  end
+
+  # PRD 02 — every example above (and every declared property, ever) has
+  # only run against Memory's own hand-written Hash repository. Real
+  # queries go through a genuinely different code path against a real
+  # adapter (SqlQueryBuilder's SQL compilation, not
+  # `Ports::Query::InMemory`'s Ruby comparators) — `spec/adapters/
+  # query_agreement_spec.rb` already found 4 shipped bugs from exactly
+  # this comparison, on a fixed, far smaller, hand-authored corpus. This
+  # runs the identical standard battery a second time, same domains, same
+  # seeds, same properties, against real SQLite instead.
+  #
+  # PROPERTIES_ENTITY_MUTATIONS is deliberately excluded: it ships with no
+  # `.hecksagon` at all (Memory by construction, per its own comment
+  # above) — nothing for IsolatedBoot's rebind to rewrite, so an
+  # `adapter: :sqlite` run against it would silently still be Memory,
+  # claiming coverage it does not have.
+  #
+  # Postgres/PostgresEra stay `io: true`-gated, direct-adapter coverage
+  # (`spec/adapters/driven/postgres_*_spec.rb`) — a real server and shared
+  # connection settings have no safe place to come from in an
+  # unconditional, always-on local spec.
+  describe "the standard battery, over real generated sequences, against real SQLite" do
+    [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5]].each do |domain, seed_count|
+      it "holds for #{File.basename(domain)} across #{seed_count} seeds" do
+        (1..seed_count).each do |seed|
+          history = generated_history(domain, seed, adapter: :sqlite)
+          results = Hecks::Fuzzing::Properties.check(history)
+
+          results.each do |property, result|
+            expect(result).to eq(true), "#{domain} seed #{seed} (sqlite) — #{property}: #{result}"
+          end
         end
       end
     end

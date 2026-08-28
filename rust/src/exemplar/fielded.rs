@@ -153,6 +153,28 @@ impl TmplLifecycleHost {
     }
 }
 
+// `corrects`'s own per-record flag field — a plain, non-optional `bool`
+// (`Copy`, no `.clone()` needed), exactly like the lifecycle arm above
+// but for `Value::Bool` instead of `Value::Str`. Read by `Expr::Lookup`
+// inside a `corrects`-declaring command's own synthetic GivenSpec
+// (`commands.rb`'s own `corrects_given_specs`) the same generic way any
+// other given predicate reads any other record field.
+struct TmplCorrectsFlagHost {
+    tmpl_ident: bool,
+}
+impl TmplCorrectsFlagHost {
+    fn arm(&self) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match "x" {
+            // TMPL:fielded_corrects_flag_arm BEGIN
+            "tmpl_field" => Some(Field::Value(Value::Bool(self.tmpl_ident))),
+            // TMPL:fielded_corrects_flag_arm END
+            _ => None,
+        }
+    }
+}
+
 // The two outer skeletons. Unlike `to_json_field`'s own outer (json.rs),
 // a bare function-call marker can't stand in for "zero or more match
 // arms" — a match arm is `pattern => expr,`, not an expression on its

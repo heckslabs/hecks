@@ -58,7 +58,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RosterName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RosterName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "RosterName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RosterName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RosterName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -118,7 +118,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Motto")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Motto.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Motto")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Motto.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Motto.value: expected String".to_string()) })? },
         })
     }
 }
@@ -310,7 +310,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "MemberId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberId.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "MemberId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("MemberId.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MemberId.value: expected String".to_string()) })? },
         })
     }
 }
@@ -768,7 +768,7 @@ pub fn dispatch_entity_member_retire(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) } },
+            crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
@@ -1288,7 +1288,7 @@ pub fn dispatch_add_seat(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "seat numbers are unique", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }) } },
+            crate::kernel::GivenSpec { description: "seat numbers are unique", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -1380,8 +1380,8 @@ pub fn dispatch_enlist(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "nobody enlists twice", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("id.value")) }) } },
-            crate::kernel::GivenSpec { description: "an open seat remains", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.number.value")), right: Box::new(Expr::Lookup("s.number.value")) }) }) } },
+            crate::kernel::GivenSpec { description: "nobody enlists twice", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("id.value")) }) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "an open seat remains", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.number.value")), right: Box::new(Expr::Lookup("s.number.value")) }) }) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -1473,11 +1473,11 @@ pub fn dispatch_assign(
         "name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "the member is enlisted", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("member.value")) }) } },
-            crate::kernel::GivenSpec { description: "the seat exists", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }) } },
-            crate::kernel::GivenSpec { description: "the seat is free", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.number.value")), right: Box::new(Expr::Lookup("number.value")) }) } },
-            crate::kernel::GivenSpec { description: "the member sits nowhere else", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("member.value")) }) } },
-            crate::kernel::GivenSpec { description: "a front-row seat takes a member of age", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Find { receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }), path: &["row", "value"] }), right: Box::new(Expr::Str("back".to_string())) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::All, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("member.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("m.age.value")), right: Box::new(Expr::Int(21)) }))) })) },
+            crate::kernel::GivenSpec { description: "the member is enlisted", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("member.value")) }) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "the seat exists", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "the seat is free", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.number.value")), right: Box::new(Expr::Lookup("number.value")) }) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "the member sits nowhere else", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("assignments")), param: "a", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("member.value")) }) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "a front-row seat takes a member of age", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Find { receiver: Box::new(Expr::Lookup("seats")), param: "s", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("number.value")) }), path: &["row", "value"] }), right: Box::new(Expr::Str("back".to_string())) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::All, receiver: Box::new(Expr::Lookup("crew")), param: "m", predicate: Box::new(Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("m.id.value")), right: Box::new(Expr::Lookup("member.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("m.age.value")), right: Box::new(Expr::Int(21)) }))) })), corrects_event: None },
         ],
         None,
         |record| {
@@ -1588,7 +1588,7 @@ pub fn dispatch_retire(
                     &element_wants,
                     &target_with_references,
                     &[
-                    crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) } },
+                    crate::kernel::GivenSpec { description: "a front-row holder may not retire", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::None, receiver: Box::new(Expr::Lookup("parent.assignments")), param: "a", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("a.member.value")), right: Box::new(Expr::Lookup("id.value")) }), Box::new(Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.seats")), param: "s", predicate: Box::new(Expr::And(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.number.value")), right: Box::new(Expr::Lookup("a.number.value")) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("s.row.value")), right: Box::new(Expr::Str("front".to_string())) }))) }))) }, corrects_event: None },
                     ],
                     Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
                     |record| {

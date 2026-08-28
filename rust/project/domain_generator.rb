@@ -404,9 +404,9 @@ module RustProjection
 
           f.puts Projector.emit_record(aggregate, value_objects_by_name)
           f.puts
-          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
+          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
           f.puts
-          f.puts Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
+          f.puts Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate) + Projector.corrects_extra_fields(aggregate), aggregate: aggregate)
           f.puts
           # `dispatch`/`dispatch_entity` (kernel/dispatch.rs) are generic
           # over the record type and need `record.to_json()` to build a
@@ -670,9 +670,10 @@ module RustProjection
       # for real, for the subset `queries.rb`'s own `query_skip_reason`
       # admits (one or more field-comparator conditions, ANDed, against a
       # single aggregate's OWN attributes, PLUS — as of 2026-08-11 — that
-      # same result set's own `order_by`/`limit`; still no hop/type-
-      # unrecoverable literal/offset/cursor/consistency/freshness/
-      # authorization/null_semantics/inspection/use_index). A "per_instance"
+      # same result set's own `order_by`/`limit`, PLUS — as of Phase 10,
+      # equivalence-gap plan — its own `offset` and a declared `nulls`
+      # override too; still no hop/type-unrecoverable literal/cursor/
+      # consistency/freshness/inspection/use_index). A "per_instance"
       # gap now, not "whole_kind" — the CONSTRUCT KIND has a real code path;
       # a specific declared query still lacking a row is a per-instance
       # shape this generator doesn't cover, the same distinction every
@@ -693,9 +694,11 @@ module RustProjection
           query_defs << {
             verb: query_verb,
             aggregate: "#{domain_name}::#{aggregate[:name]}",
-            conditions: Projector.query_conditions(query),
-            order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by]) : nil,
+            conditions: Projector.query_conditions_with_authorization(query),
+            order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
+            offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
             limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
+            authorization: Projector.emit_query_authorization(query[:name], query[:authorization]),
           }
         end
       end
@@ -846,6 +849,12 @@ module RustProjection
         f.puts
         f.puts Projector.emit_query_table(query_defs)
         f.puts
+        read_model_defs.each do |rmd|
+          next unless rmd[:group_by_fn_body]
+
+          f.puts rmd[:group_by_fn_body]
+          f.puts
+        end
         f.puts Projector.emit_read_model_table(read_model_defs)
       end
       puts "wrote #{registry_path}"

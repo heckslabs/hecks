@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "SyntaxName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "SyntaxName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("SyntaxName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -650,7 +650,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "KeywordSeedText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordSeedText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "KeywordSeedText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("KeywordSeedText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("KeywordSeedText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -710,7 +710,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ArgumentSeedText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentSeedText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ArgumentSeedText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ArgumentSeedText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ArgumentSeedText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -1376,7 +1376,7 @@ impl Syntax {
 impl Syntax {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Syntax.bluebook: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Syntax.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Syntax.bluebook: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(SyntaxName::from_json(&x.coerce_single_field("value"))?), },
         keywords: match v.get("keywords").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Keyword::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         arguments: match v.get("arguments").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },

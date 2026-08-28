@@ -15,6 +15,21 @@ require_relative "../rust/project"
 require "fileutils"
 require "json"
 
+# `merged.rs` (both meta's own and a target domain's own, below) needs
+# each read model's own `group_by_fn_body` written into the SAME file
+# `emit_read_model_table` is about to reference by bare function name —
+# `registry.rs` gets this via `domain_generator.rb`'s own emission loop,
+# but `merged.rs` is a wholly separate `File.open` block this script
+# builds itself, so it needs the identical emission repeated here.
+def emit_group_by_bodies(f, read_models)
+  read_models.each do |rmd|
+    next unless rmd[:group_by_fn_body]
+
+    f.puts rmd[:group_by_fn_body]
+    f.puts
+  end
+end
+
 # ADR 0033 — the era/lineage subsystem (including `PostgresEra`) moved
 # behind a loadable persistence plugin core no longer requires. This
 # generator has to handle whatever domain it's pointed at, lineage-capable
@@ -312,6 +327,7 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_query_table(meta_result[:queries])
     f.puts
+    emit_group_by_bodies(f, meta_result[:read_models])
     f.puts RustProjection::Projector.emit_read_model_table(meta_result[:read_models])
   end
   puts "wrote #{meta_merged_path}"
@@ -420,6 +436,7 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_query_table(merged_queries)
     f.puts
+    emit_group_by_bodies(f, merged_read_models)
     f.puts RustProjection::Projector.emit_read_model_table(merged_read_models)
   end
   puts "wrote #{merged_path}"

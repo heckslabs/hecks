@@ -2108,6 +2108,35 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \tcp $(WASM) .aws-sam/build/#{logical_id}/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} .aws-sam/build/#{logical_id}/#{domain_name}.ir.json) : ""}
   \truby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "#{logical_id}:" } or raise "restore-#{logical_id}-build: #{logical_id} resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-#{logical_id}-build: no CodeUri line found under #{logical_id}"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: #{logical_id}"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
+  # `make verify-parity-#{logical_id}` — closes the exact gap the
+  # equivalence-gap plan's own Phase 8 named: parity was checked ONLY
+  # against CI's fixed test corpus, completely decoupled from what a
+  # real `sam deploy` actually ships — `bin/rust_conformance` (the
+  # differential harness, docs/decisions/0010-ruby-is-the-reference-
+  # implementation.md) had never once been run against a specific
+  # compiled deploy artifact. Runs it here, for real, against
+  # $(WASM) -- the EXACT file `build-#{logical_id}` (above) just built
+  # and `deploy:` (below) is about to ship -- not a corpus-wide `cargo
+  # build`'s own separate binary. `bin/rust_conformance` exits non-zero
+  # on any mismatch, which this target lets propagate uncaught: a real
+  # divergence between THIS artifact and Ruby's own reading of the
+  # identical source blocks `make deploy` before `sam deploy` ever
+  # runs, the same way a failing build already would.
+  #
+  # `spec/corpus/#{domain_name}.json` is this domain's OWN pinned
+  # fuzzer-replay script (the same shape `bin/fuzz`/`bin/run` already
+  # use) -- if a domain doesn't have one yet, this warns LOUDLY and
+  # continues rather than either silently skipping (this project's own
+  # standing rule against a silent gap reading as full coverage) or
+  # blocking every deploy of a domain nobody has written one for yet.
+  .PHONY: verify-parity-#{logical_id}
+  verify-parity-#{logical_id}:
+  \t@if [ -f #{root}/spec/corpus/#{domain_name}.json ]; then \\
+  \t\tcd #{root} && bin/rust_conformance #{domain} spec/corpus/#{domain_name}.json $(WASM); \\
+  \telse \\
+  \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (bin/fuzz/bin/run's own script shape) before this domain's next deploy."; \\
+  \tfi
+
   # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
   # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
   # resolve" (template.yaml's own env vars already assume era 1 —
@@ -2297,11 +2326,11 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   .PHONY: deploy mint-era
   deploy:
   #{if pg_version
-      "\t# TWO SEPARATE builds, not one `--use-container` run -- that flag is\n\t# global to `sam build`, but #{logical_id} deliberately builds on\n\t# THIS machine's own toolchain (cargo-lambda already cross-compiles\n\t# to arm64 without a container -- build-#{logical_id}'s own comment\n\t# on why), which a generic provided.al2023 container doesn't have\n\t# at all (a real, live \"Make Failed\" caught this). Only #{web_logical_id}\n\t# needs the container, to cross-compile pg's native extension for\n\t# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before\n\t# building just the one named, so #{logical_id}'s own build gets\n\t# restored below (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build --use-container #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) patch-pg-native"
+      "\t# TWO SEPARATE builds, not one `--use-container` run -- that flag is\n\t# global to `sam build`, but #{logical_id} deliberately builds on\n\t# THIS machine's own toolchain (cargo-lambda already cross-compiles\n\t# to arm64 without a container -- build-#{logical_id}'s own comment\n\t# on why), which a generic provided.al2023 container doesn't have\n\t# at all (a real, live \"Make Failed\" caught this). Only #{web_logical_id}\n\t# needs the container, to cross-compile pg's native extension for\n\t# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before\n\t# building just the one named, so #{logical_id}'s own build gets\n\t# restored below (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build --use-container #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) patch-pg-native\n\t$(MAKE) verify-parity-#{logical_id}"
     elsif web_handler_present
-      "\t# TWO SEPARATE builds -- #{web_logical_id} has no native extension to\n\t# cross-compile (no `pg` in #{domain}/Gemfile.lock), so a plain `sam\n\t# build` targets it fine; #{logical_id} still gets its own `sam build\n\t# <resource>` first, then restored below -- `sam build <resource>`\n\t# WIPES .aws-sam/build/ before building just the one named, so the\n\t# second call here would otherwise erase #{logical_id}'s own build\n\t# (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build"
+      "\t# TWO SEPARATE builds -- #{web_logical_id} has no native extension to\n\t# cross-compile (no `pg` in #{domain}/Gemfile.lock), so a plain `sam\n\t# build` targets it fine; #{logical_id} still gets its own `sam build\n\t# <resource>` first, then restored below -- `sam build <resource>`\n\t# WIPES .aws-sam/build/ before building just the one named, so the\n\t# second call here would otherwise erase #{logical_id}'s own build\n\t# (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) verify-parity-#{logical_id}"
     else
-      "\tsam build"
+      "\tsam build\n\t$(MAKE) verify-parity-#{logical_id}"
     end}
   #{shared ? "" : <<~PREDEPLOYBRIDGE.each_line.map { |l| "\t" + l }.join.rstrip
       # THE TRANSACTION-SAFETY GAP, closed for the case that actually

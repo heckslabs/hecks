@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ProcessManagerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ProcessManagerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProcessManagerName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -132,7 +132,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ProcessManagerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ProcessManagerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProcessManagerText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -192,7 +192,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: { let x = v.require("name", "SagaState")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()))? },
+        name: { let x = v.require("name", "SagaState")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("SagaState.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()) })? },
         })
     }
 }
@@ -252,7 +252,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "HandlerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "HandlerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("HandlerText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("HandlerText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -312,7 +312,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "DispatchText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "DispatchText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("DispatchText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DispatchText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -375,8 +375,68 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))? },
-        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))? },
+        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Binding.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()) })? },
+        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Binding.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()) })? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DispatchPosition {
+    pub value: i64,
+}
+
+impl crate::kernel::Fielded for DispatchPosition {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") { Some(crate::kernel::Field::Value(v)) => Some(v), _ => None }
+    }
+}
+
+
+impl DispatchPosition {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl DispatchPosition {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl DispatchPosition {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DispatchPosition does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.require("value", "DispatchPosition")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("DispatchPosition.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -612,6 +672,7 @@ impl Handler {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dispatch {
     pub command_name: DispatchText,
+    pub position: DispatchPosition,
     pub with_spec: Vec<Binding>,
 }
 
@@ -621,6 +682,7 @@ impl crate::kernel::Fielded for Dispatch {
         use crate::kernel::Value;
         match name {
             "command_name" => Some(Field::Nested(&self.command_name)),
+            "position" => Some(Field::Nested(&self.position)),
             "with_spec" => Some(Field::Value(Value::List(self.with_spec.len()))),
             _ => None,
         }
@@ -644,6 +706,7 @@ impl Dispatch {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
         ("command_name".to_string(), self.command_name.to_json()),
+        ("position".to_string(), self.position.to_json()),
         ("with_spec".to_string(), crate::kernel::Json::Array(self.with_spec.iter().map(|x| x.to_json()).collect())),
         ])
     }
@@ -653,6 +716,7 @@ impl Dispatch {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         command_name: DispatchText::from_json(&v.require("command_name", "Dispatch")?.coerce_single_field("value"))?,
+        position: DispatchPosition::from_json(&v.require("position", "Dispatch")?.coerce_single_field("value"))?,
         with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
@@ -662,13 +726,14 @@ impl Handler {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             let c0 = v.dig("event_type.value")?.to_id_component().ok()?;
-            Some(c0)
+            let c1 = v.dig("from_state.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(":"))
         })();
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
         let by_reference_key = v.get("handler").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried event_type.value, id, handler)".to_string())
+            crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried event_type.value, from_state.value, id, handler)".to_string())
         })
     }
 }
@@ -677,7 +742,8 @@ impl Handler {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("event_type.value")?.to_id_component().ok()?;
-            Some(c0)
+            let c1 = v.dig("from_state.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(", "))
         })()
         .unwrap_or_default()
     }
@@ -685,7 +751,7 @@ impl Handler {
 
 impl Handler {
     pub fn identity(&self) -> String {
-        self.event_type.value.to_string()
+        vec![self.event_type.value.to_string(), self.from_state.value.to_string()].join(":")
     }
 }
 
@@ -695,6 +761,7 @@ impl crate::kernel::Fielded for HandlerDispatchEntityArgs {
         
         match name {
             "command_name" => Some(Field::Nested(&self.command_name)),
+            "position" => Some(Field::Nested(&self.position)),
             _ => None,
         }
     }
@@ -717,12 +784,14 @@ impl crate::kernel::Fielded for HandlerDispatchEntityArgs {
 #[derive(Debug, Clone)]
 pub struct HandlerDispatchEntityArgs {
     pub command_name: DispatchText,
+    pub position: DispatchPosition,
 }
 
 impl HandlerDispatchEntityArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
-            vec![        ("command_name".to_string(), self.command_name.to_json()),]
+            vec![        ("command_name".to_string(), self.command_name.to_json()),
+        ("position".to_string(), self.position.to_json()),]
                 .into_iter()
                 .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
                 .collect(),
@@ -735,6 +804,7 @@ impl HandlerDispatchEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         command_name: DispatchText::from_json(&v.require("command_name", "HandlerDispatchEntityArgs")?.coerce_single_field("value"))?,
+        position: DispatchPosition::from_json(&v.require("position", "HandlerDispatchEntityArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -745,6 +815,7 @@ pub fn dispatch_entity_handler_dispatch(
     mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.command_name.check_invariants()?;
+        args.position.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch_entity(
@@ -758,7 +829,7 @@ pub fn dispatch_entity_handler_dispatch(
         "ProcessManager",
         "bluebook, name.value",
         "Handler",
-        "event_type.value",
+        "event_type.value, from_state.value",
         element_wants,
         &with_references,
         &[
@@ -766,7 +837,7 @@ pub fn dispatch_entity_handler_dispatch(
         ],
         None,
         |record| {
-        record.dispatches.push(Dispatch { command_name: args.command_name.clone(), with_spec: Vec::new() });
+        record.dispatches.push(Dispatch { command_name: args.command_name.clone(), position: args.position.clone(), with_spec: Vec::new() });
             Ok(())
         },
         &[
@@ -839,7 +910,7 @@ impl ProcessManager {
 impl ProcessManager {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager.bluebook: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ProcessManager.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ProcessManager.bluebook: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerName::from_json(&x.coerce_single_field("value"))?), },
         correlates_by: match v.get("correlates_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
         starts_on: match v.get("starts_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },

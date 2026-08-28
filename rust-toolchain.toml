@@ -1,0 +1,42 @@
+# Phase 9 (equivalence-gap plan) — no toolchain pin existed anywhere in
+# this repo before this file, and CI had none either (ubuntu-latest's
+# ambient rustc, whatever that happens to be on a given run) — meaning a
+# contributor's local rustc could silently drift from CI's, or from
+# another contributor's, with nothing to catch it.
+#
+# `rust/host` needs rustc >=1.94.1 (the currently-locked `aws-config`/
+# `aws-sdk-lambda` 1.94.1) and, separately and independently, `wasmtime`
+# 47.0.3 needs exactly rustc >=1.94.0 — confirmed the real binding
+# constraint (downgrading the AWS SDK alone doesn't avoid it; an older
+# wasmtime major version would be a much larger architectural change).
+# 1.98.0 is pinned here, not a floating "stable" channel spec, because a
+# `rust-toolchain.toml` exists specifically to make a build
+# byte-reproducible across machines and time — "stable" drifts the exact
+# thing this file exists to stop drifting. Confirmed working, this
+# session, for real: `rust/host` builds clean (`cargo build`,
+# `cargo build --bin lineage_harness`), and every previously-`pending`
+# example in `spec/rust_host_lineage_conformance_spec.rb` (blocked purely
+# on "cargo build --bin lineage_harness failed" against the older
+# toolchain that used to be the only one this environment resolved to)
+# now runs and passes for real — 5/5, including the real-Postgres,
+# RLS-fenced-app-role case.
+#
+# A REAL, SEPARATE CAVEAT, WORTH RECORDING HONESTLY RATHER THAN
+# ASSUMING THIS FILE ALONE FIXES EVERY MACHINE: this file only takes
+# effect for a `cargo`/`rustc` invocation that actually goes THROUGH
+# rustup's own proxy binaries (`~/.cargo/bin/{cargo,rustc}`), which is
+# the standard, rustup-recommended PATH order (rustup's own installer
+# puts `~/.cargo/bin` first) but is NOT guaranteed on every machine — a
+# separately-installed rustc earlier on PATH (Homebrew, in particular)
+# resolves directly to ITS OWN binary, bypassing rustup — and therefore
+# this file — entirely, no matter what it says. `bin/project_deploy`'s
+# own generated Makefile already worked around exactly this for its own
+# `cargo lambda build` step (`rustup run stable`, its own comment has
+# the full story) before this file existed. If a real `cargo build`
+# under `rust/host` still resolves to a pre-1.94.1 rustc despite this
+# file, check `which cargo`/`which rustc` before assuming this pin is
+# broken — the fix on a machine like that is reordering PATH (or
+# `rustup run 1.98.0 cargo ...` explicitly) once, at the shell level,
+# not touching this file.
+[toolchain]
+channel = "1.98.0"

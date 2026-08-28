@@ -282,6 +282,25 @@ module RustProjection
       end
     end
 
+    # `clamp:`'s own bounds — always a literal two-element `[min, max]`
+    # Array of Integers (`Bluebook::Behaviour::Mutation#classified_source`:
+    # anything that isn't a Symbol or a StateRef is `{kind: "literal",
+    # value: source}` untouched, and `CommandBuilder#sets_impl`'s own
+    # `clamp:` kwarg only ever receives the bare Array a bluebook author
+    # wrote — `sets :field, clamp: [min, max]`). `nil`, not raise, for
+    # anything else — a non-literal source, a wrong-length Array, or a
+    # non-Integer bound (this generator's own Integer-only scope,
+    # matching `integer_field_of`/`arithmetic_target_field`, not widened
+    # here either) — `command_skip_reason`'s half of this pairing.
+    def clamp_bounds_ints(source)
+      return nil unless source[:kind] == "literal"
+
+      value = source[:value]
+      return nil unless value.is_a?(Array) && value.size == 2 && value.all? { |v| v.is_a?(Integer) }
+
+      value
+    end
+
     # An aggregate attribute a CREATING command's own arguments never
     # mention — `Runtime::Instance.defaults`/`.default_for`, read directly:
     # every declared attribute gets a value the moment a record is minted,

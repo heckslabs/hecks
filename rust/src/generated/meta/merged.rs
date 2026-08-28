@@ -476,7 +476,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
               let args = crate::generated::meta::command::ChangeArgs::from_json(facts_json)?;
                       args.target.check_invariants()?;
-                      if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\" — got ", args.op.value))); }
+                      if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\", \"corrects\" — got ", args.op.value))); }
                       args.op.check_invariants()?;
                       args.field.check_invariants()?;
                       args.kind.check_invariants()?;
@@ -956,6 +956,7 @@ pub fn dispatch_by_name(
               let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let element_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?;
                       args.command_name.check_invariants()?;
+                      args.position.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Dispatch", caller_role)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -1239,7 +1240,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Bluebook::Policy.Bind" => &["key", "value"],
         "Bluebook::ProcessManager.State" => &["name"],
         "Bluebook::ProcessManager.Handler" => &["event_type", "from_state", "to_state"],
-        "Bluebook::ProcessManager.Handler.Dispatch" => &["command_name"],
+        "Bluebook::ProcessManager.Handler.Dispatch" => &["command_name", "position"],
         "Bluebook::ReadModel.Gather" => &["aggregate", "as", "many"],
         "Bluebook::ReadModel.GroupBy" => &["field"],
         "Bluebook::ReadModel.Count" => &["count"],
@@ -1271,8 +1272,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::Bluebook.Called",
@@ -1281,7 +1284,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "name", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("name") },
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::Command.DeclaredIn",
@@ -1289,8 +1294,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::Entity.DeclaredIn",
@@ -1298,8 +1305,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::Policy.DeclaredIn",
@@ -1307,8 +1316,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::ProcessManager.DeclaredIn",
@@ -1316,8 +1327,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::ReadModel.DeclaredIn",
@@ -1325,8 +1338,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "bluebook", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::Query.DeclaredIn",
@@ -1334,8 +1349,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Bluebook::ValueObject.DeclaredIn",
@@ -1343,8 +1360,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "aggregate", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 ];
 

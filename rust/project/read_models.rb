@@ -52,8 +52,8 @@ module RustProjection
     # WHAT THIS STILL DELIBERATELY DOES NOT COVER, AND WHY — read together
     # with `read_model_skip_reason` below:
     #
-    #   `offset`/`cursor`/`consistency`/`authorization` (TenantScope) /
-    #   `null_semantics` beyond the default/`inspection` — real
+    #   `cursor`/`consistency`/
+    #   `inspection` — real
     #   capabilities `Ports::Query::InMemory`/`Ports::Query::Ordering`/
     #   `TenantScope` implement that this generator does not port, the
     #   SAME boundary `queries.rb` already draws for a declared AGGREGATE
@@ -61,7 +61,21 @@ module RustProjection
     #   applied consistently here now that where/order_by/limit
     #   themselves have crossed over. `freshness`/`use_index` are NOT in
     #   this list — see `READ_MODEL_BARE_KEYS` below for why tolerating
-    #   them is honest, not a shortcut.
+    #   them is honest, not a shortcut. `offset`/`null_semantics`/
+    #   `authorization` used to be in this list too — Phase 10
+    #   (equivalence-gap plan) ported all three, reusing `queries.rb`'s own
+    #   `declared_offset_skip_reason`/`emit_query_order_by`'s own
+    #   `null_semantics_variant`/`declared_authorization_skip_reason`
+    #   directly (no read-model-specific content check needed for any of
+    #   them — the exact same shapes/fallback rules apply whether the
+    #   declaring construct was a Query or a ReadModel). `authorization`
+    #   specifically has no real corpus read model to prove it against
+    #   today (unlike the AGGREGATE-query port, which closed a real,
+    #   previously-refused `Banking::SafeDepositBox.Rented`) — ADR 0041
+    #   has the honest accounting of why it was ported anyway (the
+    #   mechanism is byte-identical to the already-proven query path, not
+    #   new design) and what's verified against instead (a purpose-built
+    #   fixture).
     #
     #   A `where`/`order_by` whose own field this generator can't safely
     #   express — a hop through a reference, an entity-scoped field, a
@@ -121,7 +135,8 @@ module RustProjection
     # read model carries it now, `[]` when nothing was declared — and it
     # has to be checked by VALUE instead, explicitly, right below.
     READ_MODEL_BARE_KEYS = %i[name description reference_name reference_target query_name aggregate_heads
-                              wheres order_by limit freshness index_hints group_by].freeze
+                              wheres order_by offset limit freshness index_hints group_by null_semantics
+                              authorization count median_field].freeze
 
     # One declared read model's own eligibility — `nil` (clean) or a
     # specific, honest reason string, the same "one gate every other
@@ -133,15 +148,16 @@ module RustProjection
 
       # A GENUINE `group_by` declaration (a non-empty value, not just the
       # key's own unconditional presence — see `READ_MODEL_BARE_KEYS`'s
-      # own comment) is real scope this generator doesn't cover, the exact
-      # gap `main`'s own rootless-read-model work opened: no rootless
-      # concept, no nesting-by-field concept, nothing here to bake it into.
-      # Checked before the `reference_to`/root-fetch check below on
-      # purpose — a rootless, `group_by`'d read model (`AccountsByKind`)
-      # has no `reference_target` at all, and reporting THAT as "no
-      # matching aggregate head" would be a true but misleading reason
-      # next to the real, honest one this check gives instead.
-      return read_model_options_skip_reason([:group_by]) if Array(read_model[:group_by]).any?
+      # own comment). Checked before the `reference_to`/root-fetch check
+      # below on purpose — a rootless, `group_by`'d read model
+      # (`AccountsByKind`) has no `reference_target` at all, and reporting
+      # THAT as "no matching aggregate head" would be a true but
+      # misleading reason next to the real, honest one this check gives
+      # instead. Ported for the ONE real shape the corpus declares — a
+      # SINGLE rootless head, group_by alone (no where/order/limit/
+      # offset/count/median/authorize alongside it) — see
+      # `group_by_skip_reason`.
+      return group_by_skip_reason(read_model, aggregates_by_name, unsupported_names) if Array(read_model[:group_by]).any?
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }
@@ -154,12 +170,15 @@ module RustProjection
         return reason if reason
       end
 
-      read_model_options_content_skip_reason(read_model, aggregates_by_name)
+      reason = read_model_options_content_skip_reason(read_model, aggregates_by_name)
+      return reason if reason
+
+      aggregation_skip_reason(read_model, aggregates_by_name)
     end
 
     def read_model_options_skip_reason(extra)
-      "declares #{extra.map(&:to_s).sort.join(', ')} — out of scope for this generator: offset/cursor/" \
-        "consistency/authorization(TenantScope)/null_semantics beyond the default/inspection are real " \
+      "declares #{extra.map(&:to_s).sort.join(', ')} — out of scope for this generator: cursor/" \
+        "consistency/inspection are real " \
         "capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator " \
         "does not port (this file's own header has the full argument, the same boundary queries.rb already " \
         "draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — " \
@@ -201,6 +220,16 @@ module RustProjection
         return "eligible head #{head[:aggregate]}'s own #{reason}" if reason
       end
 
+      # `declared_authorization_skip_reason` — reused from `queries.rb`
+      # wholesale (it's already generic over "some aggregate, some
+      # authorization hash," nothing query-specific in it), aimed at the
+      # ELIGIBLE HEAD's own aggregate — `read_model_filtered_head_as`
+      # above already treats a real `authorization.tenant` as one of the
+      # things that makes a head eligible in the first place, the same
+      # way Ruby's own `filtered_head_name` does.
+      auth_reason = declared_authorization_skip_reason(read_model[:authorization], aggregate, value_objects_by_name)
+      return auth_reason if auth_reason
+
       # `declared_order_by_skip_reason`/`declared_limit_skip_reason` — moved
       # to `queries.rb` (2026-08-11), not defined here: a declared AGGREGATE
       # query needed the IDENTICAL field-kind/literal-shape checks for its
@@ -212,7 +241,45 @@ module RustProjection
       order_reason = declared_order_by_skip_reason(read_model[:order_by], aggregate, value_objects_by_name)
       return order_reason if order_reason
 
+      offset_reason = declared_offset_skip_reason(read_model[:offset])
+      return offset_reason if offset_reason
+
       declared_limit_skip_reason(read_model[:limit])
+    end
+
+    # `count`/`median`'s own eligibility, checked LAST — after the
+    # ordinary where/order_by/limit/offset content check already passed
+    # for the eligible head, since both real corpus declarations
+    # (`DisputedPaymentCount`/`DisputedPaymentMedian`) reuse that SAME
+    # `where(status: "disputed")` machinery `ComplianceDashboard` already
+    # generates unchanged — `count`/`median` are reductions of the
+    # already-filtered row set, not a separate shape needing its own root/
+    # head eligibility check the way `group_by`'s narrower rootless-only
+    # slice did. `seal_aggregation` (Ruby, build time) already guarantees
+    # exactly one many-side head, and mutual exclusion with `group_by`/
+    # with each other, by the time this ever runs — this doesn't re-derive
+    # either. `count` needs no further check at all (a bare row count has
+    # nothing to validate); `median`'s own FIELD is the one genuinely new
+    # thing to confirm: does it name a real attribute on the eligible
+    # many-side head's own aggregate, and is it numeric (`Runtime::
+    # ReadModelInterpreter#aggregation_target`'s own check, ported here via
+    # `query_field_kind` — the SAME "comparable reduces to a JSON number"
+    # rule the generated `kernel::read_model::median` function's own
+    # runtime reduction relies on, reused rather than re-derived).
+    def aggregation_skip_reason(read_model, aggregates_by_name)
+      return nil unless read_model[:median_field]
+
+      target = read_model[:aggregate_heads].find { |head| head[:many] }
+      aggregate = aggregates_by_name[target[:aggregate]]
+      value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+
+      field = read_model[:median_field].to_s
+      kind = query_field_kind(aggregate, field, value_objects_by_name)
+      return "median names #{field.inspect}, but #{target[:aggregate]} declares no such attribute — not generated yet" if kind == :unknown
+      return "median names #{field.inspect} on #{target[:aggregate]}, which is not numeric — median needs a numeric " \
+             "field (a bare number, or a value object carrying one) — not generated yet" unless kind == :number
+
+      nil
     end
 
     # A REAL, NEWLY-CONFIRMED BOUNDARY, distinct from every other gap
@@ -247,6 +314,43 @@ module RustProjection
       return "includes #{head[:aggregate]}, which this domain never declares" unless target
       return "includes #{head[:aggregate]}, which this generator couldn't itself generate " \
              "(unsupported attribute type — see this domain's own aggregate-level manifest entry)" if unsupported_names.include?(head[:aggregate])
+
+      nil
+    end
+
+    # `group_by`'s own eligibility — deliberately narrow, the ONE real
+    # shape the corpus declares (`Banking::AccountsByKind`): a single
+    # ROOTLESS head (`ReadModelInterpreter#group_by_target`'s own
+    # `target = model.aggregate_heads.find { |head| head[:many] }` only
+    # ever needs to consider one candidate when there's only one head at
+    # all), group_by alone — no where/order/limit/offset/count/median/
+    # authorize declared alongside it, each its own genuinely different
+    # shape this generator doesn't ALSO attempt to combine with grouping
+    # in the same pass. `seal_group_by`'s own build-time refusal (Ruby)
+    # already guarantees at most one many-side head when group_by is
+    # declared at all — this doesn't re-derive that, only refuses
+    # generating anything this narrower slice doesn't cover yet.
+    def group_by_skip_reason(read_model, aggregates_by_name, unsupported_names)
+      heads = read_model[:aggregate_heads]
+      return "declares group_by across #{heads.size} aggregate heads — not generated yet (only a single, rootless head is)" if heads.size != 1
+      return "declares group_by on a NON-rootless read model (reference_to #{read_model[:reference_target]}) — not generated yet" unless read_model[:reference_target].nil?
+      return "declares group_by alongside count/median — not generated yet" if read_model[:count] || read_model[:median_field]
+      return "declares group_by alongside where/order_by/limit/offset — not generated yet" if Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
+      return "declares group_by with an authorize policy — not generated yet" if read_model[:authorization]
+
+      head = heads.first
+      reason = read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
+      return reason if reason
+
+      aggregate = aggregates_by_name[head[:aggregate]]
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
+      Array(read_model[:group_by]).each do |row|
+        field_s = row[:field].to_s
+        next if aggregate[:attributes].any? { |a| a[:name].to_s == field_s }
+        next if field_s == lifecycle_field
+
+        return "group_by names #{field_s.inspect}, but #{aggregate[:name]} declares no such attribute — not generated yet"
+      end
 
       nil
     end
@@ -314,10 +418,16 @@ module RustProjection
     # emit one, and picks the same style precedent already set).
     # `order_by`'s own compiled form — `descending` collapses Ruby's own
     # `direction.to_s == "desc"` test once, at codegen time, matching
-    # `kernel/read_model.rs`'s own `ReadModelOrderBy`.
-    def emit_read_model_order_by(order_by)
+    # `kernel/read_model.rs`'s own `ReadModelOrderBy`. `null_semantics` is
+    # a separate, sibling top-level read-model key, same as it is for a
+    # declared AGGREGATE query — `queries.rb`'s own `null_semantics_
+    # variant` reused directly rather than duplicated (`ReadModelOrderBy`
+    # is `query_ordering::OrderBy` itself, an alias — the compiled `nulls:`
+    # field means the identical thing either spelling is read through).
+    def emit_read_model_order_by(order_by, null_semantics = nil)
       descending = order_by[:direction].to_s == "desc" ? "true" : "false"
-      "crate::kernel::read_model::ReadModelOrderBy { field: #{order_by[:field].to_s.inspect}, descending: #{descending} }"
+      "crate::kernel::read_model::ReadModelOrderBy { field: #{order_by[:field].to_s.inspect}, descending: #{descending}, " \
+        "nulls: #{null_semantics_variant(null_semantics)} }"
     end
 
     # `limit`'s own compiled form — the identical Literal/Arg split
@@ -332,6 +442,14 @@ module RustProjection
 
       "crate::kernel::read_model::ReadModelLimit::Literal(#{raw.to_i})"
     end
+
+    # `offset`'s own compiled form — `crate::kernel::read_model::
+    # ReadModelOffset` is `pub type ReadModelOffset = query_ordering::
+    # Offset` (itself `= query_ordering::Limit` — see that module's own
+    # header), so this reuses `emit_read_model_limit`'s own computation
+    # and swaps only the spelled type name, the identical move `queries.rb`'s
+    # own `emit_query_offset` makes for a declared AGGREGATE query's offset.
+    def emit_read_model_offset(offset) = emit_read_model_limit(offset).sub("read_model::ReadModelLimit::", "read_model::ReadModelOffset::")
 
     # A whole declared read model, compiled to the plain data
     # `emit_read_model_def` renders — `verb` is the "Domain.Name" wire
@@ -362,16 +480,123 @@ module RustProjection
       end
 
       eligible_as = read_model_filtered_head_as(read_model)
+      group_by_fields = Array(read_model[:group_by]).map { |row| row[:field].to_s }
+      group_by_fn_name = group_by_fields.any? ? "group_by_#{read_model[:name].to_s.downcase}" : nil
 
       {
         verb: "#{domain_name}.#{read_model[:name]}",
-        reference_name: read_model[:reference_name].to_s,
+        reference_name: read_model[:reference_name] ? read_model[:reference_name].to_s : nil,
         heads: heads,
         filtered_head: eligible_as&.to_s,
-        conditions: eligible_as ? query_conditions(read_model) : [],
-        order_by: eligible_as && read_model[:order_by] ? emit_read_model_order_by(read_model[:order_by]) : nil,
+        conditions: eligible_as ? query_conditions_with_authorization(read_model) : [],
+        order_by: eligible_as && read_model[:order_by] ? emit_read_model_order_by(read_model[:order_by], read_model[:null_semantics]) : nil,
+        offset: eligible_as && read_model[:offset] ? emit_read_model_offset(read_model[:offset]) : nil,
         limit: eligible_as && read_model[:limit] ? emit_read_model_limit(read_model[:limit]) : nil,
+        authorization: eligible_as ? emit_query_authorization(read_model[:name], read_model[:authorization]) : nil,
+        group_by_fn: group_by_fn_name,
+        group_by_fn_body: group_by_fn_name ? emit_group_by_transform(group_by_fn_name, aggregates_by_name[read_model[:aggregate_heads].first[:aggregate]], group_by_fields) : nil,
+        count: !!read_model[:count],
+        median_field: read_model[:median_field] ? read_model[:median_field].to_s : nil,
       }
+    end
+
+    # The generated function `ReadModelDef.group_by` names by value
+    # (`fn(Vec<(String, Json)>) -> Json`) — `kernel/read_model.rs`'s own
+    # header on why this can't be one more data-driven field the way
+    # `offset`/`order_by` already are: which field is a single-attribute
+    # value object is a TYPE-LEVEL fact this generator has at Ruby-codegen
+    # time but the kernel's own generic `run` function never does once
+    # it's holding already-serialized `Json`.
+    #
+    # Three real jobs, in order: (1) `repository::row_json`-equivalent —
+    # add `id` back (Rust's own generated `to_json()` never carries it,
+    # unlike a live Ruby record's `to_h`); (2) keep ONLY this aggregate's
+    # own real declared attributes (+ lifecycle, + id) — EXCLUDING any
+    # synthetic field a DIFFERENT Phase 10 capability may have added to
+    # the record's own JSON shape (`corrects`'s own `emitted_*` flags,
+    # ADR 0049 — real Rust-only bookkeeping with no Ruby analog, which
+    # `Instance#to_h` never carries either); (3) recursively unwrap every
+    # single-attribute value object along the way (`unwrap_json_expr`),
+    # matching `Value.materialize_unwrapped` exactly. `kernel::read_model
+    # ::nest` (hand-written once, purely structural — no type knowledge
+    # needed for grouping/stripping itself) does the actual nesting.
+    def emit_group_by_transform(fn_name, aggregate, group_by_fields)
+      value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name].to_s, vo] }
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
+      kept_keys = aggregate[:attributes].map { |a| a[:name].to_s } + ["id"] + (lifecycle_field ? [lifecycle_field] : [])
+      keep_cond = kept_keys.map { |k| "k == #{k.inspect}" }.join(" || ")
+
+      arms = aggregate[:attributes].map do |a|
+        unwrapped = unwrap_json_expr("v", a[:type].to_s, a[:list], aggregate, value_objects_by_name)
+        "#{a[:name].to_s.inspect} => #{unwrapped},"
+      end.join("\n                    ")
+
+      fields_literal = "&[#{group_by_fields.map(&:inspect).join(', ')}]"
+
+      <<~RUST.rstrip
+        pub fn #{fn_name}(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
+            let unwrapped: Vec<crate::kernel::Json> = rows
+                .into_iter()
+                .map(|(id, record)| {
+                    let wrapped = crate::kernel::repository::row_json(id, record);
+                    match wrapped {
+                        crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(
+                            fields
+                                .into_iter()
+                                .filter(|(k, _)| #{keep_cond})
+                                .map(|(k, v)| {
+                                    let new_v = match k.as_str() {
+                    #{arms}
+                                        _ => v,
+                                    };
+                                    (k, new_v)
+                                })
+                                .collect(),
+                        ),
+                        other => other,
+                    }
+                })
+                .collect();
+            crate::kernel::read_model::nest(unwrapped, #{fields_literal})
+        }
+      RUST
+    end
+
+    # `Value.materialize_unwrapped`, ported directly — a single-attribute
+    # value object (`AccountKind{name: "current"}`) unwraps to its own
+    # bare field (`"current"`); a multi-attribute one, or an ENTITY
+    # (`Account.ledger`'s own `LedgerEntry`, which never appears in
+    # `value_objects_by_name` at all — entities and value objects are
+    # separate IR constructs), keeps its own object shape but recurses
+    # into EACH of its own declared fields the same way; a bare scalar
+    # (String/Integer/Float/Reference) or an unrecognized composite type
+    # passes through unchanged. `list:` wraps the same logic in an
+    # `Array` map — a list of value objects and a list of entities are
+    # unwrapped identically either way, matching Ruby's own
+    # `when Array then value.map { |item| materialize_unwrapped(item) }`,
+    # which never special-cases what the array HOLDS.
+    def unwrap_json_expr(expr, type_name, list, aggregate, value_objects_by_name)
+      if list
+        inner = unwrap_json_expr("item", type_name, false, aggregate, value_objects_by_name)
+        return "match #{expr} { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| #{inner}).collect()), other => other }"
+      end
+
+      vo = value_objects_by_name[type_name]
+      entity = (aggregate[:entities] || []).find { |e| e[:name].to_s == type_name.to_s }
+      fields_meta = vo ? vo[:attributes] : (entity ? entity[:attributes] : nil)
+      return expr unless fields_meta
+
+      if vo && fields_meta.size == 1
+        field = fields_meta.first
+        unwrapped = unwrap_json_expr("field_value", field[:type].to_s, field[:list], aggregate, value_objects_by_name)
+        return "match #{expr} { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == #{field[:name].to_s.inspect}).map(|(_, field_value)| #{unwrapped}).unwrap_or(crate::kernel::Json::Null), other => other }"
+      end
+
+      inner_arms = fields_meta.map do |f|
+        unwrapped = unwrap_json_expr("v", f[:type].to_s, f[:list], aggregate, value_objects_by_name)
+        "#{f[:name].to_s.inspect} => #{unwrapped},"
+      end.join(" ")
+      "match #{expr} { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { #{inner_arms} _ => v }; (k, new_v) }).collect()), other => other }"
     end
 
     def emit_read_model_def(read_model_def)
@@ -379,12 +604,18 @@ module RustProjection
       conditions = read_model_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
       filtered_head = read_model_def[:filtered_head] ? "Some(#{read_model_def[:filtered_head].inspect})" : "None"
       order_by = read_model_def[:order_by] ? "Some(#{read_model_def[:order_by]})" : "None"
+      offset = read_model_def[:offset] ? "Some(#{read_model_def[:offset]})" : "None"
       limit = read_model_def[:limit] ? "Some(#{read_model_def[:limit]})" : "None"
+      authorization = read_model_def[:authorization] ? "Some(#{read_model_def[:authorization]})" : "None"
+      reference_name = read_model_def[:reference_name] ? "Some(#{read_model_def[:reference_name].inspect})" : "None"
+      group_by = read_model_def[:group_by_fn] ? "Some(#{read_model_def[:group_by_fn]})" : "None"
+      count = read_model_def[:count] ? "true" : "false"
+      median_field = read_model_def[:median_field] ? "Some(#{read_model_def[:median_field].inspect})" : "None"
 
       <<~RUST.rstrip
         crate::kernel::read_model::ReadModelDef {
             verb: #{read_model_def[:verb].inspect},
-            reference_name: #{read_model_def[:reference_name].inspect},
+            reference_name: #{reference_name},
             heads: &[
         #{heads}
             ],
@@ -393,7 +624,12 @@ module RustProjection
         #{conditions}
             ],
             order_by: #{order_by},
+            offset: #{offset},
             limit: #{limit},
+            authorization: #{authorization},
+            group_by: #{group_by},
+            count: #{count},
+            median_field: #{median_field},
         },
       RUST
     end
@@ -406,7 +642,7 @@ module RustProjection
     READ_MODEL_TABLE_ROW_PLACEHOLDER = <<~RUST.rstrip
       crate::kernel::read_model::ReadModelDef {
           verb: "tmpl_verb",
-          reference_name: "tmpl_reference_name",
+          reference_name: Some("tmpl_reference_name"),
           heads: &[
               crate::kernel::read_model::ReadModelHead {
                   aggregate: "tmpl_aggregate",
@@ -426,8 +662,13 @@ module RustProjection
                   value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
               },
           ],
-          order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true }),
+          order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
+          offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),
           limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
+          authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field" }),
+          group_by: None,
+          count: false,
+          median_field: None,
       },
     RUST
 

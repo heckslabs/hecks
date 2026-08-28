@@ -4,6 +4,7 @@
   "version": null,
   "vision": "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.",
   "classification": "supporting",
+  "formerly_known_as": null,
   "aggregates": [
     {
       "name": "AccountFreezeReview",

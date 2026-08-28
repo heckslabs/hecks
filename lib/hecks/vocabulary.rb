@@ -150,6 +150,7 @@ module Hecks
         {"refusal"=>"TypeMismatch", "site"=>"multi_field_scalar", "template"=>"{type} has multiple fields and cannot stand in for a scalar"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"composite_identity", "template"=>"{type} is a composite identity — an identity must have exactly one field"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"numeric_field", "template"=>"{type}.{field} expects {expected}, got {offered}"}.freeze,
+        {"refusal"=>"TypeMismatch", "site"=>"non_finite_field", "template"=>"{type}.{field} must be a finite number, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"pattern_mismatch", "template"=>"{type}.{field} must match {pattern}, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"arithmetic_amount", "template"=>"{op} of {target} needs an Integer, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"arithmetic_current", "template"=>"{op} of {target} needs an Integer {target}, got {offered}"}.freeze,

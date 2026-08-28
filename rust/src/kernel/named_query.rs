@@ -10,9 +10,10 @@
 // SCOPE: exactly the subset `rust/project/queries.rb`'s own
 // `query_skip_reason` admits — one or more field-comparator conditions,
 // ANDed together, against a single aggregate's OWN attributes, PLUS (as of
-// 2026-08-11) a declared `order_by`/`limit` on that same result set —
+// 2026-08-11) a declared `order_by`/`limit` on that same result set, PLUS
+// (as of Phase 10, equivalence-gap plan) a declared `offset` on it too —
 // still no cursor/consistency/freshness/authorization/null_semantics/
-// inspection/index_hints/offset; no where clause hopping through a
+// inspection/index_hints; no where clause hopping through a
 // reference; no literal comparator value whose true JSON type the
 // exported IR can't recover; no order_by field that doesn't reduce to a
 // plain JSON string or number. A declared query outside that subset
@@ -23,17 +24,21 @@
 // GROUND TRUTH: `Runtime::QueryInterpreter#interpret`
 // (lib/hecks/runtime/query_interpreter.rb), read directly — for THIS
 // subset specifically (no hop), `interpret` and its own differential twin
-// `reference_interpret` are PROVABLY the identical answer, order_by/limit
-// included: both share the exact same `ordered`/`capped` sequence —
-// `ordered = ordered(matched, declared.order_by, declared.null_semantics)`
-// then `capped = declared.limit ? ordered.first(resolve_query_value(
-// declared.limit.value, args).to_i) : ordered` — applied AFTER the where
+// `reference_interpret` are PROVABLY the identical answer, order_by/
+// offset/limit included: both share the exact same `ordered`/`skipped`/
+// `capped` sequence — `ordered = ordered(matched, declared.order_by,
+// declared.null_semantics)`, then `skipped = declared.offset ? ordered.
+// drop(resolve_query_value(declared.offset.value, args).to_i) : ordered`
+// (OFFSET FIRST — SQL's own `LIMIT n OFFSET m` order, not the reverse),
+// then `capped = declared.limit ? skipped.first(resolve_query_value(
+// declared.limit.value, args).to_i) : skipped` — applied AFTER the where
 // clauses (`matched`), which is the only place the two interpreters ever
 // differ (`reference_where_holds?` vs plain `where_holds?`); a hop-free
 // where clause makes `reference_where_holds?` fall straight through to
 // `where_holds?` via its own early return (`return where_holds?(clause,
-// record, args) unless step`), so order_by/limit run on an IDENTICAL
-// `matched` set either way, never a second, separately-computed answer.
+// record, args) unless step`), so order_by/offset/limit run on an
+// IDENTICAL `matched` set either way, never a second, separately-computed
+// answer.
 // `kernel/cli.rs`'s STRING-form dispatch leans on exactly this property
 // to report `reference_rows` as a clone of `rows` rather than actually
 // re-running a second walk.
@@ -47,7 +52,7 @@
 // callers (a read model choosing among several aggregate heads; a query
 // ordering/capping its own single result set directly, with no head
 // selection at all).
-use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal};
+use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal, RefusalSite};
 
 /// ONE declared query, compiled. `verb` is the fully-qualified
 /// "Domain::Aggregate.QueryName" `kernel/cli.rs`'s STRING-form "query" step
@@ -69,7 +74,53 @@ pub struct QueryDef {
     pub aggregate: &'static str,
     pub conditions: &'static [QueryCondition],
     pub order_by: Option<query_ordering::OrderBy>,
+    /// `None` for the ordinary case (no declared `offset`, true for every
+    /// declared query before this field existed). `query_ordering::apply`
+    /// runs this BEFORE `limit` — see that function's own header for why.
+    pub offset: Option<query_ordering::Offset>,
     pub limit: Option<query_ordering::Limit>,
+    /// `None` for the ordinary case — no declared `authorize`, or one
+    /// declared with no `tenant:` (`Runtime::TenantScope.apply`'s own
+    /// `return declared unless tenant` — a REAL, harmless no-op in Ruby
+    /// too, not merely unsupported). See `TenantAuth`'s own doc for what
+    /// this actually does.
+    pub authorization: Option<TenantAuth>,
+}
+
+/// `authorize policy, tenant: :field` — Phase 10 of the equivalence-gap
+/// plan. Ground truth: `Runtime::TenantScope.apply` (lib/hecks/runtime/
+/// tenant_scope.rb), read directly. That module's own header is explicit
+/// about what this is and is not: "the boundary itself, made mandatory...
+/// whether THIS caller actually holds `policy` for THIS tenant needs real
+/// identity infrastructure this runtime does not have — that stays a
+/// named, open gap." `policy` itself is never read by `TenantScope.apply`
+/// at all (only `.tenant` is) — this generator matches that exactly,
+/// carrying no `policy` field here either.
+///
+/// TWO EFFECTS, both ported: (1) `args.key?(tenant)` must hold or Ruby
+/// raises `Unauthorized`/`tenant_required` — `run_cross_domain` below
+/// checks this explicitly, since a QUIETLY missing arg would otherwise
+/// resolve through `QueryConditionValue::Arg`'s own `unwrap_or(Json::
+/// Null)` miss-is-null reading and just filter to an empty (or wrong)
+/// result instead of refusing. (2) a synthetic `field == args[tenant]`
+/// where-clause gets ANDed onto the query's own declared ones
+/// (`Scoped#wheres = __getobj__.wheres + [@clause]`) — baked in at
+/// CODEGEN TIME here instead (`rust/project/queries.rb`'s own
+/// `query_conditions` appends it), since the compiled shape never
+/// changes: always `Eq` against `QueryConditionValue::Arg(tenant_field)`.
+/// `tenant_field` doing double duty as both the where-clause FIELD name
+/// and the wire ARG key name is Ruby's own convention, not an accident —
+/// `TenantScope.apply`'s `tenant = tenant.to_sym` is the one value both
+/// checks and the synthetic clause all read.
+#[derive(Debug, Clone, Copy)]
+pub struct TenantAuth {
+    /// The query's own bare declared name (`IR::Query#name` — "Rented,"
+    /// never the qualified "SafeDepositBox.Rented" verb) — `{query}` in
+    /// `RefusalSite::UnauthorizedTenantRequired`'s own template, matching
+    /// `RefusalWording.render("Unauthorized", "tenant_required", query:
+    /// declared.name, field: tenant)`'s exact placeholder value.
+    pub query_name: &'static str,
+    pub tenant_field: &'static str,
 }
 
 /// ONE where clause, compiled — `field`/`comparator` read exactly like the
@@ -98,6 +149,19 @@ pub enum QueryConditionValue {
     /// unrecoverable from the exported IR, so those queries simply have no
     /// row at all rather than a wrong or silently-approximated one.
     Literal(&'static str),
+    /// A `gt`/`gte`/`lt`/`lte` (or a numeric-kind `eq`/`ne`) literal,
+    /// baked in as a real `f64` at codegen time rather than wire text --
+    /// `rust/project/queries.rb`'s `query_where_skip_reason` only lets
+    /// one of these reach here when `query_field_kind` has already
+    /// proven the target field numeric-shaped (Integer/Float, or a
+    /// value object that collapses to one), so there's no string-vs-
+    /// number ambiguity left to resolve here: the field being numeric
+    /// is what makes it safe, not the literal text's own shape. Resolves
+    /// to `Json::Num`, never `Json::Float` -- a query condition's own
+    /// value is a comparison operand, never serialised back to a
+    /// caller, so the Int-vs-Float wire distinction `Json::Float`
+    /// exists to preserve doesn't apply here.
+    NumericLiteral(f64),
     /// A caller-bound Symbol — the declared query's OWN attribute name,
     /// read off THIS call's `args` object at dispatch time. Missing
     /// entirely reads as `Json::Null`, mirroring Ruby's own
@@ -141,6 +205,15 @@ pub fn run_cross_domain(
     args: &Json,
     cross_domain: &[(&str, &dyn AggregateScan)],
 ) -> Result<Vec<(String, Json)>, Refusal> {
+    if let Some(auth) = &def.authorization {
+        if args.get(auth.tenant_field).is_none() {
+            return Err(Refusal::Unauthorized(RefusalSite::UnauthorizedTenantRequired.render(&[
+                ("query", auth.query_name),
+                ("field", auth.tenant_field),
+            ])));
+        }
+    }
+
     let mut entries = store
         .scan(def.aggregate)
         .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)))?;
@@ -148,13 +221,14 @@ pub fn run_cross_domain(
     for condition in def.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         entries =
             repository::filter_entries_cross_domain(entries, condition.field, condition.comparator, &want, cross_domain);
     }
 
-    Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.limit.as_ref(), args))
+    Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
 }
 
 /// The lookup `kernel/cli.rs`'s STRING-form "query" step dispatches

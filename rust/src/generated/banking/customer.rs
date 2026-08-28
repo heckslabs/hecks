@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CustomerNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerNumber.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CustomerNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CustomerNumber.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CustomerNumber.value: expected String".to_string()) })? },
         })
     }
 }
@@ -148,7 +148,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: match v.get("value") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerStanding.value: expected String".to_string()))?, None => "good".to_string() },
+        value: match v.get("value") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CustomerStanding.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CustomerStanding.value: expected String".to_string()) })?, None => "good".to_string() },
         })
     }
 }
@@ -242,8 +242,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        given: { let x = v.require("given", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.given: expected String".to_string()))? },
-        family: { let x = v.require("family", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.family: expected String".to_string()))? },
+        given: { let x = v.require("given", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("PersonName.given expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PersonName.given: expected String".to_string()) })? },
+        family: { let x = v.require("family", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("PersonName.family expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PersonName.family: expected String".to_string()) })? },
         })
     }
 }
@@ -303,7 +303,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        address: { let x = v.require("address", "EmailAddress")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EmailAddress.address: expected String".to_string()))? },
+        address: { let x = v.require("address", "EmailAddress")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("EmailAddress.address expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("EmailAddress.address: expected String".to_string()) })? },
         })
     }
 }
@@ -542,7 +542,7 @@ pub fn dispatch_suspend(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
@@ -629,7 +629,7 @@ pub fn dispatch_reinstate(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is suspended", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is suspended", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["suspended"] }),
         |record| {
@@ -716,7 +716,7 @@ pub fn dispatch_close(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active or suspended", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) })) },
+            crate::kernel::GivenSpec { description: "customer is active or suspended", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) })), corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active", "suspended"] }),
         |record| {

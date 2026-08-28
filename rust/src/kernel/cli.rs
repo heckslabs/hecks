@@ -209,7 +209,41 @@ pub fn run(input: &str) -> String {
                                 ("reference_rows", rows),
                             ]));
                         }
-                        Err(refusal) => refusals.push((question.clone(), refusal)),
+                        // A refused declared-query STEP still gets a
+                        // `queries` entry in Ruby, not just a top-level
+                        // refusal — `Fuzzing::Replay#call`'s own `entry =
+                        // {query:, args:, rows: native_rows, ...}` is built
+                        // BEFORE checking `native_error`, so `rows: nil` is
+                        // a REAL key with a nil value, not an absent one,
+                        // and (for a "::"-qualified question, `has_reference`
+                        // true) `reference_rows`/`reference_error` are
+                        // populated too — from Rust's OWN independently-run
+                        // reference path, except there is only ONE compiled
+                        // path here (`named_query.rs`'s own "GROUND TRUTH"
+                        // paragraph: `run`/a hypothetical `reference_run`
+                        // are PROVABLY the identical answer for this whole
+                        // generated subset), so `error`/`reference_error`
+                        // are the identical string, not independently
+                        // computed the way Ruby's two engines are. Found
+                        // live: a real query-step refusal (Phase 10's own
+                        // `authorize`/TenantScope port) was the first fixture
+                        // ever to exercise a query step that genuinely
+                        // refuses, and `spec/rust_conformance_spec.rb`'s
+                        // own "queries" field comparison caught this queries-
+                        // entry omission immediately — a real, general,
+                        // pre-existing gap, not specific to authorization.
+                        Err(refusal) => {
+                            let message = refusal.to_string();
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", Json::Null),
+                                ("error", Json::Str(message.clone())),
+                                ("reference_rows", Json::Null),
+                                ("reference_error", Json::Str(message)),
+                            ]));
+                            refusals.push((question.clone(), refusal));
+                        }
                     },
                     None => refusals.push((
                         question.clone(),
@@ -250,7 +284,20 @@ pub fn run(input: &str) -> String {
                                 // corpus members with a bare read-model ask.
                             ]));
                         }
-                        Err(refusal) => refusals.push((question.clone(), refusal)),
+                        // Same fix as the "::"-qualified branch above, minus
+                        // `reference_rows`/`reference_error` — a read model
+                        // has no reference-interpreter twin (this block's
+                        // own comment on the success path already says so).
+                        Err(refusal) => {
+                            let message = refusal.to_string();
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", Json::Null),
+                                ("error", Json::Str(message)),
+                            ]));
+                            refusals.push((question.clone(), refusal));
+                        }
                     },
                     None => refusals.push((
                         question.clone(),

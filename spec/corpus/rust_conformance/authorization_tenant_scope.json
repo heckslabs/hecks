@@ -1,0 +1,12 @@
+{
+  "domain": "examples/banking",
+  "note": "Phase 10 (equivalence-gap plan) — a declared query's own `authorize policy, tenant: :field` (TenantScope), real for the first time. `Banking::SafeDepositBox.Rented` is the real corpus declaration (examples/banking/bluebook/safe_deposit_boxes.bluebook: `where(status: \"rented\"); order_by :branch_code; authorize :vault_access, tenant: :branch_code`). Two boxes rented in two different branches (DOWNTOWN, UPTOWN). Three query steps prove both real effects `Runtime::TenantScope.apply` (lib/hecks/runtime/tenant_scope.rb) gives this: (1) asking with NO `branch_code` arg at all REFUSES outright (Unauthorized/tenant_required) rather than silently answering with every branch's rows or an empty set; (2) asking WITH `branch_code: DOWNTOWN` returns ONLY the downtown box, not the uptown one — the synthetic `branch_code == args[branch_code]` where-clause genuinely narrows the result, not a no-op that happens to still pass; (3) asking with an unknown branch_code returns zero rows (the tenant filter, not a bug, excluding everything). A generator that silently dropped the authorization boundary entirely (treating `authorize` as inert) would pass (2) accidentally by luck of a small corpus but fail (1) and would return every branch's rows for (3)'s mismatched tenant — this fixture's three-step spread is designed so accidental fallback behavior cannot pass all three.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::SafeDepositBox.Rent", "args": {"branch_code": {"value": "DOWNTOWN"}, "box_number": {"value": 12}, "size": {"value": "medium"}, "customer": "cust-1"}},
+    {"verb": "Banking::SafeDepositBox.Rent", "args": {"branch_code": {"value": "UPTOWN"}, "box_number": {"value": 7}, "size": {"value": "small"}, "customer": "cust-1"}},
+    {"query": "Banking::SafeDepositBox.Rented"},
+    {"query": "Banking::SafeDepositBox.Rented", "args": {"branch_code": {"value": "DOWNTOWN"}}},
+    {"query": "Banking::SafeDepositBox.Rented", "args": {"branch_code": {"value": "NOWHERE"}}}
+  ]
+}

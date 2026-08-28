@@ -22056,6 +22056,20 @@
               ],
               [
                 "site",
+                "non_finite_field"
+              ],
+              [
+                "template",
+                "{type}.{field} must be a finite number, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
                 "pattern_mismatch"
               ],
               [

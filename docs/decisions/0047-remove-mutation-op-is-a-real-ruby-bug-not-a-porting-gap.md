@@ -1,0 +1,44 @@
+# `remove` mutation op — investigated, found to expose a real, already-live Ruby representation bug
+
+**Status:** Investigated, not implemented, no Rust changes made. **CORRECTION (same session, before this ADR was ever read by anyone else): the root cause stated in the first version of this ADR was wrong.** That version blamed `remove:`'s own target-value coercion; direct instrumentation of the real dispatch path showed the target value coerces correctly. The actual bug is upstream of `remove:` entirely, already live in shipped `examples/banking`, and affects more than this one mutation op. This version replaces that analysis.
+
+## What was tested, and the first (wrong) conclusion
+
+ADR 0041 listed `remove` alongside `multiply`/`clamp` as "structurally close, zero real corpus motivation." Attempting the same fixture-first discipline that shipped `multiply`/`clamp`: a purpose-built fixture (`CardPayment.RemoveTag`, `sets :tags, remove: :tag`) dispatched against real Ruby — `Authorize` with `tags: [{value: "high_risk"}, {value: "urgent"}]`, then `RemoveTag` targeting `high_risk` — succeeded with no refusal, emitted `CardTagRemoved`, but the final `tags` state still held both tags. The first pass blamed `MutationApplier#removed`'s own `Value.for_attribute(aggregate, attribute, value)` call, reasoning that `attribute` (the LIST attribute) routes into `hydrate_entity_list`, which bails out on a non-entity (value-object) list and hands back an uncoerced raw Hash.
+
+**That reasoning was checked against a second, independent fixture (`spec/fixtures/entity_list_mutations`'s own `TaggedList.RemoveTag`, an EXISTING, already-passing test) and directly contradicted**: that test removes a tag from a value-object list successfully, through the same shape of code (`EntityElement#removed_from_element`, `entity_element.rb` — the entity-owned-list sibling of `MutationApplier#removed`). Reproducing that success in isolation (a synthetic `RemoveCheck::Board` aggregate, `sets :tags, remove: :tag` at the AGGREGATE level, matching my own fixture's shape exactly) also worked. Something else was different.
+
+## The real root cause, confirmed by direct instrumentation
+
+Temporarily instrumenting `MutationApplier#removed` (reverted before this ADR was written — no production code changed) to print the class of the resolved remove-target value, in both the working and failing cases, showed **the target value resolves to a correctly-typed `Value` instance in BOTH cases** — `Value.for_attribute`'s behavior on the target was never the problem.
+
+The actual difference is in how the LIST ITSELF got populated:
+
+- **The working cases** (`entity_list_mutations`'s `TaggedList.tags`, and my own isolated `RemoveCheck::Board.tags`) build their list via `sets :tags, append: {...}` — each element individually hydrated by `appended`'s own field-construction path (`command_interpreter/mutation_applier.rb`'s `appended`/`append_field`), which DOES build a real, properly-typed `Value` per element.
+- **The failing case** (`CardPayment.tags`, populated by `Authorize`'s bare `sets :tags` — a `:set` mutation sourced from the WHOLE ARRAY argument, not built element-by-element) goes through `Value.for`/`Value.for_attribute` with the LIST attribute itself and the FULL ARRAY as `value`. `attribute.list?` is true, so it routes into `hydrate_entity_list(aggregate, attribute, value)` — `find_entity(aggregate, "Tag")` searches only `construct.entities` and finds nothing (Tag is a value object, not an entity), so `hydrate_entity_list` bails: `return value unless entity` — handing back the **entire original array, completely unhydrated**. The stored `tags` attribute ends up holding plain Ruby Hashes, never `Value` instances, confirmed directly (`element classes: [Hash]`) against **completely unmodified `examples/banking`** — this is not an artifact of any fixture, it is the real, currently-shipped behavior of `CardPayment.Authorize`.
+
+`remove:`'s own comparison, `Array(instance[mutation.target]).reject { |element| element == value }`, then compares a raw `Hash` (`element`, from the never-hydrated list) against a real `Value` (`value`, the correctly-coerced remove target) — Ruby dispatches `==` on `element` (a Hash), and `Hash#==` against a non-Hash-compatible object is `false`. Nothing gets rejected.
+
+## Why this is bigger than "remove is broken"
+
+**`Value.for_attribute`'s `hydrate_entity_list` never hydrates a value-object list at all — only an entity list.** Any bare `sets :field` mutation (a whole-array, argument-sourced `:set` — as opposed to element-by-element `:append`) targeting a `list_of(SomeValueObject)` attribute leaves that attribute's stored elements as raw, uncoerced Hashes instead of typed `Value` instances. This is **already live in the real, shipped corpus today** — `Banking::CardPayment.Authorize`'s own `sets :tags` (from its own `tags:` argument, `list_of(Tag)`, real, declared in `examples/banking/bluebook/payment_cards.bluebook`) hits exactly this path.
+
+It has evidently gone unnoticed because nothing else in the runtime does a strict, type-checked `==` comparison against a value-object list's own elements — `QuerySpecification::Common::Comparison#contains?` (the mechanism `Flagged`'s own `where(tags: { contains: "high_risk" })` uses) reads through `members(...)`/`.to_s`, not `Value#==`, so it tolerates a raw Hash element the same as a real `Value` one. `remove:` is the first mechanism to actually surface the gap, because it is the first one that needs real object equality, not just field-level string comparison.
+
+## Why this is still not a Rust porting gap, and still not fixed here
+
+The finding is precise now, but the conclusion from the first version of this ADR still holds: **there is no correct, currently-working Ruby behavior for `remove:` against a `sets`-populated value-object list to port to Rust.** (Against an `append:`-populated list, `remove:` DOES work correctly in Ruby — that shape was never fixture-tested end-to-end this round, since no real corpus command builds a value-object list via `append:` AND later `remove:`s from it; a future round attempting `remove:` should test that shape specifically, since it may already be portable on its own.) This is pre-existing, vendored (`migration plan task 4`) Ruby runtime code, not introduced this session.
+
+## What a future round needs, in order
+
+1. **Fix `Value.for_attribute`/`hydrate_entity_list` to hydrate value-object lists, not just entity lists** — the real, root-cause fix, in `lib/hecks/runtime/value/coercion.rb`, not in `MutationApplier#removed`'s own call site (which the first version of this ADR incorrectly pointed at). This needs its own care: `hydrate_entity_list`'s current entity-only behavior is presumably deliberate for entities (identity-bearing, not simply reconstructible from a bare hash the way a plain value object is) — widening it needs to reuse whatever construction path `append`'s own per-element hydration already uses for value objects, not invent a second one.
+2. **Regression-test this directly** against `CardPayment.tags` (real corpus) — confirm elements become real `Value` instances after `Authorize`, and that nothing else (event serialization, query `contains?`, JSON export) regresses now that the representation actually changes.
+3. **Only then** retest `remove:` against a `sets`-populated list, and separately confirm/deny whether `remove:` against an `append:`-populated list is already portable on its own — that shape was traced as likely-correct here but not independently fixture-verified end-to-end.
+4. **Only then** does porting `remove:` to Rust become a well-scoped ADR-0042/0046-shaped round, once there is a confirmed-correct Ruby behavior across both list-construction shapes to target.
+
+## Verification
+
+- The corrected root cause was confirmed by direct temporary instrumentation of `MutationApplier#removed` (printing the resolved value's class at each step), reverted before this ADR was finalized — `git diff lib/hecks/runtime/command_interpreter/mutation_applier.rb` confirmed clean, no production code changed by this investigation.
+- The live-in-real-corpus claim was confirmed by dispatching `Banking::CardPayment.Authorize` against **completely unmodified `examples/banking`** (no fixture, no temp copy) and inspecting the resulting `tags` attribute's own element classes directly: `[Hash]`, not `[Hecks::Runtime::Value]`.
+- The "append-populated lists work" claim was confirmed twice independently: the pre-existing `spec/fixtures/entity_list_mutations` test (already part of the green suite) and a fresh, isolated synthetic aggregate built specifically to test the aggregate-level (not entity-owned) `remove:` path in isolation.
+- `bundle exec rspec`/`rubocop` were already green going in and remain untouched — this ADR, like its first version, is pure investigation output.

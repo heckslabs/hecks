@@ -24,6 +24,23 @@ use super::{Event, Json, MutationRecord, Refusal, Repository, ToJson};
 pub struct GivenSpec {
     pub description: &'static str,
     pub expr: Expr,
+    // `corrects` — `CommandRules::Admissibility#enforce_correction_target`,
+    // read directly: "structural, before the declared givens... `has this
+    // exact record already emitted this exact event` is not a predicate
+    // over the record's OWN fields [in the usual sense]... it is raised
+    // structurally here, the same way NotFound/AlreadyExists are." Ported
+    // as an ORDINARY given whose `expr` reads a synthetic per-record
+    // boolean field (set whenever a command emitting the named event
+    // succeeds — `rust/project/mutations.rb`'s own corrects-flag mutation
+    // line), but with its OWN dynamic refusal wording instead of the
+    // generic "{command} refused — {description}" every other given uses
+    // — Ruby's own message interpolates the record's live id
+    // (`RefusalWording` has no template for this shape; `description` is
+    // `&'static str`, fixed at codegen time, so it cannot carry a runtime
+    // id the way `NotFound`/`AlreadyExists` already do via `RefusalSite
+    // ::render`). `None` for every ordinary given — zero behavior change
+    // for anything that isn't a `corrects` mutation's own synthetic check.
+    pub corrects_event: Option<&'static str>,
 }
 
 /// `enforce_ensures` — `CommandRules::Admissibility#enforce_ensures`, read
@@ -160,6 +177,18 @@ where
     for given in givens {
         let ctx = EvalContext { args, instance: &record };
         if !interpret(&given.expr, &ctx)?.truthy() {
+            // `corrects` — `CommandRules::Admissibility
+            // #enforce_correction_target`'s own dynamic message, read
+            // directly: `"#{command.hecks_name} refused — corrects
+            // #{event_name}, but #{event_key} ##{instance.id} has never
+            // emitted it"` — `event_key` is `"#{domain}::#{aggregate}"`,
+            // exactly what `aggregate_qualified_name` already is
+            // (this function's own header comment on that field).
+            if let Some(event_name) = given.corrects_event {
+                return Err(Refusal::GivenNotMet(format!(
+                    "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
+                )));
+            }
             // `CommandRules::Admissibility#enforce_givens`, read directly:
             // `"#{command.hecks_name} refused — #{given.description}"` —
             // the prefix this field-only message used to be missing.

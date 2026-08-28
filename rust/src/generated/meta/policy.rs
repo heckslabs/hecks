@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "PolicyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "PolicyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("PolicyName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -132,7 +132,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "PolicyText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "PolicyText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("PolicyText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -195,8 +195,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))? },
-        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))? },
+        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Binding.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()) })? },
+        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Binding.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()) })? },
         })
     }
 }
@@ -434,7 +434,7 @@ impl Policy {
 impl Policy {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy.bluebook: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Policy.bluebook expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Policy.bluebook: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyName::from_json(&x.coerce_single_field("value"))?), },
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },

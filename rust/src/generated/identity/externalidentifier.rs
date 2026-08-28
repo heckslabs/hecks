@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ExternalIdentifierKey")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifierKey.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ExternalIdentifierKey")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ExternalIdentifierKey.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ExternalIdentifierKey.value: expected String".to_string()) })? },
         })
     }
 }
@@ -146,7 +146,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Issuer")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Issuer.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Issuer")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Issuer.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Issuer.value: expected String".to_string()) })? },
         })
     }
 }
@@ -220,7 +220,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Subject")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Subject.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Subject")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Subject.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Subject.value: expected String".to_string()) })? },
         })
     }
 }
@@ -273,7 +273,7 @@ impl ExternalIdentifier {
 impl ExternalIdentifier {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        identity: match v.get("identity") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifier.identity: expected String".to_string()))?), },
+        identity: match v.get("identity") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ExternalIdentifier.identity expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ExternalIdentifier.identity: expected String".to_string()) })?), },
         key: match v.get("key") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalIdentifierKey::from_json(&x.coerce_single_field("value"))?), },
         issuer: match v.get("issuer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Issuer::from_json(&x.coerce_single_field("value"))?), },
         subject: match v.get("subject") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Subject::from_json(&x.coerce_single_field("value"))?), },
@@ -403,7 +403,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        identity: { let x = v.require("identity", "LinkArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.identity: expected String".to_string()))? },
+        identity: { let x = v.require("identity", "LinkArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("LinkArgs.identity expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("LinkArgs.identity: expected String".to_string()) })? },
         key: ExternalIdentifierKey::from_json(&v.require("key", "LinkArgs")?.coerce_single_field("value"))?,
         issuer: Issuer::from_json(&v.require("issuer", "LinkArgs")?.coerce_single_field("value"))?,
         subject: Subject::from_json(&v.require("subject", "LinkArgs")?.coerce_single_field("value"))?,

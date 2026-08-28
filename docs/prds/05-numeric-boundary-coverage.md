@@ -1,6 +1,6 @@
 # PRD 05 — Numeric boundary coverage: Bignum, NaN, Infinity, negative zero
 
-**Status:** Not started. Smallest PRD in this set — good first pick.
+**Status:** Done. Real leak found and fixed — see "What shipped," below.
 
 ## The problem
 
@@ -69,3 +69,71 @@ snuck into a comparator or a stored-column type.
 - Redesigning how the fuzzer weights edge-case selection — this PRD widens
   the *table*, not `value_generator.rb`'s own `EDGE_CASE_PROBABILITY`
   weighting logic.
+
+## What shipped
+
+Both tables widened exactly as scoped: `INTEGER_EDGE_CASES` gained `2**100`
+and its negative twin (Bignum, not just Int64 — Ruby's own `Integer` has no
+ceiling at all, so there's no reason to stop at Int64); `FLOAT_EDGE_CASES`
+gained `Float::NAN`, `Float::INFINITY`, `-Float::INFINITY`, and `-0.0`.
+
+**The real leak, confirmed empirically before any fix (red)**: `Value::
+Coercion#check_numeric_fields`'s own `given.is_a?(expected)` check is true
+for NaN and either Infinity — both really are `Float`s — so all three sailed
+through completely unchecked. Traced to two different, both real, failure
+shapes:
+- `-Float::INFINITY` reaching a value object with a declared invariant
+  crashed inside `canonical_fields` (`JSON.generate` on the offered fields,
+  building the invariant-violation MESSAGE) with `JSON::GeneratorError:
+  -Infinity not allowed in JSON` — a crash raised while trying to explain a
+  refusal that was itself never cleanly raised.
+- `NaN` and `+Infinity` against the same value object raised NOTHING AT
+  ALL — silently accepted, no invariant fired, no refusal, the genuinely
+  worse of the two shapes (silent, not even loud-but-ugly).
+
+Either way, once such a value is accepted, it also breaks
+`CommandRules::Arithmetic#clamp` (`Float::NAN.clamp(0, 10)` raises a raw
+`ArgumentError`, confirmed directly — not a domain refusal) and
+`JSON.generate`/`#to_json` anywhere it's later persisted or replayed
+(`JSON::GeneratorError`, also not a domain refusal) — matching this file's
+own "silent-corruption territory" framing exactly.
+
+**Fixed** at the single point `check_numeric_fields` already existed for:
+a `Float`-typed field is now also refused (a proper `TypeMismatch`, new
+`non_finite_field` wording — declared in `language/bluebook/
+vocabulary.bluebook`'s `RefusalTemplate` closed set, same as every other
+refusal wording, `spec/refusal_wording_conformance_spec.rb` holds the two
+equal) when it is not `#finite?`. `-0.0` is deliberately NOT refused — it
+IS finite, round-trips through `JSON.generate`/`#to_json` cleanly
+(confirmed: `{a: -0.0}.to_json` => `'{"a":-0.0}'`), and is a legitimate
+signed-zero value, not a corruption risk. Verified red-before/green-after
+in `spec/runtime/numeric_boundary_spec.rb` (against a real corpus value
+object — `Banking::ATMCard::DailyFee`, `attribute :amount, Float`), plus a
+150-combination direct fuzzer sweep (pizzas/banking/entity_mutations ×
+dozens of seeds × Memory/SQLite) confirming no crash and no property
+failure with the widened tables in play.
+
+**A second, real, but currently UNREACHABLE finding — documented, not
+fixed**: `Adapters::Sqlite::Codec#encode` only JSON-serializes a value when
+it's a `Hash`/`Runtime::Value` (any value-object-wrapped attribute, which
+Ruby's own `JSON.generate`/`.parse` round-trips a Bignum through exactly,
+confirmed directly: `2**100` survives the round-trip bit-for-bit). A BARE,
+non-value-object-wrapped Integer/Float attribute would instead bind
+straight through as a raw SQL parameter — and the `sqlite3` gem silently
+converts an out-of-i64-range Integer to a lossy `Float` on that path,
+confirmed directly:
+
+```ruby
+db.execute("INSERT INTO t VALUES (?)", [2**100])
+db.execute("SELECT n FROM t").first.first  # => 1.2676506002282294e+30 (Float, not the original Integer)
+```
+
+Not shipped as a fix because it is not reachable by anything in this
+corpus today: every real Integer/Float attribute, across all eight
+domains, is wrapped in a value object (`arithmetic.rb`'s own "bare
+primitives forbidden" note; confirmed by grep — zero bare numeric
+attributes exist). If a future domain ever declares one, this is where to
+look first; the fix, if needed, belongs in `Sqlite::Codec#encode`'s own
+raw-scalar branch (route a bare numeric through the same JSON-text
+encoding value-object fields already get, rather than binding it straight
+as a native SQL parameter).

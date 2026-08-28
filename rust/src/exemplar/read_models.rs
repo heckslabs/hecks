@@ -12,7 +12,7 @@
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 crate::kernel::read_model::ReadModelDef {
     verb: "tmpl_verb",
-    reference_name: "tmpl_reference_name",
+    reference_name: Some("tmpl_reference_name"),
     heads: &[
         crate::kernel::read_model::ReadModelHead {
             aggregate: "tmpl_aggregate",
@@ -32,8 +32,13 @@ crate::kernel::read_model::ReadModelDef {
             value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
         },
     ],
-    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true }),
+    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
+    offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),
     limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field" }),
+    group_by: None,
+    count: false,
+    median_field: None,
 },
 ];
 // TMPL:read_model_table END

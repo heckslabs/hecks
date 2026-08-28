@@ -148,6 +148,10 @@ module RustProjection
         ident = rust_ident_field(aggregate[:lifecycle][:field])
         arms << Exemplar.render("fielded_lifecycle_arm", '"tmpl_field"' => key.inspect, "tmpl_ident" => ident)
       end
+      correctable_event_names(aggregate).each do |ev|
+        ident = corrects_flag_field(ev)
+        arms << Exemplar.render("fielded_corrects_flag_arm", '"tmpl_field"' => ident.inspect, "tmpl_ident" => ident)
+      end
       arms = arms.map { |a| "            #{a}" }
 
       # Trailing "\n" — see `emit_fielded_flat`'s own comment on why.

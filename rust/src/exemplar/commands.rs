@@ -164,7 +164,7 @@ fn tmpl_with_references_placeholder() -> TmplArgs {
     TmplArgs { tmpl_field: 0 }
 }
 fn tmpl_given_spec_placeholder() -> crate::kernel::GivenSpec {
-    crate::kernel::GivenSpec { description: "", expr: crate::kernel::Expr::Bool(true) }
+    crate::kernel::GivenSpec { description: "", expr: crate::kernel::Expr::Bool(true), corrects_event: None }
 }
 fn tmpl_transition_placeholder() -> Option<crate::kernel::TransitionCheck> {
     None

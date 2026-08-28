@@ -6,14 +6,17 @@ module RustProjection
     # at all (its own header: "a port is the anti-corruption boundary that
     # turns an external call into a fact... not a second place business
     # rules live") — so `command_skip_reason`'s own long list of ungenerable
-    # SHAPES mostly does not apply here; the two real ones that still can:
-    # a list attribute carrying `admits:`/`pattern:` (the exact same
-    # per-element gap `constraint_list_problems` already names for
-    # commands), and an attribute type this domain's own aggregate-level
-    # check never resolved a Rust type for (a port introducing a value
-    # object no OTHER attribute anywhere in this aggregate already forced
-    # into existence — no real operation in this corpus does that; flagged
-    # rather than silently assumed impossible).
+    # SHAPES mostly does not apply here; the one real one that still can:
+    # an attribute type this domain's own aggregate-level check never
+    # resolved a Rust type for (a port introducing a value object no OTHER
+    # attribute anywhere in this aggregate already forced into existence —
+    # no real operation in this corpus does that; flagged rather than
+    # silently assumed impossible). A list attribute carrying `admits:`/
+    # `pattern:` used to be refused here too (`constraint_list_problems`) —
+    # removed (docs/decisions/0051): confirmed against Ruby's real
+    # dispatch pipeline that neither is ever enforced on a list attribute
+    # regardless, so refusing to generate the operation at all was MORE
+    # restrictive than Ruby, not a real gap to guard.
     #
     # NO LONGER REQUIRES A `reference_to <owner>` ATTRIBUTE — routing
     # separation (`to:`/`with:`) supplies the receiver identity externally
@@ -25,11 +28,8 @@ module RustProjection
     # reference at all and used to be skipped here as a codegen bug; it
     # generates for real now.
     def port_operation_skip_reason(operation, _owner_name, value_objects_by_name)
-      constraint_problems = constraint_list_problems(operation)
-      return constraint_problems.join('; ') if constraint_problems.any?
-
       unresolved = operation[:attributes].reject do |attr|
-        next true if attr[:list] # a list attribute's element type is checked below, same as constraint_list_problems
+        next true if attr[:list] # a list attribute's element type is checked below
         next true if reference_type?(attr[:type])
         next true if SCALAR.key?(attr[:type])
 

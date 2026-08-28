@@ -1,0 +1,17 @@
+{
+  "domain": "examples/banking",
+  "note": "Phase 10 (equivalence-gap plan) — a declared query's own `nulls :last` override, real for the first time (rust/src/kernel/query_ordering.rs's own NullsMode; before this, ANY declared `null_semantics` refused the whole query, unconditionally). `Banking::ATMCard.Active` is the real corpus declaration this exercises (examples/banking/bluebook/payment_cards.bluebook: `order_by :nickname; nulls :last`, `nickname` genuinely optional — that file's own comment: \"Active's own query below relies on this to demonstrate nulls for real\"). Three cards issued and activated for account acct-1: card-a (renamed to nickname \"Zulu\"), card-b (renamed to nickname \"Alpha\"), card-c (left unnamed — nickname stays nil). Ascending order_by :nickname with the DEFAULT null policy would sort nil FIRST (query_ordering.rs's own else-arm), giving [card-c(nil), card-b(Alpha), card-a(Zulu)] — the declared `nulls :last` override instead puts card-c LAST regardless of ascending direction: [card-b(Alpha), card-a(Zulu), card-c(nil)]. That reordering — nil moving from the front to the back of the SAME three rows — is the one thing this fixture actually proves; a generator that silently ignored `nulls :last` and fell back to the default policy would still return the right ROWS, just in the wrong order, which a Rust conformance run's own byte-for-byte comparison catches.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
+    {"verb": "Banking::ATMCard.Issue", "args": {"account": "acct-1", "serial": {"value": "card-a"}, "daily_fee": {"amount": 1.0}}},
+    {"verb": "Banking::ATMCard.Issue", "args": {"account": "acct-1", "serial": {"value": "card-b"}, "daily_fee": {"amount": 1.0}}},
+    {"verb": "Banking::ATMCard.Issue", "args": {"account": "acct-1", "serial": {"value": "card-c"}, "daily_fee": {"amount": 1.0}}},
+    {"verb": "Banking::ATMCard.Activate", "args": {"serial": {"value": "card-a"}}},
+    {"verb": "Banking::ATMCard.Activate", "args": {"serial": {"value": "card-b"}}},
+    {"verb": "Banking::ATMCard.Activate", "args": {"serial": {"value": "card-c"}}},
+    {"verb": "Banking::ATMCard.Rename", "args": {"serial": {"value": "card-a"}, "nickname": {"value": "Zulu"}}},
+    {"verb": "Banking::ATMCard.Rename", "args": {"serial": {"value": "card-b"}, "nickname": {"value": "Alpha"}}},
+    {"query": "Banking::ATMCard.Active"}
+  ]
+}

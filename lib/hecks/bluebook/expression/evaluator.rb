@@ -160,11 +160,28 @@ module Hecks
           value.nil? ? "nil" : value.class.name
         end
 
+        # THE SAME MIS-SPLIT `Resolver.match_call` had (its own comment
+        # has the full story), found here too by the same generator: a
+        # `.include?` needle can itself be — or contain — ANOTHER
+        # `.include?` call (`"".include?(arr.all? { |el| "".include?("")
+        # }.to_s)`, a String built via `.to_s` off a block predicate
+        # whose own body happens to include one) — `rindex` finds the
+        # INNERMOST occurrence, not the outermost this split actually
+        # needs. Fixed identically: try each occurrence left to right,
+        # keep the first whose own balanced-paren match reaches the
+        # string's last character — `Resolver.matching_paren` is reused
+        # directly rather than duplicated, the same depth-tracking rule
+        # either grammar layer needs here.
         def match_include(expr)
-          index = expr.rindex(".include?(")
-          return nil unless index && expr.end_with?(")")
+          start = 0
+          marker = ".include?("
+          while (index = expr.index(marker, start))
+            close = Resolver.matching_paren(expr, index + marker.length)
+            return [expr[0...index], expr[(index + marker.length)...close]] if close == expr.length - 1
 
-          [expr[0...index], expr[(index + ".include?(".length)...-1]]
+            start = index + 1
+          end
+          nil
         end
 
         # Declared the same way in Vocabulary::IncludeHaystack
@@ -258,9 +275,20 @@ module Hecks
             # built to close. `{`/`}` cannot legitimately appear inside
             # a quoted literal either, so this sits beside the existing
             # paren-depth branch, not instead of it.
-            elsif char == "(" || char == "{"
+            #
+            # `[`/`]` -- the identical lesson a THIRD time (found live via
+            # the type-directed bounded-exhaustive expression generator,
+            # Phase 7 of the equivalence-gap plan): `Resolver::ArrayLiteral`
+            # (`[a, b]`) can appear as a general sub-expression, not only
+            # as `.include?`'s own haystack, the moment an array-typed
+            # attribute or a synthesized literal is embedded anywhere else
+            # -- and an element containing a top-level `+`/comparison of
+            # its own (`[0, 0 + 0]`) used to read as a split point for
+            # THIS expression's own boolean/comparison grammar, exactly
+            # the way an un-tracked `{`/`}` once did for block predicates.
+            elsif char == "(" || char == "{" || char == "["
               depth += 1
-            elsif char == ")" || char == "}"
+            elsif char == ")" || char == "}" || char == "]"
               depth -= 1
             elsif depth.zero? && expr[index, operator.length] == operator
               return index if !block_given? || yield(index)

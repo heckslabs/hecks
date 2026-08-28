@@ -43,8 +43,11 @@ module RustProjection
     end
 
     def command_skip_reason(command, aggregate, value_objects_by_name, creating_possible: true)
-      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement delegate].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
-      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/delegate are)" if unsupported_ops.any?
+      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
+      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)" if unsupported_ops.any?
+
+      corrects = corrects_of(command)
+      return "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet" if corrects && corrects_reverses?(corrects)
 
       delegate_problem = delegate_skip_reason(command, aggregate, value_objects_by_name)
       return delegate_problem if delegate_problem
@@ -92,26 +95,46 @@ module RustProjection
       end.map { |m| m[:target] }
       return "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
 
-      # `:increment`/`:decrement` — Ruby's real `arithmetic_value_object`
-      # (command_rules/arithmetic.rb, read directly) finds the ONE field
-      # that's `Integer` in both the target VO and the (already
-      # target-type-coerced) amount, and changes only that field. Bridgeable
-      # when the target names such a field AND the amount resolves to a raw
-      # integer expression — `arithmetic_amount_expr`, above, is the same
-      # "can we generate this" / "here's how" pairing `bridgeable_value_types?`/
-      # `value_rhs` already use for `:set`.
-      arithmetic_targets = command[:mutations].select { |m| %w[increment decrement].include?(m[:op].to_s) }
+      # `:increment`/`:decrement`/`:multiply` — Ruby's real
+      # `arithmetic_value_object`/`multiply` (command_rules/arithmetic.rb,
+      # read directly) both find the ONE field that's `Integer` in both the
+      # target VO and the (already target-type-coerced) amount, and change
+      # only that field — `multiply` differs from `arithmetic_value_object`
+      # ONLY in which Proc does the combining (`{ |c, a| c * a }` vs `current
+      # + sign*amount`), never in which field is eligible or how the amount
+      # is resolved, so this generator's own eligibility check and amount-
+      # resolution are shared across all three ops, matching Ruby's own
+      # shared `unwrap_single_numeric_field`/shared-numeric-field-matching
+      # machinery. Bridgeable when the target names such a field AND the
+      # amount resolves to a raw integer expression — `arithmetic_amount_
+      # expr`, above, is the same "can we generate this" / "here's how"
+      # pairing `bridgeable_value_types?`/`value_rhs` already use for `:set`.
+      arithmetic_targets = command[:mutations].select { |m| %w[increment decrement multiply].include?(m[:op].to_s) }
       unsupported_arithmetic = arithmetic_targets.reject do |m|
         target = arithmetic_target_field(m, aggregate, value_objects_by_name)
         target && arithmetic_amount_expr(m[:source], command, value_objects_by_name, target[1])
       end.map { |m| m[:target] }
-      return "sets :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
+      return "sets :#{unsupported_arithmetic.join(', ')} increment/decrement/multiply amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
+
+      # `:clamp` — Ruby's real `Arithmetic#clamp` (read directly): "a
+      # genuinely different shape [from #arithmetic/#multiply] -- its
+      # source is always a literal [min, max] pair, never an argument
+      # reference -- and it bounds the CURRENT value rather than
+      # combining it with an amount." No `arithmetic_amount_expr` to
+      # resolve at all — the ELIGIBLE TARGET half is identical to
+      # increment/decrement/multiply (`arithmetic_target_field`, the
+      # same Integer-VO-field scope, not widened here either), but the
+      # bounds themselves need their own check: a literal two-element
+      # Array of Integers, exactly the shape `classified_source` always
+      # produces for a `clamp:` mutation (`clamp_bounds_ints`, below).
+      clamp_targets = command[:mutations].select { |m| m[:op].to_s == "clamp" }
+      unsupported_clamp = clamp_targets.reject do |m|
+        arithmetic_target_field(m, aggregate, value_objects_by_name) && clamp_bounds_ints(m[:source])
+      end.map { |m| m[:target] }
+      return "sets :#{unsupported_clamp.join(', ')} clamp target field or bounds isn't bridgeable — not generated yet" if unsupported_clamp.any?
 
       optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name, creating_possible: creating_possible)
       return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
-
-      constraint_problems = constraint_list_problems(command)
-      return constraint_problems.join('; ') if constraint_problems.any?
 
       nil
     end
@@ -213,13 +236,40 @@ module RustProjection
     # either way, since an entity command's own `command[:attributes]` has
     # the exact same shape an aggregate command's does. Two independent
     # concerns per attribute: the EXISTING nested-VO-invariant recursion
-    # (`args.field.check_invariants()?`, unchanged), and the NEW `admits:`/
-    # `pattern:` constraint check (`constraints.rb`) — a command/entity-
-    # command argument's own usage-level declaration, the OTHER door from
-    # `types.rb`'s own value-object-field-level check. `attr[:list]`
-    # attributes are skipped for the constraint check specifically — no
-    # `admits:`/`pattern:` usage in this corpus is ever list-typed, and
-    # checking each element generically would be new, unverified surface.
+    # (`args.field.check_invariants()?`, unchanged), and a command/entity-
+    # command argument's own usage-level `admits:` constraint
+    # (`constraints.rb`) — the OTHER door from `types.rb`'s own value-
+    # object-field-level check.
+    #
+    # `pattern:` at THIS usage-level door is deliberately NOT checked —
+    # docs/decisions/0043/0051 found, by tracing `Runtime::
+    # CommandInterpreter`'s full dispatch pipeline exhaustively and
+    # confirming live against Ruby's real interpreter, that a bare
+    # command-attribute's OWN `pattern:` is NEVER enforced by Ruby: `Value#
+    # check_patterns` fires only from `build`, which fires only when the
+    # attribute's type resolves to an actual value object and gets
+    # rebuilt — a usage-level `pattern:` on a scalar command argument has
+    # no VO to build at all, so it is silently accepted, whether or not
+    # that argument is ever a mutation source. Generating a check here
+    # made Rust STRICTER than Ruby (the opposite direction from every
+    # other gap this plan closed) — removed rather than kept, per ADR
+    # 0010 (Ruby is the reference implementation; Rust conforms to it,
+    # not the other way around). `admits:` at this SAME door is genuinely
+    # different: it fires unconditionally from `normalize_args`'s own
+    # `admit_declared_set` call, for every declared argument present in
+    # the payload, regardless of mutation usage — confirmed enforced,
+    # kept exactly as it was.
+    #
+    # `attr[:list]` attributes are skipped for the `admits:` check too —
+    # `admit_declared_set` is reached only via `Value.for_attribute`'s
+    # SCALAR branch (a list attribute returns early into
+    # `hydrate_entity_list` instead, before ever reaching it) — so a list
+    # attribute's own `admits:`/`pattern:` is unenforced by Ruby exactly
+    # like a scalar's `pattern:` is; no check is generated for either, on
+    # any list attribute, matching that silent acceptance rather than
+    # refusing to generate the command at all (this file used to refuse
+    # via `constraint_list_problems`, since removed — real, confirmed
+    # non-enforcement isn't a gap to name, it's the actual answer).
     def invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
       command[:attributes].flat_map do |attr|
         field = rust_ident_field(attr[:name])
@@ -227,25 +277,14 @@ module RustProjection
 
         unless attr[:list]
           # RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rb`'s own value-
-          # object-field door (the OTHER caller of `emit_admits_check`/
-          # `emit_pattern_check`) passes `self.#{field}` raw and never wraps
-          # the result itself, trusting `constraints.rb`'s own internal
-          # `optional_scalar_expr`/`wrap_if_optional` to do the ENTIRE
-          # optional-handling, self-contained. This door used to pre-
-          # substitute "v" AND wrap the result in its own outer
-          # `if let Some(v) = ...` — double-wrapping whenever an attribute
-          # was BOTH `optional: true` and carried `admits:`/`pattern:`
-          # (`&&Type` where `&Type` was expected, a real `cargo build`
-          # failure), because `constraints.rb` unconditionally wraps again
-          # for any `attr[:optional]` attribute. No command/entity-command
-          # argument in the corpus combined the two until `Keyword#
-          # resolves_via`/`#disambiguator` (Round I, self-hosted grammar) —
-          # found regenerating `rust/src/generated/meta/syntax.rs` for the
-          # first time since that round landed.
+          # object-field door (the OTHER caller of `emit_admits_check`)
+          # passes `self.#{field}` raw and never wraps the result itself,
+          # trusting `constraints.rb`'s own internal `optional_scalar_expr`/
+          # `wrap_if_optional` to do the ENTIRE optional-handling, self-
+          # contained.
           value_expr = "args.#{field}"
-          constraints = [emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name),
-                         emit_pattern_check(value_expr, attr, attr[:name].to_s, value_objects_by_name)].compact
-          constraints.each { |c| lines << "        #{c}" }
+          constraint = emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
+          lines << "        #{constraint}" if constraint
         end
 
         if value_objects_by_name.key?(attr[:type]) && !value_objects_by_name[attr[:type]][:closed_set]
@@ -257,18 +296,6 @@ module RustProjection
         end
 
         lines
-      end
-    end
-
-    # A LIST-typed attribute carrying `admits:`/`pattern:` — no real
-    # command in this corpus declares one, and `invariant_checks_for`
-    # deliberately skips the constraint check for list attributes (a
-    # per-element check is new, unverified surface, not a mechanical
-    # extension of the scalar case) — skipped loudly rather than silently
-    # dropping a constraint the IR actually declares.
-    def constraint_list_problems(command)
-      command[:attributes].select { |attr| attr[:list] && (attr[:admits] || attr[:pattern]) }.map do |attr|
-        "#{attr[:name]} is a list carrying admits:/pattern: — not generated yet"
       end
     end
 
@@ -326,8 +353,8 @@ module RustProjection
 
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
-      given_specs = command[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+      given_specs = corrects_given_specs(command) + command[:givens].map do |given|
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])}, corrects_event: None },"
       end
 
       ensures_specs = command[:ensures].map do |rule|
@@ -338,7 +365,9 @@ module RustProjection
       transition_arg =
         transition_check_arg(transition)
 
-      mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
+      mutation_lines = command[:mutations].reject { |m| m[:op].to_s == "corrects" }
+                                          .map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
+      mutation_lines.concat(corrects_flag_mutation_lines(command, aggregate))
       # advance_lifecycle: unconditional once a transition applies at all —
       # see kernel/dispatch.rs's TransitionCheck comment for why this lives
       # here, as one more line in the SAME closure, rather than as its own
@@ -401,6 +430,7 @@ module RustProjection
           end
         end
         record_fields << "            #{rust_ident_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
+        correctable_event_names(aggregate).each { |name| record_fields << "            #{corrects_flag_field(name)}: false," }
 
         hydrate = <<~RUST.rstrip
           crate::kernel::Hydrate::Create {
@@ -443,6 +473,89 @@ module RustProjection
       "#{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}\n\n#[derive(Debug, Clone)]\n#{args_struct.join("\n")}\n\n#{dispatch_fn}"
     end
 
+    # `corrects "EventName", reason: "..."` — `CommandRules::Admissibility
+    # #enforce_correction_target`, read directly: "structural, before the
+    # declared givens... has THIS record actually [emitted the named
+    # event] yet." Ported as a synthetic, PREPENDED GivenSpec (see
+    # `corrects_given_specs`) whose `expr` reads a per-record boolean
+    # field this same generator also arranges to set — `corrects_flag_field`
+    # names it, `corrects_flag_targets` (domain_generator.rb) finds every
+    # aggregate needing one, and `mutations.rb`'s own corrects-flag mutation
+    # line sets it whenever a command emitting the named event succeeds.
+    #
+    # `reverses: true` is the SEPARATE, harder derived-mutation shape
+    # `AggregateBuilder#seal_correction_targets`'s own comment (read
+    # directly) says Ruby's OWN authors have not finished designing
+    # ("append/remove reversal LOOK symmetric but are not reliably so...
+    # a real gap, left for a follow-on round") — refused here rather than
+    # guessed at, matching that same deferral.
+    def corrects_of(command) = command[:mutations].find { |m| m[:op].to_s == "corrects" }
+
+    def corrects_reverses?(mutation) = !!(mutation[:source].is_a?(Hash) && mutation[:source][:value].is_a?(Hash) && mutation[:source][:value][:reverses])
+
+    # `emitted_fee_applied`, from `"FeeApplied"` — a plain, deterministic
+    # snake_case rendering (never bluebook-author-visible; this is a
+    # SYNTHETIC field name, not a spelling the language exposes), shared
+    # between the record's own struct field and every reader/writer of it.
+    def corrects_flag_field(event_name) = "emitted_#{event_name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').downcase}"
+
+    def corrects_given_specs(command)
+      corrects = corrects_of(command)
+      return [] unless corrects
+
+      event_name = corrects[:target].to_s
+      ["            crate::kernel::GivenSpec { description: \"\", " \
+       "expr: crate::kernel::Expr::Lookup(#{corrects_flag_field(event_name).inspect}), " \
+       "corrects_event: Some(#{event_name.inspect}) },"]
+    end
+
+    # Every event name ANY command on this aggregate names in a `corrects`
+    # mutation — the set a record needs its own flag field for at all.
+    # Aggregate-wide (not per-command), the same scope `AggregateBuilder
+    # #seal_correction_targets`'s own build-time check already reads
+    # (`command_skip_reason`'s own header on that check's other half).
+    def correctable_event_names(aggregate)
+      aggregate[:commands].flat_map { |c| c[:mutations] }
+                          .select { |m| m[:op].to_s == "corrects" }
+                          .map { |m| m[:target].to_s }.uniq
+    end
+
+    # `extra_fields:` entries for `corrects`'s own per-record flag fields
+    # (`emit_to_json_flat`/`emit_from_json_state`, json_codec.rb) — the
+    # SAME mechanism `lifecycle_extra_field` already uses for the
+    # lifecycle field, reused rather than duplicated so this rides along
+    # with the record's own ordinary JSON round-trip automatically (and
+    # therefore with whatever generic snapshot mechanism a host already
+    # persists that JSON through — `rust/host`'s own `hecks_lambda_
+    # snapshot.seed jsonb` column, confirmed by reading `journal.rs`
+    # directly, needs no schema change of its own for this).
+    def corrects_extra_fields(aggregate)
+      correctable_event_names(aggregate).map do |ev|
+        field = corrects_flag_field(ev)
+        deserialize_rhs = "match v.require(#{field.inspect}, #{aggregate[:name].to_s.inspect})? { " \
+          "crate::kernel::Json::Bool(b) => *b, " \
+          "_ => return Err(#{json_type_error(aggregate[:name].to_s, field, 'a boolean')}) }"
+        [field, "crate::kernel::Json::Bool(self.#{field})", deserialize_rhs]
+      end
+    end
+
+    # THE OTHER HALF of `corrects` — read directly, `MutationApplier#apply`'s
+    # own `:corrects` branch is a no-op (nothing here targets a field on
+    # the SAME command's own instance), but a LATER command's own
+    # `enforce_correction_target` needs to observe that this event
+    # happened at all. Ruby's real `@registry.event_log` (a full, ambient
+    # history) makes this free; this generator has no such history to
+    # consult, so it stamps the SAME fact forward onto the record itself,
+    # at the moment the correctable event is actually emitted — an
+    # ADDITIVE mutation line, appended after every declared one, for
+    # every command whose own `emits` list names an event some `corrects`
+    # mutation elsewhere on this aggregate targets.
+    def corrects_flag_mutation_lines(command, aggregate)
+      correctable = correctable_event_names(aggregate)
+      Array(command[:emits]).map(&:to_s).uniq.select { |name| correctable.include?(name) }
+                            .map { |name| "        record.#{corrects_flag_field(name)} = true;" }
+    end
+
     # `delegates_to "Entity.Command", with: { … }` — the `:delegate`
     # mutation (`CommandInterpreter#step_delegate_to_entity`, read
     # directly; the exemplar's own `delegate_prelude`/`delegate_apply`
@@ -483,7 +596,28 @@ module RustProjection
         source = command[:attributes].find { |a| a[:name].to_s == source_name }
         next if source.nil? && attr[:optional]
         return "#{label}: target argument #{attr[:name]} has no source on the door" unless source
-        unless source[:type].to_s == attr[:type].to_s && !!source[:list] == !!attr[:list]
+        return "#{label}: door argument #{source_name} is a list, target wants a scalar (or vice versa) — not generated yet" if !!source[:list] != !!attr[:list]
+        # `bridgeable_value_types?`, not exact type-name equality — the
+        # SAME question `mutation_set_rhs` already answers for a `sets`
+        # RHS, and the right one here too: `with_aliases`/`from_json`
+        # (`CommandInterpreter#step_delegate_to_entity`, read directly —
+        # `ctx.args.merge(delegation.source.to_h { |target_key,
+        # source_key| [target_key, ctx.args[source_key]] })`) copies the
+        # door's OWN raw wire value under the target's key and lets the
+        # TARGET's own coercion (`Value.for`) make sense of it — Ruby
+        # never once compares the two ARGUMENTS' declared type names to
+        # each other. Confirmed empirically (docs/decisions/0045): a
+        # purpose-built door whose own argument was a differently-named
+        # single-field VO wrapping the identical scalar as the target's
+        # own declared type dispatched correctly through real Ruby, no
+        # refusal — exact-name equality was refusing something Ruby
+        # genuinely supports. `bridgeable_value_types?` is the already-
+        # audited "is copying source into target semantically sound"
+        # check (field-name alignment for two VOs, closed-set member
+        # coverage, scalar-representation equivalence) — exactly the
+        # question the JSON-level alias-then-deserialize mechanism cares
+        # about, since it never does a typed Rust-level field copy either.
+        unless bridgeable_value_types?(source[:type].to_s, attr[:type].to_s, value_objects_by_name)
           return "#{label}: door argument #{source_name} is #{source[:type]}, target wants #{attr[:type]} — not generated yet"
         end
         return "#{label}: optional door argument #{source_name} feeds required #{attr[:name]}" if source[:optional] && !attr[:optional]
@@ -514,7 +648,7 @@ module RustProjection
       target_args_name = "#{element_record}#{rust_ident(target[:name])}EntityArgs"
       aliases = delegate_mapping(delegation).map { |target_key, source_key| "(#{target_key.inspect}, #{source_key.inspect})" }
       given_specs = target[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])}, corrects_event: None },"
       end
       ensures_specs = target[:ensures].map do |rule|
         "            crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_predicate(rule[:canonical])} },"
@@ -626,7 +760,7 @@ module RustProjection
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
       given_specs = command[:givens].map do |given|
-        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
+        "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_predicate(given[:canonical])}, corrects_event: None },"
       end
 
       ensures_specs = command[:ensures].map do |rule|

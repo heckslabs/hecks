@@ -91,6 +91,28 @@ their_json =
   end
 
 theirs = JSON.parse(their_json)
+
+# `corrects`'s own per-record flag fields (`emitted_<event>`, docs/
+# decisions/0048's own snapshot-format design) are a Rust-only
+# implementation detail — the fact they exist has no Ruby analog at all
+# (Ruby's own equivalent, `@registry.event_log`, lives on the REGISTRY,
+# never touches a record's own `to_h`) and they exist ONLY so a
+# generated record's own ordinary JSON round-trip carries them forward
+# through whatever generic snapshot mechanism a host already persists
+# that JSON through — riding along with `to_json()`/`instances()` is
+# what makes that free, but it also means they leak into THIS
+# comparison surface, which they were never meant to be part of.
+# Stripped here, not from Ruby's own side (which never has them to begin
+# with) — matching `spec/codegen_parity_spec.rb`'s own precedent of
+# excluding generator/implementation artifacts (`manifest.json`/
+# `ir.json`) from a byte-identity check that exists to verify BEHAVIOR,
+# not internal representation.
+if theirs["instances"].is_a?(Hash)
+  theirs["instances"].each_value do |record|
+    record.reject! { |key, _| key.start_with?("emitted_") } if record.is_a?(Hash)
+  end
+end
+
 mismatches = []
 
 %w[instances events refusals].each do |key|

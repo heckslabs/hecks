@@ -13,12 +13,27 @@ pub fn json_type_error(struct_name: &str, key: &str, expectation: &str) -> Strin
     format!("crate::kernel::Refusal::TypeMismatch({}.to_string())", naming::ruby_inspect_string(&format!("{struct_name}.{key}: expected {expectation}")))
 }
 
+// See rust/project/json_codec.rb's own (much longer) comment on this
+// exact function for the full story: PRD 04's generated-sequence fuzzer
+// bridge found a real, generated `String` scalar mismatch
+// (`Pizzas::Order.AddTopping`'s `ToppingName.value` given an Array) whose
+// Rust wording didn't match Ruby's own `Value::Coercion
+// #check_scalar_shapes` ("numeric_field" template, fired only when the
+// offered value is Array/Hash-shaped — Ruby tolerates any OTHER scalar
+// mismatch for a String field, so this stays scoped to composite shapes
+// only, checked at RUNTIME since codegen can't know the offered value's
+// shape ahead of time).
 pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_var: &str) -> String {
-    if scalar_type != "Integer" && scalar_type != "Float" {
+    if scalar_type != "Integer" && scalar_type != "Float" && scalar_type != "String" {
         return json_type_error(struct_name, key, scalar_type);
     }
     let template = format!("{struct_name}.{key} expects {scalar_type}, got {{}}");
-    format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&template))
+    let proper = format!("crate::kernel::Refusal::TypeMismatch(format!({}, {value_var}.inspect()))", naming::ruby_inspect_string(&template));
+    if scalar_type != "String" {
+        return proper;
+    }
+    let generic = json_type_error(struct_name, key, scalar_type);
+    format!("if matches!({value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) {{ {proper} }} else {{ {generic} }}")
 }
 
 pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
@@ -250,6 +265,19 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
         .collect();
 
     field_exprs.extend(extra_fields.iter().map(|(key, expr)| exemplar.render("to_json_field", &[("\"tmpl_field_name\"", naming::ruby_inspect_string(key)), ("tmpl_json_value_placeholder()", expr.clone())])));
+    // `corrects`'s own per-record flag fields — read straight off
+    // `aggregate` (already in scope for a RECORD's own to_json, never for
+    // an Args/other flat struct) rather than threaded through
+    // `extra_fields`'s own 2-tuple shape, which the lifecycle field's
+    // always-String assumption owns exclusively; mirrors `rust/project/
+    // commands.rb`'s own `corrects_extra_fields` output, just computed
+    // inline instead of passed in.
+    if let Some(aggregate) = aggregate {
+        field_exprs.extend(crate::bridging::correctable_event_names(aggregate).iter().map(|ev| {
+            let field = crate::bridging::corrects_flag_field(ev);
+            exemplar.render("to_json_field", &[("\"tmpl_field_name\"", naming::ruby_inspect_string(&field)), ("tmpl_json_value_placeholder()", format!("crate::kernel::Json::Bool(self.{field})"))])
+        }));
+    }
     let field_block = field_exprs.iter().map(|f| format!("        {f}")).collect::<Vec<_>>().join("\n");
 
     format!("{}\n", exemplar.render("to_json_flat", &[("TmplFlatType2", struct_name.to_string()), ("tmpl_to_json_field_block()", field_block)]))
@@ -330,6 +358,22 @@ pub fn emit_from_json_state(
         let ident = naming::rust_ident_field(key);
         let rhs = format!("v.require({}, {})?.as_str().ok_or_else(|| {})?.to_string()", naming::ruby_inspect_string(key), naming::ruby_inspect_string(struct_name), json_type_error(struct_name, key, "a string"));
         field_exprs.push(exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)]));
+    }
+    // `corrects`'s own per-record flag fields — see `emit_to_json_flat`'s
+    // own matching comment for why this reads `aggregate` directly
+    // rather than going through `extra_fields`'s own always-String shape.
+    if let Some(aggregate) = aggregate {
+        for ev in crate::bridging::correctable_event_names(aggregate) {
+            let field = crate::bridging::corrects_flag_field(&ev);
+            let ident = naming::rust_ident_field(&field);
+            let rhs = format!(
+                "match v.require({}, {})? {{ crate::kernel::Json::Bool(b) => *b, _ => return Err({}) }}",
+                naming::ruby_inspect_string(&field),
+                naming::ruby_inspect_string(struct_name),
+                json_type_error(struct_name, &field, "a boolean")
+            );
+            field_exprs.push(exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)]));
+        }
     }
 
     emit_from_json_skeleton(exemplar, struct_name, &field_exprs, "")

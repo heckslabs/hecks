@@ -326,6 +326,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::banking::account::ApplyFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       args.narrative.check_invariants()?;
+              crate::kernel::check_role(Some("System"), "ApplyFee", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -338,6 +339,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::CorrectFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
+              crate::kernel::check_role(Some("Back office"), "CorrectFee", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -350,6 +352,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::AccrueInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
+              crate::kernel::check_role(Some("System"), "AccrueInterest", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -362,6 +365,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
               let args = crate::generated::banking::account::CorrectInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
+              crate::kernel::check_role(Some("Back office"), "CorrectInterest", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -491,6 +495,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::CaptureArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Capture", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -502,6 +507,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::VoidArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Void", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -513,6 +519,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::RefundArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Refund", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -524,6 +531,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::ReverseArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Reverse", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -548,6 +556,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::ChargebackArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Chargeback", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -559,6 +568,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::cardpayment::RejectDisputeArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "RejectDispute", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -720,6 +730,7 @@ pub fn dispatch_by_name(
                       args.beneficiary.check_invariants()?;
                       if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got ", args.direction.value))); }
                       args.direction.check_invariants()?;
+              crate::kernel::check_role(Some("Customer"), "Request", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
@@ -732,6 +743,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
               let args = crate::generated::banking::externaltransfer::SendTransferArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "SendTransfer", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -743,6 +755,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
               let args = crate::generated::banking::externaltransfer::RecallArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("Customer"), "Recall", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -754,6 +767,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
               let args = crate::generated::banking::externaltransfer::ReturnArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Return", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -768,6 +782,7 @@ pub fn dispatch_by_name(
                       args.amount.check_invariants()?;
                       args.recipient.check_invariants()?;
                       args.due_on.check_invariants()?;
+              crate::kernel::check_role(Some("Customer"), "Schedule", caller_role)?;
               crate::kernel::check_reference(&store.account, &args.account, "Account", "number")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
@@ -780,6 +795,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::scheduledpayment::ExecuteArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("System"), "Execute", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -791,6 +807,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
               let args = crate::generated::banking::scheduledpayment::CancelArgs::from_json(facts_json)?;
+              crate::kernel::check_role(Some("Customer"), "Cancel", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1161,8 +1178,10 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
         crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("good") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Customer.Suspended",
@@ -1170,8 +1189,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("suspended") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: true }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: Some(crate::kernel::query_ordering::Limit::Literal(50)),
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Customer.NotGoodStanding",
@@ -1179,8 +1200,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Ne, value: crate::kernel::QueryConditionValue::Literal("good") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.Open",
@@ -1188,8 +1211,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.Overdrawn",
@@ -1197,8 +1222,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Lt, value: crate::kernel::QueryConditionValue::Arg("floor") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: Some(crate::kernel::query_ordering::Limit::Literal(100)),
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.HighBalance",
@@ -1206,8 +1233,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gte, value: crate::kernel::QueryConditionValue::Arg("floor") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.StrictlyAbove",
@@ -1215,8 +1244,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gt, value: crate::kernel::QueryConditionValue::Arg("floor") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.AtMost",
@@ -1224,8 +1255,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Lte, value: crate::kernel::QueryConditionValue::Arg("cap") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.Reachable",
@@ -1233,8 +1266,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::In, value: crate::kernel::QueryConditionValue::Literal("open,frozen") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::Account.OpenForCustomer",
@@ -1243,8 +1278,10 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "customer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("reference") },
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::OnboardingCase.Screening",
@@ -1252,8 +1289,32 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("screening") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ATMCard.Active",
+    aggregate: "Banking::ATMCard",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "nickname", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Last }),
+    offset: None,
+    limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ATMCard.ByFee",
+    aggregate: "Banking::ATMCard",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "daily_fee", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(3)),
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Pending",
@@ -1262,7 +1323,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("authorized") },
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Disputed",
@@ -1271,7 +1334,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Flagged",
@@ -1280,7 +1345,21 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "tags", comparator: crate::kernel::query_comparators::QueryComparator::Contains, value: crate::kernel::QueryConditionValue::Literal("high_risk") },
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::SafeDepositBox.Rented",
+    aggregate: "Banking::SafeDepositBox",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("rented") },
+        crate::kernel::QueryCondition { field: "branch_code", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("branch_code") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "branch_code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "Rented", tenant_field: "branch_code" }),
 },
 crate::kernel::QueryDef {
     verb: "Banking::Transfer.InFlight",
@@ -1288,8 +1367,10 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("debited") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "status", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "status", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::ExternalTransfer.Sent",
@@ -1298,7 +1379,9 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("sent") },
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::ScheduledPayment.Due",
@@ -1306,15 +1389,50 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("scheduled") },
     ],
-    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "due_on", descending: false }),
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "due_on", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
     limit: None,
+    authorization: None,
 },
 ];
+
+pub fn group_by_accountsbykind(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
+    let unwrapped: Vec<crate::kernel::Json> = rows
+        .into_iter()
+        .map(|(id, record)| {
+            let wrapped = crate::kernel::repository::row_json(id, record);
+            match wrapped {
+                crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(
+                    fields
+                        .into_iter()
+                        .filter(|(k, _)| k == "customer" || k == "number" || k == "balance" || k == "kind" || k == "daily_limit" || k == "ledger" || k == "fees_cents" || k == "interest_cents" || k == "id" || k == "status")
+                        .map(|(k, v)| {
+                            let new_v = match k.as_str() {
+            "customer" => v,
+                    "number" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other },
+                    "balance" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other },
+                    "kind" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other },
+                    "daily_limit" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "cents").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other },
+                    "ledger" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "sequence" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, "amount" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other }, "narrative" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "text").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, "direction" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other },
+                    "fees_cents" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other },
+                    "interest_cents" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other },
+                                _ => v,
+                            };
+                            (k, new_v)
+                        })
+                        .collect(),
+                ),
+                other => other,
+            }
+        })
+        .collect();
+    crate::kernel::read_model::nest(unwrapped, &["kind", "number"])
+}
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 crate::kernel::read_model::ReadModelDef {
     verb: "Banking.CustomerPortfolio",
-    reference_name: "customer",
+    reference_name: Some("customer"),
     heads: &[
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Customer", as_name: "customer", many: false, is_root: true, reference_fields: &[] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "customer" }] },
@@ -1329,6 +1447,86 @@ crate::kernel::read_model::ReadModelDef {
 
     ],
     order_by: None,
+    offset: None,
     limit: None,
+    authorization: None,
+    group_by: None,
+    count: false,
+    median_field: None,
+},
+crate::kernel::read_model::ReadModelDef {
+    verb: "Banking.ComplianceDashboard",
+    reference_name: Some("account"),
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
+    ],
+    filtered_head: Some("card_payments"),
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    ],
+    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "amount", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(5)),
+    limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
+    authorization: None,
+    group_by: None,
+    count: false,
+    median_field: None,
+},
+crate::kernel::read_model::ReadModelDef {
+    verb: "Banking.DisputedPaymentCount",
+    reference_name: Some("account"),
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
+    ],
+    filtered_head: Some("card_payments"),
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+    group_by: None,
+    count: true,
+    median_field: None,
+},
+crate::kernel::read_model::ReadModelDef {
+    verb: "Banking.DisputedPaymentMedian",
+    reference_name: Some("account"),
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "account", many: false, is_root: true, reference_fields: &[] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
+    ],
+    filtered_head: Some("card_payments"),
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+    group_by: None,
+    count: false,
+    median_field: Some("amount"),
+},
+crate::kernel::read_model::ReadModelDef {
+    verb: "Banking.AccountsByKind",
+    reference_name: None,
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "customer" }] },
+    ],
+    filtered_head: None,
+    conditions: &[
+
+    ],
+    order_by: None,
+    offset: None,
+    limit: None,
+    authorization: None,
+    group_by: Some(group_by_accountsbykind),
+    count: false,
+    median_field: None,
 },
 ];

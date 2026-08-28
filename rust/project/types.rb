@@ -242,6 +242,16 @@ module RustProjection
         { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
       field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(aggregate[:lifecycle][:field]) } if aggregate[:lifecycle]
+      # `corrects`'s own per-record flag fields — one plain, non-optional
+      # `bool` per event name some command on this aggregate `corrects`
+      # against (see `commands.rb`'s own `corrects_flag_field`/
+      # `correctable_event_names` for the full reasoning). Appended the
+      # same way the lifecycle field is, right above — a real struct
+      # field, not a `list_of`/value-object shape, so it needs neither
+      # `Option<T>` wrapping nor an entry in `emit_fielded_record`'s own
+      # `attributes`-driven arm-building (handled by its own dedicated
+      # arm instead, right alongside the lifecycle one there).
+      correctable_event_names(aggregate).each { |ev| field_subs_list << { "TmplFieldType" => "bool", "tmpl_field" => corrects_flag_field(ev) } }
       struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
 
       "#{struct_part}\n\n#{emit_fielded_record(aggregate, value_objects_by_name)}"

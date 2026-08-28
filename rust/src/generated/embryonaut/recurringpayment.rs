@@ -388,7 +388,7 @@ pub fn dispatch_advance_cycle(
         "reference.value",
         &args,
         &[
-            crate::kernel::GivenSpec { description: "only an active recurring payment advances", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "only an active recurring payment advances", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {

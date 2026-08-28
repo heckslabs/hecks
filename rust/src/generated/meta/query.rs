@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "QueryName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "QueryName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("QueryName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -132,7 +132,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "QueryText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "QueryText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("QueryText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -198,9 +198,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        field: { let x = v.require("field", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()))? },
-        op: { let x = v.require("op", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()))? },
-        value: { let x = v.require("value", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.value: expected String".to_string()))? },
+        field: { let x = v.require("field", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Filter.field expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()) })? },
+        op: { let x = v.require("op", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Filter.op expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()) })? },
+        value: { let x = v.require("value", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Filter.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Filter.value: expected String".to_string()) })? },
         })
     }
 }
@@ -281,14 +281,14 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: { let x = v.require("name", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))? },
-        r#type: { let x = v.require("type", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))? },
-        list: { let x = v.require("list", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()))? },
-        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()))?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?), None => None, },
-        default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?), None => None, },
-        relationship: match v.get("relationship") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.relationship: expected String".to_string()))?), None => None, },
+        name: { let x = v.require("name", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()) })? },
+        r#type: { let x = v.require("type", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.type expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()) })? },
+        list: { let x = v.require("list", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.list expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()) })? },
+        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.optional expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()) })?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.pattern expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()) })?), None => None, },
+        default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.default expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()) })?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.admits expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()) })?), None => None, },
+        relationship: match v.get("relationship") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskArgument.relationship expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskArgument.relationship: expected String".to_string()) })?), None => None, },
         })
     }
 }
@@ -357,10 +357,10 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        option: { let x = v.require("option", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()))? },
-        key: { let x = v.require("key", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()))? },
-        value: match v.get("value") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.value: expected String".to_string()))?), None => None, },
-        at: match v.get("at") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.at: expected String".to_string()))?), None => None, },
+        option: { let x = v.require("option", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskOption.option expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()) })? },
+        key: { let x = v.require("key", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskOption.key expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()) })? },
+        value: match v.get("value") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskOption.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskOption.value: expected String".to_string()) })?), None => None, },
+        at: match v.get("at") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AskOption.at expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AskOption.at: expected String".to_string()) })?), None => None, },
         })
     }
 }
@@ -616,8 +616,8 @@ impl Query {
 impl Query {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.aggregate: expected String".to_string()))?), },
-        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.entity_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Query.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Query.aggregate: expected String".to_string()) })?), },
+        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Query.entity_id expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Query.entity_id: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryName::from_json(&x.coerce_single_field("value"))?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
         order_field: match v.get("order_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
@@ -805,7 +805,7 @@ pub fn dispatch_option(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
+            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))), corrects_event: None },
         ],
         None,
         |record| {

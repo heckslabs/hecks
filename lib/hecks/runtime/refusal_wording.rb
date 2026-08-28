@@ -70,6 +70,8 @@ module Hecks
                                                          "{type} is a composite identity — an identity must have exactly one field",
         %w[TypeMismatch numeric_field]                =>
                                                          "{type}.{field} expects {expected}, got {offered}",
+        %w[TypeMismatch non_finite_field]             =>
+                                                         "{type}.{field} must be a finite number, got {offered}",
         %w[TypeMismatch pattern_mismatch]             =>
                                                          "{type}.{field} must match {pattern}, got {offered}",
         %w[TypeMismatch arithmetic_amount]            =>

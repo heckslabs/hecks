@@ -14,10 +14,11 @@
 // reference id, plus one or more OTHER aggregate heads found by scanning
 // and matching a reference attribute back to an already-projected
 // root/sibling row, PLUS (as of 2026-08-11) a declared `where`/`order_by`/
-// `limit` on the ONE eligible many-side head (`filtered_head`, below) —
-// `IR::ReadModel#to_h` now spells these three on the wire (`read_models.rb`'s
-// own header has the history: it didn't used to). Still no `offset`/
-// `cursor`/`consistency`/`authorize`(TenantScope)/`nulls` beyond the
+// `limit` on the ONE eligible many-side head (`filtered_head`, below), PLUS
+// (as of Phase 10, equivalence-gap plan) that same head's own `offset` too —
+// `IR::ReadModel#to_h` now spells these four on the wire (`read_models.rb`'s
+// own header has the history: it didn't used to). Still no `cursor`/
+// `consistency`/`authorize`(TenantScope)/`nulls` beyond the
 // default/`inspect_query` — real capabilities `Ports::Query::InMemory`/
 // `TenantScope` implement that this generator still doesn't port, the SAME
 // boundary `rust/project/queries.rb` already draws for a declared AGGREGATE
@@ -33,7 +34,7 @@
 // `QuerySpecification::Common::NullPolicy` (lib/hecks/ports/query/,
 // lib/hecks/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
-use super::{query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
+use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal, RefusalSite};
 
 /// ONE reference attribute on a NON-ROOT head's own aggregate — "this
 /// aggregate carries a field named `field` that is `Reference<X>`, where
@@ -91,6 +92,18 @@ pub type ReadModelOrderBy = query_ordering::OrderBy;
 /// args).to_i`, lib/hecks/ports/query/in_memory.rb).
 pub type ReadModelLimit = query_ordering::Limit;
 
+/// A read model's own declared `offset N`, applying to `ReadModelDef::
+/// filtered_head` alone — same alias reasoning as `ReadModelLimit` just
+/// above (`query_ordering::Offset` is itself `pub type Offset = Limit` —
+/// see that module's own header): ground truth `Ports::Query::InMemory.
+/// execute`'s own `matched.first(resolve(declared.limit.value, args).
+/// to_i) if declared.limit` sits right after its own `skipped = declared.
+/// offset ? matched.drop(...) : matched` — the SAME two-field shape a
+/// declared AGGREGATE query already has (`named_query::QueryDef::offset`,
+/// Phase 10 of the equivalence-gap plan), ported here the moment
+/// `read_models.rb`'s own eligibility gate stopped refusing it.
+pub type ReadModelOffset = query_ordering::Offset;
+
 /// ONE declared `report "X" do ... end` block, compiled — the read-model
 /// analogue of `named_query::QueryDef`. `verb` is the "Domain.Name" wire
 /// string `kernel::cli.rs`'s STRING-form "query" step matches a read-model
@@ -117,12 +130,76 @@ pub type ReadModelLimit = query_ordering::Limit;
 #[derive(Debug, Clone, Copy)]
 pub struct ReadModelDef {
     pub verb: &'static str,
-    pub reference_name: &'static str,
+    /// `None` for a ROOTLESS read model (`ReadModelInterpreter#project`'s
+    /// own `rootless = model.reference_target.nil?`) — no `reference_to`
+    /// declared at all, so there is no caller-supplied id argument to
+    /// require or resolve; every head reads its own aggregate's WHOLE
+    /// table instead (see `run`'s own rootless branch, below).
+    pub reference_name: Option<&'static str>,
     pub heads: &'static [ReadModelHead],
     pub filtered_head: Option<&'static str>,
     pub conditions: &'static [QueryCondition],
     pub order_by: Option<ReadModelOrderBy>,
+    /// `None` for every read model before Phase 10 (equivalence-gap
+    /// plan) ported this — `read_models.rb`'s own eligibility gate used
+    /// to refuse ANY declared `offset` outright, unconditionally.
+    pub offset: Option<ReadModelOffset>,
     pub limit: Option<ReadModelLimit>,
+    /// `authorize policy, tenant: :field` — reuses `named_query::
+    /// TenantAuth` directly (same struct, no read-model-local type):
+    /// `Runtime::TenantScope.apply` is the SAME function for a Query and
+    /// a ReadModel (`ReadModelInterpreter#project`'s own `model =
+    /// TenantScope.apply(model, args)`, called BEFORE the eligible head's
+    /// own conditions/order/limit are applied — matching `run`'s own call
+    /// order below, right after `reference_id` resolves). `query_name`
+    /// still reads correctly for a read model's own bare declared name
+    /// (`IR::ReadModel#name`), the same field `RefusalSite::
+    /// UnauthorizedTenantRequired`'s own `{query}` placeholder expects
+    /// regardless of which construct declared it. No real corpus read
+    /// model declares one yet — ported ahead of a real example existing,
+    /// unlike every other Phase 10 item this session shipped, because the
+    /// mechanism is otherwise byte-identical to the already-proven query
+    /// path; verified against a purpose-built fixture instead (see the
+    /// ADR).
+    pub authorization: Option<named_query::TenantAuth>,
+    /// `group_by :field, ...` — `ReadModelInterpreter#group_by_target`/
+    /// `#nest`, read directly: nests the ONE many-side head's own rows,
+    /// one level per declared field, unwrapping any single-attribute
+    /// value object along the way (`Value.materialize_unwrapped`). This
+    /// CANNOT be one more data-driven field the way `offset`/`order_by`
+    /// already are — which field is "single-attribute" is a TYPE-LEVEL
+    /// fact `run`'s own generic body has no access to once it's holding
+    /// already-serialized `Json` — so it's a per-read-model GENERATED
+    /// function instead (`rust/project/read_models.rb`'s own
+    /// `emit_group_by_transform`), reusing the exact `sole_field_of`
+    /// codegen-time type knowledge `bridging.rb` already has for `sets`/
+    /// `append`. Applied to whichever head `group_by_target` names — the
+    /// one `many`-side head this read model declares (`seal_group_by`'s
+    /// own build-time check already refuses more than one).
+    pub group_by: Option<fn(Vec<(String, Json)>) -> Json>,
+    /// `count` — a bare marker, `true` when declared. UNLIKE `group_by`,
+    /// this needs no per-read-model generated function at all: "how many
+    /// rows" needs no type-level knowledge to compute, just the already-
+    /// materialized, already-`where`/`order_by`/`limit`/`offset`-filtered
+    /// row set the SAME `filtered_head`/`apply_filtered_head_options`
+    /// machinery `ComplianceDashboard` already exercises today. Applied
+    /// to the ONE `many`-side head (`seal_aggregation`'s own build-time
+    /// check already refuses more than one, and refuses combining with
+    /// `median_field`/`group_by`) — `run`'s own output loop finds it the
+    /// same way the `group_by` branch already does, via `head.many`, not
+    /// a separately-named target field.
+    pub count: bool,
+    /// `median :field` — the declared numeric field's own median across
+    /// the same one `many`-side head. ALSO no per-read-model generated
+    /// function: unlike `group_by`'s own recursive, multi-attribute,
+    /// whole-row unwrap (genuinely type-directed), a median only ever
+    /// unwraps ONE field, and `query_comparators::comparable` is already
+    /// a fully generic, RUNTIME, structural VO-unwrap (numeric-member-
+    /// wins-or-sole-member-wins) — the exact same one `where`/`order_by`
+    /// already reuse for the identical purpose. `Runtime::
+    /// ReadModelInterpreter#median`, ported directly in the `median`
+    /// function below.
+    pub median_field: Option<&'static str>,
 }
 
 /// The lookup `kernel/cli.rs`'s STRING-form "query" step dispatches
@@ -147,6 +224,102 @@ pub struct ReadModelDef {
 /// accepted-spelling set than Ruby's own. `matches_snake_alias` below
 /// closes it without touching codegen at all: still one row, one spelling
 /// baked in, checked against both of the two spellings Ruby itself accepts.
+/// `ReadModelInterpreter#nest`, ported directly — one level of nesting
+/// per declared `group_by` field, in DECLARED order; the leaf is the row
+/// with every grouped field already stripped, one per level, matching
+/// Ruby's own `row.reject { |key, _| key == field }`. ASSUMES the full
+/// `group_by` path uniquely identifies one row (Ruby's own comment, same
+/// scope limit): `stripped.first`/`group.first` below silently keeps
+/// only the first row when several share the same full key path.
+///
+/// This is HAND-WRITTEN ONCE, HERE — unlike the per-field unwrap
+/// (`rust/project/read_models.rb`'s own `emit_group_by_transform`,
+/// generated per read model because it needs codegen-time TYPE
+/// knowledge), grouping-and-stripping is purely structural: it only
+/// ever asks "does this JSON object have a field named X," never what
+/// TYPE that field is. `Json`'s own `PartialEq` derive makes the group
+/// key comparable directly, no per-type dispatch needed.
+///
+/// Grouping is a Vec-based linear scan, not a `HashMap`, for two real
+/// reasons: `Json` has no `Hash` impl (a nested `Object`/`Array` key
+/// isn't hashable the way a bare scalar is, and `group_by :field` can
+/// name a VALUE OBJECT field before this transform's own unwrap step
+/// ever simplifies it away), and Ruby's own `Hash#group_by` already
+/// preserves first-occurrence order — a `HashMap` would need its own
+/// separate order-tracking to match that, no simpler than this.
+pub fn nest(rows: Vec<Json>, fields: &[&str]) -> Json {
+    let (field, rest) = fields.split_first().expect("nest called with empty fields — read_model_skip_reason should refuse a group_by with none");
+    let mut groups: Vec<(Json, Vec<Json>)> = Vec::new();
+    for row in rows {
+        let (key, stripped) = match row {
+            Json::Object(pairs) => {
+                let key = pairs.iter().find(|(k, _)| k == field).map(|(_, v)| v.clone()).unwrap_or(Json::Null);
+                let stripped = Json::Object(pairs.into_iter().filter(|(k, _)| k != field).collect());
+                (key, stripped)
+            }
+            other => (Json::Null, other),
+        };
+        match groups.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, group)) => group.push(stripped),
+            None => groups.push((key, vec![stripped])),
+        }
+    }
+    Json::Object(
+        groups
+            .into_iter()
+            .map(|(key, group)| {
+                let value = if rest.is_empty() { group.into_iter().next().unwrap_or(Json::Null) } else { nest(group, rest) };
+                // `Hash#[]=` implicitly stringifies a non-String key the
+                // moment it's used as a JSON object key — `query_
+                // comparators::to_s` already does exactly Ruby's own
+                // `.to_s` conversion, reused rather than duplicated.
+                (super::query_comparators::to_s(&key), value)
+            })
+            .collect(),
+    )
+}
+
+/// `Runtime::ReadModelInterpreter#median`, ported directly. THE STANDARD
+/// DEFINITION: an ODD count's median is its one true middle value —
+/// returned as `comparable` reduced it (whichever `Json` numeric variant
+/// that was, `Num` or `Float`, exactly like Ruby's own `values[middle]`,
+/// unconverted); an EVEN count's median is the AVERAGE of its two middle
+/// values, ALWAYS `Json::Float` — Ruby's own `/2.0` forces float division
+/// regardless of whether the two summed values were themselves Integers.
+/// An EMPTY collection (every row's own field absent/null, or no rows at
+/// all) has no median: `Json::Null`, not zero — a caller cannot mistake
+/// "nothing to average" for "the values averaged to zero", matching
+/// Ruby's own `nil`.
+///
+/// Reuses `query_comparators::comparable` — the same one-level VO-unwrap
+/// `where`/`order_by` already give a value-object-carrying field, so
+/// `median :amount` on an `Amount{cents}` field reads the same scalar an
+/// `order_by :amount` comparison already would. `field` is always a bare,
+/// top-level attribute name — `aggregation_skip_reason`'s own generator-
+/// side check (`rust/project/read_models.rb`) already confirmed it names
+/// a real, numeric attribute before this ever runs, the same way `Ruby`'s
+/// own `aggregation_target` checks once, at read time, rather than this
+/// function re-deriving or re-checking it per row.
+fn median(rows: &[(String, Json)], field: &'static str) -> Json {
+    let mut values: Vec<Json> = rows
+        .iter()
+        .filter_map(|(_, row)| row.get(field))
+        .map(query_comparators::comparable)
+        .filter(|value| !matches!(value, Json::Null))
+        .collect();
+    if values.is_empty() {
+        return Json::Null;
+    }
+    values.sort_by(|a, b| query_comparators::as_f64(a).partial_cmp(&query_comparators::as_f64(b)).unwrap_or(std::cmp::Ordering::Equal));
+
+    let middle = values.len() / 2;
+    if values.len() % 2 == 1 {
+        values[middle].clone()
+    } else {
+        Json::Float((query_comparators::as_f64(&values[middle - 1]) + query_comparators::as_f64(&values[middle])) / 2.0)
+    }
+}
+
 pub fn find<'a>(table: &'a [ReadModelDef], verb: &str) -> Option<&'a ReadModelDef> {
     table.iter().find(|def| def.verb == verb || matches_snake_alias(def.verb, verb))
 }
@@ -236,7 +409,9 @@ mod snake_alias_tests {
             filtered_head: None,
             conditions: &[],
             order_by: None,
+            offset: None,
             limit: None,
+            authorization: None,
         }];
 
         assert!(find(&table, "Banking.CustomerPortfolio").is_some());
@@ -281,11 +456,31 @@ mod snake_alias_tests {
 /// happen to be right, is what makes THAT a fact about today's corpus, not
 /// a silent assumption this interpreter depends on.
 pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Result<Json, Refusal> {
-    let reference_id = args
-        .get(def.reference_name)
-        .and_then(Json::as_str)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("{}: missing reference argument {:?}", def.verb, def.reference_name)))?
-        .to_string();
+    let reference_id = match def.reference_name {
+        Some(name) => Some(
+            args.get(name)
+                .and_then(Json::as_str)
+                .ok_or_else(|| Refusal::TypeMismatch(format!("{}: missing reference argument {name:?}", def.verb)))?
+                .to_string(),
+        ),
+        // ROOTLESS (`ReadModelInterpreter#project`'s own `rootless =
+        // model.reference_target.nil?`) — no caller-supplied id to
+        // require or resolve at all.
+        None => None,
+    };
+
+    // Same check, same position (right after the reference id resolves,
+    // before any head is computed), as `ReadModelInterpreter#project`'s
+    // own `model = TenantScope.apply(model, args)` — see `named_query::
+    // run_cross_domain`'s own identical check for the full reasoning.
+    if let Some(auth) = &def.authorization {
+        if args.get(auth.tenant_field).is_none() {
+            return Err(Refusal::Unauthorized(RefusalSite::UnauthorizedTenantRequired.render(&[
+                ("query", auth.query_name),
+                ("field", auth.tenant_field),
+            ])));
+        }
+    }
 
     let (root_heads, other_heads): (Vec<&ReadModelHead>, Vec<&ReadModelHead>) = def.heads.iter().partition(|head| head.is_root);
 
@@ -295,10 +490,19 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
     // never just the immediately-preceding one.
     let mut projected: Vec<(&'static str, Vec<(String, Json)>)> = Vec::new();
     let mut rows_by_as: std::collections::HashMap<&'static str, (bool, Vec<(String, Json)>)> = std::collections::HashMap::new();
+    let mut grouped_heads: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
 
     for head in root_heads.into_iter().chain(other_heads) {
-        let mut rows = if head.is_root {
-            vec![fetch_root(store, head, &reference_id)?]
+        let mut rows = if reference_id.is_none() {
+            // ROOTLESS — `ReadModelInterpreter#project`'s own `elsif
+            // rootless ... records(bluebook, domain, head[:aggregate])`:
+            // each head reads its own aggregate's WHOLE table,
+            // independently — no cross-referencing against `projected`
+            // at all (`is_root` is meaningless here; a rootless model
+            // declares no reference_to target for any head to equal).
+            store.scan(head.aggregate).ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", head.aggregate)))?
+        } else if head.is_root {
+            vec![fetch_root(store, head, reference_id.as_deref().unwrap())?]
         } else {
             scan_matching(store, head, &projected)?
         };
@@ -313,6 +517,21 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         // never fires before `reference_id` above has already resolved it.
         if def.filtered_head == Some(head.as_name) {
             rows = apply_filtered_head_options(rows, def, args);
+        }
+
+        // `group_by :field, ...` — applies to the ONE many-side head this
+        // read model declares (`ReadModelInterpreter#group_by_target`'s
+        // own `target = model.aggregate_heads.find { |head| head[:many] }`
+        // — `seal_group_by`'s build-time check already refuses more than
+        // one many-side head existing at all when `group_by` is
+        // declared, so "the first `many` head" and "the only eligible
+        // one" are the same fact). Recorded in `grouped_heads` — the
+        // generated transform does its OWN `row_json`-equivalent
+        // wrapping internally (matching Ruby's own `row(record) =
+        // record.to_h`), so the output loop below must NOT wrap it
+        // again, unlike an ordinary head's own rows.
+        if def.group_by.is_some() && head.many {
+            grouped_heads.insert(head.as_name);
         }
 
         projected.push((head.aggregate, rows.clone()));
@@ -339,7 +558,22 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         let (many, rows) = rows_by_as
             .remove(head.as_name)
             .expect("every head in def.heads was computed in the loop above — as_name is unique per read model (ReadModelBuilder#add_aggregate_head)");
-        let value = if many {
+        let value = if grouped_heads.contains(head.as_name) {
+            // Already fully formed by the generated transform (its own
+            // `row_json`-equivalent wrapping done internally) — must NOT
+            // be wrapped again the way an ordinary head's rows are.
+            (def.group_by.expect("grouped_heads is only ever populated when def.group_by is Some"))(rows)
+        } else if many && def.count {
+            // `value.length`, ported directly — `rows` here is already
+            // the SAME post-`apply_filtered_head_options` set `group_by`
+            // would nest, or (when no where/order_by/limit/offset is
+            // declared alongside `count` at all) the plain scan-matched
+            // set — either way, exactly the rows `seal_aggregation`
+            // guarantees this is the one eligible `many`-side head for.
+            Json::Num(rows.len() as f64)
+        } else if many && def.median_field.is_some() {
+            median(&rows, def.median_field.expect("checked by the branch guard"))
+        } else if many {
             Json::Array(rows.into_iter().map(|(id, record)| repository::row_json(id, record)).collect())
         } else {
             rows.into_iter().next().map(|(id, record)| repository::row_json(id, record)).unwrap_or(Json::Null)
@@ -400,10 +634,9 @@ fn record_matches(record: &Json, head: &ReadModelHead, projected: &[(&'static st
     })
 }
 
-/// THE ELIGIBLE HEAD'S OWN where/order_by/limit — `Ports::Query::InMemory.
-/// execute`, ported for exactly the subset `read_models.rb`'s own
-/// eligibility gate admits (offset deliberately excluded — out of scope,
-/// same as every OTHER option that generator still refuses). Where-
+/// THE ELIGIBLE HEAD'S OWN where/order_by/offset/limit — `Ports::Query::
+/// InMemory.execute`, ported for exactly the subset `read_models.rb`'s own
+/// eligibility gate admits. Where-
 /// filtering reuses `repository::filter_entries` chained per condition —
 /// exactly `named_query::run`'s own AND, never reimplemented. Order/limit
 /// are `query_ordering::apply` (kernel/query_ordering.rs) — EXTRACTED from
@@ -421,10 +654,11 @@ fn apply_filtered_head_options(mut rows: Vec<(String, Json)>, def: &ReadModelDef
     for condition in def.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
-    query_ordering::apply(rows, def.order_by.as_ref(), def.limit.as_ref(), args)
+    query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args)
 }

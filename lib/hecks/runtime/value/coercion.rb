@@ -460,12 +460,41 @@ module Hecks
             next unless expected
 
             given = fields[attribute.name]
-            next if given.nil? || given.is_a?(expected)
+            next if given.nil?
 
-            raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "numeric_field",
-                                        type: value_object.hecks_name, field: attribute.name,
-                                        expected: attribute.type, offered: Rendering.describe(given))
+            unless given.is_a?(expected)
+              raise TypeMismatch,
+                    RefusalWording.render("TypeMismatch", "numeric_field",
+                                          type: value_object.hecks_name, field: attribute.name,
+                                          expected: attribute.type, offered: Rendering.describe(given))
+            end
+
+            # PRD 05 (numeric-boundary-coverage) — `given.is_a?(expected)`
+            # alone waves a NaN or an Infinity straight through: both are
+            # real `Float`s, so `is_a?(Numeric)`/`is_a?(Float)` is true for
+            # either. Never exercised before this, because
+            # `ValueGenerator::FLOAT_EDGE_CASES` had no non-finite value in
+            # it — the fuzzer could not have found this on its own until
+            # the table was widened alongside this fix. Left unchecked, a
+            # non-finite Float reaches `CommandRules::Arithmetic#clamp`
+            # (`current.clamp(min, max)` — `ArgumentError: comparison of
+            # Float with X failed`, a genuine Ruby-level crash, not a
+            # domain refusal, exactly the same failure mode this method's
+            # own header describes for a mistyped field) or all the way to
+            # storage, where `JSON.generate`/`#to_json` raises
+            # `JSON::GeneratorError: NaN/Infinity not allowed in JSON` the
+            # moment anything tries to persist or replay it — again a raw
+            # crash, not a refusal. `-0.0` is deliberately NOT refused
+            # here: it IS finite, round-trips through JSON as `-0.0`
+            # cleanly (confirmed empirically), and is a legitimate,
+            # meaningful float value (a signed zero), not a corruption
+            # risk — only NaN and +/-Infinity are.
+            if given.is_a?(Float) && !given.finite?
+              raise TypeMismatch,
+                    RefusalWording.render("TypeMismatch", "non_finite_field",
+                                          type: value_object.hecks_name, field: attribute.name,
+                                          offered: Rendering.describe(given))
+            end
           end
         end
 

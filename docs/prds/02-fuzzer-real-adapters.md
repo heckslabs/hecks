@@ -1,6 +1,7 @@
 # PRD 02 — Run the fuzzer/property suite against real adapters, not just Memory
 
-**Status:** Not started. Largest PRD in this set.
+**Status:** Done for Sqlite (this PRD's own acceptance criteria, in full).
+Postgres/PostgresEra scoped OUT — see "What shipped," below, for why.
 
 ## The problem
 
@@ -73,3 +74,55 @@ single-adapter spec). Nothing analogous exists for commands/mutations.
   separate, already-discussed idea (in-memory domain loading, no real disk
   I/O at all) with its own tradeoffs; this PRD only needs it to target a
   different adapter, not to stop copying files.
+
+## What shipped
+
+`IsolatedBoot.call(domain_path, adapter: :memory)` — `:memory` (unchanged,
+every existing caller keeps today's exact behavior with no code change) or
+`:sqlite` (rewrites `persisted_by(...)` to `"SqlitePersistence"` — the
+actual registered adapter name; `Sqlite` is the bare class,
+`SqlitePersistence` the port binding — instead of deleting it). Needs
+**zero** `.world` settings either way: `Sqlite#resolve_path` already
+defaults an unbound `database` setting to `data/<table>.db` under `root:`,
+and `Hecks.boot(copy)` passes this ephemeral copy's own directory as
+`root:` — a fresh, empty `data/` per run, same zero-history guarantee
+Memory gets from having no `.world` at all, just backed by a real SQLite
+file. `Replay.call` grew the same `adapter:` keyword (default `:memory`,
+so every existing call site is unchanged); `SequenceGenerator` itself was
+NOT touched, exactly as scoped — sequence GENERATION stays Memory-only
+always (its job is discovering a valid step list, not observing storage
+behavior; only the REPLAY that checks properties needs the real adapter).
+
+`spec/fuzzing/properties_spec.rb` gained a second "standard battery"
+describe block, same domains (pizzas, banking — `entity_list_mutations`
+excluded, it ships with no `.hecksagon` at all, nothing for the rebind to
+touch), same properties, run a second time against `adapter: :sqlite`.
+Lives under `spec/fuzzing/`, so it's `fuzzing: true`-tagged like every
+sibling spec there — zero added time to the default local `bundle exec
+rspec` loop (acceptance criterion 4), unconditional in CI, on demand
+locally via `--tag fuzzing`, exactly the existing convention.
+
+**Findings**: green on the spec's own 5-seed sample, AND on a much wider
+direct sweep run outside the spec suite (60 seeds × pizzas/banking, plus
+30 × entity_mutations, × both adapters — 150 combinations, zero property
+failures, zero crashes) — including with PRD 05's widened numeric
+edge-case tables (Bignum/NaN/Infinity/-0.0) folded in at the same time.
+No Memory-vs-Sqlite query/mutation divergence found, unlike
+`query_agreement_spec.rb`'s own four — this corpus's real query/mutation
+shapes evidently don't hit whatever those four needed, at the volume
+tested here.
+
+**Postgres/PostgresEra deliberately NOT added**, unlike this PRD's
+original acceptance criteria: Memory and Sqlite both need ZERO `.world`
+settings to boot (see above) — that's exactly what let `IsolatedBoot`
+stay a simple regex-rewrite-then-delete-`.world`, no settings-injection
+mechanism needed at all. Postgres/PostgresEra have no such zero-config
+default — they need a real, shared connection string (`database
+"postgres://..."`), which this rewrite-and-delete mechanism has nowhere
+safe to source from an unconditional, in-process, no-service-required
+spec. Adding it needs `IsolatedBoot` to gain an actual settings-injection
+path (write a real `.world` with a real DSN, gated the same `io: true` +
+`PostgresProbe.available?` convention `domain_refusal_spec.rb` already
+uses) — a real, separate, larger piece of work than the regex-rewrite this
+round shipped, left for a follow-up round rather than shipped half-verified
+in an environment with no reachable Postgres to prove it against.

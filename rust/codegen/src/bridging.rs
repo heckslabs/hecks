@@ -354,6 +354,26 @@ pub fn arithmetic_amount_expr(source: &Json, command: &Json, value_objects_by_na
     None
 }
 
+/// `clamp:`'s own bounds — always a literal two-element `[min, max]`
+/// Array of Integers. `None` for anything else (a non-literal source, a
+/// wrong-length Array, a non-Integer bound — this crate's own Integer-
+/// only scope, matching `integer_field_of`/`arithmetic_target_field`).
+/// See `rust/project/bridging.rb`'s own `clamp_bounds_ints` — the two
+/// generators' shared reasoning lives there.
+pub fn clamp_bounds_ints(source: &Json) -> Option<(i64, i64)> {
+    if source.get("kind").map(Json::to_s).unwrap_or_default() != "literal" {
+        return None;
+    }
+    let value = source.get("value")?;
+    let items = value.as_array()?;
+    if items.len() != 2 {
+        return None;
+    }
+    let Json::Int(min) = &items[0] else { return None };
+    let Json::Int(max) = &items[1] else { return None };
+    Some((*min, *max))
+}
+
 /// An aggregate attribute a CREATING command's own arguments never
 /// mention — `Runtime::Instance.defaults`/`.default_for`, read directly.
 pub fn creation_default_rhs(attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
@@ -378,4 +398,93 @@ pub fn creation_default_rhs(attr: &Json, value_objects_by_name: &HashMap<String,
     }
     let fields: Vec<String> = attrs.iter().map(|f| format!("{}: {}", naming::rust_ident_field(crate::attr::name(f)), naming::literal_rhs(crate::attr::default(f).unwrap()))).collect();
     Some(format!("{} {{ {} }}", naming::rust_ident(crate::attr::type_name(attr)), fields.join(", ")))
+}
+
+/// `corrects "EventName"` — the mutation itself, if this command declares
+/// one. Mirrors `rust/project/bridging.rs`'s own `corrects_of` exactly.
+pub fn corrects_of(command: &Json) -> Option<&Json> {
+    command.get("mutations").map(Json::each).unwrap_or(&[]).iter().find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "corrects")
+}
+
+/// `reverses: true` — the harder, derived-mutation shape this generator
+/// (like its Ruby sibling) refuses rather than guesses at.
+pub fn corrects_reverses(mutation: &Json) -> bool {
+    mutation
+        .get("source")
+        .and_then(|s| s.get("value"))
+        .and_then(|v| v.get("reverses"))
+        .map(Json::as_bool)
+        .unwrap_or(false)
+}
+
+/// `emitted_fee_applied`, from `"FeeApplied"` — the SAME plain,
+/// deterministic snake_case rendering `rust/project/bridging.rb`'s own
+/// `corrects_flag_field` uses; a synthetic field name, never bluebook-
+/// author-visible, so byte-identity with the Ruby generator's own output
+/// depends on this matching character for character.
+pub fn corrects_flag_field(event_name: &str) -> String {
+    let mut out = String::from("emitted_");
+    let chars: Vec<char> = event_name.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        if c.is_ascii_uppercase() && i > 0 {
+            let prev = chars[i - 1];
+            if prev.is_ascii_lowercase() || prev.is_ascii_digit() {
+                out.push('_');
+            }
+        }
+        out.push(c.to_ascii_lowercase());
+    }
+    out
+}
+
+/// Every event name ANY command on this aggregate names in a `corrects`
+/// mutation — mirrors `rust/project/bridging.rb`'s own
+/// `correctable_event_names` exactly (aggregate-wide, not per-command).
+pub fn correctable_event_names(aggregate: &Json) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for c in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
+        for m in c.get("mutations").map(Json::each).unwrap_or(&[]) {
+            if m.get("op").map(Json::to_s).unwrap_or_default() == "corrects" {
+                let name = m.get("target").map(Json::to_s).unwrap_or_default();
+                if !names.contains(&name) {
+                    names.push(name);
+                }
+            }
+        }
+    }
+    names
+}
+
+/// The synthetic, PREPENDED `GivenSpec` for a `corrects`-declaring
+/// command — mirrors `rust/project/bridging.rb`'s own
+/// `corrects_given_specs` exactly.
+pub fn corrects_given_specs(command: &Json) -> Vec<String> {
+    let Some(corrects) = corrects_of(command) else { return Vec::new() };
+    let event_name = corrects.get("target").map(Json::to_s).unwrap_or_default();
+    vec![format!(
+        "            crate::kernel::GivenSpec {{ description: \"\", expr: crate::kernel::Expr::Lookup({:?}), corrects_event: Some({:?}) }},",
+        corrects_flag_field(&event_name),
+        event_name
+    )]
+}
+
+/// `extra_fields:`-shaped `(key, to_json-expr, deserialize_rhs)` triples
+/// for `corrects`'s own per-record flag fields — mirrors `rust/project/
+/// commands.rb`'s own `corrects_extra_fields` exactly, riding along with
+/// the record's own ordinary JSON round-trip the same way.
+pub fn corrects_extra_fields(aggregate: &Json) -> Vec<(String, String, String)> {
+    correctable_event_names(aggregate)
+        .iter()
+        .map(|ev| {
+            let field = corrects_flag_field(ev);
+            let aggregate_name = crate::attr::name(aggregate).to_string();
+            let deserialize_rhs = format!(
+                "match v.require({:?}, {:?})? {{ crate::kernel::Json::Bool(b) => *b, _ => return Err({}) }}",
+                field,
+                aggregate_name,
+                crate::json_codec::json_type_error(&aggregate_name, &field, "a boolean")
+            );
+            (field.clone(), format!("crate::kernel::Json::Bool(self.{field})"), deserialize_rhs)
+        })
+        .collect()
 }

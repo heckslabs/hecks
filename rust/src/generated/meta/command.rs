@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CommandName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CommandName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CommandName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CommandName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CommandName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -132,7 +132,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Actor")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Actor.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Actor")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Actor.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Actor.value: expected String".to_string()) })? },
         })
     }
 }
@@ -192,7 +192,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Goal")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Goal.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Goal")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Goal.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Goal.value: expected String".to_string()) })? },
         })
     }
 }
@@ -252,7 +252,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "EventName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EventName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "EventName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("EventName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("EventName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -312,7 +312,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: { let x = v.require("name", "Announcement")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Announcement.name: expected String".to_string()))? },
+        name: { let x = v.require("name", "Announcement")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Announcement.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Announcement.name: expected String".to_string()) })? },
         })
     }
 }
@@ -393,14 +393,14 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: { let x = v.require("name", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.name: expected String".to_string()))? },
-        r#type: { let x = v.require("type", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.type: expected String".to_string()))? },
-        list: { let x = v.require("list", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.list: expected String".to_string()))? },
-        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.optional: expected String".to_string()))?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.pattern: expected String".to_string()))?), None => None, },
-        default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.default: expected String".to_string()))?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.admits: expected String".to_string()))?), None => None, },
-        relationship: match v.get("relationship") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.relationship: expected String".to_string()))?), None => None, },
+        name: { let x = v.require("name", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.name expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.name: expected String".to_string()) })? },
+        r#type: { let x = v.require("type", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.type expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.type: expected String".to_string()) })? },
+        list: { let x = v.require("list", "Argument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.list expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.list: expected String".to_string()) })? },
+        optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.optional expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.optional: expected String".to_string()) })?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.pattern expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.pattern: expected String".to_string()) })?), None => None, },
+        default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.default expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.default: expected String".to_string()) })?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.admits expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.admits: expected String".to_string()) })?), None => None, },
+        relationship: match v.get("relationship") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Argument.relationship expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Argument.relationship: expected String".to_string()) })?), None => None, },
         })
     }
 }
@@ -463,8 +463,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        description: match v.get("description") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Rule.description: expected String".to_string()))?), None => None, },
-        canonical: { let x = v.require("canonical", "Rule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Rule.canonical: expected String".to_string()))? },
+        description: match v.get("description") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Rule.description expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Rule.description: expected String".to_string()) })?), None => None, },
+        canonical: { let x = v.require("canonical", "Rule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Rule.canonical expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Rule.canonical: expected String".to_string()) })? },
         })
     }
 }
@@ -509,7 +509,7 @@ impl crate::kernel::Fielded for Change {
 
 impl Change {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate"].contains(&self.op.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\" — got ", self.op))); }
+        if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&self.op.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\", \"corrects\" — got ", self.op))); }
         Ok(())
     }
 }
@@ -536,11 +536,11 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        target: { let x = v.require("target", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Change.target: expected String".to_string()))? },
-        op: { let x = v.require("op", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Change.op: expected String".to_string()))? },
-        field: { let x = v.require("field", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Change.field: expected String".to_string()))? },
-        kind: { let x = v.require("kind", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Change.kind: expected String".to_string()))? },
-        source: { let x = v.require("source", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Change.source: expected String".to_string()))? },
+        target: { let x = v.require("target", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Change.target expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Change.target: expected String".to_string()) })? },
+        op: { let x = v.require("op", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Change.op expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Change.op: expected String".to_string()) })? },
+        field: { let x = v.require("field", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Change.field expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Change.field: expected String".to_string()) })? },
+        kind: { let x = v.require("kind", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Change.kind expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Change.kind: expected String".to_string()) })? },
+        source: { let x = v.require("source", "Change")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Change.source expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Change.source: expected String".to_string()) })? },
         })
     }
 }
@@ -600,7 +600,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CommandText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CommandText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CommandText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CommandText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CommandText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -734,7 +734,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ArgName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ArgName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ArgName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ArgName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -794,7 +794,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "ArgType")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgType.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "ArgType")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ArgType.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ArgType.value: expected String".to_string()) })? },
         })
     }
 }
@@ -854,7 +854,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RuleText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "RuleText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RuleText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -914,7 +914,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "FieldRef")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldRef.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "FieldRef")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("FieldRef.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("FieldRef.value: expected String".to_string()) })? },
         })
     }
 }
@@ -974,7 +974,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "OpName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "OpName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("OpName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("OpName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -1006,6 +1006,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed { word: "state", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "attribute", context: "Command", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordSeed { word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "corrects", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
 ];
 
 impl KeywordSeed {
@@ -1090,6 +1091,10 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
     ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "corrects", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "corrects", context: "Command", at: "", named: "as", kind: "symbol", required: "false", fills: "source", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "corrects", context: "Command", at: "", named: "reason", kind: "text", required: "false", fills: "source", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "corrects", context: "Command", at: "", named: "reverses", kind: "flag", required: "false", fills: "source", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
 ];
 
 impl ArgumentSeed {
@@ -1205,8 +1210,8 @@ impl Command {
 impl Command {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.aggregate: expected String".to_string()))?), },
-        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.entity_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Command.aggregate expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Command.aggregate: expected String".to_string()) })?), },
+        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Command.entity_id expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Command.entity_id: expected String".to_string()) })?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(&x.coerce_single_field("value"))?), },
         role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(&x.coerce_single_field("value"))?), },
         goal: match v.get("goal") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Goal::from_json(&x.coerce_single_field("value"))?), },
@@ -1476,7 +1481,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        points_at: { let x = v.require("points_at", "ReferenceArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()))? },
+        points_at: { let x = v.require("points_at", "ReferenceArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs.points_at expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()) })? },
         name: ArgName::from_json(&v.require("name", "ReferenceArgs")?.coerce_single_field("value"))?,
         list: ArgType::from_json(&v.require("list", "ReferenceArgs")?.coerce_single_field("value"))?,
         optional: match v.get("optional") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
@@ -1536,8 +1541,8 @@ pub fn dispatch_rule(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
-            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },
+            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1629,8 +1634,8 @@ pub fn dispatch_ensure(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
-            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },
+            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1716,7 +1721,7 @@ pub fn dispatch_change(
     repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ChangeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Command> {
         args.target.check_invariants()?;
-        if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\" — got ", args.op.value))); }
+        if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\", \"corrects\" — got ", args.op.value))); }
         args.op.check_invariants()?;
         args.field.check_invariants()?;
         args.kind.check_invariants()?;
@@ -1732,8 +1737,8 @@ pub fn dispatch_change(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a mutation names a target", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("target.value"))))))) },
-            crate::kernel::GivenSpec { description: "a mutation does something", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("op.value"))))))) },
+            crate::kernel::GivenSpec { description: "a mutation names a target", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("target.value"))))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a mutation does something", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("op.value"))))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1828,8 +1833,8 @@ pub fn dispatch_acts_on(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "a command names what it acts on", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("root.value"))))))) },
-            crate::kernel::GivenSpec { description: "a command acts on ONE root", expr: Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("references.value"))))) },
+            crate::kernel::GivenSpec { description: "a command names what it acts on", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("root.value"))))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a command acts on ONE root", expr: Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("references.value"))))), corrects_event: None },
         ],
         None,
         |record| {
@@ -1916,7 +1921,7 @@ pub fn dispatch_announce(
         "owner_id, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "an event is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("announces.value"))))))) },
+            crate::kernel::GivenSpec { description: "an event is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("announces.value"))))))), corrects_event: None },
         ],
         None,
         |record| {

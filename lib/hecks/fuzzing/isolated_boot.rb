@@ -23,15 +23,42 @@ module Hecks
     # domain's own rules and shape are untouched ; only WHICH adapter this
     # one ephemeral copy answers through changes. What the domain is
     # bound to for real deployment is never touched — only this tmp copy.
+    #
+    # `adapter:` (PRD 02) — Memory is the default and the only mode every
+    # existing caller still gets with no change. `:sqlite` rebinds to the
+    # REAL SQLite adapter instead of the in-memory one, for exactly the
+    # same reason PRD 02 exists: 15 declared properties (properties.rb)
+    # and every fuzz/replay run has only ever been checked against
+    # Memory's own hand-written repository, never against a real,
+    # persisted, SQL-backed one — and `spec/adapters/query_agreement_spec
+    # .rb` already found 4 shipped query bugs from exactly that
+    # comparison, on a fixed corpus far smaller than what the fuzzer
+    # generates. `:sqlite` rewrites to `"SqlitePersistence"` — the name
+    # `lib/hecks/adapters/driven/sqlite.adapter` actually registers under
+    # (`Sqlite` is the class; `SqlitePersistence` is a thin subclass
+    # that's the one real port binding names) — and needs no `.world`
+    # settings at all, the same reason Memory needs none:
+    # `Sqlite#resolve_path` already defaults an
+    # unbound `database` setting to `"data/<table>.db"` relative to
+    # `root:`, which `Hecks.boot(copy)` passes as this ephemeral copy's
+    # own directory — a fresh, empty `data/` per run, exactly like
+    # Memory's own zero-history guarantee, just backed by a real SQLite
+    # file instead of a Hash. Postgres/PostgresEra are deliberately NOT
+    # added here: a real Postgres run needs a live server and shared
+    # connection settings this in-process, no-adapter-config path has no
+    # place to source safely — that stays `io: true`-gated, direct-adapter
+    # coverage (`spec/adapters/driven/postgres_*_spec.rb`), not this.
     module IsolatedBoot
       module_function
 
-      def call(domain_path)
+      ADAPTER_NAMES = { memory: "Memory", sqlite: "SqlitePersistence" }.freeze
+
+      def call(domain_path, adapter: :memory)
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
           copy_dereferencing(domain_path, copy)
           FileUtils.rm_rf(File.join(copy, "data"))
-          rebind_to_memory!(copy)
+          rebind!(copy, adapter: adapter)
           yield copy
         end
       end
@@ -47,8 +74,8 @@ module Hecks
       #
       # `FileUtils.cp` follows a symlink and copies its CONTENT, which is
       # what an isolated boot wants: the copy has to stand alone, since
-      # rebind_to_memory! rewrites files in it and must not reach back
-      # through a link into the real tree.
+      # rebind! rewrites files in it and must not reach back through a
+      # link into the real tree.
       def copy_dereferencing(source, destination)
         FileUtils.mkdir_p(destination)
         Dir.glob(File.join(source, "**", "*"), File::FNM_DOTMATCH).each do |path|
@@ -64,7 +91,9 @@ module Hecks
         end
       end
 
-      def rebind_to_memory!(copy)
+      def rebind!(copy, adapter: :memory)
+        target = ADAPTER_NAMES.fetch(adapter) { raise ArgumentError, "unknown isolated-boot adapter #{adapter.inspect}" }
+
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
           # `persisted_by`/`projected_by` can be spelled two ways now —
           # aggregate-scoped (`Banking::Customer.persisted_by("Heki")`,
@@ -74,7 +103,7 @@ module Hecks
           # be caught here or a domain that only declares the bare form
           # keeps its real adapter under an "isolated" fuzz boot.
           lines = File.readlines(path).reject { |line| line.match?(/\bprojected_by\s*\(?\s*"/) }
-          File.write(path, lines.join.gsub(/persisted_by\s*\(?\s*"[^"]+"\s*\)?/, 'persisted_by("Memory")'))
+          File.write(path, lines.join.gsub(/persisted_by\s*\(?\s*"[^"]+"\s*\)?/, "persisted_by(\"#{target}\")"))
         end
 
         # THE SETTINGS, NOT JUST THE BIND — `WorldBuilder#method_missing`
@@ -82,9 +111,12 @@ module Hecks
         # "verb" (world_builder.rb:32-33), so a bind rewritten to Memory
         # still falls back to whatever adapter's settings were declared
         # bare — Postgres's `database:`, which Memory does not take and
-        # WiringError refuses on sight. Memory needs no settings at all
-        # (a domain with no .world boots it as the default), so the
-        # simplest correct fix is dropping .world from the copy entirely.
+        # WiringError refuses on sight. Both Memory and Sqlite need no
+        # settings at all (`Sqlite#resolve_path` defaults `database` to
+        # `data/<table>.db` under `root:` when unset — the same
+        # zero-config default Memory gets from having no `.world` at
+        # all), so the simplest correct fix for either target is
+        # dropping `.world` from the copy entirely.
         Dir.glob(File.join(copy, "**", "*.world")).each { |path| File.delete(path) }
       end
     end

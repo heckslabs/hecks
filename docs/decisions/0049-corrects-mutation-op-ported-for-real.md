@@ -1,0 +1,35 @@
+# `corrects` mutation op — ported for real, including its admissibility check
+
+**Status:** Shipped, with explicit user authorization for the design tradeoff below. ADR 0041/0048 identified that `corrects`'s own admissibility check (`CommandRules::Admissibility#enforce_correction_target`) needed either a production snapshot-format extension or a change to `dispatch()`'s own signature affecting every command in every domain — real, cross-cutting kernel work this session's own established discipline (never land a change with this blast radius, unreviewed, in an autonomous session) had declined to make unilaterally. The user was asked directly and chose "extend snapshot format." This ADR ships that.
+
+## The design that made this tractable: a derived record field, not new dispatch plumbing
+
+The key move, found by tracing `dispatch()`'s real body and `rust/host`'s real production snapshot code directly rather than assuming: **"has this record ever emitted event X" can be represented as an ordinary derived boolean field on the record struct itself**, set whenever a command emitting that event succeeds, and checked by the correcting command's own synthetic `given`. This needs:
+
+1. **No new `dispatch()` parameter.** `GivenSpec` (data already flowing through `dispatch()`'s existing given-check loop) gains one new optional field, `corrects_event: Option<&'static str>`. When `Some`, the loop constructs Ruby's own exact dynamic refusal wording (`"{command} refused — corrects {event}, but {aggregate_qualified_name} #{id} has never emitted it"` — `aggregate_qualified_name` is already `{domain}::{aggregate}`, confirmed by this function's own header comment, exactly matching Ruby's own `event_key`) instead of the generic `"{command} refused — {description}"` every other given uses. Every existing `GivenSpec` literal needed exactly one mechanical addition (`corrects_event: None`), regenerated the same way any other struct-extension in this plan has been.
+2. **The check itself reuses existing kernel primitives, not a new one.** `Expr::Lookup("emitted_fee_applied")` and `Value::Bool` already existed and already handle reading an arbitrary boolean field off the record — the SAME generic mechanism any ordinary given predicate uses to read any other field. No new `Expr` variant was needed.
+3. **Snapshot persistence is free**, because the flag rides along with the record's own ordinary JSON round-trip (`to_json`/`from_json`, wired the same way the lifecycle field's own `extra_fields` mechanism already worked) — and `rust/host`'s own snapshot mechanism, confirmed directly from `journal.rs`, already persists a record's WHOLE JSON representation through a generic `jsonb` column (`hecks_lambda_snapshot.seed`). No schema migration was needed at all.
+
+## What was ported
+
+Both generators (`rust/project/{commands,fielded,types,json_codec,domain_generator}.rb`, mirrored in `rust/codegen/src/{commands,fielded,types,json_codec,bridging}.rs`):
+
+- `corrects` added to `unsupported_ops`'s allow-list; `reverses: true` (the harder, derived append/remove-reversal shape Ruby's own authors haven't finished designing — `AggregateBuilder#seal_correction_targets`'s own comment) explicitly still refused, matching ADR 0041's own scoping.
+- `correctable_event_names(aggregate)`: every event name any command on the aggregate names in a `corrects` mutation.
+- `corrects_flag_field(event_name)`: the deterministic `emitted_<snake_case_event>` field name.
+- A new per-record `bool` struct field (default `false` at creation) per correctable event name, wired into `Fielded::field()` (a new `fielded_corrects_flag_arm` exemplar template, mirroring the existing lifecycle arm) and `to_json`/`from_json`.
+- A synthetic, PREPENDED `GivenSpec` for the `corrects`-declaring command itself — "structural, before the declared givens," matching Ruby's own `step_enforce_givens` ordering exactly (`enforce_correction_target` called before `enforce_givens`).
+- An additive mutation line (`record.emitted_x = true;`), appended after every declared mutation, for every command whose own `emits` list names a correctable event.
+
+## The one real surprise: a comparison-harness fix, not a kernel bug
+
+The synthetic flag field, being part of the record's ordinary `to_json()`, leaked into `bin/rust_conformance`'s own "instances" comparison output — which Ruby's side never has (Ruby's real mechanism, `@registry.event_log`, lives on the registry and never touches a record's own `to_h`). Fixed in the comparison harness itself, not the kernel: `bin/rust_conformance` now strips `emitted_*` keys from the Rust side's own instances before comparing, the same way `spec/codegen_parity_spec.rb` already excludes generator-only artifacts (`manifest.json`/`ir.json`) from its own byte-identity check — a known, intentional, Rust-only implementation detail, not a behavioral divergence.
+
+## Verification
+
+- **Full scenario, both engines, byte-identical**: a real-corpus script (`Customer.Register` → `Account.Open` → `CorrectFee` [before any fee] → `ApplyFee` → `CorrectFee` [after]) run through `bin/rust_conformance ... native` reports **"matches."** — including Ruby's own exact dynamic refusal text on the first `CorrectFee` (`"CorrectFee refused — corrects FeeApplied, but Banking::Account #acct-1 has never emitted it"`) reproduced byte-for-byte by Rust.
+- **The exact scenario the snapshot-format concern was about, proven directly, not just argued**: `ApplyFee` was dispatched in one process invocation of the native binary; its raw JSON output (including `"emitted_fee_applied": true"`) was captured and fed back as a fresh `"seed"` to a SECOND, independent process invocation whose own `"steps"` contained ONLY the `CorrectFee` step (no `ApplyFee` in sight) — simulating exactly `rust/host`'s own snapshot-skip-then-replay-only-new-steps production shape. `CorrectFee` succeeded correctly: no refusal, `FeeCorrected` emitted, balance/fees restored. The flag survived the snapshot round-trip exactly as designed.
+- **Both generators verified in lockstep, not just Ruby**: `spec/codegen_parity_spec.rb --tag io`, 8/8 — every real corpus domain, including banking's own newly-generated `CorrectFee`, byte-identical between the Ruby generator and the `hecks-codegen` Rust crate.
+- **Every real domain builds clean**: `cargo build --no-default-features --features <domain>` for banking, compliance, pizzas, roster, meta — zero errors. (`embryonaut`'s source bluebook lives outside this repo — a dogfood domain, per project memory — so its ONE existing `GivenSpec` literal was hand-patched with the identical `corrects_event: None` regeneration would have produced, since it declares no `corrects` mutation of its own; verified this is the only such literal via `grep -c "GivenSpec {"`.)
+- Full sweep: `bundle exec rspec` (2232/0), `bundle exec rubocop` (645 files, 0 offenses).
+- `git status` confirmed clean of any unrelated byproduct drift (`Cargo.toml`/`mod.rs` default-feature bookkeeping, `governance`/`identity` framework regen churn) before commit.

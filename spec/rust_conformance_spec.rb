@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "hecks/fuzzing"
+require_relative "support/rust_conformance_helpers"
 
 # THE RUST DIFFERENTIAL HARNESS, WIRED IN — bin/rust_conformance's own
 # header comment used to say plainly that nothing did this ("this tool
@@ -48,31 +49,15 @@ require "hecks/fuzzing"
 # same as every other spec that does real, uncontrolled I/O; excluded
 # locally by default (spec_helper.rb), always run in CI.
 RSpec.describe "Rust conformance (native binary)", io: true do
+  include RustConformanceHelpers
+
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
-  # Built for THIS fixture's own domain, every time — never found by
-  # trusting whatever happens to already sit at
-  # rust/target/{release,debug}/rust. `generated::active`
-  # (rust/src/generated/mod.rs) is a Cargo-feature-selected re-export of
-  # one domain's own `generated::<domain>::merged` module, kept in sync
-  # by bin/project_rust (rust/Cargo.toml, one feature per domain
-  # generated) — an ambient binary reflects whichever domain someone
-  # (or some OTHER concurrent process) last built for, not necessarily
-  # this fixture's own. That's exactly the failure mode that broke these
-  # two fixtures once already: a different domain's regeneration left a
-  # binary that ran fine and answered `{}` for everything.
-  def build_rust_for(domain_feature)
-    cargo_toml = File.read(File.join(RUST_DIR, "Cargo.toml"))
-    return nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
-
-    built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
-                   chdir: RUST_DIR, out: File::NULL, err: File::NULL)
-    return nil unless built
-
-    binary = File.join(RUST_DIR, "target", "debug", "rust")
-    File.executable?(binary) ? binary : nil
-  end
+  # `RustConformanceHelpers#build_rust_for` now takes `rust_dir` explicitly
+  # (shared with spec/rust_conformance_fuzz_spec.rb, PRD 04) — this
+  # wrapper keeps every call site below unchanged.
+  def build_rust_for(domain_feature) = super(domain_feature, RUST_DIR)
 
   # `reactions`/`sagas` (`Registry#reaction_log`/`#saga_log`,
   # orchestrate.rs's own header) join the compared fields below, with TWO
@@ -115,15 +100,11 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   #      not by fixture name, so a FUTURE fixture that happens to hit the
   #      same case is covered by the same rule instead of silently
   #      becoming a mismatched test.
-  def cross_domain_policy_names(rust_output)
-    rust_output.fetch("cross_domain_reactions").flatten.map { |r| r["policy"] }.to_set
-  end
-
-  def known_reaction_gap?(reaction)
-    reaction["policy"] == "FreezeAccountsOnSuspension" &&
-      reaction["trigger"] == "Banking::Account.FreezeAccount" &&
-      reaction["delivered"] == false
-  end
+  #
+  # `cross_domain_policy_names`/`known_reaction_gap?` are
+  # `RustConformanceHelpers` methods now (shared with
+  # spec/rust_conformance_fuzz_spec.rb, PRD 04) — this comment describes
+  # both, kept here since this is where each gap was first found.
 
   # THE READ_MODEL/QUERY-CODEGEN BOUNDARY'S OWN REFUSAL, one level up
   # from the single-step example below — the SAME gap
@@ -148,11 +129,14 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   # Ruby genuinely executed it; Rust never attempted the query at all, so
   # its own queries log simply has no matching entry — exempted the same
   # way, checking either key a step's own log entry uses.
-  KNOWN_REFUSAL_GAP_VERBS = %w[Banking.ComplianceDashboard Banking::ATMCard.ByFee].freeze
-
-  def known_refusal_gap?(entry)
-    KNOWN_REFUSAL_GAP_VERBS.include?(entry.key?("verb") ? entry["verb"] : entry["query"])
-  end
+  #
+  # `KNOWN_REFUSAL_GAP_VERBS`/`known_refusal_gap?` are
+  # `RustConformanceHelpers` constants/methods now — this fixed corpus's
+  # own narrow, hand-verified list, unchanged. PRD 04's generated-sequence
+  # bridge (spec/rust_conformance_fuzz_spec.rb) uses a DIFFERENT,
+  # message-pattern-based version of this same judgment instead
+  # (`structural_refusal_gap?`) — see that helper's own comment for why a
+  # fixed verb list doesn't scale to a randomly generated sequence.
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
     it "#{File.basename(fixture_path)}: instances, events, refusals, reactions, and sagas match Ruby exactly" do
@@ -180,6 +164,8 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
       rust_output = JSON.parse(stdout)
+      strip_emitted_flags!(rust_output["instances"])
+      strip_emitted_flags!(rust_output["queries"])
 
       expect(rust_output["instances"]).to eq(ruby_instances)
       expect(rust_output["events"]).to eq(ruby_events)

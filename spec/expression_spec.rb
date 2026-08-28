@@ -60,6 +60,35 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("metadata.empty?", metadata: {})).to be(true)
       expect(evaluate('ratio.to_s == "1.5"', ratio: 1.5)).to be(true)
     end
+
+    # Found live via the type-directed bounded-exhaustive expression
+    # generator (Phase 7, equivalence-gap plan): `Resolver#match_call`
+    # used `expr.rindex(".modulo(")` — the RIGHTMOST occurrence — then
+    # stripped one trailing `)`. For a NESTED divisor
+    # (`0.modulo(amount.modulo(-1))`), `rindex` found the INNER
+    # `.modulo(` instead of the outer one, splitting into a receiver of
+    # `"0.modulo(amount"` and a divisor of `"-1)"` — both garbage, both
+    # re-parsed as bogus `Lookup` paths, both refusing with "cannot
+    # resolve" — a silent misparse that happened to fail safe into a
+    # real `EvaluationError` rather than a crash, which is exactly why
+    # it went unnoticed: nothing before this generator ever fed
+    # `.modulo` a nested `.modulo` call.
+    it "parses a NESTED modulo divisor correctly, not by finding the rightmost .modulo(" do
+      expect(resolve("0.modulo(amount.modulo(3))", amount: 7)).to eq(0.modulo(7.modulo(3)))
+      expect(evaluate("1 == 7.modulo(amount.modulo(3))", amount: 5)).to be(true) # 5 % 3 = 2; 7 % 2 = 1
+    end
+
+    # The SAME mis-split, a different shape: CHAINED calls
+    # (`x.modulo(a).modulo(b)`, the receiver of the OUTER call itself
+    # ending in a `.modulo(...)` call) — the leftmost-occurrence-only
+    # version of this fix (tried right after the `rindex` bug above was
+    # found) still mis-parsed this one: the first `.modulo(`'s own
+    # matching close paren lands mid-string, before the second
+    # `.modulo(...)`, and has to be rejected in favor of trying the next
+    # occurrence rather than giving up.
+    it "parses a CHAINED modulo receiver correctly too" do
+      expect(resolve("amount.modulo(5).modulo(3)", amount: 11)).to eq(11.modulo(5).modulo(3))
+    end
   end
 
   describe "attribute and argument binding" do
@@ -222,6 +251,20 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('names.include?("Basil")', state)).to be(true)
       expect(evaluate('names.include?("Anchovy")', state)).to be(false)
     end
+
+    # `Evaluator#match_include`'s own version of `Resolver#match_call`'s
+    # nested-modulo bug (found by the same generator, same session): it
+    # used `expr.rindex(".include?(")`, finding the INNERMOST occurrence
+    # when the needle itself contains another `.include?` call — e.g. a
+    # String built by `.to_s`'ing a block predicate whose own body
+    # includes one. Fixed identically: try each occurrence left to
+    # right, keep the first whose own balanced-paren match reaches the
+    # string's last character.
+    it "tests membership when the needle ITSELF contains another .include? call" do
+      state = { names: %w[Basil Olive], letters: %w[a b] }
+      expect(evaluate('names.include?(letters.any? { |l| letters.include?("a") }.to_s)', state))
+        .to eq(state[:names].include?(state[:letters].any? { |l| state[:letters].include?("a") }.to_s))
+    end
   end
 
   describe "split" do
@@ -289,6 +332,23 @@ RSpec.describe "the expression sublanguage" do
     it "raises when the receiver is not a list" do
       expect { evaluate("value.all? { |s| s.length > 0 }", value: "oops") }
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
+    end
+
+    # `[`/`]` -- the identical "block predicate's own operator split the
+    # WHOLE expression" lesson two tests above, a third time, found by
+    # the type-directed bounded-exhaustive expression generator (Phase
+    # 7): `Evaluator#top_level_index` and `Resolver#split_addition`
+    # tracked `(`/`)` and `{`/`}` as grouping constructs but never
+    # `[`/`]` -- so an ARRAY LITERAL receiver whose own element contains
+    # a top-level `+`/comparison (`[0, 1 + 1].all? { |n| n > 0 }`) read
+    # as a split point for the ENCLOSING expression before
+    # `parse_block_opener` ever saw the array-plus-block as one atomic
+    # leaf, the exact "TypeError: no implicit conversion of Symbol into
+    # Integer" signature every unsupported construct in this file
+    # raises.
+    it "does not let a + inside an array-literal receiver's own element split the enclosing expression" do
+      expect(evaluate("[0, 1 + 1].all? { |n| n >= 0 }")).to be(true)
+      expect(evaluate("[0, 1 + 1].any? { |n| n > 5 }")).to be(false)
     end
 
     it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain re-routing check this grammar gap forced a workaround for" do

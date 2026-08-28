@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "VocabularyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "VocabularyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("VocabularyName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -384,6 +384,7 @@ pub const MUTATION_OP: &[MutationOp] = &[
     MutationOp { name: "clamp", sign: "" },
     MutationOp { name: "remove", sign: "" },
     MutationOp { name: "delegate", sign: "" },
+    MutationOp { name: "corrects", sign: "" },
 ];
 
 impl MutationOp {
@@ -693,6 +694,7 @@ pub enum DomainRefusal {
     Givennotmet,
     Invariantviolation,
     Lifecyclerefused,
+    Nothingtocorrect,
     Notfound,
     Projectionabsent,
     Remoterefusal,
@@ -706,7 +708,7 @@ impl crate::kernel::Fielded for DomainRefusal {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { DomainRefusal::Absentargument => "AbsentArgument".to_string(), DomainRefusal::Alreadyexists => "AlreadyExists".to_string(), DomainRefusal::Attributeabsent => "AttributeAbsent".to_string(), DomainRefusal::Ensuresnotmet => "EnsuresNotMet".to_string(), DomainRefusal::Givennotmet => "GivenNotMet".to_string(), DomainRefusal::Invariantviolation => "InvariantViolation".to_string(), DomainRefusal::Lifecyclerefused => "LifecycleRefused".to_string(), DomainRefusal::Notfound => "NotFound".to_string(), DomainRefusal::Projectionabsent => "ProjectionAbsent".to_string(), DomainRefusal::Remoterefusal => "RemoteRefusal".to_string(), DomainRefusal::Typemismatch => "TypeMismatch".to_string(), DomainRefusal::Unauthorized => "Unauthorized".to_string(), DomainRefusal::Unknownargument => "UnknownArgument".to_string(), DomainRefusal::Unknownverb => "UnknownVerb".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { DomainRefusal::Absentargument => "AbsentArgument".to_string(), DomainRefusal::Alreadyexists => "AlreadyExists".to_string(), DomainRefusal::Attributeabsent => "AttributeAbsent".to_string(), DomainRefusal::Ensuresnotmet => "EnsuresNotMet".to_string(), DomainRefusal::Givennotmet => "GivenNotMet".to_string(), DomainRefusal::Invariantviolation => "InvariantViolation".to_string(), DomainRefusal::Lifecyclerefused => "LifecycleRefused".to_string(), DomainRefusal::Nothingtocorrect => "NothingToCorrect".to_string(), DomainRefusal::Notfound => "NotFound".to_string(), DomainRefusal::Projectionabsent => "ProjectionAbsent".to_string(), DomainRefusal::Remoterefusal => "RemoteRefusal".to_string(), DomainRefusal::Typemismatch => "TypeMismatch".to_string(), DomainRefusal::Unauthorized => "Unauthorized".to_string(), DomainRefusal::Unknownargument => "UnknownArgument".to_string(), DomainRefusal::Unknownverb => "UnknownVerb".to_string(), }))),
             _ => None,
         }
     }
@@ -725,6 +727,7 @@ impl DomainRefusal {
             DomainRefusal::Givennotmet => "GivenNotMet",
             DomainRefusal::Invariantviolation => "InvariantViolation",
             DomainRefusal::Lifecyclerefused => "LifecycleRefused",
+            DomainRefusal::Nothingtocorrect => "NothingToCorrect",
             DomainRefusal::Notfound => "NotFound",
             DomainRefusal::Projectionabsent => "ProjectionAbsent",
             DomainRefusal::Remoterefusal => "RemoteRefusal",
@@ -747,6 +750,7 @@ impl DomainRefusal {
             "GivenNotMet" => Ok(DomainRefusal::Givennotmet),
             "InvariantViolation" => Ok(DomainRefusal::Invariantviolation),
             "LifecycleRefused" => Ok(DomainRefusal::Lifecyclerefused),
+            "NothingToCorrect" => Ok(DomainRefusal::Nothingtocorrect),
             "NotFound" => Ok(DomainRefusal::Notfound),
             "ProjectionAbsent" => Ok(DomainRefusal::Projectionabsent),
             "RemoteRefusal" => Ok(DomainRefusal::Remoterefusal),
@@ -756,7 +760,7 @@ impl DomainRefusal {
             "UnknownVerb" => Ok(DomainRefusal::Unknownverb),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "DomainRefusal"),
-                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"AttributeAbsent\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NotFound\", \"ProjectionAbsent\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
+                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"AttributeAbsent\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NothingToCorrect\", \"NotFound\", \"ProjectionAbsent\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
@@ -799,6 +803,7 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "TypeMismatch", site: "multi_field_scalar", template: "{type} has multiple fields and cannot stand in for a scalar" },
     RefusalTemplate { refusal: "TypeMismatch", site: "composite_identity", template: "{type} is a composite identity — an identity must have exactly one field" },
     RefusalTemplate { refusal: "TypeMismatch", site: "numeric_field", template: "{type}.{field} expects {expected}, got {offered}" },
+    RefusalTemplate { refusal: "TypeMismatch", site: "non_finite_field", template: "{type}.{field} must be a finite number, got {offered}" },
     RefusalTemplate { refusal: "TypeMismatch", site: "pattern_mismatch", template: "{type}.{field} must match {pattern}, got {offered}" },
     RefusalTemplate { refusal: "TypeMismatch", site: "arithmetic_amount", template: "{op} of {target} needs an Integer, got {offered}" },
     RefusalTemplate { refusal: "TypeMismatch", site: "arithmetic_current", template: "{op} of {target} needs an Integer {target}, got {offered}" },

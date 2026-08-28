@@ -297,6 +297,12 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &queries::emit_query_table(&ex, &merged_queries));
     puts_blank(&mut merged_rs);
+    for rmd in &merged_read_models {
+        if let Some(body) = &rmd.group_by_fn_body {
+            puts_str(&mut merged_rs, body);
+            puts_blank(&mut merged_rs);
+        }
+    }
     puts_str(&mut merged_rs, &read_models::emit_read_model_table(&ex, &merged_read_models));
 
     let merged_path = format!("{target_out_dir}/merged.rs");

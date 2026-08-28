@@ -12,10 +12,15 @@
 # promises nothing is minted, so this should never fire).
 #
 # This used to shell out to bin/parity and treat a cross-runtime SPLIT as
-# the finding. That comparison no longer exists (see docs/implemented/rust-experiment.md)
-# — a property violation or an uncaught exception is the finding now, and
-# it's a strictly single-runtime question, so no subprocess or second boot
-# is needed at all.
+# the finding. That comparison was retired for a while (docs/implemented/
+# rust-experiment.md — reversed 2026-08-07, Rust came back for real) —
+# STALE the moment it did: a real cross-runtime differential exists again,
+# `spec/rust_conformance_fuzz_spec.rb` (PRD 04), generating sequences the
+# identical way this script does and diffing each one against the
+# compiled Rust binary. This script's own job stays single-runtime on
+# purpose (a property violation or an uncaught exception, checked here,
+# needs no subprocess or second boot) — it's just no longer true that NO
+# cross-runtime check exists at all; it lives in that spec now, not here.
 #
 # On the first finding, shrinks it (repeatedly trying to remove one step at
 # a time, keeping the removal if the SAME finding still reproduces) and

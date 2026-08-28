@@ -283,6 +283,9 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
         let field = lifecycle.get("field").and_then(Json::as_str).unwrap_or("");
         field_subs_list.push(vec![("TmplFieldType", "String".to_string()), ("tmpl_field", naming::rust_ident_field(field))]);
     }
+    for ev in crate::bridging::correctable_event_names(aggregate) {
+        field_subs_list.push(vec![("TmplFieldType", "bool".to_string()), ("tmpl_field", crate::bridging::corrects_flag_field(&ev))]);
+    }
 
     let struct_part = exemplar.compose("plain_struct", &[("TmplType", name)], "struct_field", &field_subs_list, "\n");
     let fielded_part = fielded::emit_fielded_record(exemplar, aggregate, value_objects_by_name);

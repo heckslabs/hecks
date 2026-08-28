@@ -72,7 +72,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "IdentityId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityId.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "IdentityId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("IdentityId.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("IdentityId.value: expected String".to_string()) })? },
         })
     }
 }
@@ -146,7 +146,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RoleName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "RoleName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RoleName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -220,7 +220,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Scope")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Scope.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Scope")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Scope.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Scope.value: expected String".to_string()) })? },
         })
     }
 }
@@ -294,7 +294,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Timestamp")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "Timestamp")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Timestamp.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()) })? },
         })
     }
 }

@@ -6089,6 +6089,36 @@
                 "fills",
                 "ensures"
               ]
+            ],
+            [
+              [
+                "word",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mutations"
+              ],
+              [
+                "calls",
+                "corrects_impl"
+              ]
             ]
           ]
         },
@@ -7397,6 +7427,126 @@
               [
                 "fills",
                 "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "target"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "reason"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "source"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "corrects"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "reverses"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "source"
               ]
             ]
           ]
@@ -12294,6 +12444,28 @@
           ]
         },
         {
+          "name": "DispatchPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "Position",
           "attributes": [
             {
@@ -13294,7 +13466,8 @@
           "name": "Handler",
           "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings.",
           "identified_by": [
-            "event_type.value"
+            "event_type.value",
+            "from_state.value"
           ],
           "attributes": [
             {
@@ -13354,6 +13527,16 @@
                   "pattern": null,
                   "admits": null,
                   "relationship": null
+                },
+                {
+                  "name": "position",
+                  "type": "DispatchPosition",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "givens": [
@@ -13368,7 +13551,8 @@
                   "op": "append",
                   "sign": "",
                   "fields": {
-                    "command_name": ":command_name"
+                    "command_name": ":command_name",
+                    "position": ":position"
                   }
                 }
               ],
@@ -13387,12 +13571,23 @@
               "name": "Dispatch",
               "description": "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold.",
               "identified_by": [
-                "command_name.value"
+                "command_name.value",
+                "position.value"
               ],
               "attributes": [
                 {
                   "name": "command_name",
                   "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "position",
+                  "type": "DispatchPosition",
                   "list": false,
                   "default": null,
                   "optional": false,
@@ -20935,6 +21130,16 @@
                 "sign",
                 ""
               ]
+            ],
+            [
+              [
+                "name",
+                "corrects"
+              ],
+              [
+                "sign",
+                ""
+              ]
             ]
           ]
         },
@@ -21345,6 +21550,12 @@
               [
                 "name",
                 "LifecycleRefused"
+              ]
+            ],
+            [
+              [
+                "name",
+                "NothingToCorrect"
               ]
             ],
             [
@@ -21820,6 +22031,20 @@
               [
                 "template",
                 "{type}.{field} expects {expected}, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
+                "non_finite_field"
+              ],
+              [
+                "template",
+                "{type}.{field} must be a finite number, got {offered}"
               ]
             ],
             [

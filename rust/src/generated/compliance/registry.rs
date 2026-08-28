@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::compliance::accountfreezereview::OpenArgs::from_json(facts_json)?;
+                      args.number.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Open", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -133,6 +134,8 @@ pub fn dispatch_by_name(
               let route = invocation.route();
               let facts_json = invocation.facts();
               let args = crate::generated::compliance::boxsurrenderreview::OpenArgs::from_json(facts_json)?;
+                      args.branch_code.check_invariants()?;
+                      args.box_number.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Open", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -241,6 +244,18 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Compliance::AccountFreezeReview" => Some("number"),
         _ => None,
+    }
+}
+
+pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
+    match verb {
+        "Compliance::AccountFreezeReview.Open" => &["number"],
+        "Compliance::AccountFreezeReview.Clear" => &[],
+        "Compliance::AccountFreezeReview.Escalate" => &[],
+        "Compliance::BoxSurrenderReview.Open" => &["branch_code", "box_number"],
+        "Compliance::BoxSurrenderReview.Clear" => &[],
+        "Compliance::BoxSurrenderReview.Escalate" => &[],
+        _ => &[],
     }
 }
 

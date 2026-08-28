@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CardSerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardSerial.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CardSerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardSerial.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardSerial.value: expected String".to_string()) })? },
         })
     }
 }
@@ -133,7 +133,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "CardNickname")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardNickname.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "CardNickname")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardNickname.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardNickname.value: expected String".to_string()) })? },
         })
     }
 }
@@ -430,7 +430,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))? },
+        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Narrative.text expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()) })? },
         })
     }
 }
@@ -596,10 +596,10 @@ pub fn dispatch_entity_withdrawal_dispute(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "card is not retired", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("retired".to_string())) } },
-            crate::kernel::GivenSpec { description: "withdrawal is taken", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("taken".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "card is not retired", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("retired".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "withdrawal is taken", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("taken".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["taken"] }),
         |record| {
@@ -670,7 +670,7 @@ impl ATMCard {
 impl ATMCard {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.account: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("ATMCard.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ATMCard.account: expected String".to_string()) })?), },
         serial: match v.get("serial") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardSerial::from_json(&x.coerce_single_field("value"))?), },
         nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(&x.coerce_single_field("value"))?), },
         daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(&x.coerce_single_field("amount"))?), },
@@ -761,8 +761,8 @@ pub fn dispatch_issue(
         "serial.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -803,7 +803,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        account: { let x = v.require("account", "IssueArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()))? },
+        account: { let x = v.require("account", "IssueArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("IssueArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()) })? },
         serial: CardSerial::from_json(&v.require("serial", "IssueArgs")?.coerce_single_field("value"))?,
         daily_fee: DailyFee::from_json(&v.require("daily_fee", "IssueArgs")?.coerce_single_field("amount"))?,
         })
@@ -855,8 +855,8 @@ pub fn dispatch_rename(
         "serial.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })) },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })), corrects_event: None },
         ],
         None,
         |record| {
@@ -946,8 +946,9 @@ pub fn dispatch_withdraw(
         "serial.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "card is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -1035,8 +1036,8 @@ pub fn dispatch_activate(
         "serial.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "card is issued", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "card is issued", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
         |record| {
@@ -1122,8 +1123,8 @@ pub fn dispatch_retire(
         "serial.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })) },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })), corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued", "active"] }),
         |record| {

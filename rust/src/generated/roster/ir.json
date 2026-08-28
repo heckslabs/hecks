@@ -736,7 +736,7 @@
             },
             {
               "description": "a front-row seat takes a member of age",
-              "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\" ||\n          crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }"
+              "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\" || crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }"
             }
           ],
           "ensures": [

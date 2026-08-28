@@ -1126,7 +1126,7 @@
         },
         {
           "name": "ApplyFee",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "Account",
           "attributes": [
@@ -1192,7 +1192,7 @@
         },
         {
           "name": "CorrectFee",
-          "role": null,
+          "role": "Back office",
           "goal": null,
           "references": "Account",
           "attributes": [
@@ -1222,6 +1222,16 @@
           ],
           "mutations": [
             {
+              "target": "FeeApplied",
+              "op": "corrects",
+              "sign": "",
+              "fields": {
+                "as": "nil",
+                "reason": "\"a fee was applied in error and is being reversed\"",
+                "reverses": "false"
+              }
+            },
+            {
               "target": "balance",
               "op": "increment",
               "sign": "1",
@@ -1248,7 +1258,7 @@
         },
         {
           "name": "AccrueInterest",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "Account",
           "attributes": [
@@ -1300,7 +1310,7 @@
         },
         {
           "name": "CorrectInterest",
-          "role": null,
+          "role": "Back office",
           "goal": null,
           "references": "Account",
           "attributes": [
@@ -2529,6 +2539,10 @@
             {
               "description": "account is open",
               "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "card is active",
+              "canonical": "status == \"active\""
             }
           ],
           "ensures": [
@@ -3118,6 +3132,15 @@
                 "kind": "argument",
                 "name": "tags"
               }
+            },
+            {
+              "target": "authorisation",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "authorisation"
+              }
             }
           ],
           "emits": [
@@ -3128,7 +3151,7 @@
         },
         {
           "name": "Capture",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -3162,7 +3185,7 @@
         },
         {
           "name": "Void",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -3196,7 +3219,7 @@
         },
         {
           "name": "Refund",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -3230,7 +3253,7 @@
         },
         {
           "name": "Reverse",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -3315,7 +3338,7 @@
         },
         {
           "name": "Chargeback",
-          "role": null,
+          "role": "Compliance officer",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -3349,7 +3372,7 @@
         },
         {
           "name": "RejectDispute",
-          "role": null,
+          "role": "Compliance officer",
           "goal": null,
           "references": "CardPayment",
           "attributes": [
@@ -4921,6 +4944,15 @@
                 "kind": "argument",
                 "name": "destination"
               }
+            },
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
             }
           ],
           "emits": [
@@ -5358,7 +5390,7 @@
       "commands": [
         {
           "name": "Request",
-          "role": null,
+          "role": "Customer",
           "goal": null,
           "references": null,
           "attributes": [
@@ -5462,6 +5494,15 @@
                 "kind": "argument",
                 "name": "direction"
               }
+            },
+            {
+              "target": "end_to_end",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "end_to_end"
+              }
             }
           ],
           "emits": [
@@ -5472,7 +5513,7 @@
         },
         {
           "name": "SendTransfer",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "ExternalTransfer",
           "attributes": [
@@ -5506,7 +5547,7 @@
         },
         {
           "name": "Recall",
-          "role": null,
+          "role": "Customer",
           "goal": null,
           "references": "ExternalTransfer",
           "attributes": [
@@ -5540,7 +5581,7 @@
         },
         {
           "name": "Return",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "ExternalTransfer",
           "attributes": [
@@ -5874,7 +5915,7 @@
       "commands": [
         {
           "name": "Schedule",
-          "role": null,
+          "role": "Customer",
           "goal": null,
           "references": null,
           "attributes": [
@@ -5978,6 +6019,15 @@
                 "kind": "argument",
                 "name": "due_on"
               }
+            },
+            {
+              "target": "instruction",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "instruction"
+              }
             }
           ],
           "emits": [
@@ -5988,7 +6038,7 @@
         },
         {
           "name": "Execute",
-          "role": null,
+          "role": "System",
           "goal": null,
           "references": "ScheduledPayment",
           "attributes": [
@@ -6022,7 +6072,7 @@
         },
         {
           "name": "Cancel",
-          "role": null,
+          "role": "Customer",
           "goal": null,
           "references": "ScheduledPayment",
           "attributes": [

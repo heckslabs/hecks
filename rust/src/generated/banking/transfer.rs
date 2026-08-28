@@ -73,7 +73,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "TransferReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransferReference.value: expected String".to_string()))? },
+        value: { let x = v.require("value", "TransferReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("TransferReference.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("TransferReference.value: expected String".to_string()) })? },
         })
     }
 }
@@ -222,7 +222,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))? },
+        text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Narrative.text expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()) })? },
         })
     }
 }
@@ -281,8 +281,8 @@ impl Transfer {
 impl Transfer {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        source: match v.get("source") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer.source: expected String".to_string()))?), },
-        destination: match v.get("destination") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer.destination: expected String".to_string()))?), },
+        source: match v.get("source") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Transfer.source expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Transfer.source: expected String".to_string()) })?), },
+        destination: match v.get("destination") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Transfer.destination expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Transfer.destination: expected String".to_string()) })?), },
         reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(TransferReference::from_json(&x.coerce_single_field("value"))?), },
         amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(TransferMoney::from_json(&x.coerce_single_field("cents"))?), },
         narrative: match v.get("narrative") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Narrative::from_json(&x.coerce_single_field("text"))?), },
@@ -377,11 +377,11 @@ pub fn dispatch_request(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "a transfer names its source", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("source"))))) },
-            crate::kernel::GivenSpec { description: "a transfer goes somewhere", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("destination"))))) },
-            crate::kernel::GivenSpec { description: "a transfer moves BETWEEN accounts", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("source")), right: Box::new(Expr::Lookup("destination")) } },
+            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "a transfer names its source", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("source"))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a transfer goes somewhere", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("destination"))))), corrects_event: None },
+            crate::kernel::GivenSpec { description: "a transfer moves BETWEEN accounts", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("source")), right: Box::new(Expr::Lookup("destination")) }, corrects_event: None },
         ],
         None,
         |record| {
@@ -389,6 +389,7 @@ pub fn dispatch_request(
         record.narrative = Some(args.narrative.clone());
         record.source = Some(args.source.clone());
         record.destination = Some(args.destination.clone());
+        record.reference = Some(args.reference.clone());
             Ok(())
         },
         &[
@@ -428,8 +429,8 @@ if !unknown.is_empty() {
         reference: TransferReference::from_json(&v.require("reference", "RequestArgs")?.coerce_single_field("value"))?,
         amount: TransferMoney::from_json(&v.require("amount", "RequestArgs")?.coerce_single_field("cents"))?,
         narrative: Narrative::from_json(&v.require("narrative", "RequestArgs")?.coerce_single_field("text"))?,
-        source: { let x = v.require("source", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()))? },
-        destination: { let x = v.require("destination", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()))? },
+        source: { let x = v.require("source", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.source expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()) })? },
+        destination: { let x = v.require("destination", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.destination expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()) })? },
         })
     }
 }
@@ -478,9 +479,9 @@ pub fn dispatch_debited(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "transfer is requested", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("requested".to_string())) } },
+            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "transfer is requested", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("requested".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["requested"] }),
         |record| {
@@ -566,9 +567,9 @@ pub fn dispatch_settle(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "destination customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "destination account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "transfer is credited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("credited".to_string())) } },
+            crate::kernel::GivenSpec { description: "destination customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "destination account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "transfer is credited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("credited".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["credited"] }),
         |record| {
@@ -654,9 +655,9 @@ pub fn dispatch_credited(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "destination customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "destination account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "transfer is debited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("debited".to_string())) } },
+            crate::kernel::GivenSpec { description: "destination customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "destination account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("destination.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "transfer is debited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("debited".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["debited"] }),
         |record| {
@@ -742,9 +743,9 @@ pub fn dispatch_reverse(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) } },
-            crate::kernel::GivenSpec { description: "transfer is debited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("debited".to_string())) } },
+            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "transfer is debited", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("debited".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["debited"] }),
         |record| {
@@ -830,9 +831,9 @@ pub fn dispatch_reject(
         "reference.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "transfer is requested", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("requested".to_string())) } },
-            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "source customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "transfer is requested", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("requested".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "source account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("source.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["requested"] }),
         |record| {

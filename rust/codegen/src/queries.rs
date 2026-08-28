@@ -109,16 +109,23 @@ pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_obje
         ));
     }
     if COMPARATORS_NEEDING_NUMERIC_FIDELITY.contains(&op.as_str()) {
+        if kind == FieldKind::Number {
+            return None;
+        }
         return Some(format!(
-            "where clause on {} uses op {} against a LITERAL value — gt/gte/lt/lte need real Json::Num-vs-Json::Str fidelity this generator can't recover from the exported IR (WhereClause#to_h renders every literal through QuerySpecification.render_value's own .to_s)",
+            "where clause on {} uses op {} against a LITERAL value whose target field doesn't reduce to a plain JSON number (kind: {}) — gt/gte/lt/lte only mean anything against a number (query_comparators.rs's own `ordered?` gate)",
             naming::ruby_inspect_string(&field),
-            naming::ruby_inspect_string(&op)
+            naming::ruby_inspect_string(&op),
+            kind_name(kind)
         ));
     }
     if COMPARATORS_EXEMPT_FROM_LITERAL_TYPING.contains(&op.as_str()) {
         return None;
     }
     if kind == FieldKind::String {
+        return None;
+    }
+    if kind == FieldKind::Number {
         return None;
     }
 
@@ -141,7 +148,7 @@ fn kind_name(kind: FieldKind) -> &'static str {
 
 /// A whole declared query's own eligibility.
 pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
-    let extra_keys = ["offset", "cursor", "consistency", "freshness", "authorization", "null_semantics", "inspection"];
+    let extra_keys = ["cursor", "consistency", "freshness", "inspection"];
     let extras: Vec<&str> = extra_keys.iter().filter(|k| query.get(k).is_some()).copied().collect();
     if !extras.is_empty() {
         return Some(format!("declares {} — out of scope for this generator (rust/project/queries.rb's own header has the full argument)", extras.join(", ")));
@@ -161,7 +168,15 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         }
     }
 
+    if let Some(reason) = declared_authorization_skip_reason(query.get("authorization"), aggregate, value_objects_by_name) {
+        return Some(reason);
+    }
+
     if let Some(reason) = declared_order_by_skip_reason(query.get("order_by"), aggregate, value_objects_by_name) {
+        return Some(reason);
+    }
+
+    if let Some(reason) = declared_offset_skip_reason(query.get("offset")) {
         return Some(reason);
     }
 
@@ -193,14 +208,64 @@ pub fn declared_limit_skip_reason(limit: Option<&Json>) -> Option<String> {
     Some(format!("declares limit {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real limit count from it", naming::ruby_inspect_string(&raw)))
 }
 
+/// `offset`'s own content check — same shape as `declared_limit_skip_
+/// reason` just above (see `rust/project/queries.rb`'s own
+/// `declared_offset_skip_reason` for the full reasoning); kept a
+/// separately-named function for the same reason that file's does — so
+/// the reason string names "offset", not "limit".
+pub fn declared_offset_skip_reason(offset: Option<&Json>) -> Option<String> {
+    let offset = offset?;
+    let raw = offset.get("value").map(Json::to_s).unwrap_or_default();
+    if raw.starts_with(':') || is_plain_integer(&raw) {
+        return None;
+    }
+
+    Some(format!("declares offset {} — not a literal integer or a caller-bound Symbol arg, so this generator can't compile a real offset count from it", naming::ruby_inspect_string(&raw)))
+}
+
 fn is_plain_integer(raw: &str) -> bool {
     let s = raw.strip_prefix('-').unwrap_or(raw);
     !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())
 }
 
-pub fn emit_query_order_by(order_by: &Json) -> String {
+/// Same reasoning as `rust/project/queries.rb`'s own `declared_
+/// authorization_skip_reason`: `AuthorizationSpec#to_h` is `{policy:,
+/// tenant:}`; a `nil` tenant is a genuine no-op in Ruby (`Runtime::
+/// TenantScope.apply`'s own `return declared unless tenant`), never
+/// disqualifying. A real tenant needs the same field-validity check any
+/// other where-clause field gets — constructed as the exact synthetic
+/// arg-bound where shape and run through `query_where_skip_reason`
+/// wholesale, rather than duplicating that check.
+pub fn declared_authorization_skip_reason(authorization: Option<&Json>, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let tenant = authorization.and_then(|a| a.get("tenant")).map(Json::to_s)?;
+    let synthetic_where = Json::Object(vec![
+        ("field".to_string(), Json::String(tenant.clone())),
+        ("op".to_string(), Json::String("eq".to_string())),
+        ("value".to_string(), Json::String(format!(":{tenant}"))),
+    ]);
+    query_where_skip_reason(&synthetic_where, aggregate, value_objects_by_name)
+}
+
+pub fn emit_query_order_by(order_by: &Json, null_semantics: Option<&Json>) -> String {
     let descending = order_by.get("direction").map(Json::to_s).unwrap_or_default() == "desc";
-    format!("crate::kernel::query_ordering::OrderBy {{ field: {}, descending: {descending} }}", naming::ruby_inspect_string(&order_by.get("field").map(Json::to_s).unwrap_or_default()))
+    format!(
+        "crate::kernel::query_ordering::OrderBy {{ field: {}, descending: {descending}, nulls: {} }}",
+        naming::ruby_inspect_string(&order_by.get("field").map(Json::to_s).unwrap_or_default()),
+        null_semantics_variant(null_semantics)
+    )
+}
+
+/// Same reasoning as `rust/project/queries.rb`'s own `null_semantics_
+/// variant`: `nulls(mode)` accepts anything, unvalidated, so an
+/// unrecognized mode falls back to `Native`, matching `NullPolicy.order`'s
+/// own `else` arm exactly rather than needing a refusal case.
+pub fn null_semantics_variant(null_semantics: Option<&Json>) -> &'static str {
+    let mode = null_semantics.and_then(|ns| ns.get("mode")).map(Json::to_s).unwrap_or_default();
+    match mode.as_str() {
+        "first" => "crate::kernel::query_ordering::NullsMode::First",
+        "last" => "crate::kernel::query_ordering::NullsMode::Last",
+        _ => "crate::kernel::query_ordering::NullsMode::Native",
+    }
 }
 
 pub fn emit_query_limit(limit: &Json) -> String {
@@ -209,6 +274,17 @@ pub fn emit_query_limit(limit: &Json) -> String {
         return format!("crate::kernel::query_ordering::Limit::Arg({})", naming::ruby_inspect_string(arg));
     }
     format!("crate::kernel::query_ordering::Limit::Literal({})", ruby_to_i(&raw))
+}
+
+/// `crate::kernel::query_ordering::Offset` is `pub type Offset = Limit`
+/// (see that module's own doc comment); `Limit::Literal(1)` and
+/// `Offset::Literal(1)` construct the identical value, but a human
+/// reading a generated `offset:` field seeing `Limit::Literal(...)` would
+/// reasonably read that as a bug — same reasoning, same fix, as
+/// `rust/project/queries.rb`'s own `emit_query_offset`: reuse
+/// `emit_query_limit`'s computation, swap only the spelled type name.
+pub fn emit_query_offset(offset: &Json) -> String {
+    emit_query_limit(offset).replace("query_ordering::Limit::", "query_ordering::Offset::")
 }
 
 fn ruby_to_i(s: &str) -> i64 {
@@ -254,6 +330,29 @@ pub fn query_conditions(query: &Json) -> Vec<Condition> {
         .collect()
 }
 
+/// `Runtime::TenantScope.apply`'s own synthetic clause, ported at codegen
+/// time — see `rust/project/queries.rb`'s own `query_conditions_with_
+/// authorization` for the full reasoning (including why this is
+/// deliberately NOT folded into `query_conditions` itself).
+pub fn query_conditions_with_authorization(query: &Json) -> Vec<Condition> {
+    let mut conditions = query_conditions(query);
+    if let Some(tenant) = query.get("authorization").and_then(|a| a.get("tenant")).map(Json::to_s) {
+        conditions.push(Condition { field: tenant.clone(), op: "eq".to_string(), arg: Some(tenant), literal: None });
+    }
+    conditions
+}
+
+/// `TenantAuth`'s own compiled form — `None` unless a real tenant is
+/// declared (see `declared_authorization_skip_reason`'s own comment).
+pub fn emit_query_authorization(query_name: &str, authorization: Option<&Json>) -> Option<String> {
+    let tenant = authorization.and_then(|a| a.get("tenant")).map(Json::to_s)?;
+    Some(format!(
+        "crate::kernel::named_query::TenantAuth {{ query_name: {}, tenant_field: {} }}",
+        naming::ruby_inspect_string(query_name),
+        naming::ruby_inspect_string(&tenant)
+    ))
+}
+
 // `Vocabulary::QueryComparator` itself declares NINE names (`none_in_state`
 // was added later — vocabulary.bluebook's own comment calls it "a vendored
 // addition") but `rust/src/kernel/query_comparators.rs`'s own hand-
@@ -281,17 +380,17 @@ fn query_comparator_variant(op: &str) -> &'static str {
 }
 
 /// `condition[:literal].inspect` — Ruby's own generic `Object#inspect`,
-/// called on whatever `Literal.read` returned. In EVERY real corpus query
-/// this is a plain String (`query_where_skip_reason` only lets a literal
-/// comparator through when `kind == :string`, except `in`/`contains`,
-/// which the real corpus never uses with anything but a hand-written
-/// string value either) — so only the String case is exercised, but every
-/// case is mirrored for fidelity with Ruby's own `.inspect` regardless of
-/// comparator, matching what `bin/project_rust` would actually emit if it
-/// were ever reached (a bare, unquoted Integer/Float/Bool/nil `.inspect`
-/// embedded where `QueryConditionValue::Literal` expects a `&str` would be
-/// a pre-existing Ruby-side landmine, not something to "fix" silently
-/// here — Ruby is the reference implementation, ADR 0010).
+/// called on whatever `Literal.read` returned. Used for the `Literal`
+/// (string/bool/nil/symbol/hash/array) branch only — `emit_query_
+/// condition_value` (below) intercepts `Int`/`Float` BEFORE this
+/// function ever runs, emitting `QueryConditionValue::NumericLiteral`
+/// instead. That split closes what used to be a real landmine here: a
+/// bare, unquoted Integer/Float `.inspect` embedded where
+/// `QueryConditionValue::Literal` expects a `&str` would have been a
+/// compile error the moment `query_where_skip_reason` ever let a numeric-
+/// kind field's literal through -- fixed by giving numeric literals their
+/// own properly-typed variant instead, mirroring `rust/project/
+/// queries.rb`'s own identical fix.
 fn literal_inspect(lit: &Literal) -> String {
     match lit {
         Literal::Str(s) => naming::ruby_inspect_string(s),
@@ -319,7 +418,20 @@ fn ruby_float_inspect(n: f64) -> String {
 pub fn emit_query_condition_value(condition: &Condition) -> String {
     match &condition.arg {
         Some(arg) => format!("crate::kernel::QueryConditionValue::Arg({})", naming::ruby_inspect_string(arg)),
-        None => format!("crate::kernel::QueryConditionValue::Literal({})", literal_inspect(condition.literal.as_ref().unwrap())),
+        None => {
+            let lit = condition.literal.as_ref().unwrap();
+            // `query_where_skip_reason` only lets a bare Integer/Float
+            // literal reach here once the TARGET FIELD is already proven
+            // numeric-kind -- the literal's own variant is sufficient to
+            // pick the emitted `QueryConditionValue`, no need to
+            // re-derive kind a second time (mirrors
+            // rust/project/queries.rb's own identical reasoning).
+            match lit {
+                Literal::Int(n) => format!("crate::kernel::QueryConditionValue::NumericLiteral({})", ruby_float_inspect(*n as f64)),
+                Literal::Float(n) => format!("crate::kernel::QueryConditionValue::NumericLiteral({})", ruby_float_inspect(*n)),
+                _ => format!("crate::kernel::QueryConditionValue::Literal({})", literal_inspect(lit)),
+            }
+        }
     }
 }
 
@@ -333,7 +445,9 @@ pub struct QueryDef {
     pub aggregate: String,
     pub conditions: Vec<Condition>,
     pub order_by: Option<String>,
+    pub offset: Option<String>,
     pub limit: Option<String>,
+    pub authorization: Option<String>,
 }
 
 pub fn emit_query_def(query_def: &QueryDef) -> String {
@@ -342,19 +456,27 @@ pub fn emit_query_def(query_def: &QueryDef) -> String {
         Some(o) => format!("Some({o})"),
         None => "None".to_string(),
     };
+    let offset = match &query_def.offset {
+        Some(o) => format!("Some({o})"),
+        None => "None".to_string(),
+    };
     let limit = match &query_def.limit {
         Some(l) => format!("Some({l})"),
         None => "None".to_string(),
     };
+    let authorization = match &query_def.authorization {
+        Some(a) => format!("Some({a})"),
+        None => "None".to_string(),
+    };
 
     format!(
-        "crate::kernel::QueryDef {{\n    verb: {},\n    aggregate: {},\n    conditions: &[\n{conditions}\n    ],\n    order_by: {order_by},\n    limit: {limit},\n}},",
+        "crate::kernel::QueryDef {{\n    verb: {},\n    aggregate: {},\n    conditions: &[\n{conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n}},",
         naming::ruby_inspect_string(&query_def.verb),
         naming::ruby_inspect_string(&query_def.aggregate)
     )
 }
 
-const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true }),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n},";
+const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: \"tmpl_verb\",\n    aggregate: \"tmpl_aggregate\",\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::query_ordering::OrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),\n    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\" }),\n},";
 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
     let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
