@@ -246,3 +246,37 @@ verb "..." end` line — so nothing in `examples/` or
 documents. `writing-an-adapter.md`'s own worked example is the closest
 this repo has to a real one, and it is a guide, not a corpus member.
 
+## signal
+
+<!-- generated:begin word=signal -->
+`signal signal` — fills `signal`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | signal |
+<!-- generated:end -->
+
+Whether calling this resource port answers with a value (`:reply`) or fires an effect with nothing to hand back (`:effect`) — the SAME closed set (and the same default when never declared) `port.md`'s own standalone `.port` file `signal` already carries; a bare-`verb` `DomainPort` is registered as the exact same `IR::Port`, so it means the identical thing here. Only meaningful alongside `verb` — an `operation`-shaped port has no single signal of its own, since each operation answers (or doesn't) independently.
+
+`"Ledger"` never called `signal` at all, so it defaults:
+
+```ruby
+runtime.registry.ports["Ledger"].signal  # => :reply
+```
+
+## answers
+
+<!-- generated:begin word=answers -->
+`answers answers` — fills `answers`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | answers |
+<!-- generated:end -->
+
+`port.md`'s own `answers` — reachable here too because a bare-`verb` `DomainPort` is registered as the exact same `IR::Port` a standalone `.port` file builds (this page's own `signal` section, just above, says why). Only meaningful alongside `verb`, same as `signal`; an `operation`-shaped port has nothing to `respond_to?` here — each operation answers on its own. `extraction.port`'s own real declaration is `answers :canonical`, migrated to build through this same DomainPort door.
+
+```ruby
+runtime.registry.ports["extraction"].answers  # => [:canonical]
+```
+

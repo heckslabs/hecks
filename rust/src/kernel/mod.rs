@@ -88,9 +88,34 @@ pub struct Event {
     /// policies/process managers needed to actually forward payload DATA
     /// into a re-triggered command's own `from_json`, not just print it).
     pub payload: json::Json,
-    // NOT YET GENERATED: `occurred_at`. Ruby's Event carries a timestamp;
-    // this kernel doesn't have a clock port yet, so it's left off rather
-    // than faked with a wrong value. Flagged, not silently dropped.
+    /// `Runtime::CommandRules::Emission#emit`'s own bare `Time.now.utc.
+    /// iso8601` (lib/hecks/runtime/command_rules/emission.rb) — NOT the
+    /// declared `Clock` port (`lib/hecks/ports/clock.rb`), a genuinely
+    /// separate mechanism that stamps a `given` predicate's own `now`
+    /// argument at the dispatch door (so a replayed step keeps judging
+    /// the SAME baked-in time forever, never today's), the wrong shape
+    /// for a plain record of when something actually happened —
+    /// `docs/HECKS_IMPLEMENTATION_PLAN.md:764-767` names this event
+    /// timestamp its own "environmental fact... precedent," deliberately
+    /// exempt from that port's own replay concern: nothing re-JUDGES an
+    /// already-emitted event's own `occurred_at` on a later run the way
+    /// a `given` re-evaluates its own `now`. This kernel has no clock of
+    /// its own —
+    /// staying deterministic (this file's own header) means it NEVER
+    /// calls one — so `orchestrate` receives this as an already-resolved
+    /// string, exactly the same shape `saga_correlation`, below, already
+    /// arrives in: `rust/host` (a real wall clock) stamps ONE timestamp
+    /// per top-level step onto every event that step's own dispatch
+    /// produces, INCLUDING every cascading policy/saga reaction it
+    /// triggers within the same synchronous call — not a fresh `Time.now`
+    /// per individual event the way Ruby's own bare call is. `None`
+    /// inside the kernel's own generated `dispatch_by_name` (every real
+    /// construction site) until `orchestrate`'s own stamping loop fills
+    /// it in; `None` forever for a caller (`hecks-parse`'s own `chapter`
+    /// command, the differential-parity harness) that never passes one
+    /// at all, matching the same reasoning `caller_role: None` already
+    /// has for a context with no real caller identity.
+    pub occurred_at: Option<String>,
     /// Runtime-only bookkeeping, NEVER serialized — `cli.rs`'s own
     /// `event_to_json` deliberately excludes it, mirroring Ruby's own
     /// `Event#to_h` (event.rb: "`correlation` is NOT on the wire"). Stamped

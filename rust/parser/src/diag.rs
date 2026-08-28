@@ -38,14 +38,17 @@ impl Diagnostic {
         self
     }
 
-    /// The one place "not yet implemented" is spelled — Stage 1's every
-    /// construct handler returns this rather than a generic panic, so even
-    /// a stub fails through a real, named diagnostic rather than an
-    /// unstructured crash. Distinguishing "the grammar doesn't admit this"
-    /// (a real parse error) from "the grammar admits this and this parser
-    /// doesn't implement it yet" (staged, honest, tracked in the coverage
-    /// spec's allowlist) matters for how the differential harness reports
-    /// failures.
+    /// The one place "not yet implemented" is spelled — every construct
+    /// handler that hasn't been built yet returns this rather than a
+    /// generic panic, so an unbuilt path fails through a real, named
+    /// diagnostic rather than an unstructured crash. Most real chapters
+    /// parse for real now (spec/parser_parity_spec.rb's REAL_PARITY_MEMBERS
+    /// — see ir.rs's own header); this is what a genuinely-still-pending
+    /// member (that spec's PENDING_MEMBERS table) or an unsupported
+    /// construct inside an otherwise-real chapter hits. Distinguishing "the
+    /// grammar doesn't admit this" (a real parse error) from "the grammar
+    /// admits this and this parser doesn't implement it yet" still matters
+    /// for how the differential harness reports failures.
     pub fn not_yet_implemented(
         file: impl Into<String>,
         line: usize,

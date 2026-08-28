@@ -3,3 +3,8 @@
 flowchart LR
     Statement[(Statement)] -->|does| cmd_Statement_Generate(["Statement.Generate"])
     cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: account"| attr_Statement_account[account]
+    cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: period"| attr_Statement_period[period]
+    cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: opening_balance"| attr_Statement_opening_balance[opening_balance]
+    cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: closing_balance"| attr_Statement_closing_balance[closing_balance]
+    cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: generated_on"| attr_Statement_generated_on[generated_on]
+    cmd_Statement_Generate(["Statement.Generate"]) -->|"sets: frequency"| attr_Statement_frequency[frequency]

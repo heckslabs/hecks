@@ -41,6 +41,10 @@ Hecks.bluebook "TillRoom" do
 
       attribute :number, TillNumber
 
+      # Wave 8 fix — :number is this aggregate's own IDENTITY (line 9),
+      # already a required command attribute, but was never `sets`.
+      sets :number
+
       emits "TillOpened"
     end
 

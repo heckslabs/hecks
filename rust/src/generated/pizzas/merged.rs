@@ -139,7 +139,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json)?, };
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
-                      args.customer_name.check_invariants()?;
+                      if let Some(v) = &args.customer_name { v.check_invariants()?; }
               crate::kernel::check_role(Some("Customer"), "Purchase", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

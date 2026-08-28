@@ -84,9 +84,11 @@ fn run(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse chapter --chapter <Name> <files...>` — emits that
-/// chapter's `ir.json` on stdout. Stage 1 legitimately fails with
-/// "not yet implemented" for every real chapter; that's expected (see
-/// parse::chapter's own header).
+/// chapter's `ir.json` on stdout. Most real chapters parse for real now
+/// (spec/parser_parity_spec.rb's REAL_PARITY_MEMBERS); "not yet
+/// implemented" is expected only for a member still on that spec's own
+/// PENDING_MEMBERS table, or an unsupported construct inside an
+/// otherwise-real chapter (see parse::chapter's own header).
 fn run_chapter(args: &[String]) -> Result<(), RunError> {
     let mut chapter_name: Option<String> = None;
     let mut files: Vec<String> = Vec::new();

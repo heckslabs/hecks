@@ -166,6 +166,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       rust_output = JSON.parse(stdout)
       strip_emitted_flags!(rust_output["instances"])
       strip_emitted_flags!(rust_output["queries"])
+      strip_occurred_at!(rust_output["events"])
 
       expect(rust_output["instances"]).to eq(ruby_instances)
       expect(rust_output["events"]).to eq(ruby_events)

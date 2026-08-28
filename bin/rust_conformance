@@ -113,6 +113,19 @@ if theirs["instances"].is_a?(Hash)
   end
 end
 
+# `occurred_at` — the same "Rust-only, no Ruby analog" reasoning as
+# `emitted_*` just above, one field over: Ruby's own comparable[:events]
+# never carries it (`Fuzzing::Replay`'s own event hash has no such key),
+# but a real Rust artifact stamps every event with the host-supplied
+# wall-clock moment (`Event.occurred_at`, `mod.rs`'s own doc comment) —
+# two independent process runs can never byte-match a real timestamp, so
+# this strips it here rather than asserting equality on it, matching
+# `spec/support/rust_conformance_helpers.rb#strip_occurred_at!`'s own
+# reasoning for the RSpec-driven comparison path this script mirrors.
+if theirs["events"].is_a?(Array)
+  theirs["events"].each { |event| event.delete("occurred_at") if event.is_a?(Hash) }
+end
+
 mismatches = []
 
 %w[instances events refusals].each do |key|

@@ -4,7 +4,9 @@ Hecks.bluebook "Hecksagon" do
 
     identified_by PortName, as: :name
 
-    attribute :verb, PortVerb, optional: true
+    attribute :verb,    PortVerb, optional: true
+    attribute :signal,  PortSignal, optional: true
+    attribute :answers, list_of(PortAnswer)
 
     value_object "PortName" do
       attribute :value, String
@@ -14,6 +16,24 @@ Hecks.bluebook "Hecksagon" do
     value_object "PortVerb" do
       attribute :value, String
       invariant("a verb is named") { !value.to_s.empty? }
+    end
+
+    # SAME CLOSED SET port.bluebook's own "Port" aggregate declares —
+    # kept as its own local value object rather than shared cross-
+    # chapter, the same way PortVerb already is here.
+    value_object "PortSignal" do
+      attribute :value, String, one_of: ["reply", "effect"]
+    end
+
+    # `answers` — DomainPortBuilder's own twin of PortBuilder#answers
+    # (port.bluebook's "Port" aggregate, same shape), added once a real
+    # `.port` file migrated to parse through this builder (the repoint
+    # `lib/hecks.rb#port`'s own comment describes) used the word
+    # (`extraction.port`'s own `answers :canonical`). Local, not shared
+    # cross-chapter, same reasoning as PortSignal just above.
+    value_object "PortAnswer" do
+      attribute :value, String
+      invariant("an answer names a real method") { !value.to_s.empty? }
     end
 
     # HOW DOMAINPORT IS SPELLED. These rows live with the concept
@@ -35,6 +55,8 @@ Hecks.bluebook "Hecksagon" do
       member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
       member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "asks_impl"
       member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
+      member word: "signal",          context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "signal"
+      member word: "answers",         context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "answers"
 
     end
 
@@ -59,6 +81,8 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
+      member keyword: "signal",          context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
+      member keyword: "answers",         context: "DomainPort", at: "1", named: "", kind: "symbol", required: "true", fills: "answers"
 
       # THE RECEIVING AGGREGATE — PortOperationBuilder's own `reference_to`
       # (inside the block) is refused (#335); this is the sanctioned

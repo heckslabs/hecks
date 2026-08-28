@@ -554,6 +554,59 @@ module Hecks
             end
             refuse_unknown_state_sources!(mutation)
           end
+          # A SECOND, SEPARATE pass — not folded into the loop above — so
+          # every mutation's own self-referential import (resolve_bare_set!)
+          # has already landed before any mutation's SOURCE is checked
+          # against the final `attributes` list. `sets :a, to: :b` declared
+          # before `sets :b` (bare, importing :b from the owner) is real
+          # and legal; checking inline, mutation by mutation, would refuse
+          # it for an ordering accident this language has never required
+          # authors to avoid. rubocop's Style/CombinableLoops can't see
+          # that dependency — it only sees two `@mutations.each` calls
+          # back to back — so it's disabled here, not satisfied.
+          # rubocop:disable-next Style/CombinableLoops
+          @mutations.each { |mutation| refuse_unknown_argument_sources!(mutation) }
+        end
+
+        # THE ONES `resolve_source` (CommandRules::Arithmetic) ONLY EVER
+        # READS FROM `args` — never a fallback to the record's own current
+        # state the way `append`'s own per-field resolution legitimately
+        # can (`MutationApplier#resolve_append_source`'s own `instance
+        # [source]` fallback, a real, intentional second meaning this
+        # check must not foreclose). For exactly these five ops, a bare
+        # Symbol source has exactly one legitimate reading — the name of
+        # a declared argument — so anything else is unreachable at
+        # runtime, not merely optional: no caller can ever supply a value
+        # under a name the command never declared (ArgumentGate's own
+        # `refuse_unknown_arguments` already refuses that), so the source
+        # resolves to nil FOREVER, indistinguishable from a legitimately
+        # absent OPTIONAL argument until this check existed to tell them
+        # apart. Mirrors `AggregateBuilder#seal_query_argument`'s
+        # identical shape for a query's own where-clause argument —
+        # same mistake, one construct over.
+        CHECKED_SYMBOL_SOURCE_OPS = %i[set increment decrement multiply remove].freeze
+        private_constant :CHECKED_SYMBOL_SOURCE_OPS
+
+        def refuse_unknown_argument_sources!(mutation)
+          return unless CHECKED_SYMBOL_SOURCE_OPS.include?(mutation.op)
+          return unless mutation.source.is_a?(Symbol)
+          # The bare self-referential shape (`sets :field` alone, `source
+          # == target`) is `resolve_bare_set!`'s own territory, not this
+          # check's — when neither the command nor the owner declares
+          # that name, the MORE SPECIFIC, pre-existing refusal one level
+          # up (`AggregateBuilder#seal_mutation_targets`, checking the
+          # mutation's TARGET against the aggregate's own fields) is the
+          # one that should fire, naming the field as a target problem,
+          # not — confusingly — as a source problem this check would
+          # otherwise misreport it as.
+          return if mutation.source.to_s == mutation.target.to_s
+          return if attributes.any? { |attr| attr.name == mutation.source }
+
+          raise Malformed,
+                "#{@name}'s sets :#{mutation.target} resolves :#{mutation.source} from its " \
+                "arguments, but #{@name} declares no #{mutation.source} attribute — an " \
+                "argument that does not exist resolves to nil, always, never what the " \
+                "caller actually sent"
         end
 
         # `state(:name)` names one of the OWNER'S OWN fields — a snapshot

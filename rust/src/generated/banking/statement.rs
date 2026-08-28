@@ -417,6 +417,11 @@ pub fn dispatch_generate(
         None,
         |record| {
         record.account = Some(args.account.clone());
+        record.period = Some(args.period.clone());
+        record.opening_balance = Some(args.opening_balance.clone());
+        record.closing_balance = Some(args.closing_balance.clone());
+        record.generated_on = Some(args.generated_on.clone());
+        record.frequency = Some(args.frequency.clone());
             Ok(())
         },
         &[

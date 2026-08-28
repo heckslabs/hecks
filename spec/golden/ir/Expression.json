@@ -343,6 +343,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an operator is written as something"
             }
@@ -368,6 +381,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an operator belongs to a category"
             }
@@ -393,6 +419,22 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "value"
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "value > 0",
               "description": "precedence binds at some level"
             }
@@ -418,6 +460,41 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": "value"
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "int",
+                    "value": 0
+                  }
+                },
+                "op": "and",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": "value"
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "int",
+                    "value": 3
+                  }
+                }
+              },
               "canonical": "value > 0 && value <= 3",
               "description": "an operator takes one, two or three operands"
             }
@@ -443,6 +520,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an operator belongs to one of the two stacked grammars"
             }
@@ -468,6 +558,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an operator names how its check recognizes it"
             }
@@ -493,6 +596,22 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "value"
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "value > 0",
               "description": "an operator sits somewhere in its grammar's check order"
             }
@@ -572,10 +691,36 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "target"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!target.to_s.empty?",
               "description": "a rendering must name its target"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "form"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!form.to_s.empty?",
               "description": "a rendering must have a form"
             }
@@ -910,6 +1055,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a rule is named"
             }
@@ -935,6 +1093,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a rule names a strategy"
             }
@@ -1004,6 +1175,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a boundary condition is named"
             }
@@ -1029,6 +1213,22 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "value"
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "value > 0",
               "description": "a rule sits somewhere in the order"
             }
@@ -1213,10 +1413,36 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "target"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!target.to_s.empty?",
               "description": "a reading must name its target"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "form"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!form.to_s.empty?",
               "description": "a reading must have a form"
             }
@@ -1524,6 +1750,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a predicate says what it is for"
             }
@@ -1593,6 +1832,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a predicate reads against something"
             }
@@ -1618,6 +1870,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a predicate plays a role"
             }
@@ -1643,6 +1908,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a reference must be named"
             }
@@ -1668,6 +1946,47 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "attribute"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "argument"
+                  }
+                }
+              },
               "canonical": "value.to_s == \"attribute\" || value.to_s == \"argument\"",
               "description": "a reference is either an attribute or an argument"
             }
@@ -1693,6 +2012,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a refusal gives a reason"
             }
@@ -1728,10 +2060,64 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "name"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!name.to_s.empty?",
               "description": "a reference must be named"
             },
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "kind"
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "attribute"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "kind"
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "argument"
+                  }
+                }
+              },
               "canonical": "kind.to_s == \"attribute\" || kind.to_s == \"argument\"",
               "description": "a reference is either an attribute or an argument"
             }

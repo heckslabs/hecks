@@ -15,15 +15,21 @@
 // template.yaml already mints via SecretsManager for the Ruby app)
 // signs both this and the OAuth `state` token below.
 //
-// EMBRYONAUT-SPECIFIC GLUE, MARKED — `member_by_email`/`grant_access`/
-// `link_identity`/`session_for_member` all hardcode "Embryonaut::Member"
-// as this domain's own membership aggregate the same way rust/Cargo.toml's
-// `default = ["embryonaut"]` feature already hardcodes which domain this
-// binary serves. A fully generic hecks_web would resolve "which
-// aggregate is the membership one" from bluebook config instead
-// (embryonaut_access_control.rb's own role in the Ruby version); this
-// is the pragmatic, working version for Embryonaut today, same
-// maturity level rust/host's own per-domain codegen already has.
+// GENERIC OVER WHICH AGGREGATE IS "MEMBERSHIP," NOT JUST EMBRYONAUT'S —
+// `member_row_by_email`/`member_rows`/`append_member_state`/
+// `session_for_member_by_identity` used to hardcode "member"/"Member"
+// directly; now they resolve through `membership_aggregate`, which reads
+// `HECKS_MEMBERSHIP_AGGREGATE` against `ir::lineage_capable_aggregates`
+// (that function's own header has the "why an env var, not a bluebook-
+// level IR marker" reasoning). Still Embryonaut-shaped in spirit — the
+// OAuth flow, the "GrantAccess happens separately from Admit" rule, the
+// whole `Session`/provisioning protocol below — just no longer hardcoded
+// to Embryonaut's own aggregate NAME. `rust/host` still links no kernel
+// crate and has no Cargo feature of its own — `HECKS_DOMAIN`, read once
+// at main.rs boot, remains the only runtime domain selector this binary
+// has; `HECKS_MEMBERSHIP_AGGREGATE` is a second, independent env var
+// naming which of THAT domain's own lineage-capable aggregates this
+// module treats as membership.
 
 use crate::dispatch;
 use crate::journal;
@@ -228,14 +234,65 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 // below — every call site still reads "the Member row," not "a lineage
 // row for whichever storage name," which is the real shape of what
 // auth.rs is doing.
-async fn member_row_by_email(client: &Mutex<Client>, email: &str) -> anyhow::Result<Option<Value>> {
+async fn member_row_by_email(client: &Mutex<Client>, domain_ir: &Value, email: &str) -> anyhow::Result<Option<Value>> {
+    let (_, storage_name) = membership_aggregate(domain_ir)?;
     let guard = client.lock().await;
-    journal::read_lineage_head_by_id(&*guard, "member", email).await
+    journal::read_lineage_head_by_id(&*guard, &storage_name, email).await
 }
 
-async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Value)>> {
+async fn member_rows(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<(String, Value)>> {
+    let (_, storage_name) = membership_aggregate(domain_ir)?;
     let guard = client.lock().await;
-    journal::read_lineage_head_all(&*guard, "member").await
+    journal::read_lineage_head_all(&*guard, &storage_name).await
+}
+
+// WHICH LINEAGE-CAPABLE AGGREGATE THIS DEPLOYMENT TREATS AS "THE
+// MEMBERSHIP ONE" — `HECKS_MEMBERSHIP_AGGREGATE` names it (bare,
+// non-domain-qualified, e.g. "Member"), resolved against `ir::
+// lineage_capable_aggregates(domain_ir)` rather than trusted blind, so a
+// typo'd env var fails loudly here instead of silently reading/writing
+// the wrong (or a nonexistent) table. An env var, not a new bluebook-
+// level IR marker: Embryonaut's own bluebook source lives in a separate
+// repo not present in this checkout, so an IR-marker design would need
+// changes in a repo this crate can't reach or test — the env var keeps
+// the whole resolution inside rust/host, consistent with every other
+// deploy-time binding this crate already makes as an env var
+// (`HECKS_DOMAIN`, `DATABASE_URL`, `SESSION_SECRET`). Resolved lazily,
+// at request time, not required at main.rs's own boot — the same
+// reasoning `session_secret()`'s own header already gives: not every
+// domain uses Google-auth/Member provisioning at all.
+fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
+    let wanted = std::env::var("HECKS_MEMBERSHIP_AGGREGATE").map_err(|_| {
+        anyhow::anyhow!(
+            "HECKS_MEMBERSHIP_AGGREGATE is required for Member/GrantAccess/provision -- names \
+             which lineage-capable aggregate is this domain's own membership record"
+        )
+    })?;
+    resolve_membership_aggregate(&wanted, domain_ir)
+}
+
+// Pure and separately unit-tested from the env read above -- same split
+// `session_secret()`/`validate_session_secret()` already use, and for
+// the same reason: `cargo test` runs this crate's tests concurrently in
+// one process, so asserting an env var is UNSET (the real "no value at
+// all" case `membership_aggregate` itself refuses) can't be done safely
+// against the real process environment without racing every other test
+// that might set it. Everything this function actually decides --
+// matching against `lineage_capable_aggregates`, refusing an unknown
+// name -- is exercised here instead, with no env var involved at all.
+fn resolve_membership_aggregate(wanted: &str, domain_ir: &Value) -> anyhow::Result<(String, String)> {
+    crate::ir::lineage_capable_aggregates(domain_ir)
+        .into_iter()
+        .find_map(|(qualified, storage_name)| {
+            let bare = qualified.rsplit("::").next().unwrap_or(&qualified).to_string();
+            (bare == wanted).then_some((bare, storage_name))
+        })
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "HECKS_MEMBERSHIP_AGGREGATE={wanted:?} names an aggregate lineage_capable_aggregates \
+                 doesn't know about for this domain -- check it's persisted_by an era-capable adapter"
+            )
+        })
 }
 
 // `Adapters::PostgresEra#append`, ported verbatim (postgres_era.rb:176-201) --
@@ -268,7 +325,8 @@ async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Valu
 // that). Kept here, unchanged, rather than folded into the generic
 // function, because a rename is a domain-wide concern every lineage
 // write should serialize against — not specific to Member.
-async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id: &str, state: &Value) -> anyhow::Result<()> {
+async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, domain_ir: &Value, id: &str, state: &Value) -> anyhow::Result<()> {
+    let (aggregate_name, _) = membership_aggregate(domain_ir)?;
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
 
@@ -281,7 +339,7 @@ async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id:
     journal::append_lineage_mutation(
         &txn,
         config,
-        &journal::Mutation { aggregate: "Member", id, operation: "save", state },
+        &journal::Mutation { aggregate: &aggregate_name, id, operation: "save", state },
     )
     .await?;
 
@@ -289,11 +347,15 @@ async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id:
     Ok(())
 }
 
-pub async fn session_for_member_by_identity(client: &Mutex<Client>, identity_id: &str) -> anyhow::Result<Option<Session>> {
+pub async fn session_for_member_by_identity(client: &Mutex<Client>, domain_ir: &Value, identity_id: &str) -> anyhow::Result<Option<Session>> {
+    let (_, storage_name) = membership_aggregate(domain_ir)?;
     let guard = client.lock().await;
     let row = guard
         .query_opt(
-            "SELECT state FROM member_head WHERE state->'identity_id'->>'value' = $1",
+            &format!(
+                "SELECT state FROM {} WHERE state->'identity_id'->>'value' = $1",
+                journal::quote_ident(&journal::head_view(&storage_name))
+            ),
             &[&identity_id],
         )
         .await?;
@@ -318,12 +380,13 @@ pub async fn provision(
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
+    domain_ir: &Value,
     email: &str,
     issuer: &str,
     subject: &str,
     invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Option<Session>> {
-    let member = match member_row_by_email(client, email).await? {
+    let member = match member_row_by_email(client, domain_ir, email).await? {
         Some(m) => m,
         None => return Ok(None),
     };
@@ -362,7 +425,7 @@ pub async fn provision(
     let assign_role = dispatch::handle(
         client, wasm_path, "Governance::RoleAssignment.Assign",
         json!({
-            "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": "Embryonaut"},
+            "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": config.domain.clone()},
             "starts_at": {"value": httpdate_now()},
         }), None, config, invoker,
     ).await?;
@@ -384,7 +447,7 @@ pub async fn provision(
     // state is just the current row with that one field replaced.
     let mut new_state = member.clone();
     new_state["identity_id"] = json!({"value": identity_id});
-    append_member_state(client, config, email, &new_state).await?;
+    append_member_state(client, config, domain_ir, email, &new_state).await?;
 
     let name = member.get("name").and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
     Ok(Some(Session { identity_id, email: email.to_string(), name, role: Some(role.to_string()) }))
@@ -394,11 +457,12 @@ pub async fn grant_access(
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
+    domain_ir: &Value,
     email: &str,
     role: &str,
 ) -> anyhow::Result<bool> {
     let _ = wasm_path;
-    let Some(member) = member_row_by_email(client, email).await? else {
+    let Some(member) = member_row_by_email(client, domain_ir, email).await? else {
         return Ok(false);
     };
 
@@ -407,12 +471,12 @@ pub async fn grant_access(
     // `sets :role, to: :role`, no other invariant.
     let mut new_state = member;
     new_state["role"] = json!({"value": role});
-    append_member_state(client, config, email, &new_state).await?;
+    append_member_state(client, config, domain_ir, email, &new_state).await?;
     Ok(true)
 }
 
-pub async fn all_people(client: &Mutex<Client>) -> anyhow::Result<Vec<Value>> {
-    Ok(member_rows(client)
+pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Result<Vec<Value>> {
+    Ok(member_rows(client, domain_ir)
         .await?
         .into_iter()
         .map(|(_, state)| {
@@ -446,7 +510,11 @@ fn now_secs() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
-fn httpdate_now() -> String {
+// `pub(crate)` — `dispatch.rs`'s own `occurred_at` stamping reuses this
+// exact ISO-8601 rendering rather than re-deriving it a second time; see
+// this function's own body comment for the format guarantee both call
+// sites depend on.
+pub(crate) fn httpdate_now() -> String {
     // ISO 8601 UTC, matching Ruby's Time.now.utc.iso8601 -- Governance::
     // RoleAssignment.starts_at only needs to parse as a real instant,
     // never re-derived from or compared against wall-clock time here.
@@ -627,6 +695,21 @@ mod tests {
         assert!(!holds_admin(&instances, "id-2"));
     }
 
+    #[test]
+    fn resolve_membership_aggregate_matches_by_bare_name_and_refuses_an_unknown_one() {
+        let domain_ir = json!({
+            "name": "Embryonaut",
+            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+        });
+
+        let (aggregate, storage_name) = resolve_membership_aggregate("Member", &domain_ir).unwrap();
+        assert_eq!(aggregate, "Member");
+        assert_eq!(storage_name, "member");
+
+        assert!(resolve_membership_aggregate("Nonexistent", &domain_ir).is_err());
+        assert!(resolve_membership_aggregate("Member", &json!({"name": "Embryonaut"})).is_err());
+    }
+
     // A REAL, THROWAWAY POSTGRES DATABASE per test, matching the real
     // shape `head_view` names ("#{storage_name}_head", postgres/
     // lineage.rb) -- member_row_by_email/session_for_member_by_identity/
@@ -675,8 +758,26 @@ mod tests {
         Mutex::new(client)
     }
 
+    // A minimal `ir.json`-shaped fixture naming exactly one lineage-
+    // capable aggregate, "Member" (storage_name "member") -- everything
+    // `resolve_membership_aggregate`/`lineage_capable_aggregates`
+    // actually reads. `HECKS_MEMBERSHIP_AGGREGATE=Member` set once,
+    // never unset -- both real-DB integration tests below want the
+    // identical value, and nothing else in this file's own test module
+    // ever reads this env var, so setting (never clearing) it carries
+    // none of the cross-test race risk `resolve_membership_aggregate`'s
+    // own unit tests are deliberately structured to avoid.
+    fn member_domain_ir() -> Value {
+        json!({
+            "name": "Embryonaut",
+            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+        })
+    }
+
     #[tokio::test]
     async fn member_lookups_query_the_real_member_head_shape() {
+        std::env::set_var("HECKS_MEMBERSHIP_AGGREGATE", "Member");
+        let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_member_lookups").await;
         {
             let guard = db.lock().await;
@@ -693,16 +794,16 @@ mod tests {
             ).await.unwrap();
         }
 
-        let chris = member_row_by_email(&db, "chris@embryonaut.ai").await.unwrap().expect("should find chris");
+        let chris = member_row_by_email(&db, &domain_ir, "chris@embryonaut.ai").await.unwrap().expect("should find chris");
         assert_eq!(chris["email"]["value"], "chris@embryonaut.ai");
-        assert!(member_row_by_email(&db, "nobody@embryonaut.ai").await.unwrap().is_none());
+        assert!(member_row_by_email(&db, &domain_ir, "nobody@embryonaut.ai").await.unwrap().is_none());
 
-        let session = session_for_member_by_identity(&db, "id-1").await.unwrap().expect("should find the linked member");
+        let session = session_for_member_by_identity(&db, &domain_ir, "id-1").await.unwrap().expect("should find the linked member");
         assert_eq!(session.email, "chris@embryonaut.ai");
         assert_eq!(session.role.as_deref(), Some("Admin"));
-        assert!(session_for_member_by_identity(&db, "id-nope").await.unwrap().is_none());
+        assert!(session_for_member_by_identity(&db, &domain_ir, "id-nope").await.unwrap().is_none());
 
-        let people = all_people(&db).await.unwrap();
+        let people = all_people(&db, &domain_ir).await.unwrap();
         assert_eq!(people.len(), 2);
         let chris = people.iter().find(|p| p["email"] == "chris@embryonaut.ai").unwrap();
         assert_eq!(chris["linked"], true);
@@ -714,6 +815,8 @@ mod tests {
 
     #[tokio::test]
     async fn append_member_state_writes_the_journal_and_advances_the_head_snapshot() {
+        std::env::set_var("HECKS_MEMBERSHIP_AGGREGATE", "Member");
+        let domain_ir = member_domain_ir();
         let db = scratch_member_db("hecks_host_auth_test_append_member").await;
         let config = LineageConfig { domain: "Embryonaut".to_string(), era: Some(1) };
         {
@@ -738,10 +841,10 @@ mod tests {
 
         let granted = json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
                               "role": {"value": "Admin"}, "identity_id": null});
-        append_member_state(&db, &config, "angie@embryonaut.ai", &granted).await.unwrap();
+        append_member_state(&db, &config, &domain_ir, "angie@embryonaut.ai", &granted).await.unwrap();
 
         // The head view reflects the new state immediately.
-        let after = member_row_by_email(&db, "angie@embryonaut.ai").await.unwrap().expect("still there");
+        let after = member_row_by_email(&db, &domain_ir, "angie@embryonaut.ai").await.unwrap().expect("still there");
         assert_eq!(after["role"]["value"], "Admin");
 
         // A real journal row was appended -- not a raw UPDATE bypassing it.

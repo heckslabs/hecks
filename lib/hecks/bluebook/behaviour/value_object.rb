@@ -17,13 +17,19 @@ module Hecks
 
         # A single-attribute value object (EmailAddress{address},
         # CustomerNumber{value}) is a NAME for a scalar, not a genuine
-        # group — [[feedback_name_the_scalar_field]]. Four call sites
-        # already inline this exact check (`attributes.size == 1` /
-        # `attributes.first`) — `forms/field_shape.rb` (twice),
-        # `adapters/driven/sql_query_builder.rb`,
-        # `fuzzing/invalid_value_generator.rb` — kept as-is for now
-        # (not migrated to this reader), but any NEW caller should
-        # reach for this rather than add a fifth inline copy.
+        # group — [[feedback_name_the_scalar_field]]. `adapters/driven/
+        # sql_query_builder.rb` and `fuzzing/invalid_value_generator.rb`
+        # now read through this rather than inlining the check.
+        #
+        # `forms/field_shape.rb`'s own two `attributes.first.name` sites
+        # (`closed_set_options`/`closed_set_field`) look identical but are
+        # NOT the same question — they pick a closed set's DISCRIMINANT
+        # column, and a closed set can be genuinely multi-attribute
+        # (`Runtime::Value::Admission#member_matches?`'s own comment
+        # names a real one: `StatementFrequency`'s `cadence`/
+        # `retention_months`/`paper_fee_cents`). `sole_attribute` would
+        # return `nil` for that shape and break the discriminant lookup —
+        # left as `.first` on purpose, not a missed migration.
         def sole_attribute
           attributes.first if attributes.size == 1
         end

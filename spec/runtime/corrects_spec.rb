@@ -131,6 +131,79 @@ RSpec.describe "a command's corrects" do
     expect(reversed.instance.balance.cents).to eq(0)
   end
 
+  it "binds corrects' own as: name to the located event's payload, readable from given and ensures" do
+    registry = Hecks::Runtime::Registry.new
+
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+
+      Hecks.bluebook("CorrectsAsSmoke") do
+        vision "corrects' own as: binds the located event for given/ensures to read."
+        core
+
+        aggregate "Box" do
+          identified_by :number
+
+          attribute :number,  Number
+          attribute :balance, Money, default: { cents: 0 }
+
+          value_object("Number") { attribute :value, String }
+          value_object("Money")  { attribute :cents, Integer }
+
+          command "Open" do
+            role "Teller"
+            attribute :number, Number
+            emits "Opened"
+          end
+
+          command "Deposit" do
+            role "Teller"
+            reference_to Box
+            attribute :amount, Money
+            sets :balance, increment: :amount
+            emits "Deposited"
+          end
+
+          # `as: :original` binds the LOCATED "Deposited" event's own
+          # payload — checked from BOTH sides: a `given` (pre-mutation)
+          # refusing a reversal that doesn't name the exact amount
+          # originally deposited, and an `ensures` (post-mutation)
+          # confirming the balance actually landed back where it
+          # started, both reading `original.amount.cents`.
+          command "ReverseDeposit" do
+            role "Compliance officer"
+            reference_to Box
+            attribute :amount, Money
+
+            corrects "Deposited", as: :original, reason: "duplicate debit, bank error"
+
+            given("the reversal names the exact amount originally deposited") { amount.cents == original.amount.cents }
+            ensures("the balance no longer reflects the original deposit") { balance.cents != old.balance.cents }
+            ensures("the amount corrected still names the exact original event") { original.amount.cents == amount.cents }
+
+            sets :balance, decrement: :amount
+            emits "DepositCorrected"
+          end
+        end
+      end
+    end
+
+    dispatcher = Hecks::Runtime::Dispatcher.new(registry)
+
+    dispatcher.dispatch("CorrectsAsSmoke::Box.Open", number: { value: "b-1" })
+    dispatcher.dispatch("CorrectsAsSmoke::Box.Deposit", number: { value: "b-1" }, amount: { cents: 1000 })
+
+    expect {
+      dispatcher.dispatch("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 999 })
+    }.to raise_error(Hecks::Runtime::GivenNotMet)
+
+    reversed = dispatcher.dispatch("CorrectsAsSmoke::Box.ReverseDeposit", number: { value: "b-1" }, amount: { cents: 1000 })
+    expect(reversed.instance.balance.cents).to eq(0)
+  end
+
   it "refuses reverses: true at build time when the original used a lossy op" do
     expect {
       Hecks.bluebook("CorrectsLossySmoke") do

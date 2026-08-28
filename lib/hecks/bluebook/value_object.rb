@@ -1,4 +1,5 @@
 require_relative "behaviour/value_object"
+require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
@@ -28,7 +29,15 @@ module Hecks
       emits_ir(
         name:       :hecks_name,
         attributes: many(:attributes),
-        invariants: -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        # `ast:` — a JSON-serializable rendering of the SAME predicate
+        # `canonical` already spells as text, alongside it rather than
+        # replacing it (`canonical` stays the human-facing/doctest-facing
+        # form; parsing it back would just re-derive what `ast` already
+        # states directly). Ground truth and the full reasoning:
+        # `Expression::AstJson`'s own header — built for `rust/host`'s
+        # own mint-time invariant check (`reference_validate.rs`), which
+        # has no kernel crate to parse `canonical` with.
+        invariants: -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical, ast: Expression::AstJson.emit_predicate(rule.canonical) } } },
         closed_set: :closed_set?,
         # THE FIELD NAME IS STRINGIFIED, NEVER THE VALUE. A `member` row can
         # hold any of the scalar types an attribute declares — `Integer 84`

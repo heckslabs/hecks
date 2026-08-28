@@ -8,7 +8,11 @@ Hecks.bluebook "Pizzas" do
     attribute :name,          PizzaName
     attribute :pizza,         Pizza
     attribute :toppings,      list_of(Topping)
-    attribute :customer_name, CustomerName
+    # OPTIONAL — Wave 8 fix: genuinely unknown until `Purchase` (below)
+    # sets it; no pizza has a buyer's name at CreatePizza time. The same
+    # DSL knob `ATMCard`'s own `nickname` (banking) already uses for the
+    # identical "not known until later" shape.
+    attribute :customer_name, CustomerName, optional: true
 
     identified_by :name
 
@@ -111,6 +115,13 @@ Hecks.bluebook "Pizzas" do
 
       attribute :name,  PizzaName
       attribute :pizza, Pizza
+
+      # Wave 8 fix — both already declared, required command attributes,
+      # never written: CreatePizza had zero mutations at all, so every
+      # created Order's own :name/:pizza came back nil regardless of
+      # what the caller sent.
+      sets :name
+      sets :pizza
 
       emits PizzaCreated
     end

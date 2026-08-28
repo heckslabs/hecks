@@ -956,6 +956,7 @@ pub fn dispatch_open(
         ],
         None,
         |record| {
+        record.name = Some(args.name.clone());
         record.motto = Some(Motto { value: "all hands".to_string() });
         record.mood = Some(Mood::Open);
         record.standing = Some(Standing::None);

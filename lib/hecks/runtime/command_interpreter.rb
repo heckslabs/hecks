@@ -48,7 +48,7 @@ module Hecks
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :delegated_events,
-                           :dry_run)
+                           :dry_run, :correction_bindings)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -135,10 +135,13 @@ module Hecks
           # NotFound/AlreadyExists already get at hydration: "does the
           # fact this command's corrects names even exist" is not a
           # domain rule an author wrote, it is a precondition for the
-          # domain rules to mean anything at all.
-          @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
+          # domain rules to mean anything at all. Also locates the
+          # correction target itself, if `as:` named one — carried on
+          # `ctx` so `step_enforce_ensures` (the settled-record half)
+          # can bind the SAME name too, not just this pre-mutation half.
+          ctx.correction_bindings = @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
           @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain,
-                                declaring: ctx.aggregate, parent: ctx.instance)
+                                declaring: ctx.aggregate, parent: ctx.instance, correction: ctx.correction_bindings)
         }
       end
 
@@ -239,7 +242,7 @@ module Hecks
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) {
           @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state,
-                                 domain: ctx.domain, parent: ctx.instance)
+                                 domain: ctx.domain, parent: ctx.instance, correction: ctx.correction_bindings || {})
         }
       end
 
@@ -260,7 +263,7 @@ module Hecks
           seed_projected_fields(ctx)
           ctx.persistence_outcome = if ctx.strategy == DependencyPlanning::ATOMIC_PUT
                                       # A SECOND CREATION IS NOT A FRESH ONE — see
-                                      # hydrate_legacy_creation's own comment; the
+                                      # hydrate_complete_state's own comment; the
                                       # same refusal, on the same terms, for the
                                       # complete-state path. `insert_only:` asks the
                                       # ADAPTER to decide and refuse ATOMICALLY
@@ -376,19 +379,61 @@ module Hecks
         found.dup
       end
 
-      # Transitional compatibility for live source that has not yet acquired
-      # explicit effects. It is deliberately isolated from the normal routing
-      # and planning path so `reference_to` no longer chooses how a migrated
-      # command hydrates or persists. Wave 8 removes this after the inventory is
-      # empty; frozen eras retain their own shadow parser.
+      # WAVE 8 (equivalence-gap plan, item 1.6) — NOT done, and this
+      # comment now says precisely how far it got, corrected from an
+      # EARLIER version of itself that briefly (same PR, never released)
+      # claimed the inventory was empty and deleted this method outright.
+      # A full corpus audit (`DependencyPlanning::Analyzer.call` against
+      # every `creates?`-true command in all 5 EXAMPLE domains — banking,
+      # pizzas, chess, compliance, roster) found and fixed 4 real
+      # authoring bugs (`Statement.Generate`, `CreatePizza`, `Chess::
+      # Game.Start`, `Roster.Open` — each declared an attribute and
+      # never `sets` it, so the field silently stayed nil on every
+      # created record regardless of what a caller sent), plus a real
+      # `DependencyPlanning::Analyzer` bug for ENTITY-owned commands
+      # (`root_aggregate:`, that class's own header) that surfaced one
+      # more live corpus bug of its own (`payment_cards.bluebook`'s own
+      # `Withdrawal.Dispute`, which never actually checked whether the
+      # card was retired) — all real, all kept.
       #
-      # `ctx.plan.complete_state?` already claimed every command whose plan is
-      # fully resolved in the two branches above `step_hydrate` tries first, so
-      # reaching this check already means the plan is incomplete — an
-      # un-migrated command still routes here on `creates?` alone, the same as
-      # the old `hydrate` did, regardless of whether it happens to have any
-      # mutations (`write_set`). Requiring an EMPTY write_set here refused
-      # every un-migrated creating command that sets even one field.
+      # DELETING THIS METHOD ON THAT BASIS TURNED OUT TO BE WRONG,
+      # caught by running the full suite rather than trusting the
+      # audit's own scope: the 5 example domains are nowhere near the
+      # WHOLE inventory of `creates?`-true commands this fallback
+      # actually carries. Dozens of separate, purpose-built spec
+      # fixtures across the suite (`spec/fixtures/*.bluebook`, and
+      # inline `Hecks.bluebook` blocks declared directly inside
+      # individual spec files — governance, mutation ops, ports,
+      # routing, tenant isolation, sagas, and more) declare their OWN
+      # small `creates?`-true commands the same incomplete way, and
+      # rely on this exact fallback to create anything at all. Deleting
+      # it produced 218 failures across specs with nothing to do with
+      # Wave 8's own subject — confirmed, not guessed, by actually
+      # running `bundle exec rspec` after the deletion, not merely by
+      # extrapolating from the one audited inventory. `spec/fixtures/
+      # till.bluebook`'s own `Till.OpenTill` (missing `sets :number`,
+      # the identical bug shape as the 4 fixed above) was fixed
+      # alongside the four real corpus ones as one instance of this — but
+      # it was one of many, not the last one, and finding the rest is
+      # real, separate, much larger follow-up work this pass does not
+      # attempt: a suite-wide audit of every declared bluebook fixture,
+      # not just the 5 example domains the plan's own text named.
+      #
+      # Transitional compatibility for live source that has not yet
+      # acquired explicit effects, same as it always was — deliberately
+      # isolated from the normal routing and planning path so
+      # `reference_to` no longer chooses how a migrated command hydrates
+      # or persists. A real, future Wave 8 removes this once THAT wider
+      # inventory is empty, not before.
+      #
+      # `ctx.plan.complete_state?` already claimed every command whose
+      # plan is fully resolved in the two branches above `step_hydrate`
+      # tries first, so reaching this check already means the plan is
+      # incomplete — an un-migrated command still routes here on
+      # `creates?` alone, the same as the old `hydrate` did, regardless
+      # of whether it happens to have any mutations (`write_set`).
+      # Requiring an EMPTY write_set here refused every un-migrated
+      # creating command that sets even one field.
       def legacy_implicit_creation?(ctx)
         ctx.route.nil? && ctx.command.creates?
       end
@@ -421,9 +466,11 @@ module Hecks
                                                    aggregate: aggregate.hecks_name,
                                                    identity:  identity_reading(aggregate)))
 
-        # A SECOND CREATION IS NOT A FRESH ONE — see hydrate_legacy_creation's
-        # own comment; the same refusal, on the same terms, for the
-        # complete-state path. ONLY when `strategy` will NOT be ATOMIC_PUT:
+        # A SECOND CREATION IS NOT A FRESH ONE — `creates?` on an identity
+        # a record already exists under refuses (`AlreadyExists`) rather
+        # than silently overwriting it, the same refusal `hydrate_prior_
+        # or_initial`'s own body gives for its own complete-but-state-
+        # dependent case, below. ONLY when `strategy` will NOT be ATOMIC_PUT:
         # an atomic-put-capable adapter enforces this itself, atomically,
         # via `insert_only:` in step_save (no read here, no race with the
         # write) — but `strategy_for` already fell back to a plain `save`
@@ -461,8 +508,8 @@ module Hecks
                                                    identity:  identity_reading(aggregate)))
         found = repository.find(id)
 
-        # A SECOND CREATION IS NOT A FRESH ONE — see hydrate_legacy_
-        # creation's own comment; the same refusal, on the same terms, for
+        # A SECOND CREATION IS NOT A FRESH ONE — see hydrate_complete_
+        # state's own comment; the same refusal, on the same terms, for
         # a complete-but-state-dependent command (one with a `given`
         # reading its own prior state, which is what routes here instead
         # of hydrate_complete_state). Gated on `command.creates?`: a

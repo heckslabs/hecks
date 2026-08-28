@@ -98,7 +98,14 @@ module Hecks
           ctx.chain = chain
           ctx.route = route
           ctx.dry_run = dry_run
-          ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command)
+          # `root_aggregate:` — `entity` is the immediate owner (what
+          # `owner_fields` inside the Analyzer means), but a `parent.X`
+          # read inside this command's own given/ensures means the ROOT
+          # aggregate's own field, not the entity's — `aggregate` here IS
+          # that root (this method's own first parameter, never the
+          # entity). See DependencyPlanning::Analyzer.call's own header
+          # for the bug this closes.
+          ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command, root_aggregate: aggregate)
           # RESOLVED HERE, ONCE — see CommandInterpreter#call's own comment;
           # `step_hydrate_parent` reads `ctx.repository` without re-fetching.
           ctx.repository = @registry.repository(domain, aggregate)

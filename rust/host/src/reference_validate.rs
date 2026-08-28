@@ -14,30 +14,31 @@
 // lifecycle}`, the SAME metadata `rust/codegen` already compiles types
 // from, just consumed as data here instead of compiled to Rust source.
 //
-// A DELIBERATE, NAMED GAP from Ruby's own full guarantee, not a silent
-// omission: custom VALUE-OBJECT INVARIANT PREDICATES (`invariants:
-// [{canonical: "cents >= 0"}]`, arbitrary expression text) are NOT
-// evaluated here. Everything else Layer 1 checks in Ruby — type shape,
-// pattern, admits/closed-set, lifecycle membership — IS. Evaluating
-// `canonical` text live needs an executable form of it this crate can
-// run without either (a) a second, independently-written expression
-// interpreter duplicating `rust::kernel::expr` a third time (this
-// codebase's own recurring lesson, most recently ADR 0022's whole
-// reason for existing), or (b) a direct Cargo dependency on the `rust`
-// kernel crate to reuse that interpreter directly — confirmed unsafe to
-// do: `rust/src/generated/mod.rs`'s own `pub mod banking; pub mod
+// CUSTOM VALUE-OBJECT INVARIANT PREDICATES (`invariants: [{canonical:
+// "cents >= 0", ast: {...}}]`) ARE NOW CHECKED TOO, for the operators
+// `expr_json::interpret` actually implements — see that file's own
+// header for exactly which ones, and why the rest cleanly refuse rather
+// than being silently skipped or ported speculatively. This closes what
+// used to be a deliberate, named gap here: evaluating `canonical` text
+// live needed an executable form of it this crate could run without
+// either (a) a second, independently-written expression interpreter
+// duplicating `rust::kernel::expr` a third time (this codebase's own
+// recurring lesson, most recently ADR 0022's whole reason for existing),
+// or (b) a direct Cargo dependency on the `rust` kernel crate to reuse
+// that interpreter directly — confirmed unsafe to do:
+// `rust/src/generated/mod.rs`'s own `pub mod banking; pub mod
 // compliance; ...` list is NOT feature-gated (only the `active`
 // re-export is), so depending on that crate at all would statically
 // bake every domain's generated dispatch code into every Lambda's own
 // binary regardless of which `.wasm` it actually loads at runtime — the
 // exact per-domain isolation this crate's own Cargo.toml header holds
-// itself to. Closing this gap for real needs a NEW build-time export
-// (the SAME parsed AST `rust/project/expr_emitter.rb` already builds to
-// emit Rust source literals, serialized to `ir.json` as JSON data
-// instead) plus a small interpreter here that consumes it as data — a
-// real, buildable next step, deliberately scoped out of this pass
-// rather than rushed into place without it.
+// itself to. `expr_json.rs`'s own `ast:` JSON — the SAME parsed AST
+// `rust/project/expr_emitter.rb` already builds to emit Rust source
+// literals, serialized by `lib/hecks/bluebook/expression/ast_json.rb`
+// instead — is that build-time export; this file's own `check_value` is
+// the small interpreter that consumes it as data.
 
+use crate::expr_json;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -106,6 +107,55 @@ fn check_attributes(
     }
 }
 
+/// A value object's own declared `invariant("description") { predicate }`
+/// entries — `vo["invariants"]`, each `{description, canonical, ast}`
+/// (`lib/hecks/bluebook/value_object.rb`'s own `invariants:` IR
+/// emission; `ast` is `expr_json::parse`'s own input, `Expression::
+/// AstJson.emit_predicate`'s output). FAILS CLOSED — a malformed `ast`
+/// or an operator `expr_json::interpret` doesn't support yet is pushed
+/// as a real violation, refusing the mint, the same as a genuine
+/// invariant failure would — not silently skipped. That is the
+/// deliberate difference from `check_value`'s own "unrecognized type
+/// name" tolerance just below: an unrecognized TYPE genuinely could be
+/// anything (no information either way, so guessing would risk a false
+/// positive worse than checking nothing), but an invariant this file
+/// KNOWS exists and simply cannot yet evaluate is real, actionable
+/// information — reporting it loudly is what lets an author either
+/// simplify the predicate or wait for `expr_json.rs`'s own coverage to
+/// grow, rather than silently minting past it.
+fn check_invariants(aggregate_name: &str, id: &str, attr_name: &str, type_name: &str, value: &Value, vo: &Value, violations: &mut Vec<String>) {
+    let Some(invariants) = vo.get("invariants").and_then(Value::as_array) else { return };
+
+    for invariant in invariants {
+        let description = invariant.get("description").and_then(Value::as_str).unwrap_or("");
+        // No `ast` key at all — an `ir.json` built before this
+        // capability existed (or by a generator this validator doesn't
+        // fully trust yet). Nothing to check against, and no claim this
+        // audit ever made before that it's checking it — not a
+        // violation, unlike a PRESENT-but-malformed or PRESENT-but-
+        // unsupported `ast`, both of which ARE.
+        let Some(ast) = invariant.get("ast") else { continue };
+
+        let expr = match expr_json::parse(ast) {
+            Ok(expr) => expr,
+            Err(error) => {
+                violations.push(format!(
+                    "{aggregate_name}#{id}: {attr_name} ({type_name})'s own invariant {description:?} has a malformed ast — {error}"
+                ));
+                continue;
+            }
+        };
+
+        match expr_json::interpret(&expr, value) {
+            Ok(result) if result.truthy() => {}
+            Ok(_) => violations.push(format!("{aggregate_name}#{id}: {attr_name} ({type_name}) violates its own invariant — {description}")),
+            Err(error) => violations.push(format!(
+                "{aggregate_name}#{id}: {attr_name} ({type_name})'s own invariant {description:?} could not be checked — {error}"
+            )),
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn check_value(
     aggregate_name: &str,
@@ -120,7 +170,22 @@ fn check_value(
 ) {
     if let Some(vo) = value_objects.get(type_name) {
         let nested = vo.get("attributes").and_then(Value::as_array).cloned().unwrap_or_default();
+        let before = violations.len();
         check_attributes(aggregate_name, id, value, &nested, value_objects, entities, violations);
+        // STRUCTURE FIRST, INVARIANT SECOND — and only when the struct
+        // check found nothing wrong. A value already flagged for a
+        // wrong type/pattern/admits has nothing coherent for its own
+        // `invariant` predicate to say about it either (`cents >= 0`
+        // means nothing once `cents` itself isn't the Integer it's
+        // declared as) — checking anyway would either double-report the
+        // SAME underlying problem under two different violation
+        // messages, or (worse) `expr_json::interpret` refusing to
+        // compare a non-numeric value would surface as its own separate
+        // "could not be checked" violation, obscuring the real,
+        // first-order type mismatch behind noise.
+        if violations.len() == before {
+            check_invariants(aggregate_name, id, attr_name, type_name, value, vo, violations);
+        }
         return;
     }
     if let Some(entity) = entities.get(type_name) {
@@ -208,6 +273,10 @@ mod tests {
                 {"name": "Pizza", "attributes": [
                     {"name": "cents", "type": "Integer", "list": false, "optional": false},
                     {"name": "size", "type": "String", "list": false, "optional": false, "admits": ["small", "large"]}
+                ], "invariants": [
+                    {"description": "a price is never negative", "canonical": "cents >= 0",
+                     "ast": {"op": "compare", "cmp": {"less_than": true, "equal": false, "negated": true},
+                             "left": {"op": "lookup", "path": "cents"}, "right": {"op": "int", "value": 0}}}
                 ]},
                 {"name": "Topping", "attributes": [
                     {"name": "name", "type": "String", "list": false, "optional": false, "pattern": "[^ \\t\\n\\r]"}
@@ -274,6 +343,42 @@ mod tests {
     fn an_absent_optional_field_is_not_a_violation() {
         let state = json!({ "pizza": { "cents": 1200, "size": "large" }, "toppings": [] });
         assert_eq!(validate(&order_ir(), "p1", &state), Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_value_object_that_violates_its_own_declared_invariant_is_caught() {
+        let state = json!({ "pizza": { "cents": -500, "size": "large" }, "toppings": [], "status": "available" });
+        let violations = validate(&order_ir(), "p1", &state);
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("a price is never negative"), "{violations:?}");
+    }
+
+    #[test]
+    fn a_value_object_that_holds_its_own_invariant_has_no_violation_for_it() {
+        let state = json!({ "pizza": { "cents": 0, "size": "large" }, "toppings": [], "status": "available" });
+        assert_eq!(validate(&order_ir(), "p1", &state), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_invariant_with_no_ast_key_at_all_is_not_checked_and_not_a_violation() {
+        // Backward compatibility with an ir.json built before `ast:`
+        // existed — nothing to evaluate, so nothing claimed.
+        let mut ir = order_ir();
+        ir["value_objects"][0]["invariants"][0].as_object_mut().unwrap().remove("ast");
+        let state = json!({ "pizza": { "cents": -500, "size": "large" }, "toppings": [], "status": "available" });
+        assert_eq!(validate(&ir, "p1", &state), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_operator_expr_json_does_not_yet_interpret_refuses_the_mint_rather_than_skipping_it() {
+        let mut ir = order_ir();
+        ir["value_objects"][0]["invariants"][0]["ast"] = json!({
+            "op": "presence", "receiver": {"op": "lookup", "path": "cents"}, "negated": false
+        });
+        let state = json!({ "pizza": { "cents": 1200, "size": "large" }, "toppings": [], "status": "available" });
+        let violations = validate(&ir, "p1", &state);
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].contains("could not be checked"), "{violations:?}");
     }
 
     #[test]

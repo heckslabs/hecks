@@ -145,10 +145,17 @@ pub struct CrossDomainPolicyRule {
 /// SAME whole-payload-verbatim forwarding `react_policies`'s local branch
 /// already does for a same-domain policy (this file's own comment on
 /// "not reshaped, not filtered" — identical rule, just deferred to a
-/// caller instead of applied here).
+/// caller instead of applied here). `event_name` — the triggering event's
+/// own name — exists ONLY so rust/host can build a `reaction_log`-shaped
+/// record (`{policy, on, trigger, delivered, reason}`, matching the
+/// same-domain shape below) once it learns the real delivery outcome;
+/// this module itself never reads it back (see this file's own header:
+/// no `reaction_log` entry is pushed here for a cross-domain match, only
+/// this pending record).
 #[derive(Clone)]
 pub struct PendingCrossDomainReaction {
     pub policy_name: String,
+    pub event_name: String,
     pub target_domain: String,
     pub target_verb: String,
     pub payload: Json,
@@ -413,6 +420,15 @@ pub fn orchestrate<S: AggregateScan>(
     args: &Json,
     caller_role: Option<&str>,
     saga_correlation: Option<&HashMap<String, String>>,
+    // `mod.rs`'s own `Event::occurred_at` field doc has the full
+    // reasoning. UNLIKE `saga_correlation` (narrow — `None` for a
+    // policy reaction, `Some` only for a saga leg's own dispatch), this
+    // is threaded UNCHANGED into every recursive `orchestrate` call this
+    // function makes, below — one host-supplied wall-clock moment for
+    // the WHOLE synchronous cascade a single top-level step causes,
+    // stamped onto every event it produces at any depth, not narrowed
+    // per reaction the way correlation legitimately is.
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -425,6 +441,12 @@ pub fn orchestrate<S: AggregateScan>(
     if let Some(stamp) = saga_correlation {
         for event in &mut events {
             event.correlation.get_or_insert_with(HashMap::new).extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+    }
+
+    if let Some(ts) = occurred_at {
+        for event in &mut events {
+            event.occurred_at = Some(ts.to_string());
         }
     }
 
@@ -443,9 +465,9 @@ pub fn orchestrate<S: AggregateScan>(
         // checked inside `react_policies`/`deliver_saga_dispatch` below,
         // per match — not a blanket skip here, which used to silently
         // produce fewer log entries than Ruby whenever it fired.
-        react_policies(store, dispatch_fn, tables, sagas, &event, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        react_policies(store, dispatch_fn, tables, sagas, &event, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
         begin_saga(tables, sagas, &event, saga_log);
-        advance_saga(store, dispatch_fn, tables, sagas, &event, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        advance_saga(store, dispatch_fn, tables, sagas, &event, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
         end_saga(tables, sagas, &event, saga_log);
     }
 
@@ -702,6 +724,7 @@ fn react_policies<S: AggregateScan>(
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -765,7 +788,11 @@ fn react_policies<S: AggregateScan>(
             // says what the TRIGGER is given, and the fan-out is asking
             // a different question (WHICH rows) in the event's own
             // vocabulary.
-            let rows = match named_query::run(store, def, &event.payload) {
+            // `None` — a policy's own for_each fan-out is system-triggered,
+            // the same `Caller.without` reasoning this file's own
+            // same-domain reaction dispatch already carries (no caller
+            // role to assert for a query a policy runs on its own behalf).
+            let rows = match named_query::run(store, def, &event.payload, None) {
                 Ok(rows) => rows,
                 Err(refusal) => {
                     reaction_log.push(record(vec![
@@ -790,7 +817,7 @@ fn react_policies<S: AggregateScan>(
                 };
                 let args = trigger_args(policy, event, policy.for_each_key.map(|key| (key, row_id.clone())), policy.target_verb, &tables);
                 let outcome = orchestrate(
-                    store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
+                    store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, occurred_at, depth + 1,
                     all_events, mutations, cross_domain, reaction_log, saga_log,
                 );
                 match outcome {
@@ -813,7 +840,7 @@ fn react_policies<S: AggregateScan>(
         // stamp (only a saga leg's own dispatch does).
         let args = trigger_args(policy, event, None, policy.target_verb, &tables);
         let outcome = orchestrate(
-            store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
+            store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, occurred_at, depth + 1,
             all_events, mutations, cross_domain, reaction_log, saga_log,
         );
         match outcome {
@@ -851,6 +878,7 @@ fn react_policies<S: AggregateScan>(
         }
         cross_domain.push(PendingCrossDomainReaction {
             policy_name: policy.policy_name.to_string(),
+            event_name: event.name.clone(),
             target_domain: policy.target_domain.to_string(),
             target_verb: policy.target_verb.to_string(),
             payload: event.payload.clone(),
@@ -907,6 +935,7 @@ fn advance_saga<S: AggregateScan>(
     tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -970,7 +999,7 @@ fn advance_saga<S: AggregateScan>(
             let compensation_args = spec.compensates.map(|r| build_dispatch_args(pm, r, event, &correlation, &memory, domain_name, &tables));
             let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.clone())].into_iter().collect();
             let delivered = deliver_saga_dispatch(
-                store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, &correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
+                store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, &correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
             );
             if delivered == Some(false) {
                 refused = true;
@@ -978,7 +1007,7 @@ fn advance_saga<S: AggregateScan>(
         }
 
         if refused {
-            compensate(store, dispatch_fn, tables, sagas, pm, &key, event, &correlation, &memory, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+            compensate(store, dispatch_fn, tables, sagas, pm, &key, event, &correlation, &memory, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
         }
     }
 }
@@ -1020,6 +1049,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     domain_name: &str,
     args: &Json,
     correlation: &str,
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -1091,7 +1121,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     // `orchestrate` to every event this recursive dispatch itself
     // produces.
     let outcome = orchestrate(
-        store, dispatch_fn, tables, sagas, &qualified, args, None, Some(stamp), depth + 1,
+        store, dispatch_fn, tables, sagas, &qualified, args, None, Some(stamp), occurred_at, depth + 1,
         all_events, mutations, cross_domain, reaction_log, saga_log,
     );
     match outcome {
@@ -1149,6 +1179,7 @@ fn deliver_derived_compensation<S: AggregateScan>(
     entry: &CompletedCompensation,
     domain_name: &str,
     correlation: &str,
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -1185,7 +1216,7 @@ fn deliver_derived_compensation<S: AggregateScan>(
     let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
 
     let outcome = orchestrate(
-        store, dispatch_fn, tables, sagas, &qualified, &entry.args, None, Some(&stamp), depth + 1,
+        store, dispatch_fn, tables, sagas, &qualified, &entry.args, None, Some(&stamp), occurred_at, depth + 1,
         all_events, mutations, cross_domain, reaction_log, saga_log,
     );
     match outcome {
@@ -1242,6 +1273,7 @@ fn compensate<S: AggregateScan>(
     event: &Event,
     correlation: &str,
     memory: &Json,
+    occurred_at: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
@@ -1319,7 +1351,7 @@ fn compensate<S: AggregateScan>(
             None => None,
         };
         let Some(entry) = entry else { break };
-        deliver_derived_compensation(store, dispatch_fn, tables, sagas, pm, &entry, domain_name, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        deliver_derived_compensation(store, dispatch_fn, tables, sagas, pm, &entry, domain_name, correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
     }
 
     for spec in compensation.dispatches {
@@ -1327,7 +1359,7 @@ fn compensate<S: AggregateScan>(
         let compensation_args = spec.compensates.map(|r| build_dispatch_args(pm, r, event, correlation, memory, domain_name, &tables));
         let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
         deliver_saga_dispatch(
-            store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
+            store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, correlation, occurred_at, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp, compensation_args,
         );
     }
 }
@@ -1403,6 +1435,7 @@ mod tests {
             aggregate: "Domain::Thing".to_string(),
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
+            occurred_at: None,
             correlation: Some([("reference".to_string(), "xfer-1".to_string())].into_iter().collect()),
         };
 
@@ -1417,6 +1450,7 @@ mod tests {
             aggregate: "Domain::Thing".to_string(),
             id: "thing-1".to_string(),
             payload: Json::Object(vec![("reference".to_string(), Json::Object(vec![("value".to_string(), Json::Str("from-payload".to_string()))]))]),
+            occurred_at: None,
             correlation: Some([("reference".to_string(), "from-stamp".to_string())].into_iter().collect()),
         };
 
@@ -1431,6 +1465,7 @@ mod tests {
             aggregate: "Domain::Thing".to_string(),
             id: "thing-1".to_string(),
             payload: Json::Object(vec![]),
+            occurred_at: None,
             correlation: Some([("reference".to_string(), String::new())].into_iter().collect()),
         };
 
@@ -1449,6 +1484,7 @@ mod tests {
                 aggregate: "Domain::Thing".to_string(),
                 id: "thing-1".to_string(),
                 payload: Json::Null,
+                occurred_at: None,
                 correlation: Some([("already".to_string(), "here".to_string())].into_iter().collect()),
             },
         ];
@@ -1460,6 +1496,42 @@ mod tests {
         let correlation = events[0].correlation.as_ref().unwrap();
         assert_eq!(correlation.get("already"), Some(&"here".to_string()));
         assert_eq!(correlation.get("reference"), Some(&"xfer-1".to_string()));
+    }
+
+    // `orchestrate`'s own `occurred_at` stamping step — the identical
+    // shape the `stamping_merges_...` test above proves for correlation,
+    // proven directly here for the same reason: no real `dispatch_fn`/
+    // `Store` needed to exercise the stamp itself.
+    #[test]
+    fn occurred_at_stamps_every_event_the_same_host_supplied_moment() {
+        let mut events = vec![
+            Event { name: "A".to_string(), aggregate: "Domain::Thing".to_string(), id: "t1".to_string(), payload: Json::Null, occurred_at: None, correlation: None },
+            Event { name: "B".to_string(), aggregate: "Domain::Thing".to_string(), id: "t2".to_string(), payload: Json::Null, occurred_at: None, correlation: None },
+        ];
+        let occurred_at = Some("2026-08-28T00:00:00Z");
+
+        if let Some(ts) = occurred_at {
+            for event in &mut events {
+                event.occurred_at = Some(ts.to_string());
+            }
+        }
+
+        assert_eq!(events[0].occurred_at, Some("2026-08-28T00:00:00Z".to_string()));
+        assert_eq!(events[1].occurred_at, Some("2026-08-28T00:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn occurred_at_leaves_events_unstamped_when_no_caller_supplied_one() {
+        let mut events = vec![Event { name: "A".to_string(), aggregate: "Domain::Thing".to_string(), id: "t1".to_string(), payload: Json::Null, occurred_at: None, correlation: None }];
+        let occurred_at: Option<&str> = None;
+
+        if let Some(ts) = occurred_at {
+            for event in &mut events {
+                event.occurred_at = Some(ts.to_string());
+            }
+        }
+
+        assert_eq!(events[0].occurred_at, None);
     }
 
     // Reproduces the EXACT reentrancy shape `SagaInterpreter#deliver_saga_
@@ -1494,6 +1566,7 @@ mod tests {
             aggregate: "Test::Widget".to_string(),
             id: "w1".to_string(),
             payload: Json::Object(vec![]),
+            occurred_at: None,
             correlation: None,
         };
         match verb {
@@ -1502,6 +1575,7 @@ mod tests {
                 aggregate: "Test::Widget".to_string(),
                 id: "w1".to_string(),
                 payload: Json::obj(vec![("id", Json::str("corr-1"))]),
+                occurred_at: None,
                 correlation: None,
             }]),
             "Test::A" => Ok(vec![plain_event("AEvent")]),
@@ -1600,6 +1674,7 @@ mod tests {
             &mut sagas,
             "Test::Kickoff",
             &Json::Object(vec![]),
+            None,
             None,
             None,
             0,

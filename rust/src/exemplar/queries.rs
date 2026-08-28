@@ -35,7 +35,7 @@ crate::kernel::QueryDef {
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
     offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
     limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
-    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field" }),
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
 },
 ];
 // TMPL:query_table END

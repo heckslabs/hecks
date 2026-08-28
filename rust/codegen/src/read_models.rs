@@ -353,8 +353,27 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
         None => "None".to_string(),
     };
 
+    // ALWAYS EMPTY — item 2.4 (D1) of the equivalence-gap plan, ported
+    // from `rust/project/read_models.rb`'s own `read_model_hop_
+    // conditions`. That function's real hop-detection logic
+    // (`query_hop_plan`, queries.rb) is NOT ported here: a full corpus
+    // check (confirmed directly, the same way that Ruby work was
+    // verified) found zero real read models across the whole corpus
+    // declare a reference-hop where clause today, so an always-empty
+    // slice is byte-correct for every real domain this tool's own
+    // parity spec covers — not a stub standing in for missing behavior,
+    // the exact value the real detection logic would also compute for
+    // every one of them. Porting `query_hop_plan` itself against zero
+    // real examples to prove it against would be exactly the kind of
+    // speculative generality this codebase's own comments elsewhere
+    // warn against; do that the day a real corpus read model actually
+    // needs it, against that real example. Rendered as an EMPTY LINE
+    // inside `&[ ]` (`.join("\n")` over zero elements), matching Ruby's
+    // own `conditions`/every other empty-array field's rendering here —
+    // never the tighter `&[]` a hand-typed empty literal would use.
+    let reference_hop_conditions = "";
     format!(
-        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_head: {filtered_head},\n    conditions: &[\n{conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n}},",
+        "crate::kernel::read_model::ReadModelDef {{\n    verb: {},\n    reference_name: {reference_name},\n    heads: &[\n{heads}\n    ],\n    filtered_head: {filtered_head},\n    conditions: &[\n{conditions}\n    ],\n    reference_hop_conditions: &[\n{reference_hop_conditions}\n    ],\n    order_by: {order_by},\n    offset: {offset},\n    limit: {limit},\n    authorization: {authorization},\n    group_by: {group_by},\n    count: {count},\n    median_field: {median_field},\n}},",
         crate::naming::ruby_inspect_string(&rmd.verb)
     )
 }
@@ -429,7 +448,7 @@ fn unwrap_json_expr(expr: &str, type_name: &str, list: bool, aggregate: &Json, v
     format!("match {expr} {{ crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| {{ let new_v = match k.as_str() {{ {inner_arms} _ => v }}; (k, new_v) }}).collect()), other => other }}")
 }
 
-const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_head: Some(\"tmpl_as_name\"),\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),\n    limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\" }),\n    group_by: None,\n    count: false,\n    median_field: None,\n},";
+const READ_MODEL_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::read_model::ReadModelDef {\n    verb: \"tmpl_verb\",\n    reference_name: Some(\"tmpl_reference_name\"),\n    heads: &[\n        crate::kernel::read_model::ReadModelHead {\n            aggregate: \"tmpl_aggregate\",\n            as_name: \"tmpl_as_name\",\n            many: true,\n            is_root: false,\n            reference_fields: &[\n                crate::kernel::read_model::ReferenceField { target_aggregate: \"tmpl_target_aggregate\", field: \"tmpl_field\" },\n            ],\n        },\n    ],\n    filtered_head: Some(\"tmpl_as_name\"),\n    conditions: &[\n        crate::kernel::QueryCondition {\n            field: \"tmpl_field\",\n            comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    reference_hop_conditions: &[\n        crate::kernel::read_model::ReferenceHopCondition {\n            via_field: \"tmpl_via_field\",\n            target_aggregate: \"tmpl_target_aggregate\",\n            inner_field: \"tmpl_inner_field\",\n            inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,\n            inner_value: crate::kernel::QueryConditionValue::Literal(\"tmpl_literal\"),\n        },\n    ],\n    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: \"tmpl_order_field\", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),\n    offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),\n    limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),\n    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: \"tmpl_query_name\", tenant_field: \"tmpl_tenant_field\", policy: \"tmpl_policy\" }),\n    group_by: None,\n    count: false,\n    median_field: None,\n},";
 
 pub fn emit_read_model_table(exemplar: &Exemplar, read_model_defs: &[ReadModelDef]) -> String {
     let rows: Vec<String> = read_model_defs.iter().map(emit_read_model_def).collect();

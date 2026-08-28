@@ -36,17 +36,16 @@ pub fn ir() -> Option<&'static Value> {
 /// nothing bound to a lineage-capable adapter, look identical here: no
 /// aggregate qualifies, same as today.
 ///
-/// `#[allow(dead_code)]` — no call site YET reads this list generically
-/// (auth.rs's own Member handling still names `"member"` directly,
-/// deliberately: it is auth/session plumbing, not generic dispatch, so
-/// forcing a lookup through here would be artificial). This exists as
-/// the real, tested, documented seam a future generic caller (a second
-/// hand-integrated aggregate beyond Member, or a coverage/ops tool that
-/// wants to enumerate what this deployment can lineage-read) builds on
-/// without re-deriving `ir.json`'s own shape — see journal.rs's own
-/// header on `read_lineage_head_all`/`_by_id` for the read half this
-/// list is meant to drive call sites of.
-#[allow(dead_code)]
+/// NO LONGER DEAD CODE — `auth::membership_aggregate` (auth.rs) is the
+/// real call site this comment used to say didn't exist yet: it resolves
+/// `HECKS_MEMBERSHIP_AGGREGATE` against this list to pick which
+/// lineage-capable aggregate auth.rs's own Member-handling functions
+/// (`member_row_by_email`/`member_rows`/`append_member_state`/
+/// `session_for_member_by_identity`) actually read/write, instead of the
+/// literal `"member"`/`"Member"` they used to hardcode. This list itself
+/// is still generic over EVERY lineage-capable aggregate a domain
+/// declares — `membership_aggregate` is the first, but not the only
+/// possible, caller that narrows it down to one.
 pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or_default();
     domain_ir

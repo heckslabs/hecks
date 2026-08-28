@@ -66,4 +66,38 @@ Hecks.bluebook "LifecycleFindings" do
       attribute :value, String
     end
   end
+
+  # TERMINAL EXEMPT: "queued" is the default and reached, but unlike
+  # Widget::Part above (an EMPTY lifecycle), this one declares a real
+  # constrained transition elsewhere ("Escalate", from: "flagged").
+  # "queued" is simply never named as a transition's own from: —
+  # model_check.rb's `terminal_exempt` treats that differently from an
+  # unwired lifecycle: no stuck_state warning for "queued" itself.
+  aggregate "Gadget" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "queued" do
+      transition "Escalate" => "escalated", from: "flagged"
+    end
+
+    command "Enqueue" do
+      role "Tester"
+      goal "Bring a gadget into being"
+      attribute :code, Code
+      emits "Enqueued"
+    end
+
+    command "Escalate" do
+      role "Tester"
+      goal "Declared so terminal_exempt has a real transition to reason about"
+      reference_to Gadget
+      emits "Escalated"
+    end
+  end
 end

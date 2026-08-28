@@ -372,6 +372,30 @@ narrative: { text: "Opening" })
                          number: { value: "a1" }, sequence: { value: 3 }, narrative: { text: "after" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Reverse refused — customer is active")
     end
+
+    # Wave 8's own dependency-planning audit surfaced this as a real, live
+    # bug, not a hypothetical one: `Withdrawal.Dispute`'s own "card is not
+    # retired" given used to read a bare `status` — a field Withdrawal
+    # itself has no `:status` attribute for (its own lifecycle field is
+    # `:state`) — so it always compared `nil != "retired"`, always true,
+    # and never actually refused anything regardless of the card's real
+    # state. Fixed to `parent.status`, the ATMCard's own lifecycle field —
+    # this proves the fix live, not just that the static analyzer's own
+    # unresolved_dependencies cleared.
+    it "resolves an entity command's parent.status — Withdrawal.Dispute on a card that has since been retired" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
+                       serial: { value: "s1" }, daily_fee: { cents: 100 })
+      runtime.dispatch("Banking::ATMCard.Activate", serial: { value: "s1" })
+      runtime.dispatch("Banking::ATMCard.Withdraw", serial: { value: "s1" },
+                       cents: { cents: 2000 }, narrative: { text: "Airport cash" })
+      runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
+
+      expect do
+        runtime.dispatch("Banking::ATMCard.Withdrawal.Dispute",
+                         serial: { value: "s1" }, sequence: { value: 1 }, narrative: { text: "Not mine" })
+      end.to raise_error(Hecks::Runtime::GivenNotMet, "Dispute refused — card is not retired")
+    end
   end
 
   # A REPRESENTATIVE SAMPLE of the customer/account-status guard family

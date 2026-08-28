@@ -110,6 +110,31 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
+  # `ast` (`ValueObject#to_h`'s own `invariants:` — Expression::AstJson's
+  # JSON-serializable rendering of the SAME `canonical` text right beside
+  # it) is PURELY DERIVED, not independent information: it is 100%
+  # deterministically re-computable from `canonical` alone
+  # (`AstJson.emit_predicate(rule.canonical)`), with no separate fact for
+  # the self-hosted meta-domain to have stored and re-answered — the
+  # SAME relationship a checksum has to the text it was computed from.
+  # The self-hosted grammar's own `Rule` (command.bluebook — what an
+  # invariant/given/ensures canonical text dispatches into) has no field
+  # for it and does not need one: `canonical` itself already survives
+  # this round trip byte for byte, so re-deriving `ast` from the
+  # RECONSTRUCTED `canonical` (which `Invariant#to_h`'s own lambda always
+  # does, live, for any `Invariant` regardless of which path built it)
+  # is already exactly as correct as this test proving the meta-domain
+  # stored `ast` as its own separate fact would be. Stripped here, by
+  # name, the identical idiom `strip_ports` uses just above for the
+  # OTHER kind of key this round trip cannot compare.
+  def strip_invariant_ast(node)
+    case node
+    when Hash then node.reject { |k, _| k == :ast }.transform_values { |v| strip_invariant_ast(v) }
+    when Array then node.map { |v| strip_invariant_ast(v) }
+    else node
+    end
+  end
+
   ROUND_TRIP_CORPUS.each do |name, file|
     context name do
       let(:bluebook) { load_corpus(file).bluebook(name) }
@@ -118,7 +143,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
         back, refusals = read_back(bluebook)
 
         expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
-        expect(differences(strip_ports(canonical(bluebook.to_h.slice(*back.keys))), canonical(back))).to be_empty
+        expect(differences(strip_invariant_ast(strip_ports(canonical(bluebook.to_h.slice(*back.keys)))), strip_invariant_ast(canonical(back)))).to be_empty
       end
     end
   end

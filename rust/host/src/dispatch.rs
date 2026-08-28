@@ -176,6 +176,17 @@ pub async fn handle(
     if let Some(role) = role {
         step["role"] = serde_json::Value::String(role.to_string());
     }
+    // OCCURRED_AT GOES ON THIS STEP ONLY — same reasoning as `role`,
+    // just above: this is the outermost, live dispatch, the one real
+    // moment `crate::auth::httpdate_now()` (this crate's own wall
+    // clock) means anything for; every other entry in `steps` is
+    // replayed history whose own events were already stamped with
+    // whatever time it originally was, and re-stamping today's time
+    // onto a replay would be actively wrong, not merely redundant.
+    // `kernel::Event::occurred_at`'s own field doc (rust/src/kernel/
+    // mod.rs) has the kernel-side half of this: it has no clock of its
+    // own and only ever applies whatever string arrives here.
+    step["occurred_at"] = serde_json::Value::String(crate::auth::httpdate_now());
     steps.push(step);
     // MUST MATCH `steps`' OWN CHOICE ABOVE — a full replay (whether
     // because there's no snapshot yet, or because this is the one-time
@@ -379,10 +390,36 @@ pub async fn handle(
     // borrowed from) is free again the moment `txn.commit()` consumed
     // it, so this reuses it directly rather than opening a second
     // connection for one INSERT.
+    // ALSO builds a `reaction_log`-shaped record per SUCCESSFUL delivery
+    // (`{policy, on, trigger, delivered, reason}`, matching
+    // orchestrate.rs's own same-domain shape exactly) and merges it into
+    // `result["reactions"]` — the kernel itself can't do this (its own
+    // header: a cross-domain match's delivery outcome doesn't exist until
+    // THIS host layer finishes the call), so this is the one place that
+    // ever will. `cross_domain_deliveries` (below) stays a SEPARATE,
+    // differently-shaped array on purpose — existing callers/specs
+    // already read it (`Outcome.result["cross_domain_deliveries"]`) and
+    // this doesn't touch that contract, it only adds a second, unified
+    // view alongside the same-domain entries `"reactions"` already
+    // carries. NOT done on the `Err` branch below — a hard delivery fault
+    // makes this whole call return `Err`, discarding `result` entirely
+    // (see this function's own "delivered after commit" comment), so
+    // there is no response for a `"reactions"` entry to ever reach;
+    // `journal::record_dead_letter` is that path's own durable record.
     let mut cross_domain_deliveries = Vec::new();
     for reaction in &pending_cross_domain {
         match lambda_client::deliver_with_retry(invoker, reaction).await {
-            Ok(record) => cross_domain_deliveries.push(record.to_json()),
+            Ok(record) => {
+                if let Some(response) = result.as_object_mut() {
+                    if let Some(reactions) = response.get_mut("reactions").and_then(|r| r.as_array_mut()) {
+                        reactions.push(serde_json::json!({
+                            "policy": record.policy, "on": reaction.get("on").and_then(|v| v.as_str()).unwrap_or_default(),
+                            "trigger": record.target_verb, "delivered": record.delivered, "reason": record.reason,
+                        }));
+                    }
+                }
+                cross_domain_deliveries.push(record.to_json());
+            }
             Err(failure) => {
                 let error_text = format!("{:#}", failure.error);
                 journal::record_dead_letter(
@@ -649,6 +686,44 @@ mod tests {
         assert_eq!(id, "CUST-0001");
     }
 
+    // `occurred_at` — this crate's own real wall clock, stamped onto the
+    // outermost dispatch step (`handle`'s own `step["occurred_at"] =
+    // ...` line, right beside `role`'s identical stamp) and carried all
+    // the way through `kernel::orchestrate`/`cli.rs::event_to_json` into
+    // the returned "events" array. Proven end to end, through the real
+    // wasm module, not just the in-kernel unit tests — those only prove
+    // the STAMPING step itself; this proves the string this crate
+    // actually sends is the one that comes back out.
+    #[tokio::test]
+    async fn occurred_at_is_stamped_onto_every_returned_event_with_this_crate_s_own_real_clock() {
+        let client = scratch_db("rust_host_dispatch_test_occurred_at").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+
+        let before = crate::auth::httpdate_now();
+        let outcome = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-OCCURRED-AT"),
+            None,
+            &test_config("Banking", 1),
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap();
+        let after = crate::auth::httpdate_now();
+
+        assert!(outcome.accepted, "{:?}", outcome.result["refusals"]);
+        let events = outcome.result["events"].as_array().unwrap();
+        assert_eq!(events.len(), 1);
+        let occurred_at = events[0]["occurred_at"].as_str().expect("occurred_at should be a real string, not null or absent");
+        // Lexical comparison is valid here — this format's own digit-
+        // then-letter layout (`{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}Z`)
+        // sorts identically to chronological order for any two stamps
+        // taken less than 10,000 years apart.
+        assert!(occurred_at >= before.as_str() && occurred_at <= after.as_str(), "{occurred_at} should fall between {before} and {after}");
+    }
+
     #[tokio::test]
     async fn rehydrates_prior_history_before_evaluating_the_new_command() {
         let client = scratch_db("rust_host_dispatch_test_2").await;
@@ -881,6 +956,17 @@ mod tests {
         assert_eq!(deliveries[0]["policy"], "ReviewOnFreeze");
         assert_eq!(deliveries[0]["target_domain"], "Compliance");
         assert_eq!(deliveries[0]["delivered"], true);
+
+        // The SAME delivery, ALSO merged into "reactions" in
+        // reaction_log's own shape ({policy, on, trigger, delivered,
+        // reason}) -- the fix this test extends: previously a
+        // cross-domain match produced NO "reactions" entry at all, only
+        // the differently-shaped "cross_domain_deliveries" one above.
+        let reactions = outcome.result["reactions"].as_array().unwrap();
+        let merged = reactions.iter().find(|r| r["policy"] == "ReviewOnFreeze").expect("ReviewOnFreeze should appear in \"reactions\" too");
+        assert_eq!(merged["on"], "AccountFrozen");
+        assert_eq!(merged["trigger"], "Compliance::AccountFreezeReview.Open");
+        assert_eq!(merged["delivered"], true);
 
         {
             let calls = invoker.calls.lock().unwrap();

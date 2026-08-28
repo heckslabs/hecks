@@ -204,7 +204,7 @@ module Hecks
 
         object = @aggregate.value_object(attribute.type)
         return "" unless object
-        return object.attributes.first.name.to_s if object.attributes.size == 1
+        return object.sole_attribute.name.to_s if object.sole_attribute
 
         raise ArgumentError,
               "#{dialect_name} query adapter cannot compile contains on #{field} — " \

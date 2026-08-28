@@ -352,15 +352,44 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("cmd_Customer_Reinstate([\"Customer.Reinstate\"]) -->|\"sets: '{:value=>'good'}'\"| attr_Customer_standing[standing]")
   end
 
-  # A REAL, GENUINE ZERO — Order.CreatePizza declares no `sets`/
-  # `increment`/`decrement`/`append` of its own at all (its own record
-  # comes into being from the command's own arguments at construction,
-  # not a mutation); it still gets its ordinary "does" edge, just no
-  # write edge alongside it.
+  # A REAL, GENUINE ZERO. `Order.CreatePizza` used to be this test's own
+  # example — until Wave 8's own corpus audit found and fixed the exact
+  # bug this shape looks like: CreatePizza's `:name`/`:pizza` attributes
+  # were declared and simply never `sets`, so every created pizza's own
+  # fields came back nil regardless of what a caller sent (see that
+  # command's own comment, pizzas.bluebook). A genuinely mutation-free
+  # command is real and legal (`Roster.Notice`, "nothing to record," is
+  # one live corpus example) — but proving the DIAGRAM GENERATOR draws no
+  # edge for one doesn't need a whole extra chapter loaded just to reach
+  # it; a one-command scratch fixture, local to this test, is the same
+  # proof with nothing borrowed from a domain this file otherwise never
+  # touches.
   it "draws no mutation edges at all for a command that genuinely declares none" do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
-    expect(diagram).to include('Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])')
-    expect(diagram).not_to include('cmd_Order_CreatePizza(["Order.CreatePizza"]) -->|"')
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.bluebook "ZeroMutation" do
+        aggregate "Ledger" do
+          identified_by :reference
+          attribute :reference, LedgerReference
+          value_object "LedgerReference" do
+            attribute :value, String
+          end
+          command "Create" do
+            attribute :reference, LedgerReference
+            sets :reference
+            emits "LedgerCreated"
+          end
+          command "Acknowledge" do
+            reference_to Ledger
+            emits "LedgerAcknowledged"
+          end
+        end
+      end
+    end
+
+    diagram = Hecks::Projector.call(:diagrams, bluebook: registry.bluebook("ZeroMutation"))["Ledger_surface.mmd"]
+    expect(diagram).to include('Ledger[(Ledger)] -->|does| cmd_Ledger_Acknowledge(["Ledger.Acknowledge"])')
+    expect(diagram).not_to include('cmd_Ledger_Acknowledge(["Ledger.Acknowledge"]) -->|"')
   end
 
   # ── sagas -> stateDiagram-v2 ───────────────────────────────────────────

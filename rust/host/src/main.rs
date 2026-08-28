@@ -19,6 +19,7 @@ mod approval;
 mod auth;
 mod checkout;
 mod dispatch;
+mod expr_json;
 mod field_hints;
 mod ir;
 mod journal;

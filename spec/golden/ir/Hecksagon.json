@@ -276,6 +276,26 @@
           "pattern": null,
           "relationship": null,
           "type": "PortVerb"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "signal",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "PortSignal"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "answers",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "PortAnswer"
         }
       ],
       "commands": [
@@ -323,6 +343,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a port is named"
             }
@@ -348,6 +381,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a verb is named"
             }
@@ -356,6 +402,77 @@
 
           ],
           "name": "PortVerb"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "value",
+                "reply"
+              ]
+            ],
+            [
+              [
+                "value",
+                "effect"
+              ]
+            ]
+          ],
+          "name": "PortSignal"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an answer names a real method"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "PortAnswer"
         },
         {
           "attributes": [
@@ -579,6 +696,58 @@
               [
                 "fills",
                 "verb"
+              ]
+            ],
+            [
+              [
+                "word",
+                "signal"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "signal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "answers"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "answers"
               ]
             ]
           ],
@@ -860,6 +1029,66 @@
               [
                 "fills",
                 "verb"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "signal"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "signal"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "answers"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "answers"
               ]
             ],
             [
@@ -1201,6 +1430,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a hecksagon names its domain"
             }
@@ -1226,6 +1468,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a subscription names an event"
             }
@@ -1251,6 +1506,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a framework member is named"
             }
@@ -1276,6 +1544,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a vendored bluebook is named"
             }
@@ -1941,6 +2222,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an operation is named"
             }
@@ -1998,6 +2292,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "an emitted event is named"
             }

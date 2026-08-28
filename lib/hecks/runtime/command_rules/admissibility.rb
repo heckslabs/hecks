@@ -116,7 +116,13 @@ module Hecks
         # parent aggregate reaching ITS OWN customer) resolves the same
         # way `account.customer.status` does for a command-level reference.
         # nil for an aggregate command — CommandInterpreter never passes it.
-        def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil)
+        # `correction:` — the `{as_name => payload}` bindings
+        # `enforce_correction_target` (above) already located, merged in
+        # LAST so an `as:` name wins the same way `old:` always wins in
+        # `enforce_ensures`, below — it is a fresh local binding a
+        # `corrects` command introduces, not a real argument/state field
+        # a caller could collide with by accident.
+        def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil, correction: {})
           state = GuardState.new(subject)
           # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,
           # ADR 0025) — `subject`'s own STORED references are no longer
@@ -135,6 +141,7 @@ module Hecks
           # forbids.
           attrs = args.merge(dereference(domain, command, args))
           attrs = attrs.merge(parent: parent.state) if parent
+          attrs = attrs.merge(correction) unless correction.empty?
           command.givens.each do |given|
             next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
 
@@ -154,20 +161,43 @@ module Hecks
         # event at all — is `AggregateBuilder#seal_correction_targets`;
         # this is the dispatch-time half — has THIS record actually done
         # so yet.
+        #
+        # ALSO LOCATES the matched event now, not just its existence, and
+        # returns a `{as_name => payload}` bindings hash — one entry per
+        # `:corrects` mutation that named an `as:` — so `given`/`ensures`
+        # on a corrects-bearing command can reference the located OLD
+        # event by that name, the same shape `enforce_ensures`'s own
+        # `old:` binding already has (CommandBuilder#corrects_impl's own
+        # comment: `as:` was stored, from the start, specifically to be
+        # wired into the evaluator once a real runtime consumer existed —
+        # this is that consumer). `.reverse.find` — the MOST RECENT
+        # matching event, if this record has somehow emitted the same
+        # correction target more than once; the prior existence-only
+        # check never had to make this choice, so it's a genuinely new
+        # one, made deliberately: `as:` reads as "the instance being
+        # corrected," which is naturally the latest fact on record, not
+        # an arbitrary one.
         def enforce_correction_target(instance, aggregate, command, domain:)
+          bindings = {}
           command.mutations.each do |mutation|
             next unless mutation.op == :corrects
 
             event_key  = "#{domain}::#{aggregate.hecks_name}"
             event_name = mutation.target.to_s
-            next if @registry.event_log.any? do |event|
+            corrected = @registry.event_log.reverse.find do |event|
               event.name == event_name && event.aggregate == event_key && event.id == instance.id
             end
 
-            raise NothingToCorrect,
-                  "#{command.hecks_name} refused — corrects #{event_name}, but " \
-                  "#{event_key} ##{instance.id} has never emitted it"
+            unless corrected
+              raise NothingToCorrect,
+                    "#{command.hecks_name} refused — corrects #{event_name}, but " \
+                    "#{event_key} ##{instance.id} has never emitted it"
+            end
+
+            as = mutation.source[:as]
+            bindings[as.to_sym] = corrected.payload if as && !as.to_s.empty?
           end
+          bindings
         end
 
         # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command
@@ -215,16 +245,21 @@ module Hecks
         # Not new to ensures — `given` lives under the same rule — but an
         # ensures is more likely to collide, since it typically re-reads a
         # field the command just took in to mutate it.
-        def enforce_ensures(subject, command, args, old:, domain:, parent: nil)
+        def enforce_ensures(subject, command, args, old:, domain:, parent: nil, correction: {})
           state = GuardState.new(subject)
           # S12, ADR 0025 — same boundary reasoning as enforce_givens
           # above: `subject`'s own stored references are no longer
           # dereferenced here; a `projects`-maintained field is already
           # part of `state`. `command`/`args` still dereferences — a
           # fresh reference-typed ARGUMENT stays in bounds.
-          # `old` still wins over everything, unchanged.
+          # `old` still wins over everything, unchanged. `correction`
+          # (an `as:`-bound corrected event, if this command declares
+          # one) wins right alongside it — a settled-record ensures can
+          # reference the correction target exactly as freely as a
+          # pre-mutation given already can.
           attrs = args.merge(dereference(domain, command, args))
           attrs = attrs.merge(parent: parent.state) if parent
+          attrs = attrs.merge(correction) unless correction.empty?
           attrs = attrs.merge(old: old)
           command.ensures.each do |rule|
             next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)

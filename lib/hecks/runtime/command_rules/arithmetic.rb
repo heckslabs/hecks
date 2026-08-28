@@ -68,9 +68,39 @@ module Hecks
         # made. The real mistake, an absent argument, was never the one refused,
         # which is what fuzz surfaced.
         #
-        # Absent now resolves to nil. Whether it should be REFUSED instead
-        # is a separate question — the language cannot yet say which arguments are
-        # optional, and the meta-domain has plenty that are.
+        # STALE (as of the equivalence-gap plan's own audit): this used to
+        # say "the language cannot yet say which arguments are optional" —
+        # it already can, and always could once `attribute ..., optional:
+        # true` existed (`CommandBuilder#attribute_impl`,
+        # `attribute_collector.rb`): `sets` already sources correctly from
+        # an optional attribute, resolving absent to nil exactly as this
+        # method does, and REFUSING it here would be wrong, not merely
+        # undone work — `TillRoom::Till.TakeIn`'s own `note` (spec/
+        # fixtures/till.bluebook) and Banking's `CardPayment.Authorize`'s
+        # `tags` (payment_cards.bluebook) are real, live commands whose
+        # `sets` mutation is deliberately sourced from an optional
+        # attribute the caller may omit — `spec/runtime/command_rules_spec
+        # .rb`'s own "says an absent OPTIONAL argument is nil, not the
+        # name of the argument" pins exactly this as correct, not pending.
+        # The meta-domain's own self-hosted commands (Command.Declare's
+        # `role`/`goal`/`provenance`/`from`/`position`, and ~35 more sites
+        # across the language) all lean on the identical pattern — nil is
+        # the RIGHT answer for a `sets` sourced from a declared-optional
+        # attribute the caller left out, every time.
+        #
+        # The one thing that WAS still a real, narrow gap — a `sets`
+        # source Symbol naming NOTHING the command declares at all (a
+        # typo, not an optional argument) — silently resolved to nil
+        # forever the same way, indistinguishable at either build or run
+        # time from a legitimate optional absence. Closed at BUILD time
+        # instead of here: `CommandBuilder#refuse_unknown_argument_sources!`
+        # refuses it the moment the `.bluebook` file loads, mirroring
+        # `AggregateBuilder#seal_query_argument`'s identical check for a
+        # query's own where-clause argument. This function stays exactly
+        # what it always was — a pure, unconditional lookup — because by
+        # the time ANY mutation reaches it, the source has already been
+        # proven to name either a real, possibly-optional argument, or a
+        # StateRef/literal; there is nothing left here to refuse.
         def resolve_source(source, args)
           return args[source] if source.is_a?(Symbol)
 

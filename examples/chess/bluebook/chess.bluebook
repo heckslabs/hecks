@@ -183,6 +183,10 @@ Hecks.bluebook "Chess" do
 
       attribute :label, GameLabel
 
+      # Wave 8 fix — :label is this aggregate's own IDENTITY (line 28),
+      # already a required command attribute, but was never `sets` —
+      # every started game's own :label came back nil.
+      sets :label
       sets :turn,       to: "white"
       sets :draw_offer, to: "none"
       sets :ply,        to: 0

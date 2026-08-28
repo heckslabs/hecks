@@ -100,7 +100,27 @@ module Hecks
     end
 
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
-    def port(name, &block) = collect(:add_port, Bluebook::DSL::PortBuilder.build(name, &block))
+    # REPOINTED TO DomainPortBuilder — the migration DomainPort's own
+    # class comment names as its goal, now landed for the top-level
+    # `.port` file callers too (the aggregate-scoped `Thing.port(...)`,
+    # binding_proxy.rb, already went through this builder). Every real
+    # `.port` file only ever spells `verb`/`signal` (no `.port` file
+    # declares operations — that's DomainPort's own newer shape), and
+    # DomainPortBuilder's own bare-verb branch produces the exact same
+    # `Port` object PortBuilder itself did (dsl_spec.rb's own byte-
+    # identity check) — a pure repoint, no behavior change for any
+    # existing caller reading `.verb`/`.signal` off what comes back.
+    #
+    # `legacy_bare_port: true` — the ONE real semantic gap this repoint
+    # would otherwise open: `PortBuilder#build` never refused a
+    # completely empty build (no verb, no signal even), a real shape
+    # dsl_spec.rb's own "a port" tests exercise (`signal`-only, no
+    # `verb`). `DomainPortBuilder`'s own "declares no verb and no
+    # operations" refusal is real and correct for its OTHER two callers
+    # (`BindingProxy#port`, `HecksagonBuilder#port_impl`) — only this,
+    # the literal top-level `.port` file entry point, keeps the older,
+    # looser rule (see `DomainPortBuilder#initialize`'s own comment).
+    def port(name, &block) = collect(:add_port, Bluebook::DSL::DomainPortBuilder.build(name, legacy_bare_port: true, &block))
     def adapter(name, &block)   = collect(:add_adapter, Bluebook::DSL::AdapterBuilder.build(name, &block))
     def world(name, &block)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &block))
 

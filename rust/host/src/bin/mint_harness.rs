@@ -32,6 +32,9 @@ mod storage_shape;
 #[path = "../reference_transform.rs"]
 mod reference_transform;
 #[allow(dead_code)]
+#[path = "../expr_json.rs"]
+mod expr_json;
+#[allow(dead_code)]
 #[path = "../reference_validate.rs"]
 mod reference_validate;
 #[allow(dead_code)]

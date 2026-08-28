@@ -102,6 +102,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", io:
           rust_output = JSON.parse(stdout)
           strip_emitted_flags!(rust_output["instances"])
           strip_emitted_flags!(rust_output["queries"])
+          strip_occurred_at!(rust_output["events"])
 
           if rust_output["instances"] != ruby_instances
             divergences << { seed: seed, field: "instances", ruby: ruby_instances, rust: rust_output["instances"] }

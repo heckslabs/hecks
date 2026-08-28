@@ -11,3 +11,4 @@ end
 require_relative "expression/canonical_form"
 require_relative "expression/resolver"
 require_relative "expression/evaluator"
+require_relative "expression/ast_json"

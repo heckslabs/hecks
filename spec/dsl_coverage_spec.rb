@@ -65,8 +65,10 @@ RSpec.describe "the DSL surface is fully covered" do
       # dispatch (slice 4c). `operation` is a Ruby `alias` no more —
       # both "operation" and "tells" Keyword rows name `tells_impl` in
       # `calls:` now, so `operation` no longer shows up here as a
-      # directly-defined method at all.
-      %i[tells_impl asks_impl]
+      # directly-defined method at all. `verb`/`signal`/`answers` — the
+      # bare-Port fallback shape, ordinary defs mirroring PortBuilder's
+      # own (see that class's own row, above).
+      %i[tells_impl asks_impl verb signal answers]
     ],
     "PortOperationBuilder"        => [
       Hecks::Bluebook::DSL::PortOperationBuilder,

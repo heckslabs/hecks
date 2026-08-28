@@ -42,7 +42,20 @@
           "invariants": [
             {
               "description": "an account number is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -222,7 +235,20 @@
           "invariants": [
             {
               "description": "a branch is coded",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -247,7 +273,19 @@
           "invariants": [
             {
               "description": "a box is numbered from one",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,

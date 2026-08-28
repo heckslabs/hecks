@@ -703,7 +703,8 @@ pub fn dispatch_create_pizza(
         ],
         None,
         |record| {
-        let _ = record;
+        record.name = Some(args.name.clone());
+        record.pizza = Some(args.pizza.clone());
             Ok(())
         },
         &[
@@ -841,10 +842,10 @@ if !unknown.is_empty() {
 impl crate::kernel::Fielded for PurchaseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        
+        use crate::kernel::Value;
         match name {
             "amount" => Some(Field::Nested(&self.amount)),
-            "customer_name" => Some(Field::Nested(&self.customer_name)),
+            "customer_name" => self.customer_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -867,14 +868,14 @@ impl crate::kernel::Fielded for PurchaseArgs {
 #[derive(Debug, Clone)]
 pub struct PurchaseArgs {
     pub amount: Price,
-    pub customer_name: CustomerName,
+    pub customer_name: Option<CustomerName>,
 }
 
 pub fn dispatch_purchase(
     repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.amount.check_invariants()?;
-        args.customer_name.check_invariants()?;
+        if let Some(v) = &args.customer_name { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
     let seed_projections = crate::kernel::seeded_projections(&with_references, ORDER_PROJECTED_FIELDS);
 
@@ -893,7 +894,7 @@ pub fn dispatch_purchase(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["available"] }),
         |record| {
-        record.customer_name = Some(args.customer_name.clone());
+        record.customer_name = args.customer_name.clone();
         record.status = "sold".to_string();
         record.status = "sold".to_string();
             Ok(())
@@ -912,7 +913,7 @@ impl PurchaseArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
             vec![        ("amount".to_string(), self.amount.to_json()),
-        ("customer_name".to_string(), self.customer_name.to_json()),]
+        ("customer_name".to_string(), self.customer_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),]
                 .into_iter()
                 .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
                 .collect(),
@@ -931,7 +932,7 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         amount: Price::from_json(&v.require("amount", "PurchaseArgs")?.coerce_single_field("cents"))?,
-        customer_name: CustomerName::from_json(&v.require("customer_name", "PurchaseArgs")?.coerce_single_field("value"))?,
+        customer_name: match v.get("customer_name") { Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -966,7 +967,7 @@ pub fn dispatch_operation_paymentgateway_receive(receiver_id: &str, args: Paymen
         args.customer_name.check_invariants()?;
         args.amount.check_invariants()?;
     Ok(vec![
-        crate::kernel::Event { name: "PizzaPaymentReceived".to_string(), aggregate: "Pizzas::Order".to_string(), id: receiver_id.to_string(), payload: crate::kernel::Json::Null, correlation: None },
+        crate::kernel::Event { name: "PizzaPaymentReceived".to_string(), aggregate: "Pizzas::Order".to_string(), id: receiver_id.to_string(), payload: crate::kernel::Json::Null, occurred_at: None, correlation: None },
     ])
 }
 

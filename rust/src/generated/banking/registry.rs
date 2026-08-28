@@ -1359,7 +1359,7 @@ crate::kernel::QueryDef {
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "branch_code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: None,
     limit: None,
-    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "Rented", tenant_field: "branch_code" }),
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "Rented", tenant_field: "branch_code", policy: "vault_access" }),
 },
 crate::kernel::QueryDef {
     verb: "Banking::Transfer.InFlight",
@@ -1446,6 +1446,9 @@ crate::kernel::read_model::ReadModelDef {
     conditions: &[
 
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -1464,6 +1467,9 @@ crate::kernel::read_model::ReadModelDef {
     filtered_head: Some("card_payments"),
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    ],
+    reference_hop_conditions: &[
+
     ],
     order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "amount", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Native }),
     offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(5)),
@@ -1484,6 +1490,9 @@ crate::kernel::read_model::ReadModelDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -1503,6 +1512,9 @@ crate::kernel::read_model::ReadModelDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
     ],
+    reference_hop_conditions: &[
+
+    ],
     order_by: None,
     offset: None,
     limit: None,
@@ -1519,6 +1531,9 @@ crate::kernel::read_model::ReadModelDef {
     ],
     filtered_head: None,
     conditions: &[
+
+    ],
+    reference_hop_conditions: &[
 
     ],
     order_by: None,

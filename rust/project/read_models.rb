@@ -216,6 +216,22 @@ module RustProjection
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
       Array(read_model[:wheres]).each do |where|
+        field = where[:field].to_s
+        hop = query_hop_plan(aggregate, field, aggregates_by_name)
+        if hop.nil? && field.include?("/")
+          return "eligible head #{head[:aggregate]}'s own where clause on #{field.inspect} hops through a " \
+                 "reference this generator can't resolve yet (more than one hop, the head isn't a real " \
+                 "reference attribute, or the target aggregate isn't declared in this domain) — not generated yet"
+        end
+
+        if hop
+          target_value_objects_by_name = hop[:target][:value_objects].to_h { |vo| [vo[:name], vo] }
+          reason = query_where_skip_reason(where.merge(field: hop[:inner_field]), hop[:target], target_value_objects_by_name)
+          return "eligible head #{head[:aggregate]}'s own hop through #{hop[:via_field]} to " \
+                 "#{hop[:target_aggregate]}'s own #{reason}" if reason
+          next
+        end
+
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)
         return "eligible head #{head[:aggregate]}'s own #{reason}" if reason
       end
@@ -355,6 +371,35 @@ module RustProjection
       nil
     end
 
+    # `hop_wheres` (already confirmed generable by `read_model_options_
+    # content_skip_reason` — this doesn't re-check), compiled into
+    # `ReferenceHopCondition`'s own wire shape — the SAME `{arg:,
+    # literal:}` split `query_conditions` already builds for a local
+    # condition's own value, just carrying `via_field`/`target_aggregate`/
+    # `inner_field` alongside instead of a bare `field`.
+    def read_model_hop_conditions(domain_name, hop_wheres, aggregate, aggregates_by_name)
+      hop_wheres.map do |where|
+        hop = query_hop_plan(aggregate, where[:field].to_s, aggregates_by_name)
+        raw_value = where[:value].to_s
+        symbol = raw_value.start_with?(":")
+        {
+          via_field: hop[:via_field],
+          target_aggregate: "#{domain_name}::#{hop[:target_aggregate]}",
+          inner_field: hop[:inner_field],
+          op: where[:op].to_s,
+          arg: symbol ? raw_value.delete_prefix(":") : nil,
+          literal: symbol ? nil : Hecks::Literal.read(raw_value),
+        }
+      end
+    end
+
+    def emit_reference_hop_condition(hop)
+      comparator_expr = "crate::kernel::query_comparators::QueryComparator::#{query_comparator_variant(hop[:op])}"
+      "crate::kernel::read_model::ReferenceHopCondition { via_field: #{hop[:via_field].inspect}, " \
+        "target_aggregate: #{hop[:target_aggregate].inspect}, inner_field: #{hop[:inner_field].inspect}, " \
+        "inner_comparator: #{comparator_expr}, inner_value: #{emit_query_condition_value(hop)} },"
+    end
+
     # `head_aggregate`'s own reference attributes, each paired with the
     # bare aggregate name it targets — `Runtime::ReadModelInterpreter#
     # reference_fields`, read directly: `aggregate.attributes.select {
@@ -483,12 +528,24 @@ module RustProjection
       group_by_fields = Array(read_model[:group_by]).map { |row| row[:field].to_s }
       group_by_fn_name = group_by_fields.any? ? "group_by_#{read_model[:name].to_s.downcase}" : nil
 
+      # SPLIT, not reused wholesale, the way `conditions` alone used to
+      # be — a hop-shaped where clause has a different WIRE SHAPE
+      # entirely (`ReferenceHopCondition`, not `QueryCondition`), so it
+      # can't ride through `query_conditions_with_authorization`'s own
+      # plain `{field:, op:, value:}` emission the way a local where
+      # clause still does. `read_model_options_content_skip_reason`
+      # already confirmed every where clause here is EITHER a resolvable
+      # hop OR a generable local condition — nothing left to refuse.
+      eligible_aggregate = eligible_as && aggregates_by_name[read_model[:aggregate_heads].find { |h| h[:as].to_s == eligible_as.to_s }[:aggregate]]
+      local_wheres, hop_wheres = eligible_as ? Array(read_model[:wheres]).partition { |w| query_hop_plan(eligible_aggregate, w[:field].to_s, aggregates_by_name).nil? } : [[], []]
+
       {
         verb: "#{domain_name}.#{read_model[:name]}",
         reference_name: read_model[:reference_name] ? read_model[:reference_name].to_s : nil,
         heads: heads,
         filtered_head: eligible_as&.to_s,
-        conditions: eligible_as ? query_conditions_with_authorization(read_model) : [],
+        conditions: eligible_as ? query_conditions_with_authorization(read_model.merge(wheres: local_wheres)) : [],
+        reference_hop_conditions: eligible_as ? read_model_hop_conditions(domain_name, hop_wheres, eligible_aggregate, aggregates_by_name) : [],
         order_by: eligible_as && read_model[:order_by] ? emit_read_model_order_by(read_model[:order_by], read_model[:null_semantics]) : nil,
         offset: eligible_as && read_model[:offset] ? emit_read_model_offset(read_model[:offset]) : nil,
         limit: eligible_as && read_model[:limit] ? emit_read_model_limit(read_model[:limit]) : nil,
@@ -602,6 +659,7 @@ module RustProjection
     def emit_read_model_def(read_model_def)
       heads = read_model_def[:heads].map { |head| "        #{head}," }.join("\n")
       conditions = read_model_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      reference_hop_conditions = read_model_def[:reference_hop_conditions].map { |h| "        #{emit_reference_hop_condition(h)}" }.join("\n")
       filtered_head = read_model_def[:filtered_head] ? "Some(#{read_model_def[:filtered_head].inspect})" : "None"
       order_by = read_model_def[:order_by] ? "Some(#{read_model_def[:order_by]})" : "None"
       offset = read_model_def[:offset] ? "Some(#{read_model_def[:offset]})" : "None"
@@ -622,6 +680,9 @@ module RustProjection
             filtered_head: #{filtered_head},
             conditions: &[
         #{conditions}
+            ],
+            reference_hop_conditions: &[
+        #{reference_hop_conditions}
             ],
             order_by: #{order_by},
             offset: #{offset},
@@ -662,10 +723,19 @@ module RustProjection
                   value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
               },
           ],
+          reference_hop_conditions: &[
+              crate::kernel::read_model::ReferenceHopCondition {
+                  via_field: "tmpl_via_field",
+                  target_aggregate: "tmpl_target_aggregate",
+                  inner_field: "tmpl_inner_field",
+                  inner_comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                  inner_value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
+              },
+          ],
           order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
           offset: Some(crate::kernel::read_model::ReadModelOffset::Literal(1)),
           limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
-          authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field" }),
+          authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
           group_by: None,
           count: false,
           median_field: None,

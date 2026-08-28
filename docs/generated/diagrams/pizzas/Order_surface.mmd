@@ -4,6 +4,8 @@ flowchart LR
     Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])
     Order[(Order)] -->|does| cmd_Order_AddTopping(["Order.AddTopping"])
     Order[(Order)] -->|does| cmd_Order_Purchase(["Order.Purchase"])
+    cmd_Order_CreatePizza(["Order.CreatePizza"]) -->|"sets: name"| attr_Order_name[name]
+    cmd_Order_CreatePizza(["Order.CreatePizza"]) -->|"sets: pizza"| attr_Order_pizza[pizza]
     cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| attr_Order_toppings[toppings]
     cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| attr_Order_customer_name[customer_name]
     cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: 'sold'"| attr_Order_status[status]

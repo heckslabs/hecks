@@ -57,13 +57,17 @@ pub async fn render(
     // (Registration, and vendored Payments::Payment's PaymentGateway
     // port), the pragmatic working version for lifeadelics today rather
     // than a new IR-driven "outbound port"/"webhook signature scheme"
-    // capability with no second domain to prove it against (checkout.rs's
-    // own header has the fuller reasoning). Checked BEFORE the ir()/
-    // HECKS_IR_PATH gate below, deliberately: lifeadelics declares no
-    // `web "Rust"` (Shared mode, no generic FieldShape UI — the same
-    // shape Banking's own Shared-mode deploy already uses), so
-    // HECKS_IR_PATH is never set for it and `ir()` always returns None
-    // here; neither of these two routes needs a domain_ir at all.
+    // capability with no second domain to prove it against — considered
+    // for real (equivalence-gap plan 3.3) and declined, not merely
+    // never attempted; checkout.rs's own header has the full reasoning,
+    // including a separate, real `HECKS_IR_PATH`/`rust_web` contradiction
+    // that surfaced investigating it, unrelated to Lifeadelics
+    // specifically. Checked BEFORE the ir()/HECKS_IR_PATH gate below,
+    // deliberately: lifeadelics declares no `web "Rust"` (Shared mode, no
+    // generic FieldShape UI — the same shape Banking's own Shared-mode
+    // deploy already uses), so HECKS_IR_PATH is never set for it and
+    // `ir()` always returns None here; neither of these two routes needs
+    // a domain_ir at all.
     if config.domain == "Lifeadelics" {
         let stripe_signature = body.get("headers").and_then(|h| h.get("stripe-signature")).and_then(|v| v.as_str()).unwrap_or("");
         if let Some(response) = checkout_route(method, path, &raw_body, stripe_signature, client, wasm_path, config, invoker).await {
@@ -161,7 +165,7 @@ async fn route(
     let secret = session_secret();
     let session = cookies.get("session").and_then(|c| auth::parse_session_cookie(&secret, c));
 
-    if let Some(response) = auth_route(path, method, query, raw_body, session.as_ref(), &secret, client, wasm_path, config, invoker).await {
+    if let Some(response) = auth_route(domain_ir, path, method, query, raw_body, session.as_ref(), &secret, client, wasm_path, config, invoker).await {
         return response;
     }
 
@@ -214,6 +218,7 @@ async fn route(
 // falls through to its ordinary IR-driven dispatch untouched.
 #[allow(clippy::too_many_arguments)]
 async fn auth_route(
+    domain_ir: &Value,
     path: &str,
     method: &str,
     query: &HashMap<String, String>,
@@ -235,14 +240,14 @@ async fn auth_route(
             Err(e) => Some(respond(500, "text/plain", &format!("Google sign-in isn't configured: {e}"))),
         },
 
-        ("GET", "/auth/google/callback") => Some(google_callback(query, client, wasm_path, config, secret, invoker).await),
+        ("GET", "/auth/google/callback") => Some(google_callback(domain_ir, query, client, wasm_path, config, secret, invoker).await),
 
         ("GET", "/admin/members") => {
             let Some(session) = session else { return Some(redirect("/login")) };
             if !is_admin(client, wasm_path, &session.identity_id).await {
                 return Some(html(403, "<p>Admins only.</p>"));
             }
-            Some(html(200, &admin_members_page(client).await))
+            Some(html(200, &admin_members_page(client, domain_ir).await))
         }
 
         ("POST", "/admin/members") => {
@@ -253,7 +258,7 @@ async fn auth_route(
             let form = parse_form(raw_body);
             let email = form.get("email").cloned().unwrap_or_default();
             let role = form.get("role").cloned().unwrap_or_default();
-            match auth::grant_access(client, wasm_path, config, &email, &role).await {
+            match auth::grant_access(client, wasm_path, config, domain_ir, &email, &role).await {
                 Ok(true) => Some(redirect("/admin/members")),
                 Ok(false) => Some(html(404, "<p>No member with that email.</p>")),
                 Err(e) => Some(html(500, &format!("<p>{}</p>", esc(&e.to_string())))),
@@ -273,6 +278,7 @@ async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, identity_id: &str) -
 
 #[allow(clippy::too_many_arguments)]
 async fn google_callback(
+    domain_ir: &Value,
     query: &HashMap<String, String>,
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -298,14 +304,14 @@ async fn google_callback(
     let instances = read.get("instances").cloned().unwrap_or(json!({}));
 
     let session = match auth::resolve_identity(&instances, &claims.issuer, &claims.subject) {
-        Some(identity_id) => auth::session_for_member_by_identity(client, &identity_id).await.unwrap_or(None),
+        Some(identity_id) => auth::session_for_member_by_identity(client, domain_ir, &identity_id).await.unwrap_or(None),
         None => None,
     };
     let session = match session {
         Some(s) => Some(s),
         None if claims.email_verified => {
             let email = claims.email.clone().unwrap_or_default();
-            match auth::provision(client, wasm_path, config, &email, &claims.issuer, &claims.subject, invoker).await {
+            match auth::provision(client, wasm_path, config, domain_ir, &email, &claims.issuer, &claims.subject, invoker).await {
                 Ok(s) => s,
                 Err(_) => None,
             }
@@ -338,8 +344,8 @@ fn login_page(error: Option<&str>) -> String {
     )
 }
 
-async fn admin_members_page(client: &Mutex<Client>) -> String {
-    let people = auth::all_people(client).await.unwrap_or_default();
+async fn admin_members_page(client: &Mutex<Client>, domain_ir: &Value) -> String {
+    let people = auth::all_people(client, domain_ir).await.unwrap_or_default();
     let rows: String = people
         .iter()
         .map(|p| {
@@ -1150,9 +1156,32 @@ fn stripe_api_key() -> String {
 // "whsec_mock_lifeadelics_fixed")`) — domain/bin/confirm_payment_
 // manually signs against this exact string, so a mock deploy (empty
 // `stripe_api_key`) needs no Lambda environment configuration at all
-// to be fully exercisable end to end.
-fn stripe_webhook_secret() -> String {
-    std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_else(|_| "whsec_mock_lifeadelics_fixed".to_string())
+// to be fully exercisable end to end. ONLY allowed as a fallback in
+// MOCK mode though (`processor == "mock_stripe"`) — same
+// panic-at-the-moment-it's-needed split `session_secret`/
+// `validate_session_secret` above already use: a real-Stripe deploy
+// (`STRIPE_API_KEY` set) that forgets `STRIPE_WEBHOOK_SECRET` would
+// otherwise silently verify incoming webhooks against a public,
+// well-known string while charging real cards.
+fn stripe_webhook_secret(processor: &str) -> String {
+    let secret = std::env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_default();
+    if let Err(e) = validate_stripe_webhook_secret(processor, &secret) {
+        panic!("{e}");
+    }
+    if secret.is_empty() { "whsec_mock_lifeadelics_fixed".to_string() } else { secret }
+}
+
+// Pure and separately unit-tested from the panic above — same split
+// `validate_session_secret` already uses.
+fn validate_stripe_webhook_secret(processor: &str, secret: &str) -> Result<(), String> {
+    if processor == "stripe" && secret.is_empty() {
+        Err("STRIPE_WEBHOOK_SECRET is required when checkout_processor() reports \"stripe\" \
+             (a real STRIPE_API_KEY is set) -- refusing to fall back to the publicly-known mock \
+             webhook secret whsec_mock_lifeadelics_fixed for a real-money deploy"
+            .to_string())
+    } else {
+        Ok(())
+    }
 }
 
 fn site_url() -> String {
@@ -1191,7 +1220,8 @@ async fn checkout_route(
             Some(registrations_route(raw_body, &stripe_api_key(), checkout_processor(), &site_url(), client, wasm_path, config, invoker).await)
         }
         ("POST", "/webhooks/stripe") => {
-            Some(webhook_route(raw_body, stripe_signature, &stripe_webhook_secret(), checkout_processor(), client, wasm_path, config, invoker).await)
+            let processor = checkout_processor();
+            Some(webhook_route(raw_body, stripe_signature, &stripe_webhook_secret(processor), processor, client, wasm_path, config, invoker).await)
         }
         _ => None,
     }
@@ -1641,6 +1671,18 @@ mod tests {
     fn validate_session_secret_refuses_empty_or_unset() {
         assert!(validate_session_secret("").is_err());
         assert!(validate_session_secret("s3cret").is_ok());
+    }
+
+    // Same class of bug as H11 above, one function over: an unset or
+    // empty STRIPE_WEBHOOK_SECRET used to fall back unconditionally to
+    // the fixed, publicly-known mock string -- fine in mock mode
+    // (checkout_processor() == "mock_stripe"), a silent real-money hole
+    // in real-Stripe mode (checkout_processor() == "stripe").
+    #[test]
+    fn validate_stripe_webhook_secret_refuses_empty_only_in_real_stripe_mode() {
+        assert!(validate_stripe_webhook_secret("stripe", "").is_err());
+        assert!(validate_stripe_webhook_secret("stripe", "whsec_real").is_ok());
+        assert!(validate_stripe_webhook_secret("mock_stripe", "").is_ok());
     }
 
     #[test]

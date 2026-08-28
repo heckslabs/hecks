@@ -635,7 +635,7 @@ pub async fn append_lineage_mutation<C: GenericClient>(
 // exported IR marks lineage-capable (`ir.json`'s `lineage.
 // capable_aggregates`, Projector::Exporter.lineage), rather than
 // leaving Member as a one-off.
-fn head_view(storage_name: &str) -> String {
+pub(crate) fn head_view(storage_name: &str) -> String {
     format!("{storage_name}_head")
 }
 

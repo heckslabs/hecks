@@ -67,11 +67,12 @@ module Hecks
       # scalar cannot stand for anything and the refusal has to say so.
       def scalar_for(attribute, aggregate, random:)
         value_object = aggregate.value_object(attribute.type.to_s)
-        return "a bare scalar" unless value_object && value_object.attributes.size == 1
+        sole = value_object&.sole_attribute
+        return "a bare scalar" unless sole
 
         # One field, so a scalar is legal — corrupt the FIELD's own type instead,
         # which is still a shape the attribute cannot accept.
-        { value_object.attributes.first.name.to_s => ["nested", "array"] }
+        { sole.name.to_s => ["nested", "array"] }
       end
 
       # An attribute the command never declared. `refuse_unknown_arguments` is a

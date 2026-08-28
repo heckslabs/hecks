@@ -70,6 +70,10 @@ RSpec.describe "the model checker" do
       expect(finding.severity).to eq(:warning)
     end
 
+    it "does not warn on a default state with no outgoing transition, when the lifecycle declares real transitions elsewhere" do
+      expect(has?(findings, :stuck_state, "Gadget")).to be(false)
+    end
+
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
       # NOT an exact count: "Vanish"'s own from: ("active") is itself
       # reached via Activate, so its target ("gone") cascades into

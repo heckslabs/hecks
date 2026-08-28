@@ -2,17 +2,19 @@
 //! dedup, and the `many:`/`as:` shape each `aggregate_heads` row carries
 //! (`ReadModelBuilder#add_aggregate_head`).
 //!
-//! STAGE 3: `aggregate_heads` below, called from `parse::read_model`,
-//! confirmed real by console_settings.bluebook's `Styles`/`Curated`
-//! reports — both ROOTLESS (no `reference_to`, `parse::read_model`
-//! refuses that word as not-yet-implemented), so `reference_target` is
-//! always `None` here for now and every `include`d head is `many: true`
-//! (`target != reference_target` is vacuously true against `None`).
-//! `group_by`'s own field list needs no derivation beyond "the bare
-//! symbol names given" — handled directly in `parse::read_model` instead
-//! of a function here, the same "trivial enough not to need its own
-//! module function" call `build/query_derive.rs`'s own header already
-//! makes for `sets`' four named forms living beside `where`'s.
+//! `aggregate_heads` below, called from `parse::read_model`, handles both
+//! shapes for real: ROOTLESS (no `reference_to` — confirmed real by
+//! console_settings.bluebook's `Styles`/`Curated` reports, every
+//! `include`d head `many: true`) and ROOTED (`reference_to` declared —
+//! confirmed real, and under live byte-exact parity testing today, by
+//! Banking's `CustomerPortfolio`/`ComplianceDashboard`), correctly
+//! splitting `many: target != reference_target` for whichever
+//! `reference_target` is passed in. `group_by`'s own field list needs no
+//! derivation beyond "the bare symbol names given" — handled directly in
+//! `parse::read_model` instead of a function here, the same "trivial
+//! enough not to need its own module function" call
+//! `build/query_derive.rs`'s own header already makes for `sets`' four
+//! named forms living beside `where`'s.
 
 use crate::build::naming;
 use crate::diag::{Diagnostic, ParseResult};
@@ -22,8 +24,11 @@ use crate::ir;
 /// as: name]` line, in the order they were written (order-independent in
 /// Ruby too: "The includes are collected raw and resolved at build, when
 /// the reference is known"). `output` defaults to `Naming.plural(Naming
-/// .snake(target))` when `many` (every include here, since
-/// `reference_target` is always `None` for now) and no `as:` was given.
+/// .snake(target))` when `many` (every include when `reference_target`
+/// is `None` — rootless — or when the include names a DIFFERENT
+/// aggregate than a declared `reference_target` — rooted) and no `as:`
+/// was given; the root's own head (`target == reference_target`) instead
+/// snake-cases singular, matching Ruby's own "not `many`" branch.
 /// Refuses two includes minting the same `as:` name, the same guard
 /// `add_aggregate_head` itself raises (`"#{@name} already projects
 /// #{output}"`).
@@ -95,6 +100,42 @@ mod tests {
         )
         .unwrap();
         assert_eq!(heads[0].as_name, "widget");
+    }
+
+    // ROOTED (`Some(reference_target)`) — previously only exercised
+    // indirectly through the full parity-spec round trip against real
+    // Banking fixtures (`CustomerPortfolio`/`ComplianceDashboard`); these
+    // two give it fast, isolated coverage of its own.
+    #[test]
+    fn the_root_row_is_not_many_and_snake_cases_singular() {
+        let heads = aggregate_heads(
+            "f.bluebook",
+            1,
+            "CustomerPortfolio",
+            &[("Customer".to_string(), None), ("Account".to_string(), None)],
+            Some("Customer"),
+        )
+        .unwrap();
+        assert_eq!(heads.len(), 2);
+        assert_eq!(heads[0].aggregate, "Customer");
+        assert_eq!(heads[0].as_name, "customer");
+        assert!(!heads[0].many, "the declared root's own head must not be many");
+        assert_eq!(heads[1].aggregate, "Account");
+        assert_eq!(heads[1].as_name, "accounts");
+        assert!(heads[1].many, "a sibling head that isn't the root must be many");
+    }
+
+    #[test]
+    fn a_reference_target_naming_no_included_head_leaves_every_head_many() {
+        let heads = aggregate_heads(
+            "f.bluebook",
+            1,
+            "ComplianceDashboard",
+            &[("CardPayment".to_string(), None)],
+            Some("Account"),
+        )
+        .unwrap();
+        assert!(heads[0].many, "no included head equals the reference target, so all stay many");
     }
 
     #[test]

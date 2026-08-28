@@ -173,7 +173,20 @@
           "invariants": [
             {
               "description": "an aggregate is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -198,7 +211,20 @@
           "invariants": [
             {
               "description": "a description says something",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -519,7 +545,20 @@
           "invariants": [
             {
               "description": "an attribute is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -544,7 +583,20 @@
           "invariants": [
             {
               "description": "a type is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -591,7 +643,48 @@
           "invariants": [
             {
               "description": "list is true or false",
-              "canonical": "value.to_s == \"true\" || value.to_s == \"false\""
+              "canonical": "value.to_s == \"true\" || value.to_s == \"false\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "true"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "false"
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3753,7 +3846,20 @@
           "invariants": [
             {
               "description": "a chapter is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3778,7 +3884,20 @@
           "invariants": [
             {
               "description": "a vision says something",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3803,7 +3922,70 @@
           "invariants": [
             {
               "description": "a chapter is core, supporting, or generic",
-              "canonical": "value.to_s == \"core\" || value.to_s == \"supporting\" || value.to_s == \"generic\""
+              "canonical": "value.to_s == \"core\" || value.to_s == \"supporting\" || value.to_s == \"generic\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "core"
+                  }
+                },
+                "right": {
+                  "op": "or",
+                  "left": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": "value"
+                      }
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "supporting"
+                    }
+                  },
+                  "right": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": "value"
+                      }
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "generic"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3828,7 +4010,20 @@
           "invariants": [
             {
               "description": "a version says something",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3853,7 +4048,20 @@
           "invariants": [
             {
               "description": "a formerly_known_as says something",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3878,7 +4086,20 @@
           "invariants": [
             {
               "description": "an attachment names a context",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5190,7 +5411,20 @@
           "invariants": [
             {
               "description": "a command is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5533,7 +5767,20 @@
           "invariants": [
             {
               "description": "an argument is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -8477,7 +8724,20 @@
           "invariants": [
             {
               "description": "an entity is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -11309,7 +11569,20 @@
           "invariants": [
             {
               "description": "a policy is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -12417,7 +12690,20 @@
           "invariants": [
             {
               "description": "a process manager is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -14298,7 +14584,20 @@
           "invariants": [
             {
               "description": "a read model is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -14345,7 +14644,20 @@
           "invariants": [
             {
               "description": "a description says something",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -14464,7 +14776,20 @@
           "invariants": [
             {
               "description": "a group_by field is named",
-              "canonical": "!field.to_s.empty?"
+              "canonical": "!field.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "field"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -16051,7 +16376,20 @@
           "invariants": [
             {
               "description": "a query is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -17884,7 +18222,20 @@
           "invariants": [
             {
               "description": "a value object is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -17979,15 +18330,54 @@
           "invariants": [
             {
               "description": "a field is named",
-              "canonical": "!name.to_s.empty?"
+              "canonical": "!name.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "name"
+                    }
+                  }
+                }
+              }
             },
             {
               "description": "a field has a type",
-              "canonical": "!type.to_s.empty?"
+              "canonical": "!type.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "type"
+                    }
+                  }
+                }
+              }
             },
             {
               "description": "a field's list mode is specified",
-              "canonical": "!list.to_s.empty?"
+              "canonical": "!list.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "list"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -18022,11 +18412,37 @@
           "invariants": [
             {
               "description": "an assertion description is present",
-              "canonical": "!description.to_s.empty?"
+              "canonical": "!description.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "description"
+                    }
+                  }
+                }
+              }
             },
             {
               "description": "an assertion canonical form is present",
-              "canonical": "!canonical.to_s.empty?"
+              "canonical": "!canonical.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "canonical"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -18105,7 +18521,20 @@
           "invariants": [
             {
               "description": "a pair key is present",
-              "canonical": "!key.to_s.empty?"
+              "canonical": "!key.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "key"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -19557,7 +19986,20 @@
           "invariants": [
             {
               "description": "a syntax is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -21003,7 +21445,20 @@
           "invariants": [
             {
               "description": "a vocabulary is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,

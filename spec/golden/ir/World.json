@@ -446,6 +446,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a world names its domain"
             }
@@ -471,6 +484,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a realm says something"
             }
@@ -496,6 +522,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a latest version says something"
             }

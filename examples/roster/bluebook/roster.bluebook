@@ -21,7 +21,9 @@ Hecks.bluebook "Roster" do
     attribute :motto,       Motto
     attribute :mood,        Mood
     attribute :standing,    Standing
-    attribute :last_marked, SeatNumber
+    # OPTIONAL — Wave 8 fix: genuinely unknown until `Mark` (below) sets
+    # it; a freshly-opened roster has handed out no seat yet.
+    attribute :last_marked, SeatNumber, optional: true
     attribute :seats,       list_of(Seat)
     attribute :crew,        list_of(Member)
     attribute :assignments, list_of(Assignment)
@@ -112,6 +114,9 @@ Hecks.bluebook "Roster" do
 
       attribute :name, RosterName
 
+      # Wave 8 fix — :name is this aggregate's own IDENTITY (line 29),
+      # already a required command attribute, but was never `sets`.
+      sets :name
       sets :motto,    to: "all hands"
       sets :mood,     to: "open"
       sets :standing, to: "none"

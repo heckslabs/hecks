@@ -73,10 +73,19 @@ module Hecks
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
                  elsif rootless
                    # No root to FK-match against — a rootless model reads
-                   # each of its own heads WHOLE, independently. (Multiple
-                   # heads on one rootless model aren't cross-joined
-                   # against each other either — each is its own bulk
-                   # read. A real, deliberate scope limit for now.)
+                   # each of its own heads WHOLE, independently. Multiple
+                   # heads on one rootless model are NEVER cross-joined
+                   # against each other, and there is no DSL to declare
+                   # one if you wanted to — `ReadModelBuilder#include_impl`
+                   # takes only `type`/`as:` (checked directly, not
+                   # assumed), and `group_by` groups this bulk read's own
+                   # output, it names no predicate between two heads.
+                   # Building a cross-join here would mean CHOOSING a join
+                   # semantics (equality on which fields?) nobody has
+                   # declared — a real, deliberate scope limit pending a
+                   # future `include ..., joins: ...`-shaped grammar
+                   # addition (with its own Rust mirror), not a gap this
+                   # interpreter can quietly grow into on its own.
                    records(bluebook, domain, head[:aggregate])
                  else
                    matching(records(bluebook, domain, head[:aggregate])) do |record|

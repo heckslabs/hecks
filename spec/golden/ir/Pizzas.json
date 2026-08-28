@@ -37,7 +37,7 @@
           "default": null,
           "list": false,
           "name": "customer_name",
-          "optional": false,
+          "optional": true,
           "pattern": null,
           "relationship": null,
           "type": "CustomerName"
@@ -79,7 +79,24 @@
           ],
           "goal": "Put a new pizza on the menu",
           "mutations": [
-
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              },
+              "target": "name"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "pizza"
+              },
+              "target": "pizza"
+            }
           ],
           "name": "CreatePizza",
           "provenance": null,
@@ -156,7 +173,7 @@
               "default": null,
               "list": false,
               "name": "customer_name",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "CustomerName"
@@ -327,6 +344,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a pizza is named"
             }
@@ -352,6 +382,22 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "cents"
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "cents >= 0",
               "description": "a price is never negative"
             }
@@ -377,6 +423,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a customer is named"
             }
@@ -402,6 +461,19 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!value.to_s.empty?",
               "description": "a topping is named"
             }
@@ -427,6 +499,18 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "op": "sign_test",
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              },
               "canonical": "value.positive?",
               "description": "an amount is positive"
             }

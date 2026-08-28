@@ -184,6 +184,40 @@ module RustProjection
       :other
     end
 
+    # Does `field` HOP through a reference (`account/status` — the DSL's
+    # own `/` operator, `QuerySpecification::HopPath`'s own header: `.`
+    # walks fields inside this record, `/` crosses into another one) —
+    # and if so, resolve it: `nil` for a field that isn't a hop at all,
+    # OR a hop this generator can't (yet) resolve (more than one `/` —
+    # a multi-hop chain, real in Ruby via `HopPath::MAX_HOPS`, but D2 of
+    # the equivalence-gap plan, not attempted here; the head segment
+    # isn't a real Reference-typed attribute on `aggregate`; or the
+    # target aggregate isn't declared in this domain at all — Ruby's own
+    # `HopPath::Plan#refusal` of `:unresolvable` covers the identical
+    # case, refused at BUILD time, so a hop reaching codegen with an
+    # undeclared target could only mean a cross-domain hop — also
+    # refused build-time, per `HopPath`'s own comment — so
+    # `aggregates_by_name` (this DOMAIN's own aggregates) is always the
+    # right, sufficient scope to search, never a gap this generator
+    # introduces on its own). Otherwise, `{via_field:, target_aggregate:,
+    # target:, inner_field:}` — `target` is the resolved aggregate hash
+    # itself (`aggregates_by_name`'s own value shape), handed back so a
+    # caller never has to re-look-it-up.
+    def query_hop_plan(aggregate, field, aggregates_by_name)
+      head, rest = field.to_s.split("/", 2)
+      return nil unless rest
+      return nil if rest.include?("/")
+
+      via_attr = aggregate[:attributes].find { |a| a[:name].to_s == head }
+      return nil unless via_attr && reference_type?(via_attr[:type])
+
+      target_name = reference_target(via_attr[:type])
+      target = aggregates_by_name[target_name]
+      return nil unless target
+
+      { via_field: head, target_aggregate: target_name, target: target, inner_field: rest }
+    end
+
     # One where clause's own eligibility — `nil` (clean) or a specific,
     # honest reason string. See this file's own header for the full
     # argument; this is just that argument turned into a gate.
@@ -458,12 +492,16 @@ module RustProjection
     # `TenantAuth`'s own compiled form — `nil` unless a real tenant is
     # declared (an `authorize policy` with no `tenant:` is a genuine no-op,
     # per `declared_authorization_skip_reason`'s own comment; nothing to
-    # compile for it at all, matching Ruby exactly).
+    # compile for it at all, matching Ruby exactly). `policy` rides along
+    # too, carried but NOT enforced (TenantAuth's own Rust-side doc
+    # comment has the full reasoning — Ruby's own TenantScope.apply never
+    # reads it either).
     def emit_query_authorization(query_name, authorization)
       tenant = authorization && authorization[:tenant]
       return nil unless tenant
 
-      "crate::kernel::named_query::TenantAuth { query_name: #{query_name.to_s.inspect}, tenant_field: #{tenant.to_s.inspect} }"
+      policy = authorization[:policy]
+      "crate::kernel::named_query::TenantAuth { query_name: #{query_name.to_s.inspect}, tenant_field: #{tenant.to_s.inspect}, policy: #{policy.to_s.inspect} }"
     end
 
     # `where[:op]` (one of `Hecks::QuerySpecification::Common::
@@ -565,7 +603,7 @@ module RustProjection
           order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true, nulls: crate::kernel::query_ordering::NullsMode::Last }),
           offset: Some(crate::kernel::query_ordering::Offset::Literal(1)),
           limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
-          authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field" }),
+          authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "tmpl_query_name", tenant_field: "tmpl_tenant_field", policy: "tmpl_policy" }),
       },
     RUST
 

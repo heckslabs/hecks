@@ -121,6 +121,24 @@ pub struct TenantAuth {
     /// declared.name, field: tenant)`'s exact placeholder value.
     pub query_name: &'static str,
     pub tenant_field: &'static str,
+    /// `authorize policy, tenant: :field`'s own FIRST argument — carried
+    /// here, but DELIBERATELY NOT ENFORCED. This is a real, Rust-only
+    /// addition beyond what `Runtime::TenantScope.apply` itself checks:
+    /// that module's own header says plainly "whether THIS caller
+    /// actually holds `policy` for THIS tenant needs real identity
+    /// infrastructure this runtime does not have — that stays a named,
+    /// open gap," and Ruby genuinely never reads `policy` at all (only
+    /// `.tenant`). Building real enforcement here, unilaterally, would
+    /// make Rust refuse a query Ruby answers — a real behavioral
+    /// divergence in a codebase whose whole discipline is byte-for-byte
+    /// differential testing between the two (spec/parser_parity_spec.rb,
+    /// spec/rust_conformance_spec.rb). `caller_role` is threaded into
+    /// `run`/`run_cross_domain` below (mirroring `orchestrate`'s own
+    /// parameter) specifically so a FUTURE enforcement pass has
+    /// everything it needs already wired — once Ruby's own identity gap
+    /// closes, ideally behind its own ADR (mirroring 0019's) so both
+    /// sides change together instead of Rust silently diverging first.
+    pub policy: &'static str,
 }
 
 /// ONE where clause, compiled — `field`/`comparator` read exactly like the
@@ -184,26 +202,32 @@ pub enum QueryConditionValue {
 /// of operations. `store` is generic over `AggregateScan`, not any one
 /// domain's own `Store` — matching `filter_entries`'s own design: nothing
 /// here is domain-specific, only the `QueryDef` data a generated `QUERIES`
-/// table hands it is.
-pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json) -> Result<Vec<(String, Json)>, Refusal> {
-    run_cross_domain(store, def, args, &[])
+/// table hands it is. `caller_role` — TenantAuth's own doc has the full
+/// story: carried through to `run_cross_domain` below purely so it's
+/// available there for a FUTURE enforcement pass, unused by this
+/// function's own logic today.
+pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json, caller_role: Option<&str>) -> Result<Vec<(String, Json)>, Refusal> {
+    run_cross_domain(store, def, args, &[], caller_role)
 }
 
-/// `run`'s own real implementation, with one addition: an explicit
+/// `run`'s own real implementation, with two additions: an explicit
 /// `cross_domain` search list threaded straight through to `repository::
 /// filter_entries_cross_domain` for any condition using `NoneInState`
-/// (see that function's own header, and query_comparators.rs's). `run`
-/// above passes an empty list, matching `filter_entries`'s own thin-
-/// wrapper shape — every real declared `query "X" do ... end` a
-/// generated `QUERIES` table carries dispatches through the plain,
-/// unchanged `run` today; a `none_in_state` condition inside one answers
-/// vacuously true (Ruby's own no-registry default) the same as any other
-/// caller that hasn't threaded a cross-domain search list through.
+/// (see that function's own header, and query_comparators.rs's), and
+/// `caller_role` (`TenantAuth`'s own doc — carried, not yet checked
+/// against `def.authorization.map(|a| a.policy)`). `run` above passes an
+/// empty cross_domain list, matching `filter_entries`'s own thin-wrapper
+/// shape — every real declared `query "X" do ... end` a generated
+/// `QUERIES` table carries dispatches through the plain, unchanged `run`
+/// today; a `none_in_state` condition inside one answers vacuously true
+/// (Ruby's own no-registry default) the same as any other caller that
+/// hasn't threaded a cross-domain search list through.
 pub fn run_cross_domain(
     store: &impl AggregateScan,
     def: &QueryDef,
     args: &Json,
     cross_domain: &[(&str, &dyn AggregateScan)],
+    _caller_role: Option<&str>,
 ) -> Result<Vec<(String, Json)>, Refusal> {
     if let Some(auth) = &def.authorization {
         if args.get(auth.tenant_field).is_none() {

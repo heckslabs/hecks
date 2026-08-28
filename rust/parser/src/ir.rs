@@ -3,16 +3,18 @@
 //! real construction (parse/*.rs + build/*.rs) will populate and emit.rs
 //! will serialize to byte-match `JSON.pretty_generate(Exporter.call(...))`.
 //!
-//! STAGE 1 HONESTY NOTE: nothing in this crate constructs one of these yet
-//! (parse/*.rs handlers all stub out before reaching IR construction), so
-//! these fields are read from the Ruby source's own `to_h` methods but are
-//! UNVERIFIED by any differential test — spec/parser_parity_spec.rb's own
-//! PENDING_MEMBERS table says so explicitly. Confirmed against the actual
-//! Ruby source at Stage-1 time: Bluebook, Aggregate, Attribute, Command,
-//! Mutation, Entity, Query, ValueObject, ReadModel, Policy, ProcessManager,
-//! ProcessManagerHandler, DispatchSpec, Lifecycle. Re-verify field order
-//! against Ruby's own `to_h` again at Stage 2, when this first has to
-//! byte-match a real golden.
+//! STATUS: this is no longer unverified. spec/parser_parity_spec.rb's
+//! REAL_PARITY_MEMBERS shells out to `hecks-parse chapter` and byte-compares
+//! its stdout against Ruby's own `JSON.pretty_generate(Exporter.call(...))`
+//! for real, live corpus: pizzas/banking/compliance/roster/chess (examples/),
+//! the framework trio (identity/governance/console_settings), the grammar
+//! bonus pair (expression/translation), every spec/fixtures/**/*.bluebook
+//! fixture, and the nine-file self-hosted grammar itself
+//! (--chapter Bluebook). What's still genuinely unverified is whatever
+//! spec/parser_parity_spec.rb's own PENDING_MEMBERS table still marks
+//! "not yet implemented" — check that table directly for the current list
+//! rather than duplicating it here, since it shrinks over time and a
+//! hardcoded list here would drift.
 
 /// A `nil`-or-value Ruby field, rendered through `Hecks::Literal`
 /// where the Ruby side does so (member/where/mutation source values) — see

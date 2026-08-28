@@ -184,7 +184,21 @@ module Hecks
       # forever, since nothing about *entering* it via default implies
       # anything must eventually move it, unlike a state a transition
       # explicitly delivered somewhere.
-      def terminal_exempt(_lifecycle) = []
+      #
+      # Scoped to `default` alone, and only when the lifecycle actually
+      # declares real transitions elsewhere: an EMPTY lifecycle (no
+      # transitions at all) doesn't get this exemption — that's not "a
+      # machine whose entry point deliberately awaits external action,"
+      # it's much more likely a lifecycle nobody finished wiring, and
+      # should still warn (see spec/fixtures/model_check/lifecycle_
+      # findings.bluebook's own Widget::Part, which stays warned on
+      # purpose).
+      def terminal_exempt(lifecycle)
+        return [] if lifecycle.transitions.empty?
+
+        outgoing_sources = lifecycle.transitions.flat_map { |_, t| Array(t.from) }.to_set
+        outgoing_sources.include?(lifecycle.default) ? [] : [lifecycle.default]
+      end
 
       # ── process managers / sagas ──────────────────────────────────────
 

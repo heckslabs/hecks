@@ -42,7 +42,20 @@
           "invariants": [
             {
               "description": "an identity id is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -172,7 +185,20 @@
           "invariants": [
             {
               "description": "a key is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -197,7 +223,20 @@
           "invariants": [
             {
               "description": "an issuer is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -222,7 +261,20 @@
           "invariants": [
             {
               "description": "a subject is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,

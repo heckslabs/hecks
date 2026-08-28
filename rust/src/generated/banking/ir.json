@@ -72,7 +72,20 @@
           "invariants": [
             {
               "description": "a customer reference is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -97,7 +110,20 @@
           "invariants": [
             {
               "description": "a standing is named",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -132,11 +158,37 @@
           "invariants": [
             {
               "description": "a given name is present",
-              "canonical": "!given.to_s.empty?"
+              "canonical": "!given.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "given"
+                    }
+                  }
+                }
+              }
             },
             {
               "description": "a family name is present",
-              "canonical": "!family.to_s.empty?"
+              "canonical": "!family.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "family"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -561,7 +613,20 @@
           "invariants": [
             {
               "description": "an account number is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -586,7 +651,22 @@
           "invariants": [
             {
               "description": "a daily limit is non-negative",
-              "canonical": "!cents.negative?"
+              "canonical": "!cents.negative?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "sign_test",
+                  "cmp": {
+                    "less_than": true,
+                    "equal": false,
+                    "negated": false
+                  },
+                  "receiver": {
+                    "op": "lookup",
+                    "path": "cents"
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -611,7 +691,19 @@
           "invariants": [
             {
               "description": "a ledger sequence is positive",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -679,7 +771,29 @@
           "invariants": [
             {
               "description": "a currency is a three-letter code",
-              "canonical": "currency.to_s.size == 3"
+              "canonical": "currency.to_s.size == 3",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "currency"
+                    }
+                  }
+                },
+                "right": {
+                  "op": "int",
+                  "value": 3
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -714,11 +828,45 @@
           "invariants": [
             {
               "description": "an amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             },
             {
               "description": "a currency is a three-letter code",
-              "canonical": "currency.to_s.size == 3"
+              "canonical": "currency.to_s.size == 3",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "currency"
+                    }
+                  }
+                },
+                "right": {
+                  "op": "int",
+                  "value": 3
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -782,7 +930,20 @@
           "invariants": [
             {
               "description": "a movement explains itself",
-              "canonical": "!text.to_s.empty?"
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "text"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -1920,7 +2081,20 @@
           "invariants": [
             {
               "description": "an onboarding case is referenced",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -1945,7 +2119,20 @@
           "invariants": [
             {
               "description": "an account number is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2230,7 +2417,20 @@
           "invariants": [
             {
               "description": "a card serial is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2277,7 +2477,23 @@
           "invariants": [
             {
               "description": "a daily fee is non-negative",
-              "canonical": "amount >= 0"
+              "canonical": "amount >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "amount"
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2302,7 +2518,19 @@
           "invariants": [
             {
               "description": "a withdrawal sequence is positive",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2327,7 +2555,19 @@
           "invariants": [
             {
               "description": "a withdrawal amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2352,7 +2592,20 @@
           "invariants": [
             {
               "description": "a withdrawal explains itself",
-              "canonical": "!text.to_s.empty?"
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "text"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2724,7 +2977,7 @@
                 },
                 {
                   "description": "card is not retired",
-                  "canonical": "status != \"retired\""
+                  "canonical": "parent.status != \"retired\""
                 }
               ],
               "ensures": [
@@ -2951,7 +3204,19 @@
           "invariants": [
             {
               "description": "a payment amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -2976,7 +3241,20 @@
           "invariants": [
             {
               "description": "a merchant name is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3001,7 +3279,20 @@
           "invariants": [
             {
               "description": "a tag is not the empty string",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3595,7 +3886,20 @@
           "invariants": [
             {
               "description": "a branch is coded",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3620,7 +3924,19 @@
           "invariants": [
             {
               "description": "a box is numbered from one",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3645,7 +3961,19 @@
           "invariants": [
             {
               "description": "a visit sequence is positive",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3670,7 +3998,20 @@
           "invariants": [
             {
               "description": "a visit names its date",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -3717,7 +4058,20 @@
           "invariants": [
             {
               "description": "a key is serialed",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -4373,7 +4727,20 @@
           "invariants": [
             {
               "description": "a statement names its period",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -4420,7 +4787,20 @@
           "invariants": [
             {
               "description": "a statement is dated",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -4602,6 +4982,51 @@
                 "kind": "argument",
                 "name": "account"
               }
+            },
+            {
+              "target": "period",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "period"
+              }
+            },
+            {
+              "target": "opening_balance",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "opening_balance"
+              }
+            },
+            {
+              "target": "closing_balance",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "closing_balance"
+              }
+            },
+            {
+              "target": "generated_on",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "generated_on"
+              }
+            },
+            {
+              "target": "frequency",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "frequency"
+              }
             }
           ],
           "emits": [
@@ -4708,7 +5133,20 @@
           "invariants": [
             {
               "description": "a transfer is referenced",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -4733,7 +5171,19 @@
           "invariants": [
             {
               "description": "a transfer amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -4758,7 +5208,20 @@
           "invariants": [
             {
               "description": "a transfer explains itself",
-              "canonical": "!text.to_s.empty?"
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "text"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5285,7 +5748,19 @@
           "invariants": [
             {
               "description": "an external transfer amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5310,7 +5785,20 @@
           "invariants": [
             {
               "description": "a beneficiary name is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5732,7 +6220,19 @@
           "invariants": [
             {
               "description": "a scheduled payment amount is positive",
-              "canonical": "cents.positive?"
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "cents"
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5757,7 +6257,20 @@
           "invariants": [
             {
               "description": "a payment recipient is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5782,7 +6295,20 @@
           "invariants": [
             {
               "description": "a payment due date is present",
-              "canonical": "!value.to_s.empty?"
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": "value"
+                    }
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5807,7 +6333,22 @@
           "invariants": [
             {
               "description": "a retry count is non-negative",
-              "canonical": "!value.negative?"
+              "canonical": "!value.negative?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "sign_test",
+                  "cmp": {
+                    "less_than": true,
+                    "equal": false,
+                    "negated": false
+                  },
+                  "receiver": {
+                    "op": "lookup",
+                    "path": "value"
+                  }
+                }
+              }
             }
           ],
           "closed_set": false,
@@ -5832,7 +6373,19 @@
           "invariants": [
             {
               "description": "a retry limit is positive",
-              "canonical": "value.positive?"
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": "value"
+                }
+              }
             }
           ],
           "closed_set": false,

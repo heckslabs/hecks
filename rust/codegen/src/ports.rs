@@ -113,7 +113,7 @@ pub fn emit_port_operation(
         .iter()
         .map(|event_name| {
             format!(
-                "        crate::kernel::Event {{ name: {}.to_string(), aggregate: {}.to_string(), id: receiver_id.to_string(), payload: crate::kernel::Json::Null, correlation: None }},",
+                "        crate::kernel::Event {{ name: {}.to_string(), aggregate: {}.to_string(), id: receiver_id.to_string(), payload: crate::kernel::Json::Null, occurred_at: None, correlation: None }},",
                 naming::ruby_inspect_string(&event_name.to_s()),
                 naming::ruby_inspect_string(&qualified)
             )

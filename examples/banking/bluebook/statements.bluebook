@@ -75,6 +75,19 @@ Hecks.bluebook "Banking" do
       given("account is open") { account.status == "open" }
 
       sets :account
+      # Wave 8 fix — these five were already declared, required command
+      # attributes (identical to the aggregate's own, above) but never
+      # actually written anywhere: `Generate` silently dropped every one
+      # of them, leaving a Statement whose own period/balances/date/
+      # frequency were always nil on the record, no matter what the
+      # caller sent. Bare shorthand — each imports the already-matching
+      # attribute one line up, `resolve_bare_set!`'s own comment has the
+      # mechanism.
+      sets :period
+      sets :opening_balance
+      sets :closing_balance
+      sets :generated_on
+      sets :frequency
 
       emits StatementGenerated
     end

@@ -2575,7 +2575,10 @@ RSpec.describe "the DSL surface" do
     end
 
     it "sets to: a symbol reads a command argument — a genuine remap, a different field" do
-      mutation = build_command("CmdSetArg") { sets :status, to: :new_status }.mutations.first
+      mutation = build_command("CmdSetArg") do
+        attribute :new_status, Tag
+        sets :status, to: :new_status
+      end.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:status, :set])
       expect(mutation.to_h[:source]).to eq(kind: "argument", name: "new_status")
@@ -2717,7 +2720,10 @@ RSpec.describe "the DSL surface" do
     end
 
     it "sets increment: reads a command argument to add" do
-      mutation = build_command("CmdInc") { sets :balance, increment: :amount }.mutations.first
+      mutation = build_command("CmdInc") do
+        attribute :amount, Size
+        sets :balance, increment: :amount
+      end.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:balance, :increment])
       expect(mutation.to_h[:source]).to eq(kind: "argument", name: "amount")
@@ -2769,6 +2775,25 @@ RSpec.describe "the DSL surface" do
 
       expect(command.attribute(:balance)).to be_nil
       expect(command.mutations.first.to_h[:source]).to eq(kind: "literal", value: "balance")
+    end
+
+    # THE REMAP'S OWN NEGATIVE CASE — `to: :symbol` naming something the
+    # command never declares at all (a typo, not a legitimately absent
+    # optional argument — CommandRules::Arithmetic#resolve_source's own
+    # header has the full distinction). Unlike the bare self-referential
+    # shape below, this is CommandBuilder#refuse_unknown_argument_sources!'s
+    # own refusal, not AggregateBuilder's — the source and target names
+    # genuinely differ here, so there is no downstream target-shaped
+    # check to defer to.
+    it "sets to: a symbol naming no declared attribute refuses at command build time, not silently forever nil" do
+      expect { build_command("CmdUnknownRemap") { sets :status, to: :nonexistent_arg } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed,
+                        /resolves :nonexistent_arg from its arguments, but Do declares no nonexistent_arg attribute/)
+    end
+
+    it "sets increment: a symbol naming no declared attribute refuses the same way" do
+      expect { build_command("CmdUnknownIncrement") { sets :balance, increment: :nonexistent_arg } }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /resolves :nonexistent_arg from its arguments/)
     end
 
     # THE NEGATIVE CASE — neither the command nor the owner declares the
@@ -2886,6 +2911,31 @@ RSpec.describe "the DSL surface" do
       port = registry.ports["Checkout"]
       expect(port.verb).to eq("opened_by")
       expect(registry.bluebook("DomPortVerb").aggregate("Thing").port("Checkout")).to be_nil
+    end
+
+    # Proves DomainPortBuilder's bare-verb fallback produces a `Port`
+    # byte-identical to what PortBuilder itself builds for the same
+    # input — the migration every bare `.port` file depends on.
+    # `signal :effect` (projection.port's own, the one non-default
+    # signal in the corpus) and `answers` (extraction.port's own
+    # `answers :canonical`, the one real corpus use of the word) are
+    # both real, live cases, not hypothetical ones.
+    it "signal builds the same Port PortBuilder itself would, non-default value included" do
+      via_domain_port = Hecks::Bluebook::DSL::DomainPortBuilder.build("projection") { verb "projected_by"; signal :effect }
+      via_port_builder = Hecks::Bluebook::DSL::PortBuilder.build("projection") { verb "projected_by"; signal :effect }
+
+      expect(via_domain_port).to be_a(Hecks::Bluebook::Port)
+      expect(via_domain_port.to_h).to eq(via_port_builder.to_h)
+      expect(via_domain_port.signal).to eq(:effect)
+    end
+
+    it "answers builds the same Port PortBuilder itself would" do
+      via_domain_port = Hecks::Bluebook::DSL::DomainPortBuilder.build("extraction") { verb "extracted_by"; signal :reply; answers :canonical }
+      via_port_builder = Hecks::Bluebook::DSL::PortBuilder.build("extraction") { verb "extracted_by"; signal :reply; answers :canonical }
+
+      expect(via_domain_port).to be_a(Hecks::Bluebook::Port)
+      expect(via_domain_port.to_h).to eq(via_port_builder.to_h)
+      expect(via_domain_port.answers).to eq([:canonical])
     end
 
     it "refuses a port declaring both a verb and operations" do

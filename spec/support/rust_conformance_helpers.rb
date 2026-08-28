@@ -46,6 +46,30 @@ module RustConformanceHelpers
     value
   end
 
+  # `occurred_at` — a real event field on BOTH sides now (`kernel::Event`/
+  # `Runtime::Event`, equivalence-gap plan item 2.5), but a wall clock,
+  # never a comparable fact: Ruby's own comparison side (`Fuzzing::
+  # Replay#call`, replay.rb) never even INCLUDES it in the projected
+  # events this spec's own `ruby_events` is built from — two independent
+  # process runs (this spec's own hand-authored fixtures carry no
+  # `occurred_at` in their own `steps`, so rust/host's real stamping
+  # mechanism never runs here at all) can't byte-match wall clocks
+  # regardless. Stripped from Rust's own side only — the key `rust_output
+  # ["events"]` now carries that `ruby_events` structurally never did —
+  # the identical shape `strip_emitted_flags!`, just above, already
+  # exists for: excluding a real, understood implementation/environment
+  # detail from a check that exists to verify BEHAVIOR, not this.
+  def strip_occurred_at!(value)
+    case value
+    when Hash
+      value.reject! { |k, _| k == "occurred_at" }
+      value.each_value { |v| strip_occurred_at!(v) }
+    when Array
+      value.each { |v| strip_occurred_at!(v) }
+    end
+    value
+  end
+
   # See rust_conformance_spec.rb's own extensive comment on this exact
   # exclusion (a cross-domain policy match Ruby's single-process boot
   # delivers in-process but Rust's kernel genuinely cannot know the

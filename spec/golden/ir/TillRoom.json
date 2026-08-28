@@ -71,7 +71,15 @@
           ],
           "goal": "Start the day with an empty drawer",
           "mutations": [
-
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              },
+              "target": "number"
+            }
           ],
           "name": "OpenTill",
           "provenance": null,
@@ -293,6 +301,22 @@
           "closed_set": false,
           "invariants": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": "cents"
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "cents >= 0",
               "description": "a cash amount is never negative"
             }

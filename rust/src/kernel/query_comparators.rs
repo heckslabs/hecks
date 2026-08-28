@@ -51,13 +51,16 @@
 // against a single aggregate's OWN attributes, via the exact same
 // `QueryComparator`/`filter_entries` this file and repository.rs already
 // implement, just with the query's own conditions baked in by a generator
-// instead of supplied ad hoc over the wire. `IR::ReadModel` (a
-// cross-aggregate ask — `rust/project/domain_generator.rb`'s own
-// "whole_kind" `read_model` tracking, `bin/rust_coverage`'s own header)
-// and a declared query that itself needs `order_by`/`limit`/a reference
-// hop/a type-unrecoverable literal comparator are the REMAINING gap —
-// `rust/project/queries.rb`'s own header has the full argument for why
-// each of those specifically stays ungenerated rather than forced.
+// instead of supplied ad hoc over the wire. `order_by`/`limit`/`offset` on
+// a declared aggregate query or a read model's own eligible many-side head
+// are real, generated capabilities as of 2026-08-11/Phase 10
+// (equivalence-gap plan) — see named_query.rs/read_model.rs's own headers.
+// The one remaining structural gap is a where clause that HOPS THROUGH A
+// REFERENCE to a field on a different aggregate than the one being
+// filtered (`customer.status`) — a type-unrecoverable literal comparator
+// value is the other, narrower remaining gap. `rust/project/queries.rb`'s
+// own header has the full argument for why the reference-hop case
+// specifically stays ungenerated rather than forced.
 // `NoneInState` is a NINTH remaining gap, of a different shape — its own
 // enum variant, `parse`, and matching logic (`none_in_state_matches`,
 // below) all exist and are proven correct, but `rust/project/queries.rb`

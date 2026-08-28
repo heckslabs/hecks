@@ -2478,6 +2478,28 @@ Two structural reorganizations rode along and account for most of the file count
 
 ## Where it actually got to
 
+**Status note (2026-08-28):** the "109" figure below, and "What's next" item 1
+right after it, both predate a fix that has since landed — `legacy_
+implicit_creation?` already dropped `plan.write_set.empty?` by the time this
+note was written (`ctx.route.nil? && ctx.command.creates?`, unchanged since).
+Separately, and later: a full corpus audit (`DependencyPlanning::Analyzer`
+against every `creates?`-true command in all 5 example domains) found and
+fixed 4 commands whose plan was genuinely incomplete (`Statement.Generate`,
+`CreatePizza`, `Chess::Game.Start`, `Roster.Open` — each declared an
+attribute and never `sets` it) — real progress on item 5's own recipe-by-
+recipe migration, from a different angle. `CommandInterpreter#hydrate_
+legacy_creation` (the fallback this whole passage is about) is **NOT**
+deleted, though a first attempt tried to, on the strength of that one
+audit — running the full suite afterward (not merely trusting the audit's
+own scope) found 218 unrelated failures: dozens of separate spec fixtures
+across the suite, well beyond the 5 example domains, declare their own
+`creates?`-true commands the same incomplete way and depend on this exact
+fallback to create anything at all. See `command_interpreter.rb`'s own
+current comment on `legacy_implicit_creation?` for the corrected account.
+Read the rest of this section, unedited below, as the historical record it
+is — the specific counts and named specs no longer describe the current
+tree, but the fallback itself is still live and still load-bearing.
+
 The plan's own Wave 0–6 checkpoints are substantially real; Wave 7 (corpus and prose migration) barely started, and Wave 8 (regeneration, then the first full-suite run the plan permits) never ran at all. The implementing agent stopped mid-Wave-6 on an external usage limit, not at a checkpoint — so the tree is a genuine mid-wave snapshot, not an abandoned one.
 
 Measured, with the ordinary `fuzzing`/`io` exclusions:

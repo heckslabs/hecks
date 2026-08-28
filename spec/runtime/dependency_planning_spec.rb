@@ -118,4 +118,47 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     expect(defaulted_plan).to be_complete_state
     expect(defaulted_plan).to be_state_independent
   end
+
+  # `root_aggregate:` — Wave 8's own corpus audit surfaced this as a real
+  # bug, not a hypothetical one: `EntityInterpreter` calls the Analyzer
+  # with `aggregate:` set to the ENTITY (`owner_fields` is the entity's
+  # own attribute set), but a `given`/`ensures` reading `parent.X` always
+  # means the ROOT aggregate's own field — genuinely different owners.
+  # Real, live corpus example this ports directly:
+  # `Banking::Account.LedgerEntry.Amend`'s own `given("customer is
+  # active") { parent.customer.status == "active" }`.
+  describe "an entity-owned command's own parent.* reads" do
+    let(:status) { field(:status, String) }
+    let(:narrative) { field(:narrative, String) }
+
+    let(:root_aggregate) do
+      Hecks::Bluebook::Aggregate.new(name: "Account", attributes: [status, field(:number, String)], commands: [], identified_by: [:number])
+    end
+
+    let(:amend) do
+      Hecks::Bluebook::Command.declare(
+        name:       "Amend",
+        attributes: [narrative],
+        givens:     [Hecks::Bluebook::Given.new(description: "account is open", canonical: 'parent.status == "open"')],
+        mutations:  [mutation(:narrative, :set, :narrative)]
+      )
+    end
+
+    let(:ledger_entry) do
+      Hecks::Bluebook::Entity.declare(name: "LedgerEntry", attributes: [narrative], commands: [amend])
+    end
+
+    it "resolves against the ENTITY's own fields when no root_aggregate is given — the pre-fix, still-real default for a plain aggregate command" do
+      plan = described_class::Analyzer.call(aggregate: ledger_entry, command: amend)
+
+      expect(plan.unresolved_dependencies).to eq(["parent.status does not name parent aggregate state"])
+    end
+
+    it "resolves parent.* against the ROOT aggregate's own fields when root_aggregate: is given, matching EntityInterpreter's real call site" do
+      plan = described_class::Analyzer.call(aggregate: ledger_entry, command: amend, root_aggregate: root_aggregate)
+
+      expect(plan.unresolved_dependencies).to eq([])
+      expect(plan.read_set).to include(:status)
+    end
+  end
 end

@@ -36,6 +36,51 @@
 // what `apply_filtered_head_options` below ports — all read directly.
 use super::{named_query, query_comparators, query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal, RefusalSite};
 
+/// ONE `where` clause that HOPS through a reference (`account/status`,
+/// the DSL's own `/` operator — `QuerySpecification::HopPath`'s own
+/// header: "`.` walks fields inside this record, `/` crosses into
+/// another one") on the eligible head's own aggregate — the structural
+/// gap `query_comparators.rs`'s own header used to name. Ground truth:
+/// `Runtime::ReferenceHop.fold` (lib/hecks/runtime/reference_hop.rb) —
+/// a hop folds to a synthetic `via_field IN [ids]` clause, where `ids`
+/// comes from running one ordinary query against the hop's TARGET
+/// aggregate with the REST of the where clause. `run`'s own
+/// `apply_filtered_head_options` below is a direct, single-hop port of
+/// that fold: one `filter_entries` call against `target_aggregate` to
+/// find matching ids (`inner_field`/`inner_comparator`/`inner_value`,
+/// the exact same three-way shape an ordinary `QueryCondition` already
+/// carries for its own ground truth's `rest` clause), then one more
+/// `filter_entries` call, `QueryComparator::In`, against `via_field` on
+/// the eligible head's own rows — which is exactly what `QueryComparator
+/// ::In`'s own `members(want).any? { |m| m == to_s(held) }` already
+/// computes for any other `in`-shaped condition, so no new comparison
+/// logic is needed, only the two-query shape. SINGLE-HOP ONLY,
+/// deliberately: `rust/project/queries.rb`'s own `query_hop_plan`
+/// refuses (falls through to the ordinary "not generated yet" reason)
+/// a chain naming more than one `/` — Ruby's own `HopPath` supports up
+/// to `MAX_HOPS` (8), recursing hop-by-hop; porting that recursion is
+/// real, separate follow-up work (the equivalence-gap plan's own D2),
+/// not attempted here.
+#[derive(Debug, Clone, Copy)]
+pub struct ReferenceHopCondition {
+    /// The eligible head's own Reference-typed attribute this hop
+    /// crosses through — `Hop#attribute.name` (hop_path.rb), the SAME
+    /// name `Runtime::ReferenceHop::fold`'s own synthetic `WhereClause
+    /// .new(field: hop.attribute.name, op: "in", value: ids)` uses.
+    pub via_field: &'static str,
+    /// The hop's target aggregate, domain-qualified ("Banking::Account")
+    /// the same way `ReferenceField::target_aggregate` already is —
+    /// `AggregateScan::scan`'s own required prefix.
+    pub target_aggregate: &'static str,
+    /// The REST of the dotted/hopped field, resolved against the
+    /// TARGET aggregate's own shape — `rest` in `ReferenceHop::fold`'s
+    /// own `WhereClause.new(field: rest, op: clause.op, value: clause.
+    /// value)`, the inner query this hop condition folds through.
+    pub inner_field: &'static str,
+    pub inner_comparator: query_comparators::QueryComparator,
+    pub inner_value: QueryConditionValue,
+}
+
 /// ONE reference attribute on a NON-ROOT head's own aggregate — "this
 /// aggregate carries a field named `field` that is `Reference<X>`, where
 /// `target_aggregate` is `X`'s own bare `AggregateScan::scan` prefix
@@ -139,6 +184,12 @@ pub struct ReadModelDef {
     pub heads: &'static [ReadModelHead],
     pub filtered_head: Option<&'static str>,
     pub conditions: &'static [QueryCondition],
+    /// `where` clauses that hop through a reference, on the SAME
+    /// eligible head `conditions` above applies to — `&[]` for every
+    /// read model before this field existed, and for every eligible
+    /// head's own where clauses that stay local. See
+    /// `ReferenceHopCondition`'s own header for the full ground truth.
+    pub reference_hop_conditions: &'static [ReferenceHopCondition],
     pub order_by: Option<ReadModelOrderBy>,
     /// `None` for every read model before Phase 10 (equivalence-gap
     /// plan) ported this — `read_models.rb`'s own eligibility gate used
@@ -408,6 +459,7 @@ mod snake_alias_tests {
             heads: &[],
             filtered_head: None,
             conditions: &[],
+            reference_hop_conditions: &[],
             order_by: None,
             offset: None,
             limit: None,
@@ -421,6 +473,133 @@ mod snake_alias_tests {
         assert!(find(&table, "Banking.customer_portfolio").is_some());
         assert!(find(&table, "Banking.somethingelse").is_none());
         assert!(find(&table, "Other.customer_portfolio").is_none());
+    }
+}
+
+/// D1 (`2.4` in the equivalence-gap plan) — `ReferenceHopCondition`'s own
+/// fold, exercised end-to-end through `run` (not just the isolated
+/// `apply_filtered_head_options` helper) so a wiring mistake at either
+/// call site would fail this the same way it would fail a real caller.
+/// The fixture mirrors the ONE real corpus hop today —
+/// `Banking::Account.OpenForSuspendedCustomers`'s own `where(:"customer/
+/// status" => "suspended")` (`examples/banking/bluebook/
+/// deposit_accounts.bluebook`) — except as a READ MODEL's `filtered_head`
+/// rather than a named query, since D2 (named queries) stays deferred; no
+/// real corpus read model declares a hop yet, so this is the closest
+/// analog available for a direct, isolated proof.
+#[cfg(test)]
+mod reference_hop_tests {
+    use super::*;
+    use crate::kernel::AggregateScan;
+
+    /// Same `FakeStore` shape as `query_comparators.rs`'s own
+    /// `none_in_state_tests` — `domain` plus `(bare aggregate name,
+    /// entries)` pairs, searched the same domain-qualified way a real
+    /// generated `Store::scan` is.
+    struct FakeStore {
+        domain: &'static str,
+        aggregates: Vec<(&'static str, Vec<(String, Json)>)>,
+    }
+
+    impl AggregateScan for FakeStore {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            let bare = aggregate.strip_prefix(&format!("{}::", self.domain))?;
+            self.aggregates.iter().find(|(name, _)| *name == bare).map(|(_, entries)| entries.clone())
+        }
+    }
+
+    fn account(status: &str, customer: &str) -> Json {
+        Json::obj(vec![("status", Json::str(status)), ("customer", Json::str(customer))])
+    }
+
+    fn customer(status: &str) -> Json {
+        Json::obj(vec![("status", Json::str(status))])
+    }
+
+    fn store() -> FakeStore {
+        FakeStore {
+            domain: "Banking",
+            aggregates: vec![
+                (
+                    "Account",
+                    vec![
+                        ("acc-suspended-open".to_string(), account("open", "cust-suspended")),
+                        ("acc-active-open".to_string(), account("open", "cust-active")),
+                        ("acc-suspended-closed".to_string(), account("closed", "cust-suspended")),
+                    ],
+                ),
+                (
+                    "Customer",
+                    vec![
+                        ("cust-suspended".to_string(), customer("suspended")),
+                        ("cust-active".to_string(), customer("active")),
+                    ],
+                ),
+            ],
+        }
+    }
+
+    /// A rootless read model — no `reference_to`, matching this fixture's
+    /// own `Account.OpenForSuspendedCustomers` analog, itself a bare
+    /// (non-reference-scoped) named query — with ONE `many` head
+    /// (`Account`) carrying both an ordinary local condition (`status ==
+    /// "open"`) and one hop condition (`customer/status == "suspended"`).
+    fn open_for_suspended_customers_def() -> ReadModelDef {
+        ReadModelDef {
+            verb: "Banking.OpenForSuspendedCustomers",
+            reference_name: None,
+            heads: &[ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[] }],
+            filtered_head: Some("accounts"),
+            conditions: &[QueryCondition { field: "status", comparator: query_comparators::QueryComparator::Eq, value: QueryConditionValue::Literal("open") }],
+            reference_hop_conditions: &[ReferenceHopCondition {
+                via_field: "customer",
+                target_aggregate: "Banking::Customer",
+                inner_field: "status",
+                inner_comparator: query_comparators::QueryComparator::Eq,
+                inner_value: QueryConditionValue::Literal("suspended"),
+            }],
+            order_by: None,
+            offset: None,
+            limit: None,
+            authorization: None,
+            group_by: None,
+            count: false,
+            median_field: None,
+        }
+    }
+
+    #[test]
+    fn a_hop_condition_keeps_only_rows_whose_local_and_hopped_conditions_both_hold() {
+        let def = open_for_suspended_customers_def();
+        let result = run(&store(), &def, &Json::obj(vec![])).expect("a rootless read model with no authorization needs no args");
+
+        let accounts = result.get("accounts").expect("the one declared head").as_array().expect("a many head answers an array");
+        let ids: Vec<&str> = accounts.iter().map(|row| row.get("id").and_then(Json::as_str).expect("row_json always stamps id")).collect();
+
+        // Open AND belongs to a suspended customer — the only row that
+        // survives BOTH the ordinary local condition and the hop.
+        assert_eq!(ids, vec!["acc-suspended-open"]);
+        // Not excluded here as a redundant assertion — spelled out so a
+        // regression that accidentally widens either condition (e.g. the
+        // hop silently degrading to "any status") fails loudly on the
+        // SPECIFIC wrong row it would wrongly admit, not just a count.
+        assert!(!ids.contains(&"acc-active-open"), "open but NOT suspended — the hop condition alone should have excluded this");
+        assert!(!ids.contains(&"acc-suspended-closed"), "suspended customer but NOT open — the ordinary local condition alone should have excluded this");
+    }
+
+    #[test]
+    fn a_hop_against_an_unscannable_target_aggregate_refuses_cleanly() {
+        let mut def = open_for_suspended_customers_def();
+        def.reference_hop_conditions = &[ReferenceHopCondition {
+            via_field: "customer",
+            target_aggregate: "Banking::NoSuchAggregate",
+            inner_field: "status",
+            inner_comparator: query_comparators::QueryComparator::Eq,
+            inner_value: QueryConditionValue::Literal("suspended"),
+        }];
+
+        let err = run(&store(), &def, &Json::obj(vec![])).expect_err("scanning an aggregate this store doesn't declare must refuse, not silently answer empty");
+        assert!(matches!(err, Refusal::TypeMismatch(_)));
     }
 }
 
@@ -519,7 +698,7 @@ pub fn run(store: &impl AggregateScan, def: &ReadModelDef, args: &Json) -> Resul
         // ever apply to a many-side head (`seal_query_options`) — so this
         // never fires before `reference_id` above has already resolved it.
         if def.filtered_head == Some(head.as_name) {
-            rows = apply_filtered_head_options(rows, def, args);
+            rows = apply_filtered_head_options(rows, def, args, store)?;
         }
 
         // `group_by :field, ...` — applies to the ONE many-side head this
@@ -653,7 +832,12 @@ fn record_matches(record: &Json, head: &ReadModelHead, projected: &[(&'static st
 /// real structural difference between this caller and `named_query::run`
 /// (a read model's `filtered_head` selection, which happens ABOVE this
 /// function, in `run`, not inside it).
-fn apply_filtered_head_options(mut rows: Vec<(String, Json)>, def: &ReadModelDef, args: &Json) -> Vec<(String, Json)> {
+fn apply_filtered_head_options(
+    mut rows: Vec<(String, Json)>,
+    def: &ReadModelDef,
+    args: &Json,
+    store: &impl AggregateScan,
+) -> Result<Vec<(String, Json)>, Refusal> {
     for condition in def.conditions {
         let want = match condition.value {
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
@@ -663,5 +847,27 @@ fn apply_filtered_head_options(mut rows: Vec<(String, Json)>, def: &ReadModelDef
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
-    query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args)
+    // `Runtime::ReferenceHop::fold`, ported directly — see
+    // `ReferenceHopCondition`'s own header for the full ground truth.
+    // ONE ordinary query against the hop's own target aggregate (the
+    // inner clause), folded into ONE more ordinary `in` filter against
+    // this head's own rows (the outer clause) — the exact two-step shape
+    // Ruby's own `fold`/`matching_ids` already use, just without the
+    // recursion a multi-hop chain would need (single-hop only, this
+    // struct's own header has the reasoning).
+    for hop in def.reference_hop_conditions {
+        let inner_want = match hop.inner_value {
+            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
+            QueryConditionValue::NumericLiteral(n) => Json::Num(n),
+            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
+        };
+        let target_rows = store
+            .scan(hop.target_aggregate)
+            .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", hop.target_aggregate)))?;
+        let matching = repository::filter_entries(target_rows, hop.inner_field, hop.inner_comparator, &inner_want);
+        let ids: Vec<Json> = matching.into_iter().map(|(id, _)| Json::Str(id)).collect();
+        rows = repository::filter_entries(rows, hop.via_field, query_comparators::QueryComparator::In, &Json::Array(ids));
+    }
+
+    Ok(query_ordering::apply(rows, def.order_by.as_ref(), def.offset.as_ref(), def.limit.as_ref(), args))
 }
