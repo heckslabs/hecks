@@ -11,6 +11,10 @@ Hecks.bluebook "Banking" do
     # same bare name `belongs_to` used to mint as sugar, before `belongs_to`
     # itself was retired for having no work left to do.
     reference_to Customer
+    # SAME NAME Account's OWN projected field uses (S12, ADR 0025) —
+    # the shared `declared_by: Account` given above reads
+    # `customer_status` regardless of which aggregate declares it.
+    projects :customer_status, from: :"customer.status"
 
     attribute :reference, OnboardingReference
 
@@ -37,7 +41,10 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Open a KYC case for a newly registered customer, naming the account it will become"
 
-      given("customer is active")
+      # OWN GIVEN, NOT SHARED (S12, ADR 0025) — `customer` is `Open`'s
+      # own fresh command argument; see Account.Open's own comment for
+      # the full reasoning.
+      given("customer is active") { customer.status == "active" }
 
       sets :customer
       sets :reference

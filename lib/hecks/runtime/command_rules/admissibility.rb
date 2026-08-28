@@ -118,9 +118,23 @@ module Hecks
         # nil for an aggregate command — CommandInterpreter never passes it.
         def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil)
           state = GuardState.new(subject)
-          owner = subject.aggregate if subject.respond_to?(:aggregate)
-          attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
-          attrs = attrs.merge(parent: parent.state.merge(dereference(domain, parent.aggregate, parent.state))) if parent
+          # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,
+          # ADR 0025) — `subject`'s own STORED references are no longer
+          # dereferenced here at all. What used to be a live query against
+          # another aggregate's own repository is now just `subject`'s own
+          # state: a `projects :customer_status, from: :"customer.status"`
+          # field is a REGULAR stored attribute, already present in
+          # `subject`/`state` with no hydration step needed. `dereference`
+          # is still called on `command`/`args`, below — that is a
+          # DIFFERENT case the ADR explicitly keeps in bounds ("its command
+          # arguments"): a reference-typed ARGUMENT this dispatch was just
+          # handed (`Dispute`'s own `disputed_by`, say) has nothing stored
+          # to project yet, so resolving it here, once, synchronously with
+          # THIS command's own admission, is not the live-query-against-
+          # another-aggregate's-stored-state pattern the boundary rule
+          # forbids.
+          attrs = args.merge(dereference(domain, command, args))
+          attrs = attrs.merge(parent: parent.state) if parent
           command.givens.each do |given|
             next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
 
@@ -203,13 +217,14 @@ module Hecks
         # field the command just took in to mutate it.
         def enforce_ensures(subject, command, args, old:, domain:, parent: nil)
           state = GuardState.new(subject)
-          owner = subject.aggregate if subject.respond_to?(:aggregate)
-          # Same merge-order reasoning as enforce_givens above: an
-          # aliased command-level reference must override its own raw
-          # id argument, not the other way round. `old` still wins over
-          # everything, unchanged.
-          attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
-          attrs = attrs.merge(parent: parent.state.merge(dereference(domain, parent.aggregate, parent.state))) if parent
+          # S12, ADR 0025 — same boundary reasoning as enforce_givens
+          # above: `subject`'s own stored references are no longer
+          # dereferenced here; a `projects`-maintained field is already
+          # part of `state`. `command`/`args` still dereferences — a
+          # fresh reference-typed ARGUMENT stays in bounds.
+          # `old` still wins over everything, unchanged.
+          attrs = args.merge(dereference(domain, command, args))
+          attrs = attrs.merge(parent: parent.state) if parent
           attrs = attrs.merge(old: old)
           command.ensures.each do |rule|
             next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)
@@ -223,16 +238,23 @@ module Hecks
         # ensures` already checks at, and for the same reason: an
         # invariant is a claim about the SETTLED record, not the
         # command that produced it, so it reads no `args`/`old` at all,
-        # only the record's own (dereferenced) state. `subject` here is
+        # only the record's own state. `subject` here is
         # always the AGGREGATE's own instance — `CommandInterpreter`
         # passes its own `ctx.instance`, and `EntityInterpreter` passes
         # the PARENT record (`ctx.instance`, not the element), since an
         # entity mutation changes data inside the SAME aggregate
         # boundary the invariant guards; there is no separate "entity
         # invariant" to check the piece's own view against.
+        #
+        # NO `dereference` (S12, ADR 0025) — an invariant may only read
+        # `subject`'s own boundary, same rule `enforce_givens`/
+        # `enforce_ensures` now hold to. No invariant in the corpus has
+        # ever read across a `reference_to` (verified before this
+        # change), so this is not a migration, just closing the same
+        # capability off here that was already unused.
         def enforce_invariants(subject, aggregate, domain:)
           state = GuardState.new(subject)
-          attrs = dereference(domain, aggregate, subject)
+          attrs = {}
           aggregate.invariants.each do |invariant|
             next if Bluebook::Expression::Evaluator.call(invariant.canonical, state, attrs)
 
@@ -273,8 +295,10 @@ module Hecks
             Array(owner_instance[list_attr.name]).each do |element|
               wrapped = Instance.new(aggregate: entity, id: nil, state: element)
               element_state = GuardState.new(wrapped)
-              attrs = dereference(domain, entity, wrapped)
-                      .merge(parent: owner_instance.state.merge(dereference(domain, owner_construct, owner_instance)))
+              # NO `dereference` (S12, ADR 0025) — same boundary rule as
+              # enforce_invariants above; `parent` (the owner's own
+              # state, projected fields included) stays readable.
+              attrs = { parent: owner_instance.state }
 
               entity.invariants.each do |invariant|
                 next if Bluebook::Expression::Evaluator.call(invariant.canonical, element_state, attrs)

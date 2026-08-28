@@ -69,6 +69,20 @@ module Hecks
           @command = command
           @owner_fields = aggregate.attributes.to_set(&:name)
           @owner_fields << aggregate.lifecycle.field.to_sym if aggregate.lifecycle
+          # `projects` FIELDS (S12, ADR 0025) ARE OWNER STATE TOO — a
+          # `given`/`ensures` reading one (e.g. `customer_status ==
+          # "active"`) is reading this record's own stored field, same
+          # as any attribute, even though nothing here WRITES it via a
+          # declared mutation (`CommandInterpreter#seed_projected_fields`
+          # populates it outside this analysis entirely). Left out of
+          # `known_writes` deliberately: `add_preservation_reads` then
+          # correctly treats it as a prior-state read that must survive
+          # a partial mutation, which is exactly right — a projected
+          # field's freshness comes from the interpreter reseeding it on
+          # save, not from anything a caller-supplied write set carries.
+          if aggregate.respond_to?(:projected_fields)
+            aggregate.projected_fields.each { |field| @owner_fields << field.name }
+          end
           @payload_fields = command.attributes.to_set(&:name)
           @state_reads = Set.new
           @payload_reads = Set.new

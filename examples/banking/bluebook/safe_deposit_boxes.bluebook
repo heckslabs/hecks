@@ -104,7 +104,11 @@ Hecks.bluebook "Banking" do
       # a genuinely different canonical (`customer.status`, not
       # `parent.customer.status`), the wrong relative path for a
       # piece's own command to evaluate.
-      given("customer is active") { parent.customer.status == "active" }
+      # `parent.customer_status`, not `parent.customer.status` (S12,
+      # ADR 0025) — SafeDepositBox's own projected field (above),
+      # already part of `parent.state`. `parent.status` was always in
+      # bounds — SafeDepositBox's own local field.
+      given("customer is active") { parent.customer_status == "active" }
       given("box is rented") { parent.status == "rented" }
 
       lifecycle :state, default: "logged" do
@@ -183,7 +187,15 @@ Hecks.bluebook "Banking" do
       attribute :branch_code, BranchCode
       attribute :box_number,  BoxNumber
       attribute :size,        Size
-      given("customer is active")
+      # OWN GIVEN, NOT SHARED (S12, ADR 0025) — same reasoning as
+      # Account.Open's own comment: `customer` here is `Rent`'s own
+      # fresh command ARGUMENT (this creates the SafeDepositBox, so
+      # `customer_status` does not exist to read yet — nothing has
+      # saved this record, so nothing has seeded it). The aggregate's
+      # shared "customer is active" (declared_by: Account, above)
+      # reads the projected field instead, for every ACTING command
+      # below this one.
+      given("customer is active") { customer.status == "active" }
 
       sets :customer
       sets :branch_code

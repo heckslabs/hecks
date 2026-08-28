@@ -128,31 +128,39 @@ module Hecks
           unwrapped.to_s
         end
 
-        # A related record's OWN fields, reachable by name from `given`/
-        # `ensures` — `customer.status`, `account.customer.status` — without
+        # A COMMAND ARGUMENT's own related record, reachable by name from
+        # `given`/`ensures` — `disputed_by.status`, say, `CardPayment
+        # .Dispute`'s own fresh `Reference<Customer>` argument — without
         # teaching the pure expression evaluator anything about
         # repositories. The lookup happens HERE, once, before evaluation;
         # `Resolver#lookup` just digs into a plain Hash exactly as it
         # always has.
         #
-        # `owner` is either the declaring aggregate/entity (its OWN
-        # `reference_to`, read off `source` — the record's stored state)
-        # or the command itself (a reference-typed ARGUMENT, read off
-        # `source` — the dispatch payload). Same shape either way: every
-        # reference-typed attribute `owner` declares becomes a key in the
-        # result, named by stripping the attribute's own `_id` suffix
-        # (`customer_id` → `customer`) — a no-op for an aliased reference
-        # that already carries no suffix (`reference_to Account, as:
-        # :source` → `source`), which is why this needs no separate case
-        # for `as:`.
+        # `owner` NARROWED TO `command` ONLY (S12, ADR 0025 — "rules
+        # confined to their own aggregate boundary"): dereferencing the
+        # DECLARING aggregate/entity's own STORED `reference_to` used to
+        # be the other half of this method's job — a live query against
+        # another aggregate's own repository, every time a `given`/
+        # `ensures`/`invariant` ran. That half is gone; a cross-aggregate
+        # fact a rule needs now has to be a `projects`-maintained LOCAL
+        # field (`AggregateBuilder#projects_impl`'s own comment), already
+        # present in `subject`'s own state, no hydration needed. A
+        # reference-typed COMMAND ARGUMENT stays in bounds, though — the
+        # ADR's own boundary list names "its command arguments" as
+        # readable, and nothing is stored yet for a fresh argument to
+        # project from; resolving it once here, synchronous with THIS
+        # command's own admission, is a different shape from a live query
+        # against an ALREADY-PERSISTED reference. `enforce_givens`/
+        # `enforce_ensures` are this method's only two remaining callers,
+        # both passing `command`/`args`, never a `subject`'s own
+        # aggregate — verified before this comment was written, not
+        # assumed.
         #
-        # RECURSES into what it finds, so a chain like
-        # `account.customer.status` resolves in one pass: hydrating
-        # `account` also hydrates ITS OWN `customer_id` into a nested
-        # `customer` key. Depth-bounded rather than cycle-detected — nothing
-        # in this corpus dots more than two hops, and a bound is simpler
-        # than tracking visited (type, id) pairs for a cycle nothing here
-        # declares.
+        # RECURSES into what it finds, so a chain deeper than one hop
+        # still resolves in one pass. Depth-bounded rather than cycle-
+        # detected — nothing in this corpus dots more than two hops on a
+        # fresh argument, and a bound is simpler than tracking visited
+        # (type, id) pairs for a cycle nothing here declares.
         DEREFERENCE_DEPTH = 4
         private_constant :DEREFERENCE_DEPTH
 

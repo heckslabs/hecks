@@ -75,7 +75,15 @@ Hecks.bluebook "Banking" do
       # DECLARED ONCE, ON THE PIECE (ADR 0028) — Amend and Reverse both
       # need the same two facts about the AGGREGATE they belong to;
       # each used to retype both predicates verbatim.
-      given("customer is active") { parent.customer.status == "active" }
+      #
+      # `parent.customer_status`, not `parent.customer.status` (S12,
+      # ADR 0025) — `parent` (the owning Account record) is inside an
+      # entity's own boundary, but Account's OWN `customer` reference
+      # is not: `customer_status` is Account's own projected field
+      # (declared above), already part of `parent.state`, so no
+      # further hop is needed or allowed. `parent.status` was always
+      # in bounds — Account's own local field, no reference crossed.
+      given("customer is active") { parent.customer_status == "active" }
       given("account is open")    { parent.status == "open" }
 
       lifecycle :state, default: "posted" do
@@ -131,44 +139,52 @@ Hecks.bluebook "Banking" do
 
     # THE LOCAL COPY (S12, ADR 0025 — "Consistency across aggregate
     # boundaries") — a held copy of Customer's own lifecycle field,
-    # kept fresh by a rebuild sweep rather than read live the way the
-    # `given` two lines down still does. Declared here, alongside the
-    # reference it reads through, but deliberately NOT yet the source
-    # `given("customer is active")` reads from: flipping every command
-    # that reads `customer.status` over to `customer_status` is a
-    # runtime-wide decision (when does the sweep run relative to a
-    # dispatch?) bigger than this one declaration, and out of scope
-    # for the slice that first proves the mechanism. See
-    # RebuildSweep, runtime/rebuild_sweep.rb, for the working half of
-    # that mechanism — sweep, absence, refusal — demonstrated end to
-    # end without yet being load-bearing for any real corpus rule.
+    # kept fresh by a rebuild sweep rather than read live. NOW the
+    # source both `given`s below read from — a rule may only read its
+    # own aggregate boundary; `References#dereference` no longer
+    # dereferences a STORED reference for `given`/`ensures`/`invariant`
+    # at all (that live-query path is gone). `customer.status` becomes
+    # eventually consistent, not synchronous: a customer suspended a
+    # moment ago can still pass "customer is active" here until the
+    # next rebuild sweep runs — the ADR's own accepted tradeoff, traded
+    # for every rule here being answerable inside this aggregate's own
+    # boundary. See `runtime/rebuild_sweep.rb`.
     projects :customer_status, from: :"customer.status"
 
     # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
     # 0025) — "customer is active" was the single most duplicated given
     # in the whole corpus (44% of all 183, per the ADR's own count,
-    # between this and its sibling below). Every command on Account
-    # itself that reads its own `customer` reference names this back
-    # rather than re-typing the predicate — one description, and
+    # between this and its sibling below). Every ACTING command on
+    # Account itself that reads its own `customer` reference names this
+    # back rather than re-typing the predicate — one description, and
     # therefore one refusal message, no matter which command a caller
-    # hits. FreezeAccount/CloseAccount are NOT among them — they check
-    # "customer is not closed", a different rule for a different
-    # reason (see FreezeAccount's own comment, below). LedgerEntry's
-    # own Amend/Reverse read `parent.customer.status` instead — a
-    # different relative path, so they keep their own given rather
-    # than reference this one; unifying across that boundary — and
-    # every OTHER aggregate's own independent "customer is active" (44
-    # more of them, one hop or two, across ATMCard/Transfer/
-    # CardPayment/ExternalTransfer/ScheduledPayment/SafeDepositBox/
-    # OnboardingCase) — is a follow-up slice's job, not this one's.
-    given("customer is active") { customer.status == "active" }
+    # hits. `Open`, below, does NOT reference this — it is a CREATING
+    # command, so `customer` there is a fresh command ARGUMENT, not
+    # stored state; the ADR's boundary rule keeps "its command
+    # arguments" readable, so `Open` still dereferences its own
+    # argument directly (see `Open`'s own given) rather than reading a
+    # projected field nothing has stored yet. FreezeAccount/
+    # CloseAccount are NOT among the acting commands sharing THIS given
+    # either — they check "customer is not closed", a different rule
+    # for a different reason (see FreezeAccount's own comment, below).
+    # LedgerEntry's own Amend/Reverse read `parent.customer_status`
+    # instead — a different relative path, so they keep their own given
+    # rather than reference this one; unifying across that boundary —
+    # and every OTHER aggregate's own independent "customer is active"
+    # (across ATMCard/Transfer/CardPayment/ExternalTransfer/
+    # ScheduledPayment/SafeDepositBox/OnboardingCase, each carrying the
+    # identical creating-vs-acting split this file's own comments now
+    # explain) — is this same slice's job, done alongside this one, not
+    # deferred past it.
+    given("customer is active") { customer_status == "active" }
 
     # A SECOND PRECONDITION, DECLARED ONCE (S10, ADR 0025) — the exact
     # same text, and the exact same predicate, independently typed on
     # both FreezeAccount and CloseAccount before this: two compliance-
     # adjacent commands agreeing on one rule by coincidence, not by
-    # declaration.
-    given("customer is not closed") { customer.status != "closed" }
+    # declaration. Both are ACTING commands only, no creating-command
+    # sharing to split out.
+    given("customer is not closed") { customer_status != "closed" }
 
     lifecycle :status, default: "open" do
       transition "FreezeAccount" => "frozen", from: "open"
@@ -180,7 +196,19 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Give a customer somewhere to keep money"
 
-      given("customer is active")
+      # OWN GIVEN, NOT SHARED (S12, ADR 0025) — same wording as the
+      # aggregate-level "customer is active" above, deliberately NOT
+      # referencing it: `customer` here is `Open`'s own fresh command
+      # ARGUMENT (this creates the Account, so nothing about it is
+      # stored yet), which the ADR's boundary rule keeps readable
+      # ("its command arguments") — `dereference(domain, command,
+      # args)` resolves it synchronously with this dispatch, the same
+      # legitimate shape a `Reference<Customer>` argument on any
+      # command already gets. The acting commands' shared given reads
+      # `customer_status`, a projected field that does not exist until
+      # AFTER this command creates the record — the two predicates
+      # can no longer be one declaration.
+      given("customer is active") { customer.status == "active" }
 
       sets :customer
       sets :number

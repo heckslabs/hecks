@@ -695,8 +695,8 @@ pub fn dispatch_execute(
         "instruction.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -782,8 +782,8 @@ pub fn dispatch_cancel(
         "instruction.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -869,8 +869,8 @@ pub fn dispatch_fail(
         "instruction.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -956,8 +956,8 @@ pub fn dispatch_retry(
         "instruction.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "a retry is still allowed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["failed"] }),
@@ -1045,8 +1045,8 @@ pub fn dispatch_abandon(
         "instruction.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account_status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "every retry is exhausted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["failed"] }),

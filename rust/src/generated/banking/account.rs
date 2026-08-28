@@ -731,7 +731,7 @@ pub fn dispatch_entity_ledgerentry_amend(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "entry is posted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("posted".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "an amendment leaves a non-negative amount", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Add(Box::new(Expr::Lookup("amount.cents")), Box::new(Expr::Lookup("adjustment.cents")))), right: Box::new(Expr::Int(0)) }, corrects_event: None },
@@ -825,7 +825,7 @@ pub fn dispatch_entity_ledgerentry_reverse(
         element_wants,
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("open".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "entry is posted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("posted".to_string())) }, corrects_event: None },
         ],
@@ -1110,7 +1110,7 @@ pub fn dispatch_credit(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
@@ -1203,7 +1203,7 @@ pub fn dispatch_debit(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "the balance covers it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "the daily limit allows it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("daily_limit.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
         ],
@@ -1295,7 +1295,7 @@ pub fn dispatch_freeze_account(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("closed".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
@@ -1381,7 +1381,7 @@ pub fn dispatch_unfreeze(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["frozen"] }),
         |record| {
@@ -1467,7 +1467,7 @@ pub fn dispatch_close_account(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("closed".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "an account closes empty", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, receiver: Box::new(Expr::Lookup("balance.cents")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open", "frozen"] }),
@@ -1558,7 +1558,7 @@ pub fn dispatch_apply_fee(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "the balance covers a fee", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
@@ -1651,7 +1651,7 @@ pub fn dispatch_correct_fee(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "", expr: crate::kernel::Expr::Lookup("emitted_fee_applied"), corrects_event: Some("FeeApplied") },
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "a correction cannot exceed collected fees", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("fees_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
@@ -1740,7 +1740,7 @@ pub fn dispatch_accrue_interest(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
@@ -1828,7 +1828,7 @@ pub fn dispatch_correct_interest(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer_status")), right: Box::new(Expr::Str("active".to_string())) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "a correction cannot exceed accrued interest", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("interest_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
             crate::kernel::GivenSpec { description: "the balance covers an interest correction", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) }, corrects_event: None },
         ],

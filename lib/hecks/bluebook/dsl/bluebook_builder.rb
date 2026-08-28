@@ -862,6 +862,24 @@ module Hecks
           # nothing further to check once it matches by name.
           return if remote_attribute.nil? && target.lifecycle&.field.to_s == plan.tail
 
+          # A PROJECTION MAY CHAIN THROUGH ANOTHER PROJECTION (S12, ADR
+          # 0025's own boundary rule, followed through) — `target`'s
+          # OWN projected fields live in `projected_fields`, a
+          # separate list from `attributes`, so a match there is
+          # invisible to the check above even though it names a real,
+          # always-current, stored field. `Transfer.projects
+          # :source_customer_status, from: :"source.customer_status"`
+          # reads Account's own already-projected `customer_status`
+          # this way — Account is one hop from Customer, Transfer is
+          # one hop from Account, and neither aggregate needs to know
+          # about the other's target two hops away. A projected
+          # field's remote value is always a scalar by construction
+          # (`RebuildSweep.remote_value` never copies a reference, a
+          # value object, or a list), so nothing further to check once
+          # it matches by name — same reasoning the lifecycle
+          # fallback just above already applies.
+          return if remote_attribute.nil? && target.projected_fields.any? { |f| f.name.to_s == plan.tail }
+
           unless remote_attribute
             raise Malformed,
                   "#{aggregate.hecks_name}.projects :#{field.name} reads #{target.hecks_name}'s own " \

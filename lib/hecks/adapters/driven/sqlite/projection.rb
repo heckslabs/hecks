@@ -144,6 +144,16 @@ module Hecks
         if (lifecycle = aggregate.lifecycle) && !fields.any? { |name, _| name == lifecycle.field }
           fields << [lifecycle.field, nil]
         end
+        # `projects` FIELDS (S12, ADR 0025) NEED READING BACK TOO — `project`
+        # (above) already writes one into its own column via `persisted_fields`
+        # (`Codec#persisted_fields`, this class's own superclass module), but
+        # this method built its own independent field list that never
+        # consulted it — a column `project` populated correctly, silently
+        # dropped on every read back out. Same raw-passthrough treatment as
+        # the lifecycle field just above: `attribute: nil` down in the loop.
+        aggregate.projected_fields.each do |field|
+          fields << [field.name, nil] unless fields.any? { |name, _| name == field.name }
+        end
         fields.each_with_object({}) do |(name, attribute), state|
           raw = row[name.to_s]
           state[name] =

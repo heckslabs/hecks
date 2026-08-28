@@ -1,25 +1,36 @@
 Hecks.bluebook "Banking" do
   aggregate "Transfer" do
     given("transfer is debited") { status == "debited" }
-    given("destination account is open") { destination.status == "open" }
-    given("destination customer is active") { destination.customer.status == "active" }
+    # `destination_account_status`/`destination_customer_status`, not
+    # `destination.status`/`destination.customer.status` (S12, ADR
+    # 0025) — these are the ACTING commands' own shared givens;
+    # `Request`, the creating command, keeps its own dot-path copies
+    # below since `source`/`destination` there are fresh command
+    # arguments, not stored state.
+    given("destination account is open") { destination_account_status == "open" }
+    given("destination customer is active") { destination_customer_status == "active" }
     given("transfer is requested") { status == "requested" }
-    given("source account is open") { source.status == "open" }
-    given("source customer is active") { source.customer.status == "active" }
+    given("source account is open") { source_account_status == "open" }
+    given("source customer is active") { source_customer_status == "active" }
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
     reference_to Account, as: :source
     reference_to Account, as: :destination
 
-    # TWO REAL PROJECTIONS OFF TWO ALIASED REFERENCES TO THE SAME TYPE
+    # FOUR REAL PROJECTIONS OFF TWO ALIASED REFERENCES TO THE SAME TYPE
     # (S12, ADR 0025) — `source`/`destination` both point at Account,
     # and each carries its own local copy of that account's own
-    # lifecycle field, entirely independent declarations despite
-    # sharing a target aggregate: the DSL spelling reads through the
-    # LOCAL reference name, not the target's type, for exactly this
-    # reason (AggregateBuilder#projects's own comment).
-    projects :source_account_status,      from: :"source.status"
-    projects :destination_account_status, from: :"destination.status"
+    # lifecycle field AND its own already-projected `customer_status`
+    # (chaining through Account's own projection, one hop from
+    # Transfer's perspective either way), entirely independent
+    # declarations despite sharing a target aggregate: the DSL
+    # spelling reads through the LOCAL reference name, not the
+    # target's type, for exactly this reason (AggregateBuilder
+    # #projects's own comment).
+    projects :source_account_status,       from: :"source.status"
+    projects :source_customer_status,      from: :"source.customer_status"
+    projects :destination_account_status,  from: :"destination.status"
+    projects :destination_customer_status, from: :"destination.customer_status"
 
     attribute :reference, TransferReference
 
@@ -62,8 +73,15 @@ Hecks.bluebook "Banking" do
       # `source.value` while a reference was stored as an object wrapping that
       # number — describing the wrapper rather than the account, and a clerk
       # would not say it that way either.
-      given("source customer is active")
-      given("source account is open")
+      #
+      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `source`/`destination`
+      # here are `Request`'s own fresh command arguments (this creates
+      # the Transfer); the acting commands' shared givens above read
+      # `source_customer_status`/`source_account_status`, projected
+      # fields nothing has stored until AFTER this command creates the
+      # record.
+      given("source customer is active") { source.customer.status == "active" }
+      given("source account is open") { source.status == "open" }
       # `.empty?` rather than `.to_s.empty?` — deliberately: a valid source/
       # destination now DEREFERENCES to the referenced account's own full
       # state (CommandRules::References#dereference, needed for
@@ -158,6 +176,10 @@ Hecks.bluebook "Banking" do
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
     reference_to Account
+    # SAME NAMES ATMCard's OWN projected fields use (S12, ADR 0025) —
+    # see CardPayment's own comment on this same pattern.
+    projects :account_status,          from: :"account.status"
+    projects :account_customer_status, from: :"account.customer_status"
     attribute :end_to_end, EndToEndReference
 
     identified_by :end_to_end
@@ -201,8 +223,11 @@ Hecks.bluebook "Banking" do
       role "Customer"
 
       attribute :end_to_end, EndToEndReference
-      given("customer is active")
-      given("account is open")
+      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` is
+      # `Request`'s own fresh command argument; see ATMCard.Issue's
+      # own comment for the full reasoning.
+      given("customer is active") { account.customer.status == "active" }
+      given("account is open") { account.status == "open" }
       sets :account
       sets :amount
       sets :beneficiary
@@ -255,6 +280,10 @@ Hecks.bluebook "Banking" do
     description "An instruction held for a future date, which may execute once or be cancelled before it does."
 
     reference_to Account
+    # SAME NAMES ATMCard's OWN projected fields use (S12, ADR 0025) —
+    # see CardPayment's own comment on this same pattern.
+    projects :account_status,          from: :"account.status"
+    projects :account_customer_status, from: :"account.customer_status"
     attribute :amount,    ScheduledAmount
     attribute :instruction, InstructionReference
 
@@ -306,8 +335,11 @@ Hecks.bluebook "Banking" do
       role "Customer"
 
       attribute :instruction, InstructionReference
-      given("customer is active")
-      given("account is open")
+      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` is
+      # `Schedule`'s own fresh command argument; see ATMCard.Issue's
+      # own comment for the full reasoning.
+      given("customer is active") { account.customer.status == "active" }
+      given("account is open") { account.status == "open" }
       sets :account
       sets :amount
       sets :recipient

@@ -21,6 +21,14 @@ module Hecks
           end
           lifecycle = @aggregate.lifecycle
           fields << { name: lifecycle.field, attribute: nil, sql_type: "text" } if lifecycle && !fields.any? { |field| field[:name] == lifecycle.field }
+          # `projects` FIELDS (S12, ADR 0025) ARE A LOCAL COLUMN TOO — see
+          # Sqlite::Codec#persisted_fields' own comment; identical reasoning,
+          # `text` to match this file's own lowercase SQL type spelling.
+          @aggregate.projected_fields.each do |field|
+            next if fields.any? { |f| f[:name] == field.name }
+
+            fields << { name: field.name, attribute: nil, sql_type: "text" }
+          end
           fields
         end
 

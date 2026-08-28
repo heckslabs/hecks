@@ -577,7 +577,7 @@ predicate the aggregate declared, not a copy — one description, one
 refusal message, everywhere it's read:
 
 ```ruby
-account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer.status != \"closed\""]
+account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer_status != \"closed\""]
 ```
 
 `given` also SHARES chapter-wide — a bare `given(description)` with no
@@ -586,25 +586,28 @@ resolves against whichever aggregate in the same chapter already
 declared that description, the identical move a command's own bare
 `given` already makes one level down (`docs/resolution-rules/
 chapter-given.md`). `SafeDepositBox` names `Account`'s own "customer is
-active" back rather than retyping `customer.status == "active"` a
+active" back rather than retyping `customer_status == "active"` a
 second time:
 
 ```ruby
 banking = runtime.registry.bluebook("Banking")
-banking.aggregate("SafeDepositBox").preconditions.map { |g| [g.description, g.canonical] }  # => [["customer is active", "customer.status == \"active\""]]
+banking.aggregate("SafeDepositBox").preconditions.map { |g| [g.description, g.canonical] }  # => [["customer is active", "customer_status == \"active\""]]
 ```
 
 `declared_by:` is only needed once the SAME description means a
 GENUINELY DIFFERENT predicate somewhere else in the chapter — real,
-live: `ATMCard`'s own "customer is active" reads `account.customer.
-status`, not bare `customer.status` (it reaches the customer THROUGH
-an account reference, not directly). `CardPayment` names `ATMCard`'s
-declaration explicitly (`given("customer is active", declared_by:
-ATMCard)`) rather than `Account`'s:
+live: `ATMCard`'s own "customer is active" reads its own
+`account_customer_status`, not bare `customer_status` (it reaches the
+customer THROUGH an account reference, not directly — `account_
+customer_status` is `ATMCard`'s own `projects`, kept fresh by a
+rebuild sweep rather than a live cross-aggregate read; see `projects`,
+below). `CardPayment` names `ATMCard`'s declaration explicitly
+(`given("customer is active", declared_by: ATMCard)`) rather than
+`Account`'s:
 
 ```ruby
 banking.aggregate("CardPayment").preconditions.map { |g| g.description }  # => ["payment is disputed", "payment is captured", "payment is authorized", "account is open", "customer is active"]
-banking.aggregate("CardPayment").preconditions.last.canonical  # => "account.customer.status == \"active\""
+banking.aggregate("CardPayment").preconditions.last.canonical  # => "account_customer_status == \"active\""
 ```
 
 Omitting `declared_by:` here would refuse — `CardPayment`'s own

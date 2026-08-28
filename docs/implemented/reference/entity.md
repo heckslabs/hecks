@@ -222,7 +222,7 @@ Same canonical text either way — a referencing command's own `given`
 carries the entity's declared predicate, not a copy:
 
 ```ruby
-ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer.status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
+ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer_status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
 ```
 
 ## invariant
@@ -311,7 +311,7 @@ the account's own lifecycle state before touching one entry:
 reverse = runtime.registry.bluebook("Banking").aggregate("Account")
                   .entities.find { |e| e.hecks_name == "LedgerEntry" }
                   .commands.find { |c| c.hecks_name == "Reverse" }
-reverse.givens.map(&:canonical)  # => ["parent.customer.status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
+reverse.givens.map(&:canonical)  # => ["parent.customer_status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
 ```
 
 Enforced, not decorative — a fresh account whose customer is

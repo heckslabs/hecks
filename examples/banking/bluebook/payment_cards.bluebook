@@ -1,11 +1,21 @@
 Hecks.bluebook "Banking" do
   aggregate "ATMCard" do
     given("card is issued or active") { ["issued", "active"].include?(status) }
-    given("account is open") { account.status == "open" }
-    given("customer is active") { account.customer.status == "active" }
+    # `account_status`/`account_customer_status`, not `account.status`/
+    # `account.customer.status` (S12, ADR 0025) — these are ACTING
+    # commands' own shared givens; `Issue`, the creating command,
+    # keeps its own dot-path given below since `account` there is a
+    # fresh command argument, not stored state. `account_customer_
+    # status` chains through Account's OWN already-projected
+    # `customer_status` (one hop from ATMCard's perspective, same as
+    # Account's own field is one hop from Customer's).
+    given("account is open") { account_status == "open" }
+    given("customer is active") { account_customer_status == "active" }
     description "A card issued against an account, and the cash taken with it."
 
     reference_to Account
+    projects :account_status,          from: :"account.status"
+    projects :account_customer_status, from: :"account.customer_status"
 
     attribute :serial, CardSerial
 
@@ -67,8 +77,12 @@ Hecks.bluebook "Banking" do
         role "Customer"
         goal "Challenge a withdrawal that was not mine"
 
-        given("customer is active") { parent.account.customer.status == "active" }
-        given("account is open") { parent.account.status == "open" }
+        # `parent.account_customer_status`/`parent.account_status`, not
+        # `parent.account.customer.status`/`parent.account.status`
+        # (S12, ADR 0025) — ATMCard's own projected fields (above),
+        # already part of `parent.state`.
+        given("customer is active") { parent.account_customer_status == "active" }
+        given("account is open") { parent.account_status == "open" }
         given("card is not retired") { status != "retired" }
         sets :narrative
 
@@ -91,8 +105,15 @@ Hecks.bluebook "Banking" do
       role "Branch clerk"
       goal "Put a card in a customer's hand"
 
-      given("customer is active")
-      given("account is open")
+      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` here is
+      # `Issue`'s own fresh command argument (this creates the
+      # ATMCard), which the ADR's boundary rule keeps readable ("its
+      # command arguments") — unlike the acting commands' shared
+      # givens above, which read `account_status`/
+      # `account_customer_status`, projected fields nothing has
+      # stored until AFTER this command creates the record.
+      given("customer is active") { account.customer.status == "active" }
+      given("account is open") { account.status == "open" }
 
       sets :account
       sets :serial
@@ -197,6 +218,13 @@ Hecks.bluebook "Banking" do
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
     reference_to Account
+    # SAME NAMES ATMCard's OWN projected fields use (S12, ADR 0025) —
+    # the shared given text above reads `account_status`/
+    # `account_customer_status` regardless of which aggregate declares
+    # it, so each `declared_by: ATMCard` consumer needs its own copy
+    # under the identical field names.
+    projects :account_status,          from: :"account.status"
+    projects :account_customer_status, from: :"account.customer_status"
     # OPTIONAL: nil until `Dispute` actually sets it — every payment starts
     # authorized/captured with no disputant at all. `validate_relationship_
     # cardinality` (references.rb) now refuses ANY reference_to relationship
@@ -259,8 +287,12 @@ Hecks.bluebook "Banking" do
       # accident. Authorize stays that fixture.
       attribute :authorisation, AuthorisationCode
       attribute :tags, list_of(Tag), optional: true
-      given("customer is active")
-      given("account is open")
+      # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` here is
+      # `Authorize`'s own fresh command argument (this creates the
+      # CardPayment); see ATMCard.Issue's own comment for the full
+      # reasoning, identical shape.
+      given("customer is active") { account.customer.status == "active" }
+      given("account is open") { account.status == "open" }
       sets :account
       sets :amount
       sets :merchant

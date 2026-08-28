@@ -1,10 +1,5 @@
 Hecks.bluebook "Banking" do
   aggregate "Statement" do
-    # REFERENCED, NOT REDECLARED — `ATMCard`'s own declaration,
-    # shared chapter-wide; `declared_by:` required since `Account`'s
-    # own "customer is active" is a genuinely different canonical.
-    given("account is open", declared_by: ATMCard)
-    given("customer is active", declared_by: ATMCard)
     description "A snapshot of one account's activity over one period, generated once and never revised."
 
     reference_to Account
@@ -70,8 +65,14 @@ Hecks.bluebook "Banking" do
       attribute :closing_balance, StatementAmount
       attribute :generated_on,    StatementDate
       attribute :frequency,       StatementFrequency
-      given("customer is active")
-      given("account is open")
+      # OWN GIVENS (S12, ADR 0025) — `account` is `Generate`'s own
+      # fresh command argument (part of this composite-identity
+      # creating command); no longer shared with ATMCard's declaration
+      # since ATMCard's acting commands now read a projected field
+      # nothing here would ever populate — `Generate` is Statement's
+      # only command, always dispatched with a fresh `account`.
+      given("customer is active") { account.customer.status == "active" }
+      given("account is open") { account.status == "open" }
 
       sets :account
 

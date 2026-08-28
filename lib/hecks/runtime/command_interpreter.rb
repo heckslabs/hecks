@@ -9,6 +9,7 @@ require_relative "../ports/persistence/execution"
 require_relative "instance"
 require_relative "refusal_wording"
 require_relative "entity_element"
+require_relative "rebuild_sweep"
 
 module Hecks
   module Runtime
@@ -256,6 +257,7 @@ module Hecks
 
         step(:save) do
           @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
+          seed_projected_fields(ctx)
           ctx.persistence_outcome = if ctx.strategy == DependencyPlanning::ATOMIC_PUT
                                       # A SECOND CREATION IS NOT A FRESH ONE — see
                                       # hydrate_legacy_creation's own comment; the
@@ -291,6 +293,39 @@ module Hecks
                   "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
                   "another write committed against this record after it was read")
           end
+        end
+      end
+
+      # THE ONE-TIME, SYNCHRONOUS HALF OF `projects` (S12, ADR 0025) —
+      # `RebuildSweep` (`runtime/rebuild_sweep.rb`) is deliberately the
+      # ONLY thing that keeps a projected field current against a
+      # target that changes AFTER this record was written — no reactive
+      # `Policy#for_each` keeping it live in real time, that stays
+      # deferred, same as that file's own header explains. But without
+      # SOME synchronous population, a projected field never gets an
+      # INITIAL value at all until an operator remembers to run a
+      # sweep by hand — every acting command reading it (`given
+      # ("customer is active") { customer_status == "active" }`, say)
+      # would refuse a freshly created, genuinely active record for no
+      # real reason, which is not the eventual-consistency tradeoff the
+      # ADR accepts, just a bug. So: every time a record with `projects`
+      # fields is about to save — creating or acting, either can be the
+      # first time a referenced record resolves — read each one ONCE,
+      # here, using the exact same `RebuildSweep.remote_value` a sweep
+      # itself would compute. This is still eventually consistent in
+      # the sense the ADR means: a change on the TARGET side after this
+      # save still needs a sweep to reach here. It is only ever
+      # SYNCHRONOUS with THIS record's own write, never a live read
+      # triggered by a `given`/`ensures`/`invariant` mid-dispatch — the
+      # boundary rule those enforce holds exactly as before.
+      def seed_projected_fields(ctx)
+        return if ctx.aggregate.projected_fields.empty?
+
+        ctx.aggregate.projected_fields.each do |field|
+          value = RebuildSweep.remote_value(@registry, ctx.domain, ctx.aggregate, ctx.instance.state, field)
+          next if value.nil?
+
+          ctx.instance.state[field.name] = value
         end
       end
 

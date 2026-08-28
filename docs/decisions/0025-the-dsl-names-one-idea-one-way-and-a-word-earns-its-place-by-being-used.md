@@ -203,7 +203,7 @@ A word stays if it has a **real corpus use** and a **running doctest**. An exter
 
 The doctest bar alone is what let the inert words through — `consistency` had a running example demonstrating it being *declared*, which is precisely the thing not in question.
 
-A domain is more than its `.bluebook`: ports are declared in `.hecksagon` and realms in `.world`, so the corpus bar has to be measured across all three file types. Counted that way, **`port` (4), `operation` (1), `asks` (2), `answers` (3), `refuses` (6), `world` (3) and `realm` (3) all pass** — pizzas' `PaymentGateway.Receive` exercises the port vocabulary for real. Eleven words fail:
+A domain is more than its `.bluebook`: ports are declared in `.hecksagon` and realms in `.world`, so the corpus bar has to be measured across all three file types. Counted that way, **`port` (4), `operation` (1), `asks` (2), `answers` (3), `refuses` (6), `world` (3) and `realm` (3) all pass** — pizzas' `PaymentGateway.Receive` exercises the port vocabulary for real. Eleven words fail as of this writing (S13, below, closed the gap — see `docs/dsl-work-slices.md`'s S13 row for current status, live-verified rather than trusted, per this document's own header):
 
 | group | words | remedy |
 |---|---|---|

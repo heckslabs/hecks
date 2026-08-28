@@ -60,7 +60,7 @@ RSpec.describe Hecks::QueryIR do
                                                  ))
       account_given = raw.select do |r|
         r.kind == "given" && r.description == "customer is active" &&
-          r.canonical == "customer.status == \"active\"" &&
+          r.canonical == "customer_status == \"active\"" &&
           (r.location == "Account (declared)" || r.location.start_with?("Account."))
       end
 
@@ -69,14 +69,20 @@ RSpec.describe Hecks::QueryIR do
       groups = described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false)
       customer_active = groups.find do |g|
         g[:kind] == "given" && g[:description] == "customer is active" &&
-          g[:canonical] == "customer.status == \"active\"" &&
+          g[:canonical] == "customer_status == \"active\"" &&
           g[:locations].include?("Account (declared)")
       end
 
       # It shows up at all (SafeDepositBox/OnboardingCase's own
-      # independent declarations make it a real group) — but every
-      # location this test's own raw Account-scoped rules found is
-      # named, none silently dropped just because they share an owner.
+      # independent declarations make it a real group) — and, since S12
+      # (ADR 0025) has every one of them read through a LOCAL field
+      # named `customer_status` (each its own `projects`, not a shared
+      # reference), the three aggregates' independently-declared givens
+      # now carry byte-identical canonical text too, not just the same
+      # description — one bigger merged group, not three separate ones.
+      # Every location this test's own raw Account-scoped rules found
+      # is still named in it, none silently dropped just because they
+      # share an owner.
       expect(customer_active).not_to be_nil
       expect(account_given.map(&:location) - customer_active[:locations]).to be_empty
     end

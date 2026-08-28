@@ -14,6 +14,23 @@ module Hecks
           end
           lifecycle = @aggregate.lifecycle
           fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" } if lifecycle && !fields.any? { |field| field[:name] == lifecycle.field }
+          # `projects` FIELDS (S12, ADR 0025) ARE A LOCAL COLUMN TOO —
+          # `CommandInterpreter#seed_projected_fields`/`RebuildSweep`
+          # both write one straight into `Instance#state` the same as
+          # any other field, so a column has to exist to hold it or
+          # `save`'s own `columns =`/`values =` build (this file, not
+          # here) silently drops it on every write. No `attribute` of
+          # their own to carry (`ProjectedField` is a bare name/
+          # reference/remote_field triple, not a typed attribute) —
+          # treated as a raw scalar, same as the lifecycle field just
+          # above: every real corpus use projects a status/lifecycle
+          # string, and `encode_field`/`decode` both already pass a
+          # `attribute: nil` field through untouched, not JSON-encoded.
+          @aggregate.projected_fields.each do |field|
+            next if fields.any? { |f| f[:name] == field.name }
+
+            fields << { name: field.name, attribute: nil, sql_type: "TEXT" }
+          end
           fields
         end
 

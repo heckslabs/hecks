@@ -1,10 +1,12 @@
 
 # A DEDICATED FIXTURE for S12 (ADR 0025, "Consistency across aggregate
 # boundaries") — small enough to exercise `projects` end to end
-# (declare, seal, sweep, refuse-while-unswept) without touching real
-# banking predicates, whose own `given("customer is active")` is
-# deliberately NOT yet wired to a projected field (see Account's own
-# comment in examples/banking/bluebook/).
+# (declare, seal, seed-on-save, sweep, refuse-on-a-record-nothing-
+# ever-seeded) without the real corpus's own scale. Banking's own
+# Account carries the identical `projects :customer_status, from:
+# :"customer.status"` wired into its own `given("customer is
+# active")` for real now — this fixture stays a smaller, dedicated
+# proof of the mechanism, not a stand-in for it.
 Hecks.bluebook "ProjectedFields" do
   vision "A Customer's status, held locally on the Account that refers to it, rather than read live."
   core
@@ -67,10 +69,11 @@ Hecks.bluebook "ProjectedFields" do
       emits "AccountOpened"
     end
 
-    # THE ONE PLACE THIS FIXTURE READS THE PROJECTED FIELD — banking's
-    # own corpus deliberately does not yet, so this is where
-    # `ProjectionAbsent`/a successful read after a sweep are both
-    # proven for real.
+    # WHERE THIS FIXTURE READS THE PROJECTED FIELD — proving
+    # `ProjectionAbsent` (a record a sweep, or a save, never reached)
+    # and a successful read (seeded synchronously at save, or after a
+    # sweep) both work, the same shape banking's own real `given
+    # ("customer is active")` now relies on.
     command "CheckCustomerActive" do
       role "Clerk"
       goal "Confirm the locally-held customer status reads active"

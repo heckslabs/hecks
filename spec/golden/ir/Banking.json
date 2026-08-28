@@ -665,7 +665,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -735,7 +735,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -787,7 +787,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status != \"closed\"",
+              "canonical": "customer_status != \"closed\"",
               "description": "customer is not closed"
             }
           ],
@@ -813,7 +813,7 @@
           "from": "frozen",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -842,7 +842,7 @@
           ],
           "givens": [
             {
-              "canonical": "customer.status != \"closed\"",
+              "canonical": "customer_status != \"closed\"",
               "description": "customer is not closed"
             },
             {
@@ -891,7 +891,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -947,7 +947,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -1013,7 +1013,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -1065,7 +1065,7 @@
           "from": "open",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -1182,7 +1182,7 @@
               "from": null,
               "givens": [
                 {
-                  "canonical": "parent.customer.status == \"active\"",
+                  "canonical": "parent.customer_status == \"active\"",
                   "description": "customer is active"
                 },
                 {
@@ -1246,7 +1246,7 @@
               "from": null,
               "givens": [
                 {
-                  "canonical": "parent.customer.status == \"active\"",
+                  "canonical": "parent.customer_status == \"active\"",
                   "description": "customer is active"
                 },
                 {
@@ -1309,7 +1309,7 @@
               "description": "entry is posted"
             },
             {
-              "canonical": "parent.customer.status == \"active\"",
+              "canonical": "parent.customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -1378,11 +1378,11 @@
       ],
       "preconditions": [
         {
-          "canonical": "customer.status == \"active\"",
+          "canonical": "customer_status == \"active\"",
           "description": "customer is active"
         },
         {
-          "canonical": "customer.status != \"closed\"",
+          "canonical": "customer_status != \"closed\"",
           "description": "customer is not closed"
         }
       ],
@@ -1986,7 +1986,7 @@
           "from": "screening",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -2012,7 +2012,7 @@
           "from": "screening",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -2062,12 +2062,16 @@
           "description": "case is screening"
         },
         {
-          "canonical": "customer.status == \"active\"",
+          "canonical": "customer_status == \"active\"",
           "description": "customer is active"
         }
       ],
       "projected_fields": [
-
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
+        }
       ],
       "provenance": null,
       "queries": [
@@ -2308,7 +2312,7 @@
           ],
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -2361,11 +2365,11 @@
           "from": "active",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -2399,7 +2403,7 @@
           "from": "issued",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -2428,7 +2432,7 @@
           ],
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -2500,11 +2504,11 @@
               "from": "taken",
               "givens": [
                 {
-                  "canonical": "parent.account.customer.status == \"active\"",
+                  "canonical": "parent.account_customer_status == \"active\"",
                   "description": "customer is active"
                 },
                 {
-                  "canonical": "parent.account.status == \"open\"",
+                  "canonical": "parent.account_status == \"open\"",
                   "description": "account is open"
                 },
                 {
@@ -2614,16 +2618,25 @@
           "description": "card is issued or active"
         },
         {
-          "canonical": "account.status == \"open\"",
+          "canonical": "account_status == \"open\"",
           "description": "account is open"
         },
         {
-          "canonical": "account.customer.status == \"active\"",
+          "canonical": "account_customer_status == \"active\"",
           "description": "customer is active"
         }
       ],
       "projected_fields": [
-
+        {
+          "name": "account_status",
+          "reference": "account",
+          "remote_field": "status"
+        },
+        {
+          "name": "account_customer_status",
+          "reference": "account",
+          "remote_field": "customer_status"
+        }
       ],
       "provenance": null,
       "queries": [
@@ -3024,11 +3037,11 @@
           "from": "authorized",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3054,11 +3067,11 @@
           "from": "authorized",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3084,11 +3097,11 @@
           "from": "captured",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3114,11 +3127,11 @@
           "from": "captured",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3156,7 +3169,7 @@
           ],
           "givens": [
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             },
             {
@@ -3194,11 +3207,11 @@
           "from": "disputed",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3224,11 +3237,11 @@
           "from": "disputed",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -3316,16 +3329,25 @@
           "description": "payment is authorized"
         },
         {
-          "canonical": "account.status == \"open\"",
+          "canonical": "account_status == \"open\"",
           "description": "account is open"
         },
         {
-          "canonical": "account.customer.status == \"active\"",
+          "canonical": "account_customer_status == \"active\"",
           "description": "customer is active"
         }
       ],
       "projected_fields": [
-
+        {
+          "name": "account_status",
+          "reference": "account",
+          "remote_field": "status"
+        },
+        {
+          "name": "account_customer_status",
+          "reference": "account",
+          "remote_field": "customer_status"
+        }
       ],
       "provenance": null,
       "queries": [
@@ -3658,7 +3680,7 @@
           "from": "rented",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -3713,7 +3735,7 @@
           "from": "rented",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -3757,7 +3779,7 @@
           "from": "rented",
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
+              "canonical": "customer_status == \"active\"",
               "description": "customer is active"
             }
           ],
@@ -3836,7 +3858,7 @@
               "from": "logged",
               "givens": [
                 {
-                  "canonical": "parent.customer.status == \"active\"",
+                  "canonical": "parent.customer_status == \"active\"",
                   "description": "customer is active"
                 },
                 {
@@ -3890,7 +3912,7 @@
           "name": "Visit",
           "preconditions": [
             {
-              "canonical": "parent.customer.status == \"active\"",
+              "canonical": "parent.customer_status == \"active\"",
               "description": "customer is active"
             },
             {
@@ -3955,7 +3977,7 @@
               "from": null,
               "givens": [
                 {
-                  "canonical": "parent.customer.status == \"active\"",
+                  "canonical": "parent.customer_status == \"active\"",
                   "description": "customer is active"
                 },
                 {
@@ -4032,7 +4054,7 @@
       ],
       "preconditions": [
         {
-          "canonical": "customer.status == \"active\"",
+          "canonical": "customer_status == \"active\"",
           "description": "customer is active"
         }
       ],
@@ -4437,14 +4459,7 @@
 
       ],
       "preconditions": [
-        {
-          "canonical": "account.status == \"open\"",
-          "description": "account is open"
-        },
-        {
-          "canonical": "account.customer.status == \"active\"",
-          "description": "customer is active"
-        }
+
       ],
       "projected_fields": [
 
@@ -4813,11 +4828,11 @@
           "from": "requested",
           "givens": [
             {
-              "canonical": "source.customer.status == \"active\"",
+              "canonical": "source_customer_status == \"active\"",
               "description": "source customer is active"
             },
             {
-              "canonical": "source.status == \"open\"",
+              "canonical": "source_account_status == \"open\"",
               "description": "source account is open"
             }
           ],
@@ -4843,11 +4858,11 @@
           "from": "credited",
           "givens": [
             {
-              "canonical": "destination.customer.status == \"active\"",
+              "canonical": "destination_customer_status == \"active\"",
               "description": "destination customer is active"
             },
             {
-              "canonical": "destination.status == \"open\"",
+              "canonical": "destination_account_status == \"open\"",
               "description": "destination account is open"
             }
           ],
@@ -4873,11 +4888,11 @@
           "from": "debited",
           "givens": [
             {
-              "canonical": "destination.customer.status == \"active\"",
+              "canonical": "destination_customer_status == \"active\"",
               "description": "destination customer is active"
             },
             {
-              "canonical": "destination.status == \"open\"",
+              "canonical": "destination_account_status == \"open\"",
               "description": "destination account is open"
             }
           ],
@@ -4903,11 +4918,11 @@
           "from": "debited",
           "givens": [
             {
-              "canonical": "source.customer.status == \"active\"",
+              "canonical": "source_customer_status == \"active\"",
               "description": "source customer is active"
             },
             {
-              "canonical": "source.status == \"open\"",
+              "canonical": "source_account_status == \"open\"",
               "description": "source account is open"
             }
           ],
@@ -4933,11 +4948,11 @@
           "from": "requested",
           "givens": [
             {
-              "canonical": "source.customer.status == \"active\"",
+              "canonical": "source_customer_status == \"active\"",
               "description": "source customer is active"
             },
             {
-              "canonical": "source.status == \"open\"",
+              "canonical": "source_account_status == \"open\"",
               "description": "source account is open"
             }
           ],
@@ -5002,11 +5017,11 @@
           "description": "transfer is debited"
         },
         {
-          "canonical": "destination.status == \"open\"",
+          "canonical": "destination_account_status == \"open\"",
           "description": "destination account is open"
         },
         {
-          "canonical": "destination.customer.status == \"active\"",
+          "canonical": "destination_customer_status == \"active\"",
           "description": "destination customer is active"
         },
         {
@@ -5014,11 +5029,11 @@
           "description": "transfer is requested"
         },
         {
-          "canonical": "source.status == \"open\"",
+          "canonical": "source_account_status == \"open\"",
           "description": "source account is open"
         },
         {
-          "canonical": "source.customer.status == \"active\"",
+          "canonical": "source_customer_status == \"active\"",
           "description": "source customer is active"
         }
       ],
@@ -5029,9 +5044,19 @@
           "remote_field": "status"
         },
         {
+          "name": "source_customer_status",
+          "reference": "source",
+          "remote_field": "customer_status"
+        },
+        {
           "name": "destination_account_status",
           "reference": "destination",
           "remote_field": "status"
+        },
+        {
+          "name": "destination_customer_status",
+          "reference": "destination",
+          "remote_field": "customer_status"
         }
       ],
       "provenance": null,
@@ -5324,11 +5349,11 @@
           "from": "requested",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5354,11 +5379,11 @@
           "from": "sent",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5384,11 +5409,11 @@
           "from": "sent",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5443,11 +5468,11 @@
           "description": "transfer is sent"
         },
         {
-          "canonical": "account.status == \"open\"",
+          "canonical": "account_status == \"open\"",
           "description": "account is open"
         },
         {
-          "canonical": "account.customer.status == \"active\"",
+          "canonical": "account_customer_status == \"active\"",
           "description": "customer is active"
         },
         {
@@ -5456,7 +5481,16 @@
         }
       ],
       "projected_fields": [
-
+        {
+          "name": "account_status",
+          "reference": "account",
+          "remote_field": "status"
+        },
+        {
+          "name": "account_customer_status",
+          "reference": "account",
+          "remote_field": "customer_status"
+        }
       ],
       "provenance": null,
       "queries": [
@@ -5784,11 +5818,11 @@
           "from": "scheduled",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5814,11 +5848,11 @@
           "from": "scheduled",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5844,11 +5878,11 @@
           "from": "scheduled",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             }
           ],
@@ -5877,11 +5911,11 @@
           "from": "failed",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             },
             {
@@ -5921,11 +5955,11 @@
           "from": "failed",
           "givens": [
             {
-              "canonical": "account.customer.status == \"active\"",
+              "canonical": "account_customer_status == \"active\"",
               "description": "customer is active"
             },
             {
-              "canonical": "account.status == \"open\"",
+              "canonical": "account_status == \"open\"",
               "description": "account is open"
             },
             {
@@ -5998,16 +6032,25 @@
           "description": "payment is scheduled"
         },
         {
-          "canonical": "account.status == \"open\"",
+          "canonical": "account_status == \"open\"",
           "description": "account is open"
         },
         {
-          "canonical": "account.customer.status == \"active\"",
+          "canonical": "account_customer_status == \"active\"",
           "description": "customer is active"
         }
       ],
       "projected_fields": [
-
+        {
+          "name": "account_status",
+          "reference": "account",
+          "remote_field": "status"
+        },
+        {
+          "name": "account_customer_status",
+          "reference": "account",
+          "remote_field": "customer_status"
+        }
       ],
       "provenance": null,
       "queries": [
