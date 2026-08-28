@@ -6,6 +6,24 @@ name: CI
 # Postgres and SQLite both provisioned, not skipped: the adapter specs
 # check their own reachability and skip themselves silently otherwise,
 # which would mean this workflow "passing" without ever having run them.
+#
+# NO `push: branches: [main]` TRIGGER — removed 2026-08-28, once it
+# stopped catching anything the other two triggers didn't already cover.
+# main's ruleset (`merge-queue-main`) now requires every change to go
+# through a PR with no bypass (`current_user_can_bypass: "never"`,
+# checked live via `gh api repos/heckslabs/hecks/rulesets`) and land only
+# via the merge queue, whose `merge_group` trigger below re-runs `rspec`/
+# `checks` against the PR merged onto main's CURRENT tip immediately
+# before the merge happens — the exact "was this actually tested against
+# what it's landing on" guarantee a `push: branches: [main]` run used to
+# be the only thing providing (classic protection's own
+# `required_status_checks.strict` is ALSO now `true`, belt-and-suspenders
+# with the ruleset, not the thing doing the work). Before this ruleset
+# existed, direct pushes to main were possible with zero required
+# review — that's what the push trigger was really guarding against; now
+# that the ruleset closes that path structurally, testing the same
+# already-merged commit a third time on `push` bought nothing but a
+# duplicate full CI run on every merge.
 
 # EIGHT JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
 # GitHub Actions schedules all eight the moment the workflow starts).
@@ -96,8 +114,6 @@ name: CI
 # workflow by a wide margin.
 
 on:
-  push:
-    branches: [main]
   pull_request:
   merge_group:
 
@@ -808,16 +824,24 @@ jobs:
           fetch-depth: 0
 
       # BASE — a pull request's own base commit when this run IS one
-      # (github.event.pull_request.base.sha), otherwise the prior HEAD a
-      # push moved from (github.event.before). Both are populated by the
-      # trigger events this workflow already declares (`push: branches:
-      # [main]`, `pull_request`), so no third case to handle.
+      # (github.event.pull_request.base.sha), otherwise the merge queue's
+      # own base (github.event.merge_group.base_sha) when it's a
+      # `merge_group` run instead. FIXED alongside removing the `push:
+      # branches: [main]` trigger above (2026-08-28): this fallback used
+      # to read `github.event.before`, a push event field, and never had
+      # a `merge_group` case at all — meaning a queue run always hit the
+      # `-z` branch, read `github.event.before` as empty (that field
+      # doesn't exist on a `merge_group` event), and diffed against an
+      # empty BASE. Went unnoticed only because `push` was still around
+      # to run the real gate; now that `merge_group` is the ONLY
+      # non-`pull_request` trigger left, that gap would've meant this
+      # job silently never gating the merge-queue path at all.
       - name: does this change touch lib/hecks/runtime/**?
         id: diff
         run: |
           BASE="${{ github.event.pull_request.base.sha }}"
           if [ -z "$BASE" ]; then
-            BASE="${{ github.event.before }}"
+            BASE="${{ github.event.merge_group.base_sha }}"
           fi
 
           if git diff --name-only "$BASE" "${{ github.sha }}" | grep -q '^lib/hecks/runtime/'; then
