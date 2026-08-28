@@ -1,0 +1,74 @@
+#!/usr/bin/env ruby
+
+# THE ADR 0037 FUZZ BRIDGE, POINTED AT ADR 0039'S DEPLOY GATE.
+#
+# `bin/project_deploy`'s generated `verify-parity-<LogicalId>` Makefile
+# target (ADR 0039) runs `bin/rust_conformance` against
+# `spec/corpus/<domain>.json` — a fixed, hand-authored script — right
+# before `sam deploy`. That closed the gap Phase 8 named (parity checked
+# only against CI's own corpus, decoupled from what a real deploy
+# actually ships), but ADR 0039 says so itself: a pinned script only
+# proves "matches Ruby on the cases we thought to write down." ADR 0037's
+# fuzz bridge (`Hecks::Fuzzing::SequenceGenerator`, driving
+# `spec/rust_conformance_fuzz_spec.rb`) is what actually found six real
+# divergences a hand-authored corpus never surfaced — this script is that
+# same generator, wired to run against a REAL compiled artifact
+# (`native` or a `.wasm`) instead of only inside `rspec`, so the deploy
+# gate gets it too.
+#
+# Deliberately reuses `bin/rust_conformance` itself for the actual
+# comparison/subprocess-dispatch — one generated script.json per seed,
+# handed to that tool exactly the way a pinned corpus file already is —
+# rather than re-deriving that logic a third time (spec/support/
+# rust_conformance_helpers.rb already factors it once for the two specs;
+# this is the same discipline for the non-rspec caller).
+#
+# KNOWN, CATALOGUED FAILURE MODE, NOT A BUG IN THIS SCRIPT: ADR 0037
+# documents three real, confirmed, not-yet-fixed divergences (Findings
+# 3-5) that fire on ordinary generated sequences for pizzas and banking
+# today. Wiring this into a domain's `verify-parity-<LogicalId>` target
+# means that domain's `make deploy` will correctly refuse until those
+# findings are closed — the same honest outcome ADR 0039 already
+# documented for banking against the pinned-script check alone. That is
+# this script doing its job, not a reason to filter it quiet.
+#
+#   bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]
+#
+# Exits non-zero on the FIRST seed that diverges — a deploy gate needs
+# one clear failure and a reproduction command, not an exhaustive report
+# of every seed the way a diagnostic sweep would want.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/fuzzing"
+require "json"
+require "fileutils"
+
+domain   = ARGV.shift or abort "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
+artifact = ARGV.shift or abort "usage: bin/rust_conformance_fuzz <domain> <native|path/to/module.wasm> [seeds] [steps]"
+seeds    = Integer(ARGV.shift || ENV["SEEDS"] || 10)
+steps    = Integer(ARGV.shift || ENV["STEPS"] || 25)
+
+rust_conformance = File.expand_path("rust_conformance", __dir__)
+
+# Written under this repo's own tmp/, not Dir.mktmpdir — a failing seed's
+# script needs to survive THIS process exiting non-zero so the
+# reproduction command below actually has a file to point at.
+scratch_dir = File.expand_path("../tmp/rust_conformance_fuzz/#{File.basename(domain)}", __dir__)
+FileUtils.rm_rf(scratch_dir)
+FileUtils.mkdir_p(scratch_dir)
+
+(1..seeds).each do |seed|
+  sequence    = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
+  script_path = File.join(scratch_dir, "seed-#{seed}.json")
+  File.write(script_path, JSON.generate({ "steps" => sequence }))
+
+  next if system(rust_conformance, domain, script_path, artifact)
+
+  abort "bin/rust_conformance_fuzz: seed #{seed}/#{seeds} diverged against #{artifact} (see bin/rust_conformance's own output above) — " \
+        "reproduce with: bin/rust_conformance #{domain} #{script_path} #{artifact}"
+end
+
+FileUtils.rm_rf(scratch_dir)
+puts "#{domain}: #{seeds} generated sequence(s) x #{steps} step(s) each, all matched #{artifact}."

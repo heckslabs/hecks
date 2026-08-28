@@ -393,7 +393,10 @@ ALLOWLIST = [
                   "SafeDepositBox.Rented — declares consistency/authorization; Banking::Account." \
                   "OpenForSuspendedCustomers — a where clause hopping through `customer.status`) is excluded for one of " \
                   "those three genuinely different, still-real reasons, not order_by — read `rust/project/queries.rb`'s " \
-                  "own header for the full, itemized argument for each.",
+                  "own header for the full, itemized argument for each. OpenForSuspendedCustomers specifically is one " \
+                  "of THREE independent failure points for the same reference-hop-field gap, tracked together as " \
+                  "docs/1.0-readiness.md item 2 — Postgres indexing (fixed) and Postgres querying (still open) are the " \
+                  "other two; this codegen gap is not a one-off.",
   },
   {
     kind:         "query",

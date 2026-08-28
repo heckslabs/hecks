@@ -2129,6 +2129,18 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # continues rather than either silently skipping (this project's own
   # standing rule against a silent gap reading as full coverage) or
   # blocking every deploy of a domain nobody has written one for yet.
+  #
+  # SECOND HALF, BELOW — `bin/rust_conformance_fuzz`, ADR 0037's own fuzz
+  # bridge pointed at this exact $(WASM). A pinned script only proves
+  # "matches Ruby on the cases we thought to write down" (ADR 0039's own
+  # honest framing); the fuzz bridge is what actually FOUND Findings 1-6.
+  # Deliberately WARN-ONLY (`-@`, not `@`) for now: ADR 0037 already
+  # catalogues real, confirmed, not-yet-fixed divergences (Findings 3 and
+  # 5) that fire on ordinary generated sequences for more than one real
+  # domain today, so making this a hard blocker before those are closed
+  # would turn every affected domain's `make deploy` red for a reason
+  # this target can't yet point at a fix for. Flip `-@` to `@` once ADR
+  # 0037's open findings are closed and this stops firing in practice.
   .PHONY: verify-parity-#{logical_id}
   verify-parity-#{logical_id}:
   \t@if [ -f #{root}/spec/corpus/#{domain_name}.json ]; then \\
@@ -2136,6 +2148,8 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \telse \\
   \t\techo "verify-parity-#{logical_id}: no spec/corpus/#{domain_name}.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (bin/fuzz/bin/run's own script shape) before this domain's next deploy."; \\
   \tfi
+  \t@echo "verify-parity-#{logical_id}: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
+  \t-@cd #{root} && bin/rust_conformance_fuzz #{domain} $(WASM)
 
   # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
   # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to

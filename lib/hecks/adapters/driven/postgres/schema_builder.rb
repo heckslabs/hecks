@@ -148,7 +148,11 @@ module Hecks
           # correctness, so "never built" beats "built wrong." Whether a
           # hop-path field can be QUERIED at all against this adapter is
           # a separate, still-open question this skip does not answer —
-          # see docs/future-features.md's fuzzer-adapter entry.
+          # see docs/future-features.md's fuzzer-adapter entry, and
+          # docs/1.0-readiness.md item 2 for this gap's OTHER two
+          # independent failure points (Postgres querying, Rust codegen's
+          # `OpenForSuspendedCustomers` — bin/rust_coverage's own
+          # allowlist) — tracked together, not as three unrelated bugs.
           return if field.to_s.include?("/")
 
           name, *_path = field.to_s.split(".")

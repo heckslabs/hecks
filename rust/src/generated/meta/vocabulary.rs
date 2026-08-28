@@ -611,6 +611,8 @@ impl AggregateDispatchOrder {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntityDispatchOrder {
+    RefuseUnknownArguments,
+    RefuseAbsentArguments,
     NormalizeArgs,
     RefuseRoleMismatch,
     ResolveReferences,
@@ -630,7 +632,7 @@ impl crate::kernel::Fielded for EntityDispatchOrder {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { EntityDispatchOrder::NormalizeArgs => "normalize_args".to_string(), EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), EntityDispatchOrder::ResolveReferences => "resolve_references".to_string(), EntityDispatchOrder::HydrateParent => "hydrate_parent".to_string(), EntityDispatchOrder::LocateElement => "locate_element".to_string(), EntityDispatchOrder::EnforceGivens => "enforce_givens".to_string(), EntityDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), EntityDispatchOrder::ApplyMutations => "apply_mutations".to_string(), EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), EntityDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), EntityDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), EntityDispatchOrder::Save => "save".to_string(), EntityDispatchOrder::Emit => "emit".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { EntityDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), EntityDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), EntityDispatchOrder::NormalizeArgs => "normalize_args".to_string(), EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), EntityDispatchOrder::ResolveReferences => "resolve_references".to_string(), EntityDispatchOrder::HydrateParent => "hydrate_parent".to_string(), EntityDispatchOrder::LocateElement => "locate_element".to_string(), EntityDispatchOrder::EnforceGivens => "enforce_givens".to_string(), EntityDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), EntityDispatchOrder::ApplyMutations => "apply_mutations".to_string(), EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), EntityDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), EntityDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), EntityDispatchOrder::Save => "save".to_string(), EntityDispatchOrder::Emit => "emit".to_string(), }))),
             _ => None,
         }
     }
@@ -642,6 +644,8 @@ impl crate::kernel::Fielded for EntityDispatchOrder {
 impl EntityDispatchOrder {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
+            EntityDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments",
+            EntityDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments",
             EntityDispatchOrder::NormalizeArgs => "normalize_args",
             EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch",
             EntityDispatchOrder::ResolveReferences => "resolve_references",
@@ -663,6 +667,8 @@ impl EntityDispatchOrder {
         let raw = v.require("step", "EntityDispatchOrder")?.as_str()
             .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityDispatchOrder.step: expected string".to_string()))?;
         match raw {
+            "refuse_unknown_arguments" => Ok(EntityDispatchOrder::RefuseUnknownArguments),
+            "refuse_absent_arguments" => Ok(EntityDispatchOrder::RefuseAbsentArguments),
             "normalize_args" => Ok(EntityDispatchOrder::NormalizeArgs),
             "refuse_role_mismatch" => Ok(EntityDispatchOrder::RefuseRoleMismatch),
             "resolve_references" => Ok(EntityDispatchOrder::ResolveReferences),
@@ -678,7 +684,7 @@ impl EntityDispatchOrder {
             "emit" => Ok(EntityDispatchOrder::Emit),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "EntityDispatchOrder"),
-                ("admitted", "\"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
+                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
