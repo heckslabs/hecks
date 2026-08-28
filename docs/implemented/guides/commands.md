@@ -254,6 +254,29 @@ Write your givens with the cheapest or most-likely-to-fail check first
 if you want your callers reading the most useful message; the runtime
 will not reorder them for you.
 
+A description tells you WHICH rule refused, not what the record's
+fields actually held when it did — the gap between "the rule is right
+and my data is wrong" and "the rule is subtly wrong." When a `given` is
+a bare comparison (`balance.cents >= amount.cents`, not one side of an
+`&&`/`||`, and not `.include?`/a bare boolean read — those have no
+single honest left/right to show), the raised `GivenNotMet` carries the
+comparison's own resolved operands as `#detail`:
+
+```ruby
+begin
+  account.debit!(amount: { cents: 999_999 }, narrative: { text: "too much" })
+rescue Hecks::Runtime::GivenNotMet => e
+  e.message # => "Debit refused — the balance covers it"
+  e.detail  # => "left: 0, right: 999999"
+end
+```
+
+`#detail` never changes `#message` — every corpus spec asserting an
+exact refusal string keeps passing unchanged. It rides on Ruby's own
+`#detailed_message` (3.2+) instead, so it shows up automatically in an
+`irb`/Rails console's own unhandled-exception banner without any code
+reading `#detail` on purpose.
+
 ## `from:` — lifecycle state as a command guard
 
 `command "Debit", from: "open"` (or, on `CloseAccount`, `from: ["open",

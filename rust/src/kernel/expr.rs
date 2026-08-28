@@ -325,6 +325,15 @@ pub enum Expr {
     /// (`.blank?` is `.present?` negated) exactly the way `SignTest`
     /// above is one node for three symbols.
     Presence { receiver: Box<Expr>, negated: bool },
+    /// `receiver.set?` / `receiver.unset?` — `Resolver::Assignment`, the
+    /// same one-node-per-symbol-pair shape as `Presence` immediately
+    /// above, for a DELIBERATELY narrower question: `!receiver.is_nil()`,
+    /// full stop — not `Presence`'s own Rails-standard emptiness (nil/
+    /// false, or an EMPTY String/Array, are blank). An assigned-but-empty
+    /// value is `.set?`, not `.unset?`, unlike `.present?`'s own reading
+    /// of the identical value — see `expression_operators::presence`'s
+    /// own header for the full reasoning.
+    Assignment { receiver: Box<Expr>, negated: bool },
     /// `receiver.split("SEP")` — `Resolver::Split`. Produces a real
     /// `Value::Array`, not `Value::List` — see that variant's own header.
     Split { receiver: Box<Expr>, separator: String },
@@ -385,7 +394,7 @@ fn category_of(expr: &Expr) -> OperatorCategory {
         ToS(..) => OperatorCategory::ToString,
         BlockPredicate { .. } | Find { .. } => OperatorCategory::Enumeration,
         MatchesRegex { .. } => OperatorCategory::PatternMatch,
-        Presence { .. } => OperatorCategory::Presence,
+        Presence { .. } | Assignment { .. } => OperatorCategory::Presence,
         Split { .. } | StartsWith { .. } | EndsWith { .. } => OperatorCategory::Text,
         First(..) | Last(..) => OperatorCategory::Positional,
         Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) | Array(..) => {
@@ -421,7 +430,11 @@ fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext)
         OperatorCategory::ToString => to_string::interpret(expr, ctx),
         OperatorCategory::Enumeration => enumeration::interpret(expr, ctx),
         OperatorCategory::PatternMatch => pattern_match::interpret(expr, ctx),
-        OperatorCategory::Presence => presence::interpret(expr, ctx),
+        OperatorCategory::Presence => match expr {
+            Expr::Presence { .. } => presence::interpret(expr, ctx),
+            Expr::Assignment { .. } => presence::interpret_assignment(expr, ctx),
+            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Presence, ..) called with {expr:?} — a router bug"))),
+        },
         OperatorCategory::Text => text::interpret(expr, ctx),
         OperatorCategory::Positional => positional::interpret(expr, ctx),
     }

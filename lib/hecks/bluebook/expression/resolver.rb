@@ -109,6 +109,24 @@ module Hecks
         # field that could legitimately be "" rather than absent.
         Presence       = Struct.new(:receiver, :negated, keyword_init: true)
 
+        # `.set?`/`.unset?` -- sibling of `.present?`/`.blank?` immediately
+        # above, added for a DELIBERATELY narrower question, spelled out in
+        # the name so choosing between the two pairs is a choice, not a
+        # trap: `.present?` means "not EMPTY" (Rails-standard -- nil/false,
+        # and an EMPTY String/Array/Hash, are blank; nothing else is),
+        # which quietly answers "was this ever assigned" and "does the
+        # assigned value happen to be empty" as the SAME question. For an
+        # optional field whose only legitimate unset state IS nil, that
+        # conflation is a real trap -- confirmed live: a corpus author
+        # reaching for `superseded_by.blank?` to guard an optional
+        # reference burned real time before landing on "just don't guard
+        # it," because `.blank?` cannot be asked to mean ONLY "was this
+        # never assigned." `.set?`/`.unset?` ask exactly that, and nothing
+        # else: `!receiver.nil?`, full stop -- an assigned-but-empty
+        # String/Array/Hash (or a VO wrapping one) is `.set?`, not
+        # `.unset?`, unlike `.blank?`'s own reading of the identical value.
+        Assignment     = Struct.new(:receiver, :negated, keyword_init: true)
+
         # `receiver.split("SEP")` -- vendored addition, not (yet) upstream
         # hecks (migration plan task 9): confirmed the single
         # highest-value new finding of the real-dispatch smoke sweep --
@@ -224,6 +242,9 @@ module Hecks
           return Presence.new(receiver: parse(Regexp.last_match(1)), negated: false) if expr =~ /\A(.+)\.present\?\z/
           return Presence.new(receiver: parse(Regexp.last_match(1)), negated: true)  if expr =~ /\A(.+)\.blank\?\z/
 
+          return Assignment.new(receiver: parse(Regexp.last_match(1)), negated: false) if expr =~ /\A(.+)\.set\?\z/
+          return Assignment.new(receiver: parse(Regexp.last_match(1)), negated: true)  if expr =~ /\A(.+)\.unset\?\z/
+
           if expr =~ /\A(.+)\.split\("([^"]*)"\)\z/
             return Split.new(receiver: parse(Regexp.last_match(1)), separator: Regexp.last_match(2))
           end
@@ -274,6 +295,9 @@ module Hecks
           when Presence
             present = !blank?(interpret(node.receiver, state, attrs))
             node.negated ? !present : present
+          when Assignment
+            set = !interpret(node.receiver, state, attrs).nil?
+            node.negated ? !set : set
           when Split
             split_value(interpret(node.receiver, state, attrs), node.separator)
           when Last

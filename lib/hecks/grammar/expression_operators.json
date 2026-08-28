@@ -1643,6 +1643,130 @@
           "value": "length_to_size"
         }
       }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        },
+        "category": {
+          "value": "presence"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 21
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.set?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.set? -> !nil?(a)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".set?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Propose",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        },
+        "category": {
+          "value": "presence"
+        },
+        "precedence": {
+          "value": 7
+        },
+        "arity": {
+          "value": 1
+        },
+        "grammar": {
+          "value": "inner"
+        },
+        "strategy": {
+          "value": "suffix_match"
+        },
+        "position": {
+          "value": 22
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        },
+        "target": {
+          "value": "ruby"
+        },
+        "form": {
+          "value": "a.unset?"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Render",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        },
+        "target": {
+          "value": "rust"
+        },
+        "form": {
+          "value": "a.unset? -> nil?(a)"
+        }
+      }
+    },
+    {
+      "verb": "Expression::Operator.Admit",
+      "args": {
+        "symbol": {
+          "value": ".unset?"
+        }
+      }
     }
   ]
 }

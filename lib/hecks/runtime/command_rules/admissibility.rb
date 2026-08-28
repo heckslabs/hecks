@@ -145,7 +145,10 @@ module Hecks
           command.givens.each do |given|
             next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
 
-            raise GivenNotMet, "#{command.hecks_name} refused — #{given.description}"
+            raise GivenNotMet.new(
+              "#{command.hecks_name} refused — #{given.description}",
+              detail: Bluebook::Expression::Evaluator.comparison_detail(given.canonical, state, attrs)
+            )
           end
 
           enforce_lifecycle_guard(declaring, command, subject) if declaring

@@ -58,6 +58,32 @@ module Hecks
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
 
+        # A refused `given`/`ensures`/`invariant` names its own DESCRIPTION
+        # ("not already superseded") but, on its own, not what the block
+        # actually evaluated to — the difference between "the rule is right
+        # and my data is wrong" and "the rule is subtly wrong" is often just
+        # seeing the two operands. Scoped to the single shape that has one
+        # honest answer: `expr`'s own TOP-LEVEL node is a bare `Compare` —
+        # not `Or`/`And`/`Not` (which of several sub-comparisons would even
+        # be "the" one at fault is genuinely ambiguous), `Include` (no
+        # left/right to show), or `Resolve` (a bare boolean read, nothing to
+        # compare against). Values are rendered with `Rendering.describe`,
+        # the same house style every other refusal already prints a value
+        # through. Returns `nil` — not raised — on anything else, INCLUDING
+        # an operand that itself fails to resolve (`EvaluationError`): a
+        # missing diagnostic is a worse debugging experience than none, a
+        # crash while building one is worse still.
+        def comparison_detail(expr, state, attrs = {})
+          node = ast_cache[expr] ||= parse(expr)
+          return nil unless node.is_a?(Compare)
+
+          lhs = Resolver.interpret(node.left, state, attrs)
+          rhs = Resolver.interpret(node.right, state, attrs)
+          "left: #{Resolver.describe(lhs)}, right: #{Resolver.describe(rhs)}"
+        rescue EvaluationError
+          nil
+        end
+
         def parse(expr)
           expr = strip_parens(expr.to_s.strip)
 

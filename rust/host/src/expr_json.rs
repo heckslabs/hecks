@@ -17,7 +17,7 @@
 // STRUCTURALLY COMPLETE, NARROWLY INTERPRETED — a real, deliberate split,
 // not an oversight:
 //
-// - `parse`, below, accepts EVERY node the real grammar admits (all 27
+// - `parse`, below, accepts EVERY node the real grammar admits (all 28
 //   `rust::kernel::expr::Expr` variants), because `AstJson` on the Ruby
 //   side emits ALL of them for ANY value-object invariant an author
 //   writes — refusing to even PARSE an unfamiliar shape would turn
@@ -33,12 +33,12 @@
 //   by reading those files directly rather than re-derived from
 //   scratch, since this crate cannot import them. Every OTHER variant
 //   (`Include`, `Add`, `Modulo`, `BlockPredicate`, `Find`, `Array`,
-//   `MatchesRegex`, `Presence`, `Split`, `StartsWith`, `EndsWith`,
-//   `First`, `Last`) is a REAL, deliberate boundary, not a silent gap:
-//   `interpret` refuses them by name, cleanly, the same "unresolved,
-//   never guessed" discipline `reference_validate.rs`'s own unrecognized-
-//   type-name handling already holds to — an author who writes a value-
-//   object invariant using one of these gets a clear, loud audit
+//   `MatchesRegex`, `Presence`, `Assignment`, `Split`, `StartsWith`,
+//   `EndsWith`, `First`, `Last`) is a REAL, deliberate boundary, not a
+//   silent gap: `interpret` refuses them by name, cleanly, the same
+//   "unresolved, never guessed" discipline `reference_validate.rs`'s
+//   own unrecognized-type-name handling already holds to — an author
+//   who writes a value-object invariant using one of these gets a clear, loud audit
 //   failure naming exactly which operator isn't checked yet, never a
 //   silently-skipped or silently-wrong evaluation. Porting the full
 //   11-file operator surface (enumeration's own block-predicate
@@ -95,6 +95,7 @@ pub enum Expr {
     Array { elements: Vec<Expr> },
     MatchesRegex { receiver: Box<Expr>, pattern: String, flags: String },
     Presence { receiver: Box<Expr>, negated: bool },
+    Assignment { receiver: Box<Expr>, negated: bool },
     Split { receiver: Box<Expr>, separator: String },
     StartsWith { receiver: Box<Expr>, substring: String },
     EndsWith { receiver: Box<Expr>, substring: String },
@@ -176,6 +177,10 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
         "presence" => Expr::Presence {
             receiver: Box::new(expr("receiver")?),
             negated: field("negated")?.as_bool().ok_or_else(|| format!("presence's negated isn't a boolean: {json}"))?,
+        },
+        "assignment" => Expr::Assignment {
+            receiver: Box::new(expr("receiver")?),
+            negated: field("negated")?.as_bool().ok_or_else(|| format!("assignment's negated isn't a boolean: {json}"))?,
         },
         "split" => Expr::Split { receiver: Box::new(expr("receiver")?), separator: str_field("separator")? },
         "starts_with" => Expr::StartsWith { receiver: Box::new(expr("receiver")?), substring: str_field("substring")? },
@@ -345,6 +350,7 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
         | Expr::Array { .. }
         | Expr::MatchesRegex { .. }
         | Expr::Presence { .. }
+        | Expr::Assignment { .. }
         | Expr::Split { .. }
         | Expr::StartsWith { .. }
         | Expr::EndsWith { .. }
@@ -444,6 +450,15 @@ mod tests {
         let expr = parse(&ast).expect("valid Expr JSON");
 
         let err = interpret(&expr, &field("value", serde_json::json!("x"))).unwrap_err();
+        assert!(err.contains("not yet supported"), "{err}");
+    }
+
+    #[test]
+    fn assignment_parses_structurally_the_same_as_presence_and_is_not_yet_interpreted_either() {
+        let ast = serde_json::json!({"op":"assignment","receiver":{"op":"lookup","path":"value"},"negated":true});
+        let expr = parse(&ast).expect("valid Expr JSON");
+
+        let err = interpret(&expr, &field("value", serde_json::json!(null))).unwrap_err();
         assert!(err.contains("not yet supported"), "{err}");
     }
 

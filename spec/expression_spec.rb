@@ -488,6 +488,53 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "set?/unset? -- deliberately narrower than present?/blank?" do
+    it "asks only whether the receiver is nil, never whether it is empty" do
+      expect(evaluate("value.set?", value: nil)).to be(false)
+      expect(evaluate("value.unset?", value: nil)).to be(true)
+
+      # THE POINT OF THE PAIR: an assigned-but-empty value is SET, unlike
+      # `.present?`'s own reading of the identical value (see the block
+      # above -- `"".present?` is false).
+      expect(evaluate("value.set?", value: "")).to be(true)
+      expect(evaluate("value.unset?", value: "")).to be(false)
+      expect(evaluate("value.set?", value: [])).to be(true)
+    end
+
+    it "reads an optional field's nil the same way whether it was never assigned or explicitly cleared" do
+      expect(evaluate("superseded_by.unset?", superseded_by: nil)).to be(true)
+      expect(evaluate("superseded_by.set?", superseded_by: nil)).to be(false)
+      expect(evaluate("superseded_by.unset?", superseded_by: "evt-1")).to be(false)
+    end
+  end
+
+  describe "comparison_detail" do
+    def detail(expression, state = {}, args = {})
+      Hecks::Bluebook::Expression::Evaluator.comparison_detail(expression, state, args)
+    end
+
+    it "reports the resolved operands of a bare comparison" do
+      expect(detail("status == \"open\"", status: "closed")).to eq('left: "closed", right: "open"')
+      expect(detail("balance.cents >= 0", balance: { cents: -5 })).to eq("left: -5, right: 0")
+    end
+
+    it "renders a nil operand the same way every other refusal does" do
+      expect(detail("superseded_by == nil", superseded_by: nil)).to eq("left: nil, right: nil")
+    end
+
+    it "is nil for shapes with no single honest left/right — Or/And/Not/Include/Resolve" do
+      expect(detail("a == 1 || b == 2", a: 0, b: 0)).to be_nil
+      expect(detail("a == 1 && b == 2", a: 0, b: 0)).to be_nil
+      expect(detail("!(a == 1)", a: 1)).to be_nil
+      expect(detail("names.include?(\"x\")", names: [])).to be_nil
+      expect(detail("flag", flag: false)).to be_nil
+    end
+
+    it "is nil, not raised, when an operand itself fails to resolve" do
+      expect(detail("totally_unknown == 1")).to be_nil
+    end
+  end
+
   describe "agreeing with Ruby itself" do
     def agrees?(expression, bindings)
       mine = begin

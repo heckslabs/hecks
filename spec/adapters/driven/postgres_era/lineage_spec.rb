@@ -110,6 +110,54 @@ RSpec.describe "lineage in the PostgresEra adapter",
     RUBY
   end
 
+  # A REKEYED sibling of V3_SOURCE, identical fields, identity moved from
+  # `kind` to a new `ref` attribute — the layered/full equivalence test
+  # below exists because `layered_chain_sql`'s own `id_column` CASE
+  # (Translation::RuleCompiler.id_case) is exactly the piece the ordinary
+  # V3_SOURCE edge above (a bare `rename`) never exercises: identity
+  # NEVER changes across it, so `aggregate_id` passes through unmodified
+  # either way, layered or full, whether or not the CASE's own guard is
+  # right.
+  V3_REKEYED_SOURCE = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Ledger" do
+      aggregate "Account" do
+        identified_by :ref
+
+        attribute :amount, Money
+        attribute :kind, Kind
+        attribute :denomination, Denomination
+        attribute :ref, Ref
+
+        value_object "Money" do
+          attribute :cents, Integer
+        end
+
+        value_object "Kind" do
+          attribute :label, String
+        end
+
+        value_object "Denomination" do
+          attribute :code, String
+        end
+
+        value_object "Ref" do
+          attribute :value, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  def edge_source_v3_rekey(from:, to:)
+    <<~RUBY
+      Hecks.data_translation("Ledger", from: #{from.inspect}, to: #{to.inspect}) do
+        aggregate("Account") do
+          rekey sql: "'ref-' || ((__s -> 'kind') ->> 'label')"
+          backfill :ref, default: "unknown"
+        end
+      end
+    RUBY
+  end
+
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -1416,6 +1464,91 @@ RSpec.describe "lineage in the PostgresEra adapter",
 
     expect(layered).to eq(full)
     expect(layered).not_to be_empty
+  end
+
+  # THE SAME EQUIVALENCE, FOR A REKEY SPECIFICALLY — `layered_chain_sql`'s
+  # own `id_column` CASE (Translation::RuleCompiler.id_case) is dead code
+  # the test above never exercises: `edge_source_v3`'s edge never changes
+  # identity, so `aggregate_id` passes through unmodified whether the
+  # CASE's own guard is right or not. This is also what closes the real
+  # gap `translated_latest`'s own header now documents: before
+  # `head_body_sql` existed, the audit's preview (`translated_latest`)
+  # NEVER read this branch at all — a rekey reaching era 3 could show one
+  # answer at audit time and a DIFFERENT one once actually minted, with
+  # nothing here to catch it either way.
+  it "produces the identical id under a REKEY too — the layered build's id_column CASE agrees with the full one" do
+    write_v1_record
+    l1 = label_of(V1_SOURCE)
+    l2 = label_of(V2_SOURCE)
+    l3 = label_of(V3_REKEYED_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: l1, to: l2))
+
+    # more era-2 traffic, so the layer has both a matview AND live rows
+    # of its own to fold in — same reason the ordinary-edge test above
+    # writes a second record before minting era 3
+    # kind "personal", deliberately DIFFERENT from the v1 record's own
+    # "biz" -> "business" — a rekey collapses onto `kind.label`, and
+    # reusing "business" here would collide the two rows onto the SAME
+    # new id, tripping the audit's own count-preservation gate for a
+    # reason that has nothing to do with what this test checks.
+    registry = load_registry(V2_SOURCE)
+    account = registry.bluebooks.values.first.aggregate("Account")
+    adapter = Hecks::Adapters::PostgresEra.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
+    adapter.save(Hecks::Runtime::Instance.new(
+                   aggregate: account, id: "personal",
+                   state: { amount: { "cents" => 250 }, kind: { "label" => "personal" },
+                            denomination: { "code" => "USD" } }
+                 ))
+
+    rekey_edge = edge_source_v3_rekey(from: l2, to: l3)
+    edges = "#{edge_source(from: l1, to: l2)}\n#{rekey_edge}"
+    drifted = load_registry(V3_REKEYED_SOURCE, translation_source: edges)
+
+    # a rekey's only verification is the audit's human-approved sample —
+    # the mint refuses non-interactively without it, same as every other
+    # compute/rekey edge in this file
+    expect do
+      Hecks::Adapters::PostgresEra::LineageManager.check!(
+        registry: drifted, bluebook: drifted.bluebooks.values.first,
+        current_text: V3_REKEYED_SOURCE, settings: { database: LINEAGE_DB }
+      )
+    end.to raise_error(Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/)
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    ledger_lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    ledger_lineage.record_approval!(
+      from: l2, to: l3,
+      edge_digest: Hecks::Translation::Audit.edge_digest(drifted.translations.find { |t| t.from == l2 && t.to == l3 })
+    )
+    db.close
+
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
+      registry: drifted, bluebook: drifted.bluebooks.values.first,
+      current_text: V3_REKEYED_SOURCE, settings: { database: LINEAGE_DB }
+    )
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    layered = db.exec("SELECT aggregate_id, operation, state FROM #{PG::Connection.quote_ident("account_lineage_3_#{l3}")} ORDER BY aggregate_id").values
+
+    # the definition actually used era 2's matview rather than the journal
+    definition = db.exec_params("SELECT definition FROM pg_matviews WHERE matviewname = $1",
+                                ["account_lineage_3_#{l3}"])[0]["definition"]
+    expect(definition).to include("account_lineage_2_#{l2}")
+
+    # ...and it agrees with the from-scratch build, row for row — ids
+    # included, the one dimension the ordinary-edge test above cannot see
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    chain = Hecks::Adapters::PostgresEra::LineageManager.edge_chain(
+      load_registry(V3_REKEYED_SOURCE, translation_source: edges), load_registry(V3_REKEYED_SOURCE).bluebooks.values.first,
+      lineage.eras[0..-2], l3
+    )
+    full = db.exec("SELECT aggregate_id, operation, state FROM (#{lineage.chain_sql(account, 3,
+                                                                                    chain)}) full_build ORDER BY aggregate_id").values
+    db.close
+
+    expect(layered).to eq(full)
+    expect(layered).not_to be_empty
+    expect(layered.map(&:first)).to include("ref-business")
   end
 
   it "the layered build still honours the cut — an era-2 checkout writing after era 3 was minted never reaches era 3's head" do

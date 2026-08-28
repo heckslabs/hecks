@@ -5,8 +5,34 @@ module Hecks
   module Runtime
     class UnknownVerb < StandardError; end
     class EnsuresNotMet < StandardError; end
-    class GivenNotMet < StandardError; end
-    class NotFound    < StandardError; end
+
+    # `detail` — the failing comparison's own resolved operands, "left: X,
+    # right: Y" — set only when the given's TOP-LEVEL shape is a bare
+    # comparison (`Evaluator.comparison_detail`'s own comment has the full
+    # scoping); nil otherwise. Deliberately NOT folded into `#message`:
+    # that string is pinned byte-for-byte across this corpus's own specs
+    # (`raise_error(GivenNotMet, "...")`, command_rules_spec.rb and every
+    # domain that vendors this gem) as CONTRACT, so changing its shape by
+    # default would be a breaking change for every one of them. Riding on
+    # `#detailed_message` instead (Ruby 3.2+, what irb/a Rails console's
+    # own unhandled-exception banner already calls to show more than
+    # `#message`) means the detail actually reaches a human staring at a
+    # live refusal, without moving the string anything else asserts on.
+    class GivenNotMet < StandardError
+      attr_reader :detail
+
+      def initialize(message = nil, detail: nil)
+        super(message)
+        @detail = detail
+      end
+
+      def detailed_message(highlight: false, **opts)
+        base = super
+        detail ? "#{base} (#{detail})" : base
+      end
+    end
+
+    class NotFound < StandardError; end
     class LifecycleRefused < StandardError; end
     class TypeMismatch < StandardError; end
     # An argument the command does not declare. Sibling of TypeMismatch : that one

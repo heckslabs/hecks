@@ -197,6 +197,18 @@
       "category": "positional",
       "precedence": 7,
       "arity": 1
+    },
+    {
+      "symbol": ".set?",
+      "category": "presence",
+      "precedence": 7,
+      "arity": 1
+    },
+    {
+      "symbol": ".unset?",
+      "category": "presence",
+      "precedence": 7,
+      "arity": 1
     }
   ],
   "normalisations": [

@@ -122,6 +122,8 @@ module RustProjection
         "Expr::MatchesRegex { receiver: Box::new(#{emit_resolver(node.receiver)}), pattern: #{node.pattern.inspect}.to_string(), flags: #{node.flags.inspect}.to_string() }"
       when r::Presence
         "Expr::Presence { receiver: Box::new(#{emit_resolver(node.receiver)}), negated: #{node.negated} }"
+      when r::Assignment
+        "Expr::Assignment { receiver: Box::new(#{emit_resolver(node.receiver)}), negated: #{node.negated} }"
       when r::Split
         "Expr::Split { receiver: Box::new(#{emit_resolver(node.receiver)}), separator: #{node.separator.inspect}.to_string() }"
       when r::StartsWith

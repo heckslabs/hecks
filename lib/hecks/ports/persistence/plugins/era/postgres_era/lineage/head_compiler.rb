@@ -252,8 +252,20 @@ module Hecks
           # written under — so the final edge applies uniformly, with no
           # per-era CASE. That equality is asserted, not argued: the spec
           # builds a third era both ways and diffs them.
+          # `edges.size != era - 1` — added alongside `head_body_sql`
+          # below, not merely a pre-existing guard: `names_by_era(aggregate,
+          # edges)` sizes `names[:storage]` to `edges.size + 1`, and the
+          # union above indexes it at `names[:storage][era - 2]` — CORRECT
+          # only when `edges` is the FULL chain reaching `era` (mint's own
+          # call, and the audit's own "after" reading, both are). A caller
+          # handed a SHORTER chain against the SAME `era` — exactly what
+          # the audit's own "before" reading is, `chain[0..-2]` against the
+          # unchanged target era — would index `names[:storage]` out of
+          # its real bounds instead of falling back to `chain_sql` the way
+          # every other mismatch here already does. Guarded structurally,
+          # not by trusting every future caller to know this invariant.
           def layered_chain_sql(aggregate, era, edges)
-            return nil if era < 3 || edges.size < 2
+            return nil if era < 3 || edges.size < 2 || edges.size != era - 1
 
             held = eras
             prior = held.find { |candidate| candidate[:ordinal] == era - 1 }
@@ -305,9 +317,19 @@ module Hecks
 
           # The translated tail as it would stand in era `era`, latest
           # entry per id, saves only — what the audit holds up against the
-          # bluebook and the edge.
+          # bluebook and the edge. Reads through `head_body_sql`, the SAME
+          # layered-or-full choice `compile_head!` makes at real mint time
+          # (that method's own comment has the full reasoning) — so this
+          # is provably what the real mint will materialize, not a second
+          # implementation that could silently drift from it. Safe for
+          # BOTH real callers: the "after" reading (`edges` is the full
+          # chain reaching `era`) and the "before" reading (`edges` one
+          # shorter, same `era` — `audit.rb`'s own `samples_for`/`check`
+          # callers) — `layered_chain_sql`'s own `edges.size != era - 1`
+          # guard falls back to `chain_sql` exactly when the shorter
+          # chain can't honestly answer the layered question.
           def translated_latest(aggregate, era, edges)
-            latest_of(chain_sql(aggregate, era, edges))
+            latest_of(head_body_sql(aggregate, era, edges))
           end
 
           # The UNtranslated ancestor tail, latest entry per id — the
@@ -363,15 +385,30 @@ module Hecks
           # write count; the ancestor side was already bounded that way
           # (the matview only ever holds the reduced tail, never raw
           # history — see latest_per_id's own comment).
+          # THE ONE PLACE THAT PICKS layered VS full — pulled out so the
+          # audit's own preview (`translated_latest`, below: both
+          # `bin/translation_audit`'s standalone run and the real
+          # mint-time gate in coverage_check.rb#audit!) reads through the
+          # IDENTICAL branch selection a real mint's own `compile_head!`
+          # will use, rather than a second, hand-kept-in-sync copy of this
+          # same "layered when eligible, else full" choice. Before this,
+          # `translated_latest` called `chain_sql` unconditionally — for
+          # any era >= 3, the real mint (this method, `full: false` by
+          # default) could materialize via the LAYERED path while the
+          # preview that approved it never exercised that branch at all.
+          # `full:` mirrors `compile_head!`'s own default; tail_merge's
+          # `full: true` rebuild is the one caller that ever needs the
+          # non-layered branch unconditionally.
+          def head_body_sql(aggregate, era, edges, full: false)
+            return chain_sql(aggregate, era, edges) if full
+
+            layered_chain_sql(aggregate, era, edges) || chain_sql(aggregate, era, edges)
+          end
+
           def compile_head!(aggregate, era, label, edges, full: false)
             storage_name = aggregate.storage_name
             view = matview(storage_name, era, label)
-            body =
-              if !full && (layered = layered_chain_sql(aggregate, era, edges))
-                layered
-              else
-                chain_sql(aggregate, era, edges)
-              end
+            body = head_body_sql(aggregate, era, edges, full: full)
             @db.exec(<<~SQL)
               CREATE MATERIALIZED VIEW #{quote(view)} AS
               #{body}

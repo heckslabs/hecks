@@ -146,6 +146,22 @@ narrative: { text: "Opening" })
       end.to raise_error(Hecks::Runtime::GivenNotMet,
                          "Amend refused — an amendment leaves a non-negative amount")
     end
+
+    it "carries the failing comparison's own operands as #detail, off #message" do
+      runtime = funded_account(boot_banking)
+
+      error = nil
+      begin
+        runtime.dispatch("Banking::Account.LedgerEntry.Amend",
+                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
+      rescue Hecks::Runtime::GivenNotMet => e
+        error = e
+      end
+
+      expect(error.message).to eq("Amend refused — an amendment leaves a non-negative amount")
+      expect(error.detail).to eq("left: -1, right: 0")
+      expect(error.detailed_message).to include(error.message).and include(error.detail)
+    end
   end
 
   describe "the state machine" do

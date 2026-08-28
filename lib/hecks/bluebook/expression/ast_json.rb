@@ -42,8 +42,8 @@ module Hecks
       # `expr_emitter.rb`'s own `emit_bool`/`emit_resolver` already hold
       # to — even though, as of this writing, no real corpus VALUE OBJECT
       # invariant exercises `Include`/`Modulo`/`BlockPredicate`/`Find`/
-      # `Array`/`MatchesRegex`/`Presence`/`Split`/`StartsWith`/`EndsWith`/
-      # `First`/`Last` (only `given`/`ensures` clauses do, elsewhere in
+      # `Array`/`MatchesRegex`/`Presence`/`Assignment`/`Split`/`StartsWith`/
+      # `EndsWith`/`First`/`Last` (only `given`/`ensures` clauses do, elsewhere in
       # the corpus — a different consumer of this same grammar).
       # `rust/host/src/expr_json.rs`'s own header names exactly which of
       # these its interpreter evaluates for real today versus refuses
@@ -131,6 +131,8 @@ module Hecks
             { "op" => "matches_regex", "receiver" => emit_resolver(node.receiver), "pattern" => node.pattern, "flags" => node.flags }
           when Resolver::Presence
             { "op" => "presence", "receiver" => emit_resolver(node.receiver), "negated" => node.negated }
+          when Resolver::Assignment
+            { "op" => "assignment", "receiver" => emit_resolver(node.receiver), "negated" => node.negated }
           when Resolver::Split
             { "op" => "split", "receiver" => emit_resolver(node.receiver), "separator" => node.separator }
           when Resolver::StartsWith

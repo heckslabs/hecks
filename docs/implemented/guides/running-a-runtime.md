@@ -529,6 +529,7 @@ and held equal to it by `spec/operator_conformance_spec.rb`:
 | `.any?`, `.none?`, `.all?`, `.find` | enumeration | 2 | `list.any? { \|x\| predicate }` — the block's parameter is bound for the predicate (a whole boolean expression, blocks nest freely); `.find { }` may carry a dotted path, `list.find { \|x\| … }.a.b`, and is nil when nothing matches. Braces only, never `do…end` |
 | `.match?` | pattern_match | 2 | `receiver.match?(/pattern/flags)` — a real Ruby-Regexp source between the slashes; `i`/`m`/`x` flags supported |
 | `.present?`, `.blank?` | presence | 1 | Rails-standard semantics: `nil`/`false` are blank, `String`/`Array` are blank when empty, everything else is present |
+| `.set?`, `.unset?` | presence | 1 | narrower than `.present?`/`.blank?` on purpose: `!receiver.nil?`, full stop — an assigned-but-empty `String`/`Array` is `.set?`, unlike `.present?`'s own reading of the identical value |
 | `.split` | text | 2 | `receiver.split("SEP")` — produces an `Array`, literal separator only |
 | `.start_with?`, `.end_with?` | text | 2 | `String` receiver only |
 | `.first`, `.last` | positional | 1 | over an array-typed receiver (an `ArrayLiteral`, a `.split` result, or a list-typed field of scalar elements) — `nil` on an empty list |
@@ -572,8 +573,8 @@ Hecks::Bluebook::Expression::Evaluator.parse("old.balance.cents == balance.cents
 Below `Compare`, the left and right sides are `Resolver` leaves — a
 smaller grammar for the non-boolean part: integer/float/string/bool/nil/
 array literals, `+` addition, `.modulo`, a sign test, `.empty?`/`.size`,
-`.to_s`, `.match?`, `.present?`/`.blank?`, `.split`, `.start_with?`/
-`.end_with?`, `.first`/`.last`, the block-taking enumeration operators
+`.to_s`, `.match?`, `.present?`/`.blank?`, `.set?`/`.unset?`, `.split`,
+`.start_with?`/`.end_with?`, `.first`/`.last`, the block-taking enumeration operators
 (`.any?`/`.none?`/`.all?`/`.find { |x| … }`, whose body is a whole
 boolean expression parsed by `Evaluator` again), and the true leaf,
 `Lookup` — a bare or dotted name resolved

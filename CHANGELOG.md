@@ -39,6 +39,44 @@ language now treats that as a rule rather than a convention:
   single-attribute value object; the explicit spelling keeps working,
   and multi-field shapes still require their fields spelled out.
 
+**The translation audit's preview now reads through the SAME
+layered-or-full SQL selection a real mint materializes with.**
+`translated_latest` (`bin/translation_audit`'s own preview, and the
+real mint-time gate in `coverage_check.rb#audit!`) used to call
+`chain_sql` unconditionally; `compile_head!`, at actual mint time,
+picks the LAYERED build instead whenever era >= 3 and a prior matview
+exists — most eras of any domain that has minted more than a couple of
+times. The two were asserted equivalent by spec, but only tested for
+an ordinary (non-rekey) edge; a rekey's own `id_column` CASE went
+through the layered path at real mint time and through `chain_sql`
+alone at every preview, two independently-maintained implementations
+with no shared test ever exercising both for the SAME rekey. Pulled
+into one `head_body_sql` picker both call, with a defensive
+`edges.size != era - 1` guard on the layered path (a caller handed a
+shorter edge chain against the same target era — the audit's own
+"before" reading always is — used to index past its own array bounds
+instead of falling back cleanly). A rekey reaching era 3+ now audits
+against the literal SQL a real mint will run, not a second guess at it.
+
+**`.set?`/`.unset?`, a deliberately narrower sibling of `.present?`/
+`.blank?`.** `!receiver.nil?`, full stop — an assigned-but-empty
+`String`/`Array` is `.set?`, unlike `.present?`'s own Rails-standard
+emptiness reading of the identical value. For an optional field whose
+only legitimate unset state IS nil, that conflation was a real trap;
+these ask the narrower question by name instead. Ported to the Rust
+kernel (`Expr::Assignment`, `expression_operators::presence`) alongside
+the Ruby resolver; `rust/host`'s JSON interpreter parses it structurally
+but does not yet evaluate it, the same boundary `.present?`/`.blank?`
+themselves already sit behind there.
+
+**`GivenNotMet#detail`.** A refused `given` whose top-level shape is a
+bare comparison now carries its own resolved operands — "left: X,
+right: Y" — as `#detail`, off `#message` (every corpus spec asserting
+an exact refusal string keeps passing unchanged). Rides on Ruby's own
+`#detailed_message` (3.2+), so it shows up in an irb/console
+unhandled-exception banner without any caller code reading it on
+purpose.
+
 ## [1.0.2] - 2026-08-28
 
 **Gem page cleanup, now that the gem is actually published.** `1.0.0`

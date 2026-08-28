@@ -135,14 +135,14 @@ RSpec.describe "the operator domain" do
   it "orders the inner grammar exactly the way grammar.md documents it" do
     # rule 1 (.length), 2-5 (literals), and 12 (dotted lookup) are
     # terminal productions, not operators — same exclusion. This is rules
-    # 6-11, in order, followed by the eight vendored operators
+    # 6-11, in order, followed by the ten vendored operators
     # (`.match?`/`.present?`/`.blank?`/`.split`/`.start_with?`/
-    # `.end_with?`/`.first`/`.last`) admitted after grammar.md was
-    # written — see this file's own header update for the finding that
-    # sent them through the ledger for the first time.
+    # `.end_with?`/`.first`/`.last`/`.set?`/`.unset?`) admitted after
+    # grammar.md was written — see this file's own header update for the
+    # finding that sent them through the ledger for the first time.
     expect(symbols(by_grammar("inner"))).to eq(
       ["+", ".positive?", ".negative?", ".zero?", ".empty?", ".to_s", ".modulo", ".size", ".any?", ".none?", ".all?", ".find",
-       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last"]
+       ".match?", ".present?", ".blank?", ".split", ".start_with?", ".end_with?", ".first", ".last", ".set?", ".unset?"]
     )
   end
 
@@ -186,7 +186,9 @@ RSpec.describe "the operator domain" do
     ".start_with?" => -> { Resolver.parse('a.start_with?("x")').is_a?(Resolver::StartsWith) },
     ".end_with?"   => -> { Resolver.parse('a.end_with?("x")').is_a?(Resolver::EndsWith) },
     ".first"       => -> { Resolver.parse("a.first").is_a?(Resolver::First) },
-    ".last"        => -> { Resolver.parse("a.last").is_a?(Resolver::Last) }
+    ".last"        => -> { Resolver.parse("a.last").is_a?(Resolver::Last) },
+    ".set?"        => -> { Resolver.parse("a.set?").is_a?(Resolver::Assignment) && !Resolver.parse("a.set?").negated },
+    ".unset?"      => -> { Resolver.parse("a.unset?").is_a?(Resolver::Assignment) && Resolver.parse("a.unset?").negated }
   }.freeze
 
   it "implements every admitted structural operator, and no other" do
@@ -234,7 +236,8 @@ RSpec.describe "the operator domain" do
     ".find" => Resolver::Find,
     ".match?" => Resolver::MatchesRegex, ".present?" => Resolver::Presence, ".blank?" => Resolver::Presence,
     ".split" => Resolver::Split, ".start_with?" => Resolver::StartsWith, ".end_with?" => Resolver::EndsWith,
-    ".first" => Resolver::First, ".last" => Resolver::Last
+    ".first" => Resolver::First, ".last" => Resolver::Last,
+    ".set?" => Resolver::Assignment, ".unset?" => Resolver::Assignment
   }.freeze
 
   # Every real Class either module defines DIRECTLY (`false` — no
