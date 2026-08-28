@@ -192,7 +192,8 @@ module Hecks
         end
 
         { verb: fqn(bluebook, aggregate, command, entity), kind: :command,
-          summary: command.goal, role: command.role, creates: command.creates?,
+          summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
+          creates: command.creates?,
           receiver: receiver, legacy_receiver: (receiver == :aggregate ? :id : nil),
           legacy_arguments: legacy_arguments,
           refusals: refusals(command, holder), arguments: arguments }
@@ -227,7 +228,15 @@ module Hecks
         # names it short, which is the same split `shorten` already makes.
         { verb: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
           kind: :command, creates: false, receiver: :aggregate, refusals: [],
+          # `role:` HERE IS DESCRIPTIVE TEXT, NOT AN AUTHORIZATION GATE —
+          # who calls whom through the port, for `--help`/`verb_help`'s
+          # "issued by" line. A port operation never reaches
+          # `CommandRules::Authorization#refuse_role_mismatch` (only
+          # `CommandInterpreter`/`EntityInterpreter` call it, never the port
+          # dispatch path), so `role_gated: false` always, unlike
+          # `command_spec` where the same key name means a real one.
           role: operation.outbound? ? "#{aggregate.hecks_name} asking #{port.name}" : "#{port.name} telling #{aggregate.hecks_name}",
+          role_gated: false,
           summary: port_summary(port, operation), arguments: arguments }
       end
 

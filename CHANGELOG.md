@@ -10,6 +10,20 @@ entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Fixed
 
+- **The Storehouse MCP bus dispatched role-gated commands unbound.**
+  `dispatch` now refuses a command that declares a `role` when no caller
+  (`role:`/`actor_id:`) is bound, rather than silently running it
+  unchecked — the fail-open half of ADR 0025's `role` work that the
+  Governance RBAC lookup itself didn't touch (that step only upgrades
+  what a *bound* role is checked against). `domain:`/`under:` on every
+  Storehouse tool are now confined to `Hecks::Storehouse::BOOT_ROOT`
+  (the project directory by default, `HECKS_STOREHOUSE_ROOT` to widen
+  it) — `Hecks.boot` loads real Ruby, and an unconfined caller-supplied
+  path was an unmarked way out of the "narrower, checked surface" this
+  bus exists to provide. `bin/hecks_mcp_door` now states its stdio-only,
+  unauthenticated-identity transport assumption in its own header; the
+  README's authorization claim for this bus is corrected to match.
+  (2026-08-27)
 - **Entity dispatch had no argument gate at all (H1).** Every aggregate
   command and port operation refuses unknown/absent arguments;
   `EntityInterpreter` (an aggregate's own owned pieces — `Account

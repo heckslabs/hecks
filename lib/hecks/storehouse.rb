@@ -42,13 +42,21 @@ module Hecks
   # additionally take an optional `source:` (`SOURCE_TAGS`, the survey's
   # `SourceTag`: who is calling) AND an optional `role:`/`actor_id:` —
   # a real caller identity, bound for the call's duration via `Hecks.
-  # as_caller`, the one thing that makes a `role`-gated command's
-  # authorization actually checkable through this bus rather than merely
-  # documented by `describe`. Every call through those three, plus a dry
-  # run, is appended to a per-domain JSONL audit log (`record!`) `follow`
-  # tails back. `catalog`/`describe`/`validate`/`domains`/`history`/
-  # `behaviors`/`events` need neither — they change nothing and commit
-  # nothing to any log.
+  # as_caller`, checked against a `role`-gated command's own declared
+  # role (`CommandRules::Authorization`) rather than merely documented by
+  # `describe`. `dispatch` REQUIRES it for any command that declares a
+  # role — `require_caller_for_role_gated!` refuses an unbound dispatch
+  # against one rather than silently running it unchecked; `query`'s own
+  # authorization runs on a separate mechanism (`Runtime::TenantScope`)
+  # that `role:` does not gate. This is self-asserted identity, not
+  # authentication: the caller states its own `role`/`actor_id`, and this
+  # bus checks it consistently once stated — see `bin/hecks_mcp_door`'s
+  # header for what that does and does not guarantee. Every call through
+  # those three, plus a dry run, is appended to a per-domain JSONL audit
+  # log (`record!`) `follow` tails back — a record of what the caller
+  # SAID it was, not independently verified identity. `catalog`/
+  # `describe`/`validate`/`domains`/`history`/`behaviors`/`events` need
+  # neither — they change nothing and commit nothing to any log.
   #
   # A CALLER HANDS IN AN ALREADY-BOOTED `runtime`, the same division of
   # labor `Facade::CliRunner` already keeps against `bin/run`: booting a
@@ -87,6 +95,32 @@ module Hecks
     # state, and `tmp/` is already gitignored for exactly this kind of
     # local, disposable-but-useful-while-it-lasts file.
     LOG_ROOT = File.expand_path("../../tmp/storehouse", __dir__)
+
+    # THE ROOT EVERY `domain:`/`under:` MUST RESOLVE UNDER — the project
+    # directory by default, `HECKS_STOREHOUSE_ROOT` to widen or move it.
+    # `Hecks.boot` `Kernel.load`s the `.hecksagon`/`.bluebook`/`.world`
+    # files a domain path resolves to, and those are Ruby, not a data
+    # format — a caller-supplied path with no confinement at all is an
+    # unmarked door out of "a narrower, checked surface" (the README's
+    # own pitch for this bus) and into arbitrary code execution from any
+    # path on disk. This is a boundary a local convention was standing
+    # in for, not new behavior for a caller already confined to the
+    # project tree.
+    BOOT_ROOT = File.expand_path(ENV["HECKS_STOREHOUSE_ROOT"] || File.expand_path("../..", __dir__))
+
+    # REFUSED, NOT SILENTLY CLAMPED — a path outside `BOOT_ROOT` is either
+    # an honest mistake (a relative path typed against the wrong cwd) or
+    # the exact thing this check exists to catch, and both deserve the
+    # same clear refusal rather than a silent rewrite to something the
+    # caller didn't ask for.
+    def confine!(path, label)
+      resolved = File.expand_path(path.to_s, BOOT_ROOT)
+      return resolved if resolved == BOOT_ROOT || resolved.start_with?("#{BOOT_ROOT}#{File::SEPARATOR}")
+
+      raise Runtime::TypeMismatch,
+            "#{label}: #{path.inspect} resolves outside #{BOOT_ROOT} — this bus only boots domains under its " \
+            "own root (HECKS_STOREHOUSE_ROOT to widen it)"
+    end
 
     # ── shared resolution helpers ────────────────────────────────────
 
@@ -146,20 +180,44 @@ module Hecks
 
     # BOUND FOR THE DURATION OF ONE CALL, THEN GONE — `Hecks.as_caller`
     # is itself a `Thread.current`-scoped `ensure`-guarded block, so
-    # nothing here needs its own cleanup. `role: nil` (the default,
-    # every caller before this) yields unbound, exactly as before:
-    # `CommandRules::Authorization#refuse_role_mismatch` is OPT-IN on
-    # both sides — no caller bound, no role declared, both unchecked.
-    # Query authorization runs on a wholly separate mechanism
-    # (`authorize policy, tenant: :field`, checked against an explicit
-    # `tenant:` argument — see `Runtime::TenantScope`), so binding a
-    # caller around a query has no effect on it TODAY; it is still
-    # accepted here, for symmetry and for the audit log, against the
-    # day a read model does check `Caller.current`.
+    # nothing here needs its own cleanup. `role: nil` yields unbound —
+    # for `query`, exactly as before: `CommandRules::Authorization#
+    # refuse_role_mismatch` is OPT-IN on the domain side (`return unless
+    # caller`), and query authorization runs on a wholly separate
+    # mechanism (`authorize policy, tenant: :field`, checked against an
+    # explicit `tenant:` argument — see `Runtime::TenantScope`), so
+    # binding a caller around a query has no effect on it TODAY; it is
+    # still accepted here, for symmetry and for the audit log, against
+    # the day a read model does check `Caller.current`. For `dispatch`,
+    # `require_caller_for_role_gated!` (below) now refuses BEFORE this
+    # is ever reached when the command declares a role and no caller is
+    # bound — so an unbound `dispatch` here means either the command
+    # declares no role at all, or a caller-side check let it through.
     def with_caller(role, actor_id, &block)
       return block.call if role.nil?
 
       Hecks.as_caller(role: role, actor_id: actor_id, &block)
+    end
+
+    # THE FAIL-OPEN HALF `with_caller` ITSELF CANNOT CLOSE — ADR 0025's
+    # Governance RBAC work fixed WHAT a *bound* role is checked against
+    # (a live `Governance::RoleAssignment` lookup instead of a bare
+    # string match), but changed nothing about a caller who binds no
+    # role at all: `refuse_role_mismatch` `return`s immediately when
+    # `Caller.current` is nil, so a bus caller who simply omits `role:`
+    # sails past a role-gated command unchecked, not denied. That is a
+    # property of THIS BUS choosing to dispatch unbound, not of the
+    # domain rule — `bin/run`, the human CLI, has no such gap because a
+    # human always dispatches through a real `Hecks.as_caller` binding
+    # upstream of it. Refusing here, before `with_caller`/`dispatch` are
+    # ever reached, makes the bus keep the same promise: a command whose
+    # bluebook declares a role is not run through this bus without one.
+    def require_caller_for_role_gated!(spec, role)
+      return unless spec[:role_gated] && role.nil?
+
+      raise Runtime::Unauthorized,
+            "#{spec[:verb]} requires role: #{spec[:role].inspect} — this command is role-gated and no caller " \
+            "(role:/actor_id:) is bound; dispatching it unbound is refused, not silently unchecked"
     end
 
     # `dry_run?` (Runtime::Dispatcher) understands only the OLD flat
@@ -238,6 +296,7 @@ module Hecks
       valid_caller!(role, actor_id)
       cli      = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
       spec     = resolve!(cli, command, asking: false)
+      require_caller_for_role_gated!(spec, role)
       envelope = Facade::CommandRequest.normalize(Facade::JsonDoor.deep_symbolize(args),
                                                   receiver:        spec[:receiver],
                                                   legacy_receiver: spec[:legacy_receiver])
@@ -354,7 +413,7 @@ module Hecks
     # up directories checking — a bare `.hecksagon` or one under
     # `bluebook/`, the two real shapes this corpus uses.
     def domains(under: "examples")
-      root = File.expand_path(under)
+      root = confine!(under, "under")
       return ok(under: under, domains: []) unless Dir.exist?(root)
 
       folder = Adapters::Folder.new
@@ -421,7 +480,7 @@ module Hecks
     # precisely so none of those ever cross a projection of this bus as
     # a crash.
     def validate(domain:, deep: false)
-      runtime = Hecks.boot(domain, install_facade: false)
+      runtime = Hecks.boot(confine!(domain, "domain"), install_facade: false)
       result  = { ok: true, domain: domain, valid: true }
 
       if deep

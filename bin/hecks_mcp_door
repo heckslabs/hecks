@@ -17,10 +17,16 @@
 # same way, sharing its audit log and caller-identity handling without
 # ever speaking MCP.
 #
-# `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a real caller
+# `dispatch`/`query` ALSO TAKE `role:`/`actor_id:` — a caller-asserted
 # identity, bound for the call's duration via `Hecks.as_caller`, so a
-# role-gated command's authorization is actually CHECKED through the bus
-# rather than merely documented by `describe`.
+# role-gated command's authorization is checked against it rather than
+# merely documented by `describe`. `dispatch` REQUIRES `role:` for any
+# command that declares one — omitting it refuses rather than running
+# unbound. This is self-asserted, not authenticated: nothing in this
+# process verifies that a caller claiming `role: "Chef"` is entitled to
+# it beyond the string (or, with `actor_id:` and Governance attached, a
+# real `Governance::RoleAssignment` lookup) — see the transport note
+# below for what that does and does not guard against.
 #
 # EVERY DOMAIN-SCOPED TOOL TAKES `domain:` — a directory containing a
 # `.hecksagon` (`examples/banking`, `examples/pizzas`, …), the same
@@ -35,6 +41,18 @@
 # trip) and it means one long-lived server process can answer calls
 # against two different domains back to back with no shared, staling
 # state between them.
+#
+# STDIO ONLY — THIS DOOR HAS NO AUTHENTICATION AND MUST NOT BE EXPOSED
+# OVER A NETWORK. `role:`/`actor_id:` are a caller-asserted identity, not
+# a credential this process verifies; the only thing standing between a
+# caller and this bus today is that reaching stdin/stdout means already
+# being able to run this process as a subprocess. `domain:` is confined
+# to `Hecks::Storehouse::BOOT_ROOT` (`confine!`), but a domain within
+# that root still boots real Ruby (`Kernel.load`), so this is a code
+# execution surface for anyone who can write to `$stdin`. Nothing below
+# assumes a transport other than the `$stdin.each_line` loop at the
+# bottom of this file; adding one (HTTP, a socket reachable off-box)
+# needs an authentication layer in front of it first.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
@@ -69,8 +87,10 @@ SOURCE_PROPERTY = {
 
 ROLE_PROPERTY = {
   type:        "string",
-  description: "Optional: bind a real caller identity for the call's duration, so a role-gated command's " \
-               "authorization is actually checked rather than merely documented. Required if `actor_id` is given."
+  description: "Bind a caller identity for the call's duration, so a role-gated command's authorization is " \
+               "checked rather than merely documented. Required by `dispatch` for any command that declares a " \
+               "role — omitting it refuses the call rather than running it unchecked. Also required if " \
+               "`actor_id` is given."
 }.freeze
 
 ACTOR_ID_PROPERTY = {
@@ -248,7 +268,7 @@ TOOLS = [
   }
 ].freeze
 
-def boot(domain) = Hecks.boot(domain, install_facade: false)
+def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), install_facade: false)
 
 def call_tool(name, a)
   case name

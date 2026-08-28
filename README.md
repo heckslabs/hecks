@@ -520,13 +520,26 @@ MCP server exposing one bus for *every* booted domain: `dispatch`
 `domains` (auto-discovery, so a caller that doesn't already know a
 path can find one), `behaviors`, and `follow` (tails a domain's own
 audit log live). Every call carries a required `summary` and, for
-`dispatch`/`query`, an actual caller identity (`role`/`actor_id`) bound
-for the call — a role-gated command's authorization is checked through
-the bus, not merely documented. `bin/hecks_query_ir_mcp` is a smaller,
-older, read-only sibling exposing structural queries over the language
-itself (`lib/hecks/query_ir.rb`) — meta-tooling for working on hecks,
-not on a business domain. Both are registered in `.mcp.json` in this
-repository.
+`dispatch`/`query`, a caller identity (`role`/`actor_id`) bound for the
+call — checked against a role-gated command's own declared role, the
+same string-vs-`Governance::RoleAssignment` check ADR 0025 gives every
+other caller. `dispatch` requires it: a command that declares a role
+refuses rather than runs when no caller is bound. `query`'s own
+authorization runs on a separate mechanism (tenant scope) that `role`
+does not gate, so a query executes unbound either way. Identity here is
+self-asserted by whoever is calling, not authenticated — this bus
+checks a stated `role`/`actor_id` consistently, it does not verify who
+is actually on the other end (see `bin/hecks_mcp_door`'s header for
+what that does and does not guard against). Every domain-scoped tool's
+`domain:`/`under:` is confined to `Hecks::Storehouse::BOOT_ROOT` (the
+project directory by default) — `Hecks.boot` loads real Ruby, and this
+bus refuses to boot one from outside its own root. `bin/hecks_query_ir_mcp`
+is a smaller, older, read-only sibling exposing structural queries over
+the language itself (`lib/hecks/query_ir.rb`) — meta-tooling for
+working on hecks, not on a business domain. Both speak MCP over stdio
+only, both are unauthenticated beyond the caller-asserted `role`/
+`actor_id` above, and neither should be exposed over a network. Both
+are registered in `.mcp.json` in this repository.
 
 What this means in practice: an agent can inspect a domain's shape,
 dispatch a real command, read back events and state, and statically
@@ -553,8 +566,8 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
 - The DSL → IR → dispatch pipeline; the Ruby reference runtime.
 - Persistence adapters: Memory, Sqlite, Postgres, PostgresEra, Heki,
   Folder.
-- Static model checking, property-based fuzzing (Memory adapter),
-  corpus regression, golden IR snapshots.
+- Static model checking, property-based fuzzing (Memory, Sqlite, and
+  Postgres adapters), corpus regression, golden IR snapshots.
 - The generated Rust dispatch runtime, differentially tested against
   Ruby continuously (not merely at release time).
 - WASM projection (WASI and browser targets) from the same generated
