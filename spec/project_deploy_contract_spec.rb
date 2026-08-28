@@ -1,6 +1,7 @@
 require "tmpdir"
 require "fileutils"
 require "open3"
+require "yaml"
 
 # bin/project_deploy's own STACK_OUTPUTS/BASTION_PARAMETERS tables (its
 # header explains why they're plain Ruby data, not a bluebook aggregate:
@@ -75,6 +76,24 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
   end
 
   after(:context) { FileUtils.rm_rf(@generated_dir) }
+
+  # bin/project_deploy assembles template.yaml/bastion.yaml through
+  # heredocs and `#{}` interpolation -- nothing else in this file (or in
+  # bin/project_deploy itself) ever parses the result back as YAML, so a
+  # string-interpolation mistake that breaks YAML syntax is otherwise
+  # only caught by an actual `sam deploy` failing against real AWS. Two
+  # such bugs were already caught exactly that way: a non-ASCII em-dash
+  # inside a GroupDescription string, and a generated password
+  # containing "@" producing "found character '@' that cannot start any
+  # token" (now excluded via ExcludeCharacters). CloudFormation's own
+  # short-form intrinsic tags (!Sub, !Ref, !GetAtt, ...) parse fine as
+  # plain untyped scalars under YAML.safe_load -- this doesn't need to
+  # understand CloudFormation, only to confirm the interpolation
+  # produced a well-formed YAML document at all.
+  it "produces syntactically valid YAML for every generated CloudFormation template" do
+    expect { YAML.safe_load(@files[:template], aliases: true) }.not_to raise_error
+    expect { YAML.safe_load(@files[:bastion], aliases: true) }.not_to raise_error
+  end
 
   it "gives every Makefile OutputKey lookup against the main stack a real template.yaml Output" do
     declared = @files[:template][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten

@@ -26,6 +26,7 @@ mod lambda_client;
 mod mint;
 mod reference_transform;
 mod reference_validate;
+mod secrets;
 mod storage_shape;
 mod wasm_runner;
 mod web;
@@ -37,7 +38,40 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let database_url = std::env::var("DATABASE_URL").map_err(|_| "DATABASE_URL is required")?;
+    // DB_SECRET_ARN — bin/project_deploy's own default now (template.yaml's
+    // Environment.Variables comment has the full story): the password
+    // itself is fetched from Secrets Manager HERE, at cold start, over
+    // the AWS SDK, rather than trusted from a CloudFormation dynamic
+    // reference already resolved into this function's own
+    // Environment.Variables — which is readable in plaintext by any
+    // principal with read-only access to the account
+    // (lambda:GetFunctionConfiguration), not the secret-at-rest
+    // protection its own name suggests. DB_HOST/DB_NAME travel as plain
+    // (non-secret) Environment.Variables alongside it.
+    //
+    // FALLS BACK TO DATABASE_URL directly when DB_SECRET_ARN is absent —
+    // the one legitimate case being a human hand-debugging over an SSM
+    // tunnel with DATABASE_URL set manually (project_deploy's own
+    // ExcludeCharacters comment already anticipates exactly this).
+    let database_url = match std::env::var("DB_SECRET_ARN") {
+        Ok(secret_arn) => {
+            let db_host = std::env::var("DB_HOST").map_err(|_| "DB_HOST is required when DB_SECRET_ARN is set")?;
+            let db_name = std::env::var("DB_NAME").map_err(|_| "DB_NAME is required when DB_SECRET_ARN is set")?;
+            let secret_json = secrets::AwsSecretFetcher::from_env()
+                .await
+                .fetch_secret_string(&secret_arn)
+                .await
+                .map_err(|e| format!("fetching DB_SECRET_ARN from Secrets Manager: {e:#}"))?;
+            let password = secrets::extract_password(&secret_json)?;
+            // Composed exactly the way template.yaml's own retired
+            // `{{resolve:secretsmanager:...}}` DATABASE_URL Sub used to —
+            // literal, unescaped, no percent-encoding. parse_database_url
+            // below never percent-decodes the password segment either way.
+            format!("postgres://postgres:{password}@{db_host}:5432/{db_name}")
+        }
+        Err(_) => std::env::var("DATABASE_URL")
+            .map_err(|_| "either DB_SECRET_ARN (+ DB_HOST/DB_NAME) or DATABASE_URL is required")?,
+    };
     let wasm_path = PathBuf::from(
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
     );
