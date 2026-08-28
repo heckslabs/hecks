@@ -1,0 +1,47 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Builds the hecks gem and pushes it to rubygems.org, pulling the
+# push-scoped API key from 1Password (vault: Hecks, item: "RubyGems API
+# Key") instead of ~/.gem/credentials on disk. `op run` resolves the
+# op:// reference in release/gem_push.env into GEM_HOST_API_KEY for gem
+# push's one subprocess only — gated by Touch ID, never written to disk
+# or shell history, and gone once that process exits.
+#
+# One-time setup, both outside this script:
+#   - 1Password app: Settings > Developer > "Integrate with 1Password CLI"
+#   - a "RubyGems API Key" item (API Credential category, field:
+#     credential) in the Hecks vault, holding a rubygems.org key scoped
+#     to push-only, restricted to this gem
+#
+# Usage: bin/release_gem   (pushes the version lib/hecks/version.rb declares)
+
+require "fileutils"
+
+ROOT_DIR = File.expand_path("..", __dir__)
+Dir.chdir(ROOT_DIR)
+
+unless system("command -v op > /dev/null 2>&1")
+  warn "1Password CLI (op) not found. Install: brew install 1password-cli"
+  exit 1
+end
+
+require_relative "../lib/hecks/version"
+
+gem_file = "hecks-#{Hecks::VERSION}.gem"
+
+puts "Building #{gem_file}..."
+system("gem", "build", "hecks.gemspec", exception: true)
+
+begin
+  puts "Pushing #{gem_file} to rubygems.org (1Password will prompt for Touch ID)..."
+  system(
+    "op", "run", "--env-file=release/gem_push.env", "--",
+    "gem", "push", gem_file,
+    exception: true
+  )
+ensure
+  FileUtils.rm_f(gem_file)
+end
+
+puts "Released hecks #{Hecks::VERSION}."

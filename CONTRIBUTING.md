@@ -151,3 +151,14 @@ first PR here goes sideways.
 
 If you're not sure whether an idea fits before writing any code, open
 an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
+
+## Releasing
+
+1. Bump `VERSION` in `lib/hecks/version.rb` and add a `CHANGELOG.md`
+   entry, on a branch, as its own PR.
+2. Once that PR merges to `main`, tag the merge commit
+   (`git tag -a vX.Y.Z <sha>`) and push the tag.
+3. Run `bin/release_gem` to build and push to rubygems.org. It pulls
+   the push API key from 1Password (`op run`, Touch ID-gated) rather
+   than a credentials file on disk — see the script's header comment
+   for one-time setup.
