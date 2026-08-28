@@ -1,0 +1,21 @@
+{
+  "name": "directory-parity",
+  "note": "One member enlisted, addressed by email — the identity examples/directory/bluebook/translations/2-632545.bluebook later rekeys onto for real.",
+  "domain": "examples/directory",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Directory::Member.Enlist",
+      "args": {
+        "email": {
+          "value": "ada.lovelace@example.com"
+        },
+        "title": {
+          "value": "Engineer"
+        }
+      }
+    }
+  ]
+}

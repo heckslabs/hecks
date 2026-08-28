@@ -1,0 +1,7 @@
+Hecks.world "Directory" do
+  realm "Examples"
+
+  persisted_by("PostgresEra") do
+    database "postgres://localhost/hecks_directory"
+  end
+end

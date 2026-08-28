@@ -1,0 +1,48 @@
+Hecks.bluebook "Directory" do
+  vision "A staff directory: members once addressed by the name they walked in with, now by the email that actually identifies them one person to one row."
+  supporting
+
+  # THE EXACT REKEY docs/implemented/guides/schema-evolution.md's own
+  # worked example describes — `identified_by :name` becoming
+  # `identified_by :email` — landed for real: this domain's era 1 was
+  # genuinely `identified_by :name`, and translations/2-632545.bluebook
+  # is the one real `rekey` (and `compute`) edge this corpus has ever
+  # declared, minted against a real Postgres by spec/adapters/driven/
+  # postgres_era/directory_rekey_spec.rb — not a fixture invented for a
+  # doc page.
+  #
+  # THE DOMAIN'S OWN REASON TO REKEY, not a contrived one: two members
+  # can share a name (there are only so many "Chris"es), so `name` was
+  # never a safe identity to begin with — exactly the flaw pizzas'
+  # `Order` still carries (`identified_by :name` on the menu name
+  # itself) and schema-evolution.md's own rekey section names as the
+  # canonical reason this rule kind exists at all. Era 1 (held the
+  # first time this domain ever booted against Postgres, never
+  # committed — see the translation edge beside this file) declared
+  # `attribute :name, MemberName` and `identified_by :name`, no
+  # `email` at all. The edge's `compute` consumes that `name` into
+  # this era's `email`, and its `rekey` recomputes the identity from
+  # the SAME expression — not a `backfill` default, which can only
+  # ever supply ONE literal for every pre-existing row regardless of
+  # how many people it is actually standing in for.
+  aggregate "Member" do
+    description "One staff member, addressed by the email that is actually theirs alone."
+
+    attribute :title, MemberTitle
+    attribute :email, MemberEmail
+
+    identified_by :email
+
+    value_object("MemberTitle") { attribute :value, String }
+    value_object("MemberEmail") { attribute :value, String }
+
+    command "Enlist" do
+      goal "Add a member to the directory, addressed by their own email"
+
+      attribute :email, MemberEmail
+      attribute :title, MemberTitle
+
+      emits "MemberEnlisted"
+    end
+  end
+end

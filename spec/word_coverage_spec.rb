@@ -129,15 +129,17 @@ RSpec.describe "every live DSL word, used somewhere real" do
     line[0...index].count('"').odd?
   end
 
-  # Shared reasoning for 8 of the 9 Translation-family entries below —
-  # see the comment on the first of them for the full finding.
+  # Shared reasoning for 6 of the remaining 7 Translation-family entries
+  # below — see the comment on the first of them for the full finding.
   TRANSLATION_RULE_GAP =
     "no real translation edge in this corpus exercises this rule kind — " \
-    "examples/pizzas/bluebook/translations/2-77625c.bluebook (the one real " \
-    "translation this repository has) only exercises `aggregate ... was:` and " \
-    "`move ... to:`. `corpus_uses?`'s naive whole-token scan reports a false " \
-    "positive for this word regardless (see the comment on the first entry in " \
-    "this group), so this exemption also stands in for that scanner gap."
+    "examples/pizzas/bluebook/translations/2-77625c.bluebook and " \
+    "examples/directory/bluebook/translations/2-632545.bluebook (the two real " \
+    "translations this repository has) only exercise `aggregate ... was:`, " \
+    "`move ... to:`, `compute ... to:, sql:`, and `rekey sql:`. `corpus_uses?`'s " \
+    "naive whole-token scan reports a false positive for this word regardless " \
+    "(see the comment on the first entry in this group), so this exemption " \
+    "also stands in for that scanner gap."
 
   # UNREACHED ON PURPOSE, each naming why — the same shape
   # plurality_coverage_spec.rb's ALLOWED_SINGLETON is. Every entry here
@@ -251,33 +253,35 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # Translation/TranslationAggregate — item #13's remaining builders.
     # `corpus_uses?` is a NAIVE whole-token scan (its own header already
     # names this risk) with no context awareness at all, and every one of
-    # these 9 words happens to collide with an UNRELATED real corpus use
+    # these words happens to collide with an UNRELATED real corpus use
     # of the same spelling: `retired`/`rename`/`convert`/`drop`/`retype`/
-    # `compute`/`rekey`/`backfill`/`unresolved` all appear as plain STRING
-    # VALUES inside lib/hecks/grammar/translation.bluebook's own
-    # unrelated `Rule.Kind` closed set (a pre-existing, different self-
-    # hosted "Translation" domain — governs proposing/executing/admitting
-    # individual rules for bin/evolve's scaffold tooling, never loaded
-    # into the same registry as this one) — plus `retired` also collides
-    # with the word "retired" appearing as a plain lifecycle STATUS
-    # STRING in banking.bluebook/expression.bluebook. Read and confirmed
-    # by hand, one file at a time, not assumed: `examples/pizzas/bluebook/
-    # translations/2-77625c.bluebook` is the one REAL translation this
-    # corpus has (a genuine `Hecks.data_translation "Pizzas", ... do
-    # aggregate "Order", was: "Pizza" do move ... end end` — which is why
-    # `data_translation (File)`, `aggregate (Translation)`, and `move
-    # (TranslationAggregate)` need no exemption here, all three genuinely
-    # covered), and it exercises exactly two of the nine rule words
-    # (`aggregate ... was:`, `move ... to:`). The other nine rule kinds
-    # this language admits have no real edge exercising them anywhere in
-    # this repository yet — a real gap in the CORPUS, not in the words.
+    # `backfill`/`unresolved` all appear as plain STRING VALUES inside
+    # lib/hecks/grammar/translation.bluebook's own unrelated `Rule.Kind`
+    # closed set (a pre-existing, different self-hosted "Translation"
+    # domain — governs proposing/executing/admitting individual rules
+    # for bin/evolve's scaffold tooling, never loaded into the same
+    # registry as this one) — plus `retired` also collides with the
+    # word "retired" appearing as a plain lifecycle STATUS STRING in
+    # banking.bluebook/expression.bluebook. Read and confirmed by hand,
+    # one file at a time, not assumed: `examples/pizzas/bluebook/
+    # translations/2-77625c.bluebook` and `examples/directory/bluebook/
+    # translations/2-632545.bluebook` are the two REAL translations
+    # this corpus has — a genuine `Hecks.data_translation "Pizzas", ...
+    # do aggregate "Order", was: "Pizza" do move ... end end`, and a
+    # genuine `Hecks.data_translation "Directory", ... do aggregate
+    # "Member" do compute "name", to: "email", sql: "..." ; rekey sql:
+    # "..." end end` — which is why `data_translation (File)`,
+    # `aggregate (Translation)`, `move (TranslationAggregate)`,
+    # `compute (TranslationAggregate)`, and `rekey (TranslationAggregate)`
+    # need no exemption here, all five genuinely covered. The remaining
+    # rule kinds this language admits have no real edge exercising them
+    # anywhere in this repository yet — a real gap in the CORPUS, not
+    # in the words.
     "retired (Translation)"                => TRANSLATION_RULE_GAP,
     "rename (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
     "convert (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
     "drop (TranslationAggregate)"          => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
-    "compute (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
-    "rekey (TranslationAggregate)"         => TRANSLATION_RULE_GAP,
     "backfill (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
     "unresolved (TranslationAggregate)"    =>
                                               "same finding as the rest of this group, plus a second, independent reason: " \

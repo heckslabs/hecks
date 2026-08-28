@@ -1,0 +1,33 @@
+# THE ONE REAL `rekey` (and `compute`) EDGE THIS CORPUS DECLARES.
+# Era 1 (held the first time Directory ever booted against a real
+# Postgres, never committed — data/eras/ is gitignored the same way
+# pizzas' own era 1 is) was:
+#
+#   Hecks.bluebook "Directory" do
+#     aggregate "Member" do
+#       attribute :name,  MemberName
+#       attribute :title, MemberTitle
+#       identified_by :name
+#       value_object("MemberName")  { attribute :value, String }
+#       value_object("MemberTitle") { attribute :value, String }
+#     end
+#   end
+#
+# Two members sharing a name was always possible — `name` was never a
+# safe identity — so era 2 (directory.bluebook, right beside this
+# file) rekeys `Member` onto its email instead. Both rules below share
+# ONE expression on purpose: `rekey` explains the new IDENTITY, but
+# says nothing about the stored `email` ATTRIBUTE's own value for a
+# translated row (Lineage#translate never touches an entry's id, only
+# its state) — that is a separate question `compute` answers, and it
+# has to agree with the rekey's own SQL, not merely happen to for one
+# fixture row. A `backfill :email, default: "..."` cannot do this: one
+# literal default is right for at most one pre-existing member, wrong
+# for every other one a real directory would actually hold.
+Hecks.data_translation "Directory", from: "dffb74", to: "632545" do
+  aggregate "Member" do
+    compute "name", to: "email",
+            sql: "lower(regexp_replace((__s -> 'name') ->> 'value', '\\s+', '.', 'g')) || '@example.com'"
+    rekey sql: "lower(regexp_replace((__s -> 'name') ->> 'value', '\\s+', '.', 'g')) || '@example.com'"
+  end
+end

@@ -89,7 +89,35 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
   while (clean + failures.length) < seeds && drawn < cap
     drawn += 1
     seed = drawn
-    generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps, adapter: adapter)
+    generated = begin
+      Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps, adapter: adapter)
+    rescue Hecks::Runtime::WiringError => e
+      # A `compute`/`rekey` translation rule is an era/Postgres-only
+      # construct (lib/hecks/ports/persistence/plugins/era/era_check.rb)
+      # — it needs a real SQL migration to interpret, so it CANNOT boot
+      # under IsolatedBoot's Memory (or :sqlite) rebind, whatever adapter
+      # this sweep picked; `Loader.check_compute_rules_backstop!` refuses
+      # by design the moment nothing era-aware is loaded to interpret it
+      # (lib/hecks/runtime/loader.rb's own comment: a loaded era plugin
+      # would refuse more specifically, "...is bound to Memory" — this is
+      # the same refusal, just from the plugin-free path IsolatedBoot
+      # always takes). Not a bug in this domain or in fuzzing — every
+      # OTHER domain in the sweep is still fuzzable, so one unfuzzable
+      # domain skipping itself beats the whole sweep dying on the first
+      # `compute`/`rekey` domain anyone ever adds to the corpus (examples/
+      # directory is the first, closing the audit's own "no rekey
+      # anywhere in the example corpus" gap — this domain is why this
+      # rescue exists). Real coverage for compute/rekey stays where it
+      # already lives: spec/adapters/driven/postgres_era/*_spec.rb,
+      # `io: true`, against a real Postgres.
+      raise unless e.message.include?("a compute/rekey rule is declared")
+
+      :skip
+    end
+    if generated == :skip
+      puts "   skipped — declares compute/rekey, which only an era/Postgres-bound boot can interpret (not fuzzable under :#{adapter})"
+      return true
+    end
     verdict, message = outcome(domain, generated, adapter)
 
     if verdict == :clean
