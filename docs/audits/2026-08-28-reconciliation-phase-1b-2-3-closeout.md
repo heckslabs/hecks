@@ -65,7 +65,11 @@ numbers:
   (8/8), `rust_conformance_spec --tag io` (14/22 — the same 14 pre-existing
   Rust-runtime-projection-gap scenarios as the established baseline, no new
   failures) — all already run and recorded in this session's S12/S13 merge
-  work; not re-run a third time here since nothing changed since.
+  work; not re-run a third time here since nothing changed since. **Update,
+  2026-08-28, same day:** PR #433 closed that projection gap for real later
+  the same day (`projects` fields now seeded at dispatch time in Rust too) —
+  by the time of the 1.0.0 tag, `rust_conformance_spec` is 23/23, zero
+  failures.
 
 The audit-ID re-verification (H3/H11/L20/M20, M1-M19, L1-L24, Rust-parity
 divergence list) this plan's own Phase 2 also named is tracked separately —

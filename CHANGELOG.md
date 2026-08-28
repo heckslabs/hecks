@@ -47,12 +47,18 @@ re-verified (53 of 55 fixed or no longer applicable; the 2 remaining carry
 an honest caveat rather than a false "fixed" — see
 `docs/audits/2026-08-28-m1-m19-l1-l24-rust-parity-reverify.md`).
 
+**Update, 2026-08-28, same day:** the Rust runtime projection gap named
+below as a known, out-of-scope-for-1.0 limitation was closed the same day,
+in the same release — PR #433 seeds `projects` fields at dispatch time in
+Rust (`ProjectedFieldSpec`/`seeded_projections`/`SetProjectedField`,
+`rust/src/kernel/reference_lookup.rs`), closing every one of the 15
+`rust_conformance_spec` failures the gap below describes. `rust_conformance_
+spec` is 23/23, zero failures, as of this release.
+
 **Known, out-of-scope-for-1.0 gaps**, tracked separately rather than
-silently shipped: the Rust runtime doesn't yet read `projects`-seeded fields
-at dispatch time (`rust_conformance_spec` 14/22, unchanged since S12); a real
-dangling-reference data-integrity gap found by the generated-sequence fuzz
-bridge (ADR 0037 Finding 5); S18 (migrating `raise Malformed` call sites into
-the meta-domain — scoped, not started, ADR 0026).
+silently shipped: a real dangling-reference data-integrity gap found by the
+generated-sequence fuzz bridge (ADR 0037 Finding 5); S18 (migrating `raise
+Malformed` call sites into the meta-domain — scoped, not started, ADR 0026).
 
 Everything below this line is unchanged content from `[Unreleased]`, carried
 forward as this release's own history.
