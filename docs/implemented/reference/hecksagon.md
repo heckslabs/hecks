@@ -68,6 +68,41 @@ nothing at all:
 runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("AccountFreezeReviewOpened")  # => false
 ```
 
+**Checked, not routed.** `subscribe` still dispatches nothing at
+runtime — the example just above proves that, and it stays true. What
+changed is that it is now checked at model-check time: a cross-domain
+`policy ... across: "X"` with nothing acknowledging `X` (neither
+`subscribe "X.*"` nor `uses_framework "X"`) is a real, static finding
+(`:unacknowledged_relationship`, `Hecks::Bluebook::ModelCheck`). Banking's
+own `subscribe "Compliance.AccountFreezeReviewOpened"` line, above, is
+exactly what makes its `across "Compliance"` policy clean:
+
+```ruby
+require "hecks/bluebook/model_check"
+banking      = runtime.registry.bluebook("Banking")
+hecksagon    = runtime.registry.hecksagon("Banking")
+compliance_policy = banking.policies.find { |p| p.target_domain == "Compliance" }
+Hecks::Bluebook::ModelCheck.call(banking, hecksagon: hecksagon).map(&:subject).include?(compliance_policy.name)  # => false
+```
+
+Remove the acknowledgment and the SAME policy is flagged — this is what
+finally gives `subscribe` real teeth, without giving it real dispatch
+behavior:
+
+```ruby
+# A PLAIN Hecksagon, built directly rather than through Hecks.hecksagon
+# (which only runs inside a boot) — no subscribe, no uses_framework, so
+# Compliance goes unacknowledged.
+unacknowledging = Hecks::Bluebook::Hecksagon.new(domain: "Banking")
+findings = Hecks::Bluebook::ModelCheck.call(banking, hecksagon: unacknowledging)
+findings.find { |f| f.subject == compliance_policy.name }.kind  # => :unacknowledged_relationship
+```
+
+See `docs/implemented/reference/policy.md`'s own `## across` section for
+the other half — `uses_framework` and `across` on the SAME target
+(`:contradictory_relationship`) — and the model-checker's own file for
+why this needs no new keyword at all.
+
 ## uses_framework
 
 <!-- generated:begin word=uses_framework -->

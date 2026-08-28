@@ -46,18 +46,51 @@ module Hecks
       # states), so a state nothing ever transitions into or out of no
       # longer exists to be unreachable — the finding this allowlisted
       # cannot occur any more, by construction.
-      ALLOWED_FINDINGS = {}.freeze
+      #
+      # "banking"/NotifyOnClosure, FlagKeyReturn — real, confirmed
+      # findings, not bugs to fix. `across "Notifications"` names a
+      # domain that does not exist anywhere in this repo — no
+      # Notifications bluebook, no hecksagon, nothing to `uses_framework`
+      # or `subscribe` to. This is deliberate: `spec/runtime/policy_spec.
+      # rb` (a test literally named "records a reaction it cannot
+      # deliver rather than swallowing it") and `lib/hecks/runtime/
+      # errors.rb`'s own `UnknownVerb` comment both treat "target domain
+      # not loaded" as the EXPECTED outcome for it — Notifications is
+      # used on purpose to exercise the undelivered-reaction runtime
+      # path, not left half-built. There is no real `subscribe` line to
+      # add (no event of Notifications' own to name) and no real domain
+      # to point `uses_framework` at.
+      ALLOWED_FINDINGS = {
+        "banking" => [
+          [:unacknowledged_relationship, "NotifyOnClosure"],
+          [:unknown_target_domain, "NotifyOnClosure"],
+          [:unacknowledged_relationship, "FlagKeyReturn"],
+          [:unknown_target_domain, "FlagKeyReturn"]
+        ]
+      }.freeze
 
       module_function
 
-      def call(bluebook)
+      # `hecksagon:`/`known_domains:` — both optional, both `nil`-safe
+      # (every existing caller with no sibling hecksagon, or checking one
+      # domain in isolation, behaves exactly as before). `hecksagon` is
+      # THIS bluebook's own sibling wiring file, if the caller loaded one
+      # (see `emitted_events`'s own comment on why a caller that didn't
+      # simply finds none, correctly). `known_domains` is the caller's
+      # OWN corpus-wide view — every bluebook/hecksagon name it has
+      # booted anywhere, across every domain it has looked at, not just
+      # this one — used only to catch a typo'd `across`/`uses_framework`
+      # target; see `cross_domain_policy_findings`'s own comment for why
+      # this can only ever be a corpus-scoped heuristic, never a general
+      # correctness guarantee.
+      def call(bluebook, hecksagon: nil, known_domains: nil)
         findings = []
         bluebook.aggregates.each do |aggregate|
           findings.concat(lifecycle_findings(aggregate, aggregate))
           aggregate.entities.each { |entity| findings.concat(lifecycle_findings(aggregate, entity)) }
         end
         bluebook.process_managers.each { |pm| findings.concat(saga_findings(bluebook, pm)) }
-        bluebook.policies.each { |policy| findings.concat(policy_findings(bluebook, policy)) }
+        bluebook.policies.each { |policy| findings.concat(policy_findings(bluebook, policy, hecksagon, known_domains)) }
         findings
       end
 
@@ -240,8 +273,8 @@ module Hecks
 
       # ── policies ───────────────────────────────────────────────────────
 
-      def policy_findings(bluebook, policy)
-        return [] if policy.target_domain # cross-domain: CommandRules skips it too; so does this checker.
+      def policy_findings(bluebook, policy, hecksagon, known_domains)
+        return cross_domain_policy_findings(policy, hecksagon, known_domains) if policy.target_domain
 
         emitted = emitted_events(bluebook)
         findings = []
@@ -271,6 +304,83 @@ module Hecks
           findings << Finding.new(kind: :unknown_trigger, severity: :error, subject: policy.name,
                                   message: "trigger #{policy.trigger_command.inspect} resolves to no command " \
                                            "this domain declares")
+        end
+
+        findings
+      end
+
+      # ── cross-domain policies (Context Mapping) ───────────────────────
+      #
+      # `uses_framework "X"` already IS a Shared Kernel relationship — it
+      # merges X's own bluebook into THIS registry, no boundary. A cross-
+      # domain `policy ... across: "X"` already IS a Customer/Supplier
+      # relationship — it dispatches into X over real cross-Lambda RPC in
+      # the Rust host (`rust/host/src/lambda_client.rs`). Neither is a new
+      # word; this makes the CHOICE between them checked instead of a
+      # prose comment nobody enforces (`examples/banking/bluebook/
+      # banking.hecksagon`'s own hand-written note explaining why
+      # Compliance is reached via `across`, never `uses_framework`).
+      #
+      # NO NEW KEYWORD ANYWHERE — ADR 0025 principle 1 ("one idea, one
+      # spelling") refuses a `relationship:`/`as:` argument that would
+      # just restate, as a string, the fact the chosen keyword (
+      # `uses_framework` vs `across`) already states completely. The
+      # DDD vocabulary (Shared Kernel, Customer/Supplier) lives here, in
+      # the finding's own name and this comment, and in prose docs — not
+      # in the grammar.
+      def cross_domain_policy_findings(policy, hecksagon, known_domains)
+        return [] unless hecksagon # no sibling hecksagon loaded — nothing to check a relationship against.
+
+        target = policy.target_domain
+        findings = []
+
+        if hecksagon.framework_members.include?(target)
+          # SHARED KERNEL AND CUSTOMER/SUPPLIER ARE MUTUALLY EXCLUSIVE
+          # CLAIMS about the SAME target — `uses_framework` means "X is
+          # loaded in-process, right here"; `across` means "X is a
+          # separate deployment, reached only by RPC." Declaring both is
+          # either a pointless RPC to a domain already local, or a
+          # `uses_framework` that isn't really doing what its name says.
+          findings << Finding.new(kind: :contradictory_relationship, severity: :error, subject: policy.name,
+                                  message: "across #{target.inspect} dispatches over RPC (Customer/Supplier), " \
+                                           "but this hecksagon also uses_framework #{target.inspect} (Shared " \
+                                           "Kernel) — #{target} is already loaded in-process here, so the two " \
+                                           "relationship declarations contradict each other for the same " \
+                                           "target domain")
+        elsif hecksagon.subscriptions.none? { |subscribed| Naming.qualifier(subscribed) == target }
+          # THIS IS WHAT FINALLY GIVES `subscribe` REAL TEETH — checked
+          # here, at model-check time, still never routed at runtime
+          # (nothing dispatches off a `subscribe` line; see hecksagon.md's
+          # own "checked, not routed" section). ADR 0025 names `subscribe`
+          # by number as failing the corpus-use bar; this is the real use.
+          findings << Finding.new(kind: :unacknowledged_relationship, severity: :error, subject: policy.name,
+                                  message: "across #{target.inspect} declares a Customer/Supplier " \
+                                           "relationship, but nothing in this hecksagon records the " \
+                                           "expectation — add subscribe \"#{target}.SomeEvent\" for what " \
+                                           "you expect back from it, or uses_framework #{target.inspect} to " \
+                                           "attach it in-process instead")
+        end
+
+        # TYPO DETECTION, DELIBERATELY WEAKER — `known_domains` can only
+        # ever be a MONOREPO-SCOPED heuristic: a real external hecks
+        # consumer's own domain (this repo's own embryonaut/lifeadelics-
+        # shaped case) lives in a genuinely separate repository this
+        # corpus scan can never see, so a target this check cannot find
+        # is "unknown to THIS corpus," never proof of a typo. Two real,
+        # legitimate reasons a target is unresolvable — genuinely
+        # undefined by design (the corpus's own "Notifications," used
+        # deliberately to exercise the undelivered-reaction runtime path)
+        # and real-but-external (a separate repository) — both go in
+        # `ALLOWED_FINDINGS`, the same judged-exception mechanism this
+        # file already uses for ExternalSettlement, rather than a new
+        # keyword invented to declare "this one's fine."
+        if known_domains && !known_domains.include?(target)
+          findings << Finding.new(kind: :unknown_target_domain, severity: :error, subject: policy.name,
+                                  message: "across #{target.inspect} names a domain nowhere in the corpus " \
+                                           "this check has booted — a typo, or a real domain intentionally " \
+                                           "outside this corpus (undefined by design, or living in a " \
+                                           "separate repository) belongs in ALLOWED_FINDINGS, named and " \
+                                           "explained, not silently assumed correct")
         end
 
         findings

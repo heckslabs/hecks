@@ -58,14 +58,22 @@ def boot(source)
                 end
     Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
   end
-  registry.bluebooks.values
+  registry
 end
 
-def examine(name, source)
+# `known_domains:` — every bluebook/hecksagon name booted ANYWHERE across
+# this run, not just this one target — see `boot_all`'s own comment for
+# how it's built. `nil` for the single-target CLI form (`bin/model_check
+# some/domain`), where only that one target's own boot is ever seen —
+# a real, accepted reduction in the cross-domain check's own reach for
+# that narrower form, not a bug.
+def examine(name, registry, known_domains: nil)
   puts "── #{name}"
 
-  chapters = boot(source)
-  findings = chapters.flat_map { |chapter| Hecks::Bluebook::ModelCheck.call(chapter) }
+  chapters = registry.bluebooks.values
+  findings = chapters.flat_map do |chapter|
+    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), known_domains: known_domains)
+  end
 
   allowed = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
   matched, findings = findings.partition { |f| allowed.include?([f.kind, f.subject]) }
@@ -127,13 +135,26 @@ grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook").sort
 framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook").sort
 
 if domain_arg
-  ok = examine(File.basename(domain_arg.chomp("/")), bluebook_in(domain_arg.chomp("/")) || domain_arg)
+  registry = boot(bluebook_in(domain_arg.chomp("/")) || domain_arg)
+  ok = examine(File.basename(domain_arg.chomp("/")), registry)
 else
   targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.reject { |_, s| s.nil? } +
             grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] } +
             framework_members.map { |m| [File.basename(m, ".bluebook"), m] }
 
-  ok = targets.reduce(true) { |all_ok, (name, source)| examine(name, source) && all_ok }
+  # TWO PASSES OVER THE SAME BOOTS, not two boots — PASS 1 boots every
+  # target once (booting is the expensive part) and accumulates every
+  # bluebook/hecksagon name any of them declares into ONE corpus-wide
+  # set; PASS 2 re-examines each already-booted registry against that
+  # NOW-COMPLETE set, so a cross-domain check on the FIRST target
+  # examined still sees the LAST target's own domain names too — the
+  # exact reason a single boot's own registry (Compliance never loaded
+  # in the same registry as Banking, by design) cannot answer "does
+  # this target domain exist anywhere in the corpus" on its own.
+  booted = targets.map { |name, source| [name, boot(source)] }
+  known_domains = booted.flat_map { |_, registry| registry.bluebooks.keys + registry.hecksagons.keys }.to_set
+
+  ok = booted.reduce(true) { |all_ok, (name, registry)| examine(name, registry, known_domains: known_domains) && all_ok }
   ok = examine_language && ok
 end
 

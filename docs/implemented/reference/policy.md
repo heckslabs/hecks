@@ -101,6 +101,7 @@ Kernel.load(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compli
 
 Hecks.hecksagon("Banking") do
   uses_framework "Governance"
+  subscribe "Compliance.AccountFreezeReviewOpened"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
 end
@@ -234,6 +235,22 @@ the fully-qualified command the runtime actually dispatched:
 
 ```ruby
 runtime.registry.reaction_log.first[:trigger]  # => "Compliance::AccountFreezeReview.Open"
+```
+
+`across` is a real relationship declaration now, not just a routing
+detail — `Hecks::Bluebook::ModelCheck` checks it against the sibling
+hecksagon's own `subscribe`/`uses_framework` lines (see
+`docs/implemented/reference/hecksagon.md`'s own "Checked, not routed"
+section for the other half). Banking's real corpus is clean here — its
+own `subscribe "Compliance.AccountFreezeReviewOpened"` is exactly what
+acknowledges `ReviewOnFreeze`'s `across "Compliance"`:
+
+```ruby
+require "hecks/bluebook/model_check"
+banking  = runtime.registry.bluebook("Banking")
+review_on_freeze = banking.policies.find { |p| p.target_domain == "Compliance" }
+findings = Hecks::Bluebook::ModelCheck.call(banking, hecksagon: runtime.registry.hecksagon("Banking"))
+findings.any? { |f| f.subject == review_on_freeze.name }  # => false
 ```
 
 ## where

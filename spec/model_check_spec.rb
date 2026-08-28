@@ -29,12 +29,20 @@ RSpec.describe "the model checker" do
                   end
       Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
     end
-    registry.bluebooks.values.first
+    registry
+  end
+
+  # `boot` now returns the REGISTRY, not the bluebook directly — every
+  # caller needs `registry.hecksagon(bluebook.name)` too, to exercise the
+  # cross-domain relationship findings.
+  def call_model_check(registry, known_domains: nil)
+    bluebook = registry.bluebooks.values.first
+    Hecks::Bluebook::ModelCheck.call(bluebook, hecksagon: registry.hecksagon(bluebook.name), known_domains: known_domains)
   end
 
   def findings_for(name)
     path = File.join(ROOT_DIR, "spec/fixtures/model_check/#{name}.bluebook")
-    Hecks::Bluebook::ModelCheck.call(boot(path))
+    call_model_check(boot(path))
   end
 
   def has?(findings, kind, subject)
@@ -129,6 +137,40 @@ RSpec.describe "the model checker" do
     end
   end
 
+  describe "relationship findings (Context Mapping)" do
+    let(:findings) { findings_for("relationship_findings") }
+
+    it "finds an across: with nothing in the sibling hecksagon acknowledging it" do
+      finding = findings.find { |f| f.kind == :unacknowledged_relationship && f.subject == "OnElsewhere" }
+      expect(finding.message).to include('across "Elsewhere"')
+    end
+
+    it "finds a domain both uses_framework'd (Shared Kernel) AND reached via across (Customer/Supplier)" do
+      finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnGovernance" }
+      expect(finding.message).to include('across "Governance"').and include('uses_framework "Governance"')
+    end
+
+    it "does not flag a well-formed across: matched by a subscribe — OnKnown is clean" do
+      expect(findings.map(&:subject)).not_to include("OnKnown")
+    end
+
+    it "raises no finding kind outside the ones this fixture deliberately triggers" do
+      expect(findings.map(&:kind).uniq.sort).to eq(%i[contradictory_relationship unacknowledged_relationship].sort)
+    end
+
+    it "checked, not routed — no sibling hecksagon at all means no cross-domain finding either way" do
+      # `findings_for` loads the fixture's OWN sibling `.hecksagon`
+      # (`boot`'s own comment) — this proves the inverse directly: a
+      # bluebook with a cross-domain policy but genuinely NO sibling
+      # hecksagon (every other model_check fixture's own shape) raises
+      # neither new finding, the same `return [] unless hecksagon` guard
+      # `policy_findings.bluebook`'s own OnArchive/OnWrite already prove
+      # for the pre-existing same-domain checks.
+      no_hecksagon_findings = call_model_check(boot(File.join(ROOT_DIR, "spec/fixtures/model_check/policy_findings.bluebook")))
+      expect(no_hecksagon_findings.map(&:kind)).not_to include(:contradictory_relationship, :unacknowledged_relationship)
+    end
+  end
+
   # THE COVERAGE GATE. `bin/model_check` runs this same walk over every
   # example domain, every grammar chapter, and the language itself — the
   # spec keeps that corpus finding-free by holding it to bin/model_check's
@@ -161,9 +203,34 @@ RSpec.describe "the model checker" do
     # The SAME constant bin/model_check reads — one table, not a copy.
     MODEL_CHECK_ALLOWED = Hecks::Bluebook::ModelCheck::ALLOWED_FINDINGS
 
+    # TWO PASSES OVER THE SAME BOOTS — the identical structure
+    # bin/model_check's own main loop takes, own comment there. Every
+    # corpus member's own bluebook/hecksagon name has to be known before
+    # ANY member's own cross-domain check can trust "this target isn't
+    # anywhere in the corpus" — a single member's own boot (Compliance
+    # never loaded in the same registry as Banking, by design) cannot
+    # answer that alone. Computed lazily, once, on first use (not at
+    # class-body/file-load time) and memoized — every corpus member gets
+    # re-booted once more per `it` below regardless (each test needs its
+    # own fresh registry the same way it always did), so this only adds
+    # ONE extra full boot pass, not one per example.
+    def self.known_domains
+      @known_domains ||= MODEL_CHECK_CORPUS.flat_map do |_, source|
+        registry = Hecks::Runtime::Registry.new
+        Hecks.with_registry(registry) do
+          Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          InMemoryDomain.load_bluebook_files(source)
+        end
+        registry.bluebooks.keys + registry.hecksagons.keys
+      end.to_set.freeze
+    end
+
     MODEL_CHECK_CORPUS.each do |name, source|
       it "#{name} has no error bin/model_check does not already name" do
-        findings = Hecks::Bluebook::ModelCheck.call(boot(source))
+        findings = call_model_check(boot(source), known_domains: self.class.known_domains)
         errors   = findings.select { |f| f.severity == :error }
         allowed  = MODEL_CHECK_ALLOWED.fetch(name, [])
 
@@ -175,7 +242,7 @@ RSpec.describe "the model checker" do
     it "names nothing in the allowlist that the checker no longer finds" do
       MODEL_CHECK_ALLOWED.each do |name, entries|
         source = MODEL_CHECK_CORPUS.to_h.fetch(name) { next }
-        findings = Hecks::Bluebook::ModelCheck.call(boot(source))
+        findings = call_model_check(boot(source), known_domains: self.class.known_domains)
         found = findings.select { |f| f.severity == :error }.map { |f| [f.kind, f.subject] }
 
         stale = entries - found

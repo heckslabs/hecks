@@ -1,0 +1,6 @@
+Hecks.hecksagon "RelationshipFindings" do
+  uses_framework "Governance"
+  subscribe "Known.SomethingHappened"
+
+  RelationshipFindings::Thing.persisted_by("Memory")
+end

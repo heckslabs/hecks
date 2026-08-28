@@ -1,0 +1,46 @@
+Hecks.bluebook "RelationshipFindings" do
+  vision "Three cross-domain policies — unacknowledged, contradictory, and clean."
+  core
+
+  aggregate "Thing" do
+    identified_by :number
+
+    attribute :number, Number
+
+    value_object "Number" do
+      attribute :value, String
+    end
+
+    command "Do" do
+      role "Tester"
+      goal "A real local command, so trigger has something true to resolve"
+      emits "ThingDone"
+    end
+  end
+
+  # UNACKNOWLEDGED: across "Elsewhere" with nothing in the sibling
+  # hecksagon recording the expectation (no uses_framework, no subscribe).
+  policy "OnElsewhere" do
+    on      "ThingDone"
+    trigger Elsewhere::SomeCommand
+    across  "Elsewhere"
+  end
+
+  # CONTRADICTORY: across "Governance" while the sibling hecksagon ALSO
+  # uses_framework "Governance" — mutually exclusive relationship claims
+  # about the same target (Shared Kernel AND Customer/Supplier at once).
+  policy "OnGovernance" do
+    on      "ThingDone"
+    trigger Governance::SomeCommand
+    across  "Governance"
+  end
+
+  # CLEAN: across "Known" with a matching subscribe "Known.*" in the
+  # sibling hecksagon — the well-formed case, proving the checker does
+  # not false-positive it.
+  policy "OnKnown" do
+    on      "ThingDone"
+    trigger Known::SomeCommand
+    across  "Known"
+  end
+end
