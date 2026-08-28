@@ -106,8 +106,25 @@ RSpec.describe "bin/project_deploy — Shared mode + rust_web + real Google OAut
   end
 
   it "wires the main function's own real Google OAuth Environment variables" do
-    expect(@raw).to match(/GOOGLE_CLIENT_ID: !Sub "\{\{resolve:secretsmanager:hecks-#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}-web-google-oauth:SecretString:client_id\}\}"/)
+    expect(@raw).to include("GOOGLE_OAUTH_SECRET_ID: hecks-#{SHARED_RUST_OAUTH_FIXTURE_BASENAME}-web-google-oauth")
     expect(@raw).to include('GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"')
+    expect(@raw).to match(/SESSION_SECRET_ARN: !Sub "\$\{\w+SessionSecret\}"/)
+  end
+
+  # The main function's execution role needs to fetch BOTH secrets
+  # GOOGLE_OAUTH_SECRET_ID/SESSION_SECRET_ARN name at runtime now (see
+  # that Environment block's own comment) — same
+  # secretsmanager:GetSecretValue shape the DB secret's own grant
+  # already used, extended rather than duplicated as a second Policies
+  # key (bin/project_deploy's own cross_domain_lambda_policies_yaml
+  # comment documents the same one-Policies-key rule).
+  it "grants the main function's role secretsmanager:GetSecretValue on both the Google OAuth secret and the session secret" do
+    function = @template["Resources"].values.find { |r| r["Type"] == "AWS::Serverless::Function" && r.dig("Properties", "Environment", "Variables", "GOOGLE_OAUTH_SECRET_ID") }
+    statements = function.dig("Properties", "Policies").flat_map { |p| p["Statement"] || [] }
+    resources = statements.select { |s| s["Action"] == "secretsmanager:GetSecretValue" }.map { |s| s["Resource"] }
+
+    expect(resources).to include(a_string_matching(/-web-google-oauth-\*\z/))
+    expect(resources).to include(a_string_matching(/SessionSecret\}\z/))
   end
 
   # The Parameters SECTION declaring both sets together (above) is

@@ -1090,16 +1090,23 @@ template_yaml = <<~YAML
             # (era 2+) is a separate, later re-generation, not this one.
             HECKS_DOMAIN: #{declared_domain_name}
             HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
-            # By NAME, not `!Ref` -- same dynamic-reference pattern
-            # DATABASE_URL/SESSION_SECRET already use: `make
+            # NOT `{{resolve:secretsmanager:...}}` composing
+            # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/SESSION_SECRET
+            # directly anymore -- the identical GetFunctionConfiguration
+            # exposure DATABASE_URL's own comment above documents
+            # applied here too. main.rs's own cold start fetches both
+            # secrets itself and `set_var`s the real GOOGLE_CLIENT_ID/
+            # GOOGLE_CLIENT_SECRET/SESSION_SECRET keys before anything
+            # else runs -- auth.rs/web.rs still read those exact keys,
+            # unchanged. GOOGLE_OAUTH_SECRET_ID is a bare NAME (`make
             # sync-google-oauth` owns #{stack_name}-web-google-oauth's
             # whole lifecycle outside CloudFormation, straight from
-            # #{domain}'s own gitignored .env.local (never baked into
-            # this generated, git-tracked template as plaintext).
-            GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_id}}"
-            GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_secret}}"
+            # #{domain}'s own gitignored .env.local, never baked into
+            # this generated, git-tracked template as plaintext) --
+            # GetSecretValue accepts a name directly, no ARN needed.
+            GOOGLE_OAUTH_SECRET_ID: #{stack_name}-web-google-oauth
             GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
-            SESSION_SECRET: !Sub "{{resolve:secretsmanager:${#{logical_id}SessionSecret}:SecretString:session_secret}}"
+            SESSION_SECRET_ARN: !Sub "${#{logical_id}SessionSecret}"
             RUSTOAUTH
         # LEAST-PRIVILEGE -- #{logical_id}'s own execution role is
         # otherwise SAM's bare default (logging only); this is the one
@@ -1111,6 +1118,24 @@ template_yaml = <<~YAML
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !Sub "${#{db_secret_ref}}"
+          #{rust_web && google_oauth_present ? <<~OAUTHPOLICY.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip : ""}
+            - Statement:
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  # NAME-BASED, not `!Ref`/`!GetAtt` -- this secret is
+                  # never a stack resource (RUSTOAUTH's own Environment
+                  # comment, above, has the full story), so there is no
+                  # exact ARN to point at. The trailing `-*` is AWS's
+                  # own documented pattern for granting a secret known
+                  # only by name: every real ARN Secrets Manager mints
+                  # is this name plus a random 6-character suffix,
+                  # which can't be predicted at template-render time.
+                  Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{stack_name}-web-google-oauth-*"
+            - Statement:
+                - Effect: Allow
+                  Action: secretsmanager:GetSecretValue
+                  Resource: !Sub "${#{logical_id}SessionSecret}"
+            OAUTHPOLICY
           # TMPL:cross_domain_lambda_policies
         VpcConfig:
           #{if shared
@@ -1267,26 +1292,42 @@ template_yaml = <<~YAML
           # journal into, different database engine role (Ruby's own
           # era/lineage schema, not rust/host's), never the real
           # Fly-hosted Postgres this whole effort is retiring away from.
-          DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/#{infra_name}"
-            - DbPass: !Sub "{{resolve:secretsmanager:${#{secret_sub}}:SecretString:password}}"
-              DbHost: !GetAtt #{db_ref_id}.Endpoint.Address
-          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${#{web_logical_id}SessionSecret}:SecretString:session_secret}}"
+          #
+          # GENERATOR-ONLY FIX, NOT YET SAFE TO DEPLOY — DB_HOST/DB_NAME/
+          # DB_SECRET_ARN/SESSION_SECRET_ARN/GOOGLE_OAUTH_SECRET_ID below
+          # replace the SAME `{{resolve:secretsmanager:...}}`-into-
+          # Environment.Variables shape rust/host's own main.rs (this
+          # template's own #{logical_id}) used to have -- readable in
+          # plaintext by any read-only account principal via
+          # lambda:GetFunctionConfiguration, the exact exposure
+          # #{logical_id}'s own comment above the Policies section
+          # documents. But THIS function's consumer (`lambda_handler.rb`)
+          # is not a file this generator writes or this repo carries --
+          # it lives in the deploying app's own domain directory (real,
+          # live example: Embryonaut's own Sinatra app), outside this
+          # codebase entirely. Redeploying a domain with an existing
+          # `lambda_handler.rb` BEFORE that handler is updated to fetch
+          # these itself (`aws-sdk-secretsmanager`, not yet in this
+          # project's own Gemfile) breaks it: it still expects
+          # `ENV["DATABASE_URL"]`/`ENV["SESSION_SECRET"]`/
+          # `ENV["GOOGLE_CLIENT_ID"]`/`ENV["GOOGLE_CLIENT_SECRET"]`
+          # already resolved, and none of those keys exist below anymore.
+          DB_HOST: !GetAtt #{db_ref_id}.Endpoint.Address
+          DB_NAME: #{infra_name}
+          DB_SECRET_ARN: !Sub "${#{secret_sub}}"
+          SESSION_SECRET_ARN: !Sub "${#{web_logical_id}SessionSecret}"
           #{google_oauth_present ? <<~GOOGLE.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip : <<~NOOAUTH.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip}
-          # By NAME, not `!Ref` to a stack resource -- #{web_logical_id}GoogleOauth
+          # BY NAME, not `!Ref`/`!GetAtt` -- #{web_logical_id}GoogleOauth
           # is deliberately NOT declared as a CloudFormation resource
           # here (would need either GenerateSecretString, which can't
           # invent a real Google client_id/secret, or a value baked
           # into this git-TRACKED template as plaintext). `make
           # sync-google-oauth` owns this secret's whole lifecycle
           # instead, straight from #{domain}'s own gitignored
-          # .env.local, outside CloudFormation entirely -- the SAME
-          # "resolved by the deployer's own credentials at deploy
-          # time, never touches the function's execution role" dynamic
-          # -reference mechanism DATABASE_URL/SESSION_SECRET above
-          # already rely on, just pointed at a name instead of a Ref.
-          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_id}}"
-          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_secret}}"
+          # .env.local, outside CloudFormation entirely. GetSecretValue
+          # accepts a bare name directly, no ARN needed -- same
+          # generator-only caveat as DB_SECRET_ARN's own comment above.
+          GOOGLE_OAUTH_SECRET_ID: #{stack_name}-web-google-oauth
           GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
           GOOGLE
           # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI
@@ -1309,9 +1350,29 @@ template_yaml = <<~YAML
       # (WebFunctionRole is not authorized... on resource
       # hecks-task — this stack has never had ANY policy granting
       # that action, so the fix isn't complete without adding one).
+      # THE SAME secretsmanager:GetSecretValue GRANTS #{logical_id}'s
+      # own Policies section (above) needed, once this function's own
+      # `lambda_handler.rb` fetches DB_SECRET_ARN/SESSION_SECRET_ARN/
+      # GOOGLE_OAUTH_SECRET_ID itself instead of relying on a resolved
+      # Environment.Variables value -- see this Environment block's own
+      # comment for why that consumer-side change isn't in this repo.
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref #{logical_id}
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub "${#{secret_sub}}"
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub "${#{web_logical_id}SessionSecret}"
+        #{google_oauth_present ? <<~WEBOAUTHPOLICY.each_line.with_index.map { |l, i| i.zero? ? l : "      " + l }.join.rstrip : ""}
+          - Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:#{stack_name}-web-google-oauth-*"
+          WEBOAUTHPOLICY
       # NONE, not AWS_IAM — real users need to reach sign-in over
       # plain HTTPS, unlike #{logical_id}'s own AWS_IAM-protected URL
       # (this function is the ONLY thing meant to call that one).
