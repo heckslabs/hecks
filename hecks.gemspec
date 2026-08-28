@@ -27,6 +27,8 @@ Gem::Specification.new do |spec|
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["source_code_uri"]   = spec.homepage
+  spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["documentation_uri"] = "https://rubydoc.info/gems/hecks"
 
   # UNLIKE Postgres/Sqlite (ADAPTERS, reached only if a domain's
   # .hecksagon wires one — declaring them here would force a database

@@ -49,6 +49,15 @@ harness.
 **Status:** `1.0.0`. See [Project status](#project-status) for what the
 1.0 stability promise covers and what it explicitly doesn't yet.
 
+## Install
+
+```sh
+gem install hecks
+```
+
+Or in a Gemfile: `gem "hecks"`. See [Quickstart](#quickstart) below to
+go from a bare install to a running domain.
+
 ## Why
 
 Take one real rule — "a pizza may carry at most 10 toppings." In a
@@ -624,8 +633,9 @@ before assuming a capability exists that isn't demonstrated above.
 
 ## Quickstart
 
-There is no published gem. You clone the repository, and the
-repository is the tool:
+`gem install hecks` gets you the runtime, but the examples and docs
+below live in the repository, so cloning it is still the fastest way
+to try the whole thing:
 
 ```sh
 git clone https://github.com/heckslabs/hecks

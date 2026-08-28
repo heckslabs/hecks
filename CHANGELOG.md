@@ -7,6 +7,21 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-28
+
+**Gem page cleanup, now that the gem is actually published.** `1.0.0`
+shipped before `gem install hecks` was live on RubyGems, so the README's
+Quickstart still said "There is no published gem" and had no Install
+section — the first thing a visitor reads contradicted reality. Fixed:
+an `## Install` section now sits right after the intro, and Quickstart
+points at `git clone` for the examples/docs rather than implying it's
+the only way in. Gemspec also gained `changelog_uri` and
+`documentation_uri` metadata, which render as links on the RubyGems page;
+`homepage`/`source_code_uri` were already correct (`heckslabs/hecks`,
+not the `chrisyoung/hecks` fork/redirect). Metadata is baked into the
+published gem version, so this needed its own release rather than
+riding along on `1.0.1`.
+
 ## [1.0.1] - 2026-08-28
 
 **Cross-tenant boot-isolation gap closed.** `refuse_unless_tenant_capable!`
