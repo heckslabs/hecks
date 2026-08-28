@@ -7,31 +7,46 @@ name: CI
 # check their own reachability and skip themselves silently otherwise,
 # which would mean this workflow "passing" without ever having run them.
 
-# FIVE JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
-# GitHub Actions schedules all five the moment the workflow starts).
+# EIGHT JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
+# GitHub Actions schedules all eight the moment the workflow starts).
 # This used to be two jobs (`rspec`, `checks`) with `rspec` itself split
 # into a parallel_rspec step followed by a SERIAL "io + fuzzing" step
-# that ran ~110-135s of real Postgres/cargo work on the critical path,
-# after the parallel step had already finished — the two couldn't run
-# concurrently because they shared one checkout, and the io/fuzzing
-# specs do real, uncontrolled things to that checkout (cargo builds
-# writing into rust/, before(:context)/after(:context) backup-and-
-# restore of rust/src/generated and rust/Cargo.toml) that would race a
-# second worker touching the same files.
+# that ran real Postgres/cargo work on the critical path, after the
+# parallel step had already finished — the two couldn't run concurrently
+# because they shared one checkout, and the io/fuzzing specs do real,
+# uncontrolled things to that checkout (cargo builds writing into rust/,
+# before(:context)/after(:context) backup-and-restore of
+# rust/src/generated and rust/Cargo.toml) that would race a second
+# worker touching the same files.
 #
 # The fix isn't more workers inside that one job, it's more checkouts:
-# `rspec`'s old serial step is now three separate jobs, split along the
+# `rspec`'s old serial step is now six separate jobs, split along the
 # dependency edges that actually exist in the `io: true`/`fuzzing: true`
 # spec set (each verified by grepping every file in the set for real
 # `cargo`/`make`/Postgres/subprocess use — see the file lists inside each
 # job below, not just its own header comment):
 #
-#   - `rspec_rust_io`  — the ~12 specs that do a real `cargo build`
-#     (Rust conformance, codegen/parser parity, numeric coercion, the
-#     rust_project generator specs, the deploy parity gate's functional
-#     half). Keeps the Rust build steps and — because
-#     rust_host_lineage_conformance_spec.rb mints against its own
-#     scratch Postgres database — the Postgres service too.
+#   - `rspec_rust_io` — the 8 specs that touch the SHARED `rust/` crate
+#     and its committed `rust/src/generated/` tree (Rust conformance,
+#     numeric coercion, the rust_project generator specs, the deploy
+#     parity gate's functional half). Keeps the Rust build steps; no
+#     longer keeps a Postgres service — the one spec here that used to
+#     need it (rust_host_lineage_conformance_spec.rb) moved to
+#     `rspec_rust_host` below, along with everything else that builds a
+#     genuinely separate Cargo project.
+#   - `rspec_rust_parser` / `rspec_rust_codegen` / `rspec_rust_host` —
+#     each of the 4 remaining cargo-touching specs builds a COMPLETELY
+#     INDEPENDENT Cargo project (rust/parser/, rust/codegen/, rust/host/
+#     respectively) with its own Cargo.toml/target dir, and never reads
+#     or writes anything under the main crate's rust/src/generated/ or
+#     rust/Cargo.toml — verified by grep, not assumed. They only ever
+#     shared a runner with the main-crate group because the original
+#     single `rspec_rust_io` job bundled every cargo-touching spec
+#     together; nothing about them actually conflicts with each other or
+#     with the main crate, so each gets its own job (and its own
+#     crate-scoped cache) and runs concurrently with the rest instead of
+#     serially inside one. `rspec_rust_host` is the only one of the
+#     three that keeps a Postgres service, for the reason above.
 #   - `rspec_postgres_io` — every other `io: true` spec: the Postgres
 #     adapter suite, the tenant/deploy specs that do real filesystem I/O
 #     (Makefile generation, `make` runs that are expected to refuse or
@@ -39,10 +54,10 @@ name: CI
 #     `hecks_pizzas` database. No Rust toolchain involved anywhere in
 #     this set, so no cargo build steps here. THIS JOB IS THE DEFAULT:
 #     a newly-added `io: true` spec lands here automatically unless it's
-#     also added to `rspec_rust_io`'s explicit list AND excluded here
-#     (see the comment on its `--exclude-pattern` below) — so the
-#     failure mode of forgetting to update both is "runs twice, one
-#     complains about no cargo," not "silently never runs."
+#     also added to one of the `rspec_rust_*` jobs' explicit lists AND
+#     excluded here (see the comment on its `--exclude-pattern` below)
+#     — so the failure mode of forgetting to update both is "runs twice,
+#     one complains about no cargo," not "silently never runs."
 #   - `rspec_fuzzing` — `spec/fuzzing/**`, tagged by path
 #     (`define_derived_metadata`, spec/spec_helper.rb). Not `io: true`
 #     itself — no subprocess, no network, all in-memory — just several
@@ -52,11 +67,13 @@ name: CI
 #     passes alone, against a suite that's otherwise ~50ms/example).
 #
 # Each of these repeats the checkout/Ruby-setup cost the old serial step
-# only paid once — real, but small next to running on three separate
-# runners instead of one queue. `rspec_rust_io` additionally caches
-# `~/.cargo` and every `rust/**/target`, since nothing in this workflow
-# cached either before: a cold `cargo test --lib` alone measured ~4
-# minutes locally this session, paid fresh on every single run.
+# only paid once — real, but small next to running on separate runners
+# instead of one queue. Each `rspec_rust_*` job caches its OWN crate's
+# `~/.cargo` + `target` (a distinct key per job, keyed on that crate's
+# own Cargo.lock) instead of one shared cache across all four — nothing
+# in this workflow cached any of them before the first version of this
+# split: a cold `cargo test --lib` for the main crate alone measured ~4
+# minutes locally the session that added it, paid fresh on every run.
 #
 # `rspec` ITSELF STILL KEEPS THE POSTGRES SERVICE — confirmed live, not
 # assumed: spec/diagrams_spec.rb, spec/storehouse_spec.rb, and the
@@ -68,12 +85,15 @@ name: CI
 # failures the first time it actually ran. See the job's own comment
 # below.
 #
-# No wall-clock numbers for the new split below — unlike the old
-# `rspec`-internal split (measured locally, see the parallel step's own
-# comment), this one only shows its real timing once it's actually run
-# on Actions' own runners; the shape of the win (independent checkouts,
-# nothing left serialized after something that already finished) is
-# what's asserted here, not a specific number.
+# No wall-clock numbers for the four-way `rspec_rust_*` split below —
+# unlike the original split (measured locally before it shipped), this
+# one only shows its real timing once it's actually run on Actions' own
+# runners; the shape of the win (independent checkouts, nothing left
+# serialized with a crate it never touches) is what's asserted here, not
+# a specific number. What IS measured: the single `rspec_rust_io` job
+# this replaces ran consistently ~7m23s-7m39s across the last several
+# `main` runs before this split — the largest single job in the
+# workflow by a wide margin.
 
 on:
   push:
@@ -438,36 +458,28 @@ jobs:
           spec/rust_project/domain_feature_exclusivity_spec.rb,\
           spec/rust_project/naming_landmines_spec.rb"
 
+  # FOUR JOBS, NOT ONE — `rspec_rust_io` used to run all 12 `cargo`-
+  # touching `io: true` specs serially in a single checkout. Digging into
+  # what each one ACTUALLY builds (grepping every real `cargo`/`Open3`
+  # invocation, not just skimming filenames) found that only 8 of the 12
+  # touch the shared `rust/` crate and its committed `rust/src/generated/`
+  # tree — the reason they were forced serial in the first place
+  # (before(:context)/after(:context) backup-and-restore of that shared
+  # tree, or read-only `cargo build --features <domain>` against it, both
+  # of which a concurrent mutator could race). The other 4 build a
+  # COMPLETELY SEPARATE Cargo project each — `rust/parser/`,
+  # `rust/codegen/`, `rust/host/` — with their own Cargo.toml and target
+  # dir, and never read or write anything under `rust/src/generated/` or
+  # `rust/Cargo.toml` at all. They only ever shared a runner with the
+  # main-crate group because the original serial step happened to bundle
+  # every cargo-touching spec together, not because anything about them
+  # actually conflicts. Splitting them into their own jobs — each its own
+  # checkout, so nothing is shared to race — moves them off what was the
+  # single largest chunk of this workflow's wall-clock (~7-9 minutes) and
+  # lets them run concurrently with the main-crate group instead of
+  # serially inside it.
   rspec_rust_io:
     runs-on: ubuntu-latest
-
-    # rust_host_lineage_conformance_spec.rb mints across a real era
-    # boundary against its own scratch database
-    # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
-    # spec itself — it never touches the shared `hecks_pizzas` database,
-    # so this job skips that provisioning step) — the only one of these
-    # 12 specs that needs Postgres at all, but that's enough to keep the
-    # service on this job.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
 
     steps:
       - uses: actions/checkout@v4
@@ -477,32 +489,19 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
-      # Nothing in this workflow cached either of these before this job
-      # existed — every run paid a fully cold `cargo build`/`cargo test`
-      # from scratch (measured locally this session: ~4 minutes for a
-      # cold `cargo test --lib` alone). Keyed on every Cargo.lock under
-      # rust/ (the root crate plus host/web/lsp/parser/codegen/build each
-      # have their own), so a dependency bump anywhere invalidates the
-      # cache rather than silently building against stale crates;
-      # restore-keys falls back to the most recent same-OS cache when the
-      # exact lockfile hash misses, so a lockfile change still reuses
-      # already-fetched registry contents instead of re-downloading them.
-      - name: Cache Rust build artifacts
+      # Scoped to just the root crate now that parser/codegen/host have
+      # their own jobs/caches below — a dependency bump in, say,
+      # rust/parser/Cargo.lock no longer invalidates this cache entry.
+      - name: Cache Rust build artifacts (main crate)
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-            rust/host/target
-            rust/web/target
-            rust/lsp/target
-            rust/parser/target
-            rust/codegen/target
-            rust/build/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-main-
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -580,33 +579,156 @@ jobs:
       - name: Build the exemplar module
         run: cd rust && cargo test --lib
 
-      # THE ~12 `io: true` SPECS THAT DO A REAL `cargo build` — verified
-      # by grepping every `io: true`/`fuzzing: true` spec file for actual
-      # `cargo`/`make`/subprocess invocations, not just by name (several
-      # `project_deploy_*` specs LOOK Rust-adjacent but only generate and
-      # text-inspect a Makefile, no real build — those stay in
-      # `rspec_postgres_io`). Listed explicitly rather than by directory:
-      # spec/rust_project/ also holds several fast, non-`io` specs that
-      # already run under `rspec`'s parallel step, so a directory glob
-      # here would double-run them. Single-process, matching the shared-
-      # file-mutation discipline the old serial step already used — cargo
+      # THE 8 `io: true` SPECS THAT TOUCH THE SHARED `rust/` CRATE — via
+      # before(:context)/after(:context) backup-and-restore of
+      # rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb,
+      # hecks_build_pipeline_spec.rb, project_deploy_parity_gate_spec.rb's
+      # functional half) or a read-only `cargo build --features <domain>`
+      # against the already-committed tree (rust_conformance_spec.rb,
+      # rust_conformance_fuzz_spec.rb, rust_numeric_coercion_spec.rb,
+      # domain_feature_exclusivity_spec.rb, naming_landmines_spec.rb).
+      # parser_parity_spec.rb, parser_coverage_spec.rb, codegen_parity_
+      # spec.rb, and rust_host_lineage_conformance_spec.rb build a
+      # SEPARATE crate each (rust/parser/, rust/codegen/, rust/host/) and
+      # never touch this tree — verified by grep, not assumed — so they
+      # moved to their own jobs below instead of running here. Listed
+      # explicitly rather than by directory: spec/rust_project/ also
+      # holds several fast, non-`io` specs that already run under
+      # `rspec`'s parallel step, so a directory glob here would
+      # double-run them. Single-process, matching the shared-file-
+      # mutation discipline the old serial step already used — cargo
       # builds writing into this checkout's own rust/ tree would race a
       # second worker doing the same.
-      - name: "rspec: Rust conformance + codegen/parser parity (serial — shared-file mutation)"
+      - name: "rspec: Rust conformance + numeric coercion + deploy parity gate (serial — shared-file mutation)"
         run: |
           bundle exec rspec --tag io \
             spec/project_rust_pipeline_spec.rb \
-            spec/parser_parity_spec.rb \
             spec/project_deploy_parity_gate_spec.rb \
             spec/hecks_build_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
-            spec/codegen_parity_spec.rb \
             spec/rust_numeric_coercion_spec.rb \
-            spec/rust_host_lineage_conformance_spec.rb \
-            spec/parser_coverage_spec.rb \
             spec/rust_project/domain_feature_exclusivity_spec.rb \
             spec/rust_project/naming_landmines_spec.rb
+
+  # rust/parser/ ("hecks-parse") — an independent Cargo project, own
+  # Cargo.toml/target dir, no interaction with rust/src/generated/ or
+  # rust/Cargo.toml at all. Both specs build it via their own
+  # `before(:context) { self.class.build_parser! }`, so no separate
+  # build step is needed at this job level the way rspec_rust_io needs
+  # one (that spec-internal build is exactly why this job is safe to run
+  # concurrently with rspec_rust_io in the first place — nothing here
+  # ever opens a file under the main crate's tree).
+  rspec_rust_parser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (parser crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/parser/target
+          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-parser-
+
+      - name: "rspec: Rust parser parity + coverage"
+        run: |
+          bundle exec rspec --tag io \
+            spec/parser_parity_spec.rb \
+            spec/parser_coverage_spec.rb
+
+  # rust/codegen/ ("hecks-codegen") — same shape as rspec_rust_parser
+  # above, a different independent Cargo project. codegen_parity_spec.rb
+  # builds it via its own `before(:context) { self.class.build_codegen! }`.
+  rspec_rust_codegen:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (codegen crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/codegen/target
+          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-codegen-
+
+      - name: "rspec: Rust codegen parity"
+        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
+
+  # rust/host/ ("mint_harness"/"lineage_harness") — the fourth
+  # independent Cargo project, and the ONLY one of the four that needs
+  # Postgres: rust_host_lineage_conformance_spec.rb mints across a real
+  # era boundary against its own scratch database
+  # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
+  # spec itself — it never touches the shared `hecks_pizzas` database,
+  # so no separate provisioning step is needed here either). Its two
+  # binaries are built via the spec's own before(:context) hooks, same
+  # pattern as parser/codegen above.
+  rspec_rust_host:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (host crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/host/target
+          key: ${{ runner.os }}-cargo-host-${{ hashFiles('rust/host/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-host-
+
+      - name: "rspec: Rust/Ruby lineage parity (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
 
   rspec_fuzzing:
     runs-on: ubuntu-latest
