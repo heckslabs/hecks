@@ -84,7 +84,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
 
     expect(runtime.registry.saga_instances["Carry"]["wire-1"]).to include(state: "returned")
     rows = runtime.registry.saga_persistence("Wire").each_saga.to_a
-    expect(rows).to contain_exactly(["Carry", "wire-1", "returned", hash_including(reference: { value: "wire-1" })])
+    expect(rows).to contain_exactly(["Carry", "wire-1", "returned", hash_including(reference: { value: "wire-1" }), []])
   end
 
   it "REHYDRATES a stuck saga on a fresh boot against the same Postgres database" do

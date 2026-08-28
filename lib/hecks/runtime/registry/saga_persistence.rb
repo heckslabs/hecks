@@ -67,9 +67,10 @@ module Hecks
         # rubocop:disable-next Hecks/ThreadSharedIvarMutation
         def rehydrate_sagas!
           @hecksagons.each_key do |domain|
-            saga_persistence(domain).each_saga do |process_manager, correlation, state, memory|
+            saga_persistence(domain).each_saga do |process_manager, correlation, state, memory, completed_compensations = []|
               pending = memory.delete(SAGA_PENDING_DISPATCH_KEY)
-              @saga_instances[process_manager][correlation] = { state: state, memory: memory }
+              @saga_instances[process_manager][correlation] =
+                { state: state, memory: memory, completed_compensations: completed_compensations || [] }
               warn_stalled_saga(domain, process_manager, correlation, state, pending) if pending
             end
           end

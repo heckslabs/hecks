@@ -348,7 +348,12 @@ process_manager "Settlement" do
   # named by some transition's own `from:`/target — declaring them
   # again said nothing the transitions below didn't already say.
   transition "TransferRequested" => "requested", from: "requested" do
-    dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
+    # `compensates` — PER-DISPATCH SAGA COMPENSATION, one leg at a time,
+    # replacing a hand-written list at the bottom of this saga (see
+    # "Compensation," below, for the real bug this closes).
+    dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference } do
+      compensates Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+    end
   end
 
   transition "AccountDebited" => "awaiting_credit", from: "requested" do
@@ -364,9 +369,10 @@ process_manager "Settlement" do
     dispatch Transfer::Settle, with: { transfer: :reference }
   end
 
-  # The compensating leg, triggered by a REFUSAL rather than an event.
+  # `Transfer::Reverse` stays hand-written — it marks the TRANSFER
+  # reversed, unconditionally, not one dispatch's own effect, so it is
+  # not a `compensates` candidate; see "Compensation," below.
   transition :refused => "reversed", from: "awaiting_credit" do
-    dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
     dispatch Transfer::Reverse, with: { transfer: :reference }
   end
 end
@@ -448,27 +454,50 @@ Banking::Transfer.find("tr2").status        # => "reversed"
 
 1000, not 800 — the money is back where it started, because a refused
 leg unwinds on its own. Nobody dispatched `Reverse` by hand, and nobody
-had to notice the transfer had stalled: `transition :refused =>
-"reversed", from: "awaiting_credit"` is the leg that fires the moment
-`Account.Credit` declines, and it dispatches exactly the pair that
-restores consistency — the amount back into the source, the transfer
-marked reversed. Read the saga log and the refusal that triggered it is
-right there, not swallowed:
+had to notice the transfer had stalled: `Account.Debit`'s own `compensates
+Account::Credit` is what actually restores the balance here — the
+runtime tracks which of THIS instance's own dispatches completed
+(`Account.Debit` did; `Account.Credit` is the one that refused, so it
+has nothing of its own to undo) and, the moment the refusal hits
+`transition :refused => "reversed", from: "awaiting_credit"`, dispatches
+every completed leg's own `compensates` first, newest first, THEN this
+leg's own hand-written `Transfer.Reverse` — coexistence, not
+replacement: marking the transfer itself reversed is not any ONE
+dispatch's own undo, it is a fact this saga needs unconditionally
+whenever a refusal lands here. Read the saga log and the refusal, the
+derived compensation, and the hand-written mark are all right there,
+not swallowed:
 
 ```ruby
 refused = runtime.sagas.select { |s| s[:instance] == "tr2" && s[:delivered] == false }
 refused.map { |s| s[:reason] }  # => ["Credit refused — status is \"frozen\", and Credit moves it only from \"open\""]
+
+derived = runtime.sagas.select { |s| s[:instance] == "tr2" && s[:compensation] }
+derived.map { |s| [s[:dispatch], s[:delivered]] }  # => [["Account.Credit", true]]
+
+runtime.sagas.select { |s| s[:instance] == "tr2" && s[:dispatch] == "Transfer.Reverse" }.map { |s| s[:delivered] }  # => [true]
 ```
+
+Only ONE compensation is DERIVED — `Account.Debit`'s own `Account.Credit` —
+never `Account.Credit`'s own effect, because that leg is the one that
+refused; it never completed, so it never joined the ledger of what to
+undo. This is exactly the shape a single hand-written list at the
+bottom of the saga could not express correctly in general: it has no
+way to know WHICH legs actually ran before a refusal, only what the
+author guessed would always be true — `Transfer.Reverse` alone, staying
+hand-written, is what the ORIGINAL list should have been all along; the
+money movement is what actually needed per-leg tracking.
 
 Without this compensation, a refusal like this would leave the money
 gone from the source, credited nowhere, until a human noticed the
-stalled transfer and corrected it by hand — and the comment beside
-`Settlement`'s real declaration says exactly this happened once: the
-leg hung off `"TransferReversed"` before, an event only a human
-dispatching `Transfer.Reverse` by hand would ever produce, so the
-reversal was written and never armed. `:refused` is a refusal, not an
-event any command emits, which is why the leg answers it by name rather
-than by an `on` string nothing announces.
+stalled transfer and corrected it by hand — and this saga's own history
+says exactly this happened once: the compensating leg used to hang off
+`"TransferReversed"`, an event only a human dispatching
+`Transfer.Reverse` by hand would ever produce, so the reversal was
+written and never armed. `:refused` is a refusal, not an event any
+command emits, which is why the leg still answers it by name rather
+than by an `on` string nothing announces — only WHERE its own
+dispatches come from changed, not the trigger itself.
 
 **"Nobody had to notice" is a claim about a *refusal*, not about a
 crash.** Everything above happens inside one dispatch, one process,

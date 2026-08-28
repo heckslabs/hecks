@@ -170,6 +170,15 @@ fn ruby_float_text(n: f64) -> String {
     }
 }
 
+// `compensates` — per-dispatch saga compensation (`ir::DispatchSpec::
+// compensates`/`Hecks::Bluebook::DispatchSpec#compensates`,
+// `lib/hecks/bluebook/process_manager.rb`): absent/`null` on the IR
+// (`Json::get` already reads both as `None`) emits `None`; a nested
+// object recurses through THIS SAME function one level in. Mirrors
+// rust/project/reactions.rb's own `emit_dispatch_spec` exactly — never
+// nested further than one level on the Ruby side (a compensation is not
+// itself compensable), so this recursion bottoms out in at most one
+// extra call.
 fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<String>) -> String {
     let with_spec = spec.get("with_spec").map(Json::each).unwrap_or(&[]);
     let with_pairs: Vec<String> = with_spec
@@ -181,7 +190,16 @@ fn emit_dispatch_spec(exemplar: &Exemplar, spec: &Json, literal_fns: &mut Vec<St
             format!("({}, {})", naming::ruby_inspect_string(&key), emit_with_value(exemplar, &raw, literal_fns))
         })
         .collect();
-    format!("crate::kernel::DispatchSpec {{ command_name: {}, with: &[{}] }}", naming::ruby_inspect_string(&spec.get("command_name").map(Json::to_s).unwrap_or_default()), with_pairs.join(", "))
+    let compensates = match spec.get("compensates") {
+        Some(nested) => format!("Some(&{})", emit_dispatch_spec(exemplar, nested, literal_fns)),
+        None => "None".to_string(),
+    };
+    format!(
+        "crate::kernel::DispatchSpec {{ command_name: {}, with: &[{}], compensates: {} }}",
+        naming::ruby_inspect_string(&spec.get("command_name").map(Json::to_s).unwrap_or_default()),
+        with_pairs.join(", "),
+        compensates
+    )
 }
 
 /// One `with:` binding, resolved to a `WithValue` — a bare Symbol is a

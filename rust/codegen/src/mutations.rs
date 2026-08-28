@@ -405,6 +405,28 @@ fn emit_mutation_line_body(
                     fields_assignment.push(format!("{}: Vec::new()", naming::rust_ident_field(attr_name)));
                     present.push(attr_name.to_string());
                 }
+
+                // A FOURTH field no `append: { ... }` binding ever names: a
+                // scalar OPTIONAL attribute the entity declares for some
+                // other command to `set` later (e.g. `Dispatch#
+                // compensates_command_name`, S18 — `compensates:`
+                // per-dispatch saga compensation, bound only by the
+                // dispatch that OPENS a saga, never by the one it
+                // compensates). Mirrors the identical fix in
+                // rust/project/mutations.rb's own
+                // `emit_mutation_line_body` exactly — same reason as the
+                // list case above.
+                for attr in element_attrs {
+                    if crate::attr::list(attr) || !crate::attr::optional(attr) {
+                        continue;
+                    }
+                    let attr_name = crate::attr::name(attr);
+                    if present.iter().any(|p| p == attr_name) {
+                        continue;
+                    }
+                    fields_assignment.push(format!("{}: None", naming::rust_ident_field(attr_name)));
+                    present.push(attr_name.to_string());
+                }
             }
 
             exemplar.render("mutation_append", &[("tmpl_field", target_field.to_string()), ("tmpl_fields_placeholder()", format!("{vo_type} {{ {} }}", fields_assignment.join(", ")))])

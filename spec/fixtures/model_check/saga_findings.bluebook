@@ -56,4 +56,20 @@ Hecks.bluebook "SagaFindings" do
       dispatch Leg::Advance, with: { reference: :reference }
     end
   end
+
+  # UNARMED COMPENSATION: a `compensates` declared here, but this saga
+  # has no handler anywhere answering a refusal — the exact shape of the
+  # real bug per-dispatch compensation exists to catch at build time
+  # (see `lib/hecks/bluebook/model_check.rb`'s own comment).
+  process_manager "UnarmedSaga" do
+    correlates_by :"reference.value"
+    starts_on "LegRequested"
+    ends_on   "LegFinished"
+
+    transition "LegRequested" => "requested", from: "requested" do
+      dispatch Leg::Request, with: { reference: :reference } do
+        compensates Leg::Request, with: { reference: :reference }
+      end
+    end
+  end
 end

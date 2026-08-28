@@ -319,7 +319,28 @@ module Hecks
                       dispatches: Array(row[:dispatches]).map { |leg| dispatch(leg) })
         end
 
-        def dispatch(row) = declaration("Dispatch", row)
+        # `compensates` — TWO FLAT FIELDS on this same row
+        # (`process_manager.bluebook`'s own comment on `Dispatch` for
+        # why), assembled BY HAND into the shape its own field actually
+        # is — `declaration()`'s generic per-field hash-build has no
+        # way to turn two cells into a second object, so this reads
+        # them directly and passes the result through `extra:`, the
+        # same seam `handler`/`process_manager` already use for a
+        # `:children` shape a flat Contract cannot describe.
+        # `compensates_command_name` absent means no compensation at
+        # all — a plain dispatch with nothing to undo. A PLAIN HASH, the
+        # SAME declaration shape `to_h` spells for everything else in
+        # this file (this file's own top comment) — never a real
+        # `DispatchSpec` here; `Assembly#dispatch` is the one place a
+        # declaration hash becomes the real object, and building it
+        # twice, in two different shapes, is exactly the kind of drift
+        # this whole arc exists to remove.
+        def dispatch(row)
+          name = text(row[:compensates_command_name])
+          compensates = name && { command_name: name, with_spec: pairs(row[:compensates_with_spec]) }
+
+          declaration("Dispatch", row, compensates: compensates)
+        end
 
         def read_model(row)
           declaration("ReadModel", row).merge(query_name: text(row[:query_name])).merge(options_of(row))

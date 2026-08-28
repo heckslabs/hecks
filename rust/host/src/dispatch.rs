@@ -204,6 +204,7 @@ pub async fn handle(
             "correlation": r.correlation,
             "state": r.state,
             "memory": r.memory,
+            "completed_compensations": r.completed_compensations,
         }))
         .collect::<Vec<_>>());
 
@@ -272,8 +273,9 @@ pub async fn handle(
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"state\": {entry}"))?;
                 let memory = entry.get("memory").cloned().unwrap_or_else(|| serde_json::json!({}));
+                let completed_compensations = entry.get("completed_compensations").cloned().unwrap_or_else(|| serde_json::json!([]));
 
-                journal::save_saga(&txn, process_manager, correlation, state, &memory).await?;
+                journal::save_saga(&txn, process_manager, correlation, state, &memory, &completed_compensations).await?;
                 still_present.insert((process_manager.to_string(), correlation.to_string()));
             }
             for row in &saga_rows {

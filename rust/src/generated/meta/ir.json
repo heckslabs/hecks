@@ -12809,6 +12809,36 @@
               ],
               [
                 "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Dispatch"
+              ],
+              [
+                "opens",
+                "Dispatch"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "dispatch_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "body",
                 "none"
               ],
               [
@@ -12826,6 +12856,36 @@
               [
                 "calls",
                 "dispatch_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "compensates_impl"
               ]
             ]
           ]
@@ -13274,6 +13334,100 @@
                 "pairs_shape",
                 "verbatim"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                1
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                true
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                false
+              ],
+              [
+                "fills",
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
+              ]
             ]
           ]
         }
@@ -13668,6 +13822,26 @@
                   "pattern": null,
                   "admits": null,
                   "relationship": null
+                },
+                {
+                  "name": "compensates_command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": true,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "compensates_with_spec",
+                  "type": "Binding",
+                  "list": true,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "commands": [
@@ -13717,6 +13891,96 @@
                   ],
                   "emits": [
                     "BindingAttached"
+                  ],
+                  "from": null,
+                  "provenance": null
+                },
+                {
+                  "name": "Compensates",
+                  "role": "Language",
+                  "goal": "Name the command this dispatch compensates for",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "compensates_command_name",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [
+
+                  ],
+                  "ensures": [
+
+                  ],
+                  "mutations": [
+                    {
+                      "target": "compensates_command_name",
+                      "op": "set",
+                      "sign": "",
+                      "source": {
+                        "kind": "argument",
+                        "name": "compensates_command_name"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "CompensationDeclared"
+                  ],
+                  "from": null,
+                  "provenance": null
+                },
+                {
+                  "name": "BindCompensation",
+                  "role": "Language",
+                  "goal": "Bind one argument of the compensation's own dispatched command",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "key",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    },
+                    {
+                      "name": "value",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [
+
+                  ],
+                  "ensures": [
+
+                  ],
+                  "mutations": [
+                    {
+                      "target": "compensates_with_spec",
+                      "op": "append",
+                      "sign": "",
+                      "fields": {
+                        "key": ":key",
+                        "value": ":value"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "CompensationBindingAttached"
                   ],
                   "from": null,
                   "provenance": null
@@ -19284,6 +19548,12 @@
               [
                 "name",
                 "Handler"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Dispatch"
               ]
             ],
             [

@@ -197,6 +197,16 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:process_manager.handler.dispatch.bind_compensation",
+      "verb": "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.handler.dispatch.compensates",
+      "verb": "Bluebook::ProcessManager.Handler.Dispatch.Compensates",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:process_manager.state",
       "verb": "Bluebook::ProcessManager.State",
       "role": "Language"

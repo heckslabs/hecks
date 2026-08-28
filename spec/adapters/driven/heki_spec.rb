@@ -144,14 +144,14 @@ RSpec.describe Hecks::Adapters::Heki do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
                         state: "awaiting_credit", memory: { amount: 100 })
 
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }]])
+      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }, []]])
     end
 
     it "replaces on a repeated save for the same (process_manager, correlation)" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "next", memory: { step: 2 })
 
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "next", { step: 2 }]])
+      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "next", { step: 2 }, []]])
     end
 
     it "deletes a saga instance" do
@@ -172,7 +172,7 @@ RSpec.describe Hecks::Adapters::Heki do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: { a: 1 })
 
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "start", { a: 1 }]])
+      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "start", { a: 1 }, []]])
     end
 
     it "replays its journal when a crash leaves no current saga snapshot, same recovery as an aggregate's own store" do
@@ -181,7 +181,7 @@ RSpec.describe Hecks::Adapters::Heki do
       FileUtils.rm_f(File.join(@dir, "hecks_saga_instances.heki"))
 
       reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
-      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "recovered", {}]])
+      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "recovered", {}, []]])
     end
 
     it "isolates sagas by domain within one shared directory" do
@@ -189,8 +189,8 @@ RSpec.describe Hecks::Adapters::Heki do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
       other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
 
-      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}]])
-      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}]])
+      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}, []]])
+      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}, []]])
     end
 
     # `settings[:domain] || settings["domain"] || aggregate.name` used to

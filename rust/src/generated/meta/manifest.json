@@ -263,6 +263,20 @@
   },
   {
     "kind": "entity_command",
+    "id": "Bluebook::ProcessManager.Handler.Dispatch.Compensates",
+    "generated": false,
+    "gap_class": "structural",
+    "reason": "entity nested two levels deep (Bluebook::ProcessManager.Handler.Dispatch) — kernel::cli.rs's JSON router and registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation",
+    "generated": false,
+    "gap_class": "structural",
+    "reason": "entity nested two levels deep (Bluebook::ProcessManager.Handler.Dispatch) — kernel::cli.rs's JSON router and registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+  },
+  {
+    "kind": "entity_command",
     "id": "Bluebook::ProcessManager.Handler.Dispatch",
     "generated": true,
     "routed": true

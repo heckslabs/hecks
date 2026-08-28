@@ -537,7 +537,7 @@ module Hecks
       # transition as an event announced, and the diagram states it
       # exactly as verbatim as every other edge here does.
       def saga_diagram(bluebook, saga)
-        edges = saga.handlers.map { |handler| saga_edge(handler) }
+        edges = saga.handlers.map { |handler| saga_edge(handler, saga) }
 
         subject = "#{saga.hecks_name}'s own declared states and what each transition dispatches " \
                   "(starts on #{saga.starts_on}, ends on #{saga.ends_on})"
@@ -548,12 +548,37 @@ module Hecks
         MERMAID
       end
 
-      def saga_edge(handler)
+      # THE REFUSED EDGE'S OWN DISPATCH LIST IS PARTLY DERIVED NOW —
+      # per-dispatch saga compensation (`compensates`) moved a saga's own
+      # compensating dispatches OFF the hand-written `on :refused` leg
+      # and onto whichever forward dispatch each one undoes, so
+      # `handler.dispatches` alone would render an EMPTY compensating
+      # edge for any saga using it — accurate to the DECLARATION, wrong
+      # about what the runtime actually does at refusal (it derives and
+      # fires every declared `compensates`, newest first). `saga` is
+      # passed through for exactly this — only the REFUSED handler needs
+      # it, every other edge's own `handler.dispatches` already says
+      # everything real about it.
+      def saga_edge(handler, saga)
         label = handler.event_type
-        dispatched = handler.dispatches.map(&:command_name)
+        # DERIVED FIRST, then the hand-written body — the same order
+        # `SagaInterpreter#unwind` actually runs them in (every
+        # completed leg's own `compensates` before this leg's own
+        # hand-written dispatches), not declaration order on the page.
+        dispatched = handler.event_type == Bluebook::ProcessManager::REFUSED ? derived_compensations(saga) : []
+        dispatched += handler.dispatches.map(&:command_name)
         label += " / dispatches #{dispatched.join(', ')}" unless dispatched.empty?
 
         "    #{handler.from_state} --> #{handler.to_state}: #{label}"
+      end
+
+      # Every `compensates` any forward dispatch in this saga declares,
+      # declaration order — the same commands `SagaInterpreter#unwind`
+      # derives and fires (newest-first, at actual refusal time; this
+      # diagram states them in declaration order, since it draws the
+      # saga's own shape, not one instance's own runtime history).
+      def derived_compensations(saga)
+        saga.handlers.flat_map { |handler| handler.dispatches.filter_map { |dispatch| dispatch.compensates&.command_name } }
       end
 
       # ── frameworks -> flowchart ─────────────────────────────────────

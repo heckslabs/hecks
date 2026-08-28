@@ -455,7 +455,21 @@ Hecks.bluebook "Banking" do
       # memory of the opening payload. `reference:` carries the correlation
       # forward — Account.Debit does not reference Transfer, so this is pure
       # passthrough, not an addressing key.
-      dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
+      #
+      # `compensates` — PER-DISPATCH SAGA COMPENSATION, real bug this
+      # closes: this leg's own compensation used to hang off a
+      # hand-written `on :refused` list at the bottom of this saga,
+      # keyed to "TransferReversed" — an event that only arrives if
+      # someone dispatches `Transfer.Reverse` by hand. A destination
+      # that would not take the money left the debit standing, the
+      # settlement stuck in `awaiting_credit`, and the amount nowhere:
+      # the reversal was written and never armed. The runtime now
+      # tracks which legs actually completed and derives compensation
+      # from THIS declaration directly, rather than trusting a static
+      # list at the bottom to be complete and correctly ordered.
+      dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference } do
+        compensates Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+      end
     end
 
     transition "AccountDebited" => "awaiting_credit", from: "requested" do
@@ -464,6 +478,13 @@ Hecks.bluebook "Banking" do
       # ("Banking::Transfer") == "transfer"), addressing which record to act
       # on. The VALUE stays `:reference`, reading the correlation the same
       # way every other leg does.
+      #
+      # NO `compensates` HERE — Account.Credit's own effect (money
+      # landing in the destination) needs undoing only if something
+      # LATER fails after it succeeds, which nothing in this saga does;
+      # Credit is the leg most likely to refuse OUTRIGHT (a frozen
+      # destination), and a leg that never completed has nothing of its
+      # own to undo.
       dispatch Transfer::Debited, with: { transfer: :reference }
       dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
     end
@@ -476,13 +497,17 @@ Hecks.bluebook "Banking" do
       dispatch Transfer::Settle, with: { transfer: :reference }
     end
 
-    # The compensating leg, triggered by a REFUSAL rather than an event. It hung
-    # off "TransferReversed" before, which only arrives if somebody dispatches
-    # Transfer.Reverse by hand — so a destination that would not take the money
-    # left the debit standing, the settlement stuck in awaiting_credit, and the
-    # amount nowhere. The reversal was written and never armed.
+    # `Transfer::Reverse` STAYS HAND-WRITTEN — coexistence, not
+    # replacement (`ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s
+    # own comment): it does not undo any ONE dispatch's own effect, it
+    # marks the TRANSFER ITSELF reversed, unconditionally, whenever ANY
+    # refusal lands here — a fact this saga needs regardless of which
+    # leg specifically declined. Only the money movement genuinely needs
+    # PER-DISPATCH compensation (`Account.Debit`'s own `compensates`,
+    # above); this leg is what an empty `on :refused` body would still
+    # be the right place for, if this saga ever had nothing unconditional
+    # left to say here.
     transition :refused => "reversed", from: "awaiting_credit" do
-      dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
       dispatch Transfer::Reverse, with: { transfer: :reference }
     end
   end

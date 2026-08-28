@@ -255,6 +255,49 @@ Hecks.bluebook "Bluebook" do
 
           emits "BindingAttached"
         end
+
+        # THE COMPENSATING DISPATCH THIS ONE COMPENSATES FOR, IF ANY —
+        # FLAT FIELDS on THIS SAME entity, mirroring `command_name`/
+        # `with_spec` above one-for-one, rather than a nested (or
+        # self-referential) second `Dispatch`: an entity's own attribute
+        # type has to resolve against a value object, and neither a
+        # self-reference to `Dispatch` (written from inside its own
+        # block, before it exists to reference) nor a plain nested
+        # entity reference passes that check the way `Handler.
+        # dispatches: list_of(Dispatch)` does — that one resolves a
+        # SIBLING already fully built by the time deferred construction
+        # (ADR 0028) finishes; a dispatch compensating for itself has no
+        # such sibling. `compensates_command_name` absent means no
+        # compensation; present, together with whatever
+        # `compensates_with_spec` holds, is everything
+        # `Reconstruction#dispatch` needs to assemble the SAME
+        # `DispatchSpec` shape `compensates` (the real, author-facing
+        # word) fills.
+        attribute :compensates_command_name, DispatchText, optional: true
+        attribute :compensates_with_spec,    list_of(Binding)
+
+        command "Compensates" do
+          role "Language"
+          goal "Name the command this dispatch compensates for"
+
+          attribute :compensates_command_name, DispatchText
+
+          sets :compensates_command_name
+
+          emits "CompensationDeclared"
+        end
+
+        command "BindCompensation" do
+          role "Language"
+          goal "Bind one argument of the compensation's own dispatched command"
+
+          attribute :key,   DispatchText
+          attribute :value, DispatchText
+
+          sets :compensates_with_spec, append: { key: :key, value: :value }
+
+          emits "CompensationBindingAttached"
+        end
       end
     end
 
@@ -278,7 +321,16 @@ Hecks.bluebook "Bluebook" do
       member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
       member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
       member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
+      # TWO ROWS, the SAME PAIR SHAPE `transition` takes just above —
+      # `body: "none"` was already the only row (`opens: "Dispatch"`
+      # already anticipated a block, unused until now); `body:
+      # "keywords"` is the new one, opening `compensates` on the
+      # dispatch it sits inside (per-dispatch saga compensation — see
+      # `ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s own
+      # comment).
+      member word: "dispatch",        context: "Handler",        body: "keywords", inner: "Dispatch", opens: "Dispatch", fills: "", calls: "dispatch_impl"
       member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: "", calls: "dispatch_impl"
+      member word: "compensates",     context: "Dispatch",       body: "none",     inner: "",        opens: "",         fills: "", calls: "compensates_impl"
 
     end
 
@@ -308,6 +360,9 @@ Hecks.bluebook "Bluebook" do
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true", fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+      member keyword: "compensates",     context: "Dispatch", at: "1", named: "",     kind: "constant", required: "true", fills: "command_name"
+      member keyword: "compensates",     context: "Dispatch", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
+      member keyword: "compensates",     context: "Dispatch", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 
     end
   end

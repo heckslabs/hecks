@@ -120,8 +120,8 @@ module Hecks
       # shape (a sibling snapshot+journal file pair, `SagaStore`,
       # heki/saga_store.rb) rather than a table in a store this adapter
       # doesn't have.
-      def save_saga(process_manager:, correlation:, state:, memory:)
-        saga_store.save_saga(@domain, process_manager.to_s, correlation.to_s, state.to_s, memory)
+      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
+        saga_store.save_saga(@domain, process_manager.to_s, correlation.to_s, state.to_s, memory, completed_compensations)
       end
 
       def delete_saga(process_manager:, correlation:)

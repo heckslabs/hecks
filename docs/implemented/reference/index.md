@@ -14,6 +14,7 @@ survives regeneration.
 - [Policy](policy.md) — 5 words
 - [ProcessManager](process_manager.md) — 4 words
 - [Handler](handler.md) — 1 word
+- [Dispatch](dispatch.md) — 1 word
 - [ReadModel](read_model.md) — 14 words
 - [Query](query.md) — 11 words
 - [ValueObject](value_object.md) — 4 words

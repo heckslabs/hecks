@@ -67,8 +67,14 @@ mod tests {
         assert_eq!(
             vo.members,
             vec![
-                vec![("value".to_string(), "good".to_string())],
-                vec![("value".to_string(), "warn".to_string())]
+                vec![(
+                    "value".to_string(),
+                    crate::ruby_value::Value::Str("good".to_string())
+                )],
+                vec![(
+                    "value".to_string(),
+                    crate::ruby_value::Value::Str("warn".to_string())
+                )]
             ]
         );
     }

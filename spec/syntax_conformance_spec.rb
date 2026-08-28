@@ -91,6 +91,7 @@ RSpec.describe "the declared syntax" do
     "Policy"               => D::PolicyBuilder,
     "ProcessManager"       => D::ProcessManagerBuilder,
     "Handler"              => D::ProcessManagerBuilder::HandlerBuilder,
+    "Dispatch"             => D::ProcessManagerBuilder::HandlerBuilder::DispatchBuilder,
     "ReadModel"            => D::ReadModelBuilder,
     "Type"                 => D::AttributeCollector,
     "Hecksagon"            => D::HecksagonBuilder,
@@ -206,6 +207,7 @@ RSpec.describe "the declared syntax" do
       # the same day, same reasoning as trigger_impl above.
       on_impl:            "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:",
+      compensates_impl:   "DispatchBuilder's own real implementation, called by GenericDispatch's calls:",
       # Same reasoning, slice 4b: `given`/`invariant`/`reference_to` are
       # SEPARATE per-builder implementations (not one shared mixin like
       # attribute_impl), each renamed the same way in its own file.

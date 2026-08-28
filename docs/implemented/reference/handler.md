@@ -27,7 +27,7 @@ end
 ## dispatch
 
 <!-- generated:begin word=dispatch -->
-`dispatch command_name, command_name, with:` — opens a `Dispatch` body
+`dispatch command_name, command_name, with: do ... end` / `dispatch command_name, command_name, with:` — opens a `Dispatch` body
 
 | argument | kind | required | fills |
 |---|---|---|---|

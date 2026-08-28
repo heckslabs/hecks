@@ -760,6 +760,26 @@ fn process_manager_handler_json(h: &ir::ProcessManagerHandler) -> JsonValue {
 /// pairs (never a JSON object) since `IR::DispatchSpec#to_h`'s own
 /// `with_spec:` is `with_spec.map { ... }` over an Array of pairs, not a
 /// Hash — confirmed by reading `process_manager.rb` directly.
+///
+/// KEY ORDER — `command_name`, `with_spec`, `compensates`, matching
+/// Ruby's own `emits_ir(command_name: ..., with_spec: ..., compensates:
+/// one(:compensates))` declaration order verbatim (`ir.rb`'s own "KEY
+/// ORDER IS THE DECLARATION ORDER" comment). Confirmed live by running
+/// `DispatchSpec#to_h` directly rather than trusting
+/// `spec/golden/ir/*.json` — that fixture is alphabetically key-sorted
+/// by `ir_golden_spec.rb`'s own `sorted` helper for human-readable
+/// diffs ("key order is not semantics" for THAT check only), so it
+/// shows `command_name`/`compensates`/`with_spec` and is NOT the order
+/// `spec/parser_parity_spec.rb`'s byte-exact, unsorted comparison
+/// actually needs.
+///
+/// `compensates` is `null` for a dispatch with nothing to undo — `one
+/// (:compensates)`'s own nil-safe `&.to_h` — or a nested object,
+/// recursing through this SAME function one level in (Ruby's own
+/// `Assembly#dispatch` takes the identical one-level recursive move for
+/// the self-hosted meta-domain path; this path only ever builds it from
+/// real `dispatch ... do compensates ... end` syntax, never self-hosted
+/// reconstruction, but the SHAPE this produces is the same either way).
 fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
     JsonValue::Object(vec![
         (
@@ -776,6 +796,13 @@ fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
                     })
                     .collect(),
             ),
+        ),
+        (
+            "compensates".to_string(),
+            match &d.compensates {
+                Some(inner) => dispatch_spec_json(inner),
+                None => JsonValue::Null,
+            },
         ),
     ])
 }

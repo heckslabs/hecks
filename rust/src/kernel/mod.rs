@@ -63,7 +63,7 @@ pub use expr::{interpret, BlockMode, Bound, Comparison, EvalContext, Expr, Field
 pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
-    orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
+    orchestrate, CompletedCompensation, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
     SagaInstance, Tables, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
 pub use reference_lookup::{

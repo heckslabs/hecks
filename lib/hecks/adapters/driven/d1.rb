@@ -341,11 +341,11 @@ module Hecks
       # `Sqlite::SchemaBuilder` already shares with Sqlite (`d1.rb`'s own
       # file header). Same `?`-placeholder shape every other write here
       # already uses through `Connection#execute`.
-      def save_saga(process_manager:, correlation:, state:, memory:)
+      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.execute(
-          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
-          "VALUES (?, ?, ?, ?, ?)",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory)]
+          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
+          "VALUES (?, ?, ?, ?, ?, ?)",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
         )
       end
 
@@ -360,11 +360,12 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.execute(
-          "SELECT process_manager, correlation, state, memory FROM hecks_saga_instances WHERE domain = ?",
+          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = ?",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],
-                JSON.parse(row["memory"], symbolize_names: true)
+                JSON.parse(row["memory"], symbolize_names: true),
+                JSON.parse(row["completed_compensations"] || "[]", symbolize_names: true)
         end
       end
 

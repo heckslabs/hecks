@@ -74,14 +74,26 @@ module Hecks
         def create_saga_table!
           @db.execute(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_saga_instances (
-              domain          TEXT NOT NULL,
-              process_manager TEXT NOT NULL,
-              correlation     TEXT NOT NULL,
-              state           TEXT NOT NULL,
-              memory          TEXT NOT NULL,
+              domain               TEXT NOT NULL,
+              process_manager      TEXT NOT NULL,
+              correlation          TEXT NOT NULL,
+              state                TEXT NOT NULL,
+              memory               TEXT NOT NULL,
+              completed_compensations  TEXT NOT NULL DEFAULT '[]',
               PRIMARY KEY (domain, process_manager, correlation)
             )
           SQL
+          # `CREATE TABLE IF NOT EXISTS` above is a no-op against a table
+          # this same domain already created before this column existed
+          # — the same reason Postgres's own `create_saga_table!` needs
+          # its own `ADD COLUMN IF NOT EXISTS`. SQLite/D1's own `ALTER
+          # TABLE ... ADD COLUMN` has no `IF NOT EXISTS` guard on every
+          # version this adapter supports, so a duplicate-column error
+          # is caught and treated as "already there" rather than relied
+          # on to never happen.
+          @db.execute("ALTER TABLE hecks_saga_instances ADD COLUMN completed_compensations TEXT NOT NULL DEFAULT '[]'")
+        rescue StandardError => e
+          raise unless e.message.include?("duplicate column name")
         end
 
         def sql_type(attr)

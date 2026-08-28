@@ -69,15 +69,22 @@ module Hecks
         def create_saga_table!
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_saga_instances (
-              domain          text NOT NULL,
-              process_manager text NOT NULL,
-              correlation     text NOT NULL,
-              state           text NOT NULL,
-              memory          jsonb NOT NULL,
-              updated_at      timestamptz NOT NULL DEFAULT now(),
+              domain               text NOT NULL,
+              process_manager      text NOT NULL,
+              correlation          text NOT NULL,
+              state                text NOT NULL,
+              memory               jsonb NOT NULL,
+              completed_compensations  jsonb NOT NULL DEFAULT '[]'::jsonb,
+              updated_at           timestamptz NOT NULL DEFAULT now(),
               PRIMARY KEY (domain, process_manager, correlation)
             )
           SQL
+          # `CREATE TABLE IF NOT EXISTS` above is a no-op against a table
+          # this same domain already created before this column existed
+          # — the same idiom `rust/host/src/journal.rs`'s own
+          # `sagas_backfilled` column addition already uses, for the
+          # identical reason.
+          @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb NOT NULL DEFAULT '[]'::jsonb")
         end
 
         def sql_type(attr)

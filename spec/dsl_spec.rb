@@ -1061,7 +1061,7 @@ RSpec.describe "the DSL surface" do
       handler = checkout.handler_for("PaymentAuthorized")
       expect([handler.from_state, handler.to_state]).to eq(["awaiting_payment", "paid"])
       expect(handler.dispatches.first.to_h)
-        .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]] })
+        .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]], compensates: nil })
       # M11 — `correlates_by` must cross the wire as the SAME bare word
       # `Assembly::Build`'s `:identity` reader turns back into a Symbol
       # (`value&.to_sym`); a colon-wrapped `Literal.render` spelling or a

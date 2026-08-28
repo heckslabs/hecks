@@ -82,7 +82,7 @@ RSpec.describe "durable saga/process-manager state" do
 
     adapter = runtime.registry.saga_persistence("Wire")
     rows = adapter.each_saga.to_a
-    expect(rows).to contain_exactly(["Carry", "wire-1", "returned", hash_including(reference: { value: "wire-1" })])
+    expect(rows).to contain_exactly(["Carry", "wire-1", "returned", hash_including(reference: { value: "wire-1" }), []])
   end
 
   it "deletes the checkpoint once a saga genuinely ends (the happy path, ends_on)" do

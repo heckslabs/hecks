@@ -44,6 +44,18 @@
 //! fact is not a fact about the source" — so nothing here needs to build
 //! it; a `Vec<ProcessManagerHandler>` already carries everything `saga`
 //! would derive from.
+//!
+//! PER-DISPATCH SAGA COMPENSATION (`compensates`, mirroring Ruby's own
+//! `HandlerBuilder#dispatch_impl` + `DispatchBuilder#compensates_impl`,
+//! `lib/hecks/bluebook/dsl/process_manager_builder.rb`) — `dispatch`
+//! gained a SECOND `KeywordRow` (`body: "keywords"`, opening a new
+//! "Dispatch" context) alongside its original `body: "none"` row, the
+//! identical two-row shape `transition` already uses one level up for
+//! its own optional dispatch block. `parse_dispatches` picks between
+//! them via `gated.call.opener`, same as `parse_transition` does for
+//! `transition`'s own block. `compensates` (the ONE word "Dispatch"
+//! admits) never nests further — a compensation is not itself
+//! compensable.
 
 use super::GatedLine;
 use crate::diag::{Diagnostic, ParseResult};
@@ -277,14 +289,86 @@ fn parse_dispatches(
                     1,
                 )?;
                 let with_spec = parse_with_pairs_opt(&gated.args);
+                // AN OPTIONAL `do ... end` BLOCK opens the "Dispatch"
+                // context on THIS dispatch specifically — per-dispatch
+                // saga compensation (`HandlerBuilder#dispatch_impl`'s own
+                // comment). `dispatch`'s own two `body` rows (keywords.rs)
+                // mirror `transition`'s own pair one level up: `body:
+                // "none"` when no block follows, `body: "keywords"`
+                // (opening "Dispatch") when one does — `body_gate` already
+                // picks the right row from `gated.call.opener` alone, the
+                // same way `parse_transition` above already relies on for
+                // `transition`'s own optional dispatch block.
+                let compensates = match &gated.call.opener {
+                    Opener::None => None,
+                    Opener::DoBlock { .. } => {
+                        parse_compensates_block(file, lines, pos)?.map(Box::new)
+                    }
+                    Opener::BraceBlock { .. } => unreachable!(
+                        "body_gate never admits a BraceBlock for 'dispatch'/Handler"
+                    ),
+                };
                 dispatches.push(ir::DispatchSpec {
                     command_name,
                     with_spec,
+                    compensates,
                 });
             }
             _ => {
                 return Err(super::not_built_yet(
                     "Handler",
+                    gated.row,
+                    file,
+                    gated.line.number,
+                    &gated.call.word,
+                ))
+            }
+        }
+    }
+}
+
+/// The `Dispatch` context's own body — at most one `compensates` line
+/// (`ProcessManagerBuilder::HandlerBuilder::DispatchBuilder#compensates_impl`),
+/// up to the matching `end`. Structurally identical to `dispatch`'s own
+/// two argument rows (positional command reference + optional `with:`
+/// pairs), because a compensation resolves through the exact same scope
+/// any saga dispatch already does — see `syntax.bluebook`'s own comment
+/// on why the two `ArgumentRow`s are shape-for-shape copies under
+/// `context: "Dispatch"` instead of `"Handler"`.
+fn parse_compensates_block(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+) -> ParseResult<Option<ir::DispatchSpec>> {
+    let mut compensates = None;
+
+    loop {
+        let Some(gated) = super::next_line(file, lines, pos, "Dispatch")? else {
+            return Ok(compensates);
+        };
+        match gated.row.word {
+            "compensates" => {
+                let command_name = super::positional_command_ref(
+                    file,
+                    gated.line.number,
+                    "compensates",
+                    &gated.args,
+                    1,
+                )?;
+                let with_spec = parse_with_pairs_opt(&gated.args);
+                // Never nested further — `compensates` has no block of
+                // its own (its only KeywordRow is `body: "none"`), so
+                // this inner `DispatchSpec`'s own `compensates` is
+                // always `None`.
+                compensates = Some(ir::DispatchSpec {
+                    command_name,
+                    with_spec,
+                    compensates: None,
+                });
+            }
+            _ => {
+                return Err(super::not_built_yet(
+                    "Dispatch",
                     gated.row,
                     file,
                     gated.line.number,

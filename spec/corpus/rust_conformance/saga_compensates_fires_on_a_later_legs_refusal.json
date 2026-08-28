@@ -1,0 +1,12 @@
+{
+  "domain": "examples/banking",
+  "note": "Rust mirror of the compensates feature (per-dispatch saga compensation, lib/hecks/bluebook/dsl/process_manager_builder.rb) -- the exact scenario docs/implemented/reference/dispatch.md's own doctest demonstrates: fund a source account, freeze the destination, request a transfer. Account.Debit succeeds and moves the money out; Account.Credit then refuses (the destination is frozen). Settlement's own Account.Debit dispatch declares `compensates Account::Credit`, so the runtime fires that compensation the moment Credit refuses -- the source account's balance ends back at 1000 (not 800), and the saga log names the compensation distinctly (`compensation: true`). This pins that exact instances/events/refusals/reactions/sagas comparison byte-for-byte against Ruby, including the `compensation`/`delivered` tag on the derived Account.Credit compensation entry in `sagas` -- the same log shape spec/rust_conformance_spec.rb's own comparison checks for every other fixture here.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "role": "Branch clerk", "args": {"reference": {"value": "cust-compensation-1"}, "name": {"given": "Nils", "family": "Voss"}, "email": {"address": "nils@example.com"}}},
+    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-compensation-src"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-compensation-1"}},
+    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-compensation-dst"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-compensation-1"}},
+    {"verb": "Banking::Account.Credit", "role": "Teller", "args": {"number": {"value": "acct-compensation-src"}, "amount": {"cents": 1000}, "narrative": {"text": "opening balance"}}},
+    {"verb": "Banking::Account.FreezeAccount", "role": "Compliance officer", "args": {"number": {"value": "acct-compensation-dst"}}},
+    {"verb": "Banking::Transfer.Request", "role": "Customer", "args": {"reference": {"value": "xfer-compensation-1"}, "amount": {"cents": 200}, "narrative": {"text": "rent"}, "source": "acct-compensation-src", "destination": "acct-compensation-dst"}}
+  ]
+}

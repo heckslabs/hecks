@@ -281,13 +281,14 @@ module Hecks
       # ── the OPTIONAL saga-persistence capability (§2) — same DDL and
       # shape as PostgresEra's own (postgres_era.rb), not lineage-
       # specific, copied verbatim.
-      def save_saga(process_manager:, correlation:, state:, memory:)
+      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.exec_params(
-          "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
-          "VALUES ($1, $2, $3, $4, $5) " \
+          "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
+          "VALUES ($1, $2, $3, $4, $5, $6) " \
           "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
-          "SET state = EXCLUDED.state, memory = EXCLUDED.memory, updated_at = now()",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory)]
+          "SET state = EXCLUDED.state, memory = EXCLUDED.memory, " \
+          "completed_compensations = EXCLUDED.completed_compensations, updated_at = now()",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
         )
       end
 
@@ -302,11 +303,12 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.exec_params(
-          "SELECT process_manager, correlation, state, memory FROM hecks_saga_instances WHERE domain = $1",
+          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = $1",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],
-                JSON.parse(row["memory"], symbolize_names: true)
+                JSON.parse(row["memory"], symbolize_names: true),
+                JSON.parse(row["completed_compensations"] || "[]", symbolize_names: true)
         end
       end
 

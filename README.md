@@ -685,7 +685,7 @@ bin/fuzz                # generated sequences, checked against declared properti
 <!-- generated:end -->
 
 <!-- generated:begin id=reference -->
-[The DSL reference](docs/implemented/reference/index.md) — 22 contexts, generated from the aggregate-local tables under `lib/hecks/language/` and held to them by `spec/reference_golden_spec.rb`.
+[The DSL reference](docs/implemented/reference/index.md) — 23 contexts, generated from the aggregate-local tables under `lib/hecks/language/` and held to them by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
 Beyond the guides and the DSL reference:

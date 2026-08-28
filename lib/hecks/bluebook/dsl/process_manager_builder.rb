@@ -196,19 +196,73 @@ module Hecks
           #
           # RENAMED FROM `dispatch` — item #13's full metaprogrammed
           # dispatch (slice 4), same reasoning as trigger_impl above.
-          def dispatch_impl(command_ref, with: nil)
+          #
+          # AN OPTIONAL BLOCK OPENS `compensates` ON THIS DISPATCH
+          # SPECIFICALLY — per-dispatch saga compensation, replacing a
+          # hand-written list at the saga's own `on :refused` leg. Real,
+          # live bug this closes: `examples/banking/bluebook/transfers_
+          # and_payments.bluebook`'s own `Settlement` saga wrote a
+          # compensating reversal by hand that depended on an event only
+          # fired if someone dispatched it manually — "the reversal was
+          # written and never armed" (that file's own comment). The
+          # runtime now tracks which legs actually completed
+          # (`SagaInterpreter`'s own `completed_compensations`) and
+          # compensates only those, newest first, instead of trusting an
+          # author's static list to be complete and correctly ordered.
+          def dispatch_impl(command_ref, with: nil, &block)
             if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
               raise InvalidProcessManager,
                     "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \
                     "instead, e.g. dispatch Account::Debit"
             end
 
-            DispatchSpec.new(
+            spec = DispatchSpec.new(
               command_name: Naming.command_ref(command_ref),
               with_spec:    (with || {}).to_a
-            ).tap do |dispatch|
-              dispatch.instance_variable_set(:@projection_declared, !with.nil?)
-              @dispatches << dispatch
+            )
+            spec.instance_variable_set(:@projection_declared, !with.nil?)
+
+            if block
+              builder = DispatchBuilder.new
+              builder.instance_eval(&block)
+              # `instance_variable_get`, not a public `compensates_spec`
+              # reader — a public one would be a method the grammar
+              # never declares, exactly what `spec/syntax_conformance_
+              # spec.rb`'s "answers only words the language declares"
+              # check exists to catch.
+              spec.compensates = builder.instance_variable_get(:@compensates_spec)
+            end
+
+            @dispatches << spec
+            spec
+          end
+
+          # THE NESTED SCOPE `dispatch ... do ... end` OPENS — one word
+          # only (`compensates`), the compensating half of the dispatch it
+          # sits inside. Its own `compensates_impl` builds a SECOND
+          # `DispatchSpec`, shape-identical to `HandlerBuilder#dispatch_
+          # impl`'s own — a compensation takes the exact same two
+          # arguments (a bare command constant, an optional `with:`)
+          # because it resolves through the identical scope (current
+          # event payload, opening event memory, correlation binding)
+          # any saga dispatch already does
+          # (`SagaInterpreter#dispatch_args`).
+          class DispatchBuilder
+            GRAMMAR_CONTEXT = "Dispatch"
+
+            include WordGate
+
+            def compensates_impl(command_ref, with: nil)
+              if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
+                raise InvalidProcessManager,
+                      "compensates #{command_ref.inspect} is quoted text — give the bare command constant " \
+                      "instead, e.g. compensates Account::Credit"
+              end
+
+              @compensates_spec = DispatchSpec.new(
+                command_name: Naming.command_ref(command_ref),
+                with_spec:    (with || {}).to_a
+              )
             end
           end
         end

@@ -82,6 +82,21 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
+    // ADDITIVE, on an existing table a live domain may already have rows
+    // in — same `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` idiom
+    // `sagas_backfilled` above already uses. `completed_compensations` is
+    // `SagaInterpreter#checkpoint`'s own per-instance, DYNAMIC ledger
+    // (`orchestrate.rs`'s own `SagaInstance::completed_compensations`,
+    // kernel/cli.rs's own `"sagas"`/`"saga_snapshot"` seed/snapshot
+    // shape) — `DEFAULT '[]'::jsonb` means every pre-existing row (a
+    // saga instance persisted before this feature existed) reads back
+    // an empty ledger, the correct "nothing completed yet under this
+    // feature" answer, without a separate backfill migration.
+    client
+        .batch_execute(
+            "ALTER TABLE hecks_lambda_sagas ADD COLUMN IF NOT EXISTS completed_compensations jsonb NOT NULL DEFAULT '[]'::jsonb",
+        )
+        .await?;
     // A CROSS-DOMAIN DELIVERY THAT NEVER GOT THROUGH, durably — see
     // `record_dead_letter`'s own header for the full argument (this
     // table exists so that fact survives past the one Lambda invocation
@@ -270,6 +285,7 @@ pub struct SagaRow {
     pub correlation: String,
     pub state: String,
     pub memory: serde_json::Value,
+    pub completed_compensations: serde_json::Value,
 }
 
 /// Every live saga instance for this domain — read once per invocation,
@@ -281,7 +297,7 @@ pub struct SagaRow {
 pub async fn load_sagas<C: GenericClient>(client: &C) -> anyhow::Result<Vec<SagaRow>> {
     let rows = client
         .query(
-            "SELECT process_manager, correlation, state, memory FROM hecks_lambda_sagas",
+            "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_lambda_sagas",
             &[],
         )
         .await?;
@@ -292,6 +308,7 @@ pub async fn load_sagas<C: GenericClient>(client: &C) -> anyhow::Result<Vec<Saga
             correlation: row.get(1),
             state: row.get(2),
             memory: row.get(3),
+            completed_compensations: row.get(4),
         })
         .collect())
 }
@@ -310,14 +327,15 @@ pub async fn save_saga<C: GenericClient>(
     correlation: &str,
     state: &str,
     memory: &serde_json::Value,
+    completed_compensations: &serde_json::Value,
 ) -> anyhow::Result<()> {
     client
         .execute(
-            "INSERT INTO hecks_lambda_sagas (process_manager, correlation, state, memory) \
-             VALUES ($1, $2, $3, $4) \
+            "INSERT INTO hecks_lambda_sagas (process_manager, correlation, state, memory, completed_compensations) \
+             VALUES ($1, $2, $3, $4, $5) \
              ON CONFLICT (process_manager, correlation) DO UPDATE \
-             SET state = EXCLUDED.state, memory = EXCLUDED.memory",
-            &[&process_manager, &correlation, &state, memory],
+             SET state = EXCLUDED.state, memory = EXCLUDED.memory, completed_compensations = EXCLUDED.completed_compensations",
+            &[&process_manager, &correlation, &state, memory, completed_compensations],
         )
         .await?;
     Ok(())

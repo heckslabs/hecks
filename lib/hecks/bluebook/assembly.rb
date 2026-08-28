@@ -71,7 +71,20 @@ module Hecks
 
       def handler(row)
         Build.call("Handler", row,
-                   dispatches: Array(row[:dispatches]).map { |leg| Build.call("Dispatch", leg) })
+                   dispatches: Array(row[:dispatches]).map { |leg| dispatch(leg) })
+      end
+
+      # `compensates` — a PLAIN HASH on the declaration (`Reconstruction#
+      # dispatch`'s own comment for why), built into the real
+      # `DispatchSpec` its own field actually is by recursing through
+      # THIS SAME method, one level in — the identical move `handler`
+      # itself takes into `dispatches`, one level up. `nil` when there
+      # is nothing to compensate; `Build.call` never sees a
+      # `compensates:` key it does not know how to read either way, the
+      # same reason `compensates` never joined `Contract#fields` at all.
+      def dispatch(row)
+        compensates = row[:compensates] && dispatch(row[:compensates])
+        Build.call("Dispatch", row, compensates: compensates)
       end
     end
   end

@@ -27,8 +27,21 @@ module Hecks
           leg = handler_for(Bluebook::ProcessManager::REFUSED)
           return nil unless leg
 
+          # `compensations` — a STATIC PREVIEW, declaration order, not
+          # one instance's own runtime history (which legs a given
+          # instance actually completed is per-instance state,
+          # `SagaInterpreter`'s own `completed_compensations`, not a
+          # fact `Saga` — a pure declaration reading — could ever hold).
+          # Every `compensates` ANY handler's own dispatch declares,
+          # forward declaration order, THEN whatever this leg's own
+          # hand-written body still lists — coexistence, not replacement
+          # (`ProcessManagerBuilder::HandlerBuilder#dispatch_impl`'s own
+          # comment): a saga can derive some of its compensation and
+          # still hand-write the rest for what isn't expressible as
+          # "undo command X".
+          derived = handlers.flat_map { |handler| handler.dispatches.filter_map(&:compensates) }
           Bluebook::Saga.new(trigger: Bluebook::ProcessManager::REFUSED, from_state: leg.from_state,
-                             to_state: leg.to_state, reversals: leg.dispatches)
+                             to_state: leg.to_state, compensations: derived + leg.dispatches)
         end
 
         def saga? = !saga.nil?

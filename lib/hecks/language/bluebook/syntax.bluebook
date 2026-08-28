@@ -86,8 +86,8 @@ Hecks.bluebook "Bluebook" do
     value_object "Context" do
       attribute :name, String,
                 one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
-                         "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
-                         "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation",
+                         "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type",
+                         "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation",
                          "TranslationAggregate"]
     end
 

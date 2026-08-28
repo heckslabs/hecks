@@ -202,11 +202,11 @@ module Hecks
       # either way; a domain that wants an obviously-named saga store
       # already gets one by sharing `database` across its aggregates,
       # the recommended, common case.
-      def save_saga(process_manager:, correlation:, state:, memory:)
+      def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.execute(
-          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
-          "VALUES (?, ?, ?, ?, ?)",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory)]
+          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
+          "VALUES (?, ?, ?, ?, ?, ?)",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
         )
       end
 
@@ -221,11 +221,12 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.execute(
-          "SELECT process_manager, correlation, state, memory FROM hecks_saga_instances WHERE domain = ?",
+          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = ?",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],
-                JSON.parse(row["memory"], symbolize_names: true)
+                JSON.parse(row["memory"], symbolize_names: true),
+                JSON.parse(row["completed_compensations"] || "[]", symbolize_names: true)
         end
       end
 

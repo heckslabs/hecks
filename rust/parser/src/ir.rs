@@ -441,6 +441,26 @@ pub struct Policy {
 pub struct DispatchSpec {
     pub command_name: String,
     pub with_spec: Vec<(String, String)>, // Literal::render spelling per value
+    // `compensates` — a SECOND `DispatchSpec`, shape-identical to this
+    // one, naming the compensating command that undoes THIS dispatch
+    // specifically (`dispatch Account::Debit, with: {...} do compensates
+    // Account::Credit, with: {...} end`). `None` for a dispatch with
+    // nothing to undo. Mirrors
+    // `Hecks::Bluebook::DispatchSpec#compensates`
+    // (`lib/hecks/bluebook/process_manager.rb`) — Ruby's own struct field
+    // order is `command_name, with_spec, compensates`, and `emits_ir`'s
+    // own comment ("KEY ORDER IS THE DECLARATION ORDER") makes that the
+    // real wire order `emit::dispatch_spec_json` has to match, confirmed
+    // by running `DispatchSpec#to_h` directly rather than trusting
+    // `spec/golden/ir/*.json` (THAT fixture is alphabetically
+    // key-sorted by `ir_golden_spec.rb`'s own `sorted` helper for
+    // human-readable diffs — "key order is not semantics" for that one
+    // check only; `spec/parser_parity_spec.rb` compares fresh,
+    // UNSORTED `JSON.pretty_generate(Exporter.call(...))` output, where
+    // real declaration order is exactly what has to match). Never
+    // nested further than one level — a compensation is not itself
+    // compensable (Ruby's own comment on `DispatchSpec#compensates`).
+    pub compensates: Option<Box<DispatchSpec>>,
 }
 
 #[derive(Debug, Clone, Default)]

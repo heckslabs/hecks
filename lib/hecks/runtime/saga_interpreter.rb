@@ -68,9 +68,19 @@ module Hecks
         memory[SAGA_PENDING_DISPATCH_KEY] = pending if pending
         @registry.saga_persistence(domain).save_saga(
           process_manager: pm.name, correlation: correlation,
-          state: instance[:state], memory: memory
+          state: instance[:state], memory: memory,
+          completed_compensations: deep_copy_array(instance[:completed_compensations])
         )
       end
+
+      # `deep_copy` is `JSON.parse(JSON.generate(hash), ...)`, which
+      # only accepts an OBJECT at the top level — `completed_compensations`
+      # is an ARRAY, so it gets its own wrap-and-unwrap rather than a
+      # second, parallel `deep_copy_array` reimplementing the same
+      # round-trip. `|| []` — an instance from before this field existed
+      # (or one that has never completed a compensable leg) rehydrates
+      # to an empty ledger, never nil.
+      def deep_copy_array(array) = deep_copy(list: array || [])[:list]
 
       def deep_copy(hash) = JSON.parse(JSON.generate(hash), symbolize_names: true)
 
@@ -103,7 +113,7 @@ module Hecks
           # still matters: it is what makes the saga's own memory a
           # normal, writable Hash of its own, rather than one write away
           # from crashing every future in-place `remember`.
-          instance = { state: pm.states.first, memory: event.payload.dup }
+          instance = { state: pm.states.first, memory: event.payload.dup, completed_compensations: [] }
           @registry.saga_instances[pm.name][correlation] = instance
           checkpoint(pm, correlation, instance, domain)
           true
@@ -165,7 +175,7 @@ module Hecks
       # instance at all", `unwind`'s doesn't), then this: log the real
       # observed transition, run the leg's dispatches, and clear the
       # pending marker once that cascade — however it ended — is done.
-      def settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
+      def settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state, drain_compensations: false)
         # `from:`/`to:` are the INSTANCE'S OWN real pre/post state — read
         # back from `instance` itself, never re-derived from `handler.
         # from_state`/`handler.to_state` a second time. `Properties.saga_
@@ -181,6 +191,23 @@ module Hecks
         # wrong handler picked, a second racing mutation) shows up as a
         # real mismatch instead of vanishing into a tautology.
         @registry.saga_log << record.merge(advanced: true, from: pre_state, to: instance[:state])
+
+        # DERIVED COMPENSATION FIRST, NEWEST-FIRST — only for `unwind`'s
+        # own call (`drain_compensations: true`): every leg THIS INSTANCE
+        # actually completed that declared its own `compensates`, popped
+        # and dispatched in reverse completion order, BEFORE any
+        # hand-written `on :refused` dispatches below — coexistence, not
+        # replacement. Drained (not just read) as it fires: a saga's own
+        # `on :refused` handler is guarded against re-entry by `unwind`'s
+        # own `instance[:state] == handler.from_state` check, so this can
+        # only ever run once per refusal — but draining rather than
+        # leaving the ledger populated is what makes that true by
+        # construction too, not only by the state guard.
+        if drain_compensations
+          compensations = instance[:completed_compensations] || []
+          deliver_derived_compensation(pm, compensations.pop, correlation, domain) until compensations.empty?
+          checkpoint(pm, correlation, instance, domain)
+        end
 
         handler.dispatches.each do |spec|
           deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
@@ -248,7 +275,29 @@ module Hecks
         end
 
         attempt = 0
+        compensation_recorded = false
         begin
+          # RECORDED BEFORE DISPATCHING, not after `@door.reenter`
+          # returns — `@door.reenter` can recursively RE-ENTER THIS SAME
+          # saga interpreter (the event THIS dispatch emits triggers a
+          # LATER handler, which can itself refuse and unwind) entirely
+          # WITHIN this one call, before it ever returns here. Recording
+          # "after reenter succeeds" would be too late for a NESTED
+          # refusal to ever see this leg's own compensation — found
+          # live: Settlement's own AccountDebited handler refuses
+          # Account.Credit and unwinds from INSIDE Account.Debit's own
+          # `reenter` call, so "delivered: true, then record" left the
+          # ledger empty at the exact moment it was needed. Popped back
+          # off in the rescues below if THIS leg's own attempt is the
+          # one that failed — never left recorded for a refusal that
+          # was never this leg's own to compensate.
+          if spec.compensates && !compensation_recorded
+            resolved = dispatch_args(pm, spec.compensates, event, instance, correlation)
+            instance[:completed_compensations] << { command_name: spec.compensates.command_name, args: resolved }
+            checkpoint(pm, correlation, instance, domain)
+            compensation_recorded = true
+          end
+
           invocation = ReactionInvocation.build(
             registry:        @registry,
             verb:            qualified(spec.command_name, domain),
@@ -261,6 +310,7 @@ module Hecks
                         saga_correlation: { pm.correlation_head.to_s => correlation }, **invocation)
           @registry.saga_log << record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => error
+          unrecord_compensation(instance, correlation, domain, pm) if compensation_recorded
           # Same rule as the policy interpreter : a refusal by the target is
           # a recorded outcome, and the leg that raised it UNWINDS — see
           # `unwind`'s own comment for why the procedure runs its
@@ -269,6 +319,8 @@ module Hecks
           @registry.saga_log << record.merge(delivered: false, reason: error.message)
           unwind(pm, event, instance, correlation, domain)
         rescue StandardError => error
+          unrecord_compensation(instance, correlation, domain, pm) if compensation_recorded
+          compensation_recorded = false
           # A DEFECT, not a refusal — see PolicyInterpreter#deliver's own
           # comment for the full reasoning: the same DOMAIN_REFUSALS split,
           # and the same "the triggering command already succeeded and
@@ -304,6 +356,22 @@ module Hecks
         end
       end
 
+      # THE ROLLBACK HALF of `deliver_saga_dispatch`'s own speculative
+      # pre-record (that method's own comment for why it has to be
+      # speculative) — THIS leg's own attempt is the one that failed,
+      # so whatever was just pushed for it was never actually earned.
+      # `.pop`, not a search-and-delete: nothing else can have pushed
+      # AFTER this leg's own entry without this leg's own `@door.
+      # reenter` call having already returned (the recursive re-entry
+      # this whole mechanism exists for only ever runs BETWEEN this
+      # push and this leg's own return, and a nested refusal that
+      # consumed it already popped it itself — this rollback only ever
+      # runs for THIS leg's own, still-present entry).
+      def unrecord_compensation(instance, correlation, domain, pm)
+        instance[:completed_compensations].pop
+        checkpoint(pm, correlation, instance, domain)
+      end
+
       # A refused leg UNWINDS — the procedure runs the leg declared `on :refused`,
       # which is where the compensation lives. So does a leg that hit the
       # reaction-depth ceiling, and so does a leg that crashed and stayed
@@ -313,7 +381,7 @@ module Hecks
       # Until this existed a refusal was RECORDED and nothing else happened. The
       # wire's thousand was taken from the source, refused by the destination, and
       # sat nowhere until a human dispatched the reversal by hand ; banking's
-      # settlement left a debit standing with no credit and no reversal at all.
+      # settlement left a debit standing with no credit and no compensation at all.
       # Both bluebooks had written the compensating leg. Nothing armed it.
       #
       # A compensation that is itself refused does NOT unwind again, and needs no
@@ -348,7 +416,56 @@ module Hecks
         # `instance[:state]` — the real observed transition, not a
         # second read of the SAME handler object `Properties.saga_
         # advances_follow_declared_handlers` checks this log against.
-        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
+        # `drain_compensations: true` — only `unwind`'s own call site
+        # fires derived compensation; `advance_saga`'s own call never
+        # does.
+        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state,
+                          drain_compensations: true)
+      end
+
+      # A DERIVED COMPENSATION — `entry[:args]` is already resolved
+      # (`record_completed_compensation`'s own comment for why), so this
+      # skips `dispatch_args` entirely and goes straight to delivery,
+      # through the SAME retry-on-defect path an ordinary forward leg
+      # uses. Never re-enters `unwind` on its own failure — a
+      # compensation that itself refuses is a real, pre-existing gap
+      # this feature makes visible rather than closes (see this file's
+      # own class-level notes); `compensation_failed: true` tags it
+      # distinctly in the log instead of recording it identically to an
+      # ordinary failed delivery, and every OTHER completed compensation
+      # still queued still gets its own attempt.
+      def deliver_derived_compensation(pm, entry, correlation, domain)
+        record = { process_manager: pm.name, instance: correlation, dispatch: entry[:command_name] }
+
+        attempt = 0
+        begin
+          invocation = ReactionInvocation.build(
+            registry:        @registry,
+            verb:            qualified(entry[:command_name], domain),
+            projected:       entry[:args],
+            explicit:        true,
+            passthrough:     [pm.correlation_head],
+            source_receiver: nil
+          )
+          @door.reenter(qualified(entry[:command_name], domain),
+                        saga_correlation: { pm.correlation_head.to_s => correlation }, **invocation)
+          @registry.saga_log << record.merge(delivered: true, compensation: true)
+        rescue *DOMAIN_REFUSALS => error
+          @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true, compensation_failed: true)
+        rescue StandardError => error
+          attempt += 1
+          if attempt <= MAX_DEFECT_RETRIES
+            @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true,
+                                               defect: true, error_class: error.class.name,
+                                               attempt: attempt, retrying: true)
+            retry
+          end
+
+          warn "[hecks] defect compensating saga #{pm.name} — instance #{correlation.inspect} " \
+               "dispatching #{entry[:command_name]} after #{attempt} attempts: #{error.class}: #{error.message}"
+          @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true,
+                                             defect: true, error_class: error.class.name, compensation_failed: true)
+        end
       end
 
       def dispatch_args(pm, spec, event, instance, correlation)

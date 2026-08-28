@@ -664,6 +664,26 @@ module RustProjection
             fields_assignment << "#{rust_ident_field(attr[:name])}: Vec::new()"
             present << attr[:name].to_s
           end
+
+          # A FOURTH field no `append: { ... }` binding ever names: a
+          # scalar OPTIONAL attribute the entity declares for some other
+          # command to `set` later (e.g. `Dispatch#compensates_command_name`,
+          # S18 — `compensates:` per-dispatch saga compensation, bound only
+          # by the dispatch that OPENS a saga, never by the one it
+          # compensates). Same gap as the list case just above and the
+          # same fix: `attr[:optional]` always ports to `Option<T>`
+          # (commands.rb's own `type = "Option<#{type}>" if
+          # attr[:optional]"`), and an absent key reads as `None`
+          # everywhere else this IR flows — so an unmentioned optional
+          # attribute here defaults to `None` rather than leaving the
+          # struct literal short a field.
+          entity[:attributes].each do |attr|
+            next if attr[:list] || !attr[:optional]
+            next if present.include?(attr[:name].to_s)
+
+            fields_assignment << "#{rust_ident_field(attr[:name])}: None"
+            present << attr[:name].to_s
+          end
         end
 
         Exemplar.render(
