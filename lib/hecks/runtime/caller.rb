@@ -19,15 +19,31 @@ module Hecks
       # `CommandRules::Authorization` check a real Governance
       # `RoleAssignment` instead, once the command's domain has Governance
       # attached — see that module's own header for the full split.
-      Current = Struct.new(:role, :actor_id, keyword_init: true)
+      #
+      # `as_of` and `scope` are BOTH optional too, and both self-asserted
+      # by the caller rather than derived from the command — deliberately:
+      # `as_of` is filled at the door from `Ports::Clock.now`, never
+      # inside the interpreter (see `Ports::Clock`'s own header), so
+      # there is no other place to source it from. `scope` stays here
+      # rather than becoming a command-level DSL construct on purpose —
+      # a scope check that lived in the bluebook would put an
+      # authorization concern inside the domain declaration itself; this
+      # keeps it an application-boundary fact instead, the same shape
+      # `role`/`actor_id` already are. The tradeoff: a caller states what
+      # scope it is acting in, and `holds_role?` verifies a live grant
+      # exists for THAT scope — it does not independently confirm the
+      # scope matches whatever the command's own target data belongs to.
+      Current = Struct.new(:role, :actor_id, :as_of, :scope, keyword_init: true)
 
       module_function
 
       def current = Thread.current[:hecks_caller]
 
-      def as(role:, actor_id: nil)
+      def as(role:, actor_id: nil, as_of: nil, scope: nil)
         previous = Thread.current[:hecks_caller]
-        Thread.current[:hecks_caller] = Current.new(role: role.to_s, actor_id: actor_id&.to_s)
+        Thread.current[:hecks_caller] = Current.new(
+          role: role.to_s, actor_id: actor_id&.to_s, as_of: as_of, scope: scope&.to_s
+        )
         yield
       ensure
         Thread.current[:hecks_caller] = previous

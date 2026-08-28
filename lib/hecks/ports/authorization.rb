@@ -15,21 +15,24 @@ module Hecks
     # A caller decides what to DO with the answer — dispatch under that
     # role, refuse, log, prefer it over some other fallback value — this
     # only answers the question asked. Nothing here binds a
-    # `Runtime::Caller`, and nothing here is consulted by
-    # `CommandRules::Authorization`: that rule still only compares an
-    # ALREADY-BOUND caller's role against a command's, the same as it
-    # always has. `spec/act_as_spec.rb` remains the precedent for the
-    # OTHER shape — two separate registries, queried directly by name —
-    # for whenever Governance is not in the same boot as the caller;
-    # this port is the same two questions asked through one adapter
-    # when it is.
+    # `Runtime::Caller`.
+    #
+    # STALE AS OF THE `as_of`/`scope` split below, this used to also say
+    # nothing here is consulted by `CommandRules::Authorization` — it now
+    # is: `refuse_role_mismatch` calls `holds_role?` directly, once a
+    # caller binds an `actor_id` and the command's domain has Governance
+    # attached (see that rule's own header). `spec/act_as_spec.rb`
+    # remains the precedent for the OTHER shape — two separate
+    # registries, queried directly by name — for whenever Governance is
+    # not in the same boot as the caller; this port is the same
+    # questions asked through one adapter when it is.
     module Authorization
       NAME = "authorization"
 
       module_function
 
-      def holds_role?(registry, actor_id:, role:)
-        adapter(registry).holds_role?(registry, actor_id: actor_id, role: role)
+      def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
+        adapter(registry).holds_role?(registry, actor_id: actor_id, role: role, as_of: as_of, scope: scope)
       end
 
       def authorized_as?(registry, from_role:, to_role:)

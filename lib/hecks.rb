@@ -88,7 +88,12 @@ module Hecks
     # against a real Governance `RoleAssignment` instead, once the
     # command's domain has Governance attached — see
     # `CommandRules::Authorization`'s own header.
-    def as_caller(role:, actor_id: nil, &block) = Runtime.as_caller(role: role, actor_id: actor_id, &block)
+    #
+    # `as_of` and `scope` are OPTIONAL too, same shape — see
+    # `Runtime.as_caller`'s own header for what each does.
+    def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &block)
+      Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &block)
+    end
 
     def bluebook(name, version: nil, &block)
       collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))

@@ -1,5 +1,6 @@
 require "hecks"
 require "hecks/fuzzing/isolated_boot"
+require "time"
 
 # THE REAL, SHIPPED WIRING — not a hand-composed registry. Banking's own
 # `.hecksagon` declares `uses_framework "Governance"` (see
@@ -71,6 +72,75 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     expect(
       described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
     ).to be(false)
+  end
+
+  describe "as_of — starts_at, opt-in" do
+    it "answers true for a not-yet-started assignment when as_of is not given" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # starts_at: "2026-01-01"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
+      ).to be(true)
+    end
+
+    it "answers false for an assignment that has not started yet, once as_of is given" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # starts_at: "2026-01-01"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer",
+                                     as_of: Time.parse("2025-12-31").to_i)
+      ).to be(false)
+    end
+
+    it "answers true for an assignment that has already started, once as_of is given" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # starts_at: "2026-01-01"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer",
+                                     as_of: Time.parse("2026-06-01").to_i)
+      ).to be(true)
+    end
+
+    it "fails closed for a starts_at that does not parse as a time, once as_of is given" do
+      business.dispatch(
+        "Governance::RoleAssignment.Assign",
+        actor_id: { value: "officer-2" }, role_name: { value: "Compliance officer" },
+        scope: { value: "Branch-1" }, starts_at: { value: "not-a-real-date" }
+      )
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-2", role: "Compliance officer",
+                                     as_of: Time.parse("2026-06-01").to_i)
+      ).to be(false)
+    end
+  end
+
+  describe "scope, opt-in" do
+    it "answers true regardless of the assignment's own scope when scope is not given" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # scope: "Branch-1"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer")
+      ).to be(true)
+    end
+
+    it "answers false once scope is given and it does not match the assignment's own scope" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # scope: "Branch-1"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer",
+                                     scope: "Branch-99")
+      ).to be(false)
+    end
+
+    it "answers true once scope is given and it matches the assignment's own scope" do
+      assign(business, actor: "officer-1", role: "Compliance officer") # scope: "Branch-1"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer",
+                                     scope: "Branch-1")
+      ).to be(true)
+    end
   end
 
   it "gates a real role-checked Banking dispatch, end to end through the port" do

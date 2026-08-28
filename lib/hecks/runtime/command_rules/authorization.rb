@@ -37,7 +37,8 @@ module Hecks
 
           authorized =
             if caller.actor_id && governance_attached?(domain)
-              Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role)
+              Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role,
+                                                          as_of: caller.as_of, scope: caller.scope)
             else
               caller.role == command.role
             end

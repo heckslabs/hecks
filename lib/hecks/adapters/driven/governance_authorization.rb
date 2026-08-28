@@ -1,3 +1,5 @@
+require "time"
+
 module Hecks
   module Adapters
     # THE `authorization` PORT, FULFILLED BY GOVERNANCE — same registry,
@@ -19,13 +21,50 @@ module Hecks
     module GovernanceAuthorization
       module_function
 
-      def holds_role?(registry, actor_id:, role:)
+      # `as_of` and `scope` are BOTH optional, same opt-in shape
+      # `refuse_role_mismatch` already gives `actor_id` itself — an
+      # unbound `as_of` skips the `starts_at` check and an unbound
+      # `scope` skips the `scope` check, exactly the behavior before
+      # either existed. Neither is fetched here: `as_of` arrives already
+      # resolved from `Ports::Clock.now`, called by the caller at the
+      # door, never by this adapter — see `Ports::Clock`'s own header
+      # for why the dispatch path must not consult the clock itself.
+      def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         rows = Runtime::Dispatcher.new(registry).query(
           "Governance::RoleAssignment.AssignmentsForActor",
           actor_id: { value: actor_id.to_s }
         )
 
-        rows.any? { |row| row[:role_name][:value] == role.to_s && row[:ends_at].nil? }
+        rows.any? do |row|
+          row[:role_name][:value] == role.to_s &&
+            row[:ends_at].nil? &&
+            in_scope?(row, scope) &&
+            started?(row, as_of)
+        end
+      end
+
+      # `scope` UNCHECKED WHEN NOT STATED, same as every other opt-in
+      # field here — a caller that never says which scope it is acting
+      # in gets the pre-scope behavior: any live assignment for the role
+      # authorizes, everywhere. A caller that does state one only
+      # authorizes against an assignment granted for THAT scope.
+      def in_scope?(row, scope)
+        scope.nil? || row[:scope][:value] == scope.to_s
+      end
+
+      # `starts_at` IS A FREE-TEXT STRING in the bluebook (`Timestamp`'s
+      # only invariant is "present", not any particular format) — parsed
+      # here with `Time.parse` rather than compared lexically, since
+      # nothing guarantees every caller writes it zero-padded ISO 8601.
+      # FAILS CLOSED : a `starts_at` that does not parse is treated as
+      # not-yet-started rather than silently ignored, the same direction
+      # every other check in this method already fails.
+      def started?(row, as_of)
+        return true if as_of.nil?
+
+        Time.parse(row[:starts_at][:value].to_s).to_i <= as_of
+      rescue ArgumentError, TypeError
+        false
       end
 
       # THE OTHER HALF — may role X act as role Y. `RoleTransition.Allowed`

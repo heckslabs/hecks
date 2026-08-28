@@ -85,7 +85,23 @@ module Hecks
       # Bind the ambient caller (see Runtime::Caller) for the duration of
       # the block — who a command's declared `role`, if any, is checked
       # against.
-      def as_caller(role:, actor_id: nil, &block) = Caller.as(role: role, actor_id: actor_id, &block)
+      #
+      # `as_of:` is OPTIONAL, same opt-in shape as `actor_id:` — a caller
+      # that wants a Governance `RoleAssignment`'s `starts_at` enforced
+      # passes `as_of: Ports::Clock.now(registry)` here, at the door,
+      # exactly where `cli_runner.rb` already merges `Clock.now` into a
+      # command's own args. Nothing on the dispatch path calls the clock
+      # itself — see `Ports::Clock`'s own header for why — so an unbound
+      # `as_of` leaves `starts_at` unchecked, exactly as before.
+      #
+      # `scope:` is OPTIONAL too — a caller that states which scope it is
+      # acting in gets that scope checked against the matching
+      # `RoleAssignment`'s own `scope`, not just its `role_name`. See
+      # `Runtime::Caller::Current`'s own header for why this lives here
+      # rather than as a command-level DSL construct.
+      def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &block)
+        Caller.as(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &block)
+      end
     end
   end
 end

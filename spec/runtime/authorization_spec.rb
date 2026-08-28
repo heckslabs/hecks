@@ -1,4 +1,5 @@
 require "spec_helper"
+require "time"
 
 # `role` used to be pure decoration — declared, stored, read by nothing at
 # dispatch time. This holds the fix: opt-in on both sides (no caller bound,
@@ -154,6 +155,86 @@ RSpec.describe "role-based command rejections" do
       expect {
         Hecks.as_caller(role: "Chef", actor_id: "u3") { order.prepare! }
       }.to raise_error(Hecks::Runtime::Unauthorized)
+    end
+
+    # `as_of` — OPT-IN on top of `actor_id`, same shape: unbound, the
+    # pre-existing behavior (a future-dated `starts_at` authorizes
+    # immediately); bound, the real check.
+    describe "as_of — a bound assignment's own starts_at" do
+      it "dispatches unchanged when as_of is not bound, even for a not-yet-started assignment" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant(runtime, actor_id: "u4", role_name: "Chef")
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        Hecks.as_caller(role: "Chef", actor_id: "u4") { order.prepare! }
+        expect(order.events.map(&:name)).to include("OrderPrepared")
+      end
+
+      it "refuses an identified caller whose real assignment has not started yet, once as_of is bound" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant(runtime, actor_id: "u5", role_name: "Chef") # starts_at: "2026-01-01"
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        before_start = Time.parse("2025-12-31").to_i
+        expect {
+          Hecks.as_caller(role: "Chef", actor_id: "u5", as_of: before_start) { order.prepare! }
+        }.to raise_error(Hecks::Runtime::Unauthorized)
+      end
+
+      it "dispatches when as_of is bound and the assignment has already started" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant(runtime, actor_id: "u6", role_name: "Chef") # starts_at: "2026-01-01"
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        after_start = Time.parse("2026-06-01").to_i
+        Hecks.as_caller(role: "Chef", actor_id: "u6", as_of: after_start) { order.prepare! }
+        expect(order.events.map(&:name)).to include("OrderPrepared")
+      end
+    end
+
+    # `scope` — the same opt-in shape again: unbound authorizes against
+    # any live assignment for the role, everywhere ; bound, only against
+    # an assignment granted for that exact scope.
+    describe "scope — a bound assignment's own scope" do
+      def grant_scoped(runtime, actor_id:, role_name:, scope:)
+        runtime.dispatch("Governance::RoleAssignment.Assign",
+                         actor_id: { value: actor_id }, role_name: { value: role_name },
+                         scope: { value: scope }, starts_at: { value: "2026-01-01" })
+      end
+
+      it "dispatches unchanged when scope is not bound, regardless of the assignment's own scope" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant_scoped(runtime, actor_id: "u7", role_name: "Chef", scope: "north-kitchen")
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        Hecks.as_caller(role: "Chef", actor_id: "u7") { order.prepare! }
+        expect(order.events.map(&:name)).to include("OrderPrepared")
+      end
+
+      it "refuses an identified caller whose grant is for a different scope, once scope is bound" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant_scoped(runtime, actor_id: "u8", role_name: "Chef", scope: "north-kitchen")
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        expect {
+          Hecks.as_caller(role: "Chef", actor_id: "u8", scope: "south-kitchen") { order.prepare! }
+        }.to raise_error(Hecks::Runtime::Unauthorized)
+      end
+
+      it "dispatches when the bound scope matches the assignment's own scope" do
+        runtime = build(&CAFETERIA_DOMAIN)
+        grant_scoped(runtime, actor_id: "u9", role_name: "Chef", scope: "north-kitchen")
+        Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
+        order = Order.find("o1")
+
+        Hecks.as_caller(role: "Chef", actor_id: "u9", scope: "north-kitchen") { order.prepare! }
+        expect(order.events.map(&:name)).to include("OrderPrepared")
+      end
     end
   end
 end
