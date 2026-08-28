@@ -12,13 +12,60 @@ yet, or does not exist any more. There is no separate "is this word
 still supported" question to answer by hand; the language's own
 declaration already answers it.
 
-A renamed word keeps its old spelling in `was:`, so a bluebook written
-under an earlier spelling keeps parsing rather than breaking the day a
-word is renamed for clarity:
+A renamed word keeps its old spelling in `was:` — read straight off
+the language's own live grammar table, the same one every builder's
+word-admission check reads:
 
-```ruby skip
-word "sets", was: "assigns"
+```ruby
+table = Hecks::Bluebook::MetaValidator::SyntaxBoot.call
+read_model_row = table[:keywords].find { |row| row[:context] == "Bluebook" && row[:word] == "read_model" }
+read_model_row[:was] # => "report"
 ```
+
+That `was:` is what lets era text minted back when `report` was still
+the word keep parsing today, under the same shadow-parsing bridge
+`MetaValidator.shadow_parsing?` gates for every renamed word
+(`EraGuard.shadow_parse` runs it at boot, at mint, and during tamper
+detection): live source refuses the old spelling outright, and frozen
+era text still gets it.
+
+```ruby bluebook
+Hecks.bluebook "LanguageVersioningDemo" do
+  vision "One aggregate and one read model, to watch a renamed word's two fates."
+
+  aggregate "Ticket" do
+    attribute :code, Code
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+
+    command "Open" do
+      sets :code
+      emits "TicketOpened"
+    end
+  end
+
+  Hecks::Bluebook::MetaValidator.while_shadow_parsing do
+    report "TicketList" do
+      reference_to Ticket
+      include Ticket
+    end
+  end
+end
+```
+
+Live source gets no such bridge — the same `report` call, outside
+`while_shadow_parsing`, names its own replacement instead of running:
+
+```ruby
+Hecks.bluebook("LanguageVersioningLiveAttempt") { report("Nope") { } } # ~> Malformed: report is gone
+```
+
+Not every renamed word takes this two-tier shape — `then_set`, `sets`'s
+own predecessor, instead keeps a dedicated `status: "deprecated"` row
+of its own rather than living only as `sets`'s `was:` (see
+`CommandBuilder#then_set_impl`'s own comment for why); either shape
+answers "does this still parse" from the language's own declaration,
+never from a maintained changelog.
 
 `bin/evolve` walks a language change through the stations a rename or
 a new word actually needs: snapshot the current state, rewrite the

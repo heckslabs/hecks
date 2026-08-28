@@ -351,6 +351,21 @@ jobs:
       - name: rust kernel coverage
         run: bundle exec bin/rust_kernel_coverage
 
+      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
+      # exact gap the rubocop step's own comment below already names for
+      # itself, applied to the one pre-push check that comment's own
+      # audit had missed: pre-push is opt-in per clone (`git config
+      # core.hooksPath .githooks`) and bypassable (`git push
+      # --no-verify`), so a branch that never installed it, or a push
+      # made with that flag, reached GitHub with `bin/doc_coverage`
+      # never having run at all — on a project where most commits come
+      # from an agent, "did this clone install the hook" isn't a safe
+      # assumption. Same command pre-push already runs (`bin/doc_
+      # coverage`'s own header): every live word in docs/implemented/
+      # reference/ carries hand-written prose and a running example.
+      - name: doc coverage
+        run: bundle exec bin/doc_coverage
+
       # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
       # this same integration pass that wired
       # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/

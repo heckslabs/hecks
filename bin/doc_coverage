@@ -1,8 +1,17 @@
 #!/usr/bin/env ruby
 
-# EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is
-# a declaration, and a declaration nothing runs cannot disagree with the
-# runtime it describes.
+# EVERY LIVE WORD SHIPS WITH A VISIBLE RUNNING EXAMPLE, or this refuses.
+# That is a narrower guarantee than "a declaration nothing runs cannot
+# disagree with the runtime it describes" — this checks PRESENCE of an
+# example per word, not that every PROSE CLAIM in that word's section is
+# itself something the example asserts. A section can carry a real
+# fence and still say something the fence never checks: a `# =>` marker
+# can assert what an expression returns, but it cannot assert a system
+# PROPERTY — "isolated per test," "never appears in any console view,"
+# "the whole suite passes" are prose claims with no fence shape at all.
+# Closing that gap is a periodic manual claim-audit's job, not this
+# script's — this one only ever answers "is there an example," never
+# "does every sentence near it hold."
 #
 # Two gates over docs/implemented/reference/, both derived from the language's own
 # Syntax chapter rather than a list somebody maintains:
