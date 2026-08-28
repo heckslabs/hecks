@@ -404,7 +404,7 @@ mod snake_alias_tests {
     fn find_accepts_both_the_declared_and_the_snake_cased_spelling() {
         let table = [ReadModelDef {
             verb: "Banking.CustomerPortfolio",
-            reference_name: "reference",
+            reference_name: Some("reference"),
             heads: &[],
             filtered_head: None,
             conditions: &[],
@@ -412,6 +412,9 @@ mod snake_alias_tests {
             offset: None,
             limit: None,
             authorization: None,
+            group_by: None,
+            count: false,
+            median_field: None,
         }];
 
         assert!(find(&table, "Banking.CustomerPortfolio").is_some());
