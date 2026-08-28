@@ -162,6 +162,61 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
   end
 
+  # THE WIRING ITSELF, NOT JUST THE PREDICATE — every example above
+  # calls `TenantCheck.refuse_unless_tenant_capable!` BY HAND, which
+  # proves the gate works but not that anything actually reaches it.
+  # This one instead drives the real integration point:
+  # `ProjectRegister#register`, called twice for the SAME on-disk
+  # directory the way a real multi-tenant host would (`register_tenant`
+  # above, the same helper the Memory/PostgresEra examples use).
+  #
+  # A domain's FIRST registration for a directory is never refused —
+  # nothing shares its data yet, so an ordinary single-tenant deploy on
+  # a plain, non-tenant_capable? adapter still boots exactly as before
+  # this gate existed. Only the SECOND registration of that same
+  # directory is refused — and refused before ITS routes are merged
+  # into the shared table, so a leaking tenant's requests never even
+  # become reachable through `Router#resolve`.
+  def load_bare_registry(dir, realm)
+    registry = Hecks::Runtime::Registry.new(root: dir)
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(File.join(dir, "tenanted.bluebook"))
+      Kernel.load(File.join(dir, "tenanted.hecksagon"))
+      Kernel.load(File.join(dir, "tenanted.world"))
+      Kernel.load(File.join(dir, "environments/#{realm.downcase}.world"))
+    end
+    registry
+  end
+
+  it "refuses a domain's SECOND registration into a shared route table when its bound adapter " \
+     "is not tenant_capable?, but never touches its first" do
+    Dir.mktmpdir do |dir|
+      # `Postgres` (no era, no schema story) never declares
+      # tenant_capable? — same non-capable adapter the direct-call
+      # example above uses, and for the same reason: this never boots
+      # through `Hecks.boot`, so it never tries to actually connect.
+      write_tenant_domain(dir, adapter: "Postgres", tenant_settings: { "acme" => {}, "bloom" => {} })
+
+      acme_registry  = load_bare_registry(dir, "Acme")
+      bloom_registry = load_bare_registry(dir, "Bloom")
+
+      register = Hecks::Bluebook::ProjectRegister.new
+      acme_dispatcher  = Hecks::Runtime::Dispatcher.new(acme_registry)
+      bloom_dispatcher = Hecks::Runtime::Dispatcher.new(bloom_registry)
+
+      expect { register.register([acme_registry.bluebook("Tenanted")], acme_registry, acme_dispatcher, dir) }
+        .not_to raise_error
+
+      expect { register.register([bloom_registry.bluebook("Tenanted")], bloom_registry, bloom_dispatcher, dir) }
+        .to raise_error(Hecks::Runtime::WiringError, /not tenant_capable\?/)
+
+      expect(register.include?("Acme::Tenanted::Widget.Make")).to be true
+      expect(register.include?("Bloom::Tenanted::Widget.Make")).to be false
+    end
+  end
+
   it "keeps two tenants' data completely apart on real PostgresEra, in genuinely separate schemas", io: true do
     skip "no local Postgres reachable" unless PostgresProbe.available?
 

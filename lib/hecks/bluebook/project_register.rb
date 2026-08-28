@@ -16,6 +16,7 @@ module Hecks
 
       def initialize
         @entries = {}
+        @tenant_directories = Hash.new { |hash, key| hash[key] = [] }
       end
 
       def fetch(address) = entries.fetch(address.to_s)
@@ -25,6 +26,7 @@ module Hecks
 
       def register(bluebooks, registry, dispatcher, directory)
         bluebooks.each do |bluebook|
+          refuse_unless_safe_for_second_tenant!(bluebook, registry, directory)
           world = registry.world(bluebook.name)
           realm = world&.realm
           raise MissingRealm, "#{bluebook.name} in #{directory} has no world realm" if realm.to_s.empty?
@@ -61,6 +63,29 @@ module Hecks
       end
 
       private
+
+      # THE ACTUAL "more than one tenant" MOMENT — Runtime::TenantCheck's
+      # own header names this table as the one place real multitenancy
+      # happens: the SAME on-disk directory (one domain, one
+      # `persisted_by` binding) registering a SECOND time, under a
+      # different realm, into this SAME shared route table. A directory's
+      # FIRST registration is never refused here — nothing shares its
+      # data yet, so a plain single-tenant deployment on an ordinary
+      # adapter (Postgres, no schema story) still boots exactly as
+      # before. Only the SECOND (and any later) registration of that
+      # same directory is refused, and refused before this call adds its
+      # routes to the table — so a leaking tenant's requests never
+      # become reachable through `Router#resolve` in the first place.
+      #
+      # Keyed on `directory` + `bluebook.name` only, not realm or
+      # `dispatcher` — two tenants share the identical on-disk domain,
+      # differing only by which realm/environment overlay booted it.
+      def refuse_unless_safe_for_second_tenant!(bluebook, registry, directory)
+        key = [directory, bluebook.name]
+        seen_before = @tenant_directories.key?(key) && @tenant_directories[key].any?
+        Runtime::TenantCheck.refuse_unless_tenant_capable!(registry, bluebook.name) if seen_before
+        @tenant_directories[key] << registry
+      end
 
       def current?(bluebook, world)
         bluebook.version.nil? || world.latest == bluebook.version
