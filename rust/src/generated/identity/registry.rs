@@ -90,6 +90,7 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
@@ -99,7 +100,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
                       args.identity_id.check_invariants()?;
-              crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
+              crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -113,7 +114,7 @@ pub fn dispatch_by_name(
                       args.key.check_invariants()?;
                       args.issuer.check_invariants()?;
                       args.subject.check_invariants()?;
-              crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
+              crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);

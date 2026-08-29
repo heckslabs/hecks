@@ -210,15 +210,62 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
     super::Json::Object(fields)
 }
 
+/// `Ports::Authorization.holds_role?` -> `GovernanceAuthorization.
+/// holds_role?` (`lib/hecksagain/adapters/driven/governance_
+/// authorization.rb`), read directly:
+/// ```ruby
+/// def holds_role?(registry, actor_id:, role:)
+///   rows = Runtime::Dispatcher.new(registry).query(
+///     "Governance::RoleAssignment.AssignmentsForActor",
+///     actor_id: { value: actor_id.to_s }
+///   )
+///   rows.any? { |row| row[:role_name][:value] == role.to_s && row[:ends_at].nil? }
+/// end
+/// ```
+/// An ACTIVE assignment, not merely a historical one — every row
+/// `AssignmentsForActor` returns for this actor (`ends_at` left for the
+/// caller to read, matching Ruby's own deferral), filtered down to a
+/// live (non-revoked) row naming exactly this role. No scope/starts_at
+/// check — Ruby's own deliberate restraint, not ported as an omission.
+///
+/// `store`/`queries` are the SAME compiled `Store`/`QUERIES` table
+/// `kernel::cli.rs`'s own "query" step already answers a real
+/// `Governance::RoleAssignment.AssignmentsForActor` ask through
+/// (`named_query::run`) — this reuses that real, compiled query path
+/// rather than hand-rolling a second one. `named_query::find` returning
+/// `None` means this compiled domain never merged Governance's own
+/// aggregates in at all (no `uses_framework "Governance"`) — `false`,
+/// same as "no matching row", is the right answer either way; `check_role`
+/// below is the one that decides whether that should fall back to the
+/// plain string comparison rather than read as an outright refusal.
+pub fn holds_role(store: &impl AggregateScan, queries: &[super::QueryDef], actor_id: &str, role: &str) -> bool {
+    let Some(def) = super::named_query::find(queries, "Governance::RoleAssignment.AssignmentsForActor") else {
+        return false;
+    };
+    let args = super::Json::Object(vec![("actor_id".to_string(), super::Json::Str(actor_id.to_string()))]);
+    let Ok(rows) = super::named_query::run(store, def, &args, None) else { return false };
+    rows.iter().any(|(_, record)| {
+        let matches_role = record.dig("role_name.value").and_then(super::Json::as_str) == Some(role);
+        let not_revoked = matches!(record.dig("ends_at"), None | Some(super::Json::Null));
+        matches_role && not_revoked
+    })
+}
+
 /// `refuse_role_mismatch` — `CommandRules::Authorization`
-/// (`lib/hecks/runtime/command_rules/authorization.rb`), read
+/// (`lib/hecksagain/runtime/command_rules/authorization.rb`), read
 /// directly:
 /// ```ruby
-/// def refuse_role_mismatch(command)
+/// def refuse_role_mismatch(command, domain)
 ///   caller = Caller.current
 ///   return unless caller
 ///   return if command.role.to_s.empty?
-///   return if caller.role == command.role
+///   authorized =
+///     if caller.actor_id && governance_attached?(domain)
+///       Ports::Authorization.holds_role?(registry, actor_id: caller.actor_id, role: command.role)
+///     else
+///       caller.role == command.role
+///     end
+///   return if authorized
 ///   raise Unauthorized, ...
 /// end
 /// ```
@@ -234,15 +281,79 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 /// `Caller.without`: a policy/process-manager REACTION never carries a
 /// caller in Ruby either, so a reaction's own re-entry into `orchestrate`
 /// always passes `None` here, never the triggering step's role.
-pub fn check_role(command_role: Option<&str>, command_name: &str, caller_role: Option<&str>) -> Result<(), super::Refusal> {
+///
+/// `caller_actor_id` is the SAME sibling opt-in `role:` always was —
+/// present ONLY when a step also names WHO it is, exactly `Caller`'s own
+/// (`role:`, `actor_id: nil`) shape (`lib/hecksagain/runtime/caller.rb`).
+/// `None` here (every step before this addition, and every step that
+/// still states only a bare `role:`) reproduces the string-equality
+/// check exactly as it always ran — this branch is UNCHANGED, forever,
+/// not merely today.
+///
+/// `Some(actor_id)` reaches the real check ONLY when THIS compiled
+/// domain actually has Governance's own `RoleAssignment` aggregate
+/// merged in (`named_query::find` below succeeding) — Ruby's own
+/// `governance_attached?(domain)` gate, read off `registry.hecksagon
+/// (domain)&.framework_members&.include?("Governance")` at dispatch
+/// time; this kernel has no such live registry to ask, so it asks the
+/// SAME question the only way a compiled artifact can: whether the
+/// query codegen actually wired in for this domain includes the one
+/// query real Governance attachment always produces
+/// (`rust/project/registry.rb`'s own `emit_query_table`,
+/// `bin/project_rust`'s `framework_queries` union). No compiled
+/// `AssignmentsForActor` row → exactly "governance not attached" →
+/// falls through to the plain string comparison, never an unconditional
+/// refusal.
+///
+/// GOVERNANCE'S OWN COMMANDS ARE **NOT** SELF-EXEMPT — checked directly
+/// against the running Ruby (`bundle exec ruby`, not merely read): a
+/// caller who names `actor_id:` while dispatching `Governance::
+/// RoleAssignment.Assign` itself is checked the SAME real way as any
+/// other governed command's caller, `governance_attached?`'s own
+/// `domain.to_s == "Governance"` clause included. An attacker who
+/// self-declares `role: "Governance administrator", actor_id: "eve"`
+/// with no real grant is REFUSED, not waved through by a same-domain
+/// exemption — the doc comment immediately above `governance_attached?`
+/// in `command_rules/authorization.rb` claims the opposite ("its own
+/// commands are always checked by the string fallback"), but that
+/// comment does not match what the code it sits on top of actually
+/// does; the executing behavior — the only thing "already proven
+/// correct" can honestly mean — is what this function ports. See this
+/// change's own commit message / task report for the full empirical
+/// trace. Nothing here special-cases a command's own domain at all —
+/// `holds_role` is reached whenever `caller_actor_id` is bound AND this
+/// compiled Store happens to carry the AssignmentsForActor query,
+/// which is already true, unconditionally, for a domain's own merged-in
+/// Governance chapter.
+pub fn check_role(
+    command_role: Option<&str>,
+    command_name: &str,
+    caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
+    store: &impl AggregateScan,
+    queries: &[super::QueryDef],
+) -> Result<(), super::Refusal> {
     let (Some(caller), Some(role)) = (caller_role, command_role) else { return Ok(()) };
-    if caller == role {
+
+    let authorized = match caller_actor_id {
+        Some(actor_id) if super::named_query::find(queries, "Governance::RoleAssignment.AssignmentsForActor").is_some() => {
+            holds_role(store, queries, actor_id, role)
+        }
+        _ => caller == role,
+    };
+
+    if authorized {
         return Ok(());
     }
     // `Unauthorized`/`role_mismatch` — `refuse_role_mismatch`
     // (command_rules/authorization.rb), read directly. Already textually
     // correct before this migration; routed through `RefusalSite` for the
     // same drift-proofing reason `check_reference` above now is.
+    // `caller_role: caller` (the SELF-DECLARED string, not the actor's
+    // real live role) — matching Ruby's own `caller_role: caller.role`
+    // exactly, even on the real-check branch: `refuse_role_mismatch`'s
+    // refusal message always quotes what the caller TYPED, never what
+    // `holds_role?` actually found.
     Err(super::Refusal::Unauthorized(super::RefusalSite::UnauthorizedRoleMismatch.render(&[
         ("command", command_name),
         ("role", role),
@@ -319,5 +430,152 @@ mod filter_entries_none_in_state_tests {
         let claim_ids: Vec<&str> =
             matched.iter().map(|(_, record)| record.dig("claim_id").and_then(Json::as_str).unwrap()).collect();
         assert_eq!(claim_ids, vec!["c2", "nonexistent"]);
+    }
+}
+
+/// `check_role`'s `caller_actor_id` branch — a real Governance
+/// `RoleAssignment` lookup instead of the plain string comparison, once
+/// `actor_id:` is bound. Ground truth: `Ports::Authorization.holds_role?`
+/// -> `GovernanceAuthorization.holds_role?`
+/// (`lib/hecksagain/adapters/driven/governance_authorization.rb`) and
+/// `CommandRules::Authorization#refuse_role_mismatch`
+/// (`lib/hecksagain/runtime/command_rules/authorization.rb`), both read
+/// directly (this module's own doc comments above have the full
+/// citations) — checked EMPIRICALLY against the real, running Ruby
+/// (`bundle exec ruby`, not merely read) for the one case its own doc
+/// comment and its own code disagree about (an identified caller
+/// dispatching one of Governance's OWN commands): see `check_role`'s own
+/// doc comment for that trace.
+#[cfg(test)]
+mod check_role_actor_id_tests {
+    use super::{check_role, AggregateScan};
+    use crate::kernel::query_comparators::QueryComparator;
+    use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef};
+
+    /// The SAME compiled shape `bin/project_rust` actually emits once a
+    /// domain declares `uses_framework "Governance"`
+    /// (`rust/src/generated/pizzas/merged.rs`'s own real `QUERIES` table,
+    /// read directly) — one `RoleAssignment` aggregate, scanned under
+    /// the "Governance::RoleAssignment" prefix every real merged `Store`
+    /// uses.
+    struct FakeStore {
+        role_assignments: Vec<(String, Json)>,
+    }
+
+    impl AggregateScan for FakeStore {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            if aggregate == "Governance::RoleAssignment" {
+                Some(self.role_assignments.clone())
+            } else {
+                None
+            }
+        }
+    }
+
+    /// The exact `AssignmentsForActor` `QueryDef` a real merged `Store`
+    /// compiles — `rust/src/generated/pizzas/merged.rs`, read directly
+    /// (verb/aggregate/conditions all copied verbatim).
+    fn assignments_for_actor_query() -> QueryDef {
+        QueryDef {
+            verb: "Governance::RoleAssignment.AssignmentsForActor",
+            aggregate: "Governance::RoleAssignment",
+            conditions: &[QueryCondition { field: "actor_id", comparator: QueryComparator::Eq, value: QueryConditionValue::Arg("actor_id") }],
+            order_by: None,
+            offset: None,
+            limit: None,
+            authorization: None,
+        }
+    }
+
+    fn role_assignment(actor_id: &str, role_name: &str, ends_at: Option<&str>) -> Json {
+        Json::obj(vec![
+            ("actor_id", Json::obj(vec![("value", Json::str(actor_id.to_string()))])),
+            ("role_name", Json::obj(vec![("value", Json::str(role_name.to_string()))])),
+            ("scope", Json::obj(vec![("value", Json::str("kitchen".to_string()))])),
+            ("starts_at", Json::obj(vec![("value", Json::str("2026-01-01".to_string()))])),
+            ("ends_at", match ends_at {
+                Some(ts) => Json::obj(vec![("value", Json::str(ts.to_string()))]),
+                None => Json::Null,
+            }),
+        ])
+    }
+
+    // (a) An actor with NO matching `RoleAssignment` at all, dispatching
+    // with `actor_id` set, is REFUSED — even though it also states
+    // exactly the right bare `role:` string. This is the whole point:
+    // the string a caller types can no longer forge a role it doesn't
+    // really hold, once it also names who it is.
+    #[test]
+    fn refuses_an_identified_caller_with_no_matching_grant_even_though_the_typed_role_matches() {
+        let store = FakeStore { role_assignments: vec![] };
+        let queries = [assignments_for_actor_query()];
+
+        let result = check_role(Some("Chef"), "Prepare", Some("Chef"), Some("attacker"), &store, &queries);
+
+        assert!(result.is_err(), "an actor with no real grant must be refused even though it typed the right role");
+    }
+
+    // (b) An actor WITH a live (non-revoked) matching `RoleAssignment` is
+    // accepted.
+    #[test]
+    fn accepts_an_identified_caller_with_a_live_matching_grant() {
+        let store = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Chef", None))] };
+        let queries = [assignments_for_actor_query()];
+
+        let result = check_role(Some("Chef"), "Prepare", Some("Chef"), Some("u1"), &store, &queries);
+
+        assert!(result.is_ok(), "a live matching grant must be accepted: {result:?}");
+    }
+
+    // (c) A REVOKED assignment (`ends_at` set) is refused — even though
+    // it once matched.
+    #[test]
+    fn refuses_a_revoked_grant() {
+        let store = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Chef", Some("2026-06-01")))] };
+        let queries = [assignments_for_actor_query()];
+
+        let result = check_role(Some("Chef"), "Prepare", Some("Chef"), Some("u1"), &store, &queries);
+
+        assert!(result.is_err(), "a revoked grant must not authorize: {result:?}");
+    }
+
+    // (d) A caller supplying only `role:` (no `actor_id:`) behaves
+    // EXACTLY as before this addition — the plain string comparison,
+    // unaffected by whatever `RoleAssignment` data does or doesn't
+    // exist. Proven both ways: a caller whose stated role doesn't match
+    // still refuses even with a real grant sitting right there for a
+    // DIFFERENT actor, and a caller whose stated role DOES match still
+    // succeeds with no grant at all in the store.
+    #[test]
+    fn a_bare_role_only_caller_is_unaffected_by_any_real_grant_data() {
+        let store = FakeStore { role_assignments: vec![("ra1".to_string(), role_assignment("u1", "Customer", None))] };
+        let queries = [assignments_for_actor_query()];
+
+        // Matches the string, no actor_id at all -> accepted, exactly as
+        // it always has been, regardless of what RoleAssignment holds.
+        let matches = check_role(Some("Chef"), "Prepare", Some("Chef"), None, &store, &queries);
+        assert!(matches.is_ok(), "a bare matching role string must still be accepted unchanged: {matches:?}");
+
+        // Does not match the string, no actor_id -> refused, exactly as
+        // it always has been.
+        let mismatches = check_role(Some("Chef"), "Prepare", Some("Customer"), None, &store, &queries);
+        assert!(mismatches.is_err(), "a bare mismatched role string must still refuse unchanged");
+    }
+
+    // Governance not attached at all (no `AssignmentsForActor` row in
+    // this compiled domain's own `QUERIES` table) — `actor_id` being
+    // bound must fall back to the plain string comparison, never an
+    // unconditional refusal, matching Ruby's own `governance_attached?`
+    // returning false.
+    #[test]
+    fn falls_back_to_the_string_check_when_this_domain_never_attached_governance() {
+        let store = FakeStore { role_assignments: vec![] };
+        let queries: [QueryDef; 0] = [];
+
+        let matches = check_role(Some("Chef"), "Prepare", Some("Chef"), Some("whoever"), &store, &queries);
+        assert!(matches.is_ok(), "no AssignmentsForActor query compiled in -> string fallback, matching role -> accepted: {matches:?}");
+
+        let mismatches = check_role(Some("Chef"), "Prepare", Some("Customer"), Some("whoever"), &store, &queries);
+        assert!(mismatches.is_err(), "no AssignmentsForActor query compiled in -> string fallback, mismatched role -> refused");
     }
 }
