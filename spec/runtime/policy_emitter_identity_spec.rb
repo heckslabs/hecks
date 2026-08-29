@@ -16,6 +16,12 @@ require "spec_helper"
 # emitter's own identity heads, to an explicit projection only;
 # `BluebookBuilder.check_with_spec!` admits the same names.
 RSpec.describe "a policy projecting its emitter's identity" do
+  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # read top to bottom as the fixture, not a sequence of independent
+  # steps; splitting it would scatter one readable declaration across
+  # several methods that only make sense read back-to-back.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def boot_board(with_spec)
     registry = Hecks::Runtime::Registry.new
 
@@ -108,8 +114,8 @@ RSpec.describe "a policy projecting its emitter's identity" do
       end
 
       Hecks.hecksagon("Boards") do
-        ::Boards::Board.persisted_by("Memory")
-        ::Boards::Graveyard.persisted_by("Memory")
+        Boards::Board.persisted_by("Memory")
+        Boards::Graveyard.persisted_by("Memory")
       end
     end
 

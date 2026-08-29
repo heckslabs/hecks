@@ -146,6 +146,13 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   end
 
   describe "uses_embryonaut_bluebook" do
+    # One real boot over a vendored package's own bluebook plus a consumer
+    # hecksagon; the three expects each inspect a different facet of that
+    # SAME successful boot (registry contents, recorded vendor list, vendor
+    # dir on disk) — splitting would re-pay the two-file-write-and-boot
+    # setup three times to prove nothing more than this one boot already
+    # does.
+    # rubocop:disable-next RSpec/ExampleLength
     it "loads every .bluebook file a vendored package declares, sorted, from the registry's own root" do
       Dir.mktmpdir do |root|
         vendor_dir = File.join(root, "vendor", "embryonaut_bluebooks", "widgets", "bluebook")

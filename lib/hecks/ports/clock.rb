@@ -33,7 +33,7 @@ module Hecks
     # runs of exactly that shape. So the filling happens at the door, where a
     # human or an agent is typing, and never on the dispatch path a replay uses.
     module Clock
-      NAME = "clock"
+      NAME = "clock".freeze
 
       module_function
 

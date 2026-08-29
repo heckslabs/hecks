@@ -2,8 +2,14 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses an `aggregate "Name" do ... end` block inside a `.translation`
+      # file into a `TranslationAggregate` — the per-aggregate rules
+      # (`rename`/`move`/`convert`/`retype`/`compute`/`rekey`/`backfill`/
+      # `drop`) that carry one era's stored data forward to the next, plus
+      # `unresolved` markers the scaffold writes wherever it cannot decide a
+      # rule for itself.
       class TranslationAggregateBuilder
-        GRAMMAR_CONTEXT = "TranslationAggregate"
+        GRAMMAR_CONTEXT = "TranslationAggregate".freeze
 
         include WordGate
 
@@ -183,8 +189,13 @@ module Hecks
         end
       end
 
+      # Parses a whole `.translation` file into a `Translation` — the
+      # domain's own `from:`/`to:` era pair, its list of `aggregate`
+      # translation blocks (each built by `TranslationAggregateBuilder`
+      # above), and any `retired` aggregates that no longer exist in the
+      # destination era.
       class TranslationBuilder
-        GRAMMAR_CONTEXT = "Translation"
+        GRAMMAR_CONTEXT = "Translation".freeze
 
         include WordGate
 

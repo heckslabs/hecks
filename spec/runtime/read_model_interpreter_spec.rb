@@ -109,6 +109,10 @@ RSpec.describe "a read model's query options" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 0 many-side aggregates, not exactly one/)
   end
 
+  # The inline domain (3 aggregates) IS the fixture proving this one
+  # build-time refusal — trimming it would lose the "more than one
+  # many-side head" shape the refusal message itself asserts against.
+  # rubocop:disable-next RSpec/ExampleLength
   it "refuses at build with more than one many-side head" do
     expect do
       registry = Hecks::Runtime::Registry.new
@@ -177,6 +181,11 @@ RSpec.describe "a read model's query options" do
   # wrong, too-small answer. Every real corpus read model (both of
   # Banking's) happens to declare its root first, so this never
   # surfaced there; caught only by deliberately reversing the order.
+  # An adversarially-ordered inline domain (many side declared BEFORE
+  # the root) is the whole point of this regression test — the exact
+  # ordering that broke, proven end-to-end through a real dispatch and
+  # query. Splitting or trimming the domain would weaken the adversary.
+  # rubocop:disable-next RSpec/ExampleLength
   it "joins the many side correctly regardless of which order include declares it and the root in" do
     build_reversed = lambda do
       registry = Hecks::Runtime::Registry.new
@@ -255,6 +264,11 @@ RSpec.describe "a read model's query options" do
   # the WORST order for the old code (deepest dependency declared
   # first, root last) to prove this isn't declaration order working by
   # accident.
+  # A three-aggregate chain declared in the WORST possible order (proven
+  # deliberately, per the comment above) is the fixture under test —
+  # every aggregate and the read_model's declared order matter to what
+  # this regression proves, so nothing here is safe to trim or reuse.
+  # rubocop:disable-next RSpec/ExampleLength
   it "joins a CHAIN of non-root heads correctly regardless of declaration order, not just one level deep" do
     build_chain = lambda do
       registry = Hecks::Runtime::Registry.new
@@ -360,6 +374,11 @@ RSpec.describe "a read model's query options" do
   # than erroring — this pins that the STATIC ordering pass tolerates
   # it too, and that a real dependency chain among the OTHER (resolvable)
   # heads is still ordered correctly around it.
+  # A nested-entity head mixed into the same worst-case chain as the
+  # test above — the point is proving the entity head doesn't crash
+  # the ordering pass AND the real chain around it still resolves
+  # correctly, one coherent claim the split domain exists to prove.
+  # rubocop:disable-next RSpec/ExampleLength
   it "tolerates an included head that is a nested entity, not a top-level aggregate, without crashing" do
     build_entity_head = lambda do
       registry = Hecks::Runtime::Registry.new
@@ -446,6 +465,11 @@ RSpec.describe "a read model's query options" do
     expect(rows.first[:notes]).to eq([])
   end
 
+  # A distinct real boot (Sqlite adapter, real tmp db file) proving the
+  # SAME options apply through Sqlite's own native path — the boot
+  # shape is specific to this adapter and reuses seed_disputed_card_
+  # payments already, so nothing left here is duplicated setup.
+  # rubocop:disable-next RSpec/ExampleLength
   it "applies the same options through Sqlite's native projected-table path" do
     Dir.mktmpdir do |dir|
       registry = Hecks::Runtime::Registry.new
@@ -497,7 +521,7 @@ RSpec.describe "a read model's query options" do
   # — `BluebookBuilder.build` keeps one builder open per chapter name
   # across calls) rather than in the file itself, because a bluebook
   # that fails to build is not a real corpus member to freeze.
-  context "count and median" do
+  context "with count and median" do
     def build_with_bad_median(adapter: "Memory")
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -548,7 +572,7 @@ RSpec.describe "a read model's query options" do
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
-    def open_account(runtime, customer:, account:)
+    def open_account(_runtime, customer:, account:)
       Banking::Customer.register!(reference: { value: customer }, name: { given: "A", family: "B" },
                                   email: { address: "#{customer}@example.com" })
       Banking::Account.open!(customer: customer, number: { value: account },
@@ -685,9 +709,13 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count\/median together with group_by/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, %r{declares count/median together with group_by})
     end
 
+    # The inline two-aggregate domain IS the fixture for this one
+    # build-time refusal; trimming it would lose the "more than one
+    # many-side head" shape the refusal message asserts against.
+    # rubocop:disable-next RSpec/ExampleLength
     it "refuses count declared with more than one many-side head" do
       expect do
         registry = Hecks::Runtime::Registry.new
@@ -722,7 +750,7 @@ RSpec.describe "a read model's query options" do
             end
           end
         end
-      end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares count\/median but includes 2 many-side/)
+      end.to raise_error(Hecks::Bluebook::DSL::Malformed, %r{declares count/median but includes 2 many-side})
     end
   end
 end
@@ -762,7 +790,7 @@ RSpec.describe "a rootless read model's own group_by" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  def open_accounts(runtime)
+  def open_accounts(_runtime)
     Banking::Customer.register!(reference: { value: "c1" }, name: { given: "A", family: "B" },
                                 email: { address: "a@example.com" })
     Banking::Account.open!(customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 0 })
@@ -806,6 +834,11 @@ RSpec.describe "a rootless read model's own group_by" do
     expect(row[:daily_limit]).to eq(0)
   end
 
+  # A dedicated, deliberately-namespaced inline domain (see the
+  # "Gadget"/"Nested" comment above on the real constant-collision it
+  # avoids) proving multi-field group_by nesting end-to-end, real
+  # dispatch through to the query result.
+  # rubocop:disable-next RSpec/ExampleLength
   it "nests by several fields, one level per field, in declared order" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -912,6 +945,10 @@ RSpec.describe "a rootless read model's own group_by" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares group_by but includes 0 many-side/)
   end
 
+  # The inline two-aggregate domain IS the fixture for this one
+  # build-time refusal; trimming it would lose the "more than one
+  # many-side head" shape the refusal message asserts against.
+  # rubocop:disable-next RSpec/ExampleLength
   it "refuses group_by declared with more than one many-side head" do
     expect do
       registry = Hecks::Runtime::Registry.new
@@ -949,6 +986,10 @@ RSpec.describe "a rootless read model's own group_by" do
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares group_by but includes 2 many-side/)
   end
 
+  # A distinct real boot (Sqlite adapter, real tmp db file) proving
+  # group_by applies through Sqlite's own path — reuses open_accounts
+  # already, so nothing left here is duplicated setup.
+  # rubocop:disable-next RSpec/ExampleLength
   it "applies group_by through Sqlite's own boot too, by skipping the native escape hatch" do
     Dir.mktmpdir do |dir|
       registry = Hecks::Runtime::Registry.new

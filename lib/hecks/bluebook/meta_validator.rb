@@ -52,11 +52,11 @@ module Hecks
       # concept file requires no second catalog here; deterministic filename
       # order is the source order exported to IR.
       GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
-      GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).sort.freeze
+      GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).freeze
       # Sibling artifact languages use the same folder-is-the-chapter rule.
       # Their arrays are discovered, sorted source sets—not filename catalogs.
-      WORLD_GRAMMAR = Dir.glob(File.expand_path("../language/world/*.bluebook", __dir__)).sort.freeze
-      HECKSAGON_GRAMMAR = Dir.glob(File.expand_path("../language/hecksagon/*.bluebook", __dir__)).sort.freeze
+      WORLD_GRAMMAR = Dir.glob(File.expand_path("../language/world/*.bluebook", __dir__)).freeze
+      HECKSAGON_GRAMMAR = Dir.glob(File.expand_path("../language/hecksagon/*.bluebook", __dir__)).freeze
       # so is a port — whole-project table-unification survey, item #13's
       # remaining builders. Backs the new PortJudge door the same way
       # WORLD_GRAMMAR backs WorldJudge.
@@ -65,7 +65,7 @@ module Hecks
       ADAPTER_GRAMMAR = File.expand_path("../language/adapter.bluebook", __dir__).freeze
       # so is a translation — same reasoning, one file over. Backs
       # TranslationJudge.
-      TRANSLATION_GRAMMAR = Dir.glob(File.expand_path("../language/translation/*.bluebook", __dir__)).sort.freeze
+      TRANSLATION_GRAMMAR = Dir.glob(File.expand_path("../language/translation/*.bluebook", __dir__)).freeze
 
       # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
       #
@@ -483,7 +483,7 @@ module Hecks
       # is added there.
       def self.load_attached_grammar_into(registry)
         Hecks.with_registry(registry) do
-          Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).sort.each { |file| Kernel.load(file) }
+          Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).each { |file| Kernel.load(file) }
         end
       end
 

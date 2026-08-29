@@ -204,6 +204,10 @@ RSpec.describe "D1 execution-plan capabilities" do
     expect(connection.get_first_row('SELECT mirrors FROM "item_entries" WHERE mirrors IS NULL')).not_to be_nil
   end
 
+  # One HTTP round trip mocked once, asked two questions about that SAME
+  # call — the request it actually sent and the rows it parsed back out.
+  # Splitting would re-pay the Net::HTTP/double setup for no real gain.
+  # rubocop:disable-next RSpec/ExampleLength
   it "encodes the connection batch as one REST request and returns each statement's rows in order" do
     connection = Hecks::Adapters::D1::Connection.new(
       account_id:  "account",

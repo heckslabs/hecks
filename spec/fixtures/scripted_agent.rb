@@ -22,12 +22,12 @@ module Hecks
     module ScriptedAgent
       module_function
 
-      # Queues one answer (a raw Hash) per call, in order, for `op`
+      # Queues one answer (a raw Hash) per call, in order, for `verb`
       # (`:ask`/`:interpret`/`:critique`/`:name`). Call again to append
       # more onto the same queue.
-      def script(op, *answers)
+      def script(verb, *answers)
         @queues ||= {}
-        (@queues[op] ||= []).concat(answers)
+        (@queues[verb] ||= []).concat(answers)
       end
 
       def reset! = @queues = {}
@@ -45,12 +45,12 @@ module Hecks
       # name (RSpec's own failure formatting, for one — measured).
       def suggest_name(meaning:, kind:, near:) = next_answer(:name, meaning: meaning, kind: kind, near: near)
 
-      def next_answer(op, **call)
+      def next_answer(verb, **call)
         @queues ||= {}
-        queue = @queues[op]
+        queue = @queues[verb]
         if queue.nil? || queue.empty?
           raise Hecks::Ports::Agent::Unavailable,
-                "ScriptedAgent has no #{op} answer queued — called with #{call.inspect}"
+                "ScriptedAgent has no #{verb} answer queued — called with #{call.inspect}"
         end
 
         queue.shift

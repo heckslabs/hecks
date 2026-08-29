@@ -66,7 +66,8 @@ FileUtils.mkdir_p(scratch_dir)
 
   next if system(rust_conformance, domain, script_path, artifact)
 
-  abort "bin/rust_conformance_fuzz: seed #{seed}/#{seeds} diverged against #{artifact} (see bin/rust_conformance's own output above) — " \
+  abort "bin/rust_conformance_fuzz: seed #{seed}/#{seeds} diverged against #{artifact} " \
+        "(see bin/rust_conformance's own output above) — " \
         "reproduce with: bin/rust_conformance #{domain} #{script_path} #{artifact}"
 end
 

@@ -1,6 +1,11 @@
 module Hecks
   module Bluebook
     module DSL
+      # What a bare `Domain::Aggregate` constant resolves to inside a
+      # `.hecksagon`/`.world` block (minted by `.namespace`'s own
+      # `const_missing`) — `method_missing` turns a bind like
+      # `Payment.persisted_by "Postgres"` into a queued `Bind`, and `#port`
+      # is the one real method, for `Aggregate.port("Name") do ... end`.
       class BindingProxy
         def self.namespace(domain, collector)
           Module.new do

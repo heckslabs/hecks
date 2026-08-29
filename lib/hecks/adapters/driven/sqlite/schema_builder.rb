@@ -10,7 +10,7 @@ module Hecks
         def create_aggregate_table!
           columns = persisted_fields.map { |field| "#{quote_ident(field[:name])} #{field[:sql_type]}" }
           @db.execute(
-            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{columns.empty? ? '' : ', '}#{columns.join(', ')})"
+            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
           # RIGHT HERE, NOT AS A SEPARATE STEP IN `Sqlite#initialize` —
           # `create_aggregate_table!` is the one piece of DDL `D1`

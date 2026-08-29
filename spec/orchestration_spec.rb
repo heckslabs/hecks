@@ -74,8 +74,6 @@ RSpec.describe "the distance between the builder's graph and the language's" do
     when Array then node.each_with_index { |held, i| state(held, "#{path}[#{i}]", out, depth + 1) }
     when Hash  then node.each { |key, held| state(held, "#{path}.#{key}(#{key.class})", out, depth + 1) }
     when Proc  then out[path] = "(proc)"
-    when Class
-      ivars(node).each { |iv| state(node.instance_variable_get(iv), "#{path}.#{iv}", out, depth + 1) }
     else
       ivars(node).each { |iv| state(node.instance_variable_get(iv), "#{path}.#{iv}", out, depth + 1) }
     end

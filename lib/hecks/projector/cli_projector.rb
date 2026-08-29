@@ -54,12 +54,12 @@ module Hecks
           aggregate.queries.each  { |q| claim(questions, name_for(aggregate, q), query_spec(bluebook, aggregate, nil, q)) }
 
           aggregate.entities.each do |entity|
-            entity.commands.each { |c|
+            entity.commands.each do |c|
               claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
-            }
-            entity.queries.each { |q|
+            end
+            entity.queries.each do |q|
               claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q))
-            }
+            end
           end
 
           # A PORT IS A VERB TOO, and leaving it off the map was a real gap
@@ -235,7 +235,11 @@ module Hecks
           # `CommandInterpreter`/`EntityInterpreter` call it, never the port
           # dispatch path), so `role_gated: false` always, unlike
           # `command_spec` where the same key name means a real one.
-          role: operation.outbound? ? "#{aggregate.hecks_name} asking #{port.name}" : "#{port.name} telling #{aggregate.hecks_name}",
+          role: if operation.outbound?
+                  "#{aggregate.hecks_name} asking #{port.name}"
+                else
+                  "#{port.name} telling #{aggregate.hecks_name}"
+                end,
           role_gated: false,
           summary: port_summary(port, operation), arguments: arguments }
       end
@@ -289,8 +293,8 @@ module Hecks
       # malformed records into a real store, which is what it did on its first
       # run against the pizzas database.
       def options_for(attribute, holder, aggregate, prefix = nil, optional = nil)
-        path     = [prefix, attribute.name].compact.join(".")
-        optional = optional || attribute.optional?
+        path = [prefix, attribute.name].compact.join(".")
+        optional ||= attribute.optional?
         return [reference_option(attribute)] if attribute.reference?
 
         value_object = value_object_for(attribute, holder, aggregate)
@@ -408,38 +412,54 @@ module Hecks
         text.to_s.split(/(?<=\.)\s/).first.to_s
       end
 
+      # FOUR TEXT BLOCKS, IN FIXED DISPLAY ORDER — meta (name/kind/role),
+      # invocation, arguments, refusals. Each block is independent of the
+      # others' content (only the OUTPUT ORDER is fixed, and stays fixed
+      # below), so each is its own method returning the lines it
+      # contributes — `[]` when it contributes none — concatenated in the
+      # same order the original inline version built them in.
       def verb_help(program, name, spec, ask: false)
+        out = verb_help_meta_lines(name, spec)
+        out.concat(verb_help_invocation_lines(program, name, spec, ask))
+        out.concat(verb_help_argument_lines(spec))
+        out.concat(verb_help_refusal_lines(spec))
+        out.join("\n")
+      end
+
+      def verb_help_meta_lines(name, spec)
         out = ["#{name} — #{spec[:summary]}", ""]
         out << "dispatches #{spec[:verb]}" if spec[:kind] == :command
         out << "reads #{spec[:verb]}"      if spec[:kind] == :query
         out << "issued by #{spec[:role]}"  if spec[:role]
-        out << ""
+        out
+      end
+
+      def verb_help_invocation_lines(program, name, spec, ask)
         invocation = ask ? "#{program} ask #{name}" : "#{program} #{name}"
-        out << "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}"
-        out << ""
+        ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
+      end
 
-        unless spec[:arguments].empty?
-          width = spec[:arguments].map { |a| a[:path].length }.max
-          spec[:arguments].each do |argument|
-            notes = []
-            notes << argument[:type]
-            notes << "one of #{argument[:enum].join(', ')}" if argument[:enum]
-            notes << "matches #{argument[:pattern]}"        if argument[:pattern]
-            notes << "defaults to #{argument[:default].inspect}" unless argument[:default].nil?
-            notes << argument[:note]                        if argument[:note]
-            notes << "optional"                             unless argument[:required]
-            out << "  #{argument[:path].ljust(width)}  #{notes.join('; ')}"
-          end
-          out << ""
+      def verb_help_argument_lines(spec)
+        return [] if spec[:arguments].empty?
+
+        width = spec[:arguments].map { |a| a[:path].length }.max
+        lines = spec[:arguments].map do |argument|
+          notes = []
+          notes << argument[:type]
+          notes << "one of #{argument[:enum].join(', ')}" if argument[:enum]
+          notes << "matches #{argument[:pattern]}"        if argument[:pattern]
+          notes << "defaults to #{argument[:default].inspect}" unless argument[:default].nil?
+          notes << argument[:note]                        if argument[:note]
+          notes << "optional"                             unless argument[:required]
+          "  #{argument[:path].ljust(width)}  #{notes.join('; ')}"
         end
+        lines << ""
+      end
 
-        unless Array(spec[:refusals]).empty?
-          out << "refused when:"
-          spec[:refusals].each { |refusal| out << "  #{refusal}" }
-          out << ""
-        end
+      def verb_help_refusal_lines(spec)
+        return [] if Array(spec[:refusals]).empty?
 
-        out.join("\n")
+        ["refused when:", *spec[:refusals].map { |refusal| "  #{refusal}" }, ""]
       end
     end
   end

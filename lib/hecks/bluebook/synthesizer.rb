@@ -64,7 +64,8 @@ module Hecks
                        chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
         return "smoke-test" unless value_object
 
-        return value_object.members.first.to_h if value_object.respond_to?(:closed_set?) && value_object.closed_set? && value_object.members.any?
+        closed_set = value_object.respond_to?(:closed_set?) && value_object.closed_set? && value_object.members.any?
+        return value_object.members.first.to_h if closed_set
 
         value_object.attributes.to_h { |field| [field.name, field_value_for(chapter, aggregate, field.type)] }
       end

@@ -5,6 +5,12 @@ require_relative "../naming"
 
 module Hecks
   module Bluebook
+    # One declared field on a construct — name, type (a primitive, a
+    # Reference, or another construct's name, always spelled via `#spell`),
+    # whether it's a list, its default/optional/pattern, and the closed set
+    # it `admits`. What `attribute :x, Type` (or `identified_by`,
+    # `reference_to`, etc.) actually mints, on an Aggregate, Entity, Command,
+    # ValueObject, Query or PortOperation alike.
     class Attribute
       include Hecks::IR
       include Behaviour::Attribute

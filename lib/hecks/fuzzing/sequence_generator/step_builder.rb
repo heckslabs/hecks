@@ -175,7 +175,8 @@ module Hecks
             # `:id` the runtime itself never declared as an attribute
             # either), which still needs exactly the old minting behavior.
             unless composite_identity?(aggregate)
-              args[parent_key] ||= identity_shaped(aggregate, aggregate.identified_by, ValueGenerator.random_id(@random), aggregate)
+              args[parent_key] ||= identity_shaped(aggregate, aggregate.identified_by, ValueGenerator.random_id(@random),
+                                                   aggregate)
             end
           else
             scalar = pick_known(aggregate.hecks_name)

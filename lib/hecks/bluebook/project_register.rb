@@ -35,34 +35,56 @@ module Hecks
                   "#{bluebook.name} in #{directory} declares latest #{world.latest.inspect}, not #{bluebook.version.inspect}"
           end
 
-          bluebook.aggregates.each do |aggregate|
-            aggregate.commands.each do |command|
-              add(Fqn.command(realm: realm, domain: bluebook.name, version: bluebook.version,
-                              aggregate: aggregate.hecks_name, command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version) if bluebook.version
-              add(Fqn.command(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
-                              command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version) if current?(
-                                bluebook, world
-                              )
-            end
-            aggregate.queries.each do |query|
-              name = Naming.snake(query.name)
-              add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
-                            aggregate: aggregate.hecks_name, query: name), directory, dispatcher, query.name, bluebook.version) if bluebook.version
-              add(Fqn.query(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
-                            query: name), directory, dispatcher, query.name, bluebook.version) if current?(bluebook, world)
-            end
-          end
-          bluebook.read_models.each do |model|
-            add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
-                          query: model.query_name), directory, dispatcher, model.query_name, bluebook.version) if bluebook.version
-            add(Fqn.query(realm: realm, domain: bluebook.name, query: model.query_name),
-                directory, dispatcher, model.query_name, bluebook.version) if current?(bluebook, world)
-          end
+          bluebook.aggregates.each { |aggregate| register_aggregate!(aggregate, bluebook, world, realm, directory, dispatcher) }
+          bluebook.read_models.each { |model| register_read_model!(model, bluebook, world, realm, directory, dispatcher) }
         end
         self
       end
 
       private
+
+      # Split out of `register` per-aggregate: same versioned-then-current
+      # registration shape as `register_read_model!`, just applied to a
+      # command/query pair instead of a single report. No state threads
+      # back to `register` — each `add` call is independent.
+      def register_aggregate!(aggregate, bluebook, world, realm, directory, dispatcher)
+        aggregate.commands.each do |command|
+          if bluebook.version
+            add(Fqn.command(realm: realm, domain: bluebook.name, version: bluebook.version,
+                            aggregate: aggregate.hecks_name, command: command.hecks_name),
+                directory, dispatcher, command.hecks_name, bluebook.version)
+          end
+          if current?(bluebook, world)
+            add(Fqn.command(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
+                            command: command.hecks_name), directory, dispatcher, command.hecks_name, bluebook.version)
+          end
+        end
+        aggregate.queries.each do |query|
+          name = Naming.snake(query.name)
+          if bluebook.version
+            add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
+                          aggregate: aggregate.hecks_name, query: name), directory, dispatcher, query.name, bluebook.version)
+          end
+          if current?(bluebook, world)
+            add(Fqn.query(realm: realm, domain: bluebook.name, aggregate: aggregate.hecks_name,
+                          query: name), directory, dispatcher, query.name, bluebook.version)
+          end
+        end
+      end
+
+      # Split out of `register` per-read-model: registers the versioned FQN
+      # (if this bluebook declares a version) and the current/unversioned
+      # FQN (if this bluebook is the world's latest) for one report.
+      def register_read_model!(model, bluebook, world, realm, directory, dispatcher)
+        if bluebook.version
+          add(Fqn.query(realm: realm, domain: bluebook.name, version: bluebook.version,
+                        query: model.query_name), directory, dispatcher, model.query_name, bluebook.version)
+        end
+        if current?(bluebook, world)
+          add(Fqn.query(realm: realm, domain: bluebook.name, query: model.query_name),
+              directory, dispatcher, model.query_name, bluebook.version)
+        end
+      end
 
       # THE ACTUAL "more than one tenant" MOMENT — Runtime::TenantCheck's
       # own header names this table as the one place real multitenancy
@@ -93,9 +115,7 @@ module Hecks
 
       def add(fqn, directory, dispatcher, declared_verb, domain_version)
         existing = entries[fqn.to_s]
-        if existing
-          raise DuplicateFqn, "#{fqn} is declared in both #{existing.source_directory} and #{directory}"
-        end
+        raise DuplicateFqn, "#{fqn} is declared in both #{existing.source_directory} and #{directory}" if existing
 
         entries[fqn.to_s] = Entry.new(
           fqn: fqn, source_directory: directory, dispatcher: dispatcher,

@@ -39,7 +39,7 @@ module Hecks
     # differently would mean the SAME malformed answer passing through
     # one and refusing through the other.
     module Agent
-      NAME = "agent"
+      NAME = "agent".freeze
 
       # The answer came back and could not be used — no JSON in it, a
       # category the language does not declare, a severity outside the
@@ -48,14 +48,16 @@ module Hecks
       # `Ports::Authentication::ValidationError` already is, so no
       # caller ever rescues a raw parser error leaking out of an
       # adapter.
-      ValidationError = Class.new(StandardError)
+      class ValidationError < StandardError
+      end
 
       # Nothing answered at all — the binary is missing, the subprocess
       # died, the call timed out. Separate from ValidationError on
       # purpose: unavailable means retry or fall back to asking the
       # human directly; malformed means the PROMPT is wrong, not the
       # transport, and retrying identically will not fix it.
-      Unavailable = Class.new(StandardError)
+      class Unavailable < StandardError
+      end
 
       # ── what the four operations hand back ──────────────────────────
       #

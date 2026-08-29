@@ -62,12 +62,12 @@ RSpec.describe "the OIDC client projection's integration layer" do
   # discipline `act_as_spec.rb`'s own helper follows: verified claims in,
   # a scoped dispatch out, refusing before the block ever runs if either
   # step says no.
-  def authenticated_dispatch(registry, issuer:, subject:, role:)
+  def authenticated_dispatch(registry, issuer:, subject:, role:, &block)
     identity_id = Hecks::Ports::IdentityResolution.resolve(registry, issuer: issuer, subject: subject)
     raise "unknown identity" unless identity_id
     raise "not authorized" unless Hecks::Ports::Authorization.holds_role?(registry, actor_id: identity_id, role: role)
 
-    Hecks.as_caller(role: role) { yield }
+    Hecks.as_caller(role: role, &block)
   end
 
   it "resolves a verified (issuer, subject), checks the role, and dispatches — the full path" do

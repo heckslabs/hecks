@@ -13,6 +13,10 @@ require "hecks"
 require_relative "forms/app"
 
 module Hecks
+  # Per-chapter `expose` configuration, keyed by chapter name and looked up
+  # by the Rack app at request time (`.config`) to decide which chapters'
+  # forms are switched on at all — see the file header above for what
+  # `expose` deliberately does and does not cover.
   module Forms
     # `expose`'s own declaration — "which chapters does this app expose" —
     # kept OUTSIDE the `Hecks.*` collector convention (`Hecks.bluebook`,

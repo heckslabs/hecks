@@ -33,7 +33,7 @@ module Hecks
                 "#{self.class.name} is a remote-runtime delegate — dispatch through " \
                 "Runtime::RemoteDispatcher instead of writing through the repository directly"
         end
-        alias_method :project, :append
+        alias project append
 
         def entries = []
       end

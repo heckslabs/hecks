@@ -20,7 +20,9 @@ module Hecks
             { name: attribute.name, attribute: attribute, sql_type: sql_type(attribute) }
           end
           lifecycle = @aggregate.lifecycle
-          fields << { name: lifecycle.field, attribute: nil, sql_type: "text" } if lifecycle && !fields.any? { |field| field[:name] == lifecycle.field }
+          fields << { name: lifecycle.field, attribute: nil, sql_type: "text" } if lifecycle && fields.none? do |field|
+            field[:name] == lifecycle.field
+          end
           # `projects` FIELDS (S12, ADR 0025) ARE A LOCAL COLUMN TOO — see
           # Sqlite::Codec#persisted_fields' own comment; identical reasoning,
           # `text` to match this file's own lowercase SQL type spelling.

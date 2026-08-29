@@ -1,6 +1,12 @@
 module Hecks
   module Bluebook
     module DSL
+      # A global (Object-level, via `Hook` prepended below) `const_missing`
+      # bridge — `.with(resolver) { ... }` installs a resolver for the
+      # dynamic extent of a block, so a bare, not-yet-declared constant
+      # inside a DSL block (a bareword type, `Domain::Aggregate`, ...)
+      # resolves to whatever that DSL context needs (a name, a
+      # `BindingProxy`, a `ScopedConstant`) instead of raising `NameError`.
       module ConstShim
         class << self
           attr_accessor :resolver

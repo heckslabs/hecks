@@ -2,6 +2,10 @@ require_relative "../../literal"
 require_relative "../../vocabulary"
 
 module Hecks
+  # Reopened (see query_specification.rb for the namespace's own
+  # summary) to add Common::COMPARATORS — the vendored comparator
+  # vocabulary — and .render_value, the wire-rendering entry point
+  # shared by every literal-bearing spec struct.
   module QuerySpecification
     module Common
       # `none_in_state`, vendored addition not (yet) upstream hecks

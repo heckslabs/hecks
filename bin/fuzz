@@ -79,7 +79,7 @@ DRAW_LIMIT = 5
 def fuzz_domain(domain, seeds, steps, adapter = :memory)
   domain = domain.chomp("/")
   name = File.basename(domain)
-  puts "── #{name}#{adapter == :memory ? '' : " (#{adapter})"}"
+  puts "── #{name}#{" (#{adapter})" unless adapter == :memory}"
 
   failures = []
   clean = 0
@@ -115,7 +115,8 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
       :skip
     end
     if generated == :skip
-      puts "   skipped — declares compute/rekey, which only an era/Postgres-bound boot can interpret (not fuzzable under :#{adapter})"
+      puts "   skipped — declares compute/rekey, which only an era/Postgres-bound boot can interpret " \
+           "(not fuzzable under :#{adapter})"
       return true
     end
     verdict, message = outcome(domain, generated, adapter)
@@ -126,7 +127,8 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
         clean += 1
         next
       end
-      verdict, message = :nondeterminism, determinism
+      verdict = :nondeterminism
+      message = determinism
     end
 
     failures << { seed: seed, steps: generated, verdict: verdict, message: message,
@@ -142,7 +144,7 @@ end
 # strips the steps that were never relevant to the finding.
 def shrink(domain, steps, signature, adapter = :memory)
   current = steps.dup
-  begin
+  loop do
     changed = false
     index = 0
     while index < current.length
@@ -159,7 +161,8 @@ def shrink(domain, steps, signature, adapter = :memory)
         index += 1
       end
     end
-  end while changed
+    break unless changed
+  end
   shrink_arguments(domain, current, signature, adapter)
 end
 
@@ -192,7 +195,7 @@ def shrink_arguments(domain, steps, signature, adapter = :memory)
     original_keys = args_of(step)
     next unless original_keys.is_a?(Hash)
 
-    original_keys.keys.each do |key|
+    original_keys.each_key do |key|
       current_args = args_of(step)
       trimmed = current_args.reject { |name, _| name == key }
       candidate = steps.map(&:dup)
@@ -208,6 +211,16 @@ def shrink_arguments(domain, steps, signature, adapter = :memory)
   steps
 end
 
+# The sweep's final report: one sequential print-then-shrink-then-save
+# pass over each distinct failure group. The per-group block (shrink,
+# derive the save path, write the repro script, print where it landed)
+# is print-order-dependent on the summary lines above it and has no
+# meaningful life split from the "print the report" it's part of — pulling
+# it into its own method would just thread domain/name/save_dir/seeds/
+# adapter through unchanged. No spec exercises this CLI-output function
+# directly (spec/bin_fuzz_spec.rb covers `args_of`/`shrink_arguments`
+# only), so there's nothing to verify a split against.
+# rubocop:disable-next Metrics/AbcSize
 def report(domain, name, seeds, drawn, clean, failures, adapter = :memory)
   executed = clean + failures.length
   puts "   #{executed} seeds executed (#{drawn} drawn) — #{clean} clean, #{failures.length} found something"
@@ -233,7 +246,7 @@ def report(domain, name, seeds, drawn, clean, failures, adapter = :memory)
 
     puts
     puts "   (#{number}) #{group.first[:signature]} — #{group.first[:message]}"
-    puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(', ')}#{seeds_hit.length > 8 ? ', …' : ''}"
+    puts "       #{group.length} of #{seeds} seeds: #{seeds_hit.first(8).join(', ')}#{', …' if seeds_hit.length > 8}"
 
     shrunk = shrink(domain, smallest[:steps], smallest[:signature], adapter)
     save_path = File.join(save_dir, "#{name}-seed#{smallest[:seed]}.json")
@@ -324,7 +337,7 @@ EXCLUDED_FROM_SWEEP = %r{
 def sweepable_domains(root)
   Dir.chdir(root) do
     Dir.glob("**/*.bluebook")
-       .reject { |path| path.match?(EXCLUDED_FROM_SWEEP) }
+       .grep_v(EXCLUDED_FROM_SWEEP)
        .map { |path| File.dirname(path) }
        .map { |dir| File.basename(dir) == "bluebook" ? File.dirname(dir) : dir }
        .uniq.sort

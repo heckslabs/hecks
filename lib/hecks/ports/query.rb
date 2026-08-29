@@ -19,9 +19,7 @@ module Hecks
       end
 
       def validate!(specification, adapter)
-        if specification.cursor && specification.offset
-          raise Unsupported, "a query cannot combine cursor and offset pagination"
-        end
+        raise Unsupported, "a query cannot combine cursor and offset pagination" if specification.cursor && specification.offset
 
         return if specification.inspection.nil? || adapter.respond_to?(:inspect_query)
         return if specification.inspection.mode.to_s == "sql" && adapter.respond_to?(:query)

@@ -183,9 +183,9 @@ RSpec.describe "the declared vocabularies" do
   # Only the NAMES are held to the corpus — signs are checked above against
   # the live table instead, the same split Comparison uses.
   it "MutationOp admits every op the corpus uses" do
-    used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map { |path|
+    used = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/*.json")).flat_map do |path|
       JSON.parse(File.read(path)).fetch("steps", [])
-    }
+    end
     # Vendored addition, not (yet) upstream hecks (migration plan task
     # 4, i106 in-DSL math): multiply/clamp/remove joined set/append/
     # increment/decrement as real, declared MutationOp members — see

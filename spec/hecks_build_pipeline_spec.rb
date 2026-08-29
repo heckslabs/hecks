@@ -38,7 +38,7 @@ require "json"
 # remaining named, deliberate gap (coverage bookkeeping only) — neither
 # side writes it, so the file-list comparison below never sees it on
 # either side and needs no exclusion list.
-RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
+RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # PREFIXED (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
   # already uses (ROOT/GENERATED_ROOT/CARGO_TOML/PROJECT_RUST/
   # PARITY_DOMAINS) — `spec/load_hygiene_spec.rb`'s own "lets no two spec
@@ -68,7 +68,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
   # any framework chapter it attaches).
   HB_PARITY_DOMAINS = {
     "examples/pizzas"  => %w[pizzas meta],
-    "examples/banking" => %w[banking governance identity meta],
+    "examples/banking" => %w[banking governance identity meta]
   }.freeze
 
   before(:context) do
@@ -85,13 +85,14 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
   end
 
   def run_project_rust_opt_in!(domain)
-    env = { "PATH" => ENV["PATH"], "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
+    env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
     _out, err, status = Open3.capture3(env, HB_PROJECT_RUST, domain, chdir: HB_ROOT)
     raise "bin/project_rust (opt-in) #{domain} failed:\n#{err}" unless status.success?
   end
 
   def run_hecks_build!(domain)
-    _out, err, status = Open3.capture3({ "PATH" => ENV["PATH"] }, HECKS_BUILD_BINARY, domain, "--no-build", chdir: HB_ROOT)
+    _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--no-build",
+                                       chdir: HB_ROOT)
     raise "hecks-build #{domain} --no-build failed:\n#{err}" unless status.success?
   end
 
@@ -100,6 +101,13 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
   end
 
   HB_PARITY_DOMAINS.each do |domain, dirs|
+    # One end-to-end claim per domain — run both pipelines for real (each a
+    # genuine process spawn, one of them a cargo-built binary), then compare
+    # every directory's file list and every file's bytes. Splitting the
+    # comparison into several examples would re-run both real pipelines per
+    # split with no gain, or worse prove only PART of "these two pipelines
+    # agree" instead of the whole claim this test exists for.
+    # rubocop:disable-next RSpec/ExampleLength
     it "#{domain}: hecks-build's own generated output matches the opt-in Ruby-orchestrated Rust pipeline's, byte for byte" do
       run_project_rust_opt_in!(domain)
 
@@ -132,7 +140,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
       # too (both ran, back to back, targeting the same domain).
       hecks_build_cargo_toml = File.read(HB_CARGO_TOML)
       expect(hecks_build_cargo_toml).to eq(ruby_cargo_toml),
-                                        "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match the opt-in Ruby pipeline's"
+                                        "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match " \
+                                        "the opt-in Ruby pipeline's"
     ensure
       FileUtils.remove_entry(ruby_snapshot) if ruby_snapshot
     end

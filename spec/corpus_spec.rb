@@ -30,14 +30,14 @@ RSpec.describe "The corpus" do
   EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
                      .select { |path| File.directory?(path) }.sort.freeze
 
-  GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).sort.freeze
+  GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook")).freeze
 
   # `lib/hecks/framework/bluebook/` holds framework-level domains (Governance, and
   # whatever else lands beside it) as flat sibling files, the same shape
   # GRAMMAR_CHAPTERS already walks — not one directory per domain like
   # `examples/`, since these aren't teaching examples with their own
   # `bluebook/` subfolder each.
-  FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook")).sort.freeze
+  FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook")).freeze
 
   # [corpus-script stem, bluebook path] — examples are named after their
   # directory, grammar chapters and framework members after their own file.
@@ -61,6 +61,11 @@ RSpec.describe "The corpus" do
     end
   end
 
+  # CORPUS_MEMBERS is an Array of [stem, bluebook] pairs (see its own
+  # definition above), not a Hash — Style/HashEachMethods' `.each_value`
+  # rewrite assumed otherwise from the `|_stem, bluebook|` block shape
+  # alone and raised NoMethodError at load time. False positive.
+  # rubocop:disable-next Style/HashEachMethods
   CORPUS_MEMBERS.each do |_stem, bluebook|
     next unless bluebook
 

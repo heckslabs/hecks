@@ -11,6 +11,11 @@ require_relative "where_clause"
 module Hecks
   module QuerySpecification
     module Common
+      # Shared builder-instance methods for the `where`/`order_by`/
+      # `limit`/`offset`/`cursor`/`authorize`/`nulls`/`inspect_query`
+      # bluebook DSL words, mixed into both QueryBuilder and
+      # ReadModelBuilder so the two specification kinds parse the same
+      # clauses identically rather than each carrying its own copy.
       module DSL
         # RENAMED FROM `where`/`order_by`/`limit`/`offset`/`authorize`
         # (all below) — item #13's full metaprogrammed dispatch (slice

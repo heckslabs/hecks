@@ -4,6 +4,10 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # The one deliberate, human-driven command that closes a fork:
+        # `merge_tail!` re-enters an old era's post-cut writes into the
+        # current era under named winners, and `diverged_count` observes how
+        # far the two worlds have drifted at any time before that.
         module TailMerge
           # ── fork observability ─────────────────────────────────────────
 
@@ -29,6 +33,14 @@ module Hecks
           # winner; resolution itself is append-only (the winner's state
           # re-enters as the newest row and wins structurally — originals
           # stay immutable).
+          # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+          # One Postgres transaction (BEGIN…COMMIT) with a manual ROLLBACK
+          # at every early refusal, and a snapshot-before-mutation
+          # invariant (`new_states` captured before the head rebuild lets
+          # the tail interleave). Splitting the steps into separate
+          # methods would force each to independently know how to roll
+          # back the same shared transaction, and would separate the
+          # snapshot from the mutation it must precede.
           def merge_tail!(aggregates:, edges:, winners: {}, audit: nil)
             @db.exec("BEGIN")
             @db.exec("SET LOCAL lock_timeout = '10s'")
@@ -129,14 +141,23 @@ module Hecks
             @db.exec("COMMIT")
             true
           rescue PG::LockNotAvailable
-            @db.exec("ROLLBACK") rescue nil
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
             raise Runtime::WiringError,
                   "cannot merge the tail of #{@domain}: another mint or merge holds the domain lock — " \
                   "waited 10s; try again shortly"
-          rescue PG::Error => error
-            @db.exec("ROLLBACK") rescue nil
-            raise Runtime::WiringError, "cannot merge the tail of #{@domain}: #{error.message.strip}"
+          rescue PG::Error => e
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
+            raise Runtime::WiringError, "cannot merge the tail of #{@domain}: #{e.message.strip}"
           end
+          # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
           # Ids touched by BOTH worlds since the cut — the old world's
           # post-cut tail INTERSECTed with the new world's own writes.

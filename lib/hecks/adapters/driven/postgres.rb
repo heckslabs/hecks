@@ -84,9 +84,9 @@ module Hecks
         # boot after the first, not news.
         connection.exec("SET client_min_messages = warning")
         connection
-      rescue PG::Error => error
+      rescue PG::Error => e
         raise Runtime::WiringError,
-              "cannot bind Postgres at #{declared} for #{name}: #{error.message.strip}"
+              "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
 
       def initialize(aggregate:, settings: {}, root: nil)
@@ -128,7 +128,10 @@ module Hecks
         order_sql = "ORDER BY id"
         if order_by
           name = order_by.to_s.split(".").first
-          raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by" unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+          unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+            raise Runtime::WiringError,
+                  "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+          end
 
           spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
           order_sql = "ORDER BY #{order_clause(spec, nil)}"
@@ -173,19 +176,7 @@ module Hecks
         return @db.exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
-        columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
-        values   = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
-        updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
-                   ["hecks_version = #{quoted_table}.hecks_version + 1"]
-
-        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
-              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
-              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
-        if expected_version
-          values += [expected_version]
-          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
-        end
-        sql += " RETURNING hecks_version"
+        sql, values = upsert_sql(instance, expected_version)
 
         result = @db.exec_params(sql, values)
         return nil if result.ntuples.zero?
@@ -221,7 +212,10 @@ module Hecks
       # transaction lives here, the one caller that runs both together.
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        @db.transaction { append(entry); project(entry) }
+        @db.transaction do
+          append(entry)
+          project(entry)
+        end
       end
 
       # Classification, journal append and snapshot replacement are one
@@ -255,7 +249,10 @@ module Hecks
 
       def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
-        @db.transaction { append(entry); project(entry) }
+        @db.transaction do
+          append(entry)
+          project(entry)
+        end
         true
       end
 
@@ -288,7 +285,8 @@ module Hecks
           "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
           "SET state = EXCLUDED.state, memory = EXCLUDED.memory, " \
           "completed_compensations = EXCLUDED.completed_compensations, updated_at = now()",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory),
+           JSON.generate(completed_compensations)]
         )
       end
 
@@ -303,7 +301,8 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.exec_params(
-          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = $1",
+          "SELECT process_manager, correlation, state, memory, completed_compensations " \
+          "FROM hecks_saga_instances WHERE domain = $1",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],
@@ -390,6 +389,28 @@ module Hecks
       def quoted_table = quote_ident(table)
       def entry_table = "#{table}_entries"
       def quoted_entry_table = quote_ident(entry_table)
+
+      # The INSERT ... ON CONFLICT ... UPDATE statement `project` executes,
+      # plus its bind values — pulled out as one pure builder (no I/O, no
+      # shared state beyond what's passed in) so `project` itself reads as
+      # "build the query, run it, interpret the result".
+      def upsert_sql(instance, expected_version)
+        columns = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
+        values  = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
+        updates = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
+                  ["hecks_version = #{quoted_table}.hecks_version + 1"]
+
+        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
+              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
+              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
+        if expected_version
+          values += [expected_version]
+          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
+        end
+        sql += " RETURNING hecks_version"
+
+        [sql, values]
+      end
 
       def jsonb_extraction?(expression) = expression.include?("#>>")
 

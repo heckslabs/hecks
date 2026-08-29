@@ -18,9 +18,7 @@ module Hecks
 
       def normalize(input, receiver:, legacy_receiver: nil)
         request = symbolize(input)
-        unless request.is_a?(Hash)
-          raise Runtime::TypeMismatch, "a command request must be a hash"
-        end
+        raise Runtime::TypeMismatch, "a command request must be a hash" unless request.is_a?(Hash)
 
         route, facts = split(request, receiver: receiver, legacy_receiver: legacy_receiver)
         validate_route!(route, receiver)
@@ -54,9 +52,7 @@ module Hecks
       def take_legacy_route(flat, receiver, legacy_receiver)
         return unless legacy_receiver
 
-        if receiver == :aggregate
-          return flat.delete(legacy_receiver.to_sym)
-        end
+        return flat.delete(legacy_receiver.to_sym) if receiver == :aggregate
 
         return unless receiver == :entity && legacy_receiver.is_a?(Hash)
 
@@ -68,23 +64,27 @@ module Hecks
       end
       private_class_method :take_legacy_route
 
+      # A case dispatch over the three closed receiver kinds (nil,
+      # :aggregate, :entity) plus the impossible-kind backstop — each
+      # branch is its own self-contained validation for that one kind.
+      # rubocop:disable-next Metrics/CyclomaticComplexity
       def validate_route!(route, receiver)
         case receiver
         when nil
           raise Runtime::TypeMismatch, "this command does not take a receiver in to:" unless route.nil?
         when :aggregate
           if route.nil? || route.to_s.empty? || route.is_a?(Hash)
-            raise Runtime::TypeMismatch, "to: must name the receiving aggregate identity"
+            raise Runtime::TypeMismatch,
+                  "to: must name the receiving aggregate identity"
           end
         when :entity
-          unless route.is_a?(Hash)
-            raise Runtime::TypeMismatch, "to: for an entity command must contain aggregate: and entity:"
-          end
+          raise Runtime::TypeMismatch, "to: for an entity command must contain aggregate: and entity:" unless route.is_a?(Hash)
 
           extra = route.keys - [:aggregate, :entity]
           missing = [:aggregate, :entity].select { |key| route[key].nil? || route[key].to_s.empty? }
           unless extra.empty? && missing.empty?
-            raise Runtime::TypeMismatch, "to: for an entity command must contain only aggregate: and entity:"
+            raise Runtime::TypeMismatch,
+                  "to: for an entity command must contain only aggregate: and entity:"
           end
         else
           raise ArgumentError, "unknown receiver kind #{receiver.inspect}"

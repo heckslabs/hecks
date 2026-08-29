@@ -57,6 +57,20 @@ module Hecks
       # DISPATCH_ORDER.
       GUARD_REFUSAL_CLASSES = [Runtime::GivenNotMet, Runtime::LifecycleRefused].freeze
 
+      # One tightly ordered loop over steps, with several "oracle" snapshots
+      # (reaction_mark, fan_out_snapshot, guard_check, mutation_trace) that
+      # must be taken at very specific points RELATIVE TO dispatch — see
+      # fan_out_snapshot's own comment above for the real, previously-
+      # shipped bug this exact before/after ordering fixes. Splitting this
+      # into smaller methods would mean threading five-plus oracle-state
+      # locals across method boundaries as parameters/return values, and
+      # would let a future editor silently reorder a snapshot relative to
+      # `dispatch` without any single method looking wrong — the ordering
+      # invariant is only visible with the whole sequence in one place.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/MethodLength
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def call(domain_path, steps, adapter: :memory)
         # See isolated_boot.rb's own header: resets data/ AND rebinds
         # persistence to the chosen adapter (Memory by default), since a
@@ -106,7 +120,7 @@ module Hecks
                 begin
                   rows = run_filter(runtime, question)
                   queries << { query: question, rows: rows, instances_at: snapshot_instances(runtime) }
-                rescue => e
+                rescue StandardError => e
                   refusals << { verb: filter_label(question), error: e.message }
                 end
                 next
@@ -256,9 +270,7 @@ module Hecks
               # so there is no "after" to compare (and #build_mutation_
               # trace already skipped anything with no mutations to
               # trace in the first place).
-              if mutation_trace
-                mutation_traces << mutation_trace.merge(after: read_mutation_after(runtime, mutation_trace))
-              end
+              mutation_traces << mutation_trace.merge(after: read_mutation_after(runtime, mutation_trace)) if mutation_trace
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
               # `kind:` — the RAISED CLASS, not re-derived from the message.
               # `GivenNotMet`/`EnsuresNotMet` share their exact wording
@@ -287,16 +299,17 @@ module Hecks
               # two guard classes is left OUT of guard_checks entirely —
               # inconclusive, not a claimed pass.
               if guard_check && GUARD_REFUSAL_CLASSES.include?(e.class)
-                guard_checks << guard_check.merge(actual_refused: true, actual_kind: e.class.name)
+                guard_checks << guard_check.merge(actual_refused: true,
+                                                  actual_kind:    e.class.name)
               end
             end
           end
 
           instances = snapshot_instances(runtime)
 
-          events = runtime.events.map { |event|
+          events = runtime.events.map do |event|
             { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload }
-          }
+          end
 
           # THE LIVE PROCESS-MANAGER STORE, materialised to inert data —
           # `{ pm_name => { correlation => { state:, memory: } } }`, the
@@ -397,6 +410,16 @@ module Hecks
         instances
       end
 
+      # One early-return chain resolving "which record, if any" (see the
+      # long comment above), feeding a two-stage guard replay
+      # (enforce_givens then admissible_transition) that must run in that
+      # order to mirror the real DISPATCH_ORDER. Splitting the resolution
+      # out would still require passing domain_name/aggregate_name/
+      # aggregate/command/record back in, for no gain — every early
+      # return already reads as "nothing to check" at its own site.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def build_guard_check(runtime, verb, args)
         domain_name, aggregate_name, command_name = Naming.split_verb(verb)
         return nil unless command_name && !command_name.include?(".")
@@ -412,7 +435,7 @@ module Hecks
         # counts as something to check now that `admissible_transition`
         # is reproduced below; skipping it here would just move the
         # exact gap that call was added to close one line earlier.
-        has_transition = aggregate.lifecycle && aggregate.lifecycle.transitions_for(command.hecks_name).any?
+        has_transition = aggregate.lifecycle&.transitions_for(command.hecks_name)&.any?
         return nil if command.givens.empty? && !command.from && !has_transition
 
         reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
@@ -477,9 +500,17 @@ module Hecks
       # `nil` for anything out of scope: an aggregate-level command, an
       # entity command with no mutations at all, or one whose identity
       # args (parent OR element) don't resolve.
+      # Same shape as build_guard_check just above: one early-return chain
+      # resolving the entity/element this step's args address (see the
+      # comment above), each step depending on the previous one's
+      # resolved value. Threading those locals out to smaller methods
+      # would cost more than the cop gains.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def build_mutation_trace(runtime, verb, args)
         domain_name, aggregate_name, command_name = Naming.split_verb(verb)
-        return nil unless command_name && command_name.include?(".")
+        return nil unless command_name&.include?(".")
 
         aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
         return nil unless aggregate
@@ -487,7 +518,7 @@ module Hecks
         entity_name, entity_command_name = command_name.split(".", 2)
         entity  = aggregate.entities.find { |candidate| candidate.hecks_name == entity_name }
         command = entity&.command(entity_command_name)
-        return nil unless command && command.mutations.any?
+        return nil unless command&.mutations&.any?
 
         reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
         parent_id = Runtime::Identity.of(aggregate, args) ||
@@ -662,7 +693,7 @@ module Hecks
       # own `filter_label` builds from the same three raw fields, tolerant
       # of any of them being missing (Ruby's own nil-to-"" interpolation)
       # the same way that Rust port is.
-      def filter_label(filter) = "filter #{filter["aggregate"]}.#{filter["field"]} #{filter["op"]}"
+      def filter_label(filter) = "filter #{filter['aggregate']}.#{filter['field']} #{filter['op']}"
     end
   end
 end

@@ -89,7 +89,7 @@ module Hecks
               source_sql: lambda do |cursor|
                 <<~SQL
                   SELECT id, ordinal, value FROM (#{field_cache_source_sql(storage_name, era, value_expression)}) reduced
-                  #{cursor ? "WHERE id > #{text_literal(cursor)}" : ''}
+                  #{"WHERE id > #{text_literal(cursor)}" if cursor}
                   ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
                 SQL
               end,

@@ -7,8 +7,8 @@ module Hecks
     # Projection is a read-side port. Its stores are rebuildable consumers of
     # authoritative entries and never participate in command decisions.
     module Projection
-      NAME = "projection"
-      VERB = "projected_by"
+      NAME = "projection".freeze
+      VERB = "projected_by".freeze
 
       module_function
 
@@ -26,6 +26,11 @@ module Hecks
         Worker.new(authoritative, target, policy: policy)
       end
 
+      # Catches one projection's store up to its authoritative journal:
+      # replays whatever entries the store hasn't yet appended/projected.
+      # Constructed via Projection.worker; #catch_up! runs from a
+      # separate process or scheduler, never from the command-side write
+      # path.
       class Worker
         attr_reader :projection
 
@@ -67,7 +72,10 @@ module Hecks
           unless consistent?(entries, present)
             raise Runtime::WiringError, "projection history does not match its authoritative history" if @policy == :strict
           end
-          entries.drop(present.length).each { |entry| @projection.append(entry); @projection.project(entry) }
+          entries.drop(present.length).each do |entry|
+            @projection.append(entry)
+            @projection.project(entry)
+          end
           @projection
         end
 
@@ -78,9 +86,9 @@ module Hecks
         def same_entry?(left, right) = left.operation == right.operation && left.id == right.id && left.state == right.state
 
         def consistent?(entries, present)
-          present.length <= entries.length && entries.first(present.length).zip(present).all? { |left, right|
+          present.length <= entries.length && entries.first(present.length).zip(present).all? do |left, right|
             same_entry?(left, right)
-          }
+          end
         end
       end
 

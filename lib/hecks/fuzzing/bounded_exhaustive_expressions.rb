@@ -101,7 +101,7 @@ module Hecks
       # actually bound to.
       ARRAY_ELEMENT_TYPE = { "arr_num" => :numeric, "arr_str" => :string }.freeze
 
-      BLOCK_PARAM = "el"
+      BLOCK_PARAM = "el".freeze
 
       MAX_DEPTH = 3
 
@@ -217,7 +217,9 @@ module Hecks
         when :string   then string_productions(depth)
         when :boolean  then boolean_productions(depth)
         when :array    then array_productions(depth)
-        when :nil_type then [] # no recursive producer of nil in this grammar — Find's "not found" is a runtime OUTCOME, not a distinct construct to render as source text
+        # no recursive producer of nil in this grammar — Find's "not found" is a
+        # runtime OUTCOME, not a distinct construct to render as source text
+        when :nil_type then []
         else raise ArgumentError, "no production rule for type #{type.inspect}"
         end
       end
@@ -291,8 +293,12 @@ module Hecks
       def resolver_boolean_leaves(depth)
         leaves(:boolean) +
           resolver_numeric_leaves(depth).flat_map { |n| ["#{n}.positive?", "#{n}.negative?", "#{n}.zero?"] } +
-          bounded(:string, depth).flat_map { |s| ["#{s}.present?", "#{s}.blank?", "#{s}.match?(/a/)", "#{s}.start_with?(\"a\")", "#{s}.end_with?(\"a\")"] } +
-          (sample(numeric_array_productions(depth)) + sample(string_array_productions(depth)) + bounded(:array, depth)).map { |x| "#{x}.empty?" } +
+          bounded(:string, depth).flat_map do |s|
+            ["#{s}.present?", "#{s}.blank?", "#{s}.match?(/a/)", "#{s}.start_with?(\"a\")", "#{s}.end_with?(\"a\")"]
+          end +
+          (sample(numeric_array_productions(depth)) + sample(string_array_productions(depth)) + bounded(:array, depth)).map do |x|
+            "#{x}.empty?"
+          end +
           sample(block_predicate_productions(depth))
       end
 
@@ -386,6 +392,15 @@ module Hecks
       # typed at its own top level (`Evaluator.truthy?`), so this is also
       # the set `all_predicates` (below) draws its top-level cases from
       # directly.
+      # One declarative table of boolean productions, not several
+      # unrelated things bolted together — each `+`-joined term is a
+      # distinct grammar rule, and several carry their own comment
+      # explaining a specific inclusion/exclusion choice (the
+      # `resolver_numeric_leaves`-not-`num` note above, `arr_num`'s non-
+      # empty twin, etc). Extracting terms into separate methods would
+      # need `sub`/`num`/`str` threaded into each as parameters and
+      # would separate every rule from the comment justifying it.
+      # rubocop:disable-next Metrics/AbcSize
       def boolean_productions(depth)
         sub = bounded(:boolean, depth - 1)
         num = bounded(:numeric, depth - 1)
@@ -404,8 +419,11 @@ module Hecks
           # documents (`"0 + 0.positive?"` would parse as `0 + (0
           # .positive?)`, not `(0 + 0).positive?`).
           resolver_numeric_leaves(depth - 1).flat_map { |n| ["#{n}.positive?", "#{n}.negative?", "#{n}.zero?"] } +
-          (str + sample(numeric_array_productions(depth - 1)) + sample(string_array_productions(depth - 1)) + bounded(:array, depth - 1))
-          .map { |x| "#{x}.empty?" } +
+          (str + sample(numeric_array_productions(depth - 1)) + sample(string_array_productions(depth - 1)) + bounded(:array,
+                                                                                                                      depth - 1))
+          .map do |x|
+            "#{x}.empty?"
+          end +
           str.map { |s| "#{s}.match?(/a/)" } +
           str.flat_map { |s| ["#{s}.present?", "#{s}.blank?"] } +
           str.flat_map { |s| ["#{s}.start_with?(\"a\")", "#{s}.end_with?(\"a\")"] } +
@@ -461,8 +479,12 @@ module Hecks
       def include_productions(depth)
         str = bounded(:string, depth)
         pairs(str).map { |haystack, needle| "#{haystack}.include?(#{needle})" } +
-          sample(numeric_array_productions(depth)).product(bounded(:numeric, depth)).map { |arr, needle| "#{arr}.include?(#{needle})" } +
-          sample(string_array_productions(depth)).product(bounded(:string, depth)).map { |arr, needle| "#{arr}.include?(#{needle})" }
+          sample(numeric_array_productions(depth)).product(bounded(:numeric, depth)).map do |arr, needle|
+            "#{arr}.include?(#{needle})"
+          end +
+          sample(string_array_productions(depth)).product(bounded(:string, depth)).map do |arr, needle|
+            "#{arr}.include?(#{needle})"
+          end
       end
 
       # SAMPLED, NOT A FULL CROSS PRODUCT — a full `list.product(list)`

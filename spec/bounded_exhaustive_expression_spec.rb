@@ -65,7 +65,8 @@ RSpec.describe "the expression sublanguage, exhaustively, for every well-typed e
                                     "genuine absent-attribute refusal:\n#{message}"
   end
 
-  it "at least one third of the generated set actually SUCCEEDS (a real answer, not just a refusal) — a property nothing can ever hold is decoration" do
+  it "at least one third of the generated set actually SUCCEEDS (a real answer, not just a refusal) — " \
+     "a property nothing can ever hold is decoration" do
     results = BEE.all_predicates.map { |expr| BEE.check(expr)[:result] }
     successes = results.count { |r| r != :refused }
     expect(successes).to be > (results.size / 3)

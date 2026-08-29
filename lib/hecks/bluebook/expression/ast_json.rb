@@ -73,12 +73,13 @@ module Hecks
           when Evaluator::Resolve
             emit_resolver(node.expr)
           else
-            raise "unhandled evaluator node #{node.class} — no JSON rendering exists for it (lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
+            raise "unhandled evaluator node #{node.class} — no JSON rendering exists for it " \
+                  "(lib/hecks/bluebook/expression/ast_json.rb#emit_bool)"
           end
         end
 
-        def emit_comparison(op)
-          { "less_than" => op.compares_less_than, "equal" => op.compares_equal, "negated" => op.negated }
+        def emit_comparison(comparator)
+          { "less_than" => comparator.compares_less_than, "equal" => comparator.compares_equal, "negated" => comparator.negated }
         end
 
         # The JSON-target sibling of `expr_emitter.rb`'s own
@@ -99,11 +100,18 @@ module Hecks
           return { "op" => "bool", "value" => false } if node.haystack.elements.empty?
 
           equalities = node.haystack.elements.map do |element|
-            { "op" => "compare", "cmp" => emit_comparison(EQ), "left" => emit_resolver(node.needle), "right" => emit_resolver(element) }
+            { "op" => "compare", "cmp" => emit_comparison(EQ), "left" => emit_resolver(node.needle),
+"right" => emit_resolver(element) }
           end
           equalities.reduce { |left, right| { "op" => "or", "left" => left, "right" => right } }
         end
 
+        # One case arm per Resolver node type — the class header above is
+        # explicit that this dispatch must stay COMPLETE and in one place
+        # ("every node this grammar admits gets a real arm"); splitting it
+        # into several methods would hide whether the set is still
+        # exhaustive instead of making that visible at a glance.
+        # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
         def emit_resolver(node)
           case node
           when Resolver::IntegerLiteral then { "op" => "int", "value" => node.value }
@@ -128,7 +136,8 @@ module Hecks
           when Resolver::ArrayLiteral
             { "op" => "array", "elements" => node.elements.map { |element| emit_resolver(element) } }
           when Resolver::MatchesRegex
-            { "op" => "matches_regex", "receiver" => emit_resolver(node.receiver), "pattern" => node.pattern, "flags" => node.flags }
+            { "op" => "matches_regex", "receiver" => emit_resolver(node.receiver), "pattern" => node.pattern,
+"flags" => node.flags }
           when Resolver::Presence
             { "op" => "presence", "receiver" => emit_resolver(node.receiver), "negated" => node.negated }
           when Resolver::Assignment
@@ -142,7 +151,8 @@ module Hecks
           when Resolver::First then { "op" => "first", "receiver" => emit_resolver(node.receiver) }
           when Resolver::Last  then { "op" => "last", "receiver" => emit_resolver(node.receiver) }
           else
-            raise "unhandled resolver node #{node.class} — no JSON rendering exists for it (lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
+            raise "unhandled resolver node #{node.class} — no JSON rendering exists for it " \
+                  "(lib/hecks/bluebook/expression/ast_json.rb#emit_resolver)"
           end
         end
       end

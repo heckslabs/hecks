@@ -5,6 +5,12 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # The read side of lineage: builds and maintains, per aggregate per
+        # era, the head-snapshot table (`ensure_head_snapshot!`/
+        # `backfill_head_snapshot!`) and the compiled materialized
+        # view/plain view (`compile_head!`) that translate and reduce the
+        # append-only journal into the single current-era head a query
+        # actually reads.
         module HeadCompiler
           # ── head compilation ───────────────────────────────────────────
 
@@ -124,7 +130,7 @@ module Hecks
                     SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, ordinal, operation, state
                     FROM #{quoted_journal}
                     WHERE era = #{era.to_i} AND aggregate = #{text_literal(storage_name)}
-                    #{cursor ? "AND aggregate_id > #{text_literal(cursor)}" : ''}
+                    #{"AND aggregate_id > #{text_literal(cursor)}" if cursor}
                     ORDER BY aggregate_id, ordinal DESC
                   ) latest WHERE operation = 'save' ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
                 SQL
@@ -160,8 +166,8 @@ module Hecks
           # re-raised) on failure, and either way the surrounding
           # transaction is never touched — no early COMMIT, no early
           # release of whatever advisory lock it holds.
-          def nested_transaction(name)
-            return @db.transaction { yield } if @db.transaction_status == PG::PQTRANS_IDLE
+          def nested_transaction(name, &)
+            return @db.transaction(&) if @db.transaction_status == PG::PQTRANS_IDLE
 
             @db.exec("SAVEPOINT #{name}")
             begin
@@ -264,6 +270,17 @@ module Hecks
           # its real bounds instead of falling back to `chain_sql` the way
           # every other mismatch here already does. Guarded structurally,
           # not by trusting every future caller to know this invariant.
+          #
+          # The guard clauses above ARE the method: each rules out one way
+          # the layered shortcut cannot honestly apply (era too young, too
+          # few edges, a mismatched chain length, no prior era, no label,
+          # no materialized prior view) before the SQL-building tail runs.
+          # Splitting them out would separate each guard from the algebra
+          # comment it protects, and thread `held`/`prior`/`prior_view`
+          # back out as return values with no simpler shape than they
+          # already have.
+          # rubocop:disable-next Metrics/CyclomaticComplexity
+          # rubocop:disable-next Metrics/PerceivedComplexity
           def layered_chain_sql(aggregate, era, edges)
             return nil if era < 3 || edges.size < 2 || edges.size != era - 1
 
@@ -278,7 +295,12 @@ module Hecks
             cut = held.find { |candidate| candidate[:ordinal] == era }&.dig(:watermark)
             declared = edges.last[:translation].for_aggregate(names[:current][edges.size])
             expression = declared ? Translation::RuleCompiler.compile_rules(declared) : "state"
-            id_column = Translation::RuleCompiler.rekeyed?(declared) ? Translation::RuleCompiler.id_case("operation = 'save'", declared) : "aggregate_id"
+            id_column = if Translation::RuleCompiler.rekeyed?(declared)
+                          Translation::RuleCompiler.id_case("operation = 'save'",
+                                                            declared)
+                        else
+                          "aggregate_id"
+                        end
 
             <<~SQL
               WITH layered AS (
@@ -286,7 +308,7 @@ module Hecks
                   SELECT ordinal, aggregate_id, operation, state FROM #{quote(prior_view)}
                   UNION ALL
                   SELECT ordinal, aggregate_id, operation, state FROM #{quoted_journal}
-                  WHERE era = #{era - 1} AND aggregate = #{text_literal(names[:storage][era - 2])}#{cut ? " AND ordinal <= #{cut}" : ''}
+                  WHERE era = #{era - 1} AND aggregate = #{text_literal(names[:storage][era - 2])}#{" AND ordinal <= #{cut}" if cut}
                 ) layers ORDER BY aggregate_id, ordinal DESC
               )
               SELECT ordinal, #{id_column}, operation,
@@ -302,7 +324,12 @@ module Hecks
               declared = edge[:translation].for_aggregate(names[:current][index + 1])
               expression = declared ? Translation::RuleCompiler.compile_rules(declared) : "state"
               guard = "era <= #{index + 1} AND operation = 'save'"
-              id_column = Translation::RuleCompiler.rekeyed?(declared) ? Translation::RuleCompiler.id_case(guard, declared) : "aggregate_id"
+              id_column = if Translation::RuleCompiler.rekeyed?(declared)
+                            Translation::RuleCompiler.id_case(guard,
+                                                              declared)
+                          else
+                            "aggregate_id"
+                          end
               "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column}, operation, " \
                 "CASE WHEN #{guard} THEN #{expression} ELSE state END AS state " \
                 "FROM #{index.zero? ? 'tail' : "edge_#{index}"})"
@@ -482,7 +509,7 @@ module Hecks
               cut = watermarks[ancestor + 1]
               "SELECT ordinal, era, aggregate, aggregate_id, operation, state FROM #{quoted_journal} " \
                 "WHERE era = #{ancestor} AND aggregate = #{text_literal(names[:storage][ancestor - 1])}" \
-                "#{cut ? " AND ordinal <= #{cut}" : ''}"
+                "#{" AND ordinal <= #{cut}" if cut}"
             end
             selects.join(" UNION ALL ")
           end

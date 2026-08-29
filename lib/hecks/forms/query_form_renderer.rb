@@ -38,7 +38,7 @@ module Hecks
       def self.header(domain, aggregate, query)
         <<~HTML
           <h1>#{Escape.html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}")}</h1>
-          #{query.description ? %(<p class="goal">#{Escape.html(query.description)}</p>) : ''}
+          #{%(<p class="goal">#{Escape.html(query.description)}</p>) if query.description}
           #{badges(query)}
         HTML
       end
@@ -89,7 +89,8 @@ module Hecks
       def self.error_banner(error)
         return "" unless error
 
-        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — #{Escape.html(error.message)}</p></div>)
+        %(<div class="error-banner" role="alert"><p><strong>#{Escape.html(error.class.name.split('::').last)}</strong> — ) \
+          "#{Escape.html(error.message)}</p></div>"
       end
 
       def self.results_section(aggregate, results, domain)

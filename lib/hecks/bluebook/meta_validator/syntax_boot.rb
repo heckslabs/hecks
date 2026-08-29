@@ -85,7 +85,9 @@ module Hecks
 
         def same_chapters?(cached, current)
           cached.size == current.size &&
-            cached.zip(current).all? { |(cached_name, cached_chapter), (name, chapter)| cached_name == name && cached_chapter.equal?(chapter) }
+            cached.zip(current).all? do |(cached_name, cached_chapter), (name, chapter)|
+              cached_name == name && cached_chapter.equal?(chapter)
+            end
         end
 
         def boot
@@ -140,7 +142,8 @@ module Hecks
         def declare_syntax(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
           runtime.dispatch("Bluebook::Bluebook.Declare", name:           v(bluebook.hecks_name),
-                                                         vision:         v("the language's own grammar table, dispatched into itself"),
+                                                         vision:         v("the language's own grammar table, " \
+                                                                           "dispatched into itself"),
                                                          classification: v("core"))
           runtime.dispatch("Bluebook::Syntax.Declare", bluebook: bluebook.hecks_name, name: v(syntax.hecks_name))
         end
@@ -239,8 +242,8 @@ module Hecks
         end
 
         def stringify(row)
-          row.to_h.each_with_object({}) do |(key, cell), out|
-            out[key] = scalar(cell).to_s
+          row.to_h.transform_values do |cell|
+            scalar(cell).to_s
           end
         end
 

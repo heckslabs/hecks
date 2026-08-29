@@ -21,7 +21,7 @@ module Hecks
 
         def v(text) = text.nil? ? nil : { value: text.to_s }
 
-        def args(pairs) = pairs.reject { |_, value| value.nil? }
+        def args(pairs) = pairs.compact
 
         def offer(label)
           yield

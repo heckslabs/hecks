@@ -37,8 +37,8 @@ begin
     loading.load_project(loading.shared_root(nil, directory))
     loading.load_domain(directory)
   end
-rescue Hecks::Bluebook::DSL::Malformed => error
-  abort "REFUSED at load: #{error.message}"
+rescue Hecks::Bluebook::DSL::Malformed => e
+  abort "REFUSED at load: #{e.message}"
 end
 
 bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
@@ -62,14 +62,14 @@ eras = lineage.eras
 diverged = eras.size > 1 ? (1...eras.last[:ordinal]).sum { |era| lineage.diverged_count(era) } : 0
 db.close
 
-puts "#{bluebook.name}: #{diverged} post-cut write#{diverged == 1 ? '' : 's'} in ancestor eras before the merge"
+puts "#{bluebook.name}: #{diverged} post-cut write#{'s' unless diverged == 1} in ancestor eras before the merge"
 
 begin
   Hecks::Adapters::PostgresEra::LineageManager.merge!(
     registry: registry, bluebook: bluebook, settings: settings, winners: winners
   )
-rescue Hecks::Runtime::WiringError => error
-  abort "REFUSED: #{error.message}"
+rescue Hecks::Runtime::WiringError => e
+  abort "REFUSED: #{e.message}"
 end
 
 puts "merged — the head now interleaves both worlds by their recorded ordinals"

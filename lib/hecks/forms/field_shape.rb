@@ -24,6 +24,8 @@ module Hecks
       def required? = !optional
     end
 
+    # Turns a wire-spelled field or path segment into the plain-English text
+    # `FieldShape` embeds as a `Field`'s label or a group's legend.
     module Humanize
       # "given" -> "Given", "daily_limit" -> "Daily limit", "end_to_end" ->
       # "End to end" — the label a plain reader wants, not the wire spelling.
@@ -91,8 +93,11 @@ module Hecks
       def self.reference_field(attribute, common)
         target = attribute.type.resolve
         Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target,
-                            help: target ? "References an existing #{target.hecks_name} by id." :
-                                  "References an aggregate in another domain — enter its id.")
+                            help: if target
+                                    "References an existing #{target.hecks_name} by id."
+                                  else
+                                    "References an aggregate in another domain — enter its id."
+                                  end)
       end
 
       # `admits:` names a closed set declared ELSEWHERE (`"Account::

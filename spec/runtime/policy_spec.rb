@@ -76,7 +76,7 @@ RSpec.describe "a policy" do
         delivered: false
       )
     )
-    expect(runtime.reactions.first[:reason]).to match(/no domain "Notifications" loaded/)
+    expect(runtime.reactions.first[:reason]).to include('no domain "Notifications" loaded')
   end
 
   it "leaves the triggering command's own state committed" do
@@ -136,6 +136,12 @@ RSpec.describe "a policy" do
   # `spec/dsl_spec.rb`'s own `build_bluebook` helper builds inline rather
   # than from a file.
   describe "where and for_each" do
+    # A DECLARATIVE INLINE bluebook fixture, not procedural logic — the
+    # comment above this `describe` explains why it must stay inline
+    # (parser-parity scan, PENDING_PAIRS) rather than move to a fixture
+    # file. Splitting it into helper methods would only fragment one
+    # self-contained domain declaration across artificial boundaries.
+    # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
     def boot_fanout
       registry = Hecks::Runtime::Registry.new
 
@@ -232,12 +238,12 @@ RSpec.describe "a policy" do
 
         Hecks.hecksagon("Fanout") do
           uses_framework "Governance"
-          ::Fanout::Customer.persisted_by("Memory")
-          ::Fanout::Account.persisted_by("Memory")
+          Fanout::Customer.persisted_by("Memory")
+          Fanout::Account.persisted_by("Memory")
         end
         Hecks.hecksagon("Governance") do
-          ::Governance::RoleAssignment.persisted_by("Memory")
-          ::Governance::RoleTransition.persisted_by("Memory")
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
         end
       end
 
@@ -311,7 +317,7 @@ RSpec.describe "a policy" do
 
       review = runtime.reactions.find { |r| r[:policy] == "ReviewOnFlag" }
       expect(review).to include(delivered: false)
-      expect(review[:reason]).to match(/no query/)
+      expect(review[:reason]).to include("no query")
     end
   end
 end

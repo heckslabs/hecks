@@ -117,6 +117,15 @@ module Hecks
         # outright (nothing to be a prefix of on the held side), unlike
         # every rule above it, which explains a path that existed and
         # moved, converted, or vanished.
+        #
+        # One `||` chain over a closed, fixed set of rule kinds (renames,
+        # moves, converts, drops, computes, backfills) — the same six this
+        # file's other methods enumerate. Splitting each disjunct into its
+        # own predicate would scatter one question ("does ANY rule explain
+        # this path") across six same-shaped methods with nothing else to
+        # do.
+        # rubocop:disable-next Metrics/CyclomaticComplexity
+        # rubocop:disable-next Metrics/PerceivedComplexity
         def explains?(path)
           path = path.to_s
           top = path.split(".").first
@@ -202,12 +211,12 @@ module Hecks
         def apply_renames(state, renames)
           snapshot = renames.filter_map { |old_name, new_name| [old_name, new_name, state[old_name]] if state.key?(old_name) }
           snapshot.each { |old_name, _new_name, _value| state.delete(old_name) }
-          # rubocop:disable Style/CombinableLoops -- NOT combinable: a swap
-          # (:a<->:b) needs every delete done before any write, or the first
-          # rename's write becomes the second rename's delete target — see
-          # this method's own comment above.
+          # NOT combinable (Style/CombinableLoops is disabled repo-wide, see
+          # .rubocop.yml, for exactly this reason): a swap (:a<->:b) needs
+          # every delete done before any write, or the first rename's write
+          # becomes the second rename's delete target — see this method's
+          # own comment above.
           snapshot.each { |_old_name, new_name, value| state[new_name] = value }
-          # rubocop:enable Style/CombinableLoops
         end
 
         def apply_drop(state, name)

@@ -55,10 +55,10 @@ module Hecks
         # is different — a record predating the `projects` declaration
         # is expected to be missing it until the rebuild sweep runs,
         # not a shape drift a translation needs to explain.
-        projected_fields: -> {
-          projected_fields.map { |field|
+        projected_fields: lambda {
+          projected_fields.map do |field|
             { name: field.name.to_s, reference: field.reference.to_s, remote_field: field.remote_field.to_s }
-          }
+          end
         },
         lifecycle:        one(:lifecycle),
         entities:         many(:entities),

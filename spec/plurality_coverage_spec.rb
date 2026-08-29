@@ -72,7 +72,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     "attaches_to" =>
                      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
                      "no golden IR fixture reaches it because Paging is a grammar " \
-                     "chapter, not a frozen corpus member.",
+                     "chapter, not a frozen corpus member."
 
     # EMPTY, and every entry that was here is now a corpus member instead.
     #
@@ -108,7 +108,7 @@ RSpec.describe "every list the language declares, filled more than once" do
       when Array then node.each { |held| walk.call(held) }
       end
     end
-    Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].sort.each do |file|
+    Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].each do |file|
       walk.call(JSON.parse(File.read(file)))
     end
     max
@@ -122,7 +122,13 @@ RSpec.describe "every list the language declares, filled more than once" do
     end
   end
 
-  it "fills every declared list with more than one, or names why it does not" do
+  # ONE classification pass, shared by the two examples below — each declared
+  # list is either unmeasurable (the wire carries no key for it at all) or
+  # measurable, and if measurable, either seen plural or "lonely" (never
+  # filled with more than one). Those are two independent claims about the
+  # SAME pass, not two halves of one scenario, so splitting them costs
+  # nothing real: each keeps its own full corpus walk, same as before.
+  let(:list_coverage) do
     maxima    = observed_maxima
     lonely    = []
     unmeasured = []
@@ -143,6 +149,12 @@ RSpec.describe "every list the language declares, filled more than once" do
       lonely << "#{category}.#{field}"
     end
 
+    { unmeasured: unmeasured, lonely: lonely }
+  end
+
+  it "names every declared list the wire does not carry under any name" do
+    unmeasured = list_coverage[:unmeasured]
+
     expect(unmeasured).to be_empty, <<~WHY
       The language declares these as lists and no golden carries a key by that
       name, so their plurality cannot be measured at all:
@@ -154,8 +166,10 @@ RSpec.describe "every list the language declares, filled more than once" do
       differently, which is a defect: add it to WIRE_SPELLING and read the note
       there about why the entry should not exist.
     WHY
+  end
 
-    unnamed = lonely.reject { |entry| ALLOWED_SINGLETON.key?(entry.split(".").last) }
+  it "fills every declared list with more than one, or names why it does not" do
+    unnamed = list_coverage[:lonely].reject { |entry| ALLOWED_SINGLETON.key?(entry.split(".").last) }
 
     expect(unnamed).to be_empty, <<~WHY
       These lists are declared by the language and never filled with more than one

@@ -25,12 +25,12 @@ RSpec.describe Hecks::Forms::App do
         Kernel.load(FORMS_BLUEBOOK)
         Hecks.hecksagon("Banking") do
           uses_framework "Governance"
-          ::Banking::Customer.persisted_by("Memory")
-          ::Banking::Account.persisted_by("Memory")
+          Banking::Customer.persisted_by("Memory")
+          Banking::Account.persisted_by("Memory")
         end
         Hecks.hecksagon("Governance") do
-          ::Governance::RoleAssignment.persisted_by("Memory")
-          ::Governance::RoleTransition.persisted_by("Memory")
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
         end
       end
       registry.verify!
@@ -188,7 +188,7 @@ RSpec.describe Hecks::Forms::App do
           end
 
           Hecks.hecksagon("ListQueryDomain") do
-            ::ListQueryDomain::Basket.persisted_by("Memory")
+            ListQueryDomain::Basket.persisted_by("Memory")
           end
         end
         registry.verify!
@@ -353,7 +353,7 @@ RSpec.describe Hecks::Forms::App do
   # link (a stray `&` smuggles a second query parameter, `#` truncates the
   # path at a fragment, etc). CustomerNumber's pattern permits all four.
   describe "a record id containing URL-syntax characters" do
-    MALICIOUS_ID = "a&b+c?d#e"
+    MALICIOUS_ID = "a&b+c?d#e".freeze
 
     def register_malicious
       post "/Banking/Customer/Register.html", "reference.value" => MALICIOUS_ID, "name.given" => "Ada",

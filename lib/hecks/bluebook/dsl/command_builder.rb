@@ -2,8 +2,13 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # The `command "Name" do ... end` receiver — collects a command's
+      # `role`/`goal`/`given`/`ensures`/`sets`/`emits`/`delegates_to`/
+      # `corrects` declarations, resolves implicit attributes a bare `sets
+      # :field` or `append:` self-reference imports from the owner
+      # (`#resolve_implicit_attributes!`), and builds the final `Command`.
       class CommandBuilder
-        GRAMMAR_CONTEXT = "Command"
+        GRAMMAR_CONTEXT = "Command".freeze
 
         include AttributeCollector
         include RuleReference
@@ -67,10 +72,12 @@ module Hecks
         # declares a role), so also named in
         # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
         def role_impl(value)
-          raise Malformed,
-                "#{@name} declares role twice — a command carries ONE " \
-                "responsibility; the second would silently win and the " \
-                "first would still look declared" if @role
+          if @role
+            raise Malformed,
+                  "#{@name} declares role twice — a command carries ONE " \
+                  "responsibility; the second would silently win and the " \
+                  "first would still look declared"
+          end
 
           @role = value
         end
@@ -104,7 +111,7 @@ module Hecks
           # one thing it exists to say. Transfer has said
           # `reference_to Account, as: :source` for as long as banking has existed;
           # this is the same sentence when the target happens to be the owner.
-          return cross_reference(demodulised, as, optional) if as || demodulised.to_s != @owner.to_s
+          return cross_reference(demodulised, as, optional: optional) if as || demodulised.to_s != @owner.to_s
 
           if @references
             raise Malformed,
@@ -118,7 +125,7 @@ module Hecks
 
         private
 
-        def cross_reference(target, as, optional = false)
+        def cross_reference(target, as, optional: false)
           attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
@@ -308,8 +315,8 @@ module Hecks
         # dedicated, `status: "deprecated"` Keyword row (syntax.bluebook)
         # rather than living only as `sets`'s own `was:` — see that
         # row's own comment for why.
-        def then_set_impl(target, positional_to = UNSET, **kwargs)
-          return legacy_then_set(target, positional_to, **kwargs) if MetaValidator.shadow_parsing?
+        def then_set_impl(target, positional_to = UNSET, **)
+          return legacy_then_set(target, positional_to, **) if MetaValidator.shadow_parsing?
 
           raise Malformed, "#{@name}'s then_set is gone — sets is the word now"
         end
@@ -563,8 +570,8 @@ module Hecks
           # it for an ordering accident this language has never required
           # authors to avoid. rubocop's Style/CombinableLoops can't see
           # that dependency — it only sees two `@mutations.each` calls
-          # back to back — so it's disabled here, not satisfied.
-          # rubocop:disable-next Style/CombinableLoops
+          # back to back — which is exactly why it's disabled repo-wide
+          # (see .rubocop.yml) rather than satisfied.
           @mutations.each { |mutation| refuse_unknown_argument_sources!(mutation) }
         end
 
@@ -674,6 +681,13 @@ module Hecks
         # the naive append; every OTHER field in the same hash did not,
         # caught by this codemod's own reboot-and-diff safety net rather
         # than silently landing wrong.
+        # `anchor` is a snapshot of `present`'s position, taken BEFORE
+        # `attributes.reject!` mutates the array below it — see this
+        # method's own header comment for why: a naive append-at-end
+        # silently scrambled real corpus field order (Keyword#was/
+        # Argument#variadic). Splitting the snapshot from the mutation it
+        # guards is exactly the ordering invariant that must not move.
+        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def resolve_append_fields!(mutation)
           return unless mutation.source.is_a?(Hash)
 
@@ -755,8 +769,8 @@ module Hecks
         # downstream read it — at dispatch (`MutationApplier#appended`),
         # at IR emission (`Mutation#appended_fields`), and in the
         # meta-validator's own Judge (`Readings#mutation_rows`). #138.
-        def normalize_append_source(op, source)
-          return source unless op == :append
+        def normalize_append_source(oper, source)
+          return source unless oper == :append
           return source if source.is_a?(::Hash)
 
           { value: source }

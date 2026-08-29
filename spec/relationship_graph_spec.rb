@@ -34,6 +34,10 @@ RSpec.describe "relationship graph validation" do
   # 2-node ring, which the OLD direct-pair-only check already caught.
   # Nothing proved the actual widening — a ring with a THIRD aggregate in
   # the middle — until this case.
+  # The whole point is the THIRD aggregate in the ring — a two-node fixture
+  # already exists elsewhere in the suite; splitting this one further would
+  # just shrink it back to the case that already existed before this ADR.
+  # rubocop:disable-next RSpec/ExampleLength
   it "refuses a reference ring three aggregates long, not just a direct pair" do
     expect do
       Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipRing3") do

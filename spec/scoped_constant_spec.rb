@@ -62,9 +62,9 @@ RSpec.describe "the scoped-constant bridge" do
     registry
   end
 
-  def with_declaration_resolver
+  def with_declaration_resolver(&block)
     resolver = ->(const) { ScopedConstant.for(const) }
-    Hecks::Bluebook::DSL::ConstShim.with(resolver) { yield }
+    Hecks::Bluebook::DSL::ConstShim.with(resolver, &block)
   end
 
   describe "ScopedConstant itself" do

@@ -111,9 +111,7 @@ module Hecks
           op = sign.positive? ? "increment" : "decrement"
           current ||= 0
 
-          if current.is_a?(Value) && amount.is_a?(Value)
-            return arithmetic_value_object(current, amount, target, sign, op)
-          end
+          return arithmetic_value_object(current, amount, target, sign, op) if current.is_a?(Value) && amount.is_a?(Value)
 
           # `current` genuinely absent (no declared default, never set) and
           # `amount` arrives VO-wrapped — a real command argument typed the
@@ -148,7 +146,7 @@ module Hecks
           current + (sign * amount)
         end
 
-        def arithmetic_value_object(current, amount, target, sign, op)
+        def arithmetic_value_object(current, amount, target, sign, oper)
           current_fields = current.to_h
           amount_fields  = amount.to_h
           # Widened from Integer to Numeric -- see #arithmetic's own
@@ -162,7 +160,7 @@ module Hecks
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: op, target: target)
+                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
           end
 
           field = shared_numeric.first
@@ -180,9 +178,9 @@ module Hecks
         # raise is not a real runtime path yet — it is the same
         # backstop one level down, in case a future caller reaches
         # #sign_of directly for an op that was never meant to have one.
-        def sign_of(op)
-          MUTATION_OPS.find { |candidate| candidate.name == op.to_s }&.sign ||
-            raise(WiringError, "no sign declared for mutation op #{op.inspect} — add one before calling #sign_of")
+        def sign_of(oper)
+          MUTATION_OPS.find { |candidate| candidate.name == oper.to_s }&.sign ||
+            raise(WiringError, "no sign declared for mutation op #{oper.inspect} — add one before calling #sign_of")
         end
 
         # Vendored addition, not (yet) upstream hecks (migration plan
@@ -196,7 +194,9 @@ module Hecks
           current ||= 0
 
           if current.is_a?(Value) && amount.is_a?(Value)
-            return combine_value_object(current, amount, target, "multiply") { |c, a| c * a }
+            return combine_value_object(current, amount, target, "multiply") do |c, a|
+              c * a
+            end
           end
 
           # Same absent-`current`, VO-wrapped-`amount` gap as `#arithmetic`
@@ -270,7 +270,7 @@ module Hecks
           fields[numeric_fields.first]
         end
 
-        def combine_value_object(current, amount, target, op)
+        def combine_value_object(current, amount, target, oper)
           current_fields = current.to_h
           amount_fields  = amount.to_h
           shared_numeric = current_fields.keys.select do |field|
@@ -278,7 +278,7 @@ module Hecks
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
-                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: op, target: target)
+                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: oper, target: target)
           end
 
           field = shared_numeric.first

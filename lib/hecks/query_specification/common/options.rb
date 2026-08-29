@@ -3,6 +3,12 @@ require_relative "null_semantics"
 module Hecks
   module QuerySpecification
     module Common
+      # The attribute set every query-shaped construct shares — wheres,
+      # ordering, paging, cursor, authorization, null semantics,
+      # inspection mode — plus `options_to_h`/`extra_options_to_h` for
+      # serializing it. Both Bluebook::Query and
+      # QuerySpecification::ReadModel::Specification subclass this
+      # rather than each declaring the same fields twice.
       class Options
         attr_reader :wheres, :order_by, :limit, :offset, :cursor,
                     :authorization, :null_semantics, :inspection
@@ -10,8 +16,14 @@ module Hecks
         def initialize(wheres: [], order_by: nil, limit: nil, offset: nil, cursor: nil,
                        authorization: nil,
                        inspection: nil, null_semantics: NullSemantics.default)
-          @wheres, @order_by, @limit, @offset, @cursor = wheres, order_by, limit, offset, cursor
-          @authorization, @null_semantics, @inspection = authorization, null_semantics, inspection
+          @wheres = wheres
+          @order_by = order_by
+          @limit = limit
+          @offset = offset
+          @cursor = cursor
+          @authorization = authorization
+          @null_semantics = null_semantics
+          @inspection = inspection
         end
 
         def options_to_h
@@ -21,10 +33,10 @@ module Hecks
         end
 
         def extra_options_to_h
-          options_to_h.reject { |key, value|
+          options_to_h.reject do |key, value|
             value.nil? || value == [] || (key == :null_semantics && value == { mode: "native" })
-          }
-                      .reject { |key, _| %i[wheres order_by limit].include?(key) }
+          end
+                      .except(:wheres, :order_by, :limit)
         end
       end
     end

@@ -26,7 +26,7 @@ module Hecks
           HTML
         end
         <<~HTML
-          <h2>#{Escape.html(name)}#{chapter.vision ? %( <span class="badge">#{Escape.html(chapter.vision)}</span>) : ''}</h2>
+          <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(chapter.vision)}</span>) if chapter.vision}</h2>
           <ul class="verb-list">#{items.join}</ul>
         HTML
       end

@@ -34,7 +34,7 @@ Kernel.load(File.expand_path("../bin/lint_deploy_recipes", __dir__))
 # into KNOWN_CLEAN_TARGETS below like every other target, and the CLI's
 # own "no arguments" test now expects a clean run. If this ever regresses
 # (the echo silently gets lost again), these assertions will fail.
-RSpec.describe "bin/lint_deploy_recipes", io: true do
+RSpec.describe "bin/lint_deploy_recipes", :io do
   def self.root = File.expand_path("..", __dir__)
 
   def self.lint(text, source: "fixture")
@@ -264,7 +264,8 @@ RSpec.describe "bin/lint_deploy_recipes", io: true do
     KNOWN_CLEAN_TARGETS = %w[mint-era scaffold-translation translation-audit migrate-console-settings rename-schema
                              sync-google-oauth deploy].freeze
 
-    it "finds zero violations in mint-era/scaffold-translation/translation-audit/migrate-console-settings/rename-schema for an own-RDS domain" do
+    it "finds zero violations in mint-era/scaffold-translation/translation-audit/migrate-console-settings/rename-schema " \
+       "for an own-RDS domain" do
       makefile = File.read(File.join(@own_dir, "Makefile"))
       violations = self.class.lint(makefile, source: "own").select { |v| KNOWN_CLEAN_TARGETS.include?(v.target) }
       expect(violations).to be_empty, violations.join("\n")

@@ -46,7 +46,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   # `count` is declared with NO default: -- a phantom field, genuinely
   # nil until the first mutation ever touches it.
-  MUTATION_VALUE_WRAP_SOURCE = <<~BLUEBOOK
+  MUTATION_VALUE_WRAP_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationValueWrapGrowth" do
       aggregate "Breaker" do
         identified_by :id
@@ -91,7 +91,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
 
   def boot_value_wrap
     boot(MUTATION_VALUE_WRAP_SOURCE, "MutationValueWrapGrowth") do
-      ::MutationValueWrapGrowth::Breaker.persisted_by("Memory")
+      MutationValueWrapGrowth::Breaker.persisted_by("Memory")
     end
   end
 

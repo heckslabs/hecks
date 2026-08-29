@@ -39,14 +39,24 @@ module Hecks
         # and Entity Keyword rows name it in `calls:`. Bootstrap-
         # reachable (every self-hosted aggregate/entity declares an
         # identity), so in BOOTSTRAP_CALLS_FALLBACK for both contexts.
+        # Dispatches across the three live forms documented above (value-
+        # object + block, single type target, single/compound field
+        # target), each an early return that sets exactly one pending
+        # ivar. Splitting per form would need each branch's own `return`-
+        # with-nil semantics and the shared `@name`/`identity_pool`
+        # threaded back out as parameters, for no gain beyond what the
+        # three-forms comment above already documents.
+        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         def identified_by_impl(*targets, as: nil, &definition)
           return legacy_identified_by(*targets, as: as, &definition) if MetaValidator.shadow_parsing?
 
           refuse_second_identity!
 
           if definition
-            raise Malformed,
-                  "#{@name}.identified_by cannot combine a value-object type with a block" unless targets.empty?
+            unless targets.empty?
+              raise Malformed,
+                    "#{@name}.identified_by cannot combine a value-object type with a block"
+            end
 
             type_name = identity_value_object_name
             value_object =
@@ -56,7 +66,7 @@ module Hecks
                   owner_value_objects: identity_pool,
                   &definition
                 )
-              rescue NameError => error
+              rescue NameError => e
                 # A REMOVED SPELLING MUST REFUSE LOUDLY, not degrade into a raw
                 # Ruby error — the one contract `EraGuard.shadow_parse` leans
                 # on to know a normal parse genuinely could not read this text
@@ -73,11 +83,9 @@ module Hecks
                 # precisely this text.
                 raise Malformed,
                       "#{@name}.identified_by do ... end could not be read as a value-object " \
-                      "definition: #{error.message}"
+                      "definition: #{e.message}"
               end
-            if value_object.attributes.empty?
-              raise Malformed, "#{@name}.identified_by do declares no identity attributes"
-            end
+            raise Malformed, "#{@name}.identified_by do declares no identity attributes" if value_object.attributes.empty?
 
             install_identity_value_object!(value_object)
             @identity_type_pending = [value_object, as || :identity, attributes.size]
@@ -93,8 +101,10 @@ module Hecks
 
           if targets.one?
             field = targets.first
-            raise Malformed,
-                  "#{@name}.identified_by takes no as: — name the declared field itself" if as
+            if as
+              raise Malformed,
+                    "#{@name}.identified_by takes no as: — name the declared field itself"
+            end
             # Transitional compatibility: the self-hosted language and live
             # corpus still contain this form. Keep it readable until their
             # exemplar-led migration is complete; the final lifecycle cutover
@@ -170,8 +180,10 @@ module Hecks
             if identity_type?(target)
               @identity_type_pending = [target, as, attributes.size]
             else
-              raise Malformed,
-                    "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+              if as
+                raise Malformed,
+                      "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject"
+              end
 
               @identity_field_pending = target
             end
@@ -180,7 +192,7 @@ module Hecks
 
           raise Malformed, "#{@name}.identified_by names no field" unless path
 
-          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
+          paths = Ports::Extraction.canonical(path).to_s.split.reject(&:empty?)
           raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
           @identity_paths = paths

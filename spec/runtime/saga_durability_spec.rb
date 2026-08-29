@@ -119,6 +119,12 @@ RSpec.describe "durable saga/process-manager state" do
   end
 
   describe "the saga_mutex (§7)" do
+    # A genuine 10-thread race proving the saga_mutex serializes
+    # begin_saga's check-then-set; deliberately boots its own Memory-
+    # backed registry (not the file's boot_wire, which is Sqlite-bound
+    # on purpose elsewhere) since the mutex claim doesn't depend on
+    # real I/O. Splitting would break the shared runtime the race needs.
+    # rubocop:disable-next RSpec/ExampleLength
     it "keeps two threads racing begin_saga on the SAME correlation from double-booking or losing a checkpoint" do
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do

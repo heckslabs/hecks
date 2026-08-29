@@ -52,10 +52,10 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an aggregate whose description says nothing" do
-    expect {
+    expect do
       @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v(""))
-    }
+    end
       .to raise_error(Hecks::Runtime::InvariantViolation, /a description says something/)
   end
 
@@ -67,10 +67,12 @@ RSpec.describe "the language's own rules" do
   # "attributes must use value-object types" is no longer a predicate — the
   # type IS a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
-    expect {
+    expect do
       @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
-                                                         with: { name: v("x"), type: "#{@aggregate_id}.Nonexistent", list: v("false") })
-    }
+                                                         with: { name: v("x"),
+                                                                 type: "#{@aggregate_id}.Nonexistent",
+                                                                 list: v("false") })
+    end
       .to raise_error(Hecks::Runtime::NotFound, /no ValueObject with/)
   end
 
@@ -105,10 +107,14 @@ RSpec.describe "the language's own rules" do
     end
 
     it "refuses a mutation with no target" do
-      expect {
+      expect do
         @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
-                                                      with: { target: v(""), op: v("set"), field: v(""), kind: v("literal"), source: v('"x"') })
-      }
+                                                      with: { target: v(""),
+                                                              op:     v("set"),
+                                                              field:  v(""),
+                                                              kind:   v("literal"),
+                                                              source: v('"x"') })
+      end
         .to raise_error(Hecks::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
@@ -124,10 +130,14 @@ RSpec.describe "the language's own rules" do
     # could only say "an op is one the runtime applies" and leave the reader to
     # find out which.
     it "refuses a mutation whose op the runtime does not apply" do
-      expect {
+      expect do
         @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
-                                                      with: { target: v("x"), op: v("frobnicate"), field: v(""), kind: v("literal"), source: v('"x"') })
-      }
+                                                      with: { target: v("x"),
+                                                              op:     v("frobnicate"),
+                                                              field:  v(""),
+                                                              kind:   v("literal"),
+                                                              source: v('"x"') })
+      end
         .to raise_error(Hecks::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 
@@ -292,7 +302,8 @@ RSpec.describe "the language's own rules" do
   # true.
   it "seals an aggregate that is fully declared" do
     value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
-    @runtime.dispatch("Bluebook::Aggregate.Attribute", to: @aggregate_id, with: { name: v("x"), type: value_object_id, list: v("false") })
+    @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
+                                                       with: { name: v("x"), type: value_object_id, list: v("false") })
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Seal", to: @aggregate_id) }.not_to raise_error
   end

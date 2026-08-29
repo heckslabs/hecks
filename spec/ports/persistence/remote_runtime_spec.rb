@@ -28,10 +28,10 @@ RSpec.describe Hecks::Ports::Persistence::RemoteRuntime do
   end
 
   it "Adapters::Lambda includes it — a real capability, not a name comparison" do
-    expect(Hecks::Adapters::Lambda <= described_class).to be(true)
+    expect(described_class >= Hecks::Adapters::Lambda).to be(true)
   end
 
   it "a local adapter (Postgres) does not include it" do
-    expect(Hecks::Adapters::Postgres <= described_class).to be_falsy
+    expect(described_class >= Hecks::Adapters::Postgres).to be_falsy
   end
 end

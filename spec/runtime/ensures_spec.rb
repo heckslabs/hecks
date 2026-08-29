@@ -21,6 +21,14 @@ RSpec.describe "a command's ensures" do
   # A scratch domain, not a corpus fixture — one command whose postcondition
   # holds, one whose does not, so the failing path is provoked on purpose
   # rather than hoped for out of a real domain's correct arithmetic.
+  # A declarative bluebook fixture, not procedural code — one aggregate
+  # declared start to finish so the reader sees the whole scratch domain
+  # in one place, the same way every other `.bluebook`-shaped fixture in
+  # this suite is written. Splitting it across methods would just spread
+  # one DSL block over several call sites with no branching logic to
+  # actually simplify.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def vault
     boot do
       vision "A box that only ever grows, or refuses to have grown wrong."
@@ -136,6 +144,11 @@ RSpec.describe "a command's ensures" do
   # would still leave the in-memory record mutated. These two specs are
   # that bug, pinned so it cannot come back quietly.
   describe "an aliasing bug ensures was the first feature to expose" do
+    # Same shape as `vault` above, for the same reason (see its own
+    # comment) — one declarative bluebook fixture, this time covering
+    # both the aggregate and entity aliasing paths in one scratch domain.
+    # rubocop:disable-next Metrics/AbcSize
+    # rubocop:disable-next Metrics/MethodLength
     def coin
       boot("Coin") do
         vision "One coin, and a purse of coins — the aggregate case and the entity case."

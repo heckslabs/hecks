@@ -13,7 +13,7 @@ module Hecks
     # way `Authorization#holds_role?` answering `false` decides nothing
     # on its own.
     module IdentityResolution
-      NAME = "identity_resolution"
+      NAME = "identity_resolution".freeze
 
       module_function
 

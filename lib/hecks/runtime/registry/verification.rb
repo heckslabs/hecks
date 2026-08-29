@@ -61,10 +61,10 @@ module Hecks
           )
           adapter_class(name)
           self
-        rescue WiringError => error
+        rescue WiringError => e
           raise WiringError,
                 "the default persistence adapter (#{name}) is not usable, so an " \
-                "aggregate with no bind could not be given one: #{error.message}"
+                "aggregate with no bind could not be given one: #{e.message}"
         end
 
         def check_verb(bind)

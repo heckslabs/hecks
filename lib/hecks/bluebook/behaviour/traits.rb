@@ -29,7 +29,7 @@ module Hecks
       # readers that need all of them ask for `identity_heads`.
       module Identified
         def derive_identity
-          @identity_paths = Array(@identified_by).map { |path| path.to_s }.reject(&:empty?)
+          @identity_paths = Array(@identified_by).map(&:to_s).reject(&:empty?)
           @identity_heads = @identity_paths.map { |path| path.split(".").first.to_sym }.uniq
           @identified_by  = @identity_heads.size == 1 ? @identity_heads.first : nil
         end

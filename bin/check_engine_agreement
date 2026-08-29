@@ -92,7 +92,7 @@ ENGINE_FILES = {
   "reference interpreter (entity/sub-list queries, no-native-hook fallback)" => "lib/hecks/runtime/query_interpreter.rb"
 }.freeze
 
-SHARED_COMPARISON_FILE = "lib/hecks/query_specification/common/comparison.rb"
+SHARED_COMPARISON_FILE = "lib/hecks/query_specification/common/comparison.rb".freeze
 
 # THE CROSS-ENGINE AGREEMENT SUITE. `spec/adapters/query_agreement_spec.rb`
 # is the primary one — self-contained (every query it asks is declared

@@ -49,6 +49,11 @@ RSpec.describe Hecks::Runtime::Dispatcher do
       expect(dispatcher.reaction_depth_reached?).to be(false)
     end
 
+    # A genuine two-thread race, with Queue-based handshakes pinning the
+    # exact interleaving needed to prove thread isolation of reaction
+    # depth; splitting would break the very synchronization the test
+    # depends on to reproduce the race deterministically.
+    # rubocop:disable-next RSpec/ExampleLength
     it "does not let one thread's unrelated top-level dispatch corrupt another thread's in-flight reaction depth" do
       dispatcher = bare_dispatcher
 

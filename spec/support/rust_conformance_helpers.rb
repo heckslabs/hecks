@@ -121,7 +121,7 @@ module RustConformanceHelpers
   # rust_conformance_spec.rb's own "a named/declared query step whose
   # shape this generator doesn't cover still refuses cleanly" example
   # verbatim.
-  STRUCTURAL_REFUSAL_MARKER = "is not generated for this domain"
+  STRUCTURAL_REFUSAL_MARKER = "is not generated for this domain".freeze
 
   def structural_refusal_gap?(entry)
     (entry["error"] || "").include?(STRUCTURAL_REFUSAL_MARKER)

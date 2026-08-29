@@ -75,9 +75,9 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    expect {
+    expect do
       runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b2", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
-    }.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
   it "persists nothing from a refused delegation — the failed attempt leaves the piece exactly where it was" do

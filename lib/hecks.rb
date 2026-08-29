@@ -34,12 +34,16 @@ require_relative "hecks/storehouse"
 require_relative "hecks/framework"
 require_relative "hecks/embryonaut_bluebook"
 
+# The root namespace and public facade of the whole DSL/runtime: `Hecks.boot`/
+# `.boot_files` assemble a running domain from `.bluebook`/`.hecksagon`/
+# `.world` files, and `.bluebook`/`.hecksagon`/`.port`/`.adapter`/`.world`/
+# `.data_translation` are the top-level declaration words every such file
+# opens with, each collecting its built construct into the currently booting
+# Registry (`#collect`, private below).
 module Hecks
   class LoadOutsideBoot < StandardError; end
 
   class << self
-    attr_reader :current_registry
-
     # The loading words below collect into the registry the RUNTIME is
     # holding open ; booting and that ambient state belong to the runtime
     # layer, so this module is their facade and Hecks::Runtime is where
@@ -73,7 +77,7 @@ module Hecks
       Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
     end
 
-    def with_registry(registry, &block) = Runtime.with_registry(registry, &block)
+    def with_registry(registry, &) = Runtime.with_registry(registry, &)
 
     def current_registry = Runtime.current_registry
 
@@ -91,15 +95,15 @@ module Hecks
     #
     # `as_of` and `scope` are OPTIONAL too, same shape — see
     # `Runtime.as_caller`'s own header for what each does.
-    def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &block)
-      Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &block)
+    def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &)
+      Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
     end
 
-    def bluebook(name, version: nil, &block)
-      collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
+    def bluebook(name, version: nil, &)
+      collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &))
     end
 
-    def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
+    def hecksagon(name, &) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &))
     # REPOINTED TO DomainPortBuilder — the migration DomainPort's own
     # class comment names as its goal, now landed for the top-level
     # `.port` file callers too (the aggregate-scoped `Thing.port(...)`,
@@ -120,12 +124,12 @@ module Hecks
     # (`BindingProxy#port`, `HecksagonBuilder#port_impl`) — only this,
     # the literal top-level `.port` file entry point, keeps the older,
     # looser rule (see `DomainPortBuilder#initialize`'s own comment).
-    def port(name, &block) = collect(:add_port, Bluebook::DSL::DomainPortBuilder.build(name, legacy_bare_port: true, &block))
-    def adapter(name, &block)   = collect(:add_adapter, Bluebook::DSL::AdapterBuilder.build(name, &block))
-    def world(name, &block)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &block))
+    def port(name, &) = collect(:add_port, Bluebook::DSL::DomainPortBuilder.build(name, legacy_bare_port: true, &))
+    def adapter(name, &)   = collect(:add_adapter, Bluebook::DSL::AdapterBuilder.build(name, &))
+    def world(name, &)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &))
 
-    def data_translation(name, from:, to:, &block)
-      collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &block))
+    def data_translation(name, from:, to:, &)
+      collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &))
     end
 
     private

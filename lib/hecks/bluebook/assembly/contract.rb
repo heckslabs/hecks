@@ -1,5 +1,9 @@
 module Hecks
   module Bluebook
+    # The rulebook translating between the language's own declarations and the
+    # IR objects `Build`/`Reconstruction` produce from them — the `Contract`
+    # struct format itself (this file) plus, reopened in contracts.rb, the
+    # `CONTRACTS` table of one `Contract` per construct category.
     class Assembly
       # WHAT A CONSTRUCT NEEDS THAT THE LANGUAGE CANNOT SAY, and how a claim that a
       # field needs no assembling is CHECKED.
@@ -78,7 +82,7 @@ module Hecks
         end
 
         def answers?(method)
-          make == :declare ? holder.respond_to?(method) : holder.instance_methods.include?(method)
+          make == :declare ? holder.respond_to?(method) : holder.method_defined?(method)
         end
 
         def accepts?(keyword)

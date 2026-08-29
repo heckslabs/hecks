@@ -2,6 +2,12 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # Owner-only schema bootstrap: creates the lineage tables
+        # (`hecks_eras`, `hecks_era_texts`, `hecks_approvals`, the
+        # partitioned journal), sets up its RLS fence, bridges a renamed
+        # domain's history (`rename_domain!`), and attaches each era's
+        # journal partition (`ensure_partition!`) — the build-then-ATTACH
+        # dance that keeps a mint from stopping every writer.
         module Provisioning
           # Provisioning is the OWNER's job, and a deployment's app role is
           # deliberately not the owner — it may append and read, and it
@@ -13,6 +19,15 @@ module Hecks
           # grant_era! exists to constrain could never finish booting
           # ("must be owner of table hecks_eras"). A fence nothing can
           # reach is not a fence.
+          # One bootstrap sequence of DDL, order-dependent throughout —
+          # every guarded ALTER (RLS, REVOKE) is guarded and placed
+          # exactly where it is for measured, documented reasons (see the
+          # inline comments on each: catalog-lock avoidance, RLS timing,
+          # FORCE semantics). Splitting this into smaller methods would
+          # only hide that single ordered sequence behind several call
+          # sites, with nothing gained — each statement already reads as
+          # one step, and the length here is DDL, not branching logic.
+          # rubocop:disable-next Metrics/MethodLength
           def ensure_base!
             rename_domain! if @formerly_known_as
             return unless provisioner?
@@ -183,6 +198,16 @@ module Hecks
           # Anything else (no rows under either name) falls through
           # harmlessly — `formerly_known_as` pointing at a name with no
           # held history is not an error, just inert.
+          # One transactional migration, whose own comment above spells
+          # out a three-way precheck and a FIXED lock-acquisition order
+          # (old before new, eras before ordinal) chosen specifically to
+          # avoid a deadlock against a concurrent rename/mint/write.
+          # Splitting this would separate the precheck from the locking
+          # from the renames from the commit/rollback handling — each a
+          # piece of ONE transaction that must stay in this exact order
+          # or the deadlock-avoidance guarantee stops holding.
+          # rubocop:disable-next Metrics/AbcSize
+          # rubocop:disable-next Metrics/MethodLength
           def rename_domain!
             return unless @db.exec_params("SELECT to_regclass($1)", ["hecks_eras"])[0]["to_regclass"]
             return if @db.exec_params(
@@ -236,17 +261,30 @@ module Hecks
             # ensure_base! at all — only lazily, on first reattest! — so a
             # domain that never needed one must not be forced through an
             # UPDATE against a table that doesn't exist.
-            @db.exec_params("UPDATE hecks_attestations SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as]) if @db.exec_params("SELECT to_regclass($1)", ["hecks_attestations"])[0]["to_regclass"]
+            if @db.exec_params(
+              "SELECT to_regclass($1)", ["hecks_attestations"]
+            )[0]["to_regclass"]
+              @db.exec_params("UPDATE hecks_attestations SET domain = $1 WHERE domain = $2",
+                              [@domain, @formerly_known_as])
+            end
 
             @db.exec("COMMIT")
           rescue PG::LockNotAvailable
-            @db.exec("ROLLBACK") rescue nil
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
             raise Runtime::WiringError,
                   "cannot rename #{@formerly_known_as} to #{@domain}: another rename, mint, or write holds " \
                   "one of the domain locks — waited 10s; try again shortly"
-          rescue PG::Error => error
-            @db.exec("ROLLBACK") rescue nil
-            raise Runtime::WiringError, "cannot rename #{@formerly_known_as} to #{@domain}: #{error.message.strip}"
+          rescue PG::Error => e
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
+            raise Runtime::WiringError, "cannot rename #{@formerly_known_as} to #{@domain}: #{e.message.strip}"
           end
 
           # Nothing provisioned yet — build it. Provisioned and owned —

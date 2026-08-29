@@ -63,6 +63,15 @@ module Hecks
       # characters "(?=" and says nothing about lookahead — which is why this
       # steps over each backslash pair rather than matching the pattern as a
       # whole.
+      # One character walk is the subset's DEFINITION (see the method
+      # comment above): each construct-check is a branch in a single
+      # ordered pass sharing `index`/`in_class`/`class_start`. Splitting
+      # the branches into separate methods would force those three cursor
+      # variables to thread as parameters/return values between them,
+      # turning "the subset is this walk" into "the subset is these
+      # methods agreeing about a shared cursor" — exactly what the walk's
+      # own comment says a cleverer spelling would obscure.
+      # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def validate(pattern)
         chars = pattern.to_s.chars
         index = 0

@@ -8,6 +8,16 @@ require_relative "saga_pending_dispatch"
 
 module Hecks
   module Runtime
+    # Runs one domain's `process_manager` (saga) declarations against a
+    # just-emitted event: begins a new correlated instance on its
+    # starts_on event, advances a matching handler's state and dispatches
+    # its declared commands, and ends/deletes the instance on ends_on.
+    # Each state transition is checkpointed (durably, via
+    # saga_persistence) before its dispatches run, and a leg that is
+    # refused, hits the reaction-depth ceiling, or crashes past
+    # MAX_DEFECT_RETRIES unwinds through the saga's own `on :refused`
+    # handler and completed-compensation ledger rather than leaving the
+    # instance stuck mid-cascade.
     class SagaInterpreter
       include Correlation
 
@@ -32,10 +42,10 @@ module Hecks
         bluebook = @registry.bluebook(domain)
         return unless bluebook
 
-        bluebook.process_managers.each do |pm|
-          begin_saga(pm, event, domain)
-          advance_saga(pm, event, domain)
-          end_saga(pm, event, domain)
+        bluebook.process_managers.each do |process_manager|
+          begin_saga(process_manager, event, domain)
+          advance_saga(process_manager, event, domain)
+          end_saga(process_manager, event, domain)
         end
       end
 
@@ -63,11 +73,11 @@ module Hecks
       # what it always did. The marker exists ONLY in the persisted
       # blob, and only for as long as a dispatch cascade is genuinely
       # in flight for this instance.
-      def checkpoint(pm, correlation, instance, domain, pending: nil)
+      def checkpoint(process_manager, correlation, instance, domain, pending: nil)
         memory = deep_copy(instance[:memory])
         memory[SAGA_PENDING_DISPATCH_KEY] = pending if pending
         @registry.saga_persistence(domain).save_saga(
-          process_manager: pm.name, correlation: correlation,
+          process_manager: process_manager.name, correlation: correlation,
           state: instance[:state], memory: memory,
           completed_compensations: deep_copy_array(instance[:completed_compensations])
         )
@@ -84,18 +94,18 @@ module Hecks
 
       def deep_copy(hash) = JSON.parse(JSON.generate(hash), symbolize_names: true)
 
-      def begin_saga(pm, event, domain)
-        return unless event.name == pm.starts_on
+      def begin_saga(process_manager, event, domain)
+        return unless event.name == process_manager.starts_on
 
-        correlation = saga_correlation(pm, event)
+        correlation = saga_correlation(process_manager, event)
         if correlation.to_s.empty?
-          @registry.saga_log << { process_manager: pm.name, on: event.name,
-                                  born: false, reason: "no #{pm.correlates_by} in the payload" }
+          @registry.saga_log << { process_manager: process_manager.name, on: event.name,
+                                  born: false, reason: "no #{process_manager.correlates_by} in the payload" }
           return
         end
 
         created = @registry.saga_mutex.synchronize do
-          next false if @registry.saga_instances[pm.name].key?(correlation)
+          next false if @registry.saga_instances[process_manager.name].key?(correlation)
 
           # `.dup`, NOT THE SAME OBJECT — a fresh saga's own memory starts
           # as a COPY of the starting event's own payload, never the
@@ -113,15 +123,15 @@ module Hecks
           # still matters: it is what makes the saga's own memory a
           # normal, writable Hash of its own, rather than one write away
           # from crashing every future in-place `remember`.
-          instance = { state: pm.states.first, memory: event.payload.dup, completed_compensations: [] }
-          @registry.saga_instances[pm.name][correlation] = instance
-          checkpoint(pm, correlation, instance, domain)
+          instance = { state: process_manager.states.first, memory: event.payload.dup, completed_compensations: [] }
+          @registry.saga_instances[process_manager.name][correlation] = instance
+          checkpoint(process_manager, correlation, instance, domain)
           true
         end
         return unless created
 
-        @registry.saga_log << { process_manager: pm.name, on: event.name,
-                                instance: correlation, born: true, state: pm.states.first }
+        @registry.saga_log << { process_manager: process_manager.name, on: event.name,
+                                instance: correlation, born: true, state: process_manager.states.first }
       end
 
       # THE MUTEX COVERS ONLY THE STATE-CHECK-AND-MUTATE-AND-CHECKPOINT
@@ -131,19 +141,19 @@ module Hecks
       # or itself again) on the SAME thread, and `Mutex` is not
       # reentrant: holding it across that call would deadlock the
       # thread against itself the moment any real chain did that.
-      def advance_saga(pm, event, domain)
-        handler = pm.handler_for(event.name)
+      def advance_saga(process_manager, event, domain)
+        handler = process_manager.handler_for(event.name)
         return unless handler
 
-        correlation = saga_correlation(pm, event)
+        correlation = saga_correlation(process_manager, event)
         return if correlation.to_s.empty?
 
-        record    = { process_manager: pm.name, on: event.name, instance: correlation }
+        record    = { process_manager: process_manager.name, on: event.name, instance: correlation }
         instance  = nil
         pre_state = nil
 
         advanced = @registry.saga_mutex.synchronize do
-          instance = @registry.saga_instances[pm.name][correlation]
+          instance = @registry.saga_instances[process_manager.name][correlation]
           unless instance
             @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
             next false
@@ -156,13 +166,13 @@ module Hecks
 
           pre_state = instance[:state]
           instance[:state] = handler.to_state
-          checkpoint(pm, correlation, instance, domain,
+          checkpoint(process_manager, correlation, instance, domain,
                      pending: pending_marker(event, handler, pre_state, instance[:state]))
           true
         end
         return unless advanced
 
-        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state)
+        settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state)
       end
 
       def pending_marker(event, handler, from_state, to_state)
@@ -175,13 +185,14 @@ module Hecks
       # instance at all", `unwind`'s doesn't), then this: log the real
       # observed transition, run the leg's dispatches, and clear the
       # pending marker once that cascade — however it ended — is done.
-      def settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state, drain_compensations: false)
+      def settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state,
+                            drain_compensations: false)
         # `from:`/`to:` are the INSTANCE'S OWN real pre/post state — read
         # back from `instance` itself, never re-derived from `handler.
         # from_state`/`handler.to_state` a second time. `Properties.saga_
         # advances_follow_declared_handlers` (fuzzing/properties.rb) builds
         # its OWN "declared edges" list from this SAME handler object (via
-        # `pm.handlers`), so a log entry that just echoed `handler.
+        # `process_manager.handlers`), so a log entry that just echoed `handler.
         # from_state`/`handler.to_state` back could never disagree with
         # that list no matter what the runtime actually did — the entry
         # and the thing it's checked against would be the identical fact,
@@ -205,12 +216,12 @@ module Hecks
         # construction too, not only by the state guard.
         if drain_compensations
           compensations = instance[:completed_compensations] || []
-          deliver_derived_compensation(pm, compensations.pop, correlation, domain) until compensations.empty?
-          checkpoint(pm, correlation, instance, domain)
+          deliver_derived_compensation(process_manager, compensations.pop, correlation, domain) until compensations.empty?
+          checkpoint(process_manager, correlation, instance, domain)
         end
 
         handler.dispatches.each do |spec|
-          deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
+          deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
         end
 
         # THE CLEAR — guarded by the SAME identity check `end_saga`'s own
@@ -231,15 +242,29 @@ module Hecks
         # now, so this is not the reentrancy hazard `advance_saga`'s own
         # comment warns about.
         @registry.saga_mutex.synchronize do
-          next unless @registry.saga_instances[pm.name][correlation].equal?(instance)
+          next unless @registry.saga_instances[process_manager.name][correlation].equal?(instance)
 
-          checkpoint(pm, correlation, instance, domain, pending: nil)
+          checkpoint(process_manager, correlation, instance, domain, pending: nil)
         end
       end
 
-      def deliver_saga_dispatch(pm, spec, event, instance, correlation, domain)
-        args   = dispatch_args(pm, spec, event, instance, correlation)
-        record = { process_manager: pm.name, instance: correlation, dispatch: spec.command_name }
+      # ONE ORDERED SEQUENCE — speculative compensation-recording BEFORE
+      # `@door.reenter` (so a NESTED refusal from inside that reentrant
+      # call can still see this leg's own pending compensation; see the
+      # comment on that line for the real, previously-shipped bug this
+      # ordering fixes), then the reentrant dispatch itself, then one of
+      # three rescue paths that each roll back or retry state the `begin`
+      # above set up. Splitting this would mean threading `attempt`/
+      # `compensation_recorded` across method boundaries as mutable
+      # state shared between a call and its own rescue clauses — exactly
+      # the kind of split that lets a future editor silently break the
+      # "recorded before reenter" ordering without any single method
+      # looking wrong.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/MethodLength
+      def deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
+        args   = dispatch_args(process_manager, spec, event, instance, correlation)
+        record = { process_manager: process_manager.name, instance: correlation, dispatch: spec.command_name }
 
         # THE RAW INPUTS `args` WAS RESOLVED FROM, captured alongside the
         # result — never re-derived from history[:saga_instances] later
@@ -251,8 +276,9 @@ module Hecks
         # no givens/from is skipped by lifecycle_guard_and_given_
         # violations_are_refused.
         unless spec.with_spec.to_a.empty?
-          @registry.saga_dispatch_log << { process_manager: pm.name, instance: correlation, dispatch: spec.command_name,
-                                            on: event.name, correlation_head: pm.correlation_head,
+          @registry.saga_dispatch_log << { process_manager: process_manager.name, instance: correlation,
+                                            dispatch: spec.command_name, on: event.name,
+                                            correlation_head: process_manager.correlation_head,
                                             event_payload: event.payload, memory: Value.materialize(instance[:memory]),
                                             with_spec: spec.with_spec, args: args }
         end
@@ -270,7 +296,7 @@ module Hecks
           # past `from_state`.
           @registry.saga_log << record.merge(delivered: false,
                                              reason:    "reaction depth #{@door.max_reaction_depth} reached")
-          unwind(pm, event, instance, correlation, domain)
+          unwind(process_manager, event, instance, correlation, domain)
           return
         end
 
@@ -292,9 +318,9 @@ module Hecks
           # one that failed — never left recorded for a refusal that
           # was never this leg's own to compensate.
           if spec.compensates && !compensation_recorded
-            resolved = dispatch_args(pm, spec.compensates, event, instance, correlation)
+            resolved = dispatch_args(process_manager, spec.compensates, event, instance, correlation)
             instance[:completed_compensations] << { command_name: spec.compensates.command_name, args: resolved }
-            checkpoint(pm, correlation, instance, domain)
+            checkpoint(process_manager, correlation, instance, domain)
             compensation_recorded = true
           end
 
@@ -303,23 +329,23 @@ module Hecks
             verb:            qualified(spec.command_name, domain),
             projected:       args,
             explicit:        ReactionInvocation.projection_declared?(spec),
-            passthrough:     [pm.correlation_head],
+            passthrough:     [process_manager.correlation_head],
             source_receiver: { aggregate: event.aggregate, identity: event.id }
           )
           @door.reenter(qualified(spec.command_name, domain),
-                        saga_correlation: { pm.correlation_head.to_s => correlation }, **invocation)
+                        saga_correlation: { process_manager.correlation_head.to_s => correlation }, **invocation)
           @registry.saga_log << record.merge(delivered: true)
-        rescue *DOMAIN_REFUSALS => error
-          unrecord_compensation(instance, correlation, domain, pm) if compensation_recorded
+        rescue *DOMAIN_REFUSALS => e
+          unrecord_compensation(instance, correlation, domain, process_manager) if compensation_recorded
           # Same rule as the policy interpreter : a refusal by the target is
           # a recorded outcome, and the leg that raised it UNWINDS — see
           # `unwind`'s own comment for why the procedure runs its
           # compensation here rather than leaving the money (or whatever
           # else a leg moved) sitting out.
-          @registry.saga_log << record.merge(delivered: false, reason: error.message)
-          unwind(pm, event, instance, correlation, domain)
-        rescue StandardError => error
-          unrecord_compensation(instance, correlation, domain, pm) if compensation_recorded
+          @registry.saga_log << record.merge(delivered: false, reason: e.message)
+          unwind(process_manager, event, instance, correlation, domain)
+        rescue StandardError => e
+          unrecord_compensation(instance, correlation, domain, process_manager) if compensation_recorded
           compensation_recorded = false
           # A DEFECT, not a refusal — see PolicyInterpreter#deliver's own
           # comment for the full reasoning: the same DOMAIN_REFUSALS split,
@@ -342,17 +368,17 @@ module Hecks
           # tag is for.
           attempt += 1
           if attempt <= MAX_DEFECT_RETRIES
-            @registry.saga_log << record.merge(delivered: false, reason: error.message,
-                                               defect: true, error_class: error.class.name,
+            @registry.saga_log << record.merge(delivered: false, reason: e.message,
+                                               defect: true, error_class: e.class.name,
                                                attempt: attempt, retrying: true)
             retry
           end
 
-          warn "[hecks] defect in saga #{pm.name} — instance #{correlation.inspect} " \
-               "dispatching #{spec.command_name} after #{attempt} attempts: #{error.class}: #{error.message}"
-          @registry.saga_log << record.merge(delivered: false, reason: error.message, defect: true,
-                                             error_class: error.class.name, defect_compensated: true)
-          unwind(pm, event, instance, correlation, domain)
+          warn "[hecks] defect in saga #{process_manager.name} — instance #{correlation.inspect} " \
+               "dispatching #{spec.command_name} after #{attempt} attempts: #{e.class}: #{e.message}"
+          @registry.saga_log << record.merge(delivered: false, reason: e.message, defect: true,
+                                             error_class: e.class.name, defect_compensated: true)
+          unwind(process_manager, event, instance, correlation, domain)
         end
       end
 
@@ -367,9 +393,9 @@ module Hecks
       # push and this leg's own return, and a nested refusal that
       # consumed it already popped it itself — this rollback only ever
       # runs for THIS leg's own, still-present entry).
-      def unrecord_compensation(instance, correlation, domain, pm)
+      def unrecord_compensation(instance, correlation, domain, process_manager)
         instance[:completed_compensations].pop
-        checkpoint(pm, correlation, instance, domain)
+        checkpoint(process_manager, correlation, instance, domain)
       end
 
       # A refused leg UNWINDS — the procedure runs the leg declared `on :refused`,
@@ -388,11 +414,11 @@ module Hecks
       # flag to stop it: the state moves to the compensating leg's to_state BEFORE
       # its dispatches run, so a second refusal finds the instance no longer in
       # from_state and records that instead. The check is the guard.
-      def unwind(pm, event, instance, correlation, domain)
-        handler = pm.handler_for(REFUSED)
+      def unwind(process_manager, event, instance, correlation, domain)
+        handler = process_manager.handler_for(REFUSED)
         return unless handler && instance
 
-        record    = { process_manager: pm.name, on: REFUSED, instance: correlation }
+        record    = { process_manager: process_manager.name, on: REFUSED, instance: correlation }
         pre_state = nil
 
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
@@ -406,7 +432,7 @@ module Hecks
 
           pre_state = instance[:state]
           instance[:state] = handler.to_state
-          checkpoint(pm, correlation, instance, domain,
+          checkpoint(process_manager, correlation, instance, domain,
                      pending: pending_marker(event, handler, pre_state, instance[:state]))
           true
         end
@@ -419,7 +445,7 @@ module Hecks
         # `drain_compensations: true` — only `unwind`'s own call site
         # fires derived compensation; `advance_saga`'s own call never
         # does.
-        settle_transition(pm, event, handler, instance, correlation, domain, record, pre_state,
+        settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state,
                           drain_compensations: true)
       end
 
@@ -434,8 +460,8 @@ module Hecks
       # distinctly in the log instead of recording it identically to an
       # ordinary failed delivery, and every OTHER completed compensation
       # still queued still gets its own attempt.
-      def deliver_derived_compensation(pm, entry, correlation, domain)
-        record = { process_manager: pm.name, instance: correlation, dispatch: entry[:command_name] }
+      def deliver_derived_compensation(process_manager, entry, correlation, domain)
+        record = { process_manager: process_manager.name, instance: correlation, dispatch: entry[:command_name] }
 
         attempt = 0
         begin
@@ -444,36 +470,36 @@ module Hecks
             verb:            qualified(entry[:command_name], domain),
             projected:       entry[:args],
             explicit:        true,
-            passthrough:     [pm.correlation_head],
+            passthrough:     [process_manager.correlation_head],
             source_receiver: nil
           )
           @door.reenter(qualified(entry[:command_name], domain),
-                        saga_correlation: { pm.correlation_head.to_s => correlation }, **invocation)
+                        saga_correlation: { process_manager.correlation_head.to_s => correlation }, **invocation)
           @registry.saga_log << record.merge(delivered: true, compensation: true)
-        rescue *DOMAIN_REFUSALS => error
-          @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true, compensation_failed: true)
-        rescue StandardError => error
+        rescue *DOMAIN_REFUSALS => e
+          @registry.saga_log << record.merge(delivered: false, reason: e.message, compensation: true, compensation_failed: true)
+        rescue StandardError => e
           attempt += 1
           if attempt <= MAX_DEFECT_RETRIES
-            @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true,
-                                               defect: true, error_class: error.class.name,
+            @registry.saga_log << record.merge(delivered: false, reason: e.message, compensation: true,
+                                               defect: true, error_class: e.class.name,
                                                attempt: attempt, retrying: true)
             retry
           end
 
-          warn "[hecks] defect compensating saga #{pm.name} — instance #{correlation.inspect} " \
-               "dispatching #{entry[:command_name]} after #{attempt} attempts: #{error.class}: #{error.message}"
-          @registry.saga_log << record.merge(delivered: false, reason: error.message, compensation: true,
-                                             defect: true, error_class: error.class.name, compensation_failed: true)
+          warn "[hecks] defect compensating saga #{process_manager.name} — instance #{correlation.inspect} " \
+               "dispatching #{entry[:command_name]} after #{attempt} attempts: #{e.class}: #{e.message}"
+          @registry.saga_log << record.merge(delivered: false, reason: e.message, compensation: true,
+                                             defect: true, error_class: e.class.name, compensation_failed: true)
         end
       end
 
-      def dispatch_args(pm, spec, event, instance, correlation)
+      def dispatch_args(process_manager, spec, event, instance, correlation)
         ReactionInvocation.resolve_mapping(
           with_spec: spec.with_spec,
           scopes:    [["current event payload", event.payload], ["opening event memory", instance[:memory]]],
-          bindings:  { pm.correlation_head => correlation },
-          label:     "#{pm.name}'s dispatch #{spec.command_name}"
+          bindings:  { process_manager.correlation_head => correlation },
+          label:     "#{process_manager.name}'s dispatch #{spec.command_name}"
         )
       end
 
@@ -481,21 +507,21 @@ module Hecks
         command_name.include?("::") ? command_name : "#{domain}::#{command_name}"
       end
 
-      def end_saga(pm, event, domain)
-        return unless event.name == pm.ends_on
+      def end_saga(process_manager, event, domain)
+        return unless event.name == process_manager.ends_on
 
-        correlation = saga_correlation(pm, event)
+        correlation = saga_correlation(process_manager, event)
         return if correlation.to_s.empty?
 
         ended = @registry.saga_mutex.synchronize do
-          next false unless @registry.saga_instances[pm.name].delete(correlation)
+          next false unless @registry.saga_instances[process_manager.name].delete(correlation)
 
-          @registry.saga_persistence(domain).delete_saga(process_manager: pm.name, correlation: correlation)
+          @registry.saga_persistence(domain).delete_saga(process_manager: process_manager.name, correlation: correlation)
           true
         end
         return unless ended
 
-        @registry.saga_log << { process_manager: pm.name, on: event.name,
+        @registry.saga_log << { process_manager: process_manager.name, on: event.name,
                                 instance: correlation, ended: true }
       end
     end

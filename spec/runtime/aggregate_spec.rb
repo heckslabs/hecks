@@ -46,7 +46,8 @@ RSpec.describe "a constructed aggregate" do
     end
 
     it "returns self, so commands chain" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
                    .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
                    .add_topping!(topping: { value: "Olive" }, amount: { value: 2 })
                    .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
@@ -70,7 +71,8 @@ RSpec.describe "a constructed aggregate" do
     end
 
     it "reports the events one instance announced" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
                    .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
                    .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
 

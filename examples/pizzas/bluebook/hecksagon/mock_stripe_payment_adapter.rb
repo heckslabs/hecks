@@ -32,7 +32,7 @@ RUNTIME = Hecks.boot(DOMAIN)
 # Unique per run — this script is meant to be re-run freely, and identity
 # here is never minted (see command_interpreter.rb's own "NOTHING IS
 # MINTED"), so a repeat name is a repeat record, refused as AlreadyExists.
-NAME = "StripeDemoMargherita-#{Process.pid}-#{rand(10_000)}"
+NAME = "StripeDemoMargherita-#{Process.pid}-#{rand(10_000)}".freeze
 
 # Set the stage: an order that's actually purchasable — Purchase's own
 # `given` rules (at least one topping, still available) apply exactly the

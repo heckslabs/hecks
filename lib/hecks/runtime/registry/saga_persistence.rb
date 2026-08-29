@@ -42,7 +42,9 @@ module Hecks
         # why reusing that one would deadlock.
         def saga_persistence(domain)
           key = domain.to_s
-          @saga_persistence[key] || @saga_persistence_mutex.synchronize { @saga_persistence[key] ||= resolve_saga_persistence(key) }
+          @saga_persistence[key] || @saga_persistence_mutex.synchronize do
+            @saga_persistence[key] ||= resolve_saga_persistence(key)
+          end
         end
 
         # WALKS EVERY LOADED DOMAIN, repopulating `saga_instances` from

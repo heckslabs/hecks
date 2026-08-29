@@ -8,6 +8,11 @@ require "spec_helper"
 # the key through its with-spec still correlates — closing the gap
 # additively, without removing the smuggle path any existing saga relies on.
 RSpec.describe "a saga leg that never declares the correlation key at all" do
+  # One declarative `Hecks.bluebook` fixture (two aggregates, a saga leg
+  # between them) — the length is the DSL's own shape. Splitting it would
+  # only break the single `bluebook`/`with_registry` block scope this
+  # fixture needs to be one coherent domain.
+  # rubocop:disable-next Metrics/MethodLength
   def boot_beacon
     registry = Hecks::Runtime::Registry.new
 

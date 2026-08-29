@@ -2,8 +2,14 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses one `operation`/`tells`/`asks` block inside a `domain_port`
+      # into a `PortOperation` — its own attributes (the external fact's
+      # payload) plus either the events it `emits` (inbound) or the
+      # `answers`/`refuses` pair naming its two possible outcomes (outbound).
+      # `to:` records which aggregate the operation routes to as dispatch
+      # metadata, never as an attribute — see `to:`'s own comment below.
       class PortOperationBuilder
-        GRAMMAR_CONTEXT = "PortOperation"
+        GRAMMAR_CONTEXT = "PortOperation".freeze
 
         include AttributeCollector
         include WordGate
@@ -93,9 +99,11 @@ module Hecks
           # AN INBOUND OPERATION STILL HAS TO SAY SOMETHING. Only inbound: an
           # `asks` says it with `answers`/`refuses` instead, and
           # `refuse_wrong_words!` above has already insisted on both.
-          raise Malformed,
-                "#{@name} declares no emits — an operation with nothing to say " \
-                "afterward is a call into nothing" if !outbound && @emits.empty?
+          if !outbound && @emits.empty?
+            raise Malformed,
+                  "#{@name} declares no emits — an operation with nothing to say " \
+                  "afterward is a call into nothing"
+          end
 
           operation
         end
@@ -119,18 +127,31 @@ module Hecks
         # runtime cannot keep.
         def refuse_wrong_words!(outbound)
           if outbound
-            raise Malformed, "#{@name} is an asks and declares emits — name its two endings with " \
-                             "answers and refuses instead" unless @emits.empty?
-            raise Malformed, "#{@name} declares no answers — an ask with no word for what came " \
-                             "back cannot be reacted to" unless @answers
-            raise Malformed, "#{@name} declares no refuses — an ask that cannot fail is a call " \
-                             "into a system you do not control, pretending otherwise" unless @refuses
+            unless @emits.empty?
+              raise Malformed, "#{@name} is an asks and declares emits — name its two endings with " \
+                               "answers and refuses instead"
+            end
+            unless @answers
+              raise Malformed, "#{@name} declares no answers — an ask with no word for what came " \
+                               "back cannot be reacted to"
+            end
+            unless @refuses
+              raise Malformed, "#{@name} declares no refuses — an ask that cannot fail is a call " \
+                               "into a system you do not control, pretending otherwise"
+            end
           else
-            raise Malformed, "#{@name} is a tells and declares #{@answers ? 'answers' : 'refuses'} — " \
-                             "an inbound fact has no channel back to whoever sent it" if @answers || @refuses
+            if @answers || @refuses
+              raise Malformed, "#{@name} is a tells and declares #{@answers ? 'answers' : 'refuses'} — " \
+                               "an inbound fact has no channel back to whoever sent it"
+            end
           end
         end
 
+        # `private` above (scoping the instance methods between it and here)
+        # doesn't reach a singleton method — correctly so: `.build` is this
+        # builder's real public entry point (DomainPortBuilder calls it),
+        # never meant to be private.
+        # rubocop:disable-next Lint/IneffectiveAccessModifier
         def self.build(name, to: nil, owner: nil, direction: :inbound, &block)
           builder = new(name, to: to, owner: owner, direction: direction)
           builder.instance_eval(&block) if block

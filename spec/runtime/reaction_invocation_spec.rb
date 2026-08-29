@@ -94,6 +94,11 @@ RSpec.describe "reaction invocation routing" do
     )
   end
 
+  # Loads a real fixture bluebook, locates its process manager's handler,
+  # and drives deliver_saga_dispatch directly to prove one end-to-end
+  # routing claim (correlation passthrough kept separate from declared
+  # facts) against a real dispatch shape, not a hand-rolled stand-in.
+  # rubocop:disable-next RSpec/ExampleLength
   it "separates a process manager's receiver and correlation passthrough from its declared facts" do
     registry = Hecks::Runtime::Registry.new
     fixture = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")

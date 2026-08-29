@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 
-RSpec.describe "PostgresEra execution-plan capabilities", io: true do
+RSpec.describe "PostgresEra execution-plan capabilities", :io do
   # Not SPEC_DB — a constant assigned inside an RSpec.describe block lands
   # at TOP LEVEL (load_hygiene_spec.rb's own "lets no two spec files
   # disagree about a top-level constant"), and postgres_era_spec.rb

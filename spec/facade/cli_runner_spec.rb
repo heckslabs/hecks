@@ -27,12 +27,12 @@ RSpec.describe Hecks::Facade::CliRunner do
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"
-        ::Banking::Customer.persisted_by("Memory")
-        ::Banking::SafeDepositBox.persisted_by("Memory")
+        Banking::Customer.persisted_by("Memory")
+        Banking::SafeDepositBox.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
     registry.verify!

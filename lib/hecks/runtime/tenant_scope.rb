@@ -42,6 +42,13 @@ module Hecks
         Scoped.new(declared, QuerySpecification::Common::WhereClause.new(field: tenant, op: "eq", value: tenant))
       end
 
+      # A SimpleDelegator wrapping one declared query/read-model spec
+      # with its tenant `eq` where-clause appended to #wheres — the
+      # object every query engine actually reads, so nothing beyond
+      # TenantScope.apply itself has to know the boundary exists. Never
+      # handed back to a caller that might call an IR-level method whose
+      # own internal `.wheres` read would bypass this override (see this
+      # module's own header for why).
       class Scoped < SimpleDelegator
         def initialize(declared, clause)
           super(declared)

@@ -36,7 +36,7 @@ module Hecks
 
       SYSTEM_PREFIX = "You are assisting a domain-modeling interview for the hecks " \
                       "event-sourced framework. Reply with EXACTLY ONE JSON object, no prose " \
-                      "before or after it, no markdown code fence. "
+                      "before or after it, no markdown code fence. ".freeze
 
       module_function
 
@@ -97,13 +97,13 @@ module Hecks
       # ── transport ───────────────────────────────────────────────────
 
       def call(system:, payload:)
-        stdout, status = Timeout.timeout(TIMEOUT_SECONDS) {
+        stdout, status = Timeout.timeout(TIMEOUT_SECONDS) do
           Open3.capture2(
             "claude", "-p", "--output-format", "json",
             "--append-system-prompt", system, "--allowedTools", "",
             stdin_data: JSON.generate(payload)
           )
-        }
+        end
         raise Ports::Agent::Unavailable, "claude exited #{status.exitstatus}: #{stdout}" unless status.success?
 
         unwrap(stdout)

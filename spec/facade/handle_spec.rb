@@ -16,13 +16,13 @@ RSpec.describe Hecks::Facade::Handle do
 
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"
-        ::Banking::Customer.persisted_by("Memory")
-        ::Banking::Account.persisted_by("Memory")
-        ::Banking::SafeDepositBox.persisted_by("Memory")
+        Banking::Customer.persisted_by("Memory")
+        Banking::Account.persisted_by("Memory")
+        Banking::SafeDepositBox.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 
@@ -74,13 +74,22 @@ RSpec.describe Hecks::Facade::Handle do
 
           # Every one of these snake-cases onto a real Object/Kernel
           # method, which is the entire point.
-          command("Freeze")  { reference_to Vault; emits "VaultFrozen" }
-          command("Send")    { reference_to Vault; emits "VaultSent" }
-          command("Thaw")    { reference_to Vault; emits "VaultThawed" }
+          command("Freeze") do
+            reference_to Vault
+            emits "VaultFrozen"
+          end
+          command("Send") do
+            reference_to Vault
+            emits "VaultSent"
+          end
+          command("Thaw") do
+            reference_to Vault
+            emits "VaultThawed"
+          end
         end
       end
 
-      Hecks.hecksagon("Collider") { ::Collider::Vault.persisted_by("Memory") }
+      Hecks.hecksagon("Collider") { Collider::Vault.persisted_by("Memory") }
     end
 
     registry.verify!
@@ -160,7 +169,11 @@ RSpec.describe Hecks::Facade::Handle do
   # of a bare string, which collapsed an entire collection's own client-
   # side id-keyed cache down to one entry (every wrapped-hash key stringifies
   # the same way).
-  it "keeps a declared attribute literally named id from clobbering the bare identity in to_h" do
+  # Its own one-off inline chapter (not shared with `boot_banking_in_memory`/
+  # `boot_collider` above) — `Thingy::Thing` exists only to declare an
+  # attribute literally named `id`, which is the whole point of the example
+  # below, so this stays a separate boot rather than a variant of either.
+  def boot_thingy
     registry = Hecks::Runtime::Registry.new
     source = <<~BLUEBOOK
       Hecks.bluebook "Thingy" do
@@ -198,12 +211,18 @@ RSpec.describe Hecks::Facade::Handle do
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
 
       Hecks.hecksagon("Thingy") do
-        ::Thingy::Thing.persisted_by("Memory")
+        Thingy::Thing.persisted_by("Memory")
       end
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  ensure
+    file&.close!
+  end
+
+  it "keeps a declared attribute literally named id from clobbering the bare identity in to_h" do
+    boot_thingy
 
     thing = Thingy::Thing.mint!(id: { value: "t1" }, name: { value: "goggles" })
 
@@ -215,7 +234,5 @@ RSpec.describe Hecks::Facade::Handle do
     # attribute stays exactly what it always was, a `Runtime::Value`.
     expect(thing.to_h[:name]).to be_a(Hecks::Runtime::Value)
     expect(thing.to_h[:name].to_h).to eq({ value: "goggles" })
-  ensure
-    file&.close!
   end
 end

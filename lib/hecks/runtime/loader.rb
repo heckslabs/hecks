@@ -8,6 +8,12 @@ require_relative "registry"
 
 module Hecks
   module Runtime
+    # The boot entry point: loads a bluebook directory (or an explicit
+    # file list) into a fresh Registry, runs every registered boot gate
+    # (era checks, saga rehydration, …), and hands back the Dispatcher
+    # (or RemoteDispatcher, for a domain declaring `dispatched_by
+    # ("Lambda")`) bound to it — installing the `Widget::Item.Add(...)`
+    # facade sugar unless the caller opts out.
     class Loader
       # `install_facade:` defaults on — every ordinary caller wants
       # `Widget::Item.Add(...)` sugar. A caller that only ever dispatches

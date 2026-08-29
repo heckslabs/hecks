@@ -2,8 +2,13 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a top-level `.port` file's `Hecks.port "Name" do verb "x";
+      # signal :effect end` body into a `Port` — the adapter-facing shape (one
+      # verb, one signal, an optional method contract in `answers`) a domain
+      # calls OUT through, as opposed to `DomainPortBuilder`'s own inbound/
+      # outbound operations.
       class PortBuilder
-        GRAMMAR_CONTEXT = "Port"
+        GRAMMAR_CONTEXT = "Port".freeze
 
         include WordGate
 

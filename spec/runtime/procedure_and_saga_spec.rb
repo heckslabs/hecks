@@ -79,7 +79,7 @@ RSpec.describe "a procedure, and when it is a saga" do
     @settlement = registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
   end
 
-  def settlement = @settlement
+  attr_reader :settlement
 
   it "is a procedure without being a saga, when nothing needs undoing" do
     expect(hiring.handlers).not_to be_empty

@@ -65,12 +65,10 @@ RSpec.describe "the operator domain" do
   # surface as a confusing direction-B failure two examples later.
   DISPATCHER = boot_expression
   REFUSALS = LEDGER["steps"].filter_map do |step|
-    begin
-      DISPATCHER.dispatch(step["verb"], **symbolize(step["args"]))
-      nil
-    rescue *Hecks::Runtime::DOMAIN_REFUSALS => refusal
-      "#{step['verb']} #{step['args']} — #{refusal.message}"
-    end
+    DISPATCHER.dispatch(step["verb"], **symbolize(step["args"]))
+    nil
+  rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
+    "#{step['verb']} #{step['args']} — #{e.message}"
   end.freeze
 
   def self.records(aggregate_name)
@@ -113,8 +111,10 @@ RSpec.describe "the operator domain" do
   # their own count at 1) and must be dense — a gap or a duplicate would
   # mean either a slot the parser skips or two operators claiming the same
   # turn, neither of which the ledger can represent honestly.
-  def by_grammar(grammar) = ADMITTED.select { |op| op[:grammar].value == grammar }
-                                    .sort_by { |op| op[:position].value }
+  def by_grammar(grammar)
+    ADMITTED.select { |op| op[:grammar].value == grammar }
+            .sort_by { |op| op[:position].value }
+  end
 
   it "gives every grammar a dense, gap-free position — no skipped or doubled turn" do
     %w[outer inner].each do |grammar|
@@ -176,7 +176,11 @@ RSpec.describe "the operator domain" do
     ".to_s"        => -> { Resolver.parse("a.to_s").is_a?(Resolver::ToS) },
     ".size"        => -> { Resolver.parse("a.size").is_a?(Resolver::Size) },
     ".any?"        => -> { Resolver.parse("a.any? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :any } },
-    ".none?"       => -> { Resolver.parse("a.none? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :none } },
+    ".none?"       => lambda {
+      Resolver.parse("a.none? { |x| x }").then do |n|
+        n.is_a?(Resolver::BlockPredicate) && n.mode == :none
+      end
+    },
     ".all?"        => -> { Resolver.parse("a.all? { |x| x }").then { |n| n.is_a?(Resolver::BlockPredicate) && n.mode == :all } },
     ".find"        => -> { Resolver.parse("a.find { |x| x }.b").is_a?(Resolver::Find) },
     ".match?"      => -> { Resolver.parse("a.match?(/x/)").is_a?(Resolver::MatchesRegex) },
@@ -328,7 +332,7 @@ RSpec.describe "the operator domain" do
     declared = DISPATCHER.registry.bluebook("Expression").aggregate("Normalisation")
                          .value_object("Rule").members.map(&:to_h)
 
-    expect(declared).to eq(CanonicalForm::RULES.map { |rule| rule.to_h })
+    expect(declared).to eq(CanonicalForm::RULES.map(&:to_h))
   end
 
   it "admits every operator the language itself stands on" do
@@ -342,7 +346,7 @@ RSpec.describe "the operator domain" do
     # of any regeneration.
     require "hecks/grammar"
     stranded = Hecks::Grammar.self_bearing_operators
-                             .reject { |symbol, _| symbols(ADMITTED).include?(symbol) }
+                             .except(*symbols(ADMITTED))
 
     expect(stranded).to be_empty,
                         stranded.map { |symbol, sites|

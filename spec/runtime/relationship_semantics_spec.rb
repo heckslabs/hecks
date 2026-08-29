@@ -1,6 +1,10 @@
 require "spec_helper"
 
 RSpec.describe "relationship cardinality and traversal" do
+  # A declarative inline bluebook fixture — splitting it would only
+  # fragment one self-contained domain declaration across artificial
+  # boundaries.
+  # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def boot_relationship_semantics
     registry = Hecks::Runtime::Registry.new
 
@@ -70,9 +74,9 @@ RSpec.describe "relationship cardinality and traversal" do
       end
 
       Hecks.hecksagon("RelationshipSemantics") do
-        ::RelationshipSemantics::Owner.persisted_by("Memory")
-        ::RelationshipSemantics::Customer.persisted_by("Memory")
-        ::RelationshipSemantics::Team.persisted_by("Memory")
+        RelationshipSemantics::Owner.persisted_by("Memory")
+        RelationshipSemantics::Customer.persisted_by("Memory")
+        RelationshipSemantics::Team.persisted_by("Memory")
       end
     end
 

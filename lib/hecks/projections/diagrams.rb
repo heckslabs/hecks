@@ -448,9 +448,17 @@ module Hecks
       # single source at all — its own field NAMES are the fact worth
       # stating (real: `Order.AddTopping` appends `name, amount`).
       def surface_diagram(bluebook, holder)
-        lines = holder.commands.map { |command| "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}" }
-        lines += holder.commands.flat_map { |command| command.mutations.map { |mutation| mutation_edge(holder, command, mutation) } }
-        lines += holder.queries.map { |query| "    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|asks| #{query_node(holder.hecks_name, query.hecks_name)}" }
+        lines = holder.commands.map do |command|
+          "    #{holder.hecks_name}[(#{holder.hecks_name})] -->|does| #{command_node(holder.hecks_name, command.hecks_name)}"
+        end
+        lines += holder.commands.flat_map do |command|
+          command.mutations.map do |mutation|
+            mutation_edge(holder, command, mutation)
+          end
+        end
+        lines += holder.queries.map do |query|
+          "    #{holder.hecks_name}[(#{holder.hecks_name})] -.->|asks| #{query_node(holder.hecks_name, query.hecks_name)}"
+        end
 
         subject = "#{holder.hecks_name}'s own declared commands (and what each writes) and queries"
         "#{header(bluebook.name, subject)}flowchart LR\n#{lines.uniq.join("\n")}\n"

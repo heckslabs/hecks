@@ -7,9 +7,9 @@ module Hecks
       # call it too.
       module ShapeDiff
         def shape(aggregate)
-          aggregate.attributes.map { |attribute|
+          aggregate.attributes.map do |attribute|
             [attribute.name, attribute_signature(aggregate, attribute.type)]
-          }.sort_by(&:first)
+          end.sort_by(&:first)
         end
 
         # A plain type name for a primitive; `[type_name, member_signatures]`
@@ -20,9 +20,9 @@ module Hecks
           container = nested_type(aggregate, type_name)
           return type_name if container.nil? || seen.include?(type_name)
 
-          members = container.attributes.map { |member|
+          members = container.attributes.map do |member|
             [member.name, attribute_signature(aggregate, member.type, seen + [type_name])]
-          }.sort_by(&:first)
+          end.sort_by(&:first)
           [type_name, members]
         end
 
@@ -64,7 +64,7 @@ module Hecks
           return false if attribute.list?
 
           value_object = aggregate.value_object(attribute.type)
-          return false if value_object && value_object.attributes.all? { |field| !field.default.nil? }
+          return false if value_object&.attributes&.all? { |field| !field.default.nil? }
 
           true
         end

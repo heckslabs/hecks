@@ -120,6 +120,11 @@ RSpec.describe "a process manager" do
   # This leg is the FIRST one — nothing was ever taken — so once retries are
   # exhausted there is genuinely nothing for the compensating leg to put
   # back. The next test crashes the SECOND leg instead, where there is.
+  # One instrumented dispatch, several facts about its SAME outcome
+  # (the stderr message, bounded retry count, saga log entries, final
+  # states of both the wire and the money) — all following from one
+  # crashing leg, which splitting would force re-triggering repeatedly.
+  # rubocop:disable-next RSpec/ExampleLength
   it "retries a crashing leg MAX_DEFECT_RETRIES times, then gives up cleanly with nothing to undo" do
     runtime = funded
     real_reenter = runtime.method(:reenter)
@@ -134,11 +139,11 @@ RSpec.describe "a process manager" do
     end
 
     result = nil
-    expect {
+    expect do
       result = runtime.dispatch("Wire::Wire.Ask",
                                 reference: { value: "wire-defect" }, amount: { cents: 500 },
                                 source: "left", destination: "right")
-    }.to output(/Carry.*wire-defect.*Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
+    end.to output(/Carry.*wire-defect.*Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
 
     expect(result.events.map(&:name)).to eq(["WireAsked"])
     expect(Wire::Wire.find("wire-defect").status).to eq("asked")
@@ -185,11 +190,11 @@ RSpec.describe "a process manager" do
       real_reenter.call(verb, **args)
     end
 
-    expect {
+    expect do
       runtime.dispatch("Wire::Wire.Ask",
                        reference: { value: "wire-crash" }, amount: { cents: 1_000 },
                        source: "left", destination: "right")
-    }.to output(/Carry.*wire-crash.*Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
+    end.to output(/Carry.*wire-crash.*Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
 
     expect(attempts).to eq(Hecks::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
 

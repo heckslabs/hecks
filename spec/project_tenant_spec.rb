@@ -9,7 +9,7 @@ require_relative "support/postgres_probe"
 # to require, so this runs it as a real subprocess (Open3) against a
 # real tmpdir fixture and reads back what it actually produced, the
 # same way bin/project_deploy's own contract spec does.
-RSpec.describe "bin/project_tenant", io: true do
+RSpec.describe "bin/project_tenant", :io do
   # InMemoryDomain::ROOT, not a locally-aliased bare ROOT — see
   # word_coverage_spec.rb's own comment: a bare ROOT once collided with
   # another spec file's identical constant, caught by

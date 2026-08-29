@@ -57,7 +57,6 @@ module Hecks
         when :numeral_string    then random.rand(1..1000).to_s
         when :array_for_scalar  then [random.rand(1..10), random.rand(1..10)]
         when :boolean_for_string then random.rand(2).zero?
-        else nil
         end
       end
 

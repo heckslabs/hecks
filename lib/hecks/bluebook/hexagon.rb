@@ -18,6 +18,11 @@ module Hecks
       def aggregate_name = Naming.demodulise(aggregate)
     end
 
+    # The built form of a `.hecksagon` file, produced by
+    # `DSL::HecksagonBuilder` — a domain's own binds (`Bind`, above),
+    # subscriptions, and attached framework/vendored members.
+    # `Behaviour::Hecksagon` supplies the bind lookups (`bind_for`/
+    # `binds_for`); this class holds only the declared data.
     class Hecksagon
       include Hecks::IR
       include Behaviour::Hecksagon
@@ -41,6 +46,11 @@ module Hecks
       end
     end
 
+    # The built form of a `.world` file, produced by `DSL::WorldBuilder` —
+    # a domain's own `realm`/`latest` version markers and its adapter bind
+    # SETTINGS (as opposed to `Hecksagon`'s own bind LIST, above).
+    # `Behaviour::World` supplies the settings lookups (`for_verb`/
+    # `for_binding`); this class holds only the declared data.
     class World
       include Hecks::IR
       include Behaviour::World

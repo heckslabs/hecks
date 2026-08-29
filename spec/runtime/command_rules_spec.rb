@@ -58,7 +58,8 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 },
+                         adjustment: { cents: "a lot", currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecks::Runtime::TypeMismatch,
                          'Money.cents expects Integer, got "a lot"')
     end
@@ -117,13 +118,15 @@ narrative: { text: "Opening" })
     it "moves an element by exactly what it was told" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                       number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
+                       number: { value: "a1" }, sequence: { value: 1 },
+                       adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
 
       entry = runtime.query("Banking::Account.LedgerEntry.Reversed")
       expect(entry).to be_empty
 
       state = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                               number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
+                               number: { value: "a1" }, sequence: { value: 1 },
+                               adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
                      .state
       expect(state[:ledger].first[:amount].to_h).to eq(cents: 10_300, currency: "USD")
     end
@@ -131,7 +134,8 @@ narrative: { text: "Opening" })
     it "decrements an element by the same rule, not a sign it invented" do
       runtime = funded_account(boot_banking)
       state   = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                                 number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
+                                 number: { value: "a1" }, sequence: { value: 1 },
+                                 adjustment: { cents: -1_000, currency: "USD" }, narrative: narrative)
                        .state
 
       expect(state[:ledger].first[:amount].to_h).to eq(cents: 9_000, currency: "USD")
@@ -142,7 +146,8 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 },
+                         adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecks::Runtime::GivenNotMet,
                          "Amend refused — an amendment leaves a non-negative amount")
     end
@@ -153,7 +158,8 @@ narrative: { text: "Opening" })
       error = nil
       begin
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 },
+                         adjustment: { cents: -10_001, currency: "USD" }, narrative: narrative)
       rescue Hecks::Runtime::GivenNotMet => e
         error = e
       end
@@ -196,7 +202,8 @@ narrative: { text: "Opening" })
       # refused, same as before this guard existed.
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
-                         number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
+                         number: { value: "a1" }, sequence: { value: 1 },
+                         adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Amend refused — entry is posted")
     end
 
@@ -461,7 +468,8 @@ narrative: { text: "Opening" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Request refused — source account is open")
     end
 
-    it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — ATMCard.Retire on an already-retired card" do
+    it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — " \
+       "ATMCard.Retire on an already-retired card" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
                        serial: { value: "s1" }, daily_fee: { cents: 100 })

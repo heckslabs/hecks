@@ -18,10 +18,26 @@ module Hecks
           end
         end
 
+        # A CASE STATEMENT OVER A CLOSED, DECLARED SET — every mutation op
+        # the grammar can emit gets its own branch, including the `else`
+        # backstop for the day a new op reaches this method undeclared (see
+        # its own comment). Splitting each branch into its own method would
+        # not reduce what a reader has to hold at once (each op's own
+        # comment already explains why IT is shaped the way it is) and
+        # would obscure that the set is closed and exhaustive.
+        # rubocop:disable Lint/DuplicateBranch -- :delegate and :corrects
+        # both no-op here, for two unrelated documented reasons (see each
+        # branch's own comment below); merging would blur that distinction.
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
         def apply(instance, aggregate, mutation, args)
           case mutation.op
           when :set
-            value = mutation.source.is_a?(StateRef) ? instance[mutation.source.name] : @rules.resolve_source(mutation.source, args)
+            value = if mutation.source.is_a?(StateRef)
+                      instance[mutation.source.name]
+                    else
+                      @rules.resolve_source(mutation.source,
+                                            args)
+                    end
             instance[mutation.target] = Value.for(aggregate, mutation.target, value)
           when :append
             instance[mutation.target] = appended(instance, aggregate, mutation, args)
@@ -94,6 +110,8 @@ module Hecks
             raise Runtime::WiringError, "no mutation applier handles :#{mutation.op} — add one before declaring it"
           end
         end
+        # rubocop:enable Lint/DuplicateBranch
+        # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
 
         # A CALLER-SUPPLIED ARG, FIRST -- an append's own field can also
         # name something the SUBJECT ALREADY KNOWS about itself, falling
@@ -122,21 +140,23 @@ module Hecks
           fields       = mutation.source.transform_values { |source| resolve_append_source(source, instance, args) }
           element_type = aggregate.attribute(mutation.target)&.type
           value_object = aggregate.value_object(element_type)
-          if value_object
-            value_object.attributes.each do |attribute|
-              held = fields[attribute.name]
-              # A SINGLE-FIELD VALUE unwraps to its scalar so it bridges
-              # into the element's own (differently named) wrapper; a
-              # MULTI-FIELD one (a `state(:en_passant_square)` Square
-              # copied off the record) has no scalar to stand in for it
-              # and is handed across whole — `Value.for_attribute` keeps a
-              # value of the element field's own type as it is.
-              fields[attribute.name] = Value.scalar(held) if held.is_a?(Value) && held.to_h.size == 1
-            end
+          value_object&.attributes&.each do |attribute|
+            held = fields[attribute.name]
+            # A SINGLE-FIELD VALUE unwraps to its scalar so it bridges
+            # into the element's own (differently named) wrapper; a
+            # MULTI-FIELD one (a `state(:en_passant_square)` Square
+            # copied off the record) has no scalar to stand in for it
+            # and is handed across whole — `Value.for_attribute` keeps a
+            # value of the element field's own type as it is.
+            fields[attribute.name] = Value.scalar(held) if held.is_a?(Value) && held.to_h.size == 1
           end
-          element = value_object ? Value.build(value_object, fields,
-                                               aggregate) : entity_element(aggregate, element_type, instance[mutation.target],
-                                                                           fields)
+          element = if value_object
+                      Value.build(value_object, fields,
+                                  aggregate)
+                    else
+                      entity_element(aggregate, element_type, instance[mutation.target],
+                                     fields)
+                    end
 
           # FROZEN, like every other value the domain hands back. An
           # appended list used to come back mutable, so a caller could

@@ -51,7 +51,8 @@ RSpec.describe RustProjection::Projector do
       expect(table).to include('target_verb: "Payments::Payment.Succeed"')
     end
 
-    it "excludes a vendored chapter's own cross-domain policy from the local table — that one belongs to the cross-domain table instead" do
+    it "excludes a vendored chapter's own cross-domain policy from the local table — " \
+       "that one belongs to the cross-domain table instead" do
       table = described_class.emit_merged_policy_table(SOURCES)
 
       expect(table).not_to include("OnPaymentFailed")

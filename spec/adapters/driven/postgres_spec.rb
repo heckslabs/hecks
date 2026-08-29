@@ -4,8 +4,7 @@ require_relative "../../support/postgres_probe"
 # Runs only when a Postgres server is reachable (any local default
 # install will do) — same reachability gate every real-Postgres spec in
 # this repo already uses (support/postgres_probe.rb).
-RSpec.describe Hecks::Adapters::Postgres,
-               io: true do
+RSpec.describe Hecks::Adapters::Postgres, :io do
   PLAIN_POSTGRES_SPEC_DB = "hecks_postgres_spec".freeze
 
   before(:all) do
@@ -55,7 +54,7 @@ RSpec.describe Hecks::Adapters::Postgres,
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecks::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Order/)
+      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind Postgres at postgres://localhost:1/nowhere for Order})
   end
 
   it "projects its schema as one real typed column per scalar attribute, plus id" do
@@ -63,7 +62,7 @@ RSpec.describe Hecks::Adapters::Postgres,
     db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
     columns = db.exec_params(
       "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1", ["order"]
-    ).each_with_object({}) { |row, memo| memo[row["column_name"]] = row["data_type"] }
+    ).to_h { |row| [row["column_name"], row["data_type"]] }
     db.close
 
     expect(columns["id"]).to eq("text")

@@ -44,7 +44,7 @@ module Hecks
           value = value.to_h if value.is_a?(Runtime::Value)
           return value unless value.is_a?(Hash)
 
-          numerics = value.values.select { |field| field.is_a?(Numeric) }
+          numerics = value.values.grep(Numeric)
           return numerics.first if numerics.size == 1
           return value.values.first if value.size == 1
 
@@ -63,6 +63,13 @@ module Hecks
 
         NUMERIC_TYPES = %w[Integer Float Numeric].freeze
 
+        # A `case` over a closed, declared set (Vocabulary::QueryComparator,
+        # held equal to this list by spec/vocabulary_table_spec — see the
+        # `else` branch's own comment) is the whole point of THE ONE
+        # COMPARATOR TABLE this file's header describes: one place naming
+        # every comparator, not one method per comparator scattered across
+        # a module.
+        # rubocop:disable-next Metrics/CyclomaticComplexity
         def holds?(operation, held, want, registry: nil)
           # A NULL SATISFIES NO COMPARISON — NullPolicy.unmatchable? owns
           # the rule and the reasoning, including why `none_in_state` is

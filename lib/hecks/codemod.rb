@@ -221,7 +221,11 @@ module Hecks
       # loop for why it can't batch) — splitting it across methods just
       # to satisfy the line count would scatter state four ways for no
       # readability gain.
+      # rubocop:disable-next Metrics/AbcSize
       # rubocop:disable-next Metrics/BlockLength
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/MethodLength
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def run_example_domains(results, dry_run)
         Codemod::EXAMPLE_ROOTS.each do |domain_dir|
           bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
@@ -286,6 +290,15 @@ module Hecks
       # changes the IR, so the running state's own export should always
       # still equal the pristine original after each kept edit, by
       # definition, no moving target needed.
+      # Same shape and same reason as run_example_domains just above (see
+      # its own comment) — the write/verify/revert sequence, PER
+      # CANDIDATE (this method's own comment explains why it cannot
+      # batch), is one coherent unit; splitting it would scatter
+      # before_meta/live_meta/applied_by_file state across methods for
+      # no gain.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def run_meta_domain(results, dry_run)
         before_meta     = Codemod.boot_meta
         meta_candidates = @find_candidates.call(Codemod.meta_registry)

@@ -60,7 +60,7 @@ require "json"
 
 $stdout.sync = true
 
-PROTOCOL_VERSION = "2024-11-05"
+PROTOCOL_VERSION = "2024-11-05".freeze
 
 SUMMARY_PROPERTY = {
   type:        "string",
@@ -270,52 +270,60 @@ TOOLS = [
 
 def boot(domain) = Hecks.boot(Hecks::Storehouse.confine!(domain, "domain"), install_facade: false)
 
-def call_tool(name, a)
+# A closed-set dispatch table, one `when` per MCP tool name — each branch
+# is a single delegation to `Hecks::Storehouse`, and the size here is the
+# tool count, not accidental branching. Splitting each `when` into its own
+# method would trade one place that shows the whole tool surface for many
+# trivial single-line methods, and would scatter the shared `rescue` below
+# (every branch's escape hatch to the same structured-error response)
+# across each of them instead of catching it once, here.
+# rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
+def call_tool(name, args)
   case name
   when "dispatch"
-    runtime = boot(a["domain"])
-    if a["steps"]
-      Hecks::Storehouse.dispatch_batch(runtime: runtime, steps: a["steps"], summary: a["summary"],
-                                       source: a["source"], role: a["role"], actor_id: a["actor_id"])
+    runtime = boot(args["domain"])
+    if args["steps"]
+      Hecks::Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
+                                       source: args["source"], role: args["role"], actor_id: args["actor_id"])
     else
-      Hecks::Storehouse.dispatch(runtime: runtime, command: a["command"], summary: a["summary"],
-                                 args: a["args"] || {}, source: a["source"],
-                                 dry_run: a["dry_run"] == true, role: a["role"], actor_id: a["actor_id"])
+      Hecks::Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
+                                 args: args["args"] || {}, source: args["source"],
+                                 dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"])
     end
   when "query"
-    Hecks::Storehouse.query(runtime: boot(a["domain"]), question: a["question"],
-                            summary: a["summary"], args: a["args"] || {}, source: a["source"],
-                            role: a["role"], actor_id: a["actor_id"])
+    Hecks::Storehouse.query(runtime: boot(args["domain"]), question: args["question"],
+                            summary: args["summary"], args: args["args"] || {}, source: args["source"],
+                            role: args["role"], actor_id: args["actor_id"])
   when "events"
-    Hecks::Storehouse.events(runtime: boot(a["domain"]), aggregate: a["aggregate"], id: a["id"],
-                             limit: a["limit"])
+    Hecks::Storehouse.events(runtime: boot(args["domain"]), aggregate: args["aggregate"], id: args["id"],
+                             limit: args["limit"])
   when "state"
-    Hecks::Storehouse.state(runtime: boot(a["domain"]), aggregate: a["aggregate"],
-                            summary: a["summary"], id: a["id"])
+    Hecks::Storehouse.state(runtime: boot(args["domain"]), aggregate: args["aggregate"],
+                            summary: args["summary"], id: args["id"])
   when "catalog"
-    Hecks::Storehouse.catalog(runtime: boot(a["domain"]))
+    Hecks::Storehouse.catalog(runtime: boot(args["domain"]))
   when "describe"
-    Hecks::Storehouse.describe(runtime: boot(a["domain"]), aggregate: a["aggregate"])
+    Hecks::Storehouse.describe(runtime: boot(args["domain"]), aggregate: args["aggregate"])
   when "validate"
-    Hecks::Storehouse.validate(domain: a["domain"], deep: a["deep"] == true)
+    Hecks::Storehouse.validate(domain: args["domain"], deep: args["deep"] == true)
   when "domains"
-    Hecks::Storehouse.domains(under: a["under"] || "examples")
+    Hecks::Storehouse.domains(under: args["under"] || "examples")
   when "history"
-    Hecks::Storehouse.history(runtime: boot(a["domain"]))
+    Hecks::Storehouse.history(runtime: boot(args["domain"]))
   when "behaviors"
-    Hecks::Storehouse.behaviors(target: a["target"])
+    Hecks::Storehouse.behaviors(target: args["target"])
   when "follow"
-    Hecks::Storehouse.follow(runtime: boot(a["domain"]), limit: a["limit"] || 20)
+    Hecks::Storehouse.follow(runtime: boot(args["domain"]), limit: args["limit"] || 20)
   else
     { ok: false, error: "no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}" }
   end
 rescue StandardError => e
   # A DEFECT, NOT A REFUSAL — every DOMAIN refusal is already caught inside
   # `Hecks::Storehouse` itself and answered as `{ok: false, error: "..."}`.
-  # Reaching here means something this door did not anticipate (a bad
-  # domain path, a malformed argument shape `Facade::JsonDoor` couldn't
+  # Reaching here means something this door did not anticipate (args bad
+  # domain path, args malformed argument shape `Facade::JsonDoor` couldn't
   # symbolize) — still answered as structured content rather than an
-  # MCP-level `isError`, so a calling agent reads one shape for every
+  # MCP-level `isError`, so args calling agent reads one shape for every
   # outcome.
   { ok: false, error: "#{e.class}: #{e.message}" }
 end

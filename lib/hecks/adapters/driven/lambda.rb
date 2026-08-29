@@ -123,11 +123,11 @@ module Hecks
       # full "Domain::Aggregate#id" string — callers already know which
       # aggregate they're asking this instance about.
       def instances
-        @client.read.fetch("instances", {}).filter_map { |key, state|
+        @client.read.fetch("instances", {}).filter_map do |key, state|
           next unless key.start_with?(@prefix)
 
           [key.delete_prefix(@prefix), build_instance(key.delete_prefix(@prefix), state)]
-        }.to_h
+        end.to_h
       end
 
       # Lambda's own JSON response is already Ruby-decoded with STRING

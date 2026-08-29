@@ -1,6 +1,10 @@
 require_relative "behaviour/query"
 
 module Hecks
+  # Reopened here only to add `render_value` below — the pinned
+  # wire-literal rendering (`Literal.render`) the `emits_ir` Procs
+  # throughout this chapter reach for. See lib/hecks/bluebook.rb's own
+  # header for what `Bluebook` is as a whole.
   module Bluebook
     def self.render_value(value) = Literal.render(value)
 

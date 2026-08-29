@@ -18,7 +18,7 @@ module Hecks
     # it, the same "one adapter registry-wide, refuse if zero or many"
     # resolution every other port here already uses.
     module IdentityAssignment
-      NAME = "identity_assignment"
+      NAME = "identity_assignment".freeze
 
       module_function
 

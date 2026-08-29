@@ -63,7 +63,7 @@ RSpec.describe "limit and offset on one query" do
         end
       end
 
-      Hecks.hecksagon("Paging") { ::Paging::Ticket.persisted_by("Memory") }
+      Hecks.hecksagon("Paging") { Paging::Ticket.persisted_by("Memory") }
     end
 
     registry.verify!

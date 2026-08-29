@@ -52,7 +52,7 @@ module Hecks
         out << chapter_header(bluebook, depth) unless only
         Array(aggregates(bluebook, only)).each { |aggregate| out << aggregate_section(aggregate, only ? depth : depth + 1) }
         out << closing(bluebook, depth + 1) unless only
-        out.compact.join("\n").rstrip + "\n"
+        "#{out.compact.join("\n").rstrip}\n"
       end
 
       # A NAME THAT NAMES NOTHING IS REFUSED, not answered with an empty
@@ -179,7 +179,7 @@ module Hecks
         value_object = value_object_for(attribute, holder)
         inner =
           if value_object
-            "{ " + value_object.attributes.map { |f| "#{f.name}: #{f.type}" }.join(", ") + " }"
+            "{ #{value_object.attributes.map { |f| "#{f.name}: #{f.type}" }.join(', ')} }"
           else
             attribute.type.to_s
           end
@@ -244,19 +244,13 @@ module Hecks
       end
 
       def command_entry(command, holder, depth)
-        out = [h(depth, "#{command.hecks_name}#{command.creates? ? ' *(creates)*' : ''}"), ""]
+        out = [h(depth, "#{command.hecks_name}#{' *(creates)*' if command.creates?}"), ""]
         out += [command.goal, ""] if command.goal
         out << "Issued by: **#{command.role}**." if command.role
         out << ""
 
         arguments = command.attributes
-        unless arguments.empty?
-          rows = arguments.map do |attribute|
-            shape = attribute.reference? ? "id of a `#{attribute.type.target_name}`" : shape_of(attribute, holder)
-            ["`#{attribute.name}`", shape, attribute.optional? ? "" : "required"]
-          end
-          out << table(%w[argument shape needed], rows)
-        end
+        out << table(%w[argument shape needed], command_argument_rows(arguments, holder)) unless arguments.empty?
 
         refusals = refusals_of(command, holder)
         unless refusals.empty?
@@ -272,6 +266,17 @@ module Hecks
         out.join("\n")
       end
 
+      # The argument table's own rows — a pure per-attribute mapping with
+      # nothing to share with `command_entry`'s other sections, extracted
+      # only to keep that method to the one shape every section there
+      # follows: build a chunk, append it if non-empty.
+      def command_argument_rows(arguments, holder)
+        arguments.map do |attribute|
+          shape = attribute.reference? ? "id of a `#{attribute.type.target_name}`" : shape_of(attribute, holder)
+          ["`#{attribute.name}`", shape, attribute.optional? ? "" : "required"]
+        end
+      end
+
       # EVERY WAY THIS VERB CAN SAY NO, gathered from the three places a
       # chapter states them — the lifecycle it is an edge of, its own
       # `given`s, and the fact that a reference has to resolve. A caller
@@ -284,7 +289,11 @@ module Hecks
         froms = lifecycle && lifecycle.transitions.filter_map do |name, transition|
           Array(transition.from) if name.to_s == command.hecks_name
         end.flatten.uniq
-        refusals << "`#{lifecycle.field}` is anything other than #{froms.map { |f| "`#{f}`" }.join(' or ')}" if froms && !froms.empty?
+        if froms && !froms.empty?
+          refusals << "`#{lifecycle.field}` is anything other than #{froms.map do |f|
+            "`#{f}`"
+          end.join(' or ')}"
+        end
 
         command.attributes.select(&:reference?).each do |reference|
           refusals << "no `#{reference.type.target_name}` exists for the id given as `#{reference.name}`"
@@ -302,7 +311,7 @@ module Hecks
         queries.each do |query|
           shape   = query.to_h
           takes   = Array(shape[:attributes]).map { |a| "`#{a[:name]}`" }.join(", ")
-          out << "**#{query.hecks_name}**#{takes.empty? ? '' : " (#{takes})"}  "
+          out << "**#{query.hecks_name}**#{" (#{takes})" unless takes.empty?}  "
           out << (query.description ? "#{query.description}  " : "")
           filters = Array(shape[:wheres]).map { |w| "`#{w[:field]} #{w[:op]} #{w[:value].inspect}`" }
           out << "Filters: #{filters.join(', ')}." unless filters.empty?

@@ -11,7 +11,7 @@ RSpec.describe Hecks::Ports::Projection::Worker do
   end
 
   class ProjectionStore
-    attr_reader :aggregate
+    attr_reader :aggregate, :entries
 
     def initialize(entries = [])
       @aggregate = Struct.new(:name).new("Account")
@@ -19,16 +19,23 @@ RSpec.describe Hecks::Ports::Projection::Worker do
       @rows = {}
     end
 
-    def entries = @entries
     def all = @rows.values
-    def append(entry) = (@entries << entry; entry)
+
+    def append(entry)
+      @entries << entry
+      entry
+    end
 
     def project(entry)
       entry.delete? ? @rows.delete(entry.id) : @rows[entry.id] = entry.state.dup
       entry
     end
 
-    def reset! = (@entries.clear; @rows.clear; self)
+    def reset!
+      @entries.clear
+      @rows.clear
+      self
+    end
   end
 
   it "rebuilds an account projection from durable journal entries and reports a checkpoint" do

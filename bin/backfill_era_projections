@@ -54,7 +54,7 @@ db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
 lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
 lineage.ensure_base!
 
-missing = -> {
+missing = lambda {
   db.exec_params(
     "SELECT count(*)::int AS n FROM hecks_eras WHERE domain = $1 AND held_projection IS NULL",
     [bluebook.name]
@@ -74,9 +74,9 @@ begin
   # check — a genuinely tampered row, a different problem than a
   # merely-legacy one, and not something backfilling should paper over.
   lineage.eras
-rescue Hecks::Runtime::WiringError => error
+rescue Hecks::Runtime::WiringError => e
   puts "#{bluebook.name}: stopped at a row that isn't merely legacy — it fails its own integrity check:"
-  puts "  #{error.message}"
+  puts "  #{e.message}"
   puts "  resolve that first (see bin/reattest_era), then run this again for the remaining rows."
   exit 1
 end

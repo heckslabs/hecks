@@ -7,8 +7,7 @@ require_relative "../../../support/postgres_probe"
 # name instead of minting a brand-new lineage from nothing. Runs only
 # when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
-RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
-               io: true do
+RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
   RENAME_DB = "hecks_domain_rename_spec".freeze
   RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
 
@@ -166,8 +165,8 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
     db = PG.connect(dbname: RENAME_DB, user: RENAME_ROLE)
     db.exec(sql)
     :allowed
-  rescue PG::Error => error
-    error.message.strip
+  rescue PG::Error => e
+    e.message.strip
   ensure
     db&.close
   end

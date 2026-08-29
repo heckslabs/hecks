@@ -10,6 +10,15 @@ module Hecks
         # held-but-superseded shape boots read-only-toward-the-fence; an
         # unheld shape goes to the minter.
         module EraResolver
+          # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+          # A single order-dependent dispatch over a closed set of four
+          # boot scenarios (first boot / quiet reboot / held-but-superseded
+          # / unheld-shape-goes-to-minter), each already explained by its
+          # own comment above, all sharing one `db` connection closed in
+          # `ensure`. Splitting the branches into separate methods would
+          # turn each `return` (which exits `check!`, closing `db`) into a
+          # sentinel value threaded back up, obscuring the mutual
+          # exclusivity that IS the method's whole point.
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
@@ -78,6 +87,7 @@ module Hecks
           ensure
             db&.close
           end
+          # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         end
       end
     end

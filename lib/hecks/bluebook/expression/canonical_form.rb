@@ -4,6 +4,13 @@ require_relative "../../vocabulary"
 module Hecks
   module Bluebook
     module Expression
+      # Rewrites a predicate's SOURCE TEXT into one canonical spelling
+      # before it's ever parsed or hashed — collapsing whitespace and
+      # folding admitted synonyms (e.g. `.length` → `.size`) via the
+      # `RULES` table projected from the grammar chapter, so two byte-
+      # different but equivalent predicates compare and cache identically.
+      # Never touches text inside quoted string literals
+      # (`map_outside_strings`).
       module CanonicalForm
         Rule = Struct.new(:strategy, :source_token, :replacement, :boundary, :position, keyword_init: true)
 

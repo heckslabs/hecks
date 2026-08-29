@@ -139,9 +139,9 @@ module Hecks
         # problems) still surface.
         connection.exec("SET client_min_messages = warning")
         connection
-      rescue PG::Error => error
+      rescue PG::Error => e
         raise Runtime::WiringError,
-              "cannot bind PostgresEra at #{declared} for #{name}: #{error.message.strip}"
+              "cannot bind PostgresEra at #{declared} for #{name}: #{e.message.strip}"
       end
 
       def initialize(aggregate:, settings: {}, root: nil)
@@ -216,7 +216,10 @@ module Hecks
         return @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY id)).map { |row| instance(row) } unless order_by
 
         name = order_by.to_s.split(".").first
-        raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by" unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+        unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+          raise Runtime::WiringError,
+                "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+        end
 
         spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
         @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY #{order_clause(spec, nil)})).map { |row| instance(row) }
@@ -418,7 +421,8 @@ module Hecks
           "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
           "SET state = EXCLUDED.state, memory = EXCLUDED.memory, " \
           "completed_compensations = EXCLUDED.completed_compensations, updated_at = now()",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory),
+           JSON.generate(completed_compensations)]
         )
       end
 
@@ -433,7 +437,8 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.exec_params(
-          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = $1",
+          "SELECT process_manager, correlation, state, memory, completed_compensations " \
+          "FROM hecks_saga_instances WHERE domain = $1",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],
@@ -624,11 +629,12 @@ module Hecks
       end
 
       def cached_where_fields
-        declared_queries.flat_map { |q|
-          q.wheres.map { |clause|
+        fields = declared_queries.flat_map do |q|
+          q.wheres.map do |clause|
             clause.field.to_s
-          }
-        }.uniq.select { |field| cacheable_field?(field) }
+          end
+        end
+        fields.uniq.select { |field| cacheable_field?(field) }
       end
 
       def declared_queries
@@ -709,7 +715,7 @@ module Hecks
           clauses << where_clause(clause.op.to_s, expression, value, binds, field: clause.field)
         end
 
-        sql = +"SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(' AND ')}"
+        sql = "SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(' AND ')}"
         sql << if declared.order_by
                  " ORDER BY #{order_clause(declared.order_by, declared.null_semantics)}"
                else
@@ -751,7 +757,8 @@ module Hecks
         # this same domain already created before this column existed —
         # the same idiom `rust/host/src/journal.rs`'s own
         # `sagas_backfilled` column addition already uses.
-        @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb NOT NULL DEFAULT '[]'::jsonb")
+        @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb " \
+                 "NOT NULL DEFAULT '[]'::jsonb")
       end
     end
   end

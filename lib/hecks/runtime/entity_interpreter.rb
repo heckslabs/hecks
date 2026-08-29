@@ -14,6 +14,13 @@ require_relative "command_interpreter/argument_gate"
 
 module Hecks
   module Runtime
+    # Interprets a command dispatched against a nested entity (a dotted
+    # verb like "Handler.Dispatch.Bind") rather than an aggregate root
+    # directly: walks the entity chain off the parent aggregate, applies
+    # the command's own DISPATCH_ORDER of steps against the located
+    # element, then saves and emits through the same parent record a
+    # plain aggregate command would. CommandInterpreter's sibling for
+    # entity-owned commands.
     class EntityInterpreter
       include Interpreting
       # THE SAME PAYLOAD GATE aggregate commands and port operations already
@@ -61,6 +68,11 @@ module Hecks
       # targets, so every step written before this ADR (enforce_givens,
       # apply_mutations, advance_lifecycle, element_identity, ...) reads
       # exactly as it always has. Only `locate_element` walks the chain.
+      # `:chain` shadows Enumerable#chain on purpose — every read is
+      # `ctx.chain` fetching the field (an Array of entities), never
+      # `ctx.chain(other)` combining enumerables. Verified before disabling
+      # this cop for it.
+      # rubocop:disable-next Lint/StructNewOverride
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run)
@@ -149,10 +161,10 @@ module Hecks
       # `ArgumentGate#refuse_unknown_arguments`'s own header gives for `:id`/
       # the root's `identity_heads`.
       def step_refuse_unknown_arguments(ctx)
-        step(:refuse_unknown_arguments) {
+        step(:refuse_unknown_arguments) do
           refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args,
                                    extra_identity_heads: ctx.chain.flat_map(&:identity_heads))
-        }
+        end
       end
 
       # No `aggregate:` exemption to pass — that kwarg exists only for a
@@ -180,15 +192,15 @@ module Hecks
       def step_hydrate_parent(ctx)
         # `ctx.repository` is resolved once, in `#call`, before the
         # isolation decision — not here any more.
-        ctx.instance = step(:hydrate_parent) {
+        ctx.instance = step(:hydrate_parent) do
           parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args, ctx.route)
-        }
+        end
       end
 
       def step_locate_element(ctx)
-        ctx.element = step(:locate_element) {
+        ctx.element = step(:locate_element) do
           EntityElement.locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name, ctx.route)
-        }
+        end
         # `view` was hydrated ONCE, here, into its OWN state hash
         # (Value.hydrate builds a fresh Hash — never aliased with `element`)
         # — exactly right for enforce_givens, which must read pre-mutation.
@@ -197,9 +209,9 @@ module Hecks
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) {
+        step(:enforce_givens) do
           @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance)
-        }
+        end
       end
 
       def step_admissible_transition(ctx)
@@ -208,11 +220,11 @@ module Hecks
 
       def step_apply_mutations(ctx)
         ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
-        step(:apply_mutations) {
-          ctx.command.mutations.each { |mutation|
+        step(:apply_mutations) do
+          ctx.command.mutations.each do |mutation|
             EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args)
-          }
-        }
+          end
+        end
       end
 
       def step_advance_lifecycle(ctx)

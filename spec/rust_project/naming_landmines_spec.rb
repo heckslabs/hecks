@@ -84,7 +84,7 @@ RSpec.describe RustProjection::Projector do
     # run through the real function, and confirm the resulting .rs file
     # actually compiles. io: true -- a real rustc subprocess, same
     # convention as every other spec doing real, uncontrolled I/O.
-    it "produces Rust source that actually compiles, for every landmine input at once", io: true do
+    it "produces Rust source that actually compiles, for every landmine input at once", :io do
       landmine = "cost must be over #{hash_char}{threshold}, ivar #{hash_char}@foo, control:#{1.chr}:end, quote\"and\\slash"
       literal = described_class.rust_string_literal(landmine)
 

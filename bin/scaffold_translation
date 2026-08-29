@@ -73,7 +73,7 @@ end
 
 text = File.read(path)
 unresolved = text.scan(/^\s*unresolved /).size
-unclaimed = (defined?(diffed) && diffed) ? diffed[:unclaimed] : []
+unclaimed = defined?(diffed) && diffed ? diffed[:unclaimed] : []
 puts "wrote #{path}"
 unclaimed.each do |name|
   puts "UNCLAIMED: #{name} existed and now doesn't, and its successor is ambiguous — " \
@@ -82,5 +82,8 @@ end
 if unresolved.zero? && unclaimed.empty?
   puts "0 unresolved — this shape change costs one extra boot and no typing. Check it with bin/translation_audit, then boot."
 else
-  puts "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or compute on PostgresEra), then boot." if unresolved.positive?
+  if unresolved.positive?
+    puts "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or compute on PostgresEra), " \
+         "then boot."
+  end
 end

@@ -33,7 +33,7 @@ ROOT = File.expand_path("..", __dir__)
 # under `/private/tmp`, so a `path.include?("/tmp/")` meant to skip build
 # output matched every file in the repository. A substring test against an
 # absolute path is a test against wherever somebody happened to clone.
-IGNORED = %r{\A(rust|deploy|tmp|coverage)/}.freeze
+IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
 # FOUND BY THEIR WIRING, NOT BY THEIR CHAPTERS. Globbing `*.bluebook` finds
 # every chapter in the repository and most of them are not domains you can
@@ -46,9 +46,9 @@ IGNORED = %r{\A(rust|deploy|tmp|coverage)/}.freeze
 # will do what a caller expects.
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
-     .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(File.dirname(path)) : File.dirname(path) }
+     .map    { |path| File.basename(File.dirname(path)) == "bluebook" ? File.dirname(path, 2) : File.dirname(path) }
      .map    { |path| path.delete_prefix("#{ROOT}/") }
-     .reject { |path| path.match?(IGNORED) }
+     .grep_v(IGNORED)
      .uniq.sort
 end
 

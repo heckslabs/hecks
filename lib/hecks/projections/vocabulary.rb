@@ -58,9 +58,7 @@ module Hecks
 
       def render(bluebook)
         rows = tables(bluebook).sort_by(&:first).map do |name, members|
-          "      #{name.inspect} => [\n" +
-            members.map { |row| "        #{row.inspect}.freeze" }.join(",\n") +
-            "\n      ].freeze"
+          "      #{name.inspect} => [\n#{members.map { |row| "        #{row.inspect}.freeze" }.join(",\n")}\n      ].freeze"
         end
 
         <<~RUBY

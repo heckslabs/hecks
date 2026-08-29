@@ -30,7 +30,7 @@ module Hecks
     # no defaults, on purpose: a login mechanism silently
     # half-configured is worse than one that refuses to boot at all.
     module GoogleAuthentication
-      ISSUER = "https://accounts.google.com"
+      ISSUER = "https://accounts.google.com".freeze
 
       module_function
 
@@ -80,9 +80,7 @@ module Hecks
         require "oauth2"
         require "google-id-token"
 
-        unless state && expected_state && state == expected_state
-          raise Ports::Authentication::ValidationError, "state mismatch"
-        end
+        raise Ports::Authentication::ValidationError, "state mismatch" unless state && expected_state && state == expected_state
 
         token = client.auth_code.get_token(code, redirect_uri: ENV.fetch("GOOGLE_REDIRECT_URI"))
         id_token = token.params["id_token"] or raise Ports::Authentication::ValidationError, "no id_token in the response"

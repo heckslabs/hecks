@@ -2,8 +2,14 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `read_model "Name" do ... end` block into a `ReadModel` — a
+      # cross-aggregate projection built from an optional `reference_to`
+      # root (omitted, it's a rootless "bulk" read model) plus one or more
+      # `include`d aggregate heads, with `where`/`order_by`/`limit`/etc, and
+      # at most one of `group_by`, `count`, or `median` as its single
+      # reduction over the one eligible many-side collection.
       class ReadModelBuilder
-        GRAMMAR_CONTEXT = "ReadModel"
+        GRAMMAR_CONTEXT = "ReadModel".freeze
 
         include QuerySpecification::Common::DSL
         include WordGate
@@ -107,8 +113,10 @@ module Hecks
         # field values) has no root to speak of. Still needs to describe
         # SOMETHING — zero includes AND no reference is refused.
         def build
-          raise Malformed,
-                "#{@name} needs an aggregate-head reference or at least one include" if !@reference_target && Array(@includes).empty?
+          if !@reference_target && Array(@includes).empty?
+            raise Malformed,
+                  "#{@name} needs an aggregate-head reference or at least one include"
+          end
 
           Array(@includes).each do |target, as|
             add_aggregate_head(target, as, many: target != @reference_target)

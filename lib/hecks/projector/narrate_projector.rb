@@ -72,7 +72,11 @@ module Hecks
         parts << identity_sentence(aggregate)
 
         refs = aggregate.attributes.select(&:reference?)
-        parts << "Each one is linked to #{to_sentence_list(refs.map { |r| "#{a_or_an(r.type.target_name)} #{r.type.target_name}" })}." unless refs.empty?
+        unless refs.empty?
+          parts << "Each one is linked to #{to_sentence_list(refs.map do |r|
+            "#{a_or_an(r.type.target_name)} #{r.type.target_name}"
+          end)}."
+        end
 
         parts << lifecycle_narrative(aggregate)
         parts << verbs_narrative(aggregate, depth + 1)
@@ -124,35 +128,84 @@ module Hecks
         "#{header}\n\n#{body}"
       end
 
+      # ONE PARAGRAPH, BUILT FROM INDEPENDENT SENTENCES — each sentence
+      # below states one unrelated fact about `command` (its goal, who
+      # issues it, whether it creates the holder, what it takes, what it
+      # references, what gates it, what it guarantees, what it emits), in
+      # the fixed order a reader expects them; nothing after the first
+      # sentence depends on anything before it. Same nil-or-string +
+      # `compact.join` shape `aggregate_narrative`/`entity_narrative`
+      # already use above for the identical reason.
       def command_paragraph(command, holder)
-        # THE GOAL, VERBATIM — same rule `DocsProjector` holds to: quoted
-        # exactly as declared, not recased to fit mid-sentence, because the
-        # promise this whole projector makes is that a sentence here is a
-        # sentence the chapter actually wrote.
-        sentences = ["**#{command.hecks_name}**#{command.goal ? " — #{command.goal}." : '.'}"]
-        sentences << "Issued by #{a_or_an(command.role)} #{command.role}." if command.role
-        # `acts_on.nil?`, NOT `creates?` — `creates?` answers true for every
-        # verb an ENTITY declares (it never references itself; see
-        # `Command#acts_on`'s own comment), so reading it directly here would
-        # tell an SME that `LedgerEntry.Amend` brings a new ledger entry into
-        # being, which is exactly backwards.
-        sentences << "This is how a new #{holder.hecks_name} comes into being." if command.acts_on.nil?
+        [
+          command_headline_sentence(command),
+          command_role_sentence(command),
+          command_creation_sentence(command, holder),
+          command_arguments_sentence(command),
+          command_references_sentence(command),
+          command_conditions_sentence(command, holder),
+          command_guarantees_sentence(command),
+          command_emits_sentence(command)
+        ].compact.join(" ")
+      end
 
+      # THE GOAL, VERBATIM — same rule `DocsProjector` holds to: quoted
+      # exactly as declared, not recased to fit mid-sentence, because the
+      # promise this whole projector makes is that a sentence here is a
+      # sentence the chapter actually wrote.
+      def command_headline_sentence(command)
+        "**#{command.hecks_name}**#{command.goal ? " — #{command.goal}." : '.'}"
+      end
+
+      def command_role_sentence(command)
+        return nil unless command.role
+
+        "Issued by #{a_or_an(command.role)} #{command.role}."
+      end
+
+      # `acts_on.nil?`, NOT `creates?` — `creates?` answers true for every
+      # verb an ENTITY declares (it never references itself; see
+      # `Command#acts_on`'s own comment), so reading it directly here would
+      # tell an SME that `LedgerEntry.Amend` brings a new ledger entry into
+      # being, which is exactly backwards.
+      def command_creation_sentence(command, holder)
+        return nil unless command.acts_on.nil?
+
+        "This is how a new #{holder.hecks_name} comes into being."
+      end
+
+      def command_arguments_sentence(command)
         arguments = command.attributes.reject(&:reference?)
-        sentences << "It takes #{to_sentence_list(arguments.map { |a| Forms::Humanize.label(a.name.to_s).downcase })}." unless arguments.empty?
+        return nil if arguments.empty?
 
+        "It takes #{to_sentence_list(arguments.map { |a| Forms::Humanize.label(a.name.to_s).downcase })}."
+      end
+
+      def command_references_sentence(command)
         refs = command.attributes.select(&:reference?)
-        sentences << "It's aimed at one existing #{to_sentence_list(refs.map { |r| r.type.target_name })}, by id." unless refs.empty?
+        return nil if refs.empty?
 
+        "It's aimed at one existing #{to_sentence_list(refs.map { |r| r.type.target_name })}, by id."
+      end
+
+      def command_conditions_sentence(command, holder)
         conditions = conditions_of(command, holder)
-        sentences << "It only goes through if #{conditions.join('; ')}." unless conditions.empty?
+        return nil if conditions.empty?
 
+        "It only goes through if #{conditions.join('; ')}."
+      end
+
+      def command_guarantees_sentence(command)
         guarantees = command.ensures.map(&:description)
-        sentences << "When it succeeds: #{guarantees.join('; ')}." unless guarantees.empty?
+        return nil if guarantees.empty?
 
-        sentences << "It records `#{command.emits.join('`, `')}` as a fact." unless command.emits.empty?
+        "When it succeeds: #{guarantees.join('; ')}."
+      end
 
-        sentences.join(" ")
+      def command_emits_sentence(command)
+        return nil if command.emits.empty?
+
+        "It records `#{command.emits.join('`, `')}` as a fact."
       end
 
       # EVERY REQUIRED CONDITION, STATED AS SOMETHING THAT MUST BE TRUE —
@@ -166,10 +219,14 @@ module Hecks
 
         lifecycle = holder.lifecycle
         if lifecycle
-          froms = lifecycle.transitions.filter_map { |name, transition|
+          froms = lifecycle.transitions.filter_map do |name, transition|
             Array(transition.from) if name.to_s == command.hecks_name
-          }.flatten.uniq
-          conditions << "its `#{lifecycle.field}` is currently #{to_sentence_list(froms.map { |f| "`#{f}`" }, conj: 'or')}" unless froms.empty?
+          end.flatten.uniq
+          unless froms.empty?
+            conditions << "its `#{lifecycle.field}` is currently #{to_sentence_list(froms.map do |f|
+              "`#{f}`"
+            end, conj: 'or')}"
+          end
         end
 
         conditions + command.givens.map(&:description)
@@ -200,8 +257,8 @@ module Hecks
         "#{header}\n\n#{lines.join("\n")}"
       end
 
-      def op_words(op)
-        { eq: "is", lt: "under", lte: "at most", gt: "over", gte: "at least" }[op.to_s.to_sym] || op.to_s
+      def op_words(comparator)
+        { eq: "is", lt: "under", lte: "at most", gt: "over", gte: "at least" }[comparator.to_s.to_sym] || comparator.to_s
       end
 
       # ── what happens on its own ───────────────────────────────────────
@@ -212,7 +269,8 @@ module Hecks
         parts = [DocsProjector.h(depth, "Reactions")]
         bluebook.policies.each do |policy|
           elsewhere = policy.target_domain ? " in #{policy.target_domain}" : ""
-          parts << "Whenever `#{policy.on_event}` happens, `#{policy.trigger_command}` fires on its own#{elsewhere} — nobody has to ask for it."
+          parts << "Whenever `#{policy.on_event}` happens, `#{policy.trigger_command}` fires on its own#{elsewhere} — " \
+                   "nobody has to ask for it."
         end
 
         bluebook.process_managers.each do |saga|

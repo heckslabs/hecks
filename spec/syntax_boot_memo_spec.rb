@@ -26,6 +26,12 @@ RSpec.describe "SyntaxBoot's memo" do
     expect(SyntaxBootUnderTest.call).to be(first)
   end
 
+  # One process-global grammar registry mutated twice (a chapter joins,
+  # then leaves via ensure) proving the memo re-boots on BOTH edges;
+  # splitting would mean duplicating the add/remove dance across
+  # examples or risking the shared global registry left dirty between
+  # them.
+  # rubocop:disable-next RSpec/ExampleLength
   it "boots again the moment a chapter joins the registry, and again once it leaves" do
     registry = MetaValidatorUnderTest.grammar_registry
     SyntaxBootUnderTest.call
@@ -70,10 +76,10 @@ RSpec.describe "SyntaxBoot's memo" do
   # the old guard did 42.
   it "boots at most once per distinct chapter set while the grammar registry builds itself from cold" do
     boots = 0
-    allow(SyntaxBootUnderTest).to(receive(:boot).and_wrap_original { |m, *args|
+    allow(SyntaxBootUnderTest).to(receive(:boot).and_wrap_original do |m, *args|
       boots += 1
       m.call(*args)
-    })
+    end)
 
     # SAVED AND RESTORED, not just reset — @grammar_registry is process-
     # global and memoized. Left nil'd-then-rebuilt with no restore, a

@@ -84,7 +84,8 @@ module Hecks
         # Assigns what the language declares, then hands off to the
         # behaviour's own `settle` — derived identity and the name
         # indexes, neither of which the declaration states.
-        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:, lifecycle:)
+        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:,
+                   lifecycle:)
           @description    = description
           @identified_by  = identified_by
           @attributes     = attributes

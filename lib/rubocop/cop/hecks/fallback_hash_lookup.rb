@@ -53,7 +53,7 @@ module RuboCop
               "silently discarded in favor of `%<receiver>s[%<rhs_key>s]` instead of being " \
               "returned. Use `%<receiver>s.key?(%<lhs_key>s) ? %<receiver>s[%<lhs_key>s] : " \
               "%<receiver>s[%<rhs_key>s]`, or a shared digger (see `key?` in " \
-              "`Hecks::QuerySpecification::FieldPath#read`), instead."
+              "`Hecks::QuerySpecification::FieldPath#read`), instead.".freeze
 
         # @!method bracket_lookup(node)
         def_node_matcher :bracket_lookup, "(send $_receiver :[] $_key)"

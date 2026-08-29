@@ -16,6 +16,8 @@ require_relative "../behaviors"
 #   end
 module Hecks
   module Behaviors
+    # See this file's own header above for what `describe_file` does and
+    # how a consumer wires it into their own `bundle exec rspec` run.
     module RSpec
       module_function
 

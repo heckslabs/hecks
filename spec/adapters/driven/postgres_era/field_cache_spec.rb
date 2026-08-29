@@ -18,8 +18,7 @@ require_relative "../../../support/postgres_probe"
 # A toy aggregate, purpose-built for this — not routed through Payments
 # (~/Projects/junkdrawer/payments), which stays on Heki by its own
 # explicit design; this proves a framework capability, not a real domain.
-RSpec.describe "PostgresEra field cache — Track C validation",
-               io: true do
+RSpec.describe "PostgresEra field cache — Track C validation", :io do
   FIELD_CACHE_DB = "hecks_field_cache_spec".freeze
   FIELD_CACHE_OWNER = "hecks_field_cache_owner".freeze
 
@@ -293,6 +292,13 @@ RSpec.describe "PostgresEra field cache — Track C validation",
 
   # ── 3. backfill resumability under a simulated crash/restart ─────────
 
+  # One scenario: simulate a mid-scan crash, check the partial state it
+  # leaves behind, then resume and check it completes correctly from
+  # the persisted cursor rather than rescanning. The resume assertions
+  # only mean something read against that specific partial state, so
+  # splitting would either re-pay the crash simulation or silently
+  # drop the "picks up where it left off" claim.
+  # rubocop:disable-next RSpec/ExampleLength
   it "resumes a backfill from its persisted cursor after a simulated crash mid-scan" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
@@ -343,6 +349,12 @@ RSpec.describe "PostgresEra field cache — Track C validation",
 
   # ── 4. genuine non-blocking-ness ──────────────────────────────────────
 
+  # A single concurrency proof: a slow-chunk backfill on one thread, a
+  # live write on a separate connection timed to land mid-scan, and a
+  # wall-clock assertion the write wasn't blocked. Splitting the setup
+  # from the timing assertion would leave neither half provable on its
+  # own.
+  # rubocop:disable-next RSpec/ExampleLength
   it "lets a concurrent plain write through while a backfill is mid-scan" do
     registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
@@ -380,7 +392,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
 
     backfill_thread.join(10)
-    expect(backfill_thread.status).to eq(false) # finished, not still running / not dead-from-error
+    expect(backfill_thread.status).to be(false) # finished, not still running / not dead-from-error
     expect(elapsed).to be < 1.0 # nowhere near the ~3s the full slow backfill takes end to end
   ensure
     backfill_db&.close

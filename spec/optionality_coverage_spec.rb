@@ -102,7 +102,7 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
       when Array then node.each { |held| walk.call(held) }
       end
     end
-    Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].sort.each do |file|
+    Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].each do |file|
       walk.call(JSON.parse(File.read(file)))
     end
     [set, absent]

@@ -65,8 +65,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     case node
     when Hash then node.to_h { |key, value| [key, canonical(value)] }
     when Array
-      mapped = node.map { |element| canonical(element) }
-      mapped
+      node.map { |element| canonical(element) }
+
     else node
     end
   end
@@ -104,7 +104,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # everything else it still holds to byte-for-byte.
   def strip_ports(node)
     case node
-    when Hash then node.reject { |k, _| k == :ports }.transform_values { |v| strip_ports(v) }
+    when Hash then node.except(:ports).transform_values { |v| strip_ports(v) }
     when Array then node.map { |v| strip_ports(v) }
     else node
     end
@@ -129,7 +129,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # OTHER kind of key this round trip cannot compare.
   def strip_invariant_ast(node)
     case node
-    when Hash then node.reject { |k, _| k == :ast }.transform_values { |v| strip_invariant_ast(v) }
+    when Hash then node.except(:ast).transform_values { |v| strip_invariant_ast(v) }
     when Array then node.map { |v| strip_invariant_ast(v) }
     else node
     end
@@ -143,7 +143,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
         back, refusals = read_back(bluebook)
 
         expect(refusals).to be_empty, "the language refused it: #{refusals.inspect}"
-        expect(differences(strip_invariant_ast(strip_ports(canonical(bluebook.to_h.slice(*back.keys)))), strip_invariant_ast(canonical(back)))).to be_empty
+        expect(differences(strip_invariant_ast(strip_ports(canonical(bluebook.to_h.slice(*back.keys)))),
+                           strip_invariant_ast(canonical(back)))).to be_empty
       end
     end
   end

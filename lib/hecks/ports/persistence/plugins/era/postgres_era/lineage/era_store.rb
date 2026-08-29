@@ -6,6 +6,10 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # CRUD over `hecks_eras`/`hecks_era_texts`/`hecks_approvals`: reading
+        # and tamper-verifying held era text, archiving every frozen text
+        # version, recording a Layer-3 approval, and minting an era's name
+        # once (never recomputed after).
         module EraStore
           # Every held text is verified against its raw-byte digest on the
           # way out — an edited storage fact refuses rather than silently

@@ -14,6 +14,12 @@ require "tempfile"
 # `id` came back `{value: "..."}`, collapsing the frontend's id-keyed
 # lookup down to one entry.
 RSpec.describe "a query's own rows keep a declared :id attribute from clobbering the bare identity" do
+  # A declarative bluebook fixture (as a heredoc, evaluated via
+  # Kernel.eval) plus the registry wiring to boot it — one coherent setup
+  # for this file's regression case, not several unrelated steps.
+  # Splitting it would only scatter the fixture source from the wiring
+  # that loads it.
+  # rubocop:disable-next Metrics/MethodLength
   def boot
     registry = Hecks::Runtime::Registry.new
     source = <<~BLUEBOOK
@@ -47,7 +53,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     file.write(source)
     file.flush
 
-    runtime = nil
+    nil
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
@@ -56,7 +62,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
       Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
 
       Hecks.hecksagon("Thingy") do
-        ::Thingy::Thing.persisted_by("Memory")
+        Thingy::Thing.persisted_by("Memory")
       end
     end
 

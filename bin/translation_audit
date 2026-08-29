@@ -44,8 +44,8 @@ begin
     loading.load_project(loading.shared_root(nil, directory))
     loading.load_domain(directory)
   end
-rescue Hecks::Bluebook::DSL::Malformed => error
-  abort "REFUSED at load: #{error.message}"
+rescue Hecks::Bluebook::DSL::Malformed => e
+  abort "REFUSED at load: #{e.message}"
 end
 
 bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
@@ -95,7 +95,11 @@ else
   to_label = to_hash[0, Hecks::Runtime::StorageShape::LABEL_LENGTH]
   pending = registry.translations.find { |t| t.domain == bluebook.name && t.from == latest[:label] && t.to == to_label }
   abort "no translation edge leads #{latest[:label]} to #{to_label} — run bin/scaffold_translation first" unless pending
-  chain = manager.edge_chain(registry, bluebook, eras, latest[:label]) rescue []
+  chain = begin
+    manager.edge_chain(registry, bluebook, eras, latest[:label])
+  rescue StandardError
+    []
+  end
   chain = (chain || []) + [{ translation: pending }]
 end
 
@@ -106,14 +110,19 @@ bluebook.aggregates.each do |aggregate|
   declared = edge.for_aggregate(aggregate.name)
   after = begin
     lineage.translated_latest(aggregate, era, chain)
-  rescue PG::Error => error
-    abort "REFUSED: #{error.message.strip}"
+  rescue PG::Error => e
+    abort "REFUSED: #{e.message.strip}"
   end
-  before = chain.size > 1 ? lineage.translated_latest(aggregate, era,
-                                                      chain[0..-2]) : lineage.ancestor_latest(aggregate, era, chain)
+  before = if chain.size > 1
+             lineage.translated_latest(aggregate, era,
+                                       chain[0..-2])
+           else
+             lineage.ancestor_latest(aggregate, era, chain)
+           end
   verdict = Hecks::Translation::Audit.check(aggregate: aggregate, declared: declared, before: before, after: after)
 
-  puts "── #{bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, #{after.size} record#{after.size == 1 ? '' : 's'})"
+  puts "── #{bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, " \
+       "#{after.size} record#{'s' unless after.size == 1})"
   verdict.violations.each { |violation| puts "   REFUSED: #{violation}" }
   puts "   dropped (declared data loss): #{verdict.dropped.join(', ')}" unless verdict.dropped.empty?
   puts "   unfed (no rule, no default — add default: if required): #{verdict.unfed.join(', ')}" unless verdict.unfed.empty?

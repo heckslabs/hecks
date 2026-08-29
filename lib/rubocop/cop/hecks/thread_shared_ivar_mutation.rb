@@ -61,7 +61,7 @@ module RuboCop
               "other's view of it, the exact bug already fixed for `Dispatcher#reaction_depth` " \
               "(see dispatcher.rb's `#reenter`). Use `Thread.current[:...]` for per-thread " \
               "state, or a `Mutex`-guarded critical section (`Registry#saga_mutex`) if the " \
-              "state genuinely must be shared."
+              "state genuinely must be shared.".freeze
 
         THREAD_SHARED_CLASSES = ["Dispatcher", "Registry"].freeze
 

@@ -1,7 +1,7 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
 
-RSpec.describe "Postgres atomic_put persistence", io: true do
+RSpec.describe "Postgres atomic_put persistence", :io do
   SCHEMA = "hecks_atomic_put_spec".freeze
 
   def database

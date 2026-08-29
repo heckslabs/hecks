@@ -70,7 +70,9 @@ apply_candidate = lambda do |text, candidate|
   window_end = text.index(/^\s*emits\s/, window_start)
   next [text, false] unless window_end
 
-  before, window, after = text[0...window_start], text[window_start...window_end], text[window_end..]
+  before = text[0...window_start]
+  window = text[window_start...window_end]
+  after = text[window_end..]
 
   pattern = /^[ \t]*attribute\s+:#{Regexp.escape(candidate.field)}\s*,[^\n]*\n/
   next [text, false] unless window.scan(pattern).size == 1

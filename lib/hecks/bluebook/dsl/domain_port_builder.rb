@@ -2,8 +2,15 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `domain_port "Name" do ... end` block into a `DomainPort` —
+      # the inbound (`operation`/`tells`) and outbound (`asks`) operations a
+      # domain exchanges with the outside world. Falls back to building a
+      # plain `Port` (the same object `PortBuilder` builds) when the block is
+      # bare-verb shaped instead, so an existing top-level `.port` file can
+      # migrate to being parsed by this builder — see `legacy_bare_port:`'s
+      # own comment on `#initialize`.
       class DomainPortBuilder
-        GRAMMAR_CONTEXT = "DomainPort"
+        GRAMMAR_CONTEXT = "DomainPort".freeze
 
         include WordGate
 
@@ -43,8 +50,8 @@ module Hecks
         # — the routing between the two spellings now lives in the table,
         # not in a Ruby `alias`. Not bootstrap-reachable (checked
         # directly), so no BOOTSTRAP_CALLS_FALLBACK entry needed.
-        def tells_impl(name, to: nil, &block)
-          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :inbound, &block)
+        def tells_impl(name, to: nil, &)
+          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :inbound, &)
         end
 
         # WHAT WE ASK OF THE OUTSIDE — the direction this language did not
@@ -57,8 +64,8 @@ module Hecks
         #
         # RENAMED FROM `asks` — item #13's full metaprogrammed dispatch
         # (slice 4c), same reasoning as tells_impl above.
-        def asks_impl(name, to: nil, &block)
-          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &block)
+        def asks_impl(name, to: nil, &)
+          @operations << PortOperationBuilder.build(name, to: to, owner: @owner, direction: :outbound, &)
         end
 
         # THE DRIVEN HALF OF THE SAME WORD. `operation`/`emits` translates an
@@ -101,9 +108,15 @@ module Hecks
         def answers(name) = @answers << name.to_sym
 
         def build
-          raise Malformed, "#{@name} declares both a verb and operations — a port is one or the other, not both" if @verb && !@operations.empty?
+          if @verb && !@operations.empty?
+            raise Malformed,
+                  "#{@name} declares both a verb and operations — a port is one or the other, not both"
+          end
 
-          return MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal, answers: @answers)) if @verb || (@legacy_bare_port && @operations.empty?)
+          if @verb || (@legacy_bare_port && @operations.empty?)
+            return MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal,
+                                                    answers: @answers))
+          end
 
           raise Malformed, "#{@name} declares no verb and no operations" if @operations.empty?
 
