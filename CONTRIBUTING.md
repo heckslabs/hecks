@@ -1,7 +1,7 @@
 # Contributing
 
-hecks is a research language. That is not a disclaimer to skip past —
-it sets what a contribution should look like. The interesting bugs here
+hecks is a language whose declarations are meant to be checked, and
+that sets what a contribution should look like. The interesting bugs here
 are rarely "it crashed"; they are "the declaration says one thing and
 the runtime quietly did another." Read
 [Verification](docs/implemented/guides/verification.md) before you

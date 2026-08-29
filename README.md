@@ -735,9 +735,9 @@ The example domains this README draws from:
 
 ## Contributing
 
-Issues, examples, and runtime/adapter work are all welcome — this is
-still research software, and the gaps in [Project
-status](#project-status) are real starting points, not a formality.
+Issues, examples, and runtime/adapter work are all welcome — the gaps
+in [Project status](#project-status) are real starting points, not a
+formality.
 Before sending a change: `bundle exec rspec`, `bin/model_check`, and
 `bin/fuzz` are what CI runs, and every `ruby`-fenced example in a guide
 or this README is expected to execute exactly as shown
