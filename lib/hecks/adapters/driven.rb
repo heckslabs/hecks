@@ -32,6 +32,7 @@ require_relative "driven/postgres"
 Hecks::Adapters.autoload(:PostgresEra, "hecks/ports/persistence/plugins/era")
 require_relative "driven/lambda"
 require_relative "driven/heki"
+require_relative "driven/local_storage"
 require_relative "driven/prism"
 require_relative "driven/folder"
 require_relative "driven/d1"

@@ -17,6 +17,7 @@ module InMemoryDomain
   PERSISTENCE_PORT = File.join(ROOT, "lib/hecks/ports/persistence.port")
   EXTRACTION_PORT  = File.join(ROOT, "lib/hecks/ports/extraction.port")
   MEMORY_ADAPTER   = File.join(ROOT, "lib/hecks/adapters/driven/memory.adapter")
+  LOCAL_STORAGE_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/local_storage.adapter")
   PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
   POSTGRES_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres.adapter")
   POSTGRES_ERA_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres_era.adapter")

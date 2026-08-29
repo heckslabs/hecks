@@ -1,0 +1,3 @@
+Hecks.adapter "LocalStorage" do
+  port "persistence"
+end
