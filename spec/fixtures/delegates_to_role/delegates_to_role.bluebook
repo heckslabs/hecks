@@ -1,0 +1,99 @@
+# THE ROLE HALF of `CommandInterpreter#step_delegate_to_entity`'s own gate
+# regression — a SEPARATE fixture from `spec/fixtures/delegates_to/` on
+# purpose, and the reason is worth reading before merging the two back
+# together:
+#
+# `Registry::Verification#refuse_ungoverned_roles!` refuses a domain that
+# declares a `role` with no Governance attachment to check it against
+# ("without that it is silent decoration, the exact defect this refusal exists
+# to catch"). That check runs on a REAL boot, not on the bare
+# `Kernel.load` + `bind_runtime` this fixture's own spec uses — and the
+# delegates_to fixture next door IS booted for real, with its own
+# `delegates_to_sqlite.hecksagon`, by spec/behaviors/runner_spec.rb. Putting a
+# `role` there turned that spec red. This directory carries no `.hecksagon`
+# for exactly that reason.
+#
+# The runtime gate itself needs no Governance: `refuse_role_mismatch` falls
+# back to comparing `caller.role` against the command's own declared role when
+# no actor/governance is bound, which is what these examples exercise.
+Hecks.bluebook "DelegatesToRole" do
+  vision "A board whose entity command is role-guarded, reached through an aggregate command that is not."
+  core
+
+  aggregate "Board" do
+    description "A board holding pieces. RetirePiece is the door; Piece.Retire is the guarded rule."
+
+    identified_by :name
+
+    attribute :name,   BoardName
+    attribute :pieces, list_of(Piece)
+
+    value_object "BoardName" do
+      attribute :value, String
+    end
+
+    value_object "PieceId" do
+      attribute :value, String
+    end
+
+    value_object "Square" do
+      attribute :file, Integer
+      attribute :rank, Integer
+    end
+
+    command "OpenBoard" do
+      goal "Start a fresh, empty board"
+
+      attribute :name, BoardName
+
+      emits "BoardOpened"
+    end
+
+    command "PlacePiece" do
+      goal "Set a piece down on the board, for testing"
+
+      reference_to Board
+      attribute :id,     PieceId
+      attribute :square, Square
+
+      sets :pieces, append: { id: :id, square: :square }
+
+      emits "PiecePlaced"
+    end
+
+    # NO ROLE ON THE DOOR — the only guard is the one the entity command
+    # declares, which is exactly what the regression is about.
+    command "RetirePiece" do
+      goal "Retire a piece, on the caller's behalf"
+
+      reference_to Board
+      attribute :id,          PieceId
+      attribute :destination, Square
+
+      delegates_to "Piece.Retire", with: { id: :id, destination: :destination }
+    end
+
+    entity "Piece" do
+      description "One piece. Its own Retire is role-guarded."
+
+      attribute :id,     PieceId
+      attribute :square, Square
+
+      identified_by :id
+
+      # NAMED `destination`, NOT `to` — `to:` is also the dispatcher's own
+      # routing keyword, and these examples dispatch this command DIRECTLY as
+      # their control, which uses plain kwargs.
+      command "Retire" do
+        role "Supervisor"
+        goal "Move a piece aside, on a supervisor's say-so"
+
+        attribute :destination, Square
+
+        sets :square, to: :destination
+
+        emits "PieceRetired"
+      end
+    end
+  end
+end

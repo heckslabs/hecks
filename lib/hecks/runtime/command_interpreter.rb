@@ -230,6 +230,8 @@ module Hecks
             delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
           )
 
+          refuse_delegated_target(target_command, target_args, ctx.domain)
+
           element = EntityElement.locate_chain(ctx.aggregate, [entity], ctx.instance, target_args, command_name)
           view = Instance.new(aggregate: entity, id: EntityElement.element_identity(entity, element).to_s, state: element)
 
@@ -247,6 +249,51 @@ module Hecks
 
           ctx.delegated_events = @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository)
         end
+      end
+
+      # THE TARGET COMMAND'S OWN GATES. A delegated dispatch is still a
+      # dispatch OF THAT COMMAND — `delegates_to` exists so "the entity's
+      # own refusal is this command's refusal" (chess's own comment on
+      # `MovePiece`), and a declared `role`/required argument is a refusal.
+      # Before this, neither ran: a caller refused by `Piece.Move` when
+      # addressing it directly was ADMITTED through the delegating door,
+      # and a required target attribute the door never mapped went silently
+      # absent. Both reproduced against a purpose-built fixture with a
+      # direct-dispatch control, then pinned by the examples in
+      # `spec/runtime/delegates_to_spec.rb` that name this comment — each with
+      # a direct-dispatch control beside it, so a green run proves delegation
+      # stopped skipping the gate rather than that something merely refused.
+      #
+      # THESE TWO, IN `EntityDispatchOrder`'S OWN ORDER, AND NOT THE OTHER
+      # THREE — each exclusion is a real reading, not an oversight:
+      #
+      #   refuse_unknown_arguments  DELIBERATELY NOT RUN. `target_args`
+      #     starts from a copy of the delegating command's own args on
+      #     purpose (see `step_delegate_to_entity`'s own comment where
+      #     `target_args` is built), so every ambient key the
+      #     target never declared is exactly what this gate would reject.
+      #     Running it here would refuse every real delegation in the
+      #     corpus — `spec/fixtures/delegates_to/`'s own header records the
+      #     bug that ambient copy was added to fix.
+      #
+      #   normalize_args  Not needed for the mutation path:
+      #     `EntityElement.apply_to_element` coerces a `:set` through
+      #     `Value.for_attribute` against the ENTITY's own attribute, so a
+      #     value normalised against the door's declared type is re-coerced
+      #     at the target regardless.
+      #
+      #   resolve_references  Genuinely still missing, and left that way on
+      #     purpose: no entity command anywhere in the corpus declares a
+      #     `reference_to` attribute, so adding it here would ship a branch
+      #     with no test and no motivating case. Named rather than silently
+      #     skipped.
+      #
+      # `enforce_invariants` needs nothing here — `step_enforce_invariants`
+      # runs later in THIS dispatch and `Admissibility#enforce_invariants`
+      # recurses into entity elements, so the mutated element is checked.
+      def refuse_delegated_target(target_command, target_args, domain)
+        refuse_absent_arguments(target_command, target_args)
+        @rules.refuse_role_mismatch(target_command, domain)
       end
 
       def step_enforce_ensures(ctx)

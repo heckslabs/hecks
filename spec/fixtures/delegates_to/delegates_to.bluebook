@@ -93,6 +93,33 @@ Hecks.bluebook "DelegatesTo" do
       delegates_to "Piece.Move", with: { id: :id, to: :to }
     end
 
+    # A DOOR ONTO A ROLE-GUARDED TARGET — maps everything `Piece.Retire`
+    # requires, so the only thing standing between a caller and the move is
+    # that command's own `role`.
+    command "RetirePiece" do
+      goal "Retire a piece, on the caller's behalf"
+
+      reference_to Board
+      attribute :id,          PieceId
+      attribute :destination, Square
+      attribute :reason,      BoardName
+
+      delegates_to "Piece.Retire", with: { id: :id, destination: :destination, reason: :reason }
+    end
+
+    # A DOOR THAT FORGETS ONE — never declares or maps `Piece.Retire`'s own
+    # required `reason`, so a delegated dispatch has to refuse the same way a
+    # direct one would.
+    command "RetirePieceForgettingReason" do
+      goal "Retire a piece, having forgotten what the target requires"
+
+      reference_to Board
+      attribute :id,          PieceId
+      attribute :destination, Square
+
+      delegates_to "Piece.Retire", with: { id: :id, destination: :destination }
+    end
+
     entity "Piece" do
       description "One piece. Its own Move is the real rule; MovePiece above is only the door a caller uses to reach it."
 
@@ -111,6 +138,31 @@ Hecks.bluebook "DelegatesTo" do
         sets :square, to: :to
 
         emits "PieceMoved"
+      end
+
+      # A REQUIRED ARGUMENT THE DOOR CAN FORGET — half the regression case for
+      # `CommandInterpreter#step_delegate_to_entity`'s own gate comment. Before
+      # that fix, `RetirePieceForgettingReason` succeeded with `reason`
+      # silently absent. The ROLE half lives in
+      # `spec/fixtures/delegates_to_role/` instead: a declared `role` with no
+      # Governance to check it against is refused at boot by
+      # `Registry::Verification#refuse_ungoverned_roles!`, and THIS fixture is
+      # booted for real (with `delegates_to_sqlite.hecksagon`) by
+      # spec/behaviors/runner_spec.rb.
+      command "Retire" do
+        goal "Move a piece aside, with a reason"
+
+        # NAMED `destination`, NOT `to` (as `Move` above does) — `to:` is also
+        # the dispatcher's own routing keyword, so an attribute of that name
+        # can only be addressed through the `to:`/`with:` envelope form. These
+        # examples dispatch the entity command DIRECTLY as their control, which
+        # uses plain kwargs, so the collision has to be avoided here.
+        attribute :destination, Square
+        attribute :reason,      BoardName
+
+        sets :square, to: :destination
+
+        emits "PieceRetired"
       end
     end
   end
