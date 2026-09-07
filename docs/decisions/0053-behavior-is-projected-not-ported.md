@@ -98,6 +98,30 @@ shape where somebody eventually noticed Rust disagreeing. Teaching a *generator*
 a new op means new source-emission logic; teaching an *interpreter* one means a
 match arm.
 
+**UPDATE (same session): "the one real gap" is wrong, and the way it got wrong
+is worth recording.** Everything above stands as a description of *drift*. But
+this section was written from the ADR trail alone, and the ADR trail is a log of
+what hurt, not a map of what exists. Classifying all 47,050 lines under
+`rust/src/generated/` by enclosing function tells a different story: `from_json`
+(9,424), `to_json` (5,344), `field` (5,030), `as_scalar` (3,094), `items`
+(2,970) and `find_fielded` (394) come to **26,256 lines — 56% of everything
+generated — and none of it is domain behavior.** It is structural reflection,
+mechanically derivable from a type's field list, which `ir.json` already
+carries. `check_invariants` adds another 2,890 in a shape that is plainly a
+table (the `Expr` is *already* emitted as a data literal; only the surrounding
+boilerplate is generated per invariant).
+
+Mutations, by contrast, live inside `dispatch_by_name`'s 4,920 lines — roughly a
+fifth of the codec layer. They dominated this ADR because they produced eight
+decision records, and they produced eight decision records *because they
+drifted*. The codec never drifted, so nothing was ever written about it, so it
+was invisible to a reader working from the decisions.
+
+Neither observation changes the tier framework or the floor below. What changes
+is priority, and one methodological rule follows for anyone extending this ADR:
+**measure the artifact before reading the decision record.** Track B in the plan
+carries the two candidates this update surfaced.
+
 ### The floor is host capability, and it already has an open instance
 
 [0036](0036-postgres-era-cross-runtime-concurrency-gap-investigated-not-yet-closed.md)

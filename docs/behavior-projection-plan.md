@@ -1,4 +1,4 @@
-# Behavior projection: implementation plan, phases 1–4
+# Behavior projection: implementation plan — two tracks
 
 **Status: proposed, nothing implemented.** The decision this executes is
 [ADR 0053](decisions/0053-behavior-is-projected-not-ported.md) — read it first;
@@ -6,9 +6,54 @@ it carries the three-tier framing, the three candidacy tests, and the reasoning
 for why the floor is floor. This document is the ordering, the file-level scope,
 and the gates.
 
+**Two tracks, two different goals, deliberately not merged.**
+
+- **Track A (Phases 1–4) — drift.** Make Ruby/Rust divergence structurally
+  impossible where it can be. Justified by the nine incidents in the 0040–0052
+  ADR run.
+- **Track B (B1, B2) — derivation.** Reduce what has to be generated per
+  instance at all. Justified by measuring the generated output, which no ADR
+  describes because none of it ever drifted.
+
+The tracks overlap (B1 removes a per-instance treatment of something already
+carried as data) but they answer different questions, and a phase that serves
+one is not automatically worth doing for the other. Say which argument you are
+making when you argue for a phase.
+
 Every count below was measured against this checkout, not estimated. The
 commands that produced them are named beside each figure so a later session can
 re-derive rather than trust.
+
+## What the generated output actually contains
+
+Read this before prioritising anything. Classifying all 47,050 generated lines
+under `rust/src/generated/` by enclosing function:
+
+| function | lines | share |
+|---|---|---|
+| `from_json` | 9,424 | 20% |
+| `to_json` | 5,344 | 11% |
+| `field` | 5,030 | 11% |
+| `dispatch_by_name` | 4,920 | 10% |
+| `as_scalar` | 3,094 | 7% |
+| `items` | 2,970 | 6% |
+| `check_invariants` | 2,890 | 6% |
+| `command_attributes_for_verb` | 1,251 | 3% |
+| `extract_id` / `from_seed` / `instances` / `set_projected_field` / `find_fielded` | ~2,650 | 6% |
+
+**JSON codec plus field reflection — `from_json`, `to_json`, `field`,
+`as_scalar`, `items`, `find_fielded` — is 26,256 lines, 56% of everything
+generated.** None of it is domain behavior; every varying part derives from a
+type's field list, which `ir.json` already carries.
+
+**The methodological warning this table exists to carry.** The first draft of
+this plan was built entirely from the ADR trail and put mutations at the centre.
+Mutations live inside `dispatch_by_name`'s 4,920 lines — roughly a fifth of the
+codec layer. They dominated the plan because they produced eight ADRs, and they
+produced eight ADRs because they *drifted*. The codec never drifted, so nothing
+was ever written about it, so it was invisible. **An ADR log is a record of what
+hurt, not a map of what exists.** Any future prioritisation pass should measure
+the artifact before reading the decision record.
 
 ## Governing principles (settled — do not relitigate mid-phase)
 
@@ -33,6 +78,8 @@ re-derive rather than trust.
    drift class has succeeded.
 
 ---
+
+# Track A — drift
 
 ## Phase 1 — Rust interprets mutations instead of compiling them
 
@@ -375,6 +422,87 @@ belong in a plan about drift.
 Two full incidents and part of a third, against Phase 1's four. Phase 4 is
 cheaper than Phase 1 and closes less; both are worth doing, and Phase 1 first.
 
+# Track B — derivation
+
+Neither item here closes a drift incident. Both are justified by the
+measurement table at the top of this document, and the argument for them is
+volume and derivation, not divergence. Keep the two arguments apart.
+
+## B1 — invariant checking becomes a table
+
+**The gap.** `rust/project/types.rb:22`'s `emit_check_invariants` generates a
+`check_invariants` function per value object — 2,890 lines across the corpus,
+six of them in `banking/account.rs` alone. The per-invariant body is
+structurally identical every time:
+
+```rust
+let ctx = EvalContext { args: &NoFields, instance: self };
+if !interpret(&Expr::Compare { … }, &ctx)?.truthy() {
+    // render RefusalSite::InvariantViolationValueObjectInvariant
+    //   with ("name", …), ("description", …), ("offered", …)
+}
+```
+
+Everything that varies is already data: the `Expr` is **already emitted as a
+literal** (so the hard part is done), and `name`/`description` are in `ir.json`.
+The refusal text already routes through the single-sourced `RefusalSite::render`
+table. Meanwhile `QUERIES`, `READ_MODELS`, `POLICIES` and `PROCESS_MANAGERS` are
+all already static tables walked by one kernel interpreter. Invariants are the
+one construct of that family that is not, and reading the code there is no
+reason for it beyond nobody having got to it.
+
+**Deliverable.** A static per-type `INVARIANTS` table of `{expr, name,
+description}` rows, plus one `kernel::invariants::check()` that walks it —
+modelled on `kernel/named_query.rs`'s relationship to the generated `QUERIES`
+table.
+
+**The coupling to B2, which the first sketch of this item missed.**
+`emit_check_invariants` does *two* things. The predicate half is clean and
+standalone. But `types.rb:69` also emits recursion into composed value-object
+fields (`self.<field>.check_invariants()?`), and driving that generically needs
+the same field enumeration B2 is about. **Ship B1 with the recursion still
+generated** — it is a small fraction of the 2,890 lines — and let B2 absorb it
+later. B1 is standalone only under that split.
+
+**Scope.** Value objects only. Aggregate and entity invariants have no
+generated `check_invariants` (consistent with `value_object.rb:42` being the
+only site that emits `ast:` into IR) and are out of scope here.
+
+**Gates.** `bin/rust_conformance` + `spec/rust_conformance_spec.rb` unchanged;
+the refusal-wording corpus fixtures under `spec/corpus/rust_conformance/` pin
+the exact `InvariantViolation` text, so a wording regression fails loudly.
+
+## B2 — complete the field reflection, then decide about the codec
+
+**The measurement.** `to_json` (5,344) and `from_json` (9,424) are 14,768 lines,
+31% of all generated code, and every varying part is a field list. Sampled
+bodies are entirely mechanical: `Money::from_json` is an `unknown_keys` check
+against `["cents","currency"]` plus a typed read per field;
+`AccountKind::from_json` is a match over closed-set members `ir.json` already
+carries. Add `field`/`as_scalar`/`items`/`find_fielded` (11,488) and the
+structural-reflection layer is 26,256 lines.
+
+**The real blocker, stated up front.** `Fielded`
+(`rust/src/kernel/expr.rs:95`) is **read-by-name only** —
+`fn field(&self, name: &str) -> Option<Field<'_>>`. There is no field
+enumeration and no constructor path, so it cannot drive `to_json` (needs to
+iterate) or `from_json` (needs to build). This is not "call serde"; it is
+"make reflection complete enough to drive both directions," and the per-type
+`Fielded` impl survives either way. **14,768 lines become smaller, not zero.**
+
+**Why serde is not the shortcut.** The kernel crate is deliberately std-only
+with zero Cargo dependencies, which is why a codec is generated at all. That
+policy is currently costing on the order of 26,000 lines of generated code.
+Re-examining it is a legitimate decision in its own right and should be taken
+on its own terms — not smuggled in as an implementation detail of this phase.
+
+**This item is a spike, not a commitment.** Do one aggregate end to end before
+anyone plans the rest. The 56% is measured; the feasibility is not. Specifically
+unverified: whether a generic codec can express entity elements, nested
+optional/list combinations, and projected fields without per-type escape
+hatches. If the spike needs more than one escape hatch, that is the answer, and
+the finding is worth writing down either way.
+
 ## The floor, stated once so no phase quietly grows into it
 
 `resolve_references`, `hydrate`, `save`, `emit`, the whole of `rust/host`'s
@@ -394,19 +522,52 @@ Two things remain outside every phase and outside the floor framing alike:
   It stays the job of `bin/model_check` and the fuzzer's declared properties.
 ## Suggested order
 
-**Phase 1 first, alone, merged before anything else starts.** It is the only
-phase with a measured, recurring cost behind it (four of the nine incidents in
-the 0040–0052 run), and it establishes the `mutation_ops/` convention.
+Interleaved across both tracks, cheapest-and-most-certain first.
 
-**Phase 4 second.** Two full incidents and part of a third, and it is cheap —
-two vocabulary terms and two conformance specs, no Rust interpretation written
-at all. It also has no dependency on Phase 1; if two people are working, these
-two go in parallel.
+1. **B1 — invariants as a table.** Contained, the hard part (the `Expr`) is
+   already data, the refusal wording is already single-sourced, and the corpus
+   fixtures pin the observable output. Ship it with the nested-VO recursion
+   still generated. It also proves the "generated function → static table"
+   move on something small before Phase 1 does it on something load-bearing.
+2. **Phase 1 — mutations.** The largest drift item: four of the nine incidents,
+   and it establishes the `mutation_ops/` convention.
+3. **Phase 4 — query/read-model vocabularies.** Two incidents and part of a
+   third, and cheap: two vocabulary terms and two conformance specs, no Rust
+   interpretation written. No dependency on Phase 1, so it parallelises.
+4. **B2 — the reflection spike.** One aggregate, end to end, then decide. Do
+   not schedule the rest of it before the spike answers.
+5. **Phases 2 and 3, either order.** Neither closes an incident from the
+   0040–0052 run. Phase 2 closes the H1 ordering class, which bit once and
+   earlier; Phase 3 removes a false guarantee rather than a divergence.
 
-**Phases 2 and 3 last, in either order.** Neither closes an incident from that
-run. Phase 2 closes the H1 ordering class, which bit once and earlier; Phase 3
-removes a false guarantee rather than a divergence. Real work, lower priority
-than the framing in this document's first draft implied.
+**If only two things get done:** B1 and Phase 1. B1 is the cheapest real
+reduction in the tree; Phase 1 is the largest real drift closure.
+
+### Scorecard — Track A, against the nine incidents
+
+| | closed by | count |
+|---|---|---|
+| mutation ops (0042, 0046, 0047, 0049) | Phase 1 | 4 |
+| read-model aggregation (0050, 0052) | Phase 4a | 2 |
+| null ordering (part of 0040) | Phase 4b | ~0.5 |
+| type bridging (0045, 0051) | **nothing — permanent** | 2 |
+
+Roughly six and a half of nine become structurally impossible. The two type-
+bridging incidents are the static-typing tax — resolving an IR `source` to a
+Rust type and `Option` depth — and no amount of projection retires them, which
+is why Phase 1's own scope note insists that machinery survives.
+
+### Scorecard — Track B, against generated volume
+
+| | addressed by | lines | share of generated |
+|---|---|---|---|
+| `check_invariants` | B1 | 2,890 | 6% |
+| `to_json` / `from_json` | B2 (spike first) | 14,768 | 31% |
+| `field` / `as_scalar` / `items` / `find_fielded` | B2 (spike first) | 11,488 | 24% |
+
+B1's reduction is real but bounded. B2's is the large one and is **unproven** —
+the size is measured, the feasibility is not, and the `Fielded` trait as it
+stands cannot drive either direction of the codec.
 
 ### Scorecard against the nine incidents
 
