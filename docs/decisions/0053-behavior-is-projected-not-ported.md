@@ -2,7 +2,7 @@
 
 **Status:** Proposed, not implemented. This ADR names the boundary that decides
 whether a piece of behavior can be made drift-free between Ruby and Rust, sorts
-the existing codebase against it, and commits to three phases of work scoped in
+the existing codebase against it, and commits to four phases of work scoped in
 [`docs/behavior-projection-plan.md`](../behavior-projection-plan.md). No code
 changes ship with it. Extends
 [0009](../implemented/decisions/0009-language-describes-shape-not-interpreter-or-io.md),
@@ -137,7 +137,7 @@ Applying the tests to `AggregateDispatchOrder`'s own sixteen steps:
 | **Can reach Tier 3** | `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`, `refuse_role_mismatch`, `admissible_transition`, `assign_creation_attributes`, `apply_mutations`, `advance_lifecycle` |
 | **Permanent floor** | `resolve_references`, `hydrate`, `save`, `emit`, and the routing half of `delegate_to_entity` |
 
-**Three phases follow, scoped in
+**Four phases follow, scoped in
 [`docs/behavior-projection-plan.md`](../behavior-projection-plan.md).**
 
 - **Phase 1 — Rust interprets mutations instead of compiling them.** A generic
@@ -157,6 +157,16 @@ Applying the tests to `AggregateDispatchOrder`'s own sixteen steps:
   Phase 1, or the "executes in every target" language is demoted to
   documentation. The present state — a hard `>= 2` gate over content nothing
   reads — is the worst of both.
+- **Phase 4 — declare and gate the query/read-model vocabularies.** Not a port:
+  `kernel/named_query.rs` and `kernel/read_model.rs` already interpret static
+  tables generically. What is missing is that read-model aggregations
+  (`group_by`/`count`/`median`) and null-ordering modes
+  (`native`/`first`/`last`) are closed sets in behavior with no declaration and
+  no gate, which is what 0050, 0052 and part of 0040 cost. Gated by conformance
+  spec rather than generated enum, following
+  `spec/query_comparator_conformance_spec.rb`'s own reasoning: once a real
+  dispatch site exists, the file is hand-maintained code and there is nothing
+  for a generator to regenerate.
 
 **For the floor, the instrument is contract narrowing, not projection.** `.port`
 already declares `signal: reply|effect` and a `PortAnswer` list naming the
@@ -192,11 +202,15 @@ bind, so the two mechanisms stop being invisible to each other.
   Single-sourcing removes the disagreement class entirely and does nothing for
   this one, which stays the job of `bin/model_check` and the fuzzer's declared
   properties ([0024](../implemented/decisions/0024-fuzzer-properties-are-claimed-against-the-language-grammar.md)).
-- **Read-model and query semantics are a plausible fourth candidate,** not
-  scoped here. The Ruby side is already unified behind
-  `QuerySpecification::Common::Comparison`/`NullPolicy`; whether
-  `kernel/query_comparators.rs` (444 lines) and `kernel/read_model.rs` (873) can
-  follow has not been investigated.
+- ~~**Read-model and query semantics are a plausible fourth candidate,** not
+  scoped here.~~ **UPDATE (same session): investigated and scoped as Phase 4 —
+  and the premise above was wrong.** Rust does *not* compile queries or read
+  models the way it compiles mutations: `kernel/named_query.rs` and
+  `kernel/read_model.rs` are each "the ONE hand-written interpreter" walking a
+  static `QueryDef`/`ReadModelDef` table, "never bespoke per-query Rust control
+  flow" (their own headers). The Phase 1 move is already done here. What is
+  missing is narrower — two undeclared vocabularies and the gates over them —
+  so Phase 4 is an enforcement phase, not a port. See the plan.
 - **Which of the eight "can reach Tier 3" steps are worth the move** beyond
   `apply_mutations` is unproven. The other seven are small and structural; none
   has produced a porting ADR, which is weak evidence that they are not currently

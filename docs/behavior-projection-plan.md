@@ -1,4 +1,4 @@
-# Behavior projection: implementation plan, phases 1–3
+# Behavior projection: implementation plan, phases 1–4
 
 **Status: proposed, nothing implemented.** The decision this executes is
 [ADR 0053](decisions/0053-behavior-is-projected-not-ported.md) — read it first;
@@ -257,6 +257,124 @@ named files to the ones that exist.
 
 ---
 
+## Phase 4 — declare and gate the query/read-model vocabularies
+
+**This phase is not shaped like Phase 1, and the first draft of this plan said
+otherwise.** The expectation was that queries and read models would turn out to
+be compiled per instance in Rust the way mutations are. They are not.
+`rust/src/kernel/named_query.rs` and `rust/src/kernel/read_model.rs` are each
+"the ONE hand-written interpreter every generated domain's own
+`QUERIES`/`READ_MODELS` table is walked through — **never bespoke per-query
+Rust control flow**" (their own headers), fed by static `QueryDef`/`ReadModelDef`
+rows. Phase 1's move is already done here.
+
+So Phase 4 ports nothing and deletes nothing. It closes the two places where a
+closed set exists in behavior but not in the language, and therefore has no gate.
+
+### Already done — do not re-propose
+
+- **`QueryComparator` is gated.** `spec/query_comparator_conformance_spec.rb`
+  reads `rust/src/kernel/query_comparators.rs` directly and holds both its `ALL`
+  roster and its `parse` wire names to `Vocabulary::QueryComparator`, both
+  directions. It exists precisely because that pair drifted —
+  `Vocabulary::QueryComparator` grew a ninth name (`none_in_state`) that Rust's
+  enum "never caught up to, for however long that drift was already live before
+  this spec." Note the file's own reasoning for why a generator cannot replace
+  the spec here: once a real dispatch site exists, `query_comparators.rs` is
+  hand-maintained code, not a generated roster. **This is the counter-example to
+  Phase 1's "generate the enum" pattern and the reason Phase 4 uses specs
+  instead.**
+- **Attribute shapes and expression-operator categories are gated** by
+  `spec/kernel_capabilities_conformance_spec.rb` plus `bin/rust_kernel_coverage`.
+
+### 4a — declare `ReadModelAggregation`
+
+**The gap.** `group_by`, `count` and `median` are three ad-hoc fields on
+`IR::ReadModel` (`@group_by`, `@count`, `@median_field` —
+`lib/hecks/bluebook/read_model.rb:29`), three ad-hoc predicates in the
+interpreter (`model.group_by.any?`, `model.count?`, `model.median_field` —
+`read_model_interpreter.rb:67`), a mutual-exclusion rule ("at most one of") that
+lives only in `read_model_builder.rb`'s comments and `seal_group_by`, and
+matching hand-written arms in `kernel/read_model.rs`. **There is no closed set
+anywhere** — `grep -n "Aggregation" lib/hecks/language/bluebook/*.bluebook`
+returns nothing.
+
+That absence is what [0050](decisions/0050-group-by-read-model-support-ported-for-real.md)
+and [0052](decisions/0052-count-median-read-model-aggregation-ported-for-real.md)
+cost: two ADRs for two aggregations, each discovered rather than gated.
+
+**Deliverables.**
+
+1. `value_object "ReadModelAggregation"` in
+   `lib/hecks/language/bluebook/vocabulary.bluebook`, members `group_by`,
+   `count`, `median`, each carrying whether it takes a field — the same
+   `name`/`sign` two-column shape `MutationOp` already uses. Mutual exclusion
+   stays a builder rule; the vocabulary names the set, not the arity law.
+2. A conformance spec holding the builder, `ReadModelInterpreter` and
+   `kernel/read_model.rs` to that set, **modelled on
+   `spec/query_comparator_conformance_spec.rb`, not on the generated-enum
+   pattern** — `read_model.rs` is hand-maintained interpretation with a real
+   dispatch site, exactly the case that spec's header says a generator cannot
+   serve.
+3. `spec/vocabulary_conformance_spec.rb` extended with the new term, the same
+   way `AggregateDispatchOrder` and `QueryComparator` already appear there.
+
+**Proof of done.** A fourth aggregation is a vocabulary row plus arms on both
+sides, with a red spec until all three exist — not an ADR.
+
+### 4b — declare `NullPolicyMode`
+
+**The gap.** Three modes — `native`, `first`, `last` — live as bare `case`
+strings in `lib/hecks/query_specification/common/null_policy.rb` (`:27`, `:48`),
+with `native` as the default (`null_semantics.rb:7`), mirrored by
+`kernel/query_ordering.rs`. No vocabulary row, no gate.
+[0040](decisions/0040-declared-query-offset-ported-for-real.md) shipped
+`nulls :first`/`:last` across both runtimes; nothing prevents a fourth mode from
+landing on one side only.
+
+**Deliverable.** A three-member `NullPolicyMode` term in `vocabulary.bluebook`
+and its row in the conformance spec. Small enough to ride along with 4a in one
+pass; listed separately so it is not silently dropped if 4a slips.
+
+### 4c — make the admitted subset declared, not commented
+
+**The gap, and the honest uncertainty.** `rust/project/queries.rb`'s
+`query_skip_reason` and `rust/project/read_models.rb`'s `read_model_skip_reason`
+encode which declared shapes get a generated row. Everything outside gets **no
+row at all** and is refused cleanly by `kernel/cli.rs` — "never silently wrong,"
+and that is genuinely true today. The risk is not wrongness but silent *scope
+shrink*: a capability could leave the admitted subset, or a new Ruby capability
+could land outside it, with nothing failing.
+
+**Deliverable, if it earns its place.** A declared list of which language
+capabilities the Rust subset admits, and a spec asserting that every capability
+the language declares is either in the subset or explicitly named as out.
+
+**This item is speculative and should be decided, not assumed.** The skip
+reasons are prose today and prose is often the honest form for "we haven't
+ported this yet." Do 4a and 4b first and revisit.
+
+### Out of scope — feature gaps, not drift
+
+Reference-hopping `where` clauses in aggregate queries, `cursor`, `consistency`,
+`freshness`, `authorize`/TenantScope beyond what
+[0040](decisions/0040-declared-query-offset-ported-for-real.md) shipped,
+`inspection` and `index_hints` are real `Ports::Query::InMemory` capabilities
+with no Rust port. That is a **feature gap**, not divergence: both runtimes
+agree, one simply refuses. Closing it is ordinary porting work and does not
+belong in a plan about drift.
+
+### Incidents this phase closes
+
+| ADR | capability | closed by |
+|---|---|---|
+| [0050](decisions/0050-group-by-read-model-support-ported-for-real.md) | `group_by` | 4a |
+| [0052](decisions/0052-count-median-read-model-aggregation-ported-for-real.md) | `count`/`median` | 4a |
+| [0040](decisions/0040-declared-query-offset-ported-for-real.md) | `nulls :first`/`:last` | 4b (partial — that ADR bundled four capabilities) |
+
+Two full incidents and part of a third, against Phase 1's four. Phase 4 is
+cheaper than Phase 1 and closes less; both are worth doing, and Phase 1 first.
+
 ## The floor, stated once so no phase quietly grows into it
 
 `resolve_references`, `hydrate`, `save`, `emit`, the whole of `rust/host`'s
@@ -274,14 +392,32 @@ Two things remain outside every phase and outside the floor framing alike:
   "places both runtimes agreed *and were identically wrong*... agreement is not
   correctness." Single-sourcing removes disagreement and does nothing for this.
   It stays the job of `bin/model_check` and the fuzzer's declared properties.
-- **Query and read-model semantics** — `kernel/query_comparators.rs` (444) and
-  `kernel/read_model.rs` (873) against a Ruby side already unified behind
-  `QuerySpecification::Common::Comparison`/`NullPolicy`. A plausible fourth
-  phase; not investigated, deliberately not scoped here.
-
 ## Suggested order
 
-Phase 1 first, alone, and merged before anything else starts: it is the only
-phase with a measured, recurring cost behind it, and it establishes the
-`mutation_ops/` convention the other two lean on. Phase 3's Option A/B decision
-can be made any time and is cheap; Phase 2 is the smallest and can follow either.
+**Phase 1 first, alone, merged before anything else starts.** It is the only
+phase with a measured, recurring cost behind it (four of the nine incidents in
+the 0040–0052 run), and it establishes the `mutation_ops/` convention.
+
+**Phase 4 second.** Two full incidents and part of a third, and it is cheap —
+two vocabulary terms and two conformance specs, no Rust interpretation written
+at all. It also has no dependency on Phase 1; if two people are working, these
+two go in parallel.
+
+**Phases 2 and 3 last, in either order.** Neither closes an incident from that
+run. Phase 2 closes the H1 ordering class, which bit once and earlier; Phase 3
+removes a false guarantee rather than a divergence. Real work, lower priority
+than the framing in this document's first draft implied.
+
+### Scorecard against the nine incidents
+
+| | closed by | count |
+|---|---|---|
+| mutation ops (0042, 0046, 0047, 0049) | Phase 1 | 4 |
+| read-model aggregation (0050, 0052) | Phase 4a | 2 |
+| null ordering (part of 0040) | Phase 4b | ~0.5 |
+| type bridging (0045, 0051) | **nothing — permanent** | 2 |
+
+Roughly six and a half of nine become structurally impossible. The two type-
+bridging incidents are the static-typing tax — resolving an IR `source` to a
+Rust type and `Option` depth — and no amount of projection retires them, which
+is why Phase 1's own scope note insists that machinery survives.
