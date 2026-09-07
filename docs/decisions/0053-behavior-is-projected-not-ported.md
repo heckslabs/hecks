@@ -202,8 +202,24 @@ Applying the tests to `AggregateDispatchOrder`'s own sixteen steps:
 | **Can reach Tier 3** | `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`, `refuse_role_mismatch`, `admissible_transition`, `assign_creation_attributes`, `apply_mutations`, `advance_lifecycle`, `hydrate`, `save`, `emit` (shape only — the timestamp stays a door concern) |
 | **Not a step at all** | the adapters behind `Repository`, `Clock` and the rest — permanently per-runtime |
 
-`delegate_to_entity` is the one step not read directly and is left unclassified
-rather than assumed.
+**UPDATE — `delegate_to_entity` read too; it is not floor either.**
+`step_delegate_to_entity` (`command_interpreter.rb:201-249`) is a fully generic
+interpreter over declared data: it splits the `:delegate` mutation's `target`
+(`"Entity.Command"`), looks the entity and its command up in the IR, merges
+`ctx.args` with the declared `with:` map, and runs the nested command. No host
+capability is touched that the parent dispatch has not already reached. Rust,
+by contrast, **generates it per command** — `rust/project/commands.rb:585-591`
+(`delegate_of`, `delegate_skip_reason`, the exemplar's `delegate_prelude`/
+`delegate_apply`). Same asymmetry as mutations: Ruby interprets, Rust compiles.
+
+It does not belong in Phase 1's `mutation_ops/<op>.rs` leaf convention, though.
+Unlike `increment`, `delegate` does not apply a value to a field — it runs a
+nested sub-pipeline (locate element, givens, transition, mutations, lifecycle,
+ensures, emit), which is why `mutation_applier.rb`'s own `:delegate` arm is a
+deliberate `nil`. It is its own slice, not a seventh leaf.
+
+With that, every one of the five steps originally called "permanent floor" has
+been read and none of them is.
 
 **Four phases follow, scoped in
 [`docs/behavior-projection-plan.md`](../behavior-projection-plan.md).**

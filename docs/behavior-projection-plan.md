@@ -139,9 +139,35 @@ exercises it.
   [0048](decisions/0048-corrects-kernel-gap-precisely-scoped-two-real-design-options.md)
   found the blast radius universal. Moving it in the same pass as six ordinary
   value ops would put that decision back in play for no gain.
-- `delegate` — a synchronous handoff into a nested entity command. It is routing
-  wearing a mutation's wire shape, and belongs with Phase 2's dispatch work if
-  it moves at all.
+- `delegate` — **still deferred, but for a corrected reason.** This item
+  originally read "routing wearing a mutation's wire shape, belongs with Phase
+  2." That was a guess; `step_delegate_to_entity`
+  (`command_interpreter.rb:201-249`) has since been read. It is not routing —
+  it is an in-aggregate handoff to a nested entity command, driven entirely by
+  declared data (the `target` string, the `with:` map, the entity's own IR),
+  and Rust generates it per command (`rust/project/commands.rb:585-591`) exactly
+  as it does mutations. So it *is* a Phase-1-shaped asymmetry. It is deferred
+  because it does not fit the **leaf** convention: `delegate` applies no value
+  to a field, it runs a nested sub-pipeline (locate element, givens, transition,
+  mutations, lifecycle, ensures, emit), which is why `mutation_applier.rb`'s own
+  `:delegate` arm is a deliberate `nil`. Give it its own slice after Phase 1
+  establishes the convention, and note that `delegate_skip_reason` means Rust
+  already declines to generate some delegations — an admitted-subset boundary of
+  the same kind queries and read models have.
+
+  **Flagged while reading, unverified, not this plan's business to fix.**
+  `step_delegate_to_entity` hand-inlines the entity dispatch sequence rather
+  than going through `EntityInterpreter`, and the sequence it runs is missing
+  the first five steps `EntityDispatchOrder` declares —
+  `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`,
+  `refuse_role_mismatch`, `resolve_references`. The parent command ran those
+  against **its own** attributes, and `with:` then remaps values onto the
+  target's attributes, so a value normalised against the parent's declared type
+  can reach a target attribute of a different type without being normalised
+  against it. That is the shape of bug H1
+  (`docs/audits/2026-08-10-main-bug-audit.md`), one level over. It may be
+  intentional and it may be covered; nobody has written down which. Worth its
+  own investigation before Phase 2 touches dispatch ordering.
 
 ### Deliverables
 
