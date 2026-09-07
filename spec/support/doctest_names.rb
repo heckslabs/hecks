@@ -66,6 +66,7 @@ module DoctestNames
     1.0-readiness.md
     adoption-readiness.md
     architecture-map.md
+    behavior-projection-plan.md
     command-form-and-query-form-bluebook.md
     dsl-work-slices.md
     event-storming-policies.md
