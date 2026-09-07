@@ -155,19 +155,41 @@ exercises it.
   already declines to generate some delegations — an admitted-subset boundary of
   the same kind queries and read models have.
 
-  **Flagged while reading, unverified, not this plan's business to fix.**
+  **CONFIRMED BY REPRODUCTION — two real gaps, not a projection concern.**
   `step_delegate_to_entity` hand-inlines the entity dispatch sequence rather
-  than going through `EntityInterpreter`, and the sequence it runs is missing
-  the first five steps `EntityDispatchOrder` declares —
-  `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`,
-  `refuse_role_mismatch`, `resolve_references`. The parent command ran those
-  against **its own** attributes, and `with:` then remaps values onto the
-  target's attributes, so a value normalised against the parent's declared type
-  can reach a target attribute of a different type without being normalised
-  against it. That is the shape of bug H1
-  (`docs/audits/2026-08-10-main-bug-audit.md`), one level over. It may be
-  intentional and it may be covered; nobody has written down which. Worth its
-  own investigation before Phase 2 touches dispatch ordering.
+  than going through `EntityInterpreter`, and runs only `locate_element`,
+  `enforce_givens`, `admissible_transition`, `apply_mutations`,
+  `advance_lifecycle`, `enforce_ensures` and `emit` — missing the first five
+  steps `EntityDispatchOrder` declares. Investigated against a purpose-built
+  fixture, with a control proving the gate fires on the direct path:
+
+  - **`refuse_role_mismatch` is bypassed.** An entity command declaring
+    `role "Supervisor"` refuses a `Clerk` caller when dispatched directly, and
+    **admits the same caller through `delegates_to`**, emitting the event.
+  - **`refuse_absent_arguments` is bypassed.** A required entity-command
+    attribute the delegating command neither declares nor maps refuses
+    directly (`AbsentArgument: Move was not given reason`) and **succeeds
+    through delegation**.
+
+  Three of the five are not gaps. `enforce_invariants` (which I first read as
+  missing too) is covered — `Admissibility#enforce_invariants` recurses into
+  entity elements via `check_entity_invariants`, and the parent runs it after
+  delegation. `normalize_args` is largely covered because
+  `EntityElement.apply_to_element` coerces on `:set` via `Value.for_attribute`
+  against the entity's own attribute. `refuse_unknown_arguments` is
+  **deliberately** not wanted: `target_args` starts from a copy of the parent's
+  args on purpose, so ambient context flows through (see the fixture comment in
+  `spec/fixtures/delegates_to/delegates_to.bluebook` recording the real bug
+  that motivated it).
+
+  **A naive fix breaks the corpus** — applying all five gates would make
+  `refuse_unknown_arguments` reject exactly the ambient args that were added
+  deliberately. The fix is a design call about which gates apply, not a
+  one-liner. Latent rather than live in this repo: no corpus domain declares a
+  `role:` on a delegated entity command, and `refuse_role_mismatch` needs both
+  a bound caller and a declared role. Tracked here; **not this plan's work** —
+  it is a correctness fix that should land before Phase 2 touches dispatch
+  ordering.
 
 ### Deliverables
 
