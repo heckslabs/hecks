@@ -149,17 +149,61 @@ two is what let `Rendering`/`Execution` read as a guarantee.
    this ADR's subject.
 2. **Does the per-instance behavior reduce to a closed set of node kinds?**
    Arbitrary protocol does not.
-3. **Do those nodes bottom out in pure computation, or in host capability?**
-   `save`, `hydrate`, `emit` and `resolve_references` bottom out in a
-   repository. They are floor.
+3. **Is the step expressible over a declared port, or is it the port's own
+   implementation?** A step that calls `Repository#find` is projectable; the
+   Postgres adapter behind that call is not.
+
+**UPDATE (same session) — test 3 was originally written as "do those nodes
+bottom out in pure computation, or in host capability?", and the answer given
+was that `save`, `hydrate`, `emit` and `resolve_references` "bottom out in a
+repository, they are floor." That was asserted from
+[0009](../implemented/decisions/0009-language-describes-shape-not-interpreter-or-io.md)'s
+framing without reading any of the four. All four were then read directly, and
+the claim does not survive:**
+
+- **`resolve_references` is not floor — it is already projected, in both
+  runtimes.** Ruby (`command_rules/references.rb:24-37`) walks
+  `command.attributes` for `reference?` fields and validates each through
+  `validate_reference_values` (`:91-103`), whose refusal already renders from
+  the single-sourced wording table. Rust's generated `dispatch_by_name` calls
+  `kernel::command_deref(&*store, REFERENCE_TABLE, …)` and
+  `owner_deref(…)` — a **static `REFERENCE_TABLE`** (emitted by
+  `rust/project/reference_specs.rb`, 44 lines, the smallest generator in the
+  tree) walked by generic functions in `kernel/reference_lookup.rs`. Declared
+  table plus generic interpreter plus a Store port: precisely the pattern this
+  ADR advocates, already built.
+- **`emit`'s event shape is derivable.** `command_rules/emission.rb` is 34
+  lines; the method maps `command.emits` into `Event`s from declared names plus
+  instance id plus args. The only host touch is the timestamp, and the two
+  runtimes already resolve it differently on purpose — Rust's kernel "has no
+  clock" (`cli.rs:386`) and takes `occurred_at` at the door, `dispatch.rs:297`
+  sets it `None`, while Ruby reads `Time.now` in `emission.rb:23`.
+  `bin/rust_conformance:119-129` strips the field before comparing, with the
+  reasoning recorded there.
+- **`save` is generic over a Repository port.** `step_save`
+  (`command_interpreter.rb:268`) is a declared-state reference walk,
+  projected-field seeding, and a strategy-selected `persist_instance`. Rust's
+  `kernel/repository.rs` declares `trait Repository<T> { find, save, all,
+  count }` with one `InMemoryRepository<T>` serving "every generated aggregate,
+  nothing domain-specific here." `hydrate` reads the same port through a plan
+  derived from declared data.
+
+**The error was conflating "needs a port" with "is host capability."** Every
+step in the pipeline can be generic *over* a port; what is per-runtime is the
+**adapter behind it** — Postgres, HTTP, the journal, wasmtime, the host wiring.
+The floor is the adapters, not the steps. The table below is corrected
+accordingly.
 
 Applying the tests to `AggregateDispatchOrder`'s own sixteen steps:
 
 | | steps |
 |---|---|
-| **Already Tier 3** | `enforce_givens`, `enforce_ensures`, `enforce_invariants` |
-| **Can reach Tier 3** | `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`, `refuse_role_mismatch`, `admissible_transition`, `assign_creation_attributes`, `apply_mutations`, `advance_lifecycle` |
-| **Permanent floor** | `resolve_references`, `hydrate`, `save`, `emit`, and the routing half of `delegate_to_entity` |
+| **Already Tier 3** | `enforce_givens`, `enforce_ensures`, `enforce_invariants`, `resolve_references` |
+| **Can reach Tier 3** | `refuse_unknown_arguments`, `refuse_absent_arguments`, `normalize_args`, `refuse_role_mismatch`, `admissible_transition`, `assign_creation_attributes`, `apply_mutations`, `advance_lifecycle`, `hydrate`, `save`, `emit` (shape only — the timestamp stays a door concern) |
+| **Not a step at all** | the adapters behind `Repository`, `Clock` and the rest — permanently per-runtime |
+
+`delegate_to_entity` is the one step not read directly and is left unclassified
+rather than assumed.
 
 **Four phases follow, scoped in
 [`docs/behavior-projection-plan.md`](../behavior-projection-plan.md).**

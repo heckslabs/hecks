@@ -505,12 +505,21 @@ the finding is worth writing down either way.
 
 ## The floor, stated once so no phase quietly grows into it
 
-`resolve_references`, `hydrate`, `save`, `emit`, the whole of `rust/host`'s
-web (2,405), mint (1,449), journal (1,093) and auth (899) layers, every driven
-adapter, and the era concurrency protocol stay two implementations. The
-instrument there is **contract narrowing, not projection**: `.port` already
-declares `signal: reply|effect` and a `PortAnswer` list naming the methods an
-adapter must answer, and what eventually closes
+**Corrected after reading the code — the floor is the adapters, not the steps.**
+An earlier version of this section listed `resolve_references`, `hydrate`,
+`save` and `emit` as floor. All four were then read directly and none of them
+is; see ADR 0053's own UPDATE for the evidence. `resolve_references` in
+particular is *already projected in both runtimes* — a static `REFERENCE_TABLE`
+(`rust/project/reference_specs.rb`, 44 lines) walked by generic functions in
+`kernel/reference_lookup.rs`, against a Store port. The error was treating
+"needs a port" as "is host capability."
+
+What actually stays two implementations: **the adapter implementations behind
+the ports** — every driven adapter, the whole of `rust/host`'s web (2,405),
+mint (1,449), journal (1,093) and auth (899) layers, and the era concurrency
+protocol. The instrument there is **contract narrowing, not projection**:
+`.port` already declares `signal: reply|effect` and a `PortAnswer` list naming
+the methods an adapter must answer, and what eventually closes
 [0036](decisions/0036-postgres-era-cross-runtime-concurrency-gap-investigated-not-yet-closed.md)
 is one declared locking port both runtimes bind — not a bluebook of concurrency.
 
