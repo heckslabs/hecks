@@ -45,6 +45,7 @@ module Hecks
             end
 
             warn_undurable_sagas!(hexagon)
+            warn_undurable_outbox!(hexagon)
           end
           self
         end
@@ -227,6 +228,42 @@ module Hecks
         # refusing the boot outright would break a choice an author made
         # deliberately. What a deploy needs is for the gap to be loud and
         # undeniable, not for local dev/test to become impossible.
+        # THE OUTBOX'S TWIN OF `warn_undurable_sagas!` — a domain that
+        # declares anything a commit could owe a reaction to (a policy
+        # listening to one of its events, or a process manager) but is
+        # bound to an adapter with no outbox (`AppendOnly#outbox?`) gets
+        # reactions the pre-outbox way: run inline, lost on a crash
+        # between commit and reaction. A warning, not a refusal, for the
+        # reason `warn_undurable_sagas!` gives — and Memory HAS an outbox
+        # (in-process, like everything else it holds), so a dev/test
+        # boot stays quiet; this speaks up for the file/remote adapters
+        # that persist state durably but hand reactions to nothing.
+        def warn_undurable_outbox!(hexagon)
+          bluebook_ir = bluebook(hexagon.domain)
+          return unless bluebook_ir
+          return if bluebook_ir.process_managers.empty? && !any_policy_listens_to?(bluebook_ir)
+
+          anchor = bluebook_ir.aggregates.first or return
+          bind = Ports::Persistence::BindingPolicy.resolve(self, hexagon.domain, anchor)
+          return if adapter_class(bind.adapter) <= Ports::Persistence::RemoteRuntime
+          return if repository(hexagon.domain, anchor).outbox?
+
+          warn "[hecks] #{hexagon.domain} declares policies/process_managers but its persistence adapter " \
+               "(#{bind.adapter}) has no outbox — reactions run inline and a crash between a command's commit " \
+               "and its reactions loses them silently. Bind SqlitePersistence or Postgres for a durable outbox " \
+               "(see Runtime::Outbox), or accept in-process-only reactions on purpose."
+        rescue WiringError
+          nil
+        end
+
+        def any_policy_listens_to?(bluebook_ir)
+          emitted = bluebook_ir.aggregates.flat_map do |aggregate|
+            aggregate.commands.flat_map(&:emits) +
+              aggregate.ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
+          end.compact.map(&:to_s)
+          @bluebooks.each_value.any? { |candidate| candidate.policies.any? { |policy| emitted.include?(policy.event_name.to_s) } }
+        end
+
         def warn_undurable_sagas!(hexagon)
           bluebook_ir = bluebook(hexagon.domain)
           return unless bluebook_ir

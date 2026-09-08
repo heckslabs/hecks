@@ -503,24 +503,31 @@ dispatches come from changed, not the trigger itself.
 crash.** Everything above happens inside one dispatch, one process,
 with nothing killed in between — `Account.Credit` declines, and
 `unwind` runs in the same call stack that asked for the credit. A
-process that dies partway through a leg is a different case: the
-saga's checkpoint commits the new state before that leg's own dispatch
-runs (the mutex guarding the checkpoint can't be held across a
-dispatch that might re-enter it), so a crash in that window leaves a
-state on record with no proof its leg ever ran. hecks does not silently
-lose this the way it would from a plain in-memory saga store: booting
-against the same durable adapter again surfaces it — a loud
-`[hecks] ... rehydrated ... with a dispatch left pending ...` warning
-and a `rehydrated_stalled: true` entry in `runtime.sagas` — but it does
-NOT auto-redrive the pending leg. Redelivering a dispatch whose outcome
-is genuinely unknown is only safe with idempotent delivery (the
-downstream command recognizing and no-op'ing a duplicate), which
-hecks's command pipeline doesn't have yet; blindly retrying without it
-risks a double-credited transfer, a strictly worse defect than the
-stall it would replace. So a crash mid-leg, unlike a refusal, still
-needs a human to look at the warning and reconcile the instance by
-hand — an honest gap, tracked as the durable outbox in
-`future-features.md`, not a solved one.
+process that dies partway through is a different case, and there are
+two windows. **Between the triggering command's commit and its
+reactions:** the transactional outbox (`Runtime::Outbox`, ADR 0053)
+closes this one. On Sqlite/Postgres/PostgresEra, the command's save,
+its event, and one `pending` row per consumer — every policy that
+would fire, every process manager that would begin, advance or end on
+the event — commit in ONE transaction; the dispatcher then claims and
+delivers each row inline. A crash before delivery leaves the row
+`pending`, and the next boot redrives it (its consumer provably never
+started). A crash *inside* a consumer leaves it `claimed`; the next
+boot warns (`[hecks] outbox row ... claimed before the last crash ...`)
+and leaves it for `runtime.outbox.redrive!(claimed: true)` — never an
+automatic retry, because redelivering a dispatch whose outcome is
+genuinely unknown risks a double-credited transfer, a strictly worse
+defect than the stall. **Between a saga's checkpoint and its own leg's
+dispatch:** the checkpoint commits the new state before that leg's
+dispatch runs (the mutex guarding the checkpoint can't be held across
+a dispatch that might re-enter it), so a crash there leaves a state on
+record with no proof its leg ran. Booting against the same durable
+adapter surfaces it — a loud `[hecks] ... rehydrated ... with a
+dispatch left pending ...` warning and a `rehydrated_stalled: true`
+entry in `runtime.sagas` — and, for the same reason as a `claimed`
+outbox row, does not auto-redrive it. Both windows are now visible
+across a restart; the second, like a `claimed` row, still needs a
+human to look and decide.
 
 ## When there is nothing to compensate
 

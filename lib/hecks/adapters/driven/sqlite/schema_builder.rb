@@ -96,6 +96,28 @@ module Hecks
           raise unless e.message.include?("duplicate column name")
         end
 
+        def create_outbox_table!
+          @db.execute(<<~SQL)
+            CREATE TABLE IF NOT EXISTS hecks_outbox (
+              id           INTEGER PRIMARY KEY AUTOINCREMENT,
+              delivery_id  TEXT NOT NULL UNIQUE,
+              event_uid    TEXT NOT NULL,
+              aggregate    TEXT NOT NULL,
+              domain       TEXT NOT NULL,
+              kind         TEXT NOT NULL,
+              consumer     TEXT NOT NULL,
+              event        TEXT NOT NULL,
+              status       TEXT NOT NULL DEFAULT 'pending',
+              attempts     INTEGER NOT NULL DEFAULT 0,
+              error        TEXT,
+              enqueued_at  TEXT NOT NULL,
+              claimed_at   TEXT,
+              settled_at   TEXT
+            )
+          SQL
+          @db.execute("CREATE INDEX IF NOT EXISTS idx_hecks_outbox_status ON hecks_outbox(aggregate, status)")
+        end
+
         def sql_type(attr)
           return "TEXT" if attr.list?
 

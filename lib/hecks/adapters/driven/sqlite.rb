@@ -9,6 +9,7 @@ require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/common/order_by"
 require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
+require_relative "../../runtime/outbox"
 require_relative "../../runtime/instance"
 
 module Hecks
@@ -63,6 +64,17 @@ module Hecks
         ensure_entry_mirrors_column!
         create_event_table!
         create_saga_table!
+        create_outbox_table!
+      end
+
+      # RE-ENTRANT ON PURPOSE — `atomic_put` opens its own transaction
+      # and `Interpreting#run_dispatch_order` opens one around the whole
+      # save+emit pair; SQLite3 refuses a BEGIN inside a BEGIN, so the
+      # inner call joins the outer one instead. Same shape Postgres uses.
+      def transaction(&)
+        return yield if @db.transaction_active?
+
+        @db.transaction(&)
       end
 
       def table = @aggregate.storage_name
@@ -145,8 +157,10 @@ module Hecks
 
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        append(entry)
-        project(entry)
+        transaction do
+          append(entry)
+          project(entry)
+        end
       end
 
       # The outcome lookup, journal append and snapshot replacement share one
@@ -154,7 +168,7 @@ module Hecks
       # adapter-native operation owns both concurrency and outcome reporting.
       def atomic_put(entry, insert_only: false)
         status = nil
-        @db.transaction do
+        transaction do
           exists = !@db.get_first_value("SELECT 1 FROM #{quoted_table} WHERE id = ?", [entry.id.to_s]).nil?
           if insert_only && exists
             status = :conflicted
@@ -205,6 +219,57 @@ module Hecks
       # either way; a domain that wants an obviously-named saga store
       # already gets one by sharing `database` across its aggregates,
       # the recommended, common case.
+      # THE OUTBOX — see `Runtime::Outbox`. Rows land in the SAME
+      # database as this aggregate (the only way the enqueue shares the
+      # save's transaction), keyed by the aggregate's storage name so an
+      # adapter instance only ever reads back its own rows even when
+      # several aggregates share one file. `INSERT OR IGNORE` on the
+      # UNIQUE delivery_id makes a re-enqueue of the same (event,
+      # consumer) a no-op; `outbox_claim`'s `WHERE status = 'pending'`
+      # is the compare-and-set that lets exactly one relay win a row.
+      def outbox_enqueue(rows)
+        rows.filter_map do |row|
+          @db.execute(
+            "INSERT OR IGNORE INTO hecks_outbox (delivery_id, event_uid, aggregate, domain, kind, consumer, event, " \
+            "status, attempts, enqueued_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)",
+            [row.delivery_id, row.event_uid, row.aggregate, row.domain, row.kind, row.consumer,
+             JSON.generate(row.event), Time.now.utc.iso8601]
+          )
+          next nil if @db.changes.zero?
+
+          row.id = @db.last_insert_row_id
+          row.status = "pending"
+          row
+        end
+      end
+
+      def outbox_claim(id)
+        @db.execute(
+          "UPDATE hecks_outbox SET status = 'claimed', attempts = attempts + 1, claimed_at = ? " \
+          "WHERE id = ? AND status = 'pending'",
+          [Time.now.utc.iso8601, id]
+        )
+        @db.changes == 1
+      end
+
+      def outbox_settle(id, status:, error: nil)
+        @db.execute(
+          "UPDATE hecks_outbox SET status = ?, error = ?, settled_at = ? WHERE id = ?",
+          [status.to_s, error, Time.now.utc.iso8601, id]
+        )
+        @db.changes == 1
+      end
+
+      def outbox_rows(status: nil)
+        sql   = "SELECT * FROM hecks_outbox WHERE aggregate = ?"
+        binds = [table]
+        if status
+          sql << " AND status = ?"
+          binds << status.to_s
+        end
+        @db.execute("#{sql} ORDER BY id", binds).map { |row| outbox_row(row) }
+      end
+
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.execute(
           "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, " \
@@ -238,6 +303,15 @@ module Hecks
       private
 
       # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
+
+      def outbox_row(row)
+        Runtime::Outbox::Row.new(
+          id: row["id"], delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
+          domain: row["domain"], kind: row["kind"], consumer: row["consumer"],
+          event: JSON.parse(row["event"], symbolize_names: true), status: row["status"],
+          attempts: row["attempts"].to_i, error: row["error"]
+        )
+      end
 
       def select_list = "*"
       def from_relation = quoted_table

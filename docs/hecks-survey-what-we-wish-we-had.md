@@ -169,8 +169,10 @@ as sibling to `CascadeRun` (the in-process reaction outbox). "The core NEVER
 waits — non-blocking by construction, because there is no call to block on."
 Retry policy is the host's, never the core's.
 
-*Ours:* effect ports have no durable hand-off; a restart drops them.
-**Bluebook real; `bin/adapter-host` unbuilt.**
+*Ours:* `Runtime::Outbox` (ADR 0053) — one row per (event, consumer) in the
+save's own transaction, `pending → claimed → delivered | failed`, boot-time
+redrive of `pending`, `claimed` surfaced not redriven. **Outbox real; the shared
+adapter-host protocol and a standalone relay still unbuilt.**
 
 ### 9. Honest-refusal tools
 

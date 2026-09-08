@@ -40,8 +40,35 @@ module Hecks
       # has to guard ITSELF at the top of its own handler and skip tracing
       # when it does not fire, rather than the caller branching around it —
       # see CommandInterpreter#step_assign_creation_attributes.
+      # THE COMMIT BOUNDARY. Every step up to `save` runs as before;
+      # `save`, `emit`, and the outbox enqueue that follows them run
+      # inside ONE `repository.transaction` — so the aggregate row, its
+      # journal entry, the recorded event, and the outbox rows naming
+      # who is owed a reaction commit together or not at all. No new
+      # step is added to the vocabulary's dispatch order (the step list
+      # is a pinned contract, `spec/vocabulary_conformance_spec.rb`);
+      # the enqueue is a consequence of `emit`, not a step of its own.
+      # A context without a repository (port operations — nothing to
+      # save) or with no `:save` in its order runs plainly.
       def run_dispatch_order(order, ctx)
-        order.each { |name| send(:"step_#{name}", ctx) }
+        split = order.index(:save)
+        return order.each { |name| send(:"step_#{name}", ctx) } unless split && ctx.respond_to?(:repository) && ctx.repository
+
+        order[0...split].each { |name| send(:"step_#{name}", ctx) }
+        ctx.repository.transaction do
+          order[split..].each { |name| send(:"step_#{name}", ctx) }
+          enqueue_outbox(ctx)
+        end
+      end
+
+      # Rows for the events this dispatch just emitted, written while
+      # the save's transaction is still open. `nil` (no outbox on this
+      # repository) tells the dispatcher to react directly, the
+      # pre-outbox path; a dry run emits nothing and enqueues nothing.
+      def enqueue_outbox(ctx)
+        return if ctx.dry_run || !ctx.respond_to?(:outbox_rows=)
+
+        ctx.outbox_rows = @registry.outbox.enqueue(ctx.repository, Array(ctx.result), ctx.domain)
       end
 
       # THE CONCURRENCY-CONTROL SPLIT — see docs/decisions/ (concurrency

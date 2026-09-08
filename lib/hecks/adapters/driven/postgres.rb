@@ -9,6 +9,7 @@ require_relative "../../query_specification/common/order_by"
 require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
+require_relative "postgres/outbox"
 require_relative "../../runtime/instance"
 
 module Hecks
@@ -44,6 +45,7 @@ module Hecks
       include SqlQueryBuilder
       include SchemaBuilder
       include Codec
+      include PostgresOutbox
 
       SQL_TYPES = { "Integer" => "bigint", "Float" => "double precision" }.freeze
 
@@ -110,6 +112,7 @@ module Hecks
         create_entry_table!
         create_event_table!
         create_saga_table!
+        create_outbox_table!
       end
 
       def table = @aggregate.storage_name
@@ -172,11 +175,25 @@ module Hecks
       # zero rows back means the conflict branch's WHERE excluded the row
       # entirely — the version had already moved — so `nil` is returned
       # for the caller (`AppendOnly#save`) to treat as "stale, no-op".
+      # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
+      # protocol; splitting it would hide the version handshake.
       def project(entry, expected_version: nil)
         return @db.exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
-        sql, values = upsert_sql(instance, expected_version)
+        columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
+        values   = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
+        updates  = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
+                   ["hecks_version = #{quoted_table}.hecks_version + 1"]
+
+        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
+              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
+              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
+        if expected_version
+          values += [expected_version]
+          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
+        end
+        sql += " RETURNING hecks_version"
 
         result = @db.exec_params(sql, values)
         return nil if result.ntuples.zero?
@@ -184,6 +201,7 @@ module Hecks
         instance.version = result[0]["hecks_version"].to_i
         instance
       end
+      # rubocop:enable Metrics/AbcSize
 
       def entries
         @db.exec("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
@@ -212,21 +230,15 @@ module Hecks
       # transaction lives here, the one caller that runs both together.
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        @db.transaction do
+        transaction do
           append(entry)
           project(entry)
         end
       end
 
-      # Classification, journal append and snapshot replacement are one
-      # Postgres transaction. A row lock cannot serialize two first writers —
-      # there is no row to lock yet — so a transaction-scoped advisory lock on
-      # schema/table + aggregate id owns that missing-row race as well. Once a
-      # writer acquires it, the preceding writer has committed and status can
-      # be read from the materialized table without a runtime-side find.
       def atomic_put(entry, insert_only: false)
         status = nil
-        @db.transaction do
+        transaction do
           @db.exec_params(
             "SELECT pg_advisory_xact_lock(" \
             "hashtext(current_schema() || ':' || $1), hashtext($2))",
@@ -249,7 +261,7 @@ module Hecks
 
       def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
-        @db.transaction do
+        transaction do
           append(entry)
           project(entry)
         end
@@ -389,28 +401,6 @@ module Hecks
       def quoted_table = quote_ident(table)
       def entry_table = "#{table}_entries"
       def quoted_entry_table = quote_ident(entry_table)
-
-      # The INSERT ... ON CONFLICT ... UPDATE statement `project` executes,
-      # plus its bind values — pulled out as one pure builder (no I/O, no
-      # shared state beyond what's passed in) so `project` itself reads as
-      # "build the query, run it, interpret the result".
-      def upsert_sql(instance, expected_version)
-        columns = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
-        values  = [instance.id.to_s] + persisted_fields.map { |field| encode_field(field, instance[field[:name]]) } + [1]
-        updates = persisted_fields.map { |field| "#{quote_ident(field[:name])} = EXCLUDED.#{quote_ident(field[:name])}" } +
-                  ["hecks_version = #{quoted_table}.hecks_version + 1"]
-
-        sql = "INSERT INTO #{quoted_table} (#{columns.map { |c| quote_ident(c) }.join(', ')}) " \
-              "VALUES (#{(1..columns.size).map { |n| "$#{n}" }.join(', ')}) " \
-              "ON CONFLICT (id) DO UPDATE SET #{updates.join(', ')}"
-        if expected_version
-          values += [expected_version]
-          sql += " WHERE #{quoted_table}.hecks_version = $#{values.size}"
-        end
-        sql += " RETURNING hecks_version"
-
-        [sql, values]
-      end
 
       def jsonb_extraction?(expression) = expression.include?("#>>")
 

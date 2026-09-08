@@ -1,6 +1,7 @@
 require "json"
 
 require_relative "../../../../adapters/driven/sql_query_builder"
+require_relative "../../../../adapters/driven/postgres/outbox"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
 require_relative "../../../../ports/persistence/append_only"
@@ -40,6 +41,7 @@ module Hecks
     #   operator compiles fully into SQL, or the query refuses loudly.
     class PostgresEra
       include SqlQueryBuilder
+      include Adapters::PostgresOutbox
 
       attr_reader :aggregate
 
@@ -192,6 +194,7 @@ module Hecks
         @field_caches = ensure_field_caches!
         create_event_table!
         create_saga_table!
+        create_outbox_table!
       end
 
       def table = @aggregate.storage_name
@@ -289,7 +292,7 @@ module Hecks
       # make that replay pay real DB cost for a snapshot that's already
       # correct.
       def append(entry)
-        @db.transaction do
+        transaction do
           lock_writes!
           append_and_project!(entry)
         end
@@ -302,7 +305,7 @@ module Hecks
       # occurs before entering this adapter-native operation.
       def atomic_put(entry, insert_only: false)
         status = nil
-        @db.transaction do
+        transaction do
           lock_writes!
           exists = !@db.exec_params(
             "SELECT 1 FROM #{quoted_head} WHERE id = $1 LIMIT 1",

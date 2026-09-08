@@ -566,7 +566,7 @@ what the 1.0 stability promise covers — the DSL and runtime API in
 [the DSL reference](docs/implemented/reference/index.md) won't change in
 a breaking way without a major-version bump — and what it explicitly
 doesn't cover yet (query DSL aggregation, Rust codegen's `read_model`
-gap, Rails integration, Drivers, a durable outbox — see that doc's
+gap, Rails integration, Drivers, the outbox's standalone relay — see that doc's
 "Explicitly not covered" section). [ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md),
 the breaking DSL redesign this release was blocked on, is fully landed —
 see [Quickstart](#quickstart) for the current syntax.
@@ -608,13 +608,22 @@ across the full suite, alongside `bin/model_check` and `bin/fuzz`):
   and what's *not* independently re-checked yet.
 - Rust codegen has no generated path for `read_model` queries yet;
   those still require Ruby.
+- The transactional outbox ([ADR 0053](docs/decisions/0053-transactional-outbox-for-domain-events-and-effects.md),
+  `Runtime::Outbox`): a command's save, its events, and one
+  `pending` row per policy/process-manager consumer commit together on
+  Sqlite/Postgres/PostgresEra (Memory keeps in-process rows); the
+  dispatcher drains them inline, the next boot redrives `pending` rows
+  and surfaces `claimed` ones. Heki/LocalStorage/D1 have no outbox yet
+  (boot warns); the relay is the dispatching thread plus boot-time
+  reconciliation, not a separate process.
 
 **Planned or research only — nothing below is built:**
 
 - Rails integration (`docs/rails-integration.md` — design only).
 - Inbound scheduling ("Drivers": interval/cron/clock triggers declared
   in the hecksagon).
-- A durable outbox for effect ports.
+- A standalone outbox relay process / shared adapter-host protocol
+  (the transactional outbox itself shipped — see "Experimental or partial").
 - Mutation testing and coverage-guided fuzzing.
 - **[ADR 0025](docs/decisions/0025-the-dsl-names-one-idea-one-way-and-a-word-earns-its-place-by-being-used.md)**
   — Accepted, not yet implemented, and not cosmetic: a real breaking

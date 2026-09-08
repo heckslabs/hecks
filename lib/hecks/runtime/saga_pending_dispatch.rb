@@ -37,9 +37,12 @@ module Hecks
     # worse defect than the stall it would replace. So this is real,
     # durable, crash-surviving VISIBILITY into exactly what a stalled
     # saga was doing when the process died — the missing half of "no
-    # reconciliation pass exists" — not the full pending → claimed →
-    # delivered outbox `future-features.md` still lists as unbuilt, and
-    # not a substitute for it.
+    # reconciliation pass exists". The full pending → claimed →
+    # delivered outbox now exists too (`Runtime::Outbox`, ADR 0053) and
+    # is COMPLEMENTARY, not a replacement: the outbox row names the
+    # EVENT owed to this saga (and redrives it if the saga never got to
+    # claim it); this marker names the saga's own LEG mid-flight after
+    # the event was delivered. A crash can leave either standing.
     SAGA_PENDING_DISPATCH_KEY = :__hecks_saga_pending_dispatch__
   end
 end

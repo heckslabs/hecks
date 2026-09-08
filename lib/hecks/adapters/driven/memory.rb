@@ -29,6 +29,7 @@ module Hecks
         @records   = {}
         @events    = []
         @entries   = []
+        @outbox    = []
       end
 
       def find(id) = @records[id.to_s]
@@ -101,7 +102,46 @@ module Hecks
         @records = {}
         @events  = []
         @entries = []
+        @outbox  = []
         self
+      end
+
+      # No rollback here — a Hash has no transaction to join. Memory
+      # implements `transaction` so `Interpreting#run_dispatch_order` has
+      # one shape to call, and the outbox so a spec can watch rows move
+      # pending → claimed → delivered without a database (the same
+      # reason Memory records `events`). See `Runtime::Outbox`.
+      def transaction = yield
+
+      def outbox_enqueue(rows)
+        rows.filter_map do |row|
+          next nil if @outbox.any? { |held| held.delivery_id == row.delivery_id }
+
+          row.id = @outbox.size + 1
+          @outbox << row
+          row
+        end
+      end
+
+      def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
+        row = @outbox.find { |held| held.id == id }
+        return false unless row&.pending?
+
+        row.status = "claimed"
+        row.attempts += 1
+        true
+      end
+
+      def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod
+        row = @outbox.find { |held| held.id == id } or return false
+        row.status = status.to_s
+        row.error  = error
+        true
+      end
+
+      def outbox_rows(status: nil)
+        rows = status ? @outbox.select { |row| row.status == status.to_s } : @outbox
+        rows.map(&:dup)
       end
     end
   end
