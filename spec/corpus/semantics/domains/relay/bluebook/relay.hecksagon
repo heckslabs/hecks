@@ -1,0 +1,3 @@
+Hecks.hecksagon "Relay" do
+  Relay::Parcel.persisted_by("Memory")
+end

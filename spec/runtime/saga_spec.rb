@@ -287,8 +287,8 @@ RSpec.describe "a process manager" do
     end
 
     real_handler_for = pm.method(:handler_for)
-    pm.define_singleton_method(:handler_for) do |event|
-      event == "WireAsked" ? stub_handler : real_handler_for.call(event)
+    pm.define_singleton_method(:handler_for) do |event, state = nil|
+      event == "WireAsked" ? stub_handler : real_handler_for.call(event, state)
     end
 
     runtime.dispatch("Wire::Wire.Ask",

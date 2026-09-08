@@ -1168,6 +1168,38 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(/names no from:/)
     end
 
+    # C10.3 (docs/semantics/bluebook-semantics.md) — a leg is selected by
+    # (event, current state). Two legs answering the same event from
+    # different states are the point (see spec/corpus/semantics/
+    # saga_leg_selected_by_state.json); two from the SAME state would
+    # leave the runtime picking by declaration order, silently.
+    it "process_manager refuses two transitions on one event from the same state — the leg would be ambiguous" do
+      expect do
+        build_bluebook("Ambiguous") do
+          process_manager "Broken" do
+            correlates_by :"id.value"
+            starts_on "Started"
+            transition "Next" => "b", from: "a"
+            transition "Next" => "c", from: ["z", "a"]
+          end
+        end
+      end.to raise_error(/declares two transitions on "Next" from "a"/)
+    end
+
+    it "process_manager accepts two transitions on one event from different states" do
+      pm = build_bluebook("TwoLegs") do
+        process_manager "Relay" do
+          correlates_by :"id.value"
+          starts_on "Started"
+          transition "Next" => "b", from: "a"
+          transition "Next" => "c", from: "b"
+        end
+      end.process_managers.first
+
+      expect([pm.handler_for("Next", "a").to_state, pm.handler_for("Next", "b").to_state]).to eq(%w[b c])
+      expect(pm.handler_for("Next", "c")).to be_nil
+    end
+
     it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
       # ProcessManagerBuilder#validate! only knows the spelling has a dot ;
       # the whole-document check knows what that dot actually reaches.

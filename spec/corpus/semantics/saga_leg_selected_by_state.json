@@ -1,0 +1,78 @@
+{
+  "domain": "spec/corpus/semantics/domains/relay",
+  "ruby_only": true,
+  "spec": [
+    "C10.3"
+  ],
+  "note": "Two saga legs on the SAME event, different from: states. Delivery's first ParcelScanned leg moves posted → picked_up; its second moves picked_up → handed_over and dispatches Parcel.Deliver. Per C10.3 a leg is selected by (event, current state), so the second scan reaches the second leg and the parcel is delivered. First-match-by-event-name (the pre-C10.3 reading) would find the first leg again, refuse it as \"in picked_up, not posted\", and leave the parcel in_transit with no ParcelDelivered.",
+  "steps": [
+    {
+      "verb": "Relay::Parcel.Post",
+      "args": {
+        "tag": {
+          "value": "p1"
+        }
+      }
+    },
+    {
+      "verb": "Relay::Parcel.Scan",
+      "args": {
+        "parcel": "p1"
+      }
+    },
+    {
+      "verb": "Relay::Parcel.Scan",
+      "args": {
+        "parcel": "p1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Relay::Parcel#p1": {
+        "tag": {
+          "value": "p1"
+        },
+        "status": "delivered"
+      }
+    },
+    "events": [
+      {
+        "name": "ParcelPosted",
+        "aggregate": "Relay::Parcel",
+        "id": "p1",
+        "payload": {
+          "tag": {
+            "value": "p1"
+          }
+        }
+      },
+      {
+        "name": "ParcelScanned",
+        "aggregate": "Relay::Parcel",
+        "id": "p1",
+        "payload": {
+          "parcel": "p1"
+        }
+      },
+      {
+        "name": "ParcelScanned",
+        "aggregate": "Relay::Parcel",
+        "id": "p1",
+        "payload": {
+          "parcel": "p1"
+        }
+      },
+      {
+        "name": "ParcelDelivered",
+        "aggregate": "Relay::Parcel",
+        "id": "p1",
+        "payload": {
+        }
+      }
+    ]
+  }
+}

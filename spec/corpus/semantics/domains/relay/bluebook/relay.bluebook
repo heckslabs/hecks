@@ -1,0 +1,59 @@
+Hecks.bluebook "Relay" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.3).
+  # No example domain declares two saga legs on the SAME event with
+  # different `from:` states, so the clause that decides which leg
+  # answers could not be pinned against any of them. This domain exists
+  # for exactly that shape and nothing else: one parcel, scanned twice —
+  # the first scan picks it up, the second hands it over and dispatches
+  # the delivery. Under first-match-by-event-name (the pre-C10.3
+  # reading) the second scan would find the first leg again, refuse it
+  # as "in picked_up, not posted", and the parcel would never be
+  # delivered.
+  vision "A parcel is posted, scanned along the way, and delivered when its last scan lands."
+  core
+
+  aggregate "Parcel" do
+    identified_by :tag
+
+    attribute :tag, Tag
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "posted" do
+      transition "Scan"    => "in_transit", from: ["posted", "in_transit"]
+      transition "Deliver" => "delivered",  from: "in_transit"
+    end
+
+    command "Post" do
+      goal "Hand a parcel to the relay"
+      attribute :tag, Tag
+      emits "ParcelPosted"
+    end
+
+    command "Scan" do
+      goal "Record the parcel passing a hand-over point"
+      reference_to Parcel
+      emits "ParcelScanned"
+    end
+
+    command "Deliver" do
+      goal "Mark the parcel delivered once its last scan lands"
+      reference_to Parcel
+      emits "ParcelDelivered"
+    end
+  end
+
+  process_manager "Delivery" do
+    correlates_by :"tag.value"
+    starts_on "ParcelPosted"
+    ends_on   "ParcelDelivered"
+
+    # TWO LEGS, ONE EVENT — selected by (event, current state), C10.3.
+    transition "ParcelScanned" => "picked_up",   from: "posted"
+    transition "ParcelScanned" => "handed_over", from: "picked_up" do
+      dispatch Parcel::Deliver, with: { parcel: :tag }
+    end
+  end
+end

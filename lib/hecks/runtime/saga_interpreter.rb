@@ -140,14 +140,14 @@ module Hecks
       # reentrant: holding it across that call would deadlock the
       # thread against itself the moment any real chain did that.
       def advance_saga(process_manager, event, domain)
-        handler = process_manager.handler_for(event.name)
-        return unless handler
+        return unless process_manager.handles?(event.name)
 
         correlation = saga_correlation(process_manager, event)
         return if correlation.to_s.empty?
 
         record    = { process_manager: process_manager.name, on: event.name, instance: correlation }
         instance  = nil
+        handler   = nil
         pre_state = nil
 
         advanced = @registry.saga_mutex.synchronize do
@@ -156,9 +156,14 @@ module Hecks
             @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
             next false
           end
-          unless instance[:state] == handler.from_state
+          # THE LEG IS CHOSEN BY (EVENT, CURRENT STATE) — C10.3. Read
+          # under the mutex, against the state this instance holds right
+          # now, so two legs on the same event from different states each
+          # answer exactly when their own state is current.
+          handler = process_manager.handler_for(event.name, instance[:state])
+          unless handler
             @registry.saga_log << record.merge(advanced: false,
-                                               reason:   "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+                                               reason:   leg_mismatch(process_manager, event.name, instance[:state]))
             next false
           end
 
@@ -171,6 +176,13 @@ module Hecks
         return unless advanced
 
         settle_transition(process_manager, event, handler, instance, correlation, domain, record, pre_state)
+      end
+
+      # "in X, not Y" — the same wording as before C10.3 when one leg
+      # answers the event; every leg's own from: listed when several do.
+      def leg_mismatch(process_manager, event_name, state)
+        expected = process_manager.handlers_for(event_name).map { |h| h.from_state.inspect }.uniq
+        "in #{state.inspect}, not #{expected.join(' or ')}"
       end
 
       def pending_marker(event, handler, from_state, to_state)
@@ -402,18 +414,21 @@ module Hecks
       # its dispatches run, so a second refusal finds the instance no longer in
       # from_state and records that instead. The check is the guard.
       def unwind(process_manager, event, instance, correlation, domain)
-        handler = process_manager.handler_for(REFUSED)
-        return unless handler && instance
+        return unless instance && process_manager.handles?(REFUSED)
 
         record    = { process_manager: process_manager.name, on: REFUSED, instance: correlation }
+        handler   = nil
         pre_state = nil
 
         # Same non-reentrancy reasoning as `advance_saga`'s own comment —
         # the mutex covers only the check-and-mutate-and-checkpoint step.
         advanced = @registry.saga_mutex.synchronize do
-          unless instance[:state] == handler.from_state
+          # The compensating leg is selected by (REFUSED, current state)
+          # too — C10.3, one rule for every leg.
+          handler = process_manager.handler_for(REFUSED, instance[:state])
+          unless handler
             @registry.saga_log << record.merge(advanced: false,
-                                               reason:   "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+                                               reason:   leg_mismatch(process_manager, REFUSED, instance[:state]))
             next false
           end
 
