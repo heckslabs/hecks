@@ -332,8 +332,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
     given_specs.extend(givens.iter().map(|g| {
         let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-        let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+        let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
     }));
 
     let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
@@ -341,8 +341,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         .iter()
         .map(|e| {
             let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = e.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            let ast = e.get("ast").unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
+            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
         })
         .collect();
 
@@ -646,8 +646,8 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         .iter()
         .map(|g| {
             let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
         })
         .collect();
     let ensures_specs: Vec<String> = target
@@ -657,8 +657,8 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         .iter()
         .map(|e| {
             let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = e.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            let ast = e.get("ast").unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
+            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
         })
         .collect();
     let transition = mutations::lifecycle_transition_for(target, entity);
@@ -778,8 +778,8 @@ pub fn emit_entity_command(
         .iter()
         .map(|g| {
             let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = g.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
         })
         .collect();
 
@@ -788,8 +788,8 @@ pub fn emit_entity_command(
         .iter()
         .map(|e| {
             let description = e.get("description").and_then(Json::as_str).unwrap_or("");
-            let canonical = e.get("canonical").and_then(Json::as_str).unwrap_or("");
-            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_predicate(canonical))
+            let ast = e.get("ast").unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
+            format!("            crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
         })
         .collect();
 

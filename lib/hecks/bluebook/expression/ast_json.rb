@@ -56,6 +56,28 @@ module Hecks
       module AstJson
         module_function
 
+        # THE CLOSED OP ROSTER — every `"op"` tag the walkers below can
+        # emit, pinned so a reader (or a spec) can refuse a tag it does
+        # not know instead of guessing. A new node kind is a new entry
+        # here, a new arm below, and a new arm in every reader.
+        OPS = %w[
+          or and not compare include
+          int float str bool nil array lookup
+          add modulo sign_test empty size to_s
+          block_predicate find first last
+          matches_regex presence assignment split starts_with ends_with
+        ].freeze
+
+        # ONE RULE ROW, THE WAY EVERY RULE SITE EMITS IT — description and
+        # canonical text (what every reader has always had) plus the
+        # structured form, derived from the same text. `ast` is a pure
+        # function of `canonical`: the IR carries both so a reader that
+        # only displays keeps the text, and a reader that evaluates never
+        # re-parses it.
+        def rule_row(rule)
+          { description: rule.description, canonical: rule.canonical, ast: emit_predicate(rule.canonical) }
+        end
+
         def emit_predicate(canonical)
           emit_bool(Evaluator.parse(canonical))
         end
@@ -119,7 +141,9 @@ module Hecks
           when Resolver::StringLiteral  then { "op" => "str", "value" => node.value }
           when Resolver::BoolLiteral    then { "op" => "bool", "value" => node.value }
           when Resolver::NilLiteral     then { "op" => "nil" }
-          when Resolver::Lookup         then { "op" => "lookup", "path" => node.path }
+          # `path` is the SAME shape `find.path` already has — segments, not
+          # a dotted string a reader would have to split by its own rule.
+          when Resolver::Lookup         then { "op" => "lookup", "path" => node.path.split(".") }
           when Resolver::Addition       then { "op" => "add", "left" => emit_resolver(node.left), "right" => emit_resolver(node.right) }
           when Resolver::SignTest
             { "op" => "sign_test", "cmp" => emit_comparison(node.operator), "receiver" => emit_resolver(node.receiver) }

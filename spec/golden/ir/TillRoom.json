@@ -309,7 +309,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 },
                 "op": "compare",
                 "right": {

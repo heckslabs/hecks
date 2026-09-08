@@ -27,7 +27,6 @@ mod commands;
 mod constraints;
 mod domain_generator;
 mod exemplar;
-mod expr;
 mod expr_emitter;
 mod fielded;
 mod hecks_naming;

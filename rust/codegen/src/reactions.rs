@@ -57,8 +57,8 @@ fn where_fns(policies: &[Json]) -> Vec<String> {
         .iter()
         .filter(|policy| policy.get("where").map(Json::to_s).map(|w| !w.is_empty()).unwrap_or(false))
         .map(|policy| {
-            let canonical = policy.get("where").map(Json::to_s).unwrap_or_default();
-            format!("fn {}() -> crate::kernel::Expr {{\n    use crate::kernel::Expr;\n    {}\n}}", where_fn_name(policy), crate::expr_emitter::emit_predicate(&canonical))
+            let ast = policy.get("where_ast").unwrap_or_else(|| panic!("policy with a where has no where_ast: {policy:?}"));
+            format!("fn {}() -> crate::kernel::Expr {{\n    use crate::kernel::Expr;\n    {}\n}}", where_fn_name(policy), crate::expr_emitter::emit_ast(ast))
         })
         .collect()
 }

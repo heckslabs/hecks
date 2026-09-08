@@ -129,7 +129,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # OTHER kind of key this round trip cannot compare.
   def strip_invariant_ast(node)
     case node
-    when Hash then node.except(:ast).transform_values { |v| strip_invariant_ast(v) }
+    when Hash then node.except(:ast, :where_ast).transform_values { |v| strip_invariant_ast(v) }
     when Array then node.map { |v| strip_invariant_ast(v) }
     else node
     end

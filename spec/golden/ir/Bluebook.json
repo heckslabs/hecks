@@ -282,6 +282,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "path",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!path.value.to_s.empty?",
               "description": "an identity part names something"
             }
@@ -783,6 +799,18 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "identified_by"
+                    ]
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!identified_by.empty?",
               "description": "an aggregate says what it is known by"
             }
@@ -867,10 +895,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -924,10 +984,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -991,14 +1083,62 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "name",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!name.value.to_s.empty?",
               "description": "a projected field is named"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "reference",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!reference.value.to_s.empty?",
               "description": "a projected field reads through a reference"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "remote_field",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!remote_field.value.to_s.empty?",
               "description": "a projected field names a remote field"
             }
@@ -1099,7 +1239,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1137,7 +1279,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1471,7 +1615,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1509,7 +1655,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1573,7 +1721,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -1593,7 +1743,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -3924,6 +4076,40 @@
           ],
           "ensures": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "attaches_to"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "left": {
+                    "op": "size",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "old",
+                        "attaches_to"
+                      ]
+                    }
+                  },
+                  "op": "add",
+                  "right": {
+                    "op": "int",
+                    "value": 1
+                  }
+                }
+              },
               "canonical": "attaches_to.size == old.attaches_to.size + 1",
               "description": "the list grew by exactly one"
             }
@@ -4189,7 +4375,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -4227,7 +4415,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -4269,7 +4459,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -4290,7 +4482,9 @@
                       "op": "to_s",
                       "receiver": {
                         "op": "lookup",
-                        "path": "value"
+                        "path": [
+                          "value"
+                        ]
                       }
                     },
                     "op": "compare",
@@ -4310,7 +4504,9 @@
                       "op": "to_s",
                       "receiver": {
                         "op": "lookup",
-                        "path": "value"
+                        "path": [
+                          "value"
+                        ]
                       }
                     },
                     "op": "compare",
@@ -4353,7 +4549,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -4391,7 +4589,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -4429,7 +4629,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -5875,10 +6077,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -5932,10 +6166,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -6019,10 +6285,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "target",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!target.value.to_s.empty?",
               "description": "a mutation names a target"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "op",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!op.value.to_s.empty?",
               "description": "a mutation does something"
             }
@@ -6069,10 +6367,39 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "root",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!root.value.to_s.empty?",
               "description": "a command names what it acts on"
             },
             {
+              "ast": {
+                "op": "empty",
+                "receiver": {
+                  "op": "to_s",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "references",
+                      "value"
+                    ]
+                  }
+                }
+              },
               "canonical": "references.value.to_s.empty?",
               "description": "a command acts on ONE root"
             }
@@ -6116,6 +6443,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "announces",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!announces.value.to_s.empty?",
               "description": "an event is named"
             }
@@ -6214,7 +6557,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -6570,7 +6915,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -8889,6 +9236,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "path",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!path.value.to_s.empty?",
               "description": "an identity part names something"
             }
@@ -8922,6 +9285,18 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "identified_by"
+                    ]
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!identified_by.empty?",
               "description": "an entity says what it is known by"
             }
@@ -9315,10 +9690,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -9372,10 +9779,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -9595,7 +10034,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -11916,7 +12357,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -13358,7 +13801,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -14848,6 +15293,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "field",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!field.value.to_s.empty?",
               "description": "a group_by field is named"
             }
@@ -14930,6 +15391,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "median_field",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!median_field.value.to_s.empty?",
               "description": "a median field is named"
             }
@@ -15003,6 +15480,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "option",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!option.value.to_s.empty?",
               "description": "an option is named"
             }
@@ -15104,7 +15597,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -15164,7 +15659,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -15296,7 +15793,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "field"
+                      "path": [
+                        "field"
+                      ]
                     }
                   }
                 },
@@ -16689,6 +17188,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "option",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!option.value.to_s.empty?",
               "description": "an option is named"
             }
@@ -16906,7 +17421,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -18443,6 +18960,25 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "rows",
+                    "value"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              },
               "canonical": "rows.value > 0",
               "description": "a closed set admits a member"
             }
@@ -18496,10 +19032,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "description",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!description.value.to_s.empty?",
               "description": "a rule says what it means"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "a rule survives extraction"
             }
@@ -18619,6 +19187,22 @@
               "from": null,
               "givens": [
                 {
+                  "ast": {
+                    "expr": {
+                      "op": "empty",
+                      "receiver": {
+                        "op": "to_s",
+                        "receiver": {
+                          "op": "lookup",
+                          "path": [
+                            "key",
+                            "value"
+                          ]
+                        }
+                      }
+                    },
+                    "op": "not"
+                  },
                   "canonical": "!key.value.to_s.empty?",
                   "description": "an admitted row binds a named field"
                 }
@@ -18756,7 +19340,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -18864,7 +19450,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "name"
+                      "path": [
+                        "name"
+                      ]
                     }
                   }
                 },
@@ -18881,7 +19469,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "type"
+                      "path": [
+                        "type"
+                      ]
                     }
                   }
                 },
@@ -18898,7 +19488,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "list"
+                      "path": [
+                        "list"
+                      ]
                     }
                   }
                 },
@@ -18946,7 +19538,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "description"
+                      "path": [
+                        "description"
+                      ]
                     }
                   }
                 },
@@ -18963,7 +19557,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "canonical"
+                      "path": [
+                        "canonical"
+                      ]
                     }
                   }
                 },
@@ -19055,7 +19651,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "key"
+                      "path": [
+                        "key"
+                      ]
                     }
                   }
                 },
@@ -20925,7 +21523,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -21524,7 +22124,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },

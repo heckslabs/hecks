@@ -34,6 +34,7 @@ mod build;
 mod canonical;
 mod diag;
 mod emit;
+mod expr;
 mod ir;
 mod keywords;
 mod lex;

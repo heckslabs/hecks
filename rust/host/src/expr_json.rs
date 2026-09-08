@@ -89,7 +89,7 @@ pub enum Expr {
     ToS { receiver: Box<Expr> },
     Modulo { receiver: Box<Expr>, divisor: Box<Expr> },
     Size { receiver: Box<Expr> },
-    Lookup { path: String },
+    Lookup { path: Vec<String> },
     BlockPredicate { mode: BlockMode, receiver: Box<Expr>, param: String, predicate: Box<Expr> },
     Find { receiver: Box<Expr>, param: String, predicate: Box<Expr>, path: Vec<String> },
     Array { elements: Vec<Expr> },
@@ -115,6 +115,16 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
     let expr = |name: &str| parse(field(name)?);
     let str_field = |name: &str| -> Result<String, String> {
         field(name)?.as_str().map(str::to_string).ok_or_else(|| format!("{op}'s {name:?} isn't a string: {json}"))
+    };
+    // `lookup.path` and `find.path` share one shape: segments, never a
+    // dotted string a reader would have to split by its own rule.
+    let path_field = |name: &str| -> Result<Vec<String>, String> {
+        field(name)?
+            .as_array()
+            .ok_or_else(|| format!("{op}'s {name:?} isn't an array: {json}"))?
+            .iter()
+            .map(|v| v.as_str().map(str::to_string).ok_or_else(|| format!("{op}'s {name:?} has a non-string element: {json}")))
+            .collect::<Result<Vec<_>, _>>()
     };
     let comparison = || -> Result<Comparison, String> {
         let cmp = field("cmp")?;
@@ -142,7 +152,7 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
         "to_s" => Expr::ToS { receiver: Box::new(expr("receiver")?) },
         "modulo" => Expr::Modulo { receiver: Box::new(expr("receiver")?), divisor: Box::new(expr("divisor")?) },
         "size" => Expr::Size { receiver: Box::new(expr("receiver")?) },
-        "lookup" => Expr::Lookup { path: str_field("path")? },
+        "lookup" => Expr::Lookup { path: path_field("path")? },
         "block_predicate" => Expr::BlockPredicate {
             mode: match str_field("mode")?.as_str() {
                 "all" => BlockMode::All,
@@ -158,12 +168,7 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
             receiver: Box::new(expr("receiver")?),
             param: str_field("param")?,
             predicate: Box::new(expr("predicate")?),
-            path: field("path")?
-                .as_array()
-                .ok_or_else(|| format!("find's path isn't an array: {json}"))?
-                .iter()
-                .map(|v| v.as_str().map(str::to_string).ok_or_else(|| format!("find's path has a non-string element: {json}")))
-                .collect::<Result<Vec<_>, _>>()?,
+            path: path_field("path")?,
         },
         "array" => Expr::Array {
             elements: field("elements")?
@@ -367,9 +372,9 @@ pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
 /// segment via plain JSON `.get`, the direct equivalent of `composite::
 /// step`, rather than refusing outright — it just has no real corpus
 /// caller to prove it against yet.
-fn lookup(path: &str, instance: &Json) -> Result<Value, String> {
+fn lookup(path: &[String], instance: &Json) -> Result<Value, String> {
     let mut current = instance;
-    for segment in path.split('.') {
+    for segment in path {
         current = current
             .get(segment)
             .ok_or_else(|| format!("cannot resolve {segment:?} — no such field (path {path:?})"))?;
@@ -391,7 +396,7 @@ mod tests {
         // see this file's own smoke test in the Ruby suite for the
         // matching JSON.
         let ast = serde_json::json!({"op":"compare","cmp":{"less_than":true,"equal":false,"negated":true},
-            "left":{"op":"lookup","path":"cents"},"right":{"op":"int","value":0}});
+            "left":{"op":"lookup","path":["cents"]},"right":{"op":"int","value":0}});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         assert_eq!(interpret(&expr, &field("cents", serde_json::json!(1200))), Ok(Value::Bool(true)));
@@ -405,7 +410,7 @@ mod tests {
         // text (chess.bluebook's own `Square`).
         fn cmp(less_than: bool, equal: bool, negated: bool, field: &str, n: i64) -> serde_json::Value {
             serde_json::json!({"op":"compare","cmp":{"less_than":less_than,"equal":equal,"negated":negated},
-                "left":{"op":"lookup","path":field},"right":{"op":"int","value":n}})
+                "left":{"op":"lookup","path":[field]},"right":{"op":"int","value":n}})
         }
         let ast = serde_json::json!({"op":"and","left":{"op":"and","left":{"op":"and",
             "left": cmp(true, false, true, "file", 0),
@@ -424,7 +429,7 @@ mod tests {
     fn a_blank_string_fails_the_not_empty_to_s_pattern() {
         // `!value.to_s.empty?`, the most common real corpus shape
         // (PizzaName, CustomerName, ToppingName, ...).
-        let ast = serde_json::json!({"op":"not","expr":{"op":"empty","receiver":{"op":"to_s","receiver":{"op":"lookup","path":"value"}}}});
+        let ast = serde_json::json!({"op":"not","expr":{"op":"empty","receiver":{"op":"to_s","receiver":{"op":"lookup","path":["value"]}}}});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         assert_eq!(interpret(&expr, &field("value", serde_json::json!("Margherita"))), Ok(Value::Bool(true)));
@@ -436,7 +441,7 @@ mod tests {
         // `value.positive?` — `{less_than: true, equal: true, negated:
         // true}`, confirmed against the real Ruby emitter directly
         // (`value.positive?` compiles to NOT(value < 0 OR value == 0)).
-        let ast = serde_json::json!({"op":"sign_test","cmp":{"less_than":true,"equal":true,"negated":true},"receiver":{"op":"lookup","path":"value"}});
+        let ast = serde_json::json!({"op":"sign_test","cmp":{"less_than":true,"equal":true,"negated":true},"receiver":{"op":"lookup","path":["value"]}});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         assert_eq!(interpret(&expr, &field("value", serde_json::json!(5))), Ok(Value::Bool(true)));
@@ -446,7 +451,7 @@ mod tests {
 
     #[test]
     fn a_not_yet_supported_operator_refuses_by_name_instead_of_mis_evaluating() {
-        let ast = serde_json::json!({"op":"presence","receiver":{"op":"lookup","path":"value"},"negated":false});
+        let ast = serde_json::json!({"op":"presence","receiver":{"op":"lookup","path":["value"]},"negated":false});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         let err = interpret(&expr, &field("value", serde_json::json!("x"))).unwrap_err();
@@ -455,7 +460,7 @@ mod tests {
 
     #[test]
     fn assignment_parses_structurally_the_same_as_presence_and_is_not_yet_interpreted_either() {
-        let ast = serde_json::json!({"op":"assignment","receiver":{"op":"lookup","path":"value"},"negated":true});
+        let ast = serde_json::json!({"op":"assignment","receiver":{"op":"lookup","path":["value"]},"negated":true});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         let err = interpret(&expr, &field("value", serde_json::json!(null))).unwrap_err();
@@ -465,7 +470,7 @@ mod tests {
     #[test]
     fn int_and_float_compare_equal_across_kinds_the_same_way_the_kernel_does() {
         let ast = serde_json::json!({"op":"compare","cmp":{"less_than":false,"equal":true,"negated":false},
-            "left":{"op":"lookup","path":"cents"},"right":{"op":"float","value":3.0}});
+            "left":{"op":"lookup","path":["cents"]},"right":{"op":"float","value":3.0}});
         let expr = parse(&ast).expect("valid Expr JSON");
 
         assert_eq!(interpret(&expr, &field("cents", serde_json::json!(3))), Ok(Value::Bool(true)));

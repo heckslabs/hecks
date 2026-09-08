@@ -198,13 +198,14 @@ A `value_objects` entry is `name`, `attributes` (the same six-key
 shape as above, recursively — a value object can nest another one),
 `invariants`, `closed_set`, `members`. A ordinary value object has
 `closed_set: false` and an empty `members`; its `invariants` are the
-rules your port has to check at construction time, each one already
-reduced to the same canonical text the expression grammar section
-below reads:
+rules your port has to check at construction time, each one a rule row
+— `description`, the `canonical` text the expression grammar section
+below reads, and `ast`, the same expression as an `"op"`-tagged tree
+(see "Rule rows" under the command section):
 
 ```ruby
 account[:value_objects].find { |vo| vo[:name] == "DailyLimit" }
-# => { name: "DailyLimit", attributes: [{ name: :cents, type: "Integer", list: false, default: 0, optional: false, pattern: nil, admits: nil }], invariants: [{ description: "a daily limit is non-negative", canonical: "!cents.negative?" }], closed_set: false, members: [] }
+# => { name: "DailyLimit", attributes: [{ name: :cents, type: "Integer", list: false, default: 0, optional: false, pattern: nil, admits: nil }], invariants: [{ description: "a daily limit is non-negative", canonical: "!cents.negative?", ast: { "op" => "not", "expr" => { "op" => "sign_test", "cmp" => { "less_than" => true, "equal" => false, "negated" => false }, "receiver" => { "op" => "lookup", "path" => ["cents"] } } } }], closed_set: false, members: [] }
 ```
 
 A closed set inverts that: `invariants` is empty (membership IS the
@@ -248,10 +249,30 @@ names the aggregate its identity is derived against instead — for
 `Credit`, `"Account"`, matched by the addressing key
 `docs/implemented/guides/commands.md` calls `reference_to`.
 
-`givens` and `ensures` are both arrays of `{ description:, canonical: }`
-— `description` is the human-readable prose you'd show in a refusal
-message, `canonical` is the normalized boolean expression text the
-next section walks in full:
+#### Rule rows
+
+`givens` and `ensures` — and every other rule list in the IR: an
+aggregate's or entity's `invariants` and `preconditions`, a value
+object's `invariants` — are arrays of `{ description:, canonical:, ast: }`.
+`description` is the human-readable prose you'd show in a refusal
+message; `canonical` is the normalized boolean expression text the
+next section walks in full; `ast` is that same expression as a plain
+JSON tree, every node tagged by `"op"` from a closed roster
+(`Hecks::Bluebook::Expression::AstJson::OPS`), with `lookup` and `find`
+paths as segment arrays. `ast` is derived from `canonical` at emission
+and carries the whole meaning: a port that evaluates rules reads `ast`
+and never re-parses the text; a port that only displays them keeps
+`canonical`. A policy's `where` is the one rule that is not a row —
+it is a bare string, with its tree beside it as `where_ast` (`nil`
+when there is no `where`).
+
+```ruby
+debit = account[:commands].find { |c| c[:name] == "Debit" }
+debit[:givens].first[:ast]
+# => { "op" => "compare", "cmp" => { "less_than" => false, "equal" => true, "negated" => false }, "left" => { "op" => "lookup", "path" => ["customer", "status"] }, "right" => { "op" => "str", "value" => "active" } }
+```
+
+The text form, for the rest of this section:
 
 ```ruby
 debit = account[:commands].find { |c| c[:name] == "Debit" }

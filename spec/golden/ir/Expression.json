@@ -166,10 +166,158 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "grammar",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "outer"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "grammar",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "inner"
+                  }
+                }
+              },
               "canonical": "grammar.value == \"outer\" || grammar.value == \"inner\"",
               "description": "an operator belongs to the outer or the inner grammar"
             },
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "strategy",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "top_level_split"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "left": {
+                    "cmp": {
+                      "equal": true,
+                      "less_than": false,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "strategy",
+                        "value"
+                      ]
+                    },
+                    "op": "compare",
+                    "right": {
+                      "op": "str",
+                      "value": "prefix_match"
+                    }
+                  },
+                  "op": "or",
+                  "right": {
+                    "left": {
+                      "cmp": {
+                        "equal": true,
+                        "less_than": false,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "strategy",
+                          "value"
+                        ]
+                      },
+                      "op": "compare",
+                      "right": {
+                        "op": "str",
+                        "value": "suffix_match"
+                      }
+                    },
+                    "op": "or",
+                    "right": {
+                      "left": {
+                        "cmp": {
+                          "equal": true,
+                          "less_than": false,
+                          "negated": false
+                        },
+                        "left": {
+                          "op": "lookup",
+                          "path": [
+                            "strategy",
+                            "value"
+                          ]
+                        },
+                        "op": "compare",
+                        "right": {
+                          "op": "str",
+                          "value": "call_pattern_match"
+                        }
+                      },
+                      "op": "or",
+                      "right": {
+                        "cmp": {
+                          "equal": true,
+                          "less_than": false,
+                          "negated": false
+                        },
+                        "left": {
+                          "op": "lookup",
+                          "path": [
+                            "strategy",
+                            "value"
+                          ]
+                        },
+                        "op": "compare",
+                        "right": {
+                          "op": "str",
+                          "value": "block_pattern_match"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
               "canonical": "strategy.value == \"top_level_split\" || strategy.value == \"prefix_match\" || strategy.value == \"suffix_match\" || strategy.value == \"call_pattern_match\" || strategy.value == \"block_pattern_match\"",
               "description": "an operator's check strategy is one the parser actually has"
             }
@@ -215,6 +363,24 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "retired"
+                }
+              },
               "canonical": "status != \"retired\"",
               "description": "a retired operator takes no new renderings"
             }
@@ -249,6 +415,27 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "renderings"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 1
+                }
+              },
               "canonical": "renderings.size >= 1",
               "description": "an operator must read in every target before it is admitted"
             }
@@ -350,7 +537,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -388,7 +577,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -427,7 +618,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 },
                 "op": "compare",
                 "right": {
@@ -469,7 +662,9 @@
                   },
                   "left": {
                     "op": "lookup",
-                    "path": "value"
+                    "path": [
+                      "value"
+                    ]
                   },
                   "op": "compare",
                   "right": {
@@ -486,7 +681,9 @@
                   },
                   "left": {
                     "op": "lookup",
-                    "path": "value"
+                    "path": [
+                      "value"
+                    ]
                   },
                   "op": "compare",
                   "right": {
@@ -527,7 +724,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -565,7 +764,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -604,7 +805,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 },
                 "op": "compare",
                 "right": {
@@ -698,7 +901,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "target"
+                      "path": [
+                        "target"
+                      ]
                     }
                   }
                 },
@@ -715,7 +920,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "form"
+                      "path": [
+                        "form"
+                      ]
                     }
                   }
                 },
@@ -878,10 +1085,92 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "strategy",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "collapse_whitespace"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "strategy",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "replace"
+                  }
+                }
+              },
               "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\"",
               "description": "a rule must name a linked strategy"
             },
             {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "boundary",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "none"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "boundary",
+                      "value"
+                    ]
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "word"
+                  }
+                }
+              },
               "canonical": "boundary.value == \"none\" || boundary.value == \"word\"",
               "description": "a rule must state its boundary"
             }
@@ -927,6 +1216,24 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "retired"
+                }
+              },
               "canonical": "status != \"retired\"",
               "description": "a retired rule takes no new readings"
             }
@@ -961,6 +1268,27 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "readings"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 1
+                }
+              },
               "canonical": "readings.size >= 1",
               "description": "a rule must read in every target before it is admitted"
             }
@@ -1062,7 +1390,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1100,7 +1430,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1182,7 +1514,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1221,7 +1555,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 },
                 "op": "compare",
                 "right": {
@@ -1420,7 +1756,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "target"
+                      "path": [
+                        "target"
+                      ]
                     }
                   }
                 },
@@ -1437,7 +1775,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "form"
+                      "path": [
+                        "form"
+                      ]
                     }
                   }
                 },
@@ -1643,10 +1983,42 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "canonical",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!canonical.value.to_s.empty?",
               "description": "an expression must have canonical text"
             },
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "subject",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!subject.value.to_s.empty?",
               "description": "an expression must know its subject"
             }
@@ -1757,7 +2129,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1839,7 +2213,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1877,7 +2253,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1915,7 +2293,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -1957,7 +2337,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -1977,7 +2359,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -2019,7 +2403,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -2067,7 +2453,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "name"
+                      "path": [
+                        "name"
+                      ]
                     }
                   }
                 },
@@ -2088,7 +2476,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "kind"
+                      "path": [
+                        "kind"
+                      ]
                     }
                   },
                   "op": "compare",
@@ -2108,7 +2498,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "kind"
+                      "path": [
+                        "kind"
+                      ]
                     }
                   },
                   "op": "compare",

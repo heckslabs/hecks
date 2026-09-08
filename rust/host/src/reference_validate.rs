@@ -276,7 +276,7 @@ mod tests {
                 ], "invariants": [
                     {"description": "a price is never negative", "canonical": "cents >= 0",
                      "ast": {"op": "compare", "cmp": {"less_than": true, "equal": false, "negated": true},
-                             "left": {"op": "lookup", "path": "cents"}, "right": {"op": "int", "value": 0}}}
+                             "left": {"op": "lookup", "path": ["cents"]}, "right": {"op": "int", "value": 0}}}
                 ]},
                 {"name": "Topping", "attributes": [
                     {"name": "name", "type": "String", "list": false, "optional": false, "pattern": "[^ \\t\\n\\r]"}
@@ -373,7 +373,7 @@ mod tests {
     fn an_operator_expr_json_does_not_yet_interpret_refuses_the_mint_rather_than_skipping_it() {
         let mut ir = order_ir();
         ir["value_objects"][0]["invariants"][0]["ast"] = json!({
-            "op": "presence", "receiver": {"op": "lookup", "path": "cents"}, "negated": false
+            "op": "presence", "receiver": {"op": "lookup", "path": ["cents"]}, "negated": false
         });
         let state = json!({ "pizza": { "cents": 1200, "size": "large" }, "toppings": [], "status": "available" });
         let violations = validate(&ir, "p1", &state);

@@ -1,4 +1,5 @@
 require_relative "behaviour/entity"
+require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
@@ -51,7 +52,7 @@ module Hecks
         # documentation of what the piece itself declared, the same
         # relationship `Aggregate.preconditions` already has to its own
         # commands.
-        preconditions: -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        preconditions: -> { preconditions.map { |rule| Expression::AstJson.rule_row(rule) } },
         # A piece's OWN shape rule, checked against EVERY instance of
         # this piece the aggregate holds (Admissibility#enforce_
         # invariants' own recursive walk) — the SAME relationship
@@ -61,7 +62,7 @@ module Hecks
         # mutation, before save) the aggregate's own invariants always
         # were — see that method's own comment for why this does not
         # contradict "there is no separate entity invariant."
-        invariants:    -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        invariants:    -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         lifecycle:     one(:lifecycle)
       )
 

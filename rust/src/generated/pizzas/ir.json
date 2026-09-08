@@ -81,7 +81,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -120,7 +122,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 },
                 "right": {
                   "op": "int",
@@ -160,7 +164,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -198,7 +204,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -237,7 +245,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -435,7 +445,28 @@
           "givens": [
             {
               "description": "at most 10 toppings",
-              "canonical": "toppings.size < 10"
+              "canonical": "toppings.size < 10",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "toppings"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "int",
+                  "value": 10
+                }
+              }
             }
           ],
           "ensures": [
@@ -488,15 +519,70 @@
           "givens": [
             {
               "description": "a pizza needs at least one topping",
-              "canonical": "toppings.size.positive?"
+              "canonical": "toppings.size.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "toppings"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "a payment was actually made",
-              "canonical": "amount.cents.positive?"
+              "canonical": "amount.cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             },
             {
               "description": "the payment covers the price",
-              "canonical": "amount.cents >= pizza.price_cents.cents"
+              "canonical": "amount.cents >= pizza.price_cents.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "pizza",
+                    "price_cents",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -671,7 +757,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     }
   ],
   "process_managers": [

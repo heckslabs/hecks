@@ -1,4 +1,5 @@
 require_relative "behaviour/aggregate"
+require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
@@ -40,14 +41,14 @@ module Hecks
         attributes:       many(:attributes),
         value_objects:    many(:value_objects),
         commands:         many(:commands),
-        invariants:       -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        invariants:       -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
         # 0025) — the aggregate's OWN named `given`s, the declaration a
         # referencing command's own (already-resolved) `givens` entry
         # came from. Both sides of "declared once, referenced many"
         # are real IR, the same shape a value object's TYPE and an
         # attribute's own reference to it both are.
-        preconditions:    -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        preconditions:    -> { preconditions.map { |rule| Expression::AstJson.rule_row(rule) } },
         # S12, ADR 0025 — deliberately NOT folded into `attributes`:
         # `EraGuard::ShapeDiff` only ever walks `attributes` to decide
         # whether a NEW field leaves an existing record with something

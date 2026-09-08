@@ -128,7 +128,7 @@ module RustProjection
       policies.reject { |policy| policy[:where].to_s.empty? }.map do |policy|
         "fn #{where_fn_name(policy)}() -> crate::kernel::Expr {\n" \
           "    use crate::kernel::Expr;\n" \
-          "    #{ExprEmitter.emit_predicate(policy[:where])}\n" \
+          "    #{ExprEmitter.emit_ast(policy[:where_ast])}\n" \
           "}"
       end
     end

@@ -51,7 +51,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -244,7 +246,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -283,7 +287,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }

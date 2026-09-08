@@ -34,10 +34,51 @@ pub fn slice(source: &str, start: usize, end: usize) -> &str {
 /// `CanonicalForm.apply` — collapse all whitespace runs to a single space,
 /// then replace `.length` with `.size` at a word boundary, then trim.
 /// Rule order matches projection.json's own `position` column (1, then 2).
+/// Both rules run OUTSIDE string literals only — mirroring Ruby's
+/// `map_outside_strings` (`canonical_form.rb:71-116`, the M7 fix):
+/// quoted runs (either quote character) pass through byte-for-byte, so
+/// whitespace inside `"a  b"` survives and `".length"` inside a literal
+/// is never folded. This parser was quote-blind here until the `ast`
+/// work made the divergence load-bearing (a differently-canonicalised
+/// string parses to a different tree).
 pub fn apply(source: &str) -> String {
-    let collapsed = collapse_whitespace(source);
-    let replaced = replace_word_boundary(&collapsed, ".length", ".size");
+    let collapsed = map_outside_strings(source, collapse_whitespace);
+    let replaced = map_outside_strings(&collapsed, |run| replace_word_boundary(run, ".length", ".size"));
     replaced.trim().to_string()
+}
+
+/// Splits `text` into quoted and unquoted runs, applies `transform` to
+/// the unquoted runs only, and copies quoted runs (including their
+/// quotes) through verbatim. A backslash escapes the next character
+/// inside a quoted run, exactly as Ruby's scanner treats it.
+fn map_outside_strings(text: &str, transform: impl Fn(&str) -> String) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut plain = String::new();
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '"' || ch == '\'' {
+            out.push_str(&transform(&plain));
+            plain.clear();
+            out.push(ch);
+            let quote = ch;
+            while let Some(inner) = chars.next() {
+                out.push(inner);
+                if inner == '\\' {
+                    if let Some(escaped) = chars.next() {
+                        out.push(escaped);
+                    }
+                    continue;
+                }
+                if inner == quote {
+                    break;
+                }
+            }
+        } else {
+            plain.push(ch);
+        }
+    }
+    out.push_str(&transform(&plain));
+    out
 }
 
 fn collapse_whitespace(text: &str) -> String {
