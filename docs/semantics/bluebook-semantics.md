@@ -241,10 +241,16 @@ it, except for one law they must uphold (C8.4).
   announcement batch, in bluebook load order; the Rust kernel
   interleaves per event. The open decision: per event, in `emits`
   order — policies in declaration order, then sagas.
-- **C10.3 (OPEN — saga leg selection)** `handler_for` selects the first
-  handler matching the event *name*, so a second leg on the same event
-  with a different `from:` state is unreachable. The open decision:
-  select by (event, current state); ambiguity refused at build.
+- **C10.3 (settled)** A saga leg is selected by (event, *current
+  state*): of the legs answering an event, the one whose `from:` is the
+  instance's current state runs; if none is, the instance is left where
+  it is and the miss is logged ("in X, not Y or Z"). Two legs answering
+  the same event from different states are therefore both reachable.
+  Two legs on one (event, state) pair are refused at build, in both the
+  Ruby builders and `hecks-parse`. The compensating (`:refused`) leg is
+  selected by the same rule. (fixture: `saga_leg_selected_by_state.json`
+  — its domain is corpus-owned, `spec/corpus/semantics/domains/relay`,
+  because no example domain declares two legs on one event)
 - **C10.4 (settled)** Reaction depth is bounded (5); a reaction beyond
   the bound is recorded undelivered, never run.
 
