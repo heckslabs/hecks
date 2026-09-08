@@ -1,0 +1,387 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C1.3",
+    "C4.3",
+    "C8.2"
+  ],
+  "note": "Append order and a size-reading given: the eleventh topping refuses (GivenNotMet on toppings.size < 10) and the list holds exactly the ten accepted ones, in append order.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t01"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t02"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t03"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t04"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t05"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t06"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t07"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t08"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t09"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t10"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "t11"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping refused — at most 10 toppings",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#everything": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "t01",
+            "amount": 1
+          },
+          {
+            "name": "t02",
+            "amount": 1
+          },
+          {
+            "name": "t03",
+            "amount": 1
+          },
+          {
+            "name": "t04",
+            "amount": 1
+          },
+          {
+            "name": "t05",
+            "amount": 1
+          },
+          {
+            "name": "t06",
+            "amount": 1
+          },
+          {
+            "name": "t07",
+            "amount": 1
+          },
+          {
+            "name": "t08",
+            "amount": 1
+          },
+          {
+            "name": "t09",
+            "amount": 1
+          },
+          {
+            "name": "t10",
+            "amount": 1
+          }
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": {
+            "value": "everything"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 2400
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t01"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t02"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t03"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t04"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t05"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t06"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t07"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t08"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t09"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": "everything",
+          "topping": {
+            "value": "t10"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      }
+    ]
+  }
+}

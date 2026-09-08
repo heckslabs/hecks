@@ -1,0 +1,196 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C1.3",
+    "C2.4",
+    "C8.1",
+    "C8.2"
+  ],
+  "note": "An unmet given refuses with GivenNotMet, observing pre-dispatch state: the debit exceeds the balance the credit established.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 1000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "deposit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 5000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "over-draw"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — the balance covers it",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 1000,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 1000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "amount": {
+            "cents": 1000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "deposit"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C5.1",
+    "C5.2",
+    "C7.1"
+  ],
+  "note": "The accepted path end to end: create (initial lifecycle state), mutate (append a topping), transition (Purchase moves the state after effects) — events in declaration order across the dispatches.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "margherita",
+        "topping": {
+          "value": "basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "margherita",
+        "amount": {
+          "cents": 1200
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Pizzas::Order#margherita": {
+        "name": {
+          "value": "margherita"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": null,
+        "status": "sold"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": {
+            "value": "margherita"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": "margherita",
+          "topping": {
+            "value": "basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "margherita",
+        "payload": {
+          "name": "margherita",
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    ]
+  }
+}

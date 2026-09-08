@@ -121,7 +121,7 @@ module Hecks
                   rows = run_filter(runtime, question)
                   queries << { query: question, rows: rows, instances_at: snapshot_instances(runtime) }
                 rescue StandardError => e
-                  refusals << { verb: filter_label(question), error: e.message }
+                  refusals << { verb: filter_label(question), error: e.message, kind: e.class.name }
                 end
                 next
               end

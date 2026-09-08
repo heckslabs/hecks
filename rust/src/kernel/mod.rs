@@ -168,6 +168,27 @@ pub enum Refusal {
     Unauthorized(String),
 }
 
+impl Refusal {
+    /// The refusal CLASS, spelled exactly as Ruby raises it — the
+    /// semantics corpus compares this beside the message, because
+    /// "refused" alone under-specifies the outcome (docs/semantics/
+    /// bluebook-semantics.md, Outcomes).
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Refusal::GivenNotMet(_) => "GivenNotMet",
+            Refusal::EnsuresNotMet(_) => "EnsuresNotMet",
+            Refusal::InvariantViolation(_) => "InvariantViolation",
+            Refusal::LifecycleRefused(_) => "LifecycleRefused",
+            Refusal::AlreadyExists(_) => "AlreadyExists",
+            Refusal::NotFound(_) => "NotFound",
+            Refusal::TypeMismatch(_) => "TypeMismatch",
+            Refusal::AbsentArgument(_) => "AbsentArgument",
+            Refusal::UnknownArgument(_) => "UnknownArgument",
+            Refusal::Unauthorized(_) => "Unauthorized",
+        }
+    }
+}
+
 impl std::fmt::Display for Refusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

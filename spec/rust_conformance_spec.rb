@@ -156,7 +156,9 @@ RSpec.describe "Rust conformance (native binary)", :io do
       ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
       ruby_events = JSON.parse(JSON.generate(ruby_result[:events]))
-      ruby_refusals = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }
+      ruby_refusals = ruby_result[:refusals].map do |r|
+        { "verb" => r[:verb].to_s, "error" => r[:error], "kind" => r[:kind]&.split("::")&.last }
+      end
       # `instances_at:` — Fuzzing::Replay's OWN per-query snapshot for the
       # property harness (Properties.group_by_matches_recompute and
       # siblings), never part of the "queries" contract this spec holds
@@ -176,8 +178,16 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
       expect(rust_output["instances"]).to eq(ruby_instances)
       expect(rust_output["events"]).to eq(ruby_events)
-      expect(rust_output["refusals"].reject { |r| known_refusal_gap?(r) })
-        .to eq(ruby_refusals.reject { |r| known_refusal_gap?(r) })
+      # AD-HOC FILTER STEPS carry no kind comparison — C8.3
+      # (docs/semantics/bluebook-semantics.md) is OPEN exactly here: an
+      # unknown comparator/aggregate on a filter is a RuntimeError fault
+      # in Ruby and a TypeMismatch refusal in Rust, found the day kinds
+      # were first compared. The MESSAGE stays byte-exact; the
+      # classification is the open decision, excluded by clause citation
+      # rather than silently.
+      strip_filter_kinds = ->(rows) { rows.each { |r| r.delete("kind") if r["verb"].to_s.start_with?("filter ") } }
+      expect(strip_filter_kinds.call(rust_output["refusals"].reject { |r| known_refusal_gap?(r) }))
+        .to eq(strip_filter_kinds.call(ruby_refusals.reject { |r| known_refusal_gap?(r) }))
       expect(rust_output["queries"].reject { |q| known_refusal_gap?(q) })
         .to eq(ruby_queries.reject { |q| known_refusal_gap?(q) })
       expect(rust_output["sagas"]).to eq(ruby_sagas)
