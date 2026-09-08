@@ -88,7 +88,7 @@ module Hecks
       def where_holds?(policy, event)
         return true if policy.where.to_s.empty?
 
-        Bluebook::Expression::Evaluator.call(policy.where, {}, event.payload.transform_keys(&:to_sym))
+        Bluebook::Expression::Evaluator.call_rule(policy.where_rule, {}, event.payload.transform_keys(&:to_sym))
       end
 
       def deliver(policy, event, domain)

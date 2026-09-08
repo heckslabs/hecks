@@ -24,6 +24,24 @@ module Hecks
         # event's own payload.
         def guarded? = !@where.to_s.empty?
 
+        # THE STRUCTURED FORM OF `where`, derived once — the same tree
+        # `AstJson.emit_predicate` spells for every rule row, memoized
+        # here because a policy is consulted once per event, not once per
+        # boot. Nil when there is no `where`, exactly as the wire carries
+        # it.
+        def where_ast
+          if defined?(@where_ast)
+            @where_ast
+          else
+            (@where_ast = guarded? ? Expression::AstJson.emit_predicate(@where) : nil)
+          end
+        end
+
+        # The rule-shaped reading of the guard, for `Evaluator.call_rule`
+        # — a policy's `where` has no description (nothing refuses with
+        # it; an unmet where is a silent skip).
+        def where_rule = @where_rule ||= Given.new(description: nil, canonical: @where, ast: where_ast)
+
         # THE FAN-OUT QUERY'S ROUTE, split the way the runtime runs it:
         # `[query_domain, aggregate_name, query_name]`. The query runs
         # against the triggering event's OWN domain unless `for_each`

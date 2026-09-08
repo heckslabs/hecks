@@ -266,7 +266,7 @@ module Hecks
           check_scalar_shapes(value_object, fields)
           check_patterns(value_object, fields)
           value_object.invariants.each do |invariant|
-            next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
+            next if Bluebook::Expression::Evaluator.call_rule(invariant, fields)
 
             raise InvariantViolation,
                   RefusalWording.render("InvariantViolation", "value_object_invariant",

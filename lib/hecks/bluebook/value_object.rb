@@ -3,7 +3,7 @@ require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
-    Invariant = Struct.new(:description, :canonical, :predicate, keyword_init: true)
+    Invariant = Struct.new(:description, :canonical, :predicate, :ast, keyword_init: true)
 
     # A value object — a DECLARATION HOLDER, never instantiated.
     #

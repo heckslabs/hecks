@@ -214,6 +214,7 @@ module Hecks
             entry[:placeholder].description = resolved.description
             entry[:placeholder].canonical   = resolved.canonical
             entry[:placeholder].predicate   = resolved.predicate
+            entry[:placeholder].ast         = resolved.ast
           end
           @chapter_pending_givens.clear
         end
@@ -255,6 +256,7 @@ module Hecks
             entry[:placeholder].description = resolved.description
             entry[:placeholder].canonical   = resolved.canonical
             entry[:placeholder].predicate   = resolved.predicate
+            entry[:placeholder].ast         = resolved.ast
           end
           @chapter_entity_pending_givens.clear
         end

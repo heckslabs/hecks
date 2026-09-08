@@ -75,7 +75,7 @@ module Hecks
         # only displays keeps the text, and a reader that evaluates never
         # re-parses it.
         def rule_row(rule)
-          { description: rule.description, canonical: rule.canonical, ast: emit_predicate(rule.canonical) }
+          { description: rule.description, canonical: rule.canonical, ast: rule.ast || emit_predicate(rule.canonical) }
         end
 
         def emit_predicate(canonical)

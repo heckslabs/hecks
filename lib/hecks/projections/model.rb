@@ -54,7 +54,7 @@ module Hecks
                        # COMPUTED (Deviations::COMPUTED["Policy"]): the structured
                        # form of `where`, a pure function of that text, the same
                        # `ast` every rule row carries beside its `canonical`.
-                       where_ast: "-> { where && Expression::AstJson.emit_predicate(where) }" },
+                       where_ast: "-> { where_ast }" },
           settles:   false
         }
       }.freeze

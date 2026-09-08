@@ -65,6 +65,28 @@ module Hecks
           interpret(ast_cache[expr] ||= parse(expr), state, attrs)
         end
 
+        # THE RULE-SHAPED ENTRY — evaluates a Given/Invariant (anything
+        # answering `canonical` and `ast`) by walking its STRUCTURED form,
+        # never re-parsing the text: the one parse happened at DSL-build
+        # time behind `AstJson`, and `AstReader` turns that tree back into
+        # the same nodes `parse` would have built (the equivalence is
+        # pinned by spec/expression_ast_spec.rb over the bounded-
+        # exhaustive generator). A rule with no `ast` (an Assembly-
+        # rebuilt one, or a placeholder resolved outside build_rule)
+        # falls back to parsing its canonical — same cache, same key.
+        #
+        # HECKS_EVAL=string reverts to the text path wholesale, kept for
+        # one release as the escape hatch while the ast path beds in.
+        def call_rule(rule, state, attrs = {})
+          return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
+
+          interpret(ast_cache[rule.canonical] ||= nodes_for(rule), state, attrs)
+        end
+
+        def nodes_for(rule)
+          rule.ast ? AstReader.read_predicate(rule.ast) : parse(rule.canonical)
+        end
+
         # A refused `given`/`ensures`/`invariant` names its own DESCRIPTION
         # ("not already superseded") but, on its own, not what the block
         # actually evaluated to — the difference between "the rule is right
