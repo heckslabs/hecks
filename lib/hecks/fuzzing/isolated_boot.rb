@@ -103,7 +103,15 @@ module Hecks
             FileUtils.mkdir_p(target)
           else
             FileUtils.mkdir_p(File.dirname(target))
-            FileUtils.cp(path, target)
+            begin
+              FileUtils.cp(path, target)
+            rescue Errno::ENOENT
+              # A transient sibling (an adapter's atomic-write `.tmp.<pid>`
+              # file, caught mid-rename by the glob above) can vanish
+              # between listing and copy — under parallel_r-spec two
+              # workers share the real example tree. A file that no longer
+              # exists was never part of the state this copy needs.
+            end
           end
         end
       end
