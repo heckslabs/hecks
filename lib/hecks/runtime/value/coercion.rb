@@ -49,7 +49,13 @@ module Hecks
         # recursively via `build`) with `scalar` as what's left once
         # neither of those applies (the raw value, passed through
         # unchanged).
-        def for_attribute(aggregate, attribute, value)
+        # `boundary: false` is the QUERY door (`QueryInterpreter#normalize_args`):
+        # a query attribute's declared type names the argument for callers and
+        # generators, never a runtime shape — comparison unwraps both sides
+        # itself, so a `reference: {value: ...}` offered against a `String`
+        # query field is the documented allowance (see banking's own
+        # `Account.OpenForCustomer`), not a C3.8 mismatch.
+        def for_attribute(aggregate, attribute, value, boundary: true)
           return value if attribute.nil? || value.nil? # :optional
           return reference_list(attribute, value) if attribute.list? && attribute.reference?
           return reference_identity(attribute, value) if attribute.reference?
@@ -64,17 +70,28 @@ module Hecks
           # AFTER coercion, not before: a scalar arrives wrapped in whatever holder
           # its type names (`{value: "append"}` for an OpName), and checking the
           # raw payload would be checking the envelope.
-          coerced = value_object_for(aggregate, attribute.type)
-                    .then do |value_object|
-                      if value_object.nil? || (value.is_a?(self) && value.type_name == value_object.hecks_name)
-                        value
-                      else
-                        build(value_object, fields_for(value_object, attribute.name, value), aggregate)
-                      end
+          value_object = value_object_for(aggregate, attribute.type)
+          return bare_primitive(aggregate, attribute, value, boundary) if value_object.nil?
+
+          coerced = if value.is_a?(self) && value.type_name == value_object.hecks_name
+                      value
+                    else
+                      build(value_object, fields_for(value_object, attribute.name, value), aggregate)
                     end
 
           admit_declared_set(aggregate, attribute, coerced)
           coerced
+        end
+
+        # A BARE PRIMITIVE IS TYPE-CHECKED AT THE BOUNDARY TOO (C3.8,
+        # docs/semantics/bluebook-semantics.md) — the same two predicates a
+        # value object's own fields get, so wrong-typed caller input is a
+        # TypeMismatch refusal here, never an evaluation fault later. Its
+        # `admits:` set is still checked, exactly as a value object's is.
+        private def bare_primitive(aggregate, attribute, value, boundary)
+          check_bare_primitive(aggregate, attribute, value) if boundary
+          admit_declared_set(aggregate, attribute, value)
+          value
         end
 
         # Aggregate-local value objects remain authoritative, which permits
@@ -461,6 +478,34 @@ module Hecks
         # where the domain should have said no, and the run contract recorded the
         # crash beside genuine refusals as though the domain had judged it.
         #
+        # C3.8 — the boundary check for an attribute whose type is a bare
+        # primitive rather than a value object: `Integer`/`Float` by exact
+        # numeric class (`NUMERIC`), `String`/booleans by rejecting a
+        # composite shape (`COMPOSITE_SHAPES`) — identical to what
+        # `check_numeric_fields`/`check_scalar_shapes` hold a value
+        # object's own fields to, worded by the same template with the
+        # owning construct as `type`. A `String` field still admits any
+        # other scalar (the self-hosted grammar's own bootstrap relies on
+        # it — see `check_scalar_shapes`' comment); the Rust boundary is
+        # stricter there, recorded in the clause.
+        private def check_bare_primitive(owner, attribute, value)
+          type = attribute.type.to_s
+          expected = NUMERIC[type]
+          mistyped = if expected
+                       !value.is_a?(expected)
+                     elsif NON_NUMERIC_SCALARS.include?(type)
+                       COMPOSITE_SHAPES.any? { |shape| value.is_a?(shape) }
+                     else
+                       false
+                     end
+          return unless mistyped
+
+          raise TypeMismatch,
+                RefusalWording.render("TypeMismatch", "numeric_field",
+                                      type: owner.hecks_name, field: attribute.name,
+                                      expected: type, offered: Rendering.describe(value))
+        end
+
         # Checked BEFORE invariants, because an invariant reading a mistyped field
         # is exactly the thing that used to explode.
         NUMERIC = { "Integer" => Integer, "Float" => Numeric }.freeze
