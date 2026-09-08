@@ -1665,6 +1665,43 @@ RSpec.describe "the DSL surface" do
       expect(machine.target_for("Purchase")).to eq("sold")
     end
 
+    # C5.3 (docs/semantics/bluebook-semantics.md) — the lifecycle field
+    # moves only by transition, and the state machine is checked whole at
+    # build: no `sets` on the field, no `from:` naming an undeclared
+    # state, no two transitions for one command.
+    it "refuses sets on the lifecycle field — it moves only by transition" do
+      expect do
+        build_aggregate("Bypassed") do
+          lifecycle :status, default: "open" do
+            transition "Close" => "closed", from: "open"
+          end
+          command("Force") { sets :status, to: "closed" }
+        end
+      end.to raise_error(Malformed, /Force sets status, Thing's lifecycle field/)
+    end
+
+    it "refuses two transitions for one command from the same state — which fires would be declaration order" do
+      expect do
+        build_aggregate("Twice") do
+          lifecycle :status, default: "open" do
+            transition "Close" => "closed", from: "open"
+            transition "Close" => "shut",   from: "open"
+          end
+        end
+      end.to raise_error(Malformed, /declares two transitions for "Close" from the same state/)
+    end
+
+    it "keeps two transitions for one command from disjoint states — the current state picks" do
+      machine = build_aggregate("Forked") do
+        lifecycle :status, default: "open" do
+          transition "Close" => "closed",   from: "open"
+          transition "Close" => "archived", from: "closed"
+        end
+      end.lifecycle
+
+      expect(machine.target_for("Close", "closed")).to eq("archived")
+    end
+
     it "invariant declares an aggregate-level rule, checked after every command" do
       built = build_aggregate("Invarianted") do
         value_object("Balance") { attribute :cents, Integer }

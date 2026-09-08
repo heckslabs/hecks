@@ -409,10 +409,22 @@ module Hecks
         # See `AggregateBuilder#seal_lifecycle_guards`'s own comment —
         # the identical check, one level down.
         def seal_lifecycle_guards
-          return if @lifecycle
-
           @commands.each do |command|
+            if @lifecycle && !MetaValidator.shadow_parsing?
+              # C5.3 — the same refusal `AggregateBuilder::Sealing` gives
+              # an aggregate: a `sets` on the lifecycle field (frozen era
+              # text excepted, as there).
+              command.mutations.each do |mutation|
+                next if [:delegate, :corrects].include?(mutation.op)
+                next unless mutation.target.to_sym == @lifecycle.field.to_sym
+
+                raise Malformed,
+                      "#{@name}.#{command.hecks_name} sets #{mutation.target}, #{@name}'s lifecycle field — " \
+                      "a lifecycle field moves only by transition; declare one instead of setting it"
+              end
+            end
             next unless command.from
+            next if @lifecycle
 
             raise Malformed,
                   "#{@name}.#{command.hecks_name} guards from: #{Array(command.from).inspect}, but " \

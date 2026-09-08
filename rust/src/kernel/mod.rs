@@ -167,6 +167,10 @@ pub enum Refusal {
     UnknownArgument(String),
     Unauthorized(String),
     Fault(String),
+    /// `corrects` against a record that never emitted the corrected event
+    /// — `Runtime::NothingToCorrect` (C9.2), its own class, not a
+    /// `GivenNotMet` wearing that wording.
+    NothingToCorrect(String),
 }
 
 impl Refusal {
@@ -187,6 +191,7 @@ impl Refusal {
             Refusal::UnknownArgument(_) => "UnknownArgument",
             Refusal::Unauthorized(_) => "Unauthorized",
             Refusal::Fault(_) => "Fault",
+            Refusal::NothingToCorrect(_) => "NothingToCorrect",
         }
     }
 }
@@ -204,7 +209,8 @@ impl std::fmt::Display for Refusal {
             | Refusal::AbsentArgument(msg)
             | Refusal::UnknownArgument(msg)
             | Refusal::Unauthorized(msg)
-            | Refusal::Fault(msg) => write!(f, "{msg}"),
+            | Refusal::Fault(msg)
+            | Refusal::NothingToCorrect(msg) => write!(f, "{msg}"),
         }
     }
 }

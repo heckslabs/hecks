@@ -61,15 +61,15 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
           transition "Finish"  => "done",   from: "closed"
         end
 
+        # THE TRANSITIONS MOVE `status` (C5.3) — a `sets` on the lifecycle
+        # field is refused at build.
         command "Advance" do
           reference_to Task
-          sets :status, to: "closed"
           emits "TaskAdvanced"
         end
 
         command "Finish" do
           reference_to Task
-          sets :status, to: "done"
           emits "TaskFinished"
         end
       end
