@@ -4,7 +4,7 @@ require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
-    Given = Struct.new(:description, :canonical, :predicate, keyword_init: true)
+    Given = Struct.new(:description, :canonical, :predicate, :ast, keyword_init: true)
 
     Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
       include Hecks::IR
