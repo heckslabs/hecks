@@ -1,0 +1,3 @@
+Hecks.hecksagon "Metering" do
+  Metering::Gauge.persisted_by("Memory")
+end

@@ -992,7 +992,7 @@ pub fn dispatch_withdraw(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
-        record.withdrawals.push(Withdrawal { cents: args.cents.clone(), narrative: args.narrative.clone(), sequence: WithdrawalSequence { value: (record.withdrawals.len() as i64) + 1 }, state: "taken".to_string() });
+        record.withdrawals.push(Withdrawal { cents: args.cents.clone(), narrative: args.narrative.clone(), sequence: WithdrawalSequence { value: record.withdrawals.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 }, state: "taken".to_string() });
             Ok(())
         },
         &[

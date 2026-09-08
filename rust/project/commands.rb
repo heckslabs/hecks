@@ -439,6 +439,7 @@ module RustProjection
 
       mutation_lines = command[:mutations].reject { |m| m[:op].to_s == "corrects" }
                                           .map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
+      mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
       mutation_lines.concat(corrects_flag_mutation_lines(command, aggregate))
       # advance_lifecycle: unconditional once a transition applies at all —
       # see kernel/dispatch.rs's TransitionCheck comment for why this lives
@@ -736,6 +737,7 @@ module RustProjection
       end
       transition = lifecycle_transition_for(target, entity)
       mutation_lines = target[:mutations].map { |m| emit_mutation_line(m, entity, target, value_objects_by_name, optional: false) }
+      mutation_lines.unshift(pre_state_line) if reads_pre_state?(target[:mutations])
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
 
@@ -858,6 +860,7 @@ module RustProjection
         transition_check_arg(transition)
 
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
+      mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty?
 

@@ -175,32 +175,34 @@ module Hecks
       # intentional mirroring, which is what lets the two be diffed
       # against each other when one gets a fix the other needs too.
       # rubocop:disable-next Metrics/AbcSize
-      def apply_to_element(rules, aggregate, entity, element, mutation, args)
+      # `pre` — the element as it was before this command (C4.2): every
+      # read below goes through it, every write lands on `element`.
+      def apply_to_element(rules, aggregate, entity, element, mutation, args, pre = element)
         case mutation.op
         when :set
           value = rules.resolve_source(mutation.source, args)
           attribute = entity.attribute(mutation.target)
           element[mutation.target] = attribute ? Value.for_attribute(aggregate, attribute, value) : value
         when :append
-          element[mutation.target] = appended_to_element(aggregate, entity, element, mutation, args)
+          element[mutation.target] = appended_to_element(aggregate, entity, pre, mutation, args)
         when :remove
-          element[mutation.target] = removed_from_element(rules, aggregate, entity, element, mutation, args)
+          element[mutation.target] = removed_from_element(rules, aggregate, entity, pre, mutation, args)
         when :increment, :decrement
           attribute = entity.attribute(mutation.target)
           amount    = rules.resolve_source(mutation.source, args)
-          current   = element[mutation.target]
+          current   = pre[mutation.target]
           amount    = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
           result    = rules.arithmetic(current, amount, mutation.target, rules.sign_of(mutation.op))
           element[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
         when :multiply
           attribute = entity.attribute(mutation.target)
           amount    = rules.resolve_source(mutation.source, args)
-          current   = element[mutation.target]
+          current   = pre[mutation.target]
           amount    = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
           result    = rules.multiply(current, amount, mutation.target)
           element[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
         when :clamp
-          element[mutation.target] = rules.clamp(element[mutation.target], mutation.source, mutation.target)
+          element[mutation.target] = rules.clamp(pre[mutation.target], mutation.source, mutation.target)
         else
           # The aggregate-level twin's own backstop
           # (MutationApplier#apply), for the same reason: applying

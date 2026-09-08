@@ -29,22 +29,28 @@ module Hecks
         # both no-op here, for two unrelated documented reasons (see each
         # branch's own comment below); merging would blur that distinction.
         # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity
-        def apply(instance, aggregate, mutation, args)
+        #
+        # `pre` — THE PRE-DISPATCH STATE (C4.2): every source below reads
+        # it, every target is written to `instance`. A command's effects
+        # are one update set; declaration order carries no meaning, and
+        # build refuses a field written twice (`CommandBuilder#
+        # refuse_duplicate_targets!`).
+        def apply(instance, aggregate, mutation, args, pre = instance)
           case mutation.op
           when :set
             value = if mutation.source.is_a?(StateRef)
-                      instance[mutation.source.name]
+                      pre[mutation.source.name]
                     else
                       @rules.resolve_source(mutation.source,
                                             args)
                     end
             instance[mutation.target] = Value.for(aggregate, mutation.target, value)
           when :append
-            instance[mutation.target] = appended(instance, aggregate, mutation, args)
+            instance[mutation.target] = appended(pre, aggregate, mutation, args)
           when :increment, :decrement
             amount = @rules.resolve_source(mutation.source, args)
             attribute = aggregate.attribute(mutation.target)
-            current   = instance[mutation.target]
+            current   = pre[mutation.target]
             # Vendored fix, not (yet) upstream hecks (migration plan
             # task 9): see #rewrap_arithmetic_result's own comment below
             # -- `amount` is wrapped ONLY when `current` already is, not
@@ -58,7 +64,7 @@ module Hecks
           # RemoveDependency/DeactivateSprint: "a concurrent Add can
           # never be lost").
           when :remove
-            instance[mutation.target] = removed(instance, aggregate, mutation, args)
+            instance[mutation.target] = removed(pre, aggregate, mutation, args)
           # Vendored addition, not (yet) upstream hecks (migration
           # plan task 4, i106): multiply/clamp, the scale/bound pair
           # alongside increment/decrement's add/subtract pair -- see
@@ -66,7 +72,7 @@ module Hecks
           when :multiply
             amount = @rules.resolve_source(mutation.source, args)
             attribute = aggregate.attribute(mutation.target)
-            current   = instance[mutation.target]
+            current   = pre[mutation.target]
             amount = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
             result = @rules.multiply(current, amount, mutation.target)
             instance[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
@@ -77,7 +83,7 @@ module Hecks
           # a no-op for an Array (it only special-cases Symbol), so it's
           # read straight.
           when :clamp
-            instance[mutation.target] = @rules.clamp(instance[mutation.target], mutation.source, mutation.target)
+            instance[mutation.target] = @rules.clamp(pre[mutation.target], mutation.source, mutation.target)
           # `delegates_to` — CommandBuilder#delegates_to's own comment gives
           # the full reasoning for storing it as a mutation at all. A REAL
           # no-op here, not a gap: it targets no field on THIS instance —
@@ -235,12 +241,21 @@ module Hecks
           end
           if entity.identified_by && !fields.key?(entity.identified_by)
             attribute = entity.attribute(entity.identified_by)
-            fields[entity.identified_by] = Value.from_identifier(aggregate, attribute, Array(current).size + 1)
+            fields[entity.identified_by] = Value.from_identifier(aggregate, attribute, next_identity(current, entity))
           else
             check_entity_collision(aggregate, entity, current, fields)
           end
           fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
           fields
+        end
+
+        # THE MINTED IDENTITY IS ONE PAST THE HIGHEST HELD (C4.5) — not
+        # `size + 1`, which repeats an identity the moment the list has
+        # ever shrunk. One strategy for the language, so the IR declares
+        # none; the Rust generators mint by the same rule.
+        def next_identity(current, entity)
+          held = Array(current).map { |element| Value.scalar(element[entity.identified_by]).to_i }
+          held.max.to_i + 1
         end
 
         # THE SAME CHECK #hydrate GIVES EVERY CREATING AGGREGATE COMMAND

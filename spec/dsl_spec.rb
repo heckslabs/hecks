@@ -521,6 +521,19 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /repeats the target/)
     end
 
+    # C4.2 (docs/semantics/bluebook-semantics.md) — effects are one update
+    # set over the pre-dispatch state; a field written twice would make
+    # declaration order significant (last-wins), which the update set
+    # says it is not.
+    it "refuses writing one field twice in a command — effects are one update set, not a sequence" do
+      expect do
+        build_command("Twice") do
+          sets :status, to: "open"
+          sets :status, to: "closed"
+        end
+      end.to raise_error(Malformed, /Do writes status twice \(set and set\)/)
+    end
+
     it "then_set is gone — sets is the word now (ADR 0025 reverts the rename)" do
       # `sets` is the word; `then_set` was the era every existing bluebook was
       # written under (Syntax::Keyword still carries it as `was:`) — reachable

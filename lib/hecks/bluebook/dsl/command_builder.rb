@@ -485,8 +485,13 @@ module Hecks
                                      source: { as: as&.to_s, reason: reason.to_s, reverses: reverses })
         end
 
+        # THE EFFECTS THAT WRITE A FIELD OF THE RECORD — `delegate` and
+        # `corrects` name a command and an event, never a field.
+        FIELD_EFFECTS = %i[set append remove increment decrement multiply clamp].freeze
+
         def build
           resolve_implicit_attributes!
+          refuse_duplicate_targets!
 
           delegation = @mutations.find { |mutation| mutation.op == :delegate }
           if delegation && (@mutations.size > 1 || @emits.any?)
@@ -521,6 +526,25 @@ module Hecks
         end
 
         private
+
+        # C4.2 (docs/semantics/bluebook-semantics.md) — a command's effects
+        # are ONE UPDATE SET over the pre-dispatch state, so a field
+        # written twice has no meaning to give: last-wins would make
+        # declaration order significant, which the update set says it is
+        # not. Refused here, where the declaration can still be read whole.
+        def refuse_duplicate_targets!
+          seen = {}
+          @mutations.each do |mutation|
+            next unless FIELD_EFFECTS.include?(mutation.op)
+
+            if (earlier = seen[mutation.target.to_sym])
+              raise Malformed,
+                    "#{@name} writes #{mutation.target} twice (#{earlier.op} and #{mutation.op}) — a command's " \
+                    "effects are one update set over the pre-dispatch state, so each field is written at most once"
+            end
+            seen[mutation.target.to_sym] = mutation
+          end
+        end
 
         # RESOLUTION RULES — see `docs/resolution-rules/README.md` for the
         # precise, language-agnostic algorithm each of `resolve_bare_set!`/

@@ -110,6 +110,10 @@ pub enum CommandFrom {
 pub enum MutationSource {
     Argument(String),
     Literal(crate::ruby_value::Value),
+    /// `state(:field)` — the record's own field, read from the
+    /// pre-dispatch state (C4.2). `Mutation#to_h`'s own `kind: "state",
+    /// name:` shape (`Assembly::Marks#mutation` reads it back the same way).
+    State(String),
 }
 
 #[derive(Debug, Clone)]

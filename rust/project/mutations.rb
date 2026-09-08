@@ -296,7 +296,11 @@ module RustProjection
       # sides are record fields of the SAME declared type (checked by
       # `state_source_problems`), so they share one representation and
       # no rewrap is needed.
-      return "record.#{rust_ident_field(source[:name])}.clone()" if source[:kind] == "state"
+      # `pre`, not `record` — the PRE-DISPATCH state (C4.2): the update
+      # set reads what the record held before this command, whatever
+      # order its effects are declared in. `reads_pre_state?` is what
+      # makes the caller bind `pre` at all.
+      return "pre.#{rust_ident_field(source[:name])}.clone()" if source[:kind] == "state"
 
       source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
       value_rhs("args.#{rust_ident_field(source[:name])}", source_attr[:type], target_type, value_objects_by_name)
@@ -521,8 +525,24 @@ module RustProjection
     # is not, so a scalar/value-object copy unwraps (the record holds
     # it: an acting command's record is complete) and a list clones as
     # is. Same declared type on both sides (`state_source_problems`).
+    # WHETHER ANY EFFECT READS THE RECORD'S OWN STATE — a `set` from
+    # `state(:field)` or an `append` field sourced from one. Only then
+    # does the emitted closure bind `let pre = record.clone();` (C4.2 —
+    # the pre-dispatch state every such read goes through).
+    def reads_pre_state?(mutations)
+      mutations.any? do |m|
+        case m[:op].to_s
+        when "set"    then m[:source][:kind] == "state"
+        when "append" then m[:fields].values.any? { |source| append_field_source(source).is_a?(Hecks::StateRef) }
+        else false
+        end
+      end
+    end
+
+    def pre_state_line = "        let pre = record.clone();"
+
     def state_field_rhs(parsed, field_attr, aggregate)
-      expr = "record.#{rust_ident_field(parsed.name)}.clone()"
+      expr = "pre.#{rust_ident_field(parsed.name)}.clone()"
       state_attr = aggregate && aggregate[:attributes].find { |a| a[:name].to_s == parsed.name.to_s }
       return expr if state_attr && state_attr[:list]
       return expr if field_attr[:optional]
@@ -630,7 +650,12 @@ module RustProjection
           present = mutation[:fields].keys.map(&:to_s)
           id_attr, id_vo = entity_identity_mint(entity, value_objects_by_name)
           if id_attr && !present.include?(id_attr[:name].to_s)
-            mint = "#{rust_ident(id_attr[:type])} { #{rust_ident_field(id_vo[:attributes].first[:name])}: (record.#{target_field}.len() as i64) + 1 }"
+            # ONE PAST THE HIGHEST IDENTITY HELD (C4.5) — never `len() +
+            # 1`, which repeats an identity the moment the list has ever
+            # shrunk; `MutationApplier#next_identity`'s own rule.
+            id_field = rust_ident_field(id_attr[:name])
+            vo_field = rust_ident_field(id_vo[:attributes].first[:name])
+            mint = "#{rust_ident(id_attr[:type])} { #{vo_field}: record.#{target_field}.iter().map(|e| e.#{id_field}.#{vo_field}).max().unwrap_or(0) + 1 }"
             fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
             present << id_attr[:name].to_s
           end
