@@ -22,6 +22,17 @@ impl BlockMode {
             BlockMode::None => "None",
         }
     }
+
+    /// The lowercase spelling `AstJson` writes (`node.mode.to_s` on
+    /// `:all`/`:any`/`:none`) — distinct from `rust_name`, which spells
+    /// the kernel's own enum variants for generated source.
+    pub fn json_name(&self) -> &'static str {
+        match self {
+            BlockMode::All => "all",
+            BlockMode::Any => "any",
+            BlockMode::None => "none",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
