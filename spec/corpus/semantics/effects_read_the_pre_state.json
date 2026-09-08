@@ -1,0 +1,88 @@
+{
+  "domain": "spec/corpus/semantics/domains/meter",
+  "ruby_only": true,
+  "spec": [
+    "C4.2"
+  ],
+  "note": "Gauge.Read declares `sets :current` BEFORE `sets :previous, to: state(:current)`. Per C4.2 a command's effects are one update set over the pre-dispatch state, so after readings 5 then 9 the gauge holds current 9, previous 5 — the value current had BEFORE this command. Sequential, intermediate-reading effects (the pre-C4.2 reading of both runtimes) recorded previous 9.",
+  "steps": [
+    {
+      "verb": "Metering::Gauge.Install",
+      "args": {
+        "tag": {
+          "value": "m1"
+        }
+      }
+    },
+    {
+      "verb": "Metering::Gauge.Read",
+      "args": {
+        "gauge": "m1",
+        "current": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Metering::Gauge.Read",
+      "args": {
+        "gauge": "m1",
+        "current": {
+          "value": 9
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Metering::Gauge#m1": {
+        "tag": {
+          "value": "m1"
+        },
+        "current": {
+          "value": 9
+        },
+        "previous": {
+          "value": 5
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "MeterInstalled",
+        "aggregate": "Metering::Gauge",
+        "id": "m1",
+        "payload": {
+          "tag": {
+            "value": "m1"
+          }
+        }
+      },
+      {
+        "name": "MeterRead",
+        "aggregate": "Metering::Gauge",
+        "id": "m1",
+        "payload": {
+          "gauge": "m1",
+          "current": {
+            "value": 5
+          }
+        }
+      },
+      {
+        "name": "MeterRead",
+        "aggregate": "Metering::Gauge",
+        "id": "m1",
+        "payload": {
+          "gauge": "m1",
+          "current": {
+            "value": 9
+          }
+        }
+      }
+    ]
+  }
+}

@@ -226,6 +226,31 @@ module Hecks
             raise InvalidProcessManager, "#{@name} declares no transitions — " \
                                          "it would start and then ignore every event"
           end
+
+          refuse_ambiguous_legs!
+        end
+
+        # C10.3 — a leg is selected by (event, current state), so two
+        # legs answering the SAME event from the SAME state would leave
+        # the runtime to pick by declaration order, silently. Refused
+        # here, where the declaration can still be read whole. (`from:
+        # [...]` fan-out counts: `transition E => "a", from: ["x", "y"]`
+        # and `transition E => "b", from: "y"` collide on ("E", "y").)
+        def refuse_ambiguous_legs!
+          return if MetaValidator.shadow_parsing? # frozen era text is history
+
+          seen = {}
+          @handlers.each do |handler|
+            key = [handler.event_type, handler.from_state]
+            if (earlier = seen[key])
+              raise InvalidProcessManager,
+                    "#{@name} declares two transitions on #{handler.event_type.inspect} from " \
+                    "#{handler.from_state.inspect} (=> #{earlier.to_state.inspect} and => " \
+                    "#{handler.to_state.inspect}) — a leg is selected by (event, current state), so " \
+                    "only one may answer"
+            end
+            seen[key] = handler
+          end
         end
 
         # THE BODY OF ONE `transition ... do ... end` block — collects the

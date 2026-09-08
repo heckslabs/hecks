@@ -1,0 +1,104 @@
+Hecks.bluebook "Tallying" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, §3 —
+  # C3.3 integers, C3.4 floats, C3.6 strings). The value model's own
+  # bounds are only observable at their edges — a sum past ±2^63-1, a
+  # float sum past the largest finite double, a string that sorts
+  # differently by codepoint than by any locale — and no example domain
+  # goes there. This one exists to.
+  vision "A tally counts, weighs and labels, and refuses to pretend past the edges of its numbers."
+  core
+
+  aggregate "Tally" do
+    identified_by :tag
+
+    attribute :tag,    Tag
+    attribute :count,  Count,  default: { value: 0 }
+    attribute :weight, Weight, default: { value: 0.0 }
+    attribute :label,  Label,  default: { value: "" }
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+    end
+
+    value_object "Weight" do
+      attribute :value, Float
+    end
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      goal "Start a tally"
+      attribute :tag, Tag
+      emits "TallyOpened"
+    end
+
+    command "SetCount" do
+      goal "Put the count somewhere"
+      reference_to Tally
+      attribute :count, Count
+      sets :count
+      emits "CountSet"
+    end
+
+    # THE RULE READS THE SUM (C3.3): a given that adds two 64-bit
+    # integers whose sum does not fit is a FAULT, before any effect.
+    command "Bump" do
+      goal "Add to the count, but only past zero"
+      reference_to Tally
+      attribute :by, Count
+      given("the sum stays positive") { count.value + by.value > 0 }
+      sets :count, increment: :by
+      emits "CountBumped"
+    end
+
+    # THE EFFECT ADDS (C3.3): no rule reads the sum, so the overflow
+    # surfaces in the increment itself.
+    command "Add" do
+      goal "Add to the count"
+      reference_to Tally
+      attribute :by, Count
+      sets :count, increment: :by
+      emits "CountAdded"
+    end
+
+    # THE ENSURES READS THE SETTLED STATE (C2.3): `count` is both this
+    # command's argument and the tally's field; inside the ensures it
+    # names the candidate, so the rule judges the increment, not the
+    # argument.
+    command "Increase" do
+      goal "Add to the count and check the count grew by exactly five"
+      reference_to Tally
+      attribute :count, Count
+      sets :count, increment: :count
+      ensures("the count grew by five") { count.value == old.count.value + 5 }
+      emits "CountIncreased"
+    end
+
+    # THE RULE ADDS FLOATS (C3.4): a sum that is not finite is a FAULT.
+    command "Weigh" do
+      goal "Add weight, but only while there is some"
+      reference_to Tally
+      attribute :more, Weight
+      given("the total is positive") { weight.value + more.value > 0 }
+      sets :weight, increment: :more
+      emits "Weighed"
+    end
+
+    # STRING ORDER IS CODEPOINT ORDER (C3.6): "é" sorts after "m",
+    # "M" sorts before it.
+    command "Relabel" do
+      goal "Give the tally a label that sorts after m"
+      reference_to Tally
+      attribute :label, Label
+      given("the label sorts after m") { label.value > "m" }
+      sets :label
+      emits "Relabelled"
+    end
+  end
+end

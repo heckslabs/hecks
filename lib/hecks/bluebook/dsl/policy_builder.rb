@@ -106,6 +106,9 @@ module Hecks
                   "could not be read, so no other runtime could ever evaluate it"
           end
 
+          # C3.6 — the same PatternSubset check every rule site gets.
+          Expression::AstJson.refuse_unshared_patterns!(Expression::AstJson.emit_predicate(canonical),
+                                                        owner: @name, word: "where")
           @where = canonical
         end
 

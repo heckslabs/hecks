@@ -498,8 +498,25 @@ module Hecks
           nil
         end
 
+        # Integer is signed 64-bit (C3.3, docs/semantics/bluebook-semantics.md)
+        # — Ruby's own Integer would promote past ±2^63-1 silently; the
+        # language does not, so a sum outside that range is an evaluation
+        # fault, worded exactly as the Rust kernel's `checked_add` words
+        # it. A Float sum that is not finite is the same fault (C3.4).
+        INT64_RANGE = (-(2**63))..((2**63) - 1)
+
         def add(left, right)
-          require_number(left, "addition") + require_number(right, "addition")
+          lhs = require_number(left, "addition")
+          rhs = require_number(right, "addition")
+          sum = lhs + rhs
+          if sum.is_a?(Integer)
+            return sum if INT64_RANGE.cover?(sum)
+
+            raise EvaluationError, "addition overflowed: #{lhs} + #{rhs} does not fit in a 64-bit integer"
+          end
+          return sum if sum.finite?
+
+          raise EvaluationError, "addition overflowed: #{lhs} + #{rhs} is not a finite number"
         end
 
         def quoted?(expr)
