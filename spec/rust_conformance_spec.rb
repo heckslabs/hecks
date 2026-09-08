@@ -178,16 +178,10 @@ RSpec.describe "Rust conformance (native binary)", :io do
 
       expect(rust_output["instances"]).to eq(ruby_instances)
       expect(rust_output["events"]).to eq(ruby_events)
-      # AD-HOC FILTER STEPS carry no kind comparison — C8.3
-      # (docs/semantics/bluebook-semantics.md) is OPEN exactly here: an
-      # unknown comparator/aggregate on a filter is a RuntimeError fault
-      # in Ruby and a TypeMismatch refusal in Rust, found the day kinds
-      # were first compared. The MESSAGE stays byte-exact; the
-      # classification is the open decision, excluded by clause citation
-      # rather than silently.
-      strip_filter_kinds = ->(rows) { rows.each { |r| r.delete("kind") if r["verb"].to_s.start_with?("filter ") } }
-      expect(strip_filter_kinds.call(rust_output["refusals"].reject { |r| known_refusal_gap?(r) }))
-        .to eq(strip_filter_kinds.call(ruby_refusals.reject { |r| known_refusal_gap?(r) }))
+      # Kinds compared on every row, ad-hoc filter steps included — C8.3
+      # settled: a malformed ask is a `Fault` on both sides.
+      expect(rust_output["refusals"].reject { |r| known_refusal_gap?(r) })
+        .to eq(ruby_refusals.reject { |r| known_refusal_gap?(r) })
       expect(rust_output["queries"].reject { |q| known_refusal_gap?(q) })
         .to eq(ruby_queries.reject { |q| known_refusal_gap?(q) })
       expect(rust_output["sagas"]).to eq(ruby_sagas)
