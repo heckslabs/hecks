@@ -25,15 +25,15 @@ require "hecks/fuzzing"
 #   Fixed to `checked_add`, refusing cleanly on overflow.
 #
 # Ruby's `Integer` promotes to Bignum with no ceiling; this Rust kernel
-# has no arbitrary-precision integer type anywhere (confirmed by grep —
-# no `i128`, no `BigInt`, `Json::Num` is a plain `f64` end to end) and
-# adding one is out of scope for this fix. True byte-for-byte parity with
-# Ruby's Bignum semantics is therefore NOT achievable here — this spec
-# proves the realistic, honest alternative instead: Ruby's own reference
-# engine executes both scenarios below without complaint (real Bignum,
-# no ceiling), while the compiled Rust binary now REFUSES cleanly with a
-# `TypeMismatch`-shaped message — never a crash, and never a silently
-# wrong (saturated/wrapped) number standing in for the real one.
+# has no arbitrary-precision integer type anywhere (`Json::Num` is a
+# plain `f64` end to end). That used to be a recorded parity gap — Ruby
+# accepted both scenarios below, Rust refused. C3.3 (docs/semantics/
+# bluebook-semantics.md) closed it the other way round: Integer IS a
+# signed 64-bit integer in the language, an out-of-range value is a
+# `TypeMismatch` at the boundary and an overflowing addition is a FAULT
+# (C8.3) — so the two Ruby examples below now pin the SAME refusal the
+# Rust ones always did, never a crash and never a silently wrong
+# (saturated/wrapped) number standing in for the real one.
 #
 # `io: true` — a real `cargo build` plus a subprocess run, same
 # convention `spec/rust_conformance_spec.rb` already uses for exactly
@@ -103,10 +103,15 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
     ]
   end
 
-  it "L22: Ruby's Bignum handles the addition with no refusal at all (the parity gap this fix cannot close)" do
+  it "L22: Ruby faults the same overflowing addition (C3.3 — Integer is 64-bit in the language, not just in Rust)" do
     result = Hecks::Fuzzing::Replay.call(NUMERIC_COERCION_BANKING_DOMAIN, overflow_steps)
 
-    expect(result[:refusals]).to be_empty, "Ruby unexpectedly refused: #{result[:refusals].inspect}"
+    expect(result[:refusals].size).to eq(1), "expected exactly one refusal, got #{result[:refusals].inspect}"
+    refusal = result[:refusals].first
+    expect(refusal[:verb]).to eq("Banking::Account.LedgerEntry.Amend")
+    expect(refusal[:kind]).to eq("Fault")
+    expect(refusal[:error]).to include("overflowed")
+    expect(result[:events].map { |e| e[:name] }).not_to include("LedgerEntryAmended")
   end
 
   it "L22: Rust now refuses the same overflowing addition cleanly instead of panicking or wrapping to a wrong number" do
@@ -155,10 +160,14 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
     ]
   end
 
-  it "L21: Ruby's Bignum accepts the oversized daily_limit with no refusal (the parity gap this fix cannot close)" do
+  it "L21: Ruby refuses the out-of-range daily_limit at the boundary too (C3.3 `integer_range`)" do
     result = Hecks::Fuzzing::Replay.call(NUMERIC_COERCION_BANKING_DOMAIN, out_of_range_steps)
 
-    expect(result[:refusals]).to be_empty, "Ruby unexpectedly refused: #{result[:refusals].inspect}"
+    expect(result[:refusals].size).to eq(1), "expected exactly one refusal, got #{result[:refusals].inspect}"
+    refusal = result[:refusals].first
+    expect(refusal[:verb]).to eq("Banking::Account.Open")
+    expect(refusal[:kind]).to end_with("TypeMismatch")
+    expect(refusal[:error]).to eq("DailyLimit.cents must fit in a 64-bit integer, got #{HUGE_OUT_OF_RANGE}")
   end
 
   it "L21: Rust now refuses the out-of-range daily_limit cleanly instead of silently saturating to i64::MAX" do
