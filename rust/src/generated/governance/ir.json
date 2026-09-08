@@ -288,6 +288,17 @@
           "emits": [
             "RoleAssigned"
           ],
+          "events": [
+            {
+              "name": "RoleAssigned",
+              "payload": [
+                "actor_id",
+                "role_name",
+                "scope",
+                "starts_at"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -327,6 +338,14 @@
           ],
           "emits": [
             "RoleRevoked"
+          ],
+          "events": [
+            {
+              "name": "RoleRevoked",
+              "payload": [
+                "ends_at"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -559,6 +578,16 @@
           "emits": [
             "RoleTransitionGranted"
           ],
+          "events": [
+            {
+              "name": "RoleTransitionGranted",
+              "payload": [
+                "from_role",
+                "to_role",
+                "starts_at"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -598,6 +627,14 @@
           ],
           "emits": [
             "RoleTransitionRevoked"
+          ],
+          "events": [
+            {
+              "name": "RoleTransitionRevoked",
+              "payload": [
+                "ends_at"
+              ]
+            }
           ],
           "from": null,
           "provenance": null

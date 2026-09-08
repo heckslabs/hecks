@@ -65,6 +65,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TillOpened",
+              "payload": [
+                "number"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -114,6 +122,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "TakenIn",
+              "payload": [
+                "amount",
+                "note"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -173,6 +190,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PaidOut",
+              "payload": [
+                "amount"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -212,6 +237,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "Bumped",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [

@@ -236,8 +236,9 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
         .map(|pm| {
             let handlers = pm.get("handlers").map(Json::each).unwrap_or(&[]);
             let handler_strs: Vec<String> = handlers.iter().map(|h| emit_handler(exemplar, h, &mut literal_fns)).collect();
-            let states = pm.get("states").map(Json::each).unwrap_or(&[]);
-            let initial_state = states.first().map(Json::to_s).unwrap_or_default();
+            // STAGE 8 — the IR states it (`initial_state`); nothing here
+            // re-derives it from `states`.
+            let initial_state = pm.get("initial_state").map(Json::to_s).expect("process manager IR carries initial_state");
             format!(
                 "crate::kernel::ProcessManagerDef {{ name: {}, correlates_by: {}, starts_on: {}, ends_on: {}, initial_state: {}, handlers: &[{}] }}",
                 naming::ruby_inspect_string(&pm.get("name").map(Json::to_s).unwrap_or_default()),

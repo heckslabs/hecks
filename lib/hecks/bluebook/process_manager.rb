@@ -115,6 +115,11 @@ module Hecks
         starts_on:     :starts_on,
         ends_on:       :ends_on,
         states:        :states,
+        # STAGE 8 — an IR FACT, not a generator's guess: the state a fresh
+        # instance starts in (`SagaInterpreter#begin_saga`'s own
+        # `states.first`). Both Rust generators read it from here rather
+        # than re-deriving it.
+        initial_state: -> { states.first&.to_s },
         handlers:      many(:handlers)
       )
 

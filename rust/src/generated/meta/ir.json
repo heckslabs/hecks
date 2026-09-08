@@ -2921,6 +2921,18 @@
           "emits": [
             "RootDeclared"
           ],
+          "events": [
+            {
+              "name": "RootDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "description",
+                "provenance",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -2978,6 +2990,14 @@
           ],
           "emits": [
             "RootIdentified"
+          ],
+          "events": [
+            {
+              "name": "RootIdentified",
+              "payload": [
+                "path"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3095,6 +3115,21 @@
           "emits": [
             "AttributeAttached"
           ],
+          "events": [
+            {
+              "name": "AttributeAttached",
+              "payload": [
+                "type",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -3210,6 +3245,21 @@
           ],
           "emits": [
             "ReferenceAttached"
+          ],
+          "events": [
+            {
+              "name": "ReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3327,6 +3377,21 @@
           "emits": [
             "PieceHeld"
           ],
+          "events": [
+            {
+              "name": "PieceHeld",
+              "payload": [
+                "holds",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -3385,6 +3450,15 @@
           ],
           "emits": [
             "LifecycleNamed"
+          ],
+          "events": [
+            {
+              "name": "LifecycleNamed",
+              "payload": [
+                "state_field",
+                "state_start"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3447,6 +3521,16 @@
           "emits": [
             "TransitionAttached"
           ],
+          "events": [
+            {
+              "name": "TransitionAttached",
+              "payload": [
+                "command",
+                "from_state",
+                "to_state"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -3484,6 +3568,14 @@
           ],
           "emits": [
             "RootSealed"
+          ],
+          "events": [
+            {
+              "name": "RootSealed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3523,6 +3615,14 @@
           ],
           "emits": [
             "ValueDeclared"
+          ],
+          "events": [
+            {
+              "name": "ValueDeclared",
+              "payload": [
+                "name"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3613,6 +3713,15 @@
           "emits": [
             "InvariantAttached"
           ],
+          "events": [
+            {
+              "name": "InvariantAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -3701,6 +3810,15 @@
           ],
           "emits": [
             "PreconditionAttached"
+          ],
+          "events": [
+            {
+              "name": "PreconditionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -3821,6 +3939,16 @@
           ],
           "emits": [
             "ProjectedFieldAttached"
+          ],
+          "events": [
+            {
+              "name": "ProjectedFieldAttached",
+              "payload": [
+                "name",
+                "reference",
+                "remote_field"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -5294,6 +5422,18 @@
           "emits": [
             "ChapterDeclared"
           ],
+          "events": [
+            {
+              "name": "ChapterDeclared",
+              "payload": [
+                "name",
+                "vision",
+                "classification",
+                "version",
+                "formerly_known_as"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -5369,6 +5509,14 @@
           ],
           "emits": [
             "ChapterAttached"
+          ],
+          "events": [
+            {
+              "name": "ChapterAttached",
+              "payload": [
+                "context"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -5452,6 +5600,18 @@
           ],
           "emits": [
             "NormalisationAttached"
+          ],
+          "events": [
+            {
+              "name": "NormalisationAttached",
+              "payload": [
+                "strategy",
+                "source_token",
+                "replacement",
+                "boundary",
+                "position"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -8262,6 +8422,21 @@
           "emits": [
             "VerbDeclared"
           ],
+          "events": [
+            {
+              "name": "VerbDeclared",
+              "payload": [
+                "aggregate",
+                "entity_id",
+                "name",
+                "role",
+                "goal",
+                "provenance",
+                "from",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8377,6 +8552,21 @@
           ],
           "emits": [
             "ArgumentAttached"
+          ],
+          "events": [
+            {
+              "name": "ArgumentAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -8494,6 +8684,21 @@
           "emits": [
             "ArgumentReferenceAttached"
           ],
+          "events": [
+            {
+              "name": "ArgumentReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8583,6 +8788,15 @@
           "emits": [
             "RuleAttached"
           ],
+          "events": [
+            {
+              "name": "RuleAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8671,6 +8885,15 @@
           ],
           "emits": [
             "EnsureAttached"
+          ],
+          "events": [
+            {
+              "name": "EnsureAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -8794,6 +9017,18 @@
           "emits": [
             "ChangeAttached"
           ],
+          "events": [
+            {
+              "name": "ChangeAttached",
+              "payload": [
+                "target",
+                "op",
+                "field",
+                "kind",
+                "source"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8870,6 +9105,14 @@
           "emits": [
             "ReferenceNamed"
           ],
+          "events": [
+            {
+              "name": "ReferenceNamed",
+              "payload": [
+                "root"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8927,6 +9170,14 @@
           ],
           "emits": [
             "AnnouncementNamed"
+          ],
+          "events": [
+            {
+              "name": "AnnouncementNamed",
+              "payload": [
+                "announces"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -11145,6 +11396,18 @@
           "emits": [
             "PieceDeclared"
           ],
+          "events": [
+            {
+              "name": "PieceDeclared",
+              "payload": [
+                "aggregate",
+                "owner",
+                "name",
+                "description",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -11203,6 +11466,14 @@
           "emits": [
             "PieceIdentified"
           ],
+          "events": [
+            {
+              "name": "PieceIdentified",
+              "payload": [
+                "path"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -11240,6 +11511,14 @@
           ],
           "emits": [
             "PieceSealed"
+          ],
+          "events": [
+            {
+              "name": "PieceSealed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -11357,6 +11636,21 @@
           "emits": [
             "PieceAttributeAttached"
           ],
+          "events": [
+            {
+              "name": "PieceAttributeAttached",
+              "payload": [
+                "type",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -11472,6 +11766,21 @@
           ],
           "emits": [
             "PieceReferenceAttached"
+          ],
+          "events": [
+            {
+              "name": "PieceReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -11589,6 +11898,21 @@
           "emits": [
             "PieceHeld"
           ],
+          "events": [
+            {
+              "name": "PieceHeld",
+              "payload": [
+                "holds",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -11677,6 +12001,15 @@
           ],
           "emits": [
             "PiecePreconditionAttached"
+          ],
+          "events": [
+            {
+              "name": "PiecePreconditionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -11767,6 +12100,15 @@
           "emits": [
             "PieceInvariantAttached"
           ],
+          "events": [
+            {
+              "name": "PieceInvariantAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -11825,6 +12167,15 @@
           ],
           "emits": [
             "PieceLifecycleNamed"
+          ],
+          "events": [
+            {
+              "name": "PieceLifecycleNamed",
+              "payload": [
+                "state_field",
+                "state_start"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -11886,6 +12237,16 @@
           ],
           "emits": [
             "PieceTransitionAttached"
+          ],
+          "events": [
+            {
+              "name": "PieceTransitionAttached",
+              "payload": [
+                "command",
+                "from_state",
+                "to_state"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -12980,6 +13341,22 @@
           "emits": [
             "ReactionDeclared"
           ],
+          "events": [
+            {
+              "name": "ReactionDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "aggregate",
+                "on_event",
+                "trigger_command",
+                "target_domain",
+                "where",
+                "for_each",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -13029,6 +13406,15 @@
           ],
           "emits": [
             "TriggerBindingAttached"
+          ],
+          "events": [
+            {
+              "name": "TriggerBindingAttached",
+              "payload": [
+                "key",
+                "value"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -14458,6 +14844,19 @@
           "emits": [
             "SagaDeclared"
           ],
+          "events": [
+            {
+              "name": "SagaDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "correlates_by",
+                "starts_on",
+                "ends_on",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -14496,6 +14895,14 @@
           ],
           "emits": [
             "SagaStateAttached"
+          ],
+          "events": [
+            {
+              "name": "SagaStateAttached",
+              "payload": [
+                "name"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -14557,6 +14964,16 @@
           ],
           "emits": [
             "LegDeclared"
+          ],
+          "events": [
+            {
+              "name": "LegDeclared",
+              "payload": [
+                "event_type",
+                "from_state",
+                "to_state"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -14669,6 +15086,15 @@
               ],
               "emits": [
                 "SendDeclared"
+              ],
+              "events": [
+                {
+                  "name": "SendDeclared",
+                  "payload": [
+                    "command_name",
+                    "position"
+                  ]
+                }
               ],
               "from": null,
               "provenance": null
@@ -14785,6 +15211,15 @@
                   "emits": [
                     "BindingAttached"
                   ],
+                  "events": [
+                    {
+                      "name": "BindingAttached",
+                      "payload": [
+                        "key",
+                        "value"
+                      ]
+                    }
+                  ],
                   "from": null,
                   "provenance": null
                 },
@@ -14824,6 +15259,14 @@
                   ],
                   "emits": [
                     "CompensationDeclared"
+                  ],
+                  "events": [
+                    {
+                      "name": "CompensationDeclared",
+                      "payload": [
+                        "compensates_command_name"
+                      ]
+                    }
                   ],
                   "from": null,
                   "provenance": null
@@ -14874,6 +15317,15 @@
                   ],
                   "emits": [
                     "CompensationBindingAttached"
+                  ],
+                  "events": [
+                    {
+                      "name": "CompensationBindingAttached",
+                      "payload": [
+                        "key",
+                        "value"
+                      ]
+                    }
                   ],
                   "from": null,
                   "provenance": null
@@ -16433,6 +16885,20 @@
           "emits": [
             "ProjectionDeclared"
           ],
+          "events": [
+            {
+              "name": "ProjectionDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "description",
+                "query_name",
+                "reference_name",
+                "reference_target",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -16494,6 +16960,16 @@
           "emits": [
             "HeadGathered"
           ],
+          "events": [
+            {
+              "name": "HeadGathered",
+              "payload": [
+                "aggregate",
+                "as",
+                "many"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -16552,6 +17028,14 @@
           "emits": [
             "GroupByFieldAdded"
           ],
+          "events": [
+            {
+              "name": "GroupByFieldAdded",
+              "payload": [
+                "field"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -16591,6 +17075,14 @@
           ],
           "emits": [
             "CountDeclared"
+          ],
+          "events": [
+            {
+              "name": "CountDeclared",
+              "payload": [
+                "count"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -16650,6 +17142,14 @@
           ],
           "emits": [
             "MedianFieldSet"
+          ],
+          "events": [
+            {
+              "name": "MedianFieldSet",
+              "payload": [
+                "median_field"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -16741,6 +17241,17 @@
           ],
           "emits": [
             "OptionAttached"
+          ],
+          "events": [
+            {
+              "name": "OptionAttached",
+              "payload": [
+                "option",
+                "key",
+                "value",
+                "at"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -18356,6 +18867,21 @@
           "emits": [
             "AskDeclared"
           ],
+          "events": [
+            {
+              "name": "AskDeclared",
+              "payload": [
+                "aggregate",
+                "entity_id",
+                "name",
+                "description",
+                "order_field",
+                "order_way",
+                "limit",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -18416,6 +18942,16 @@
           ],
           "emits": [
             "FilterAttached"
+          ],
+          "events": [
+            {
+              "name": "FilterAttached",
+              "payload": [
+                "field",
+                "op",
+                "value"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -18507,6 +19043,17 @@
           ],
           "emits": [
             "OptionAttached"
+          ],
+          "events": [
+            {
+              "name": "OptionAttached",
+              "payload": [
+                "option",
+                "key",
+                "value",
+                "at"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -18623,6 +19170,21 @@
           ],
           "emits": [
             "AskArgumentAttached"
+          ],
+          "events": [
+            {
+              "name": "AskArgumentAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -20104,6 +20666,16 @@
           "emits": [
             "ShapeDeclared"
           ],
+          "events": [
+            {
+              "name": "ShapeDeclared",
+              "payload": [
+                "aggregate",
+                "name",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -20220,6 +20792,21 @@
           "emits": [
             "ShapeFieldAttached"
           ],
+          "events": [
+            {
+              "name": "ShapeFieldAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -20281,6 +20868,14 @@
           ],
           "emits": [
             "ShapeClosed"
+          ],
+          "events": [
+            {
+              "name": "ShapeClosed",
+              "payload": [
+                "rows"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -20371,6 +20966,15 @@
           "emits": [
             "AssertionAttached"
           ],
+          "events": [
+            {
+              "name": "AssertionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -20409,6 +21013,14 @@
           ],
           "emits": [
             "MemberDeclared"
+          ],
+          "events": [
+            {
+              "name": "MemberDeclared",
+              "payload": [
+                "position"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -20519,6 +21131,15 @@
               ],
               "emits": [
                 "PairBound"
+              ],
+              "events": [
+                {
+                  "name": "PairBound",
+                  "payload": [
+                    "key",
+                    "value"
+                  ]
+                }
               ],
               "from": null,
               "provenance": null
@@ -21238,6 +21859,15 @@
           "emits": [
             "SyntaxDeclared"
           ],
+          "events": [
+            {
+              "name": "SyntaxDeclared",
+              "payload": [
+                "bluebook",
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -21386,6 +22016,24 @@
           ],
           "emits": [
             "KeywordAdmitted"
+          ],
+          "events": [
+            {
+              "name": "KeywordAdmitted",
+              "payload": [
+                "position",
+                "word",
+                "context",
+                "body",
+                "inner",
+                "opens",
+                "fills",
+                "was",
+                "resolves_via",
+                "disambiguator",
+                "calls"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -21591,6 +22239,29 @@
           "emits": [
             "ArgumentAdmitted"
           ],
+          "events": [
+            {
+              "name": "ArgumentAdmitted",
+              "payload": [
+                "position",
+                "keyword",
+                "context",
+                "at",
+                "named",
+                "kind",
+                "required",
+                "fills",
+                "selects",
+                "pair_key_fills",
+                "pair_value_fills",
+                "pairs_shape",
+                "variadic",
+                "minimum",
+                "coerce",
+                "blank_message"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         }
@@ -21745,6 +22416,14 @@
               "emits": [
                 "KeywordDeprecated"
               ],
+              "events": [
+                {
+                  "name": "KeywordDeprecated",
+                  "payload": [
+
+                  ]
+                }
+              ],
               "from": null,
               "provenance": null
             },
@@ -21767,6 +22446,14 @@
               ],
               "emits": [
                 "KeywordRetired"
+              ],
+              "events": [
+                {
+                  "name": "KeywordRetired",
+                  "payload": [
+
+                  ]
+                }
               ],
               "from": null,
               "provenance": null
@@ -21995,6 +22682,14 @@
               "emits": [
                 "ArgumentDeprecated"
               ],
+              "events": [
+                {
+                  "name": "ArgumentDeprecated",
+                  "payload": [
+
+                  ]
+                }
+              ],
               "from": null,
               "provenance": null
             },
@@ -22017,6 +22712,14 @@
               ],
               "emits": [
                 "ArgumentRetired"
+              ],
+              "events": [
+                {
+                  "name": "ArgumentRetired",
+                  "payload": [
+
+                  ]
+                }
               ],
               "from": null,
               "provenance": null

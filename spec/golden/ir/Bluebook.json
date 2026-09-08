@@ -203,6 +203,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "RootDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "description",
+                "provenance",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -278,6 +290,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "RootIdentified",
+              "payload": [
+                "path"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -407,6 +427,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "AttributeAttached",
+              "payload": [
+                "type",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -522,6 +557,21 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -639,6 +689,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceHeld",
+              "payload": [
+                "holds",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -694,6 +759,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "LifecycleNamed",
+              "payload": [
+                "state_field",
+                "state_start"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -764,6 +838,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TransitionAttached",
+              "payload": [
+                "command",
+                "from_state",
+                "to_state"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -795,6 +879,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "RootSealed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -842,6 +934,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ValueDeclared",
+              "payload": [
+                "name"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -891,6 +991,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "InvariantAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -980,6 +1089,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PreconditionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -1079,6 +1197,16 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ProjectedFieldAttached",
+              "payload": [
+                "name",
+                "reference",
+                "remote_field"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -4001,6 +4129,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ChapterDeclared",
+              "payload": [
+                "name",
+                "vision",
+                "classification",
+                "version",
+                "formerly_known_as"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -4114,6 +4254,14 @@
               "description": "the list grew by exactly one"
             }
           ],
+          "events": [
+            {
+              "name": "ChapterAttached",
+              "payload": [
+                "context"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -4192,6 +4340,18 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "NormalisationAttached",
+              "payload": [
+                "strategy",
+                "source_token",
+                "replacement",
+                "boundary",
+                "position"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -5729,6 +5889,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "VerbDeclared",
+              "payload": [
+                "aggregate",
+                "entity_id",
+                "name",
+                "role",
+                "goal",
+                "provenance",
+                "from",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -5902,6 +6077,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ArgumentAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -6018,6 +6208,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ArgumentReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -6073,6 +6278,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "RuleAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -6162,6 +6376,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "EnsureAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -6282,6 +6505,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ChangeAttached",
+              "payload": [
+                "target",
+                "op",
+                "field",
+                "kind",
+                "source"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -6364,6 +6599,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ReferenceNamed",
+              "payload": [
+                "root"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -6439,6 +6682,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "AnnouncementNamed",
+              "payload": [
+                "announces"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -9157,6 +9408,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceDeclared",
+              "payload": [
+                "aggregate",
+                "owner",
+                "name",
+                "description",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -9233,6 +9496,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceIdentified",
+              "payload": [
+                "path"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -9281,6 +9552,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PieceSealed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -9399,6 +9678,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceAttributeAttached",
+              "payload": [
+                "type",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -9514,6 +9808,21 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PieceReferenceAttached",
+              "payload": [
+                "points_at",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -9631,6 +9940,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceHeld",
+              "payload": [
+                "holds",
+                "name",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -9686,6 +10010,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PiecePreconditionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -9776,6 +10109,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceInvariantAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -9865,6 +10207,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PieceLifecycleNamed",
+              "payload": [
+                "state_field",
+                "state_start"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -9933,6 +10284,16 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PieceTransitionAttached",
+              "payload": [
+                "command",
+                "from_state",
+                "to_state"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -12136,6 +12497,22 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ReactionDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "aggregate",
+                "on_event",
+                "trigger_command",
+                "target_domain",
+                "where",
+                "for_each",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -12257,6 +12634,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "TriggerBindingAttached",
+              "payload": [
+                "key",
+                "value"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -13229,6 +13615,19 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "SagaDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "correlates_by",
+                "starts_on",
+                "ends_on",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -13314,6 +13713,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "SagaStateAttached",
+              "payload": [
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -13372,6 +13779,16 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "LegDeclared",
+              "payload": [
+                "event_type",
+                "from_state",
+                "to_state"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -13470,6 +13887,15 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "SendDeclared",
+                  "payload": [
+                    "command_name",
+                    "position"
+                  ]
+                }
               ],
               "from": null,
               "givens": [
@@ -13578,6 +14004,15 @@
                   "ensures": [
 
                   ],
+                  "events": [
+                    {
+                      "name": "BindingAttached",
+                      "payload": [
+                        "key",
+                        "value"
+                      ]
+                    }
+                  ],
                   "from": null,
                   "givens": [
 
@@ -13617,6 +14052,14 @@
                   ],
                   "ensures": [
 
+                  ],
+                  "events": [
+                    {
+                      "name": "CompensationDeclared",
+                      "payload": [
+                        "compensates_command_name"
+                      ]
+                    }
                   ],
                   "from": null,
                   "givens": [
@@ -13667,6 +14110,15 @@
                   ],
                   "ensures": [
 
+                  ],
+                  "events": [
+                    {
+                      "name": "CompensationBindingAttached",
+                      "payload": [
+                        "key",
+                        "value"
+                      ]
+                    }
                   ],
                   "from": null,
                   "givens": [
@@ -15135,6 +15587,20 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ProjectionDeclared",
+              "payload": [
+                "bluebook",
+                "name",
+                "description",
+                "query_name",
+                "reference_name",
+                "reference_target",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -15249,6 +15715,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "HeadGathered",
+              "payload": [
+                "aggregate",
+                "as",
+                "many"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -15289,6 +15765,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "GroupByFieldAdded",
+              "payload": [
+                "field"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -15348,6 +15832,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CountDeclared",
+              "payload": [
+                "count"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -15387,6 +15879,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "MedianFieldSet",
+              "payload": [
+                "median_field"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -15476,6 +15976,17 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "OptionAttached",
+              "payload": [
+                "option",
+                "key",
+                "value",
+                "at"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -16991,6 +17502,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "AskDeclared",
+              "payload": [
+                "aggregate",
+                "entity_id",
+                "name",
+                "description",
+                "order_field",
+                "order_way",
+                "limit",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -17114,6 +17640,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "FilterAttached",
+              "payload": [
+                "field",
+                "op",
+                "value"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -17184,6 +17720,17 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "OptionAttached",
+              "payload": [
+                "option",
+                "key",
+                "value",
+                "at"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -17315,6 +17862,21 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "AskArgumentAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -18783,6 +19345,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ShapeDeclared",
+              "payload": [
+                "aggregate",
+                "name",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -18911,6 +19483,21 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ShapeFieldAttached",
+              "payload": [
+                "name",
+                "type",
+                "list",
+                "optional",
+                "pattern",
+                "default",
+                "admits",
+                "relationship"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -18956,6 +19543,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ShapeClosed",
+              "payload": [
+                "rows"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -19028,6 +19623,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "AssertionAttached",
+              "payload": [
+                "description",
+                "canonical"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -19108,6 +19712,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "MemberDeclared",
+              "payload": [
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -19183,6 +19795,15 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "PairBound",
+                  "payload": [
+                    "key",
+                    "value"
+                  ]
+                }
               ],
               "from": null,
               "givens": [
@@ -20641,6 +21262,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "SyntaxDeclared",
+              "payload": [
+                "bluebook",
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -20789,6 +21419,24 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "KeywordAdmitted",
+              "payload": [
+                "position",
+                "word",
+                "context",
+                "body",
+                "inner",
+                "opens",
+                "fills",
+                "was",
+                "resolves_via",
+                "disambiguator",
+                "calls"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -20989,6 +21637,29 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ArgumentAdmitted",
+              "payload": [
+                "position",
+                "keyword",
+                "context",
+                "at",
+                "named",
+                "kind",
+                "required",
+                "fills",
+                "selects",
+                "pair_key_fills",
+                "pair_value_fills",
+                "pairs_shape",
+                "variadic",
+                "minimum",
+                "coerce",
+                "blank_message"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -21151,6 +21822,14 @@
               "ensures": [
 
               ],
+              "events": [
+                {
+                  "name": "KeywordDeprecated",
+                  "payload": [
+
+                  ]
+                }
+              ],
               "from": null,
               "givens": [
 
@@ -21173,6 +21852,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "KeywordRetired",
+                  "payload": [
+
+                  ]
+                }
               ],
               "from": null,
               "givens": [
@@ -21401,6 +22088,14 @@
               "ensures": [
 
               ],
+              "events": [
+                {
+                  "name": "ArgumentDeprecated",
+                  "payload": [
+
+                  ]
+                }
+              ],
               "from": null,
               "givens": [
 
@@ -21423,6 +22118,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "ArgumentRetired",
+                  "payload": [
+
+                  ]
+                }
               ],
               "from": null,
               "givens": [

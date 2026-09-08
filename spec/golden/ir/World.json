@@ -103,6 +103,17 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "WiringDeclared",
+              "payload": [
+                "world_ref",
+                "world",
+                "verb",
+                "adapter"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -198,6 +209,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "SettingGiven",
+              "payload": [
+                "key",
+                "value"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -395,6 +415,16 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "WorldDeclared",
+              "payload": [
+                "domain",
+                "realm",
+                "latest"
+              ]
+            }
           ],
           "from": null,
           "givens": [

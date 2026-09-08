@@ -43,6 +43,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "Flipped",
+              "payload": [
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -74,6 +82,9 @@
 
           ],
           "ensures": [
+
+          ],
+          "events": [
 
           ],
           "from": null,
@@ -248,6 +259,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "Installed",
+              "payload": [
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -270,6 +289,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "Rang",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -380,6 +407,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "Raised",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [

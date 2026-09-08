@@ -45,6 +45,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "DrawerOpened",
+              "payload": [
+                "number"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -76,6 +84,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PutIn",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -137,6 +153,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "Taken",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -216,6 +240,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "DrawerShut",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -238,6 +270,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "DrawerReopened",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -435,6 +475,17 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "WireAsked",
+              "payload": [
+                "reference",
+                "amount",
+                "source",
+                "destination"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -502,6 +553,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "WireMoved",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -525,6 +584,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "WireLanded",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -547,6 +614,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "WireReturned",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -799,6 +874,7 @@
           "to_state": "returned"
         }
       ],
+      "initial_state": "asked",
       "name": "Carry",
       "starts_on": "WireAsked",
       "states": [
