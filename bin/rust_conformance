@@ -72,7 +72,7 @@ comparable = {
   "events"    => result[:events].map do |e|
     { "name" => e[:name], "aggregate" => e[:aggregate], "id" => e[:id].to_s, "payload" => JSON.parse(JSON.generate(e[:payload])) }
   end,
-  "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error] } }
+  "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error], "kind" => r[:kind]&.split("::")&.last } }
 }
 
 unless other
@@ -127,6 +127,26 @@ end
 # reasoning for the RSpec-driven comparison path this script mirrors.
 if theirs["events"].is_a?(Array)
   theirs["events"].each { |event| event.delete("occurred_at") if event.is_a?(Hash) }
+end
+
+# AD-HOC FILTER STEPS carry no kind comparison — C8.3 (docs/semantics/
+# bluebook-semantics.md) is OPEN exactly here (RuntimeError fault in Ruby,
+# TypeMismatch refusal in Rust; the MESSAGE stays byte-exact) — the same
+# clause-cited exclusion spec/rust_conformance_spec.rb draws.
+[comparable, theirs].each do |side|
+  next unless side["refusals"].is_a?(Array)
+
+  side["refusals"].each { |r| r.delete("kind") if r.is_a?(Hash) && r["verb"].to_s.start_with?("filter ") }
+end
+
+# AD-HOC FILTER STEPS carry no kind comparison — C8.3 (docs/semantics/
+# bluebook-semantics.md) is OPEN exactly here (RuntimeError fault in Ruby,
+# TypeMismatch refusal in Rust; the MESSAGE stays byte-exact) — the same
+# clause-cited exclusion spec/rust_conformance_spec.rb draws.
+[comparable, theirs].each do |side|
+  next unless side["refusals"].is_a?(Array)
+
+  side["refusals"].each { |r| r.delete("kind") if r.is_a?(Hash) && r["verb"].to_s.start_with?("filter ") }
 end
 
 mismatches = []
