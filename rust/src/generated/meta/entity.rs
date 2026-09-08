@@ -747,6 +747,14 @@ impl Entity {
     }
 }
 
+fn entity_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for IdentifyArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -803,6 +811,7 @@ pub fn dispatch_identify(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceIdentified"],
         args.to_json(),
         mutations,
@@ -891,6 +900,7 @@ pub fn dispatch_seal(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceSealed"],
         args.to_json(),
         mutations,
@@ -1000,6 +1010,7 @@ pub fn dispatch_attribute(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceAttributeAttached"],
         args.to_json(),
         mutations,
@@ -1123,6 +1134,7 @@ pub fn dispatch_reference(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceReferenceAttached"],
         args.to_json(),
         mutations,
@@ -1246,6 +1258,7 @@ pub fn dispatch_holds(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceHeld"],
         args.to_json(),
         mutations,
@@ -1353,6 +1366,7 @@ pub fn dispatch_precondition(
         &[
 
         ],
+        &entity_invariants(),
         &["PiecePreconditionAttached"],
         args.to_json(),
         mutations,
@@ -1448,6 +1462,7 @@ pub fn dispatch_invariant(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceInvariantAttached"],
         args.to_json(),
         mutations,
@@ -1543,6 +1558,7 @@ pub fn dispatch_lifecycle(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceLifecycleNamed"],
         args.to_json(),
         mutations,
@@ -1640,6 +1656,7 @@ pub fn dispatch_transition(
         &[
 
         ],
+        &entity_invariants(),
         &["PieceTransitionAttached"],
         args.to_json(),
         mutations,

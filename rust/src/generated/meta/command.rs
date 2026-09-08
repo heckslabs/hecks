@@ -1264,6 +1264,14 @@ impl Command {
     }
 }
 
+fn command_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for ArgumentArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1341,6 +1349,7 @@ pub fn dispatch_argument(
         &[
 
         ],
+        &command_invariants(),
         &["ArgumentAttached"],
         args.to_json(),
         mutations,
@@ -1464,6 +1473,7 @@ pub fn dispatch_reference(
         &[
 
         ],
+        &command_invariants(),
         &["ArgumentReferenceAttached"],
         args.to_json(),
         mutations,
@@ -1571,6 +1581,7 @@ pub fn dispatch_rule(
         &[
 
         ],
+        &command_invariants(),
         &["RuleAttached"],
         args.to_json(),
         mutations,
@@ -1666,6 +1677,7 @@ pub fn dispatch_ensure(
         &[
 
         ],
+        &command_invariants(),
         &["EnsureAttached"],
         args.to_json(),
         mutations,
@@ -1771,6 +1783,7 @@ pub fn dispatch_change(
         &[
 
         ],
+        &command_invariants(),
         &["ChangeAttached"],
         args.to_json(),
         mutations,
@@ -1869,6 +1882,7 @@ pub fn dispatch_acts_on(
         &[
 
         ],
+        &command_invariants(),
         &["ReferenceNamed"],
         args.to_json(),
         mutations,
@@ -1958,6 +1972,7 @@ pub fn dispatch_announce(
         &[
 
         ],
+        &command_invariants(),
         &["AnnouncementNamed"],
         args.to_json(),
         mutations,

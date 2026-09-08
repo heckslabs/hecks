@@ -802,6 +802,14 @@ impl Bluebook {
     }
 }
 
+fn bluebook_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for AttachArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -858,6 +866,7 @@ pub fn dispatch_attach(
         &[
             crate::kernel::EnsuresSpec { description: "the list grew by exactly one", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("attaches_to")))), right: Box::new(Expr::Add(Box::new(Expr::Size(Box::new(Expr::Lookup("old.attaches_to")))), Box::new(Expr::Int(1)))) } },
         ],
+        &bluebook_invariants(),
         &["ChapterAttached"],
         args.to_json(),
         mutations,
@@ -959,6 +968,7 @@ pub fn dispatch_normalise(
         &[
 
         ],
+        &bluebook_invariants(),
         &["NormalisationAttached"],
         args.to_json(),
         mutations,

@@ -551,6 +551,14 @@ impl ScheduledPayment {
     }
 }
 
+fn scheduledpayment_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for ScheduleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -637,6 +645,7 @@ pub fn dispatch_schedule(
         &[
 
         ],
+        &scheduledpayment_invariants(),
         &["PaymentScheduled"],
         args.to_json(),
         mutations,
@@ -734,6 +743,7 @@ pub fn dispatch_execute(
         &[
 
         ],
+        &scheduledpayment_invariants(),
         &["ScheduledPaymentExecuted"],
         args.to_json(),
         mutations,
@@ -823,6 +833,7 @@ pub fn dispatch_cancel(
         &[
 
         ],
+        &scheduledpayment_invariants(),
         &["ScheduledPaymentCancelled"],
         args.to_json(),
         mutations,
@@ -912,6 +923,7 @@ pub fn dispatch_fail(
         &[
 
         ],
+        &scheduledpayment_invariants(),
         &["ScheduledPaymentFailed"],
         args.to_json(),
         mutations,
@@ -1003,6 +1015,7 @@ pub fn dispatch_retry(
         &[
             crate::kernel::EnsuresSpec { description: "a retry never lowers the attempt count", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Add(Box::new(Expr::Lookup("old.attempts.value")), Box::new(Expr::Int(1)))) } },
         ],
+        &scheduledpayment_invariants(),
         &["ScheduledPaymentFailed"],
         args.to_json(),
         mutations,
@@ -1093,6 +1106,7 @@ pub fn dispatch_abandon(
         &[
 
         ],
+        &scheduledpayment_invariants(),
         &["ScheduledPaymentAbandoned"],
         args.to_json(),
         mutations,

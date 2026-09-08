@@ -247,6 +247,14 @@ impl OnboardingCase {
     }
 }
 
+fn onboardingcase_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for OpenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -319,6 +327,7 @@ pub fn dispatch_open(
         &[
 
         ],
+        &onboardingcase_invariants(),
         &["OnboardingOpened"],
         args.to_json(),
         mutations,
@@ -411,6 +420,7 @@ pub fn dispatch_clear(
         &[
 
         ],
+        &onboardingcase_invariants(),
         &["OnboardingCleared"],
         args.to_json(),
         mutations,
@@ -499,6 +509,7 @@ pub fn dispatch_decline(
         &[
 
         ],
+        &onboardingcase_invariants(),
         &["OnboardingDeclined"],
         args.to_json(),
         mutations,

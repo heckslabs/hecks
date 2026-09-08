@@ -323,6 +323,7 @@ pub fn dispatch_start(
         &[
 
         ],
+        &recurringpayment_invariants(),
         &["RecurringPaymentStarted"],
         args.to_json(),
         mutations,
@@ -404,6 +405,7 @@ pub fn dispatch_advance_cycle(
         &[
 
         ],
+        &recurringpayment_invariants(),
         &["CycleAdvanced"],
         args.to_json(),
         mutations,
@@ -474,6 +476,7 @@ pub fn dispatch_pause(
         &[
 
         ],
+        &recurringpayment_invariants(),
         &["RecurringPaymentPaused"],
         args.to_json(),
         mutations,
@@ -544,6 +547,7 @@ pub fn dispatch_resume(
         &[
 
         ],
+        &recurringpayment_invariants(),
         &["RecurringPaymentResumed"],
         args.to_json(),
         mutations,
@@ -614,6 +618,7 @@ pub fn dispatch_cancel(
         &[
 
         ],
+        &recurringpayment_invariants(),
         &["RecurringPaymentCancelled"],
         args.to_json(),
         mutations,
@@ -644,3 +649,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn recurringpayment_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

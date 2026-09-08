@@ -666,6 +666,14 @@ impl Query {
     }
 }
 
+fn query_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for FilterArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -729,6 +737,7 @@ pub fn dispatch_filter(
         &[
 
         ],
+        &query_invariants(),
         &["FilterAttached"],
         args.to_json(),
         mutations,
@@ -831,6 +840,7 @@ pub fn dispatch_option(
         &[
 
         ],
+        &query_invariants(),
         &["OptionAttached"],
         args.to_json(),
         mutations,
@@ -947,6 +957,7 @@ pub fn dispatch_argument(
         &[
 
         ],
+        &query_invariants(),
         &["AskArgumentAttached"],
         args.to_json(),
         mutations,
