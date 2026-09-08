@@ -1,0 +1,105 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C2.3",
+    "C6.1"
+  ],
+  "note": "Tally.Increase takes an argument named `count` — the same name as the field it increments — and its ensures reads `count.value == old.count.value + 5`. Per C2.3 an ensures resolves the settled state first, so with the count at 10 an Increase by 5 is accepted (15 == 10 + 5) and an Increase by 7 is refused EnsuresNotMet (17 != 15 + 5). Under argument-first resolution (C2.2, a given's rule) the same ensures would have compared the argument 5 with 15 and refused the first step.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.SetCount",
+      "args": {
+        "tally": "t1",
+        "count": {
+          "value": 10
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Increase",
+      "args": {
+        "tally": "t1",
+        "count": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Increase",
+      "args": {
+        "tally": "t1",
+        "count": {
+          "value": 7
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.Increase",
+        "error": "Increase refused — the count grew by five",
+        "kind": "EnsuresNotMet"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 15
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "CountSet",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "count": {
+            "value": 10
+          }
+        }
+      },
+      {
+        "name": "CountIncreased",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "count": {
+            "value": 5
+          }
+        }
+      }
+    ]
+  }
+}

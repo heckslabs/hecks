@@ -237,6 +237,8 @@ module Hecks
         # [...]` fan-out counts: `transition E => "a", from: ["x", "y"]`
         # and `transition E => "b", from: "y"` collide on ("E", "y").)
         def refuse_ambiguous_legs!
+          return if MetaValidator.shadow_parsing? # frozen era text is history
+
           seen = {}
           @handlers.each do |handler|
             key = [handler.event_type, handler.from_state]

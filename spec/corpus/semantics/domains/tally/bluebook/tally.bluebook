@@ -67,6 +67,19 @@ Hecks.bluebook "Tallying" do
       emits "CountAdded"
     end
 
+    # THE ENSURES READS THE SETTLED STATE (C2.3): `count` is both this
+    # command's argument and the tally's field; inside the ensures it
+    # names the candidate, so the rule judges the increment, not the
+    # argument.
+    command "Increase" do
+      goal "Add to the count and check the count grew by exactly five"
+      reference_to Tally
+      attribute :count, Count
+      sets :count, increment: :count
+      ensures("the count grew by five") { count.value == old.count.value + 5 }
+      emits "CountIncreased"
+    end
+
     # THE RULE ADDS FLOATS (C3.4): a sum that is not finite is a FAULT.
     command "Weigh" do
       goal "Add weight, but only while there is some"

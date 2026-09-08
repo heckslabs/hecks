@@ -90,6 +90,8 @@ module Hecks
         # Walks the emitted AST, so every rule site (givens, ensures,
         # invariants, preconditions, a policy's where) gets the one check.
         def refuse_unshared_patterns!(ast, owner:, word:)
+          return ast if Hecks::Bluebook::MetaValidator.shadow_parsing? # frozen era text is history
+
           each_node(ast) do |node|
             next unless node["op"] == "matches_regex"
 
@@ -101,6 +103,16 @@ module Hecks
                   "#{rejection.construct} — #{rejection.reason}"
           end
           ast
+        end
+
+        # Every name a rule resolves at its root — the first segment of
+        # each `lookup` path, unique, in first-seen order.
+        def lookup_heads(ast)
+          heads = []
+          each_node(ast) do |node|
+            heads << node["path"].first.to_s if node["op"] == "lookup" && node["path"].is_a?(::Array)
+          end
+          heads.uniq
         end
 
         def each_node(node, &block)

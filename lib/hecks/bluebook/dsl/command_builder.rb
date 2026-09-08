@@ -533,6 +533,8 @@ module Hecks
         # declaration order significant, which the update set says it is
         # not. Refused here, where the declaration can still be read whole.
         def refuse_duplicate_targets!
+          return if MetaValidator.shadow_parsing? # frozen era text is history
+
           seen = {}
           @mutations.each do |mutation|
             next unless FIELD_EFFECTS.include?(mutation.op)
