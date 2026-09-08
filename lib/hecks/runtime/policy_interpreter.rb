@@ -32,8 +32,8 @@ module Hecks
       # way of running exactly the consumer a row names (`Runtime::
       # Outbox::Relay#run_consumer`) instead of every policy that
       # matches the event. Selection is otherwise identical.
-      def react(event, _domain, only: nil)
-        selected = only ? [only] : policies_for(event)
+      def react(event, domain, only: nil)
+        selected = only ? [only] : policies_for(event, domain)
         selected.each do |policy, home_domain|
           result = deliver(policy, event, home_domain)
           next if result.nil?
@@ -62,10 +62,15 @@ module Hecks
       # OWN domain (not the emitting one) when a trigger or for_each route
       # is bare, and that fallback has to travel with each match now that
       # a single event can surface policies from several different homes.
-      def policies_for(event)
+      #
+      # THE EMITTING DOMAIN'S OWN POLICIES FIRST, in declaration order,
+      # then other bluebooks' in load order (C10.2) — the same order the
+      # outbox lays its rows in (`Outbox::Fanout.policies`) and the Rust
+      # kernel runs (`react_policies`: its own table, then cross-domain).
+      def policies_for(event, domain)
         emitting = Naming.demodulise(event.aggregate)
 
-        @registry.bluebooks.each_value.flat_map do |bluebook|
+        Outbox.bluebooks_home_first(@registry, domain).flat_map do |bluebook|
           matching = bluebook.policies.select do |policy|
             policy.event_name == event.name &&
               (policy.event_qualifier.nil? || policy.event_qualifier == emitting)

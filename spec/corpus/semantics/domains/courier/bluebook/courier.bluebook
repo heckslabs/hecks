@@ -1,0 +1,67 @@
+Hecks.bluebook "Courier" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.2).
+  # Reaction ORDER is only observable when one dispatch announces more
+  # than one event and different reactions answer each — no example
+  # domain has a command that emits twice, so the clause that decides
+  # the order could not be pinned against any of them. Here `Advance`
+  # announces two events: a saga leg answers the first, a policy answers
+  # the second. Per C10.2 reactions run per event, in `emits` order —
+  # policies then sagas for each — so the saga's own dispatch (on the
+  # FIRST event) lands before the policy's (on the second). Under the
+  # pre-C10.2 Ruby reading (every policy of the batch, then every saga)
+  # the policy's dispatch landed first.
+  vision "A courier run is started, advances, and every leg is both logged by the route and noted by the audit."
+  core
+
+  aggregate "Run" do
+    identified_by :tag
+
+    attribute :tag, Tag
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    command "Start" do
+      goal "Open a run"
+      attribute :tag, Tag
+      emits "RunStarted"
+    end
+
+    command "Advance" do
+      goal "Move the run one leg on — announced twice, to the route and to the audit"
+      reference_to Run
+      emits "RunLegged"
+      emits "RunReported"
+    end
+
+    command "Log" do
+      goal "The route's own record of a leg"
+      reference_to Run
+      emits "RunLogged"
+    end
+
+    command "Note" do
+      goal "The audit's own record of a leg"
+      reference_to Run
+      emits "RunNoted"
+    end
+  end
+
+  # THE SAGA answers the FIRST announced event.
+  process_manager "Route" do
+    correlates_by :"tag.value"
+    starts_on "RunStarted"
+    ends_on   "RunLogged"
+
+    transition "RunLegged" => "logged", from: "started" do
+      dispatch Run::Log, with: { run: :tag }
+    end
+  end
+
+  # THE POLICY answers the SECOND.
+  policy "Audit" do
+    on      Run::RunReported
+    trigger Run::Note
+  end
+end

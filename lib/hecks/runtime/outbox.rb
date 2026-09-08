@@ -34,8 +34,9 @@ module Hecks
     #   failed     the consumer raised a defect (non-refusal error).
     #
     # DELIVERY IS INLINE BY DEFAULT — the dispatcher drains the rows it
-    # just wrote, in the same call, in the same order reactions always
-    # ran (every policy row, then every saga row). Nothing about the
+    # just wrote, in the same call, in the order C10.2 fixes (per event
+    # in `emits` order: that event's policy rows, then its saga rows —
+    # the emitting domain's own policies before other domains'). Nothing about the
     # happy path is deferred or asynchronous; a caller still sees every
     # reaction settled when `dispatch` returns. What changes is the
     # crash window: a process that dies between commit and reaction
@@ -92,6 +93,14 @@ module Hecks
         event.to_h.merge(correlation: event.correlation)
       end
 
+      # THE EMITTING DOMAIN'S OWN BLUEBOOK FIRST, then the rest in load
+      # order (C10.2) — the one policy ordering both `PolicyInterpreter#
+      # policies_for` and `Fanout.policies` read.
+      def bluebooks_home_first(registry, domain)
+        home, others = registry.bluebooks.each_value.partition { |bluebook| bluebook.name == domain }
+        home + others
+      end
+
       def event_from(hash)
         hash = hash.transform_keys(&:to_sym)
         Event.new(
@@ -126,16 +135,18 @@ module Hecks
         # parity specs pin). Policy and saga rows for the same event
         # share it, which is what makes `delivery_id` mean "this fact,
         # this consumer".
+        # ROW ORDER IS DELIVERY ORDER (C10.2): per event, in `emits`
+        # order — that event's policy rows, then its saga rows.
         def rows_for(registry, events, domain)
           uids = events.to_h { |event| [event, SecureRandom.uuid] }
-          policy_rows = events.flat_map { |event| policies(registry, event, domain, uids[event]) }
-          saga_rows   = events.flat_map { |event| sagas(registry, event, domain, uids[event]) }
-          policy_rows + saga_rows
+          events.flat_map do |event|
+            policies(registry, event, domain, uids[event]) + sagas(registry, event, domain, uids[event])
+          end
         end
 
         def policies(registry, event, domain, uid)
           emitting = Naming.demodulise(event.aggregate)
-          registry.bluebooks.each_value.flat_map do |bluebook|
+          Outbox.bluebooks_home_first(registry, domain).flat_map do |bluebook|
             bluebook.policies.filter_map do |policy|
               next unless policy.event_name == event.name
               next unless policy.event_qualifier.nil? || policy.event_qualifier == emitting
@@ -232,11 +243,13 @@ module Hecks
         # outbox here" — react directly, the pre-outbox path.
         def deliver(rows, events, domain, repository)
           if rows.nil?
-            # Two passes on purpose — every policy before any saga, the
-            # order `Dispatcher#dispatch` always ran them in (and the
-            # order `Fanout.rows_for` reproduces for the outbox path).
-            events.each { |event| @policies.react(event, domain) }
-            events.each { |event| @sagas.advance(event, domain) }
+            # PER EVENT, in `emits` order — its policies, then its sagas
+            # (C10.2, docs/semantics/bluebook-semantics.md); the same
+            # order `Fanout.rows_for` lays the outbox rows in.
+            events.each do |event|
+              @policies.react(event, domain)
+              @sagas.advance(event, domain)
+            end
             return
           end
 
