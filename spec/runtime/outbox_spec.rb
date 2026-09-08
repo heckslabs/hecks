@@ -237,7 +237,9 @@ RSpec.describe "the transactional outbox" do
           Hecks.world("Shop") { persisted_by("Heki") { dir(dir) } }
         end
 
-        expect { registry.verify! }.to output(%r{Shop declares policies/process_managers but its persistence adapter \(Heki\) has no outbox}).to_stderr
+        expect do
+          registry.verify!
+        end.to output(%r{Shop declares policies/process_managers but its persistence adapter \(Heki\) has no outbox}).to_stderr
       end
     end
 

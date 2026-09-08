@@ -8,6 +8,11 @@ require_relative "../bluebook/expression/evaluator"
 
 module Hecks
   module Runtime
+    # Fires the declared `policy` reactions triggered by one just-emitted
+    # event: scans every loaded bluebook (a policy commonly lives in a
+    # different domain than the event it reacts to), checks each
+    # candidate's `where` guard, and re-enters the dispatcher for each
+    # delivery — recording every outcome on the reaction log.
     class PolicyInterpreter
       attr_reader :registry
 
@@ -27,7 +32,7 @@ module Hecks
       # way of running exactly the consumer a row names (`Runtime::
       # Outbox::Relay#run_consumer`) instead of every policy that
       # matches the event. Selection is otherwise identical.
-      def react(event, domain, only: nil)
+      def react(event, _domain, only: nil)
         selected = only ? [only] : policies_for(event)
         selected.each do |policy, home_domain|
           result = deliver(policy, event, home_domain)
@@ -106,11 +111,11 @@ module Hecks
         args = trigger_args(policy, event)
         @door.reenter(target, **reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)
-      rescue *DOMAIN_REFUSALS => error
+      rescue *DOMAIN_REFUSALS => e
         # The target refused — a fact about the domain, recorded and not
         # fatal to the command that emitted the event.
-        record.merge(delivered: false, reason: error.message)
-      rescue StandardError => error
+        record.merge(delivered: false, reason: e.message)
+      rescue StandardError => e
         # A DEFECT, not a refusal — a NoMethodError in an interpreter, a
         # NameError from a missing constant, a TypeError from a bad
         # assumption : exactly the class of thing DOMAIN_REFUSALS
@@ -138,8 +143,8 @@ module Hecks
         # is never silent, and left exactly where it happened for a human
         # to find — never re-raised, and never swallowed either.
         warn "[hecks] defect in reaction — policy #{policy.name} on #{event.name} " \
-             "firing #{target}: #{error.class}: #{error.message}"
-        record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+             "firing #{target}: #{e.class}: #{e.message}"
+        record.merge(delivered: false, reason: e.message, defect: true, error_class: e.class.name)
       end
 
       # THE FAN-OUT — `policy.for_each` names a query ; this runs it
@@ -174,12 +179,12 @@ module Hecks
         Array(rows).map do |row|
           deliver_for_each_row(target, record, trigger_args(policy, event, reference_key => row[:id]), row, policy, event)
         end
-      rescue *DOMAIN_REFUSALS => error
-        record.merge(delivered: false, reason: error.message)
-      rescue StandardError => error
+      rescue *DOMAIN_REFUSALS => e
+        record.merge(delivered: false, reason: e.message)
+      rescue StandardError => e
         warn "[hecks] defect in reaction — policy #{policy.name} on #{event.name} " \
-             "resolving for_each #{policy.for_each}: #{error.class}: #{error.message}"
-        record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+             "resolving for_each #{policy.for_each}: #{e.class}: #{e.message}"
+        record.merge(delivered: false, reason: e.message, defect: true, error_class: e.class.name)
       end
 
       # THE EVENT'S OWN IDENTITY IS A FACT TOO, not only its payload. A
@@ -337,8 +342,8 @@ module Hecks
         # result, or a projection could never name the row it acts on.
         @door.reenter(target, **reaction_invocation(target, args, policy, event))
         row_record.merge(delivered: true)
-      rescue *DOMAIN_REFUSALS => error
-        row_record.merge(delivered: false, reason: error.message)
+      rescue *DOMAIN_REFUSALS => e
+        row_record.merge(delivered: false, reason: e.message)
       end
 
       def reaction_invocation(target, args, policy, event)

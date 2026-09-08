@@ -7,7 +7,7 @@ require_relative "../support/postgres_probe"
 # PostgresOutbox#transaction` joins an open one instead of nesting a
 # BEGIN), a pending row survives a crash and is redriven on the next
 # boot, a claimed row is surfaced and left alone.
-RSpec.describe "the transactional outbox, against Postgres", io: true do
+RSpec.describe "the transactional outbox, against Postgres", :io do
   OUTBOX_SPEC_DB = "hecks_outbox_spec".freeze
 
   before(:all) do
@@ -32,7 +32,7 @@ RSpec.describe "the transactional outbox, against Postgres", io: true do
     scrub.close
   end
 
-  def boot_shop(adapter)
+  def boot_shop(adapter) # rubocop:disable Metrics/MethodLength
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)

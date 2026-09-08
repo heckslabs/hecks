@@ -257,10 +257,10 @@ module Hecks
         end
 
         def any_policy_listens_to?(bluebook_ir)
-          emitted = bluebook_ir.aggregates.flat_map { |aggregate|
+          emitted = bluebook_ir.aggregates.flat_map do |aggregate|
             aggregate.commands.flat_map(&:emits) +
               aggregate.ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
-          }.compact.map(&:to_s)
+          end.compact.map(&:to_s)
           @bluebooks.each_value.any? { |candidate| candidate.policies.any? { |policy| emitted.include?(policy.event_name.to_s) } }
         end
 

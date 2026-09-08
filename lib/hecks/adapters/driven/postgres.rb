@@ -86,9 +86,9 @@ module Hecks
         # boot after the first, not news.
         connection.exec("SET client_min_messages = warning")
         connection
-      rescue PG::Error => error
+      rescue PG::Error => e
         raise Runtime::WiringError,
-              "cannot bind Postgres at #{declared} for #{name}: #{error.message.strip}"
+              "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
 
       def initialize(aggregate:, settings: {}, root: nil)
@@ -131,7 +131,10 @@ module Hecks
         order_sql = "ORDER BY id"
         if order_by
           name = order_by.to_s.split(".").first
-          raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by" unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+          unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+            raise Runtime::WiringError,
+                  "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+          end
 
           spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
           order_sql = "ORDER BY #{order_clause(spec, nil)}"
@@ -172,6 +175,8 @@ module Hecks
       # zero rows back means the conflict branch's WHERE excluded the row
       # entirely — the version had already moved — so `nil` is returned
       # for the caller (`AppendOnly#save`) to treat as "stale, no-op".
+      # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
+      # protocol; splitting it would hide the version handshake.
       def project(entry, expected_version: nil)
         return @db.exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
 
@@ -196,6 +201,7 @@ module Hecks
         instance.version = result[0]["hecks_version"].to_i
         instance
       end
+      # rubocop:enable Metrics/AbcSize
 
       def entries
         @db.exec("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
@@ -224,7 +230,10 @@ module Hecks
       # transaction lives here, the one caller that runs both together.
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
-        transaction { append(entry); project(entry) }
+        transaction do
+          append(entry)
+          project(entry)
+        end
       end
 
       def atomic_put(entry, insert_only: false)
@@ -252,7 +261,10 @@ module Hecks
 
       def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
-        transaction { append(entry); project(entry) }
+        transaction do
+          append(entry)
+          project(entry)
+        end
         true
       end
 
@@ -285,7 +297,8 @@ module Hecks
           "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
           "SET state = EXCLUDED.state, memory = EXCLUDED.memory, " \
           "completed_compensations = EXCLUDED.completed_compensations, updated_at = now()",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory),
+           JSON.generate(completed_compensations)]
         )
       end
 
@@ -300,7 +313,8 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.exec_params(
-          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = $1",
+          "SELECT process_manager, correlation, state, memory, completed_compensations " \
+          "FROM hecks_saga_instances WHERE domain = $1",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],

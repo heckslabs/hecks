@@ -152,15 +152,16 @@ module Hecks
           bluebook = registry.bluebook(domain)
           return [] unless bluebook
 
-          bluebook.process_managers.select { |pm| listens?(pm, event) }.map do |pm|
-            consumer = "saga:#{bluebook.name}::#{pm.name}"
+          bluebook.process_managers.select { |process_manager| listens?(process_manager, event) }.map do |process_manager|
+            consumer = "saga:#{bluebook.name}::#{process_manager.name}"
             Row.new(delivery_id: "#{uid}/#{consumer}", event_uid: uid, domain: domain, kind: "reaction",
                     consumer: consumer, event: Outbox.serialize_event(event), status: "pending", attempts: 0)
           end
         end
 
-        def listens?(pm, event)
-          pm.starts_on == event.name || pm.ends_on == event.name || !pm.handler_for(event.name).nil?
+        def listens?(process_manager, event)
+          process_manager.starts_on == event.name || process_manager.ends_on == event.name ||
+            !process_manager.handler_for(event.name).nil?
         end
 
         # An "effect" is a reaction whose trigger is an outbound port
@@ -235,7 +236,7 @@ module Hecks
             # order `Dispatcher#dispatch` always ran them in (and the
             # order `Fanout.rows_for` reproduces for the outbox path).
             events.each { |event| @policies.react(event, domain) }
-            events.each { |event| @sagas.advance(event, domain) } # rubocop:disable Style/CombinableLoops
+            events.each { |event| @sagas.advance(event, domain) }
             return
           end
 
@@ -253,15 +254,15 @@ module Hecks
             repository.outbox_settle(row.id, status: "delivered")
             row.status = "delivered"
             true
-          rescue StandardError => error
+          rescue StandardError => e
             # A DOMAIN_REFUSAL never reaches here — PolicyInterpreter and
             # SagaInterpreter both rescue it as a recorded, undelivered
             # reaction. Anything that does reach here is a defect in the
             # relay's own path (a consumer that no longer exists, an
             # adapter that raised outside the interpreters' own rescue).
-            repository.outbox_settle(row.id, status: "failed", error: "#{error.class}: #{error.message}")
+            repository.outbox_settle(row.id, status: "failed", error: "#{e.class}: #{e.message}")
             row.status = "failed"
-            row.error  = "#{error.class}: #{error.message}"
+            row.error  = "#{e.class}: #{e.message}"
             @log << { outbox: row.delivery_id, consumer: row.consumer, delivered: false, defect: true,
                       reason: row.error }
             false
@@ -309,9 +310,10 @@ module Hecks
                      raise(WiringError, "outbox row #{row.delivery_id} names policy #{fqn}, which no bluebook declares")
             @policies.react(event, row.domain, only: [policy, home])
           when "saga"
-            pm = @registry.bluebook(home)&.process_managers&.find { |candidate| candidate.name == name } ||
-                 raise(WiringError, "outbox row #{row.delivery_id} names process_manager #{fqn}, which no bluebook declares")
-            @sagas.advance(event, row.domain, only: pm)
+            process_manager = @registry.bluebook(home)&.process_managers&.find { |candidate| candidate.name == name } ||
+                              raise(WiringError,
+                                    "outbox row #{row.delivery_id} names process_manager #{fqn}, which no bluebook declares")
+            @sagas.advance(event, row.domain, only: process_manager)
           else
             raise WiringError, "outbox row #{row.delivery_id} has an unknown consumer kind #{kind.inspect}"
           end
