@@ -1,6 +1,10 @@
 # Ruby is the reference implementation; other runtimes validate against it, continuously
 
-**Status:** Accepted — implemented. The differential harness this ADR
+**Status:** Accepted — implemented; TIEBREAKER ROLE SUPERSEDED by
+`docs/semantics/bluebook-semantics.md` + `spec/corpus/semantics/`
+(the clause-numbered semantics and its frozen corpus are the reference
+for MEANING now; Ruby remains the reference IMPLEMENTATION, and both
+runtimes answer to the corpus rather than to each other). The differential harness this ADR
 specifies is real and runs in CI: `spec/rust_conformance_spec.rb`,
 `spec/codegen_parity_spec.rb`, and `spec/parser_parity_spec.rb`.
 Supersedes the "wait for IR stability" entry criterion in

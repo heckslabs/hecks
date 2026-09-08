@@ -1,0 +1,369 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C7.1",
+    "C10.1",
+    "C10.4"
+  ],
+  "note": "Event ordering as semantic, and reactions outside the trigger's atomicity: a transfer request settles through the Settlement saga after the Request commits; the event sequence across the whole run is part of the expectation.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-2"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "opening deposit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "rent"
+        },
+        "reference": {
+          "value": "xfer-1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 7500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "opening deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          },
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer out"
+            },
+            "direction": {
+              "value": "debit"
+            },
+            "sequence": {
+              "value": 2
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Account#acct-2": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-2"
+        },
+        "balance": {
+          "cents": 2500,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 10000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 2500,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "transfer in"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "open",
+        "customer_status": "active"
+      },
+      "Banking::Transfer#xfer-1": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "reference": {
+          "value": "xfer-1"
+        },
+        "amount": {
+          "cents": 2500
+        },
+        "narrative": {
+          "text": "rent"
+        },
+        "status": "settled",
+        "source_account_status": "open",
+        "source_customer_status": "active",
+        "destination_account_status": "open",
+        "destination_customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-2"
+          },
+          "kind": {
+            "name": "savings"
+          },
+          "daily_limit": {
+            "cents": 10000
+          }
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "amount": {
+            "cents": 10000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "opening deposit"
+          }
+        }
+      },
+      {
+        "name": "TransferRequested",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+          "source": "acct-1",
+          "destination": "acct-2",
+          "amount": {
+            "cents": 2500
+          },
+          "narrative": {
+            "text": "rent"
+          },
+          "reference": {
+            "value": "xfer-1"
+          }
+        }
+      },
+      {
+        "name": "AccountDebited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer out"
+          }
+        }
+      },
+      {
+        "name": "TransferDebited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-2",
+        "payload": {
+          "amount": {
+            "cents": 2500,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "transfer in"
+          }
+        }
+      },
+      {
+        "name": "TransferCredited",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      },
+      {
+        "name": "TransferSettled",
+        "aggregate": "Banking::Transfer",
+        "id": "xfer-1",
+        "payload": {
+        }
+      }
+    ]
+  }
+}

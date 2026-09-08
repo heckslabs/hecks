@@ -452,7 +452,7 @@ pub fn run(input: &str) -> String {
     let refusals_json = Json::Array(
         refusals
             .iter()
-            .map(|(verb, r)| Json::obj(vec![("verb", Json::str(verb.clone())), ("error", Json::str(r.to_string()))]))
+            .map(|(verb, r)| Json::obj(vec![("verb", Json::str(verb.clone())), ("error", Json::str(r.to_string())), ("kind", Json::str(r.kind().to_string()))]))
             .collect(),
     );
     let mutations_json = Json::Array(

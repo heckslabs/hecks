@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Seeds (or deliberately re-seeds) the `expect` block of semantics-corpus
+# fixtures from the Ruby runtime — ONCE per fixture, by hand, reviewed
+# against docs/semantics/bluebook-semantics.md before it is committed.
+# The seeded expectation is thereafter the definition, not a recording:
+# spec/semantics_corpus_spec.rb compares BOTH runtimes against the file,
+# never against each other.
+#
+#   bin/seed_semantics_corpus                 # fill every fixture MISSING an expect
+#   SEED=refusal_kind_lifecycle bin/seed_semantics_corpus   # re-seed one, deliberately
+#
+# `occurred_at` is stripped from events (environmental, C7.3/C9.1);
+# refusals keep verb, error and KIND (C8.2); instances are the final
+# state map, JSON-shaped.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "json"
+require "hecks"
+require "hecks/fuzzing"
+
+ROOT = File.expand_path("..", __dir__)
+FIXTURES = Dir.glob(File.join(ROOT, "spec/corpus/semantics", "*.json"))
+
+def expectation_for(fixture)
+  result = Hecks::Fuzzing::Replay.call(File.join(ROOT, fixture["domain"]), fixture["steps"])
+  {
+    "refusals"  => JSON.parse(JSON.generate(result[:refusals])).each { |r| r["kind"] = r["kind"]&.split("::")&.last },
+    "instances" => JSON.parse(JSON.generate(result[:instances])),
+    "events"    => JSON.parse(JSON.generate(result[:events])).each { |e| e.delete("occurred_at") }
+  }
+end
+
+only = ENV.fetch("SEED", nil)
+seeded = FIXTURES.filter_map do |path|
+  fixture = JSON.parse(File.read(path))
+  name = File.basename(path, ".json")
+  next if only ? only != name : fixture.key?("expect")
+
+  fixture["expect"] = expectation_for(fixture)
+  File.write(path, "#{JSON.pretty_generate(fixture)}\n")
+  name
+end
+
+if seeded.empty?
+  puts "nothing to seed — every fixture carries its expect (pass SEED=<name> to re-seed one deliberately)"
+else
+  puts "seeded: #{seeded.join(', ')}"
+  puts "review each expect against docs/semantics/bluebook-semantics.md before committing — it is the definition now"
+end
