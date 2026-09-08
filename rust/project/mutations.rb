@@ -541,6 +541,19 @@ module RustProjection
 
     def pre_state_line = "        let pre = record.clone();"
 
+    # C3.3 — Integer is signed 64-bit and an effect's arithmetic that
+    # leaves it is an evaluation FAULT, never a wrap and never a panic:
+    # `checked_add`/`checked_sub`/`checked_mul` into `Refusal::Fault`,
+    # worded as `CommandRules::Arithmetic#bounded` words it. `amount` is
+    # bound once so the wording can quote it without re-evaluating.
+    CHECKED_OPS = { "+" => "checked_add", "-" => "checked_sub", "*" => "checked_mul" }.freeze
+
+    def checked_arithmetic(op, field_ident, symbol, amount_expr)
+      "{ let amount = #{amount_expr}; current.#{field_ident}.#{CHECKED_OPS.fetch(symbol)}(amount)" \
+        ".ok_or_else(|| crate::kernel::Refusal::Fault(format!(\"#{op} overflowed: {} #{symbol} {} does not fit in a " \
+        "64-bit integer\", current.#{field_ident}, amount)))? }"
+    end
+
     def state_field_rhs(parsed, field_attr, aggregate)
       expr = "pre.#{rust_ident_field(parsed.name)}.clone()"
       state_attr = aggregate && aggregate[:attributes].find { |a| a[:name].to_s == parsed.name.to_s }
@@ -783,7 +796,7 @@ module RustProjection
         # fact independently via `mutation[:op].to_s == "increment"`.
         sign = mutation[:sign].to_s == "1" ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
-        updated = "#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }"
+        updated = "#{vo_type} { #{field_ident}: #{checked_arithmetic(mutation[:op].to_s, field_ident, sign, amount_expr)}, ..current }"
         Exemplar.render(
           "mutation_arithmetic",
           "tmpl_field" => target_field,
@@ -819,7 +832,7 @@ module RustProjection
         field_ident = rust_ident_field(integer_field)
         amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
-        updated = "#{vo_type} { #{field_ident}: current.#{field_ident} * (#{amount_expr}), ..current }"
+        updated = "#{vo_type} { #{field_ident}: #{checked_arithmetic('multiply', field_ident, '*', amount_expr)}, ..current }"
         Exemplar.render(
           "mutation_arithmetic",
           "tmpl_field" => target_field,

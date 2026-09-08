@@ -1,0 +1,3 @@
+Hecks.hecksagon "Tallying" do
+  Tallying::Tally.persisted_by("Memory")
+end

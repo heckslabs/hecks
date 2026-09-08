@@ -739,7 +739,7 @@ pub fn dispatch_entity_ledgerentry_amend(
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["posted"] }),
         |record| {
-        { let current = record.amount.clone(); record.amount = Money { cents: current.cents + (args.adjustment.cents), ..current }; }
+        { let current = record.amount.clone(); record.amount = Money { cents: { let amount = args.adjustment.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }; }
         record.narrative = args.narrative.clone();
         record.state = "posted".to_string();
             Ok(())
@@ -1152,7 +1152,7 @@ pub fn dispatch_credit(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
         record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Credit, sequence: LedgerSequence { value: record.ledger.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 }, state: "posted".to_string() });
             Ok(())
         },
@@ -1250,7 +1250,7 @@ pub fn dispatch_debit(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_sub(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("decrement overflowed: {} - {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
         record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Debit, sequence: LedgerSequence { value: record.ledger.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 }, state: "posted".to_string() });
             Ok(())
         },
@@ -1616,8 +1616,8 @@ pub fn dispatch_apply_fee(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
-        { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_sub(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("decrement overflowed: {} - {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
+        { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
         record.emitted_fee_applied = true;
             Ok(())
         },
@@ -1712,8 +1712,8 @@ pub fn dispatch_correct_fee(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
-        { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
+        { let current = record.fees_cents.clone().unwrap(); record.fees_cents = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_sub(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("decrement overflowed: {} - {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
             Ok(())
         },
         &[
@@ -1803,8 +1803,8 @@ pub fn dispatch_accrue_interest(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
-        { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
+        { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
             Ok(())
         },
         &[
@@ -1896,8 +1896,8 @@ pub fn dispatch_correct_interest(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
-        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
-        { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
+        { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_sub(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("decrement overflowed: {} - {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
+        { let current = record.interest_cents.clone().unwrap(); record.interest_cents = Some(Money { cents: { let amount = args.amount.cents; current.cents.checked_sub(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("decrement overflowed: {} - {} does not fit in a 64-bit integer", current.cents, amount)))? }, ..current }); }
             Ok(())
         },
         &[

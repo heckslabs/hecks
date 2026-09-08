@@ -498,12 +498,33 @@ module Hecks
                      else
                        false
                      end
-          return unless mistyped
+          if mistyped
+            raise TypeMismatch,
+                  RefusalWording.render("TypeMismatch", "numeric_field",
+                                        type: owner.hecks_name, field: attribute.name,
+                                        expected: type, offered: Rendering.describe(value))
+          end
+
+          check_numeric_bounds(owner.hecks_name, attribute.name, value)
+        end
+
+        # C3.3/C3.4 — the value model's own bounds, held at every boundary:
+        # an Integer must fit in signed 64 bits, a Float must be finite.
+        # One check for value-object fields and bare-primitive arguments
+        # alike (`check_numeric_fields` and `check_bare_primitive`).
+        INT64_RANGE = (-(2**63))..((2**63) - 1)
+
+        private def check_numeric_bounds(type_name, field_name, given)
+          if given.is_a?(Integer) && !INT64_RANGE.cover?(given)
+            raise TypeMismatch,
+                  RefusalWording.render("TypeMismatch", "integer_range",
+                                        type: type_name, field: field_name, offered: Rendering.describe(given))
+          end
+          return unless given.is_a?(Float) && !given.finite?
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "numeric_field",
-                                      type: owner.hecks_name, field: attribute.name,
-                                      expected: type, offered: Rendering.describe(value))
+                RefusalWording.render("TypeMismatch", "non_finite_field",
+                                      type: type_name, field: field_name, offered: Rendering.describe(given))
         end
 
         # Checked BEFORE invariants, because an invariant reading a mistyped field
@@ -544,12 +565,7 @@ module Hecks
             # cleanly (confirmed empirically), and is a legitimate,
             # meaningful float value (a signed zero), not a corruption
             # risk — only NaN and +/-Infinity are.
-            if given.is_a?(Float) && !given.finite?
-              raise TypeMismatch,
-                    RefusalWording.render("TypeMismatch", "non_finite_field",
-                                          type: value_object.hecks_name, field: attribute.name,
-                                          offered: Rendering.describe(given))
-            end
+            check_numeric_bounds(value_object.hecks_name, attribute.name, given)
           end
         end
 

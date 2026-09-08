@@ -525,6 +525,31 @@ RSpec.describe "the DSL surface" do
     # set over the pre-dispatch state; a field written twice would make
     # declaration order significant (last-wins), which the update set
     # says it is not.
+    # C3.6 (docs/semantics/bluebook-semantics.md) — a rule's `.match?`
+    # pattern is held to PatternSubset exactly as an attribute's own
+    # `pattern:` already is: a regex whose meaning depends on the engine
+    # reading it is refused at build, at every rule site.
+    it "refuses a .match? pattern outside PatternSubset in a given — a backreference means different things " \
+       "to different engines" do
+      expect do
+        build_command("Echoed") do
+          given("the tag doubles") { tag.value.match?(/(a)\1/) }
+        end
+      end.to raise_error(Malformed, /given "the tag doubles" matches against "\(a\)\\\\1", which uses a backreference/)
+    end
+
+    it "refuses a .match? pattern outside PatternSubset in a policy where too" do
+      expect do
+        build_bluebook("Watched") do
+          policy "Echo" do
+            on      "Started"
+            where { name.match?(/(?=x)/) }
+            trigger "Thing.Next"
+          end
+        end
+      end.to raise_error(Malformed, /Echo's where matches against "\(\?=x\)", which uses a lookahead/)
+    end
+
     it "refuses writing one field twice in a command — effects are one update set, not a sequence" do
       expect do
         build_command("Twice") do

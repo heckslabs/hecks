@@ -96,6 +96,21 @@ pub fn pre_state_line() -> String {
     "        let pre = record.clone();".to_string()
 }
 
+/// `rust/project/mutations.rb`'s own `checked_arithmetic` — C3.3: an
+/// effect's Integer arithmetic that leaves signed 64 bits is a
+/// `Refusal::Fault`, never a wrap and never a panic. Byte for byte.
+fn checked_arithmetic(op: &str, field_ident: &str, symbol: &str, amount_expr: &str) -> String {
+    let checked = match symbol {
+        "+" => "checked_add",
+        "-" => "checked_sub",
+        "*" => "checked_mul",
+        other => panic!("no checked arithmetic for {other:?}"),
+    };
+    format!(
+        "{{ let amount = {amount_expr}; current.{field_ident}.{checked}(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!(\"{op} overflowed: {{}} {symbol} {{}} does not fit in a 64-bit integer\", current.{field_ident}, amount)))? }}"
+    )
+}
+
 pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     if crate::bridging::literal_set_bridgeable(lit, Some(crate::attr::type_name(field_attr)), value_objects_by_name) {
         return None;
@@ -503,7 +518,8 @@ fn emit_mutation_line_body(
             // file's comment for the full argument.
             let sign = if mutation.get("sign").map(Json::to_s).unwrap_or_default() == "1" { "+" } else { "-" };
             let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
-            let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident} {sign} ({amount_expr}), ..current }}");
+            let op = mutation.get("op").map(Json::to_s).unwrap_or_default();
+            let updated = format!("{vo_type} {{ {field_ident}: {}, ..current }}", checked_arithmetic(&op, &field_ident, sign, &amount_expr));
             exemplar.render(
                 "mutation_arithmetic",
                 &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
@@ -520,7 +536,7 @@ fn emit_mutation_line_body(
             let field_ident = naming::rust_ident_field(&integer_field);
             let amount_expr = crate::bridging::arithmetic_amount_expr(mutation.get("source").unwrap_or(&Json::Null), command, value_objects_by_name, &integer_field).expect("arithmetic amount must resolve");
             let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
-            let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident} * ({amount_expr}), ..current }}");
+            let updated = format!("{vo_type} {{ {field_ident}: {}, ..current }}", checked_arithmetic("multiply", &field_ident, "*", &amount_expr));
             exemplar.render(
                 "mutation_arithmetic",
                 &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],

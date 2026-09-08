@@ -82,6 +82,37 @@ module Hecks
           emit_bool(Evaluator.parse(canonical))
         end
 
+        # C3.6 (docs/semantics/bluebook-semantics.md) — every `.match?`
+        # pattern a rule carries is held to `PatternSubset`, exactly as an
+        # attribute's own `pattern:` already is (`AttributeCollector#
+        # refuse_unshared_pattern`): a regex whose meaning depends on the
+        # engine reading it is a defect in the bluebook, refused at build.
+        # Walks the emitted AST, so every rule site (givens, ensures,
+        # invariants, preconditions, a policy's where) gets the one check.
+        def refuse_unshared_patterns!(ast, owner:, word:)
+          each_node(ast) do |node|
+            next unless node["op"] == "matches_regex"
+
+            rejection = PatternSubset.validate(node["pattern"])
+            next unless rejection
+
+            raise DSL::Malformed,
+                  "#{owner}'s #{word} matches against #{node['pattern'].inspect}, which uses a " \
+                  "#{rejection.construct} — #{rejection.reason}"
+          end
+          ast
+        end
+
+        def each_node(node, &block)
+          case node
+          when ::Hash
+            yield node
+            node.each_value { |child| each_node(child, &block) }
+          when ::Array
+            node.each { |child| each_node(child, &block) }
+          end
+        end
+
         def emit_bool(node)
           case node
           when Evaluator::Or  then { "op" => "or", "left" => emit_bool(node.left), "right" => emit_bool(node.right) }

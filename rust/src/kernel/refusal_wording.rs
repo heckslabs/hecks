@@ -2,7 +2,7 @@
 // RefusalWording::TEMPLATES (lib/hecks/runtime/refusal_wording.rb).
 // Do not hand-edit — re-run bin/project_refusal_wording instead.
 //
-// ONE VARIANT PER (refusal class, site) PAIR — 42 entries, every
+// ONE VARIANT PER (refusal class, site) PAIR — 44 entries, every
 // one Ruby's own table declares, not a subset picked for whichever Rust
 // call site happens to exist today. See bin/project_refusal_wording's
 // own header for the full argument (ground truth, why the whole table,
@@ -56,6 +56,8 @@ pub enum RefusalSite {
     TypeMismatchMultiFieldScalar,
     TypeMismatchCompositeIdentity,
     TypeMismatchNumericField,
+    TypeMismatchNonFiniteField,
+    TypeMismatchIntegerRange,
     TypeMismatchPatternMismatch,
     TypeMismatchArithmeticAmount,
     TypeMismatchArithmeticCurrent,
@@ -111,6 +113,8 @@ impl RefusalSite {
             RefusalSite::TypeMismatchMultiFieldScalar => "{type} has multiple fields and cannot stand in for a scalar",
             RefusalSite::TypeMismatchCompositeIdentity => "{type} is a composite identity — an identity must have exactly one field",
             RefusalSite::TypeMismatchNumericField => "{type}.{field} expects {expected}, got {offered}",
+            RefusalSite::TypeMismatchNonFiniteField => "{type}.{field} must be a finite number, got {offered}",
+            RefusalSite::TypeMismatchIntegerRange => "{type}.{field} must fit in a 64-bit integer, got {offered}",
             RefusalSite::TypeMismatchPatternMismatch => "{type}.{field} must match {pattern}, got {offered}",
             RefusalSite::TypeMismatchArithmeticAmount => "{op} of {target} needs an Integer, got {offered}",
             RefusalSite::TypeMismatchArithmeticCurrent => "{op} of {target} needs an Integer {target}, got {offered}",
@@ -149,7 +153,7 @@ impl RefusalSite {
     /// exact variant directly, so nothing in this crate iterates `ALL`
     /// for dispatch; it exists for the `#[cfg(test)]` block below (and
     /// any future one) to walk the whole table generically.
-    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::AlreadyExistsEntityDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceAsObject, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch, RefusalSite::AttributeAbsentAbsentRead, RefusalSite::ProjectionAbsentAbsentRead];
+    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::AlreadyExistsEntityDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceAsObject, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchNonFiniteField, RefusalSite::TypeMismatchIntegerRange, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch, RefusalSite::AttributeAbsentAbsentRead, RefusalSite::ProjectionAbsentAbsentRead];
 }
 
 #[cfg(test)]

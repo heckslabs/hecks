@@ -1,0 +1,86 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C3.4",
+    "C8.3",
+    "C8.1"
+  ],
+  "note": "A Float is finite (C3.4). Weigh 1e308 is accepted; a second Weigh 1e308 evaluates a given whose sum is not finite — a FAULT, before any effect, leaving the weight at 1e308 (C8.1). Both runtimes' doubles would have answered Infinity; the language does not.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Weigh",
+      "args": {
+        "tally": "t1",
+        "more": {
+          "value": 1.0e+308
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Weigh",
+      "args": {
+        "tally": "t1",
+        "more": {
+          "value": 1.0e+308
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.Weigh",
+        "error": "addition overflowed: 1.0e+308 + 1.0e+308 is not a finite number",
+        "kind": "Fault"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 1.0e+308
+        },
+        "label": {
+          "value": ""
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "Weighed",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "more": {
+            "value": 1.0e+308
+          }
+        }
+      }
+    ]
+  }
+}

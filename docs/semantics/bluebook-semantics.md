@@ -79,23 +79,35 @@ it, except for one law they must uphold (C8.4).
   float (`1 == 1.0`); ordering (`<`) is defined for two numbers or two
   strings and is otherwise an evaluation fault.
   (fixture: `numeric_int_float_compare.json`)
-- **C3.3 (OPEN — integer width)** Ruby integers are unbounded; the Rust
-  kernel refuses on checked i64 overflow. The open decision: Integer =
-  signed 64-bit with overflow as fault, everywhere. Until settled, no
-  conforming domain may rely on values beyond ±2^63-1.
-- **C3.4 (OPEN — floats)** Floats are IEEE doubles. NaN and infinities
-  are refused at value-object boundaries but unguarded for bare
-  attributes; comparison algebra makes `NaN > 1` true. The open
-  decision: refuse non-finite floats at every boundary.
+- **C3.3 (settled)** Integer is a signed 64-bit integer everywhere. A
+  value outside ±2^63-1 offered at a boundary is `TypeMismatch`
+  (`integer_range`); an expression sum or an effect's
+  `increment`/`decrement`/`multiply` whose result leaves that range is
+  an evaluation fault (C8.3) — never a wrap, never a promotion, never a
+  panic. Modulo is floored (the sign of the divisor), and the one
+  modulo whose intermediate overflows, `-2^63 % -1`, is 0. (fixtures:
+  `integer_overflow_is_fault.json`,
+  `integer_out_of_range_refused_at_boundary.json`)
+- **C3.4 (settled)** Float is an IEEE double and always finite. NaN and
+  the infinities are refused at every boundary — value-object fields
+  and bare arguments alike (`non_finite_field`) — and an expression sum
+  or an effect's arithmetic whose result is not finite is an evaluation
+  fault (C8.3). The corpus format (JSON) cannot spell a non-finite
+  float, so no fixture offers one; the arithmetic path is pinned.
+  (fixture: `float_overflow_is_fault.json`)
 - **C3.5 (settled)** Value-object equality is structural and
   type-tagged: same type, same fields. List equality is ordered and
   structural. `nil` equals only `nil`; `nil` never satisfies `<`/`>`
   (fault, C8.3). (fixture: `nil_equality.json`)
-- **C3.6 (OPEN — strings)** Length counts characters; ordering is
-  host-collation today. `.match?` accepts the host regex dialect while
-  attribute `pattern:` is held to the portable `PatternSubset`. The
-  open decision: hold `.match?` to `PatternSubset` too, and define
-  ordering as codepoint order.
+- **C3.6 (settled)** A string's `size` counts Unicode scalar values;
+  string ordering is codepoint order, never a locale's collation. A
+  rule's `.match?` pattern is held to the portable `PatternSubset`
+  exactly as an attribute's `pattern:` is, refused at build at every
+  rule site (givens, ensures, invariants, preconditions, a policy's
+  `where`); the flags `i`/`m`/`x` keep their one meaning. Recorded
+  gap: `hecks-parse` does not yet parse `.match?` at all (a G-clause
+  for the grammar work), so its build check has no site until it does.
+  (fixture: `string_order_is_codepoint.json`)
 - **C3.7 (settled)** Declared value-object arguments are coerced and
   validated (type, closed set, `admits`, `pattern`, VO invariants)
   before givens run; a mismatch is `TypeMismatch`, a refusal.

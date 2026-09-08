@@ -153,6 +153,7 @@ module Hecks
         {"refusal"=>"TypeMismatch", "site"=>"composite_identity", "template"=>"{type} is a composite identity — an identity must have exactly one field"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"numeric_field", "template"=>"{type}.{field} expects {expected}, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"non_finite_field", "template"=>"{type}.{field} must be a finite number, got {offered}"}.freeze,
+        {"refusal"=>"TypeMismatch", "site"=>"integer_range", "template"=>"{type}.{field} must fit in a 64-bit integer, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"pattern_mismatch", "template"=>"{type}.{field} must match {pattern}, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"arithmetic_amount", "template"=>"{op} of {target} needs an Integer, got {offered}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"arithmetic_current", "template"=>"{op} of {target} needs an Integer {target}, got {offered}"}.freeze,
