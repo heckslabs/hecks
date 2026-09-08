@@ -160,12 +160,16 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
     disagreements = ExprAstGenerator.all_predicates.filter_map do |expr|
       via_text = outcome.call { ExprAstEvaluator.call(expr, state, attrs) }
-      via_ast  = outcome.call { ExprAstEvaluator.interpret(AstReader.read_predicate(ExprAstJson.emit_predicate(expr)), state, attrs) }
+      via_ast  = outcome.call do
+        ExprAstEvaluator.interpret(AstReader.read_predicate(ExprAstJson.emit_predicate(expr)), state, attrs)
+      end
       [expr, via_text, via_ast] unless via_text == via_ast
     end
 
     expect(disagreements).to be_empty, "#{disagreements.size} expression(s) mean something different as ast:\n" +
-                                       disagreements.first(10).map { |e, t, a| "  #{e}\n    text: #{t.inspect}\n    ast:  #{a.inspect}" }.join("\n")
+                                       disagreements.first(10).map { |e, t, a|
+                                         "  #{e}\n    text: #{t.inspect}\n    ast:  #{a.inspect}"
+                                       }.join("\n")
   end
 
   it "emits an ast for every well-typed expression the bounded-exhaustive generator can spell" do

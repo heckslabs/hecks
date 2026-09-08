@@ -49,6 +49,8 @@ module AstReader
     end or raise "no comparison operator has the triple #{cmp.inspect}"
   end
 
+  # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity -- one arm per
+  # AstJson op is the point; splitting the case would hide the roster.
   def read_resolver(json)
     recv = -> { read_resolver(json["receiver"]) }
     case json.fetch("op")
@@ -84,10 +86,12 @@ module AstReader
     end
   end
 
+  # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
+
   # `SignTest#test` is only wording (the refusal names it); the triple is
   # what evaluates. Recover the spelling from the vocabulary so a rebuilt
   # node refuses with the same message the parsed one would.
-  def sign_test_name(op)
-    R::SIGN_TEST_OPERATORS.key(op.symbol) || op.symbol
+  def sign_test_name(operator)
+    R::SIGN_TEST_OPERATORS.key(operator.symbol) || operator.symbol
   end
 end
