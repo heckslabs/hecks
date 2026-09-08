@@ -1,0 +1,85 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C8.2"
+  ],
+  "note": "Acting on a record that was never created refuses with NotFound.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "nonexistent-acct"
+        },
+        "amount": {
+          "cents": 1,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "x"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "no Account with number.value \"nonexistent-acct\"",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      }
+    ]
+  }
+}

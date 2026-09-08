@@ -1,0 +1,158 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C5.1",
+    "C8.2"
+  ],
+  "note": "A transition whose from: excludes the current state refuses with LifecycleRefused; the first Freeze succeeded and moved the state.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.FreezeAccount",
+        "error": "FreezeAccount refused — status is \"frozen\", and FreezeAccount moves it only from \"open\"",
+        "kind": "LifecycleRefused"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 100000
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      }
+    ]
+  }
+}
