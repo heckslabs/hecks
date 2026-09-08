@@ -2,10 +2,10 @@
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
   "spec": [
-    "C2.3",
-    "C6.1"
+    "C3.5",
+    "C8.3"
   ],
-  "note": "Tally.Increase takes an argument named `count` — the same name as the field it increments — and its ensures reads `count.value == old.count.value + 5`. Per C2.3 an ensures resolves the settled state first, so with the count at 10 an Increase by 5 is accepted (15 == 10 + 5) and an Increase by 7 is refused EnsuresNotMet (17 != 15 + 5). Under argument-first resolution (C2.2, a given's rule) the same ensures would have compared the argument 5 with 15 and refused the first step.",
+  "note": "nil equals only nil and never satisfies an ordering (C3.5). With no cap set, Check's given orders the count against `limit.value` — nil — and FAULTS; Cap 5 passes `limit == nil` and lands; a second Cap 6 is refused because the cap is no longer nil; Check now compares 0 < 5 and is accepted.",
   "steps": [
     {
       "verb": "Tallying::Tally.Open",
@@ -16,39 +16,47 @@
       }
     },
     {
-      "verb": "Tallying::Tally.SetCount",
+      "verb": "Tallying::Tally.Check",
       "args": {
-        "tally": "t1",
-        "count": {
-          "value": 10
-        }
+        "tally": "t1"
       }
     },
     {
-      "verb": "Tallying::Tally.Increase",
+      "verb": "Tallying::Tally.Cap",
       "args": {
         "tally": "t1",
-        "count": {
+        "cap": {
           "value": 5
         }
       }
     },
     {
-      "verb": "Tallying::Tally.Increase",
+      "verb": "Tallying::Tally.Cap",
       "args": {
         "tally": "t1",
-        "count": {
-          "value": 7
+        "cap": {
+          "value": 6
         }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Check",
+      "args": {
+        "tally": "t1"
       }
     }
   ],
   "expect": {
     "refusals": [
       {
-        "verb": "Tallying::Tally.Increase",
-        "error": "Increase refused — the count grew by five",
-        "kind": "EnsuresNotMet"
+        "verb": "Tallying::Tally.Check",
+        "error": "comparison of Integer with nil failed",
+        "kind": "Fault"
+      },
+      {
+        "verb": "Tallying::Tally.Cap",
+        "error": "Cap refused — no cap yet",
+        "kind": "GivenNotMet"
       }
     ],
     "instances": {
@@ -57,7 +65,7 @@
           "value": "t1"
         },
         "count": {
-          "value": 15
+          "value": 0
         },
         "weight": {
           "value": 0.0
@@ -65,7 +73,9 @@
         "label": {
           "value": ""
         },
-        "limit": null,
+        "limit": {
+          "value": 5
+        },
         "tags": [
 
         ]
@@ -83,25 +93,22 @@
         }
       },
       {
-        "name": "CountSet",
+        "name": "Capped",
         "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
-          "count": {
-            "value": 10
+          "cap": {
+            "value": 5
           }
         }
       },
       {
-        "name": "CountIncreased",
+        "name": "Checked",
         "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
-          "tally": "t1",
-          "count": {
-            "value": 5
-          }
+          "tally": "t1"
         }
       }
     ]
