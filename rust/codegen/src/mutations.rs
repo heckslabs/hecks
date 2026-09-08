@@ -76,6 +76,26 @@ pub fn append_field_source(source: &str) -> Literal {
     literal::read(source)
 }
 
+/// `rust/project/mutations.rb`'s own `reads_pre_state?` — whether any
+/// effect reads the record's own state (a `set` from `state(:field)`, or
+/// an `append` field sourced from one, spelled `state(:field)` on the
+/// wire — `Literal::StateRef`'s own rendering). Only then does the emitted
+/// closure bind `let pre = record.clone();` (C4.2).
+pub fn reads_pre_state(mutations: &[Json]) -> bool {
+    mutations.iter().any(|m| match m.get("op").map(Json::to_s).unwrap_or_default().as_str() {
+        "set" => m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).unwrap_or_default() == "state",
+        "append" => match m.get("fields") {
+            Some(Json::Object(pairs)) => pairs.iter().any(|(_, source)| source.to_s().starts_with("state(:")),
+            _ => false,
+        },
+        _ => false,
+    })
+}
+
+pub fn pre_state_line() -> String {
+    "        let pre = record.clone();".to_string()
+}
+
 pub fn literal_problem(mutation: &Json, field_name: &str, lit: &Literal, field_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     if crate::bridging::literal_set_bridgeable(lit, Some(crate::attr::type_name(field_attr)), value_objects_by_name) {
         return None;
@@ -209,6 +229,12 @@ pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_
     }
 
     let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
+    // `pre`, not `record` — the PRE-DISPATCH state (C4.2), mirroring
+    // `rust/project/mutations.rb`'s own `mutation_set_rhs`; `reads_pre_state`
+    // is what makes the caller bind `pre` at all.
+    if source.get("kind").map(Json::to_s).unwrap_or_default() == "state" {
+        return format!("pre.{}.clone()", naming::rust_ident_field(&source_name));
+    }
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).expect("mutation source argument must be a declared command attribute");
     crate::bridging::value_rhs(&format!("args.{}", naming::rust_ident_field(&source_name)), crate::attr::type_name(source_attr), target_type, value_objects_by_name)
@@ -365,10 +391,13 @@ fn emit_mutation_line_body(
                     let id_name = crate::attr::name(id_attr);
                     if !present.iter().any(|p| p == id_name) {
                         let id_vo_attrs = id_vo.get("attributes").map(Json::each).unwrap_or(&[]);
+                        // ONE PAST THE HIGHEST IDENTITY HELD (C4.5) —
+                        // `rust/project/mutations.rb`'s own mint, byte for byte.
+                        let id_field = naming::rust_ident_field(id_name);
+                        let vo_field = naming::rust_ident_field(crate::attr::name(&id_vo_attrs[0]));
                         let mint = format!(
-                            "{} {{ {}: (record.{target_field}.len() as i64) + 1 }}",
+                            "{} {{ {vo_field}: record.{target_field}.iter().map(|e| e.{id_field}.{vo_field}).max().unwrap_or(0) + 1 }}",
                             naming::rust_ident(crate::attr::type_name(id_attr)),
-                            naming::rust_ident_field(crate::attr::name(&id_vo_attrs[0]))
                         );
                         fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
                         present.push(id_name.to_string());

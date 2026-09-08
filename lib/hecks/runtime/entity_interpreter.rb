@@ -221,8 +221,9 @@ module Hecks
       def step_apply_mutations(ctx)
         ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
         step(:apply_mutations) do
+          pre = ctx.element.dup # C4.2 — the update set reads the element as it was
           ctx.command.mutations.each do |mutation|
-            EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args)
+            EntityElement.apply_to_element(@rules, ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args, pre)
           end
         end
       end

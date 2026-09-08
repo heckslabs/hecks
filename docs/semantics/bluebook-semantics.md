@@ -121,15 +121,16 @@ it, except for one law they must uphold (C8.4).
   `remove`, `increment`, `decrement`, `multiply`, `clamp`, `delegate`,
   `corrects` — plus the implicit lifecycle transition (§5). There is no
   arbitrary-code effect and never will be.
-- **C4.2 (OPEN — ordering model)** Today effects apply sequentially in
-  declaration order, each reading the intermediate state, and two
-  writes to one field mean last-wins. The open decision (the plan's
-  recommendation): an update set evaluated against the pre-dispatch
-  state, applied atomically, with duplicate targets refused at build.
-  No corpus domain distinguishes the two today; a fixture must pin the
-  choice when it lands. Until then no conforming domain may write one
-  field twice in one command or read a field it wrote earlier in the
-  same command.
+- **C4.2 (settled)** A command's effects are one *update set*
+  evaluated against the pre-dispatch state: every source — an argument,
+  a literal, or the record's own field via `state(:field)` — reads the
+  state as it was before the command, and every target is written to
+  the candidate. Declaration order carries no meaning. A field written
+  twice in one command is refused at build (Ruby builders and
+  `hecks-parse`, same wording), so there is no last-wins to define.
+  No example domain reads a field it writes in the same command, so
+  the fixture's domain is corpus-owned. (fixture:
+  `effects_read_the_pre_state.json`)
 - **C4.3 (settled)** `append` adds one element at the tail; list order
   is append order. `remove` removes every structurally-equal element.
   Entity `append` refuses a duplicate identity (`AlreadyExists`).
@@ -137,9 +138,15 @@ it, except for one law they must uphold (C8.4).
 - **C4.4 (settled)** `increment`/`decrement`/`multiply`/`clamp` are
   numeric; an absent target reads as 0; a non-numeric operand is
   `TypeMismatch`.
-- **C4.5 (OPEN — entity identity minting)** An appended entity with no
-  explicit identity is minted `list size + 1`, which can collide after
-  a `remove`. The open decision: an IR-declared minting strategy.
+- **C4.5 (settled)** An appended entity with no explicit identity is
+  minted one past the highest integer identity the list holds (1 when
+  empty) — never `size + 1`, which repeats an identity the moment a
+  list has shrunk. There is one strategy, so the IR declares none;
+  both runtimes mint by this rule (Ruby `MutationApplier#next_identity`,
+  the Rust generators' emitted mint). No construct in the language
+  shrinks an entity list today (`remove` matches by structural equality
+  and an entity is never offered whole), so no fixture can distinguish
+  the two rules yet; banking's ledger sequences pin the common case.
 
 ## §5 Lifecycle
 

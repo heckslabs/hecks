@@ -1153,7 +1153,7 @@ pub fn dispatch_credit(
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents + (args.amount.cents), ..current }); }
-        record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Credit, sequence: LedgerSequence { value: (record.ledger.len() as i64) + 1 }, state: "posted".to_string() });
+        record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Credit, sequence: LedgerSequence { value: record.ledger.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 }, state: "posted".to_string() });
             Ok(())
         },
         &[
@@ -1251,7 +1251,7 @@ pub fn dispatch_debit(
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
         { let current = record.balance.clone().unwrap(); record.balance = Some(Money { cents: current.cents - (args.amount.cents), ..current }); }
-        record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Debit, sequence: LedgerSequence { value: (record.ledger.len() as i64) + 1 }, state: "posted".to_string() });
+        record.ledger.push(LedgerEntry { amount: Money { cents: args.amount.cents.clone(), currency: args.amount.currency.clone() }, narrative: args.narrative.clone(), direction: LedgerDirection::Debit, sequence: LedgerSequence { value: record.ledger.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 }, state: "posted".to_string() });
             Ok(())
         },
         &[
