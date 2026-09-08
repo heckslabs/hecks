@@ -48,7 +48,7 @@ module Hecks
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :delegated_events,
-                           :dry_run, :correction_bindings)
+                           :dry_run, :correction_bindings, :outbox_rows)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -82,7 +82,7 @@ module Hecks
           ctx.repository = @registry.repository(domain, aggregate)
           lock_id = Identity.best_effort(aggregate, args, route, reference_key: reference_key(command))
           run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
-          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome, ctx.outbox_rows]
         rescue StaleWrite
           attempt += 1
           retry if attempt < MAX_STALE_WRITE_RETRIES

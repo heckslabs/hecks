@@ -11,11 +11,8 @@ module Hecks
     # Fires the declared `policy` reactions triggered by one just-emitted
     # event: scans every loaded bluebook (a policy commonly lives in a
     # different domain than the event it reacts to), checks each
-    # candidate's `where` guard, and re-enters the dispatcher
-    # (`@door.reenter`) for its trigger command — once per matched
-    # for_each row when the policy fans out. Every attempt is recorded in
-    # reaction_log, with refusals and genuine defects (bugs) kept
-    # distinguishable from each other.
+    # candidate's `where` guard, and re-enters the dispatcher for each
+    # delivery — recording every outcome on the reaction log.
     class PolicyInterpreter
       attr_reader :registry
 
@@ -31,8 +28,13 @@ module Hecks
       # (one record per matched row) rather than one record ; `Array(...)`
       # is wrong here (it would explode a plain record Hash into its own
       # key/value pairs), so the two shapes are told apart explicitly.
-      def react(event, _domain)
-        policies_for(event).each do |policy, home_domain|
+      # `only:` — ONE `[policy, home_domain]` pair, the outbox relay's
+      # way of running exactly the consumer a row names (`Runtime::
+      # Outbox::Relay#run_consumer`) instead of every policy that
+      # matches the event. Selection is otherwise identical.
+      def react(event, _domain, only: nil)
+        selected = only ? [only] : policies_for(event)
+        selected.each do |policy, home_domain|
           result = deliver(policy, event, home_domain)
           next if result.nil?
 

@@ -130,6 +130,39 @@ module Hecks
           @adapter.record_event(event) if @adapter.respond_to?(:record_event)
         end
 
+        # ONE COMMIT BOUNDARY FOR SAVE + EMIT + OUTBOX — `Interpreting#
+        # run_dispatch_order` runs the `save` and `emit` steps inside
+        # this block, so an adapter that owns a real transaction
+        # (Sqlite, Postgres) commits the aggregate row, its journal
+        # entry, and the outbox rows together or not at all. An adapter
+        # without one just yields: Memory has nothing to roll back, and
+        # a file adapter's own `with_lock` already serialises its pair
+        # of writes. Nested calls are the adapter's problem to make
+        # re-entrant (both SQL adapters check for an open transaction
+        # first) — a reaction dispatched from inside a drain never nests
+        # here anyway, because draining happens after this block returns.
+        def transaction(&)
+          return @adapter.transaction(&) if @adapter.respond_to?(:transaction)
+
+          yield
+        end
+
+        # THE OUTBOX CONTRACT — four optional adapter methods, probed
+        # together the way `save_saga`/`delete_saga`/`each_saga` are
+        # (`Registry::SagaPersistence`): an adapter either has an outbox
+        # or it doesn't, never half of one. See `Runtime::Outbox`.
+        OUTBOX_METHODS = %i[outbox_enqueue outbox_claim outbox_settle outbox_rows].freeze
+
+        def outbox?
+          @outbox = OUTBOX_METHODS.all? { |method| @adapter.respond_to?(method) } if @outbox.nil?
+          @outbox
+        end
+
+        def outbox_enqueue(rows) = @adapter.outbox_enqueue(rows)
+        def outbox_claim(id) = @adapter.outbox_claim(id)
+        def outbox_settle(id, status:, error: nil) = @adapter.outbox_settle(id, status: status, error: error)
+        def outbox_rows(status: nil) = @adapter.outbox_rows(status: status)
+
         def query_read_model(domain, model, args, bluebook = nil)
           return unless @adapter.respond_to?(:query_read_model)
 

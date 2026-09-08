@@ -11,13 +11,8 @@ module Hecks
     # Runs one domain's `process_manager` (saga) declarations against a
     # just-emitted event: begins a new correlated instance on its
     # starts_on event, advances a matching handler's state and dispatches
-    # its declared commands, and ends/deletes the instance on ends_on.
-    # Each state transition is checkpointed (durably, via
-    # saga_persistence) before its dispatches run, and a leg that is
-    # refused, hits the reaction-depth ceiling, or crashes past
-    # MAX_DEFECT_RETRIES unwinds through the saga's own `on :refused`
-    # handler and completed-compensation ledger rather than leaving the
-    # instance stuck mid-cascade.
+    # its declared commands, and ends/deletes the instance on ends_on —
+    # checkpointing each transition durably before its dispatches run.
     class SagaInterpreter
       include Correlation
 
@@ -38,11 +33,14 @@ module Hecks
         @door     = door
       end
 
-      def advance(event, domain)
+      # `only:` — one process manager, the outbox relay's way of running
+      # exactly the consumer a row names (`Runtime::Outbox::Relay#
+      # run_consumer`); nil advances every manager the domain declares.
+      def advance(event, domain, only: nil)
         bluebook = @registry.bluebook(domain)
         return unless bluebook
 
-        bluebook.process_managers.each do |process_manager|
+        (only ? [only] : bluebook.process_managers).each do |process_manager|
           begin_saga(process_manager, event, domain)
           advance_saga(process_manager, event, domain)
           end_saga(process_manager, event, domain)
@@ -248,20 +246,8 @@ module Hecks
         end
       end
 
-      # ONE ORDERED SEQUENCE — speculative compensation-recording BEFORE
-      # `@door.reenter` (so a NESTED refusal from inside that reentrant
-      # call can still see this leg's own pending compensation; see the
-      # comment on that line for the real, previously-shipped bug this
-      # ordering fixes), then the reentrant dispatch itself, then one of
-      # three rescue paths that each roll back or retry state the `begin`
-      # above set up. Splitting this would mean threading `attempt`/
-      # `compensation_recorded` across method boundaries as mutable
-      # state shared between a call and its own rescue clauses — exactly
-      # the kind of split that lets a future editor silently break the
-      # "recorded before reenter" ordering without any single method
-      # looking wrong.
-      # rubocop:disable-next Metrics/AbcSize
-      # rubocop:disable-next Metrics/MethodLength
+      # rubocop:disable Metrics/AbcSize, Metrics/MethodLength -- the checkpoint/
+      # dispatch/compensation ledger protocol reads best as one sequence.
       def deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain)
         args   = dispatch_args(process_manager, spec, event, instance, correlation)
         record = { process_manager: process_manager.name, instance: correlation, dispatch: spec.command_name }
@@ -277,8 +263,8 @@ module Hecks
         # violations_are_refused.
         unless spec.with_spec.to_a.empty?
           @registry.saga_dispatch_log << { process_manager: process_manager.name, instance: correlation,
-                                            dispatch: spec.command_name, on: event.name,
-                                            correlation_head: process_manager.correlation_head,
+                                           dispatch: spec.command_name,
+                                            on: event.name, correlation_head: process_manager.correlation_head,
                                             event_payload: event.payload, memory: Value.materialize(instance[:memory]),
                                             with_spec: spec.with_spec, args: args }
         end
@@ -381,6 +367,7 @@ module Hecks
           unwind(process_manager, event, instance, correlation, domain)
         end
       end
+      # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
       # THE ROLLBACK HALF of `deliver_saga_dispatch`'s own speculative
       # pre-record (that method's own comment for why it has to be
@@ -477,7 +464,8 @@ module Hecks
                         saga_correlation: { process_manager.correlation_head.to_s => correlation }, **invocation)
           @registry.saga_log << record.merge(delivered: true, compensation: true)
         rescue *DOMAIN_REFUSALS => e
-          @registry.saga_log << record.merge(delivered: false, reason: e.message, compensation: true, compensation_failed: true)
+          @registry.saga_log << record.merge(delivered: false, reason: e.message, compensation: true,
+                                             compensation_failed: true)
         rescue StandardError => e
           attempt += 1
           if attempt <= MAX_DEFECT_RETRIES

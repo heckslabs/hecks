@@ -1,5 +1,6 @@
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
+require_relative "outbox"
 
 module Hecks
   module Runtime
@@ -87,7 +88,15 @@ module Hecks
         # reason).
         @saga_persistence = {}
         @saga_persistence_mutex = Mutex.new
+        @outbox = Outbox::Relay.new(self)
       end
+
+      # THE OUTBOX RELAY — one per registry, for its whole life (built
+      # here, never swapped, so no thread ever sees a different one).
+      # It can enqueue from the moment the registry exists; a Dispatcher
+      # attaches the interpreters that let it deliver. See
+      # `Runtime::Outbox`.
+      attr_reader :outbox
 
       # THE BUILDER STAYS OPEN FOR THE LIFE OF THIS REGISTRY, keyed by chapter
       # name — see the comment on `BluebookBuilder.build`. A chapter split across
@@ -201,6 +210,7 @@ module Hecks
         @saga_instances.clear
         @repositories = {}
         @projection_repositories = {}
+        @outbox.log.clear
         rehydrate_sagas!
         self
       end

@@ -9,6 +9,7 @@ require_relative "query_interpreter"
 require_relative "read_model_interpreter"
 require_relative "policy_interpreter"
 require_relative "saga_interpreter"
+require_relative "outbox"
 require_relative "../naming"
 
 module Hecks
@@ -55,7 +56,18 @@ module Hecks
         @read_models = ReadModelInterpreter.new(registry)
         @policies = PolicyInterpreter.new(registry, door: self)
         @sagas    = SagaInterpreter.new(registry, door: self)
+        # THE RELAY IS THE REGISTRY'S, NOT THIS DISPATCHER'S — the
+        # interpreters enqueue through `@registry.outbox` from inside
+        # the save transaction, and this dispatcher drains through the
+        # same object, so there is exactly one relay per registry no
+        # matter how many dispatchers front it. What it borrows from
+        # here is the pair of interpreters a consumer runs through.
+        @registry.outbox.attach(policies: @policies, sagas: @sagas)
       end
+
+      # `runtime.outbox.rows`, `.rows(status: "claimed")`, `.redrive!`,
+      # `.log` — see `Runtime::Outbox`.
+      def outbox = @registry.outbox
 
       def events = @registry.event_log
 
@@ -70,7 +82,7 @@ module Hecks
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
-        instance, announced, execution_plan, persistence_outcome =
+        instance, announced, execution_plan, persistence_outcome, outbox_rows =
           if command_name.include?(".")
             head, sub = command_name.split(".", 2)
             port = aggregate.port(head)
@@ -90,7 +102,7 @@ module Hecks
                           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
                                                                    port: head, operation: sub.inspect))
               route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
-              [nil, @port_ops.call(domain, aggregate, operation, args, route: route), nil, nil]
+              [nil, @port_ops.call(domain, aggregate, operation, args, route: route), nil, nil, :enqueue]
             else
               entity_depth = command_name.split(".").size - 1
               route = Routing.envelope(to, entity_depth: entity_depth)
@@ -116,13 +128,29 @@ module Hecks
         # `announced` events within this very call, and finds the
         # correlation already there because it was never absent.
 
-        announced.each { |event| @policies.react(event, domain) }
-
-        announced.each { |event| @sagas.advance(event, domain) }
+        react(announced, domain, aggregate, outbox_rows)
 
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome)
       end
+
+      # EVERYTHING OWED BECAUSE `announced` COMMITTED — policies first,
+      # then sagas, the order this method always ran them in. The
+      # command/entity interpreters hand back the outbox rows they
+      # enqueued inside the save transaction (`Interpreting#
+      # run_dispatch_order`); a port operation saves nothing, so its
+      # rows are enqueued here, after the fact (`:enqueue`) — durable
+      # still, just not transactional with anything, because there is
+      # nothing for them to be transactional with. `nil` rows mean the
+      # repository has no outbox: react directly, exactly as before.
+      def react(announced, domain, aggregate, outbox_rows)
+        return if announced.empty?
+
+        repository = @registry.repository(domain, aggregate)
+        outbox_rows = outbox.enqueue(repository, announced, domain) if outbox_rows == :enqueue
+        outbox.deliver(outbox_rows, announced, domain, repository)
+      end
+      private :react
 
       # "IF THIS WERE DISPATCHED RIGHT NOW, WOULD IT SUCCEED" — the same
       # pipeline #dispatch itself runs (arguments coerced, givens checked,
@@ -187,8 +215,7 @@ module Hecks
         route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
         announced = @port_ops.call(domain, aggregate, operation, args, route: route)
 
-        announced.each { |event| @policies.react(event, domain) }
-        announced.each { |event| @sagas.advance(event, domain) }
+        react(announced, domain, aggregate, :enqueue)
 
         announced
       end

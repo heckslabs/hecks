@@ -75,7 +75,7 @@ module Hecks
       # rubocop:disable-next Lint/StructNewOverride
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
-                           :old_element, :result, :route, :plan, :persistence_outcome, :dry_run)
+                           :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -123,7 +123,7 @@ module Hecks
           ctx.repository = @registry.repository(domain, aggregate)
           lock_id = Identity.best_effort(aggregate, args, route)
           run_dispatch_order_with_isolation(DISPATCH_ORDER, ctx, lock_key_id: lock_id)
-          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
+          [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome, ctx.outbox_rows]
         rescue StaleWrite
           attempt += 1
           retry if attempt < MAX_STALE_WRITE_RETRIES

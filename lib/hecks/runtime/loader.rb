@@ -51,7 +51,22 @@ module Hecks
 
         run_boot_gates!(registry, directory)
         dispatcher = dispatcher_for(registry)
+        redrive_outbox!(dispatcher)
         install_facade ? bind_runtime(dispatcher) : dispatcher
+      end
+
+      # THE OUTBOX'S BOOT-TIME RECONCILIATION — after the dispatcher
+      # exists (a row's consumer runs through its interpreters, so this
+      # cannot be a plain registry gate the way saga rehydration is) and
+      # after saga rehydration (a redriven row may advance a saga, which
+      # must already be in memory). `pending` rows are redriven —
+      # provably never started; `claimed` rows are surfaced, never
+      # auto-redriven — see `Runtime::Outbox`. A remote dispatcher has
+      # no local stores to scan.
+      def self.redrive_outbox!(dispatcher)
+        return unless dispatcher.respond_to?(:outbox)
+
+        dispatcher.outbox.redrive!
       end
 
       # THE EXPLICIT-FILE FORM — `paths` names the exact bluebook/hecksagon/
