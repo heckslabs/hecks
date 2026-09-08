@@ -5,6 +5,11 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # `mint_era!` itself: one transaction that writes the new era row,
+        # attaches its partition, recompiles every aggregate's head, grants
+        # an app role, and — last, right before commit — advances the
+        # current-era RLS fence (`advance_era!`) that drops write access to
+        # the old schema the instant it commits.
         module MintTransaction
           # ── the mint transaction ───────────────────────────────────────
           #
@@ -30,7 +35,8 @@ module Hecks
 
             watermark = last_ordinal
             @db.exec_params(
-              "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, held_projection, canon_form) " \
+              "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, " \
+              "held_projection, canon_form) " \
               "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
               [@domain, ordinal, hash, label, held_text, watermark, Digest::SHA256.hexdigest(held_text),
                projection && JSON.generate(projection), Runtime::StorageShape::FORM_VERSION]
@@ -70,13 +76,21 @@ module Hecks
             @db.exec("COMMIT")
             true
           rescue PG::LockNotAvailable
-            @db.exec("ROLLBACK") rescue nil
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
             raise Runtime::WiringError,
                   "cannot mint era #{ordinal} of #{@domain}: another mint holds the domain lock — " \
                   "waited 10s; try again shortly"
-          rescue PG::Error => error
-            @db.exec("ROLLBACK") rescue nil
-            raise Runtime::WiringError, "cannot mint era #{ordinal} of #{@domain}: #{error.message.strip}"
+          rescue PG::Error => e
+            begin
+              @db.exec("ROLLBACK")
+            rescue StandardError
+              nil
+            end
+            raise Runtime::WiringError, "cannot mint era #{ordinal} of #{@domain}: #{e.message.strip}"
           end
 
           # Base privileges for a deployment's app role — a NON-owner,
@@ -116,7 +130,10 @@ module Hecks
             aggregates.each do |aggregate|
               storage_name = aggregate.storage_name
               @db.exec("GRANT SELECT, INSERT, UPDATE, DELETE ON #{quote(head_snapshot(storage_name, era))} TO #{quoted_role}")
-              @db.exec("GRANT SELECT ON #{quote(head_view(storage_name))} TO #{quoted_role}") if view_exists?(head_view(storage_name))
+              if view_exists?(head_view(storage_name))
+                @db.exec("GRANT SELECT ON #{quote(head_view(storage_name))} " \
+                         "TO #{quoted_role}")
+              end
             end
           end
 

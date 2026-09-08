@@ -9,8 +9,7 @@ require_relative "../support/postgres_probe"
 # Kept as a SEPARATE, io:true-gated file rather than folded into the
 # unconditional spec, matching every other Postgres-vs-everything-else
 # split in this suite (postgres_era_spec.rb itself, banking_matrix_spec.rb).
-RSpec.describe "durable saga/process-manager state, against Postgres",
-               io: true do
+RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
   POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecks_saga_durability_spec".freeze

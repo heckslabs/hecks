@@ -19,6 +19,16 @@ RSpec.describe "Banking across persistence adapters" do
     FileUtils.remove_entry(@dir) if @dir
   end
 
+  # ONE FIXTURE BOOT, DECLARED WHOLE — every aggregate's persisted_by/
+  # projected_by pairing has to be read alongside the same `projected`
+  # flag deciding whether that pairing applies at all; splitting this
+  # into smaller methods would mean threading `adapter`/`projected`/
+  # `root` through each one for no gain over reading the whole boot in
+  # one place.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/CyclomaticComplexity
+  # rubocop:disable-next Metrics/MethodLength
+  # rubocop:disable-next Metrics/PerceivedComplexity
   def boot(adapter, projected: false, root: @dir)
     registry = Hecks::Runtime::Registry.new(root: root)
 
@@ -60,7 +70,6 @@ RSpec.describe "Banking across persistence adapters" do
       end
       if adapter != "Memory"
         adapter_name = adapter
-        root         = root
         Hecks.world("Banking") do
           if adapter_name != "Memory"
             persisted_by(adapter_name) do
@@ -86,14 +95,14 @@ RSpec.describe "Banking across persistence adapters" do
       if (question = step["query"])
         begin
           queries << { query: question, rows: runtime.query(question, **args).map(&:to_h) }
-        rescue StandardError => error
-          queries << { query: question, error: error.message }
+        rescue StandardError => e
+          queries << { query: question, error: e.message }
         end
       else
         begin
           runtime.dispatch(step.fetch("verb"), **args)
-        rescue StandardError => error
-          refusals << { verb: step.fetch("verb"), error: error.message }
+        rescue StandardError => e
+          refusals << { verb: step.fetch("verb"), error: e.message }
         end
       end
     end
@@ -119,9 +128,9 @@ RSpec.describe "Banking across persistence adapters" do
     bluebook.aggregates.flat_map do |aggregate|
       direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.hecks_name}.#{verb_name(declaration)}" }
       nested = aggregate.entities.flat_map do |entity|
-        entity.public_send(kind).map { |declaration|
+        entity.public_send(kind).map do |declaration|
           "Banking::#{aggregate.hecks_name}.#{entity.hecks_name}.#{verb_name(declaration)}"
-        }
+        end
       end
       direct + nested
     end.sort
@@ -141,9 +150,9 @@ narrative: { text: "Lunch" })
 
       account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("a")
       expect(account[:balance].to_h).to eq(cents: 375, currency: "USD")
-      expect(account[:ledger].map { |entry|
+      expect(account[:ledger].map do |entry|
         entry[:amount].to_h
-      }).to eq([{ cents: 500, currency: "USD" }, { cents: 125, currency: "USD" }])
+      end).to eq([{ cents: 500, currency: "USD" }, { cents: 125, currency: "USD" }])
     end
   end
 

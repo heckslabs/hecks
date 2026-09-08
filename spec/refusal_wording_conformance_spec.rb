@@ -35,11 +35,13 @@ RSpec.describe "the declared refusal wording" do
   it "holds Ruby's table equal to the declared templates, both directions, wording included" do
     expect(REFUSAL_WORDING_RUBY_TABLE.keys.sort).to eq(REFUSAL_TEMPLATES_DECLARED.keys.sort),
                                                     "Ruby and the language disagree about which (refusal, site) pairs exist: " \
-                                                    "#{(REFUSAL_WORDING_RUBY_TABLE.keys - REFUSAL_TEMPLATES_DECLARED.keys) + (REFUSAL_TEMPLATES_DECLARED.keys - REFUSAL_WORDING_RUBY_TABLE.keys)}"
+                                                    "#{(REFUSAL_WORDING_RUBY_TABLE.keys - REFUSAL_TEMPLATES_DECLARED.keys) +
+                                                       (REFUSAL_TEMPLATES_DECLARED.keys - REFUSAL_WORDING_RUBY_TABLE.keys)}"
 
     REFUSAL_TEMPLATES_DECLARED.each do |key, template|
-      expect(REFUSAL_WORDING_RUBY_TABLE[key]).to eq(template), "#{key.inspect} reads #{REFUSAL_WORDING_RUBY_TABLE[key].inspect} in Ruby, " \
-                                                               "which Vocabulary::RefusalTemplate declares as #{template.inspect}"
+      expect(REFUSAL_WORDING_RUBY_TABLE[key]).to eq(template),
+                                                 "#{key.inspect} reads #{REFUSAL_WORDING_RUBY_TABLE[key].inspect} in Ruby, " \
+                                                 "which Vocabulary::RefusalTemplate declares as #{template.inspect}"
     end
   end
 end

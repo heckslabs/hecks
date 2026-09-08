@@ -15,6 +15,10 @@ module Hecks
   # what GENERATED retains is one small facade module per name, not a graph
   # per boot.
   module Namespace
+    # NOT frozen — a real registry, mutated below
+    # (`GENERATED[[container, name]] = value`). False positive for
+    # Style/MutableConstant.
+    # rubocop:disable-next Style/MutableConstant
     GENERATED = {}
 
     module_function

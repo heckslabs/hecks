@@ -201,6 +201,20 @@ Metrics/BlockLength:
   Exclude:
     - "spec/**/*" # RSpec/*Length below owns spec files' block shape instead
 
+# THE SHARED-INTERFACE PATTERN, not a lint gap — every Persistence/Query
+# adapter (Memory, Postgres, D1, Lambda, the mock Stripe adapter, and
+# their spec doubles) implements the SAME keyword-argument constructor
+# or method signature so callers can treat them interchangeably; a given
+# adapter legitimately ignores a kwarg (`settings:`, `root:`, `context:`,
+# `event:`, ...) another adapter needs. Renaming an unused KEYWORD
+# argument (unlike a positional one) changes the method's calling
+# convention for every caller that passes it by name, so autocorrect
+# rightly declines to touch these — paying the offense down means
+# accepting the pattern, not silencing real dead-argument bugs, which
+# this only exempts for kwargs, not positional args.
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+
 # SPEC-SPECIFIC. This corpus's own specs favor long, descriptive `it`
 # strings and deep-but-meaningful context nesting (domain lifecycle
 # states genuinely nest) — loosened, not disabled, so a real runaway
@@ -276,17 +290,180 @@ Lint/UnusedBlockArgument:
 # excluded from the default local run, part of pre-push) was run
 # after autocorrect.
 #
-# THE PATTERN ACROSS ALL THREE — SoleNestedConditional (a duplicate
+# THE PATTERN ACROSS ALL FOUR — SoleNestedConditional (a duplicate
 # condition), UnusedBlockArgument (broken DSL reflection),
 # ScatteredSetup (an early-return moved past code that has to run
-# unconditionally): every one of them RESTRUCTURES control flow or
-# code ORDER, not just formatting. So rather than keep discovering
-# these one at a time and disabling each newly-found offender,
-# `--autocorrect` in this repo is now run scoped to an explicit
-# ALLOWLIST (Layout/*, plus the two Style cops reconfigured above to
-# match this codebase's own convention) — see the skill/doc note on
-# `bin/... rubocop` usage. Every cop OUTSIDE that allowlist is
-# report-only: a real signal in `.rubocop_todo.yml` and in ordinary
-# `rubocop` runs, never blind-applied.
+# unconditionally), and CombinableLoops (below): every one of them
+# RESTRUCTURES control flow or code ORDER, not just formatting. So
+# rather than keep discovering these one at a time and disabling each
+# newly-found offender, `--autocorrect` in this repo is now run scoped
+# to an explicit ALLOWLIST (Layout/*, plus the two Style cops
+# reconfigured above to match this codebase's own convention) — see
+# the skill/doc note on `bin/... rubocop` usage. Every cop OUTSIDE
+# that allowlist is report-only: a real signal in `.rubocop_todo.yml`
+# and in ordinary `rubocop` runs, never blind-applied.
 RSpec/ScatteredSetup:
+  Enabled: false
+
+# THE FOURTH, found paying down .rubocop_todo.yml's backlog: Style/
+# CombinableLoops flags two separate `.each`-shaped loops over the
+# same receiver as one that could be merged, but its `--autocorrect-
+# all` doesn't just interleave the bodies — on
+# lib/hecks/runtime/dispatcher.rb#dispatch it merged `announced.each {
+# ... @policies.react ... }` and a second `announced.each { ...
+# @sagas.advance ... }` into one loop body (a real behavior change:
+# every event's saga now advances before the NEXT event's policies
+# react, rather than every event finishing policy-reaction before any
+# saga advances), and on lib/hecks/bluebook/dsl/aggregate_builder.rb#
+# seal_correction_targets it went further and produced an outright
+# SYNTAX ERROR — the first loop's closing `}` was deleted, the second
+# loop's `@commands.each do |command|` opener was deleted with it, and
+# the final `end` became a stray `}`, leaving `command` referenced
+# with no enclosing block. Caught by the full suite (a plain
+# Lint/Syntax parse failure on the aggregate_builder.rb case; the
+# dispatcher.rb interleaving is subtler and would need a targeted
+# ordering test to catch on its own — not currently proven safe by the
+# suite, just not yet disproven). Disabled rather than autocorrected
+# for the same reason as the three above.
+Style/CombinableLoops:
+  Enabled: false
+
+# `Security/Eval` exists to catch a web app evaling untrusted external
+# input (a request body, a query param) — arbitrary code execution from
+# outside the process. That threat model doesn't describe this codebase:
+# a `.bluebook` file IS a Ruby DSL script, and turning its text into a
+# loaded Ruby object graph — `Kernel.eval(source, TOPLEVEL_BINDING,
+# path, 1)`, the exact form every real call site here uses — is the one
+# thing this whole gem exists to do, load-bearing rather than
+# incidental. Every site (grep `Kernel\.eval\b` / `\beval(` across
+# lib/bin/spec) evaluates one of two things, never anything else: a
+# `.bluebook` file already sitting on disk in this repository (read via
+# `File.read`/`file.path`, exactly the way `Kernel.load` would load one
+# — `EraGuard#parse_bluebook`, `EraTamper`, `Translation::Reattest`,
+# `PostgresEra::LineageManager` all read a REPO-committed era archive
+# file, never a runtime request), or a hand-authored literal string
+# inside a spec fixture (every `*_growth_spec.rb`'s own `boot` helper,
+# `spec/dsl_spec.rb`'s two deliberately-untraceable-source refusal
+# fixtures — already carry their own `# rubocop:disable Style/
+# EvalWithLocation` comments for the SAME reasoning, one cop over).
+# Neither shape is "untrusted input" in the sense this cop defends
+# against — both are source this codebase itself authored and shipped.
+# Disabled repo-wide rather than scattered across 40+ call sites with
+# the identical rationale copy-pasted at each one.
+Security/Eval:
+  Enabled: false
+
+# `RSpec/BeforeAfterAll` warns that state set up in `before(:all)` isn't
+# automatically rolled back the way rspec-rails' transactional fixtures
+# roll back a `before(:each)` — real advice for an app spec suite backed
+# by a database transaction per example. This gem's suite has no such
+# rollback to lose in the first place (no rspec-rails, no transactional
+# fixtures at all), so the cop's own stated hazard doesn't describe this
+# codebase. Every real `before(:context)`/`after(:context)` site here
+# (grep confirms none use the bare `:all`/`:context` spelling without
+# one) exists for the SAME reason: booting a real Postgres connection, a
+# `cargo build`, or an AWS/deploy dry-run once per file rather than once
+# per example — several sites document this explicitly in their own
+# comments (e.g. spec/construct_spec.rb: "nothing an earlier example
+# does can leak into a later one," because every example is read-only).
+# Converting these to `before(:each)` wouldn't fix a real risk; it would
+# just multiply an expensive real-resource setup by however many
+# examples share the context.
+RSpec/BeforeAfterAll:
+  Enabled: false
+
+# `RSpec/SpecFilePathFormat` assumes one spec file per class, its path
+# under `spec/` mirroring the class's own namespace path under `lib/`
+# exactly (including the gem's own top-level `hecks/` segment). This
+# repo's spec/ tree deliberately doesn't do that, in three consistent,
+# repo-wide ways, none of them oversights:
+#
+#   1. No redundant `hecks/` prefix — `spec/` is already gem-scoped, so
+#      `spec/router_spec.rb` (not `spec/hecks/router_spec.rb`) covers
+#      `Hecks::Router`, throughout the whole suite.
+#   2. A large class's tests split across SEVERAL topic-named files
+#      rather than one — `RustProjection::Projector` alone has seven:
+#      spec/rust_project/{bridging,closed_set_fielded,constraints,
+#      creates_owner,naming_landmines,queries,reactions_merge}_spec.rb.
+#      Same for `Hecks::Forms::Params`, `Hecks::Ports::Projection::Worker`,
+#      several others — one spec file per CONCERN, not per class.
+#   3. A directory name shorter or plainer than the exact Ruby
+#      namespace — `spec/rust_project/` for `RustProjection::*`,
+#      `spec/adapters/driven/*_spec.rb` for `Hecks::Adapters::*` (the
+#      `driven/` grouping is a directory-only hexagonal-architecture
+#      label; the classes themselves were never nested under a
+#      `Driven` module).
+#
+# A cop built for "one file, one class, one mirrored path" flags all
+# three as violations; none of them are ones a rename should fix.
+RSpec/SpecFilePathFormat:
+  Enabled: false
+
+# `Lint/ConstantDefinitionInBlock` and `RSpec/LeakyConstantDeclaration`
+# both flag the SAME shape: a constant assigned directly inside an
+# `RSpec.describe` block. Both exist to catch a specific accident —
+# Ruby constant assignment inside a block always lands at Object (a
+# `describe` block is not a class/module, so it captures its FILE's own
+# lexical scope, at any nesting depth), so two spec files that happen to
+# reuse the same constant name silently share one value, last-loaded
+# wins, and the loser fails somewhere else entirely with no visible
+# connection to the real cause.
+#
+# This codebase already tests for exactly that accident, directly:
+# spec/load_hygiene_spec.rb's own "lets no two spec files disagree about
+# a top-level constant" example scans every *_spec.rb file for colliding
+# constant NAMES with different DEFINITION SITES and fails loudly if one
+# is found — its own header names two real bugs this exact check caught
+# historically. A small, explicit `shared_values` allowlist there
+# (`BANKING_BLUEBOOK`, `ROOT_DIR`, `WIRE_BLUEBOOK`, `SQLITE_ADAPTER`)
+# marks the handful of names deliberately redefined identically across
+# several files; everything else in every spec file is a plain,
+# private, single-file constant.
+#
+# The overwhelming majority of flagged sites are that second kind: a
+# fixture computed once at file-load time (a `File.read`'d .bluebook
+# source, a JSON-parsed corpus, a booted read-only domain) and reused
+# read-only across every example in the file — the identical
+# "expensive setup done once, shared deliberately" reasoning
+# `RSpec/BeforeAfterAll`'s own disable above already documents for
+# `before(:context)`. `RSpec/LeakyConstantDeclaration`'s own suggested
+# fix (`stub_const`) doesn't even apply to this shape: `stub_const`
+# temporarily overrides an EXISTING constant for one example and
+# restores it after — there is no existing value to restore here, the
+# same reasoning `RSpec/RemoveConst`'s own exclude above already
+# documents for spec/router_spec.rb's teardown blocks.
+Lint/ConstantDefinitionInBlock:
+  Enabled: false
+RSpec/LeakyConstantDeclaration:
+  Enabled: false
+
+# `RSpec/InstanceVariable` prefers `let`/`let!` over `@ivar` inside a
+# spec. Real, working advice in general — but converting the flagged
+# sites here means either:
+#
+#   1. An ivar bridging a `before(:context)` hook's once-per-file setup
+#      into a per-example accessor (`before(:context) { @aggregate =
+#      ... }` / `let(:aggregate) { @aggregate }`, spec/adapters/driven/
+#      heki_spec.rb's own pattern — the exact shape spec/construct_spec.rb's
+#      own comment documents for the identical reason
+#      `RSpec/BeforeAfterAll`'s disable above covers). Converting THIS to
+#      a bare per-example `let` would silently make the expensive setup
+#      run once per EXAMPLE instead of once per FILE — reintroducing the
+#      exact cost `before(:context)` exists to avoid.
+#   2. An ivar set in an ordinary `before(:each)` hook that runs
+#      UNCONDITIONALLY, often performing real dispatches with side
+#      effects other examples' assertions depend on indirectly (spec/
+#      meta_rules_spec.rb's own `before { @runtime = boot_meta;
+#      @aggregate_id = ...; @runtime.dispatch(...) }`). `let` is LAZY —
+#      converting would make that setup (and its side effects) run only
+#      for examples that happen to reference the resulting accessor by
+#      name, silently skipping it for any example that relies on the
+#      side effect without naming the value — a real behavioral change
+#      dressed up as a style fix, not a mechanical rename.
+#
+# Both shapes are deliberate and already covered by other established,
+# tested guarantees in this suite; a blind rename risks introducing the
+# exact class of silent, order/laziness-dependent bug this whole paydown
+# has spent its effort catching and reverting elsewhere.
+RSpec/InstanceVariable:
   Enabled: false

@@ -35,8 +35,8 @@ module Hecks
       # `reference_target.nil?` stays a real, checkable fact for the
       # interpreter instead of silently becoming `""`.
       def initialize(name:, description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [],
-                     group_by: [], count: nil, median_field: nil, **options)
-        super(joins: aggregate_heads, **options)
+                     group_by: [], count: nil, median_field: nil, **)
+        super(joins: aggregate_heads, **)
         @name             = name.to_s
         @hecks_name       = @name
         @description      = description

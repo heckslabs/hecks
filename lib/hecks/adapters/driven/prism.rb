@@ -5,7 +5,18 @@ module Hecks
   module Adapters
     class NotExtractable < StandardError; end
 
+    # Extracts a `given`/`ensures`/invariant block's own source text back out
+    # of the `.rb` file it was defined in (via `block.source_location`),
+    # parses it with the `prism` gem, and canonicalises it — how a rule's
+    # predicate becomes readable, comparable text (era diffing, docs) rather
+    # than an opaque compiled Proc. Per-process `TREES` cache keyed by file
+    # path; `forget`/`forget_all` exist for a caller that reloads an edited
+    # file in-process (see their own comment).
     module Prism
+      # NOT frozen — a real cache, keyed by file path and mutated by
+      # #tree_for below (`TREES[file] ||= ...`) and #forget/#forget_all.
+      # False positive for Style/MutableConstant.
+      # rubocop:disable-next Style/MutableConstant
       TREES = {}
 
       module_function

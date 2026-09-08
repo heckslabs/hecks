@@ -2,6 +2,12 @@ module Hecks
   module Adapters
     class PostgresEra
       class Lineage
+        # Installs the shared, domain-independent `hecks_tr_*` Postgres
+        # functions (extract/insert/rename/move/convert/drop over jsonb)
+        # that a compiled translation rule set's SQL calls into — the SQL
+        # compilation target kept equal to the Ruby reference transform by
+        # the cross-execution equivalence spec, never a second source of
+        # truth.
         module TransformInstaller
           # The jsonb rule transforms — installed once, idempotently. Kept
           # equal to the port's reference entry-JSON transform by the
@@ -27,7 +33,26 @@ module Hecks
             end
           end
 
+          # Six independent CREATE OR REPLACE FUNCTION statements — each
+          # self-contained SQL, no shared Ruby state, and (per this
+          # module's own header comment) safe in any install order since
+          # plpgsql bodies aren't resolved against each other until
+          # called, not at CREATE time. Split one-per-function below
+          # purely so each has its own name and (where relevant) its own
+          # comment to sit next to, not because the six have any
+          # sequencing dependency on one another.
           def install_transform_functions!
+            install_hecks_tr_extract!
+            install_hecks_tr_insert!
+            install_hecks_tr_rename!
+            install_hecks_tr_move!
+            install_hecks_tr_convert!
+            install_hecks_tr_drop!
+          end
+
+          private
+
+          def install_hecks_tr_extract!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_extract(state jsonb, path text[], OUT remaining jsonb, OUT value jsonb, OUT present boolean)
               LANGUAGE plpgsql IMMUTABLE AS $fn$
@@ -57,15 +82,18 @@ module Hecks
                 END IF;
               END $fn$
             SQL
-            # ADVERSARIAL FINDING: a destination whose top segment already
-            # holds a value — most commonly a reference, a bare scalar id
-            # — used to be silently overwritten with an empty object the
-            # moment a dotted destination needed to nest under it. That is
-            # a drop that never declared itself, the one thing this
-            # language exists to make explicit (see hecks_tr_convert's own
-            # refusal below, the same shape) — refused here instead, with
-            # the Ruby reference transform (ports/persistence/lineage.rb's
-            # `insert`) raising the identical wording.
+          end
+
+          # ADVERSARIAL FINDING: a destination whose top segment already
+          # holds a value — most commonly a reference, a bare scalar id
+          # — used to be silently overwritten with an empty object the
+          # moment a dotted destination needed to nest under it. That is
+          # a drop that never declared itself, the one thing this
+          # language exists to make explicit (see hecks_tr_convert's own
+          # refusal below, the same shape) — refused here instead, with
+          # the Ruby reference transform (ports/persistence/lineage.rb's
+          # `insert`) raising the identical wording.
+          def install_hecks_tr_insert!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_insert(state jsonb, path text[], value jsonb, rule_label text) RETURNS jsonb
               LANGUAGE plpgsql IMMUTABLE AS $fn$
@@ -83,6 +111,9 @@ module Hecks
                 RETURN jsonb_set(state, path, value);
               END $fn$
             SQL
+          end
+
+          def install_hecks_tr_rename!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_rename(state jsonb, old_name text, new_name text) RETURNS jsonb
               LANGUAGE sql IMMUTABLE AS $fn$
@@ -91,6 +122,9 @@ module Hecks
                   ELSE state END
               $fn$
             SQL
+          end
+
+          def install_hecks_tr_move!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
               LANGUAGE plpgsql IMMUTABLE AS $fn$
@@ -101,6 +135,9 @@ module Hecks
                 RETURN hecks_tr_insert(extracted.remaining, to_path, extracted.value, rule_label);
               END $fn$
             SQL
+          end
+
+          def install_hecks_tr_convert!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
               LANGUAGE plpgsql IMMUTABLE AS $fn$
@@ -117,6 +154,9 @@ module Hecks
                   from_label, extracted.value, extracted.value;
               END $fn$
             SQL
+          end
+
+          def install_hecks_tr_drop!
             @db.exec(<<~SQL)
               CREATE OR REPLACE FUNCTION hecks_tr_drop(state jsonb, path text[]) RETURNS jsonb
               LANGUAGE plpgsql IMMUTABLE AS $fn$

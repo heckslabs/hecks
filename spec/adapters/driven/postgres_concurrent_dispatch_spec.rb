@@ -38,8 +38,7 @@ require_relative "../../support/postgres_probe"
 # `given` is checked against a snapshot a concurrent writer is about to
 # make stale, and the dispatcher never re-checks or locks anything in
 # between.
-RSpec.describe "concurrent dispatch against one Postgres-backed aggregate",
-               io: true do
+RSpec.describe "concurrent dispatch against one Postgres-backed aggregate", :io do
   DATABASE = "hecks_concurrency_gap_spec".freeze
 
   before(:all) do
@@ -77,6 +76,13 @@ RSpec.describe "concurrent dispatch against one Postgres-backed aggregate",
   # instances is the same shape two separate application processes take in
   # production; the only thing they share is the Postgres row for account
   # "a".
+  #
+  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # read top to bottom as the fixture, not a sequence of independent
+  # steps; splitting it would scatter one readable declaration across
+  # several methods that only make sense read back-to-back.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def boot
     registry = Hecks::Runtime::Registry.new
 

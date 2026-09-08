@@ -121,10 +121,9 @@ amount: { value: 2 }).state
 
     it "leaves the instance untouched when a command is refused" do
       pizza = topped
-      begin
+      expect do
         runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Air" }, amount: { value: -5 })
-      rescue Hecks::Runtime::InvariantViolation
-      end
+      end.to raise_error(Hecks::Runtime::InvariantViolation)
 
       repository = runtime.registry.repository("Pizzas", runtime.registry.bluebook("Pizzas").aggregate("Order"))
       expect(repository.find(pizza.id).toppings.size).to eq(1)

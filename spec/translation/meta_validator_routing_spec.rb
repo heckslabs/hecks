@@ -8,9 +8,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::TranslationJudge do
   it "retains the translation parent as a relationship without behavioral self references" do
     aggregate = meta_language.aggregate("TranslationAggregate")
 
-    expect(aggregate.attribute(:translation_ref).then { |attribute|
+    expect(aggregate.attribute(:translation_ref).then do |attribute|
       [attribute.type.to_s, attribute.relationship]
-    }).to eq(["Reference<Translation>", "belongs_to"])
+    end).to eq(["Reference<Translation>", "belongs_to"])
     expect(aggregate.command("Declare").attribute(:translation_ref).type.to_s).to eq("TranslationIdentity")
     expect(aggregate.commands.map { |command| [command.name, command.references] }).to all(satisfy { |_, ref|
       ref.nil?
@@ -18,6 +18,12 @@ RSpec.describe Hecks::Bluebook::MetaValidator::TranslationJudge do
     expect(meta_language.aggregate("Translation").command("Retire").references).to be_nil
   end
 
+  # One TranslationJudge construction records ALL dispatched calls into
+  # one shared `calls` array, then checks both the exact set of routed
+  # mutations AND that no call leaks an :id/:aggregate key across any of
+  # them — splitting would mean re-running the judge per mutation kind
+  # for no real gain, and would lose the "none of them leak" claim.
+  # rubocop:disable-next RSpec/ExampleLength
   it "routes mutations separately from their declared facts, including AddBackfill" do
     calls = []
     runtime = Object.new

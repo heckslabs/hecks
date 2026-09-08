@@ -77,7 +77,7 @@ RSpec.describe Hecks::IR do
 
         attr_reader :n
 
-        def initialize(n) = @n = n
+        def initialize(value) = @n = value
       end
     end
 

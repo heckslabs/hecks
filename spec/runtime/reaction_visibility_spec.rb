@@ -1,6 +1,10 @@
 require "spec_helper"
 
 RSpec.describe "policy and process lexical visibility" do
+  # A declarative inline bluebook fixture — splitting it would only
+  # fragment one self-contained domain declaration across artificial
+  # boundaries.
+  # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def boot_visibility_reaction
     registry = Hecks::Runtime::Registry.new
 

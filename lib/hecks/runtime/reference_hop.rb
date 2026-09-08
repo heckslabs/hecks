@@ -92,7 +92,7 @@ module Hecks
           @wheres = wheres
         end
 
-        def wheres = @wheres
+        attr_reader :wheres
       end
     end
   end

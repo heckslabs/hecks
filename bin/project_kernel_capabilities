@@ -122,7 +122,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
 
     #{mods}
 
-    /// One variant per real #{enum_name == "AttributeShape" ? "attribute shape" : "expression-operator category"} the Ruby
+    /// One variant per real #{enum_name == 'AttributeShape' ? 'attribute shape' : 'expression-operator category'} the Ruby
     /// grammar admits, in the order #{doc_line} declares them. Every match
     /// over this enum in the kernel (rust/src/kernel/expr.rs) is written
     /// WITHOUT a wildcard `_ =>` arm — see expr.rs's own header for why:
@@ -135,7 +135,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
     }
 
     impl #{enum_name} {
-        /// The `rust/src/kernel/#{enum_name == "AttributeShape" ? "attribute_shapes" : "expression_operators"}/<name>.rs` file this
+        /// The `rust/src/kernel/#{enum_name == 'AttributeShape' ? 'attribute_shapes' : 'expression_operators'}/<name>.rs` file this
         /// variant names — `bin/rust_kernel_coverage`'s own existence
         /// check reads this, so the file-name spelling here is the ONE
         /// place that ever needs to change if a name is renamed.
@@ -145,7 +145,7 @@ def emit_mod(target, header:, enum_name:, names:, doc_line:)
             }
         }
 
-        pub const ALL: &'static [#{enum_name}] = &[#{names.map { |name| "#{enum_name}::#{pascal(name)}" }.join(", ")}];
+        pub const ALL: &'static [#{enum_name}] = &[#{names.map { |name| "#{enum_name}::#{pascal(name)}" }.join(', ')}];
     }
   RUST
 

@@ -15,10 +15,10 @@ RSpec.describe "cross-aggregate query filtering" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(HOP_CHAIN)
       Hecks.hecksagon("HopChain") do
-        ::HopChain::Client.persisted_by("Memory")
-        ::HopChain::Engagement.persisted_by("Memory")
-        ::HopChain::Proposal.persisted_by("Memory")
-        ::HopChain::Node.persisted_by("Memory")
+        HopChain::Client.persisted_by("Memory")
+        HopChain::Engagement.persisted_by("Memory")
+        HopChain::Proposal.persisted_by("Memory")
+        HopChain::Node.persisted_by("Memory")
       end
     end
 

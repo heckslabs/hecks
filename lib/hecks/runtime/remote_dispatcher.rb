@@ -81,7 +81,9 @@ module Hecks
         # Lambda that has no way to represent its lineage history at
         # all.
         adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
-        return @local.dispatch(verb, saga_correlation: saga_correlation, **args) unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
+        unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
+          return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
+        end
 
         response = @client.dispatch(verb, args)
 

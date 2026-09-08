@@ -2,8 +2,13 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `lifecycle :field, default: ... do transition ... end`
+      # block into a `Lifecycle` — the field an aggregate or entity's own
+      # state machine lives on, its starting value, and the `command =>
+      # target_state` transition table (with an optional `from:` guard)
+      # each `transition_impl` call adds a row to.
       class LifecycleBuilder
-        GRAMMAR_CONTEXT = "Lifecycle"
+        GRAMMAR_CONTEXT = "Lifecycle".freeze
 
         include WordGate
 

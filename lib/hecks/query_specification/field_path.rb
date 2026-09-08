@@ -85,8 +85,8 @@ module Hecks
       # or a value object carrying at least one numeric member. A dotted
       # path must land on a numeric primitive itself — the convention does
       # not reach through a named path, it IS the absence of one.
-      def numeric?(attribute, segments, &value_object)
-        leaf = leaf_attribute(attribute, segments, &value_object)
+      def numeric?(attribute, segments, &)
+        leaf = leaf_attribute(attribute, segments, &)
         return false if leaf.nil? || leaf.list? || leaf.reference?
         return true if NUMERIC_PRIMITIVES.include?(leaf.type.to_s)
         return false unless segments.empty?
@@ -98,8 +98,8 @@ module Hecks
       # A dotted path must end on a SCALAR member — landing on a value
       # object would hand SQL a JSON object where the reference
       # interpreter unwraps a hash, and the two would answer differently.
-      def scalar_leaf?(attribute, segments, &value_object)
-        leaf = leaf_attribute(attribute, segments, &value_object)
+      def scalar_leaf?(attribute, segments, &)
+        leaf = leaf_attribute(attribute, segments, &)
         !leaf.nil? && !leaf.list? && !leaf.reference? && SCALAR_PRIMITIVES.include?(leaf.type.to_s)
       end
     end

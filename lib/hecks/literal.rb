@@ -37,19 +37,20 @@ module Hecks
     def to_s = "state(:#{name})"
   end
 
+  # The `render`/`read` pair the header above describes: `render` turns a
+  # Ruby value into its self-describing wire spelling, `read` is its exact
+  # inverse.
   module Literal
     module_function
 
     def render(value)
       case value
-      when nil            then "nil"
-      when StateRef       then value.to_s
-      when true, false    then value.to_s
-      when Symbol         then ":#{value}"
-      when Integer, Float then value.to_s
-      when String         then quote(value)
-      when Hash           then "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(', ')}}"
-      when Array          then "[#{value.map { |held| render(held) }.join(', ')}]"
+      when nil    then "nil"
+      when Symbol then ":#{value}"
+      when String then quote(value)
+      when StateRef, true, false, Integer, Float then value.to_s
+      when Hash   then "{#{value.map { |key, held| "#{key}: #{render(held)}" }.join(', ')}}"
+      when Array  then "[#{value.map { |held| render(held) }.join(', ')}]"
       else
         raise ArgumentError, "#{value.class} has no pinned literal spelling — teach Literal.render one " \
                              "rather than letting #to_s decide it"
@@ -59,6 +60,15 @@ module Hecks
     # Read one back. Tolerant of a bare word on purpose: the language stores a
     # closed set's members and a few hand-written fields as plain text that was
     # never rendered, and those must stay the strings they are.
+    #
+    # The exact inverse of `render`'s `case`, above — one ordered guard per
+    # spelling `render` can produce (plus the bare-word tolerance this
+    # comment already explains). Each guard is a single self-contained
+    # `return`; splitting them into named predicates would just rename
+    # each line without changing what it does, and would separate this
+    # method from the `render` it is the deliberate mirror of.
+    # rubocop:disable-next Metrics/CyclomaticComplexity
+    # rubocop:disable-next Metrics/PerceivedComplexity
     def read(text)
       raw = text.to_s.strip
       return nil if raw.empty? || raw == "nil"

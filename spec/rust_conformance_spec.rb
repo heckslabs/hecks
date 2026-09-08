@@ -48,10 +48,10 @@ require_relative "support/rust_conformance_helpers"
 # `io: true` — a real `cargo build` per fixture's own domain feature,
 # same as every other spec that does real, uncontrolled I/O; excluded
 # locally by default (spec_helper.rb), always run in CI.
-RSpec.describe "Rust conformance (native binary)", io: true do
+RSpec.describe "Rust conformance (native binary)", :io do
   include RustConformanceHelpers
 
-  RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
+  RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json"))
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
   # `RustConformanceHelpers#build_rust_for` now takes `rust_dir` explicitly
@@ -139,6 +139,12 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   # fixed verb list doesn't scale to a randomly generated sequence.
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
+    # A real cargo-built binary compared field-by-field (instances,
+    # events, refusals, queries, sagas, dry_runs, reactions) against one
+    # fixture's own replay — one coherent byte-for-byte conformance
+    # proof per fixture; splitting per field would re-pay the cargo
+    # build and the subprocess spawn for no real gain.
+    # rubocop:disable-next RSpec/ExampleLength
     it "#{File.basename(fixture_path)}: instances, events, refusals, reactions, and sagas match Ruby exactly" do
       fixture = JSON.parse(File.read(fixture_path))
       domain  = fixture.fetch("domain")
@@ -157,7 +163,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       # Rust to; Rust's own compiled binary has no equivalent field at
       # all, so it's stripped here rather than becoming a permanent,
       # meaningless diff.
-      ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| q.reject { |k, _| k == :instances_at } }))
+      ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| q.except(:instances_at) }))
       ruby_sagas = JSON.parse(JSON.generate(ruby_result[:sagas]))
 
       stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
@@ -208,18 +214,23 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   # ExternalTransfer.Sent, Governance's/Identity's, and now every order_by/
   # limit-bearing declared query in named_queries_order_limit.json) now
   # genuinely executes right alongside it in the very same binary.
-  it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a byte-for-byte comparison — Ruby answers this one for real)" do
+  it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a " \
+     "byte-for-byte comparison — Ruby answers this one for real)" do
     binary = build_rust_for("banking")
     skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
-    stdout, status = Open3.capture2(binary,
-                                    stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.OpenForSuspendedCustomers" }] }))
+    stdout, status = Open3.capture2(
+      binary,
+      stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.OpenForSuspendedCustomers" }] })
+    )
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)
     expect(rust_output["refusals"].size).to eq(1)
     expect(rust_output["refusals"][0]["verb"]).to eq("Banking::Account.OpenForSuspendedCustomers")
-    expect(rust_output["refusals"][0]["error"]).to include("Banking::Account.OpenForSuspendedCustomers").and include("is not generated for this domain")
+    expect(rust_output["refusals"][0]["error"])
+      .to include("Banking::Account.OpenForSuspendedCustomers")
+      .and include("is not generated for this domain")
     expect(rust_output["queries"]).to eq([])
   end
 end

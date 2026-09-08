@@ -8,6 +8,13 @@ require_relative "../query_specification/field_path"
 
 module Hecks
   module Runtime
+    # Interprets one declared `read_model`: resolves each of its
+    # `include`d heads (root first, then the rest in dependency order),
+    # matches non-root heads to already-projected rows by reference
+    # field, and applies group_by/count/median reduction where declared.
+    # Prefers a native SQLite escape hatch (#query_read_model) when the
+    # model is simple enough for one; otherwise runs the whole join
+    # in-process against loaded records.
     class ReadModelInterpreter
       def initialize(registry) = @registry = registry
 
@@ -17,6 +24,19 @@ module Hecks
 
       private
 
+      # ROOT-FIRST, THEN THE SQLITE ESCAPE HATCH, THEN THE JOIN LOOP —
+      # each step's own comment names a real, previously-shipped bug the
+      # current ORDER fixes (the reference/TenantScope refusal ordering
+      # above, the root-first head processing below). Splitting this
+      # into smaller methods would scatter that ordering across method
+      # boundaries where a future editor could silently break it, and
+      # would force threading `rootless`/`reference_id`/`eligible`/
+      # `projected`/`rows_by_as` between the pieces as parameters and
+      # return values.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/MethodLength
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def project(domain, model, args)
         bluebook = @registry.bluebook(domain)
         rootless = model.reference_target.nil?
@@ -46,7 +66,10 @@ module Hecks
         # than narrowed.
         unless rootless || model.group_by.any? || model.count? || model.median_field
           repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
-          return repository.query_read_model(domain, model, args, bluebook) if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
+          if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
+            return repository.query_read_model(domain, model, args,
+                                               bluebook)
+          end
         end
 
         # ROOT FIRST, ALWAYS — regardless of `include` order in the
@@ -103,7 +126,7 @@ module Hecks
         # Declared order preserved in the OUTPUT — only the
         # computation above needed reordering, not what a caller sees
         # back.
-        heads = model.aggregate_heads.each_with_object({}) { |head, report| report[head[:as]] = rows_by_as[head[:as]] }
+        heads = model.aggregate_heads.to_h { |head| [head[:as], rows_by_as[head[:as]]] }
         grouped_head = group_by_target(model, bluebook)
         reduced_head = aggregation_target(model, bluebook)
         [heads.each_with_object({}) do |(as, value), out|
@@ -343,7 +366,7 @@ module Hecks
                  .map(&:name)
       end
 
-      def matching(records) = records.select { |record| yield(record) }.sort_by(&:id)
+      def matching(records, &) = records.select(&).sort_by(&:id)
       def row(record) = record.to_h
     end
   end

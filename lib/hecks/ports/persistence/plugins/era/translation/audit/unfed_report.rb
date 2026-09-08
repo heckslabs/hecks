@@ -7,6 +7,15 @@ module Hecks
       # attribute, and the loud refusal for a REQUIRED one comes from
       # Layer 1 the moment an invariant reads it.
       module UnfedReport
+        # `fed` build-up plus one ordered guard chain per attribute
+        # (already fed, has a default, actually present in some record, no
+        # records to check at all) answering a single question — "is
+        # anything, ever, going to feed this field" — where each `next`
+        # rules out one way the answer is "not unfed after all" before the
+        # next is even worth asking. Splitting the guards out would just
+        # turn each into a same-shaped one-line predicate call.
+        # rubocop:disable-next Metrics/CyclomaticComplexity
+        # rubocop:disable-next Metrics/PerceivedComplexity
         def unfed(aggregate, declared, after)
           fed = if declared
                   (declared.renames.values.map(&:to_s) +

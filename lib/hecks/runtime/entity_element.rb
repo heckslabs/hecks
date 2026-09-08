@@ -63,6 +63,14 @@ module Hecks
       # which element it means, so re-deriving `wants` from `args` would be
       # redundant at best and wrong if `args` no longer carries that identity
       # at all.
+      # Locate, then copy-before-mutate, in that order — see the "ONE
+      # LEVEL DEEPER" comment below on why the copy has to happen exactly
+      # where it does (aliasing the adapter's own record otherwise).
+      # Splitting resolution from the copy/write-back would separate two
+      # halves of one aliasing-safety invariant across method boundaries.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def element_of(root_aggregate, owner, entity, command_name, container, args, routed_identity = nil)
         entity_name = entity.hecks_name
         list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
@@ -158,6 +166,15 @@ module Hecks
       # method's own fixture (TaggedList.Bump, a VO-typed `count` with
       # `default: 0`) raised exactly this TypeMismatch on its first
       # real run.
+      # A case dispatching over a closed, declared set of mutation ops —
+      # deliberately kept byte-for-byte parallel to its aggregate-level
+      # twin, MutationApplier#apply (see this method's own comment
+      # above and each branch's "own entity-scoped twin" cross-reference):
+      # extracting the near-duplicate increment/decrement/multiply
+      # shape here without doing the same there would break that
+      # intentional mirroring, which is what lets the two be diffed
+      # against each other when one gets a fix the other needs too.
+      # rubocop:disable-next Metrics/AbcSize
       def apply_to_element(rules, aggregate, entity, element, mutation, args)
         case mutation.op
         when :set

@@ -92,6 +92,12 @@ RSpec.describe "saga durability across a process death mid-leg" do
     )
   end
 
+  # One real crash-then-reboot scenario against the SAME durable store,
+  # proving three things about the SAME stalled saga together (it's
+  # surfaced loudly, the internal marker doesn't leak into live memory,
+  # and nothing auto-redrives) — splitting would mean re-simulating the
+  # crash for each, or losing that all three hold of one rehydration.
+  # rubocop:disable-next RSpec/ExampleLength
   it "rehydrating that same store surfaces the stall loudly and does NOT auto-redrive the leg" do
     runtime = boot_wire
     runtime.dispatch("Wire::Drawer.Open", number: { value: "left" })
@@ -112,7 +118,10 @@ RSpec.describe "saga durability across a process death mid-leg" do
 
     reopened = nil
     expect { reopened = boot_wire }.to output(
-      /Wire rehydrated Carry instance "wire-1" in state "asked" with a dispatch left pending.*Take.*reconcile this instance by hand/
+      /
+        Wire\ rehydrated\ Carry\ instance\ "wire-1"\ in\ state\ "asked"\ with\ a\ dispatch\ left\ pending.*
+        Take.*reconcile\ this\ instance\ by\ hand
+      /x
     ).to_stderr
 
     # Surfaced (state restored, and the stall is on record)...

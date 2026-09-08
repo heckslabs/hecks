@@ -29,7 +29,7 @@ module Hecks
             case entry.fetch("operation")
             when "save"   then records[id] = entry.fetch("state")
             when "delete" then records.delete(id)
-            else raise Malformed, "#{@journal_path}: unknown journal operation #{entry.fetch("operation").inspect}"
+            else raise Malformed, "#{@journal_path}: unknown journal operation #{entry.fetch('operation').inspect}"
             end
           end
           records

@@ -108,7 +108,7 @@ module Hecks
       # forever, once per shape of "gone" any caller ever invents. The
       # caller filters and sorts the result; this only groups it.
       def self.latest_by(rows, key)
-        rows.each_with_object({}) { |row, latest| latest[row.public_send(key)] = row }.values
+        rows.to_h { |row| [row.public_send(key), row] }.values
       end
 
       def method_missing(name, *args)

@@ -11,6 +11,9 @@ module Hecks
     # Paths follow `TranslationMove`'s convention (dotted reaches a VO
     # member); `values` maps every old-era value that can appear to its
     # new-era replacement.
+    # `:values` shadows Struct#values on purpose (same reasoning as
+    # AttributeCollector::OneOf) — no caller reads the built-in behavior.
+    # rubocop:disable-next Lint/StructNewOverride
     TranslationConvert = Struct.new(:from, :to, :values)
 
     # A value object's or entity's own TYPE NAME changed with its member

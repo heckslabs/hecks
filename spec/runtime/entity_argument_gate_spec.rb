@@ -39,19 +39,19 @@ RSpec.describe "an entity command's own argument gate" do
     runtime = boot
     open_widget(runtime)
 
-    expect {
+    expect do
       runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" }, bogus_arg: 123)
-    }.to raise_error(Hecks::Runtime::UnknownArgument, /bogus_arg/)
+    end.to raise_error(Hecks::Runtime::UnknownArgument, /bogus_arg/)
   end
 
   it "refuses a declared argument that was simply left out, rather than silently nil-ing the field it sets" do
     runtime = boot
     open_widget(runtime)
 
-    expect {
+    expect do
       runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 })
-    }.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
+    end.to raise_error(Hecks::Runtime::AbsentArgument, /note/)
 
     # THE REGRESSION ITSELF — confirm the refusal actually happened before
     # any mutation, not just that SOME exception was raised. Before this
@@ -67,19 +67,19 @@ RSpec.describe "an entity command's own argument gate" do
     runtime = boot
     open_widget(runtime)
 
-    expect {
+    expect do
       runtime.dispatch("DispatchOrder::Widget.Part.Advance", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "moved" })
-    }.not_to raise_error
+    end.not_to raise_error
   end
 
   it "still refuses an unknown argument on a command that transitions nothing" do
     runtime = boot
     open_widget(runtime)
 
-    expect {
+    expect do
       runtime.dispatch("DispatchOrder::Widget.Part.Touch", label: { value: "w1" }, sequence: { value: 1 },
                        note: { value: "touched" }, sneaky: "x")
-    }.to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
+    end.to raise_error(Hecks::Runtime::UnknownArgument, /sneaky/)
   end
 end

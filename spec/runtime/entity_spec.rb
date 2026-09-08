@@ -110,7 +110,8 @@ narrative: { text: "" })
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
     materialized = rows.map { |row| row.transform_values { |value| Hecks::Runtime::Value.materialize(value) } }
     expect(materialized).to eq([
-                                 { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" }, narrative: { text: "Posted in error" },
+                                 { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" },
+                                   narrative: { text: "Posted in error" },
                                    direction: { value: "debit" }, state: "reversed" }
                                ])
   end

@@ -17,7 +17,7 @@ module Hecks
         def create_aggregate_table!
           columns = persisted_fields.map { |field| "#{quote_ident(field[:name])} #{field[:sql_type]}" }
           @db.exec(
-            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{columns.empty? ? '' : ', '}#{columns.join(', ')})"
+            "CREATE TABLE IF NOT EXISTS #{quoted_table} (id text PRIMARY KEY#{', ' unless columns.empty?}#{columns.join(', ')})"
           )
           # SELF-HEALING, SAME IDIOM AS `ensure_indexes!` BELOW —
           # `CREATE TABLE IF NOT EXISTS` above does NOT retroactively add a
@@ -84,7 +84,8 @@ module Hecks
           # — the same idiom `rust/host/src/journal.rs`'s own
           # `sagas_backfilled` column addition already uses, for the
           # identical reason.
-          @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb NOT NULL DEFAULT '[]'::jsonb")
+          @db.exec("ALTER TABLE hecks_saga_instances ADD COLUMN IF NOT EXISTS completed_compensations jsonb " \
+                   "NOT NULL DEFAULT '[]'::jsonb")
         end
 
         def sql_type(attr)

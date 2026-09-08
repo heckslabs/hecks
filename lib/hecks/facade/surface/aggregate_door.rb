@@ -13,14 +13,25 @@ module Hecks
       # `persisted_by`-style binding collector a `.hecksagon` lands on, and
       # the aggregate-scoped `port` a `.hecksagon` lands on beside it.
       module AggregateDoor
-        def aggregate_module(dispatcher, domain, ir)
-          fqn  = "#{domain}::#{ir.hecks_name}"
+        # One method building one `door` module's ~20 singleton methods
+        # looks like it splits along each `define_singleton_method` call,
+        # but three of those blocks (`:port`, `:method_missing`,
+        # `:const_missing`) are a single cross-referencing essay on the
+        # stale-facade-across-boots hazard — each one's comment explicitly
+        # points at "below"/"above" as part of the SAME method. Splitting
+        # into helper methods wouldn't break anything at runtime (no
+        # shared mutable state beyond the closed-over args, which just
+        # become parameters), but it would sever that narrative across
+        # method boundaries for no functional gain.
+        # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+        def aggregate_module(dispatcher, domain, aggregate)
+          fqn  = "#{domain}::#{aggregate.hecks_name}"
           door = Module.new
 
-          ir.attributes.each do |attribute|
+          aggregate.attributes.each do |attribute|
             next unless RESERVED.include?(attribute.name.to_sym)
 
-            warn "[hecks] #{ir.hecks_name}##{attribute.name} shadows a built-in — no reader defined"
+            warn "[hecks] #{aggregate.hecks_name}##{attribute.name} shadows a built-in — no reader defined"
           end
 
           # A creating verb is a MODULE method returning the new record in hand ;
@@ -33,9 +44,9 @@ module Hecks
           # accounts, a real same-aggregate collision this corpus already
           # has) — the suffix is what makes both nameable at all, not
           # merely a style choice.
-          ir.commands.select(&:creates?).each do |command|
+          aggregate.commands.select(&:creates?).each do |command|
             door.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
-              Handle.new(dispatcher: dispatcher, domain: domain, ir: ir,
+              Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate,
                          instance: dispatcher.dispatch("#{fqn}.#{command.hecks_name}", with: args).instance)
             end
           end
@@ -46,14 +57,14 @@ module Hecks
           # about the way `!` does for a command. Answers the raw row
           # array `dispatcher.query` itself answers, the same shape
           # `runtime.query("#{fqn}.Name")` already gave.
-          ir.queries.each do |query|
+          aggregate.queries.each do |query|
             door.define_singleton_method(Naming.snake(query.hecks_name)) do |**args|
               dispatcher.query("#{fqn}.#{query.hecks_name}", **args)
             end
           end
 
           door.define_singleton_method(:fqn)        { fqn }
-          door.define_singleton_method(:ir)         { ir }
+          door.define_singleton_method(:ir)         { aggregate }
 
           # THE SAME VERB THE CHAPTER ANSWERS, one level down. Every
           # construct emits its own IR (Hecks::IR), so an aggregate
@@ -67,39 +78,41 @@ module Hecks
           # `{"aggregates" => []}` for an aggregate.
           door.define_singleton_method(:project) do |target, out: nil, **options|
             key      = Projector.key_for(target)
-            artifact = Projector.call(key, bluebook: ir, options: options)
+            artifact = Projector.call(key, bluebook: aggregate, options: options)
             return artifact unless out
 
             Projector.write(artifact, out, as: Projector.emits_for(key))
           end
-          door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
-          door.define_singleton_method(:commands)   { ir.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort }
-          door.define_singleton_method(:queries)    { ir.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
+          door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, aggregate) }
+          door.define_singleton_method(:commands) do
+            aggregate.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort
+          end
+          door.define_singleton_method(:queries) { aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
           # ONE AGGREGATE'S USAGE DOCUMENT — the same projection the chapter
           # answers with, narrowed to this head. `commands` above already
           # answers "what can I call"; this answers "and what does each one
           # want, refuse, and guarantee", which is the rest of the question.
           door.define_singleton_method(:docs) do |**options|
             Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
-                                  options:  options.merge(aggregate: ir.hecks_name))
+                                  options:  options.merge(aggregate: aggregate.hecks_name))
           end
           # ONE AGGREGATE, READ BACK IN ENGLISH — the same narrowing `:docs`
           # takes, aimed at `:narrate` instead.
           door.define_singleton_method(:narrate) do |**options|
             Projector.call(:narrate, bluebook: dispatcher.registry.bluebook(domain),
-                                     options:  options.merge(aggregate: ir.hecks_name))
+                                     options:  options.merge(aggregate: aggregate.hecks_name))
           end
-          door.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }
+          door.define_singleton_method(:count)      { dispatcher.registry.repository(domain, aggregate).count }
           door.define_singleton_method(:events)     { dispatcher.events.select { |event| event.aggregate == fqn } }
 
           door.define_singleton_method(:find) do |id|
-            found = dispatcher.registry.repository(domain, ir).find(id)
-            found && Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: found)
+            found = dispatcher.registry.repository(domain, aggregate).find(id)
+            found && Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate, instance: found)
           end
 
           door.define_singleton_method(:all) do |**opts|
-            dispatcher.registry.repository(domain, ir).all(**opts).map do |instance|
-              Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: instance)
+            dispatcher.registry.repository(domain, aggregate).all(**opts).map do |instance|
+              Handle.new(dispatcher: dispatcher, domain: domain, aggregate: aggregate, instance: instance)
             end
           end
 
@@ -109,20 +122,20 @@ module Hecks
           # `ConstShim`/`const_missing`, so `Pizzas::Pizza.port(...)` lands
           # HERE instead once any boot has run before.
           #
-          # RE-RESOLVED, NOT THE CLOSED-OVER `ir` — this door can be a STALE
-          # one, built by a boot from earlier in this same process, sitting
-          # on the `Pizzas`/`Pizza` constants only because nothing has
-          # re-installed them since. Attaching to this door's OWN `ir` would
-          # attach the port to a discarded aggregate from that old boot,
-          # invisible to the CURRENT one actually being loaded — silently,
-          # the exact way `method_missing` below already has to avoid it for
-          # a plain bind, via `HecksagonBuilder.collector` rather than
-          # anything this door closes over. `Hecks.current_registry` is
-          # the same "whichever boot is actually in progress" indirection,
+          # RE-RESOLVED, NOT THE CLOSED-OVER `aggregate` — this door can be a
+          # STALE one, built by a boot from earlier in this same process,
+          # sitting on the `Pizzas`/`Pizza` constants only because nothing
+          # has re-installed them since. Attaching to this door's OWN
+          # `aggregate` would attach the port to a discarded aggregate from
+          # that old boot, invisible to the CURRENT one actually being
+          # loaded — silently, the exact way `method_missing` below already
+          # has to avoid it for a plain bind, via `HecksagonBuilder.collector`
+          # rather than anything this door closes over. `Hecks.current_registry`
+          # is the same "whichever boot is actually in progress" indirection,
           # and `BindingProxy#port` already re-resolves through it the same
           # way — this is that door's fallback twin, not a shortcut past it.
           door.define_singleton_method(:port) do |name, &block|
-            current = Hecks.current_registry&.bluebook(domain)&.aggregate(ir.hecks_name) or
+            current = Hecks.current_registry&.bluebook(domain)&.aggregate(aggregate.hecks_name) or
               raise Bluebook::DSL::Malformed, "#{fqn}.port(#{name.inspect}) called outside a boot"
 
             domain_port = Bluebook::DSL::ConstShim.with(->(const) { const }) do
@@ -163,16 +176,17 @@ module Hecks
           # const_missing directly, never `Object.const_missing`/`ConstShim::
           # Hook` at all: real modules resolve without ever calling that.
           #
-          # `ir.hecks_name`, NOT the qualified `fqn` — a scoped reference has to
-          # read the SAME either way, whether or not a stale door happens to be
-          # sitting on this process from an earlier boot; qualifying it here
-          # would make `Account::Debit`'s own meaning depend on incidental
-          # process history, which is the exact instability S0b exists to
-          # remove (docs/dsl-work-slices.md — "two domains in one registry" is
-          # this file's own reason for being owned by that slice).
+          # `aggregate.hecks_name`, NOT the qualified `fqn` — a scoped
+          # reference has to read the SAME either way, whether or not a stale
+          # door happens to be sitting on this process from an earlier boot;
+          # qualifying it here would make `Account::Debit`'s own meaning
+          # depend on incidental process history, which is the exact
+          # instability S0b exists to remove (docs/dsl-work-slices.md — "two
+          # domains in one registry" is this file's own reason for being
+          # owned by that slice).
           door.define_singleton_method(:const_missing) do |name|
             resolver = Bluebook::DSL::ConstShim.resolver
-            return resolver.call("#{ir.hecks_name}::#{name}") if resolver
+            return resolver.call("#{aggregate.hecks_name}::#{name}") if resolver
 
             super(name)
           end

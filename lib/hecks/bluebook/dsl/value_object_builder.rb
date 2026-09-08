@@ -2,8 +2,15 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `value_object "Name" do ... end` block into a
+      # `ValueObject` — its attributes, its own invariants (declared once
+      # and referenceable by name from sibling value objects on the same
+      # aggregate, `RuleReference`), and its `member` rows when it's a
+      # closed set (either bare `one_of` member lines, or the single-field
+      # `attribute ..., one_of: [...]` shorthand `install_inline_closed_set`
+      # installs).
       class ValueObjectBuilder
-        GRAMMAR_CONTEXT = "ValueObject"
+        GRAMMAR_CONTEXT = "ValueObject".freeze
 
         include AttributeCollector
         include RuleReference

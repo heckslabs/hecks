@@ -255,7 +255,8 @@ RSpec.describe "the declared syntax" do
       # ProcessManagerBuilder's own header comment for why).
       starts_on_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       ends_on_impl:       "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
-      tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: — also the target for the \"operation\" spelling, a Ruby alias no more",
+      tells_impl:         "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
+                          "— also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:          "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",
       rename_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       move_impl:          "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
@@ -451,10 +452,16 @@ RSpec.describe "the declared syntax" do
       # `sets_impl` in slice 4c. The OLD spelling (`then_set`, here)
       # always stays a real, unmigrated method — `WordGate` matches `was:`
       # by exact row lookup, never through `calls:`.
-      expect(answered.include?(row[:word].to_sym) || generically_dispatched?(row[:word], row[:context])).to be(true),
-                                                                                                            "#{row[:context]}.#{row[:word]} — the new spelling has no builder"
-      expect(answered).to include(row[:was].to_sym),
-                          "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old " "spelling stopped parsing — a rename never strands the old era"
+      expect(
+        answered.include?(row[:word].to_sym) || generically_dispatched?(row[:word], row[:context])
+      ).to(
+        be(true), "#{row[:context]}.#{row[:word]} — the new spelling has no builder"
+      )
+      expect(answered).to(
+        include(row[:was].to_sym),
+        "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old spelling stopped parsing — a rename never " \
+        "strands the old era"
+      )
       expect(row[:was]).not_to eq(row[:word]), "#{row[:context]}.#{row[:word]} renames itself"
     end
   end
@@ -477,8 +484,8 @@ RSpec.describe "the declared syntax" do
                     .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(early).to be_empty,
-                     early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ") +
-                     " — proposed, but the builder already answers; run bin/evolve admit"
+                     "#{early.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                     "— proposed, but the builder already answers; run bin/evolve admit"
   end
 
   it "leaves every retired word unanswered — answered means it never left" do
@@ -486,8 +493,8 @@ RSpec.describe "the declared syntax" do
                         .select { |row| self.class.words_answered_by(row[:context]).include?(row[:word].to_sym) }
 
     expect(lingering).to be_empty,
-                         lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(", ") +
-                         " — retired, but the builder still answers"
+                         "#{lingering.map { |row| "#{row[:context]}.#{row[:word]}" }.join(', ')} " \
+                         "— retired, but the builder still answers"
   end
 
   # ------------------------------------------------------ arguments ⇄ signature
@@ -504,6 +511,9 @@ RSpec.describe "the declared syntax" do
       next if generically_dispatched?(word, context)
 
       params  = method_for(word, context).parameters
+      # `params` is Method#parameters — an Array of [kind, name] pairs, not a
+      # Hash. False positive from Style/HashSlice's block-shape matching.
+      # rubocop:disable-next Style/HashSlice
       taken   = params.select { |kind, _| %i[key keyreq].include?(kind) }.map { |_, name| name.to_s }
       spelled = args.reject { |row| row[:named].empty? }.map { |row| row[:named] }.uniq
       allowed = taken + RESERVED_KEY.fetch([word, context], [])
@@ -534,8 +544,10 @@ RSpec.describe "the declared syntax" do
       room += 1 if positional.any? { |row| row[:kind] == "pairs" } &&
                    params.any? { |kind, _| kind == :keyrest }
 
-      expect(positional.map { |row| row[:at] }.map(&:to_i).max).to be <= room,
-                                                                   "#{context}.#{word} declares more positionals than its builder takes"
+      expect(positional.map { |row| row[:at] }.map(&:to_i).max).to(
+        be <= room,
+        "#{context}.#{word} declares more positionals than its builder takes"
+      )
     end
   end
 
@@ -560,6 +572,8 @@ RSpec.describe "the declared syntax" do
                                   "declared optional"
       end
 
+      # Same false positive as above: `params` is an Array, not a Hash.
+      # rubocop:disable-next Style/HashSlice, Style/HashEachMethods
       params.select { |kind, _| kind == :keyreq }.each do |_, name|
         row = args.find { |candidate| candidate[:named] == name.to_s }
         next if row.nil?
@@ -666,7 +680,9 @@ RSpec.describe "the declared syntax" do
 
   def self.all_meta_aggregates
     registry     = Hecks::Bluebook::MetaValidator.grammar_registry
-    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation].flat_map { |chapter| registry.bluebook(chapter).aggregates }
+    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation].flat_map do |chapter|
+      registry.bluebook(chapter).aggregates
+    end
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
 
@@ -678,9 +694,11 @@ RSpec.describe "the declared syntax" do
       expect(landing).not_to be_empty,
                              "#{row[:context]}.#{row[:word]} claims to fill #{row[:fills]}, but " \
                              "#{row[:context]} is a position and holds no record"
-      expect(landing.any? { |category| fields.fetch(category).include?(row[:fills]) }).to be(true),
-                                                                                          "#{row[:context]}.#{row[:word]} fills #{row[:fills]}, which " \
-                                                                                          "#{landing.join('/')} does not declare"
+      expect(landing.any? { |category| fields.fetch(category).include?(row[:fills]) }).to(
+        be(true),
+        "#{row[:context]}.#{row[:word]} fills #{row[:fills]}, which " \
+        "#{landing.join('/')} does not declare"
+      )
     end
   end
 

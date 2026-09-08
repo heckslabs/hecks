@@ -128,9 +128,9 @@ module Hecks
       # admitted rows — deliberately, to exercise the refusal a `one_of`
       # exists to enforce, not just its happy path.
       def invalid_member(value_object, random:)
-        value_object.attributes.to_h { |field|
+        value_object.attributes.to_h do |field|
           [field.name.to_s, primitive(field.type.to_s, random: random, name: field.name.to_s)]
-        }
+        end
       end
 
       # THE ID ITSELF. This minted `{"value" => id}` back when a reference was

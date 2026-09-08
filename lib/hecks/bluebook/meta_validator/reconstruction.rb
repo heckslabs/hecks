@@ -148,7 +148,7 @@ module Hecks
         # against, so the entity ones have to be told apart by `entity_id`. Rejecting
         # from an ORDERED read keeps the order.
         def own(category, aggregate_id)
-          declared(category, aggregate_id).reject { |row| text(row[:entity_id]).to_s != "" }
+          declared(category, aggregate_id).select { |row| text(row[:entity_id]).to_s == "" }
         end
 
         # A piece's own verbs and asks. There is no `DeclaredIn` keyed by entity, so

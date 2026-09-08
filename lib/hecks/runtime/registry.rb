@@ -249,13 +249,13 @@ module Hecks
       # authoritative bind" check is what actually catches a genuine
       # double-bind; this merge only concatenates, it does not itself
       # decide which of two binds for the same aggregate wins.
-      def merge_hecksagons(a, b)
+      def merge_hecksagons(base, overlay)
         Bluebook::Hecksagon.new(
-          domain:             a.domain,
-          binds:              a.binds + b.binds,
-          subscriptions:      a.subscriptions + b.subscriptions,
-          framework_members:  a.framework_members + b.framework_members,
-          vendored_bluebooks: a.vendored_bluebooks + b.vendored_bluebooks
+          domain:             base.domain,
+          binds:              base.binds + overlay.binds,
+          subscriptions:      base.subscriptions + overlay.subscriptions,
+          framework_members:  base.framework_members + overlay.framework_members,
+          vendored_bluebooks: base.vendored_bluebooks + overlay.vendored_bluebooks
         )
       end
 
@@ -266,12 +266,12 @@ module Hecks
       # also declares REPLACES that key's whole resolved hash (the same
       # all-or-nothing shape `WorldBuilder#method_missing` already builds
       # each entry as), it does not deep-merge field by field within it.
-      def merge_worlds(a, b)
+      def merge_worlds(base, overlay)
         Bluebook::World.new(
-          domain:   a.domain,
-          realm:    b.realm || a.realm,
-          latest:   b.latest || a.latest,
-          settings: a.settings.merge(b.settings)
+          domain:   base.domain,
+          realm:    overlay.realm || base.realm,
+          latest:   overlay.latest || base.latest,
+          settings: base.settings.merge(overlay.settings)
         )
       end
     end

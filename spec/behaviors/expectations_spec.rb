@@ -51,7 +51,8 @@ RSpec.describe Hecks::Behaviors::Expectations do
     def create(name)
       Hecks::Behaviors::TestCase.new(description: name, tests_command: "CreatePizza", on_aggregate: "Order",
                                      kind: :command, setups: [], expect: { ok: true },
-                                     input: { name: { value: name }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
+                                     input: { name:  { value: name },
+                                              pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
     end
 
     it "reuses the suite's runtime across tests" do
@@ -76,10 +77,10 @@ RSpec.describe Hecks::Behaviors::Expectations do
 
     it "boots fresh when a loaded file changes" do
       Dir.mktmpdir do |dir|
-        files = suite.loads.map { |path|
+        files = suite.loads.map do |path|
           FileUtils.cp(path, dir)
           File.join(dir, File.basename(path))
-        }
+        end
         copy = Hecks::Behaviors::BehaviorsSuite.new(loads: files)
         before = described_class.runtime_for(copy)
         FileUtils.touch(files.first, mtime: Time.now + 5)
@@ -146,7 +147,8 @@ RSpec.describe Hecks::Behaviors::Expectations do
 
     def create_setup(name)
       Hecks::Behaviors::TestSetup.new(command: "CreatePizza",
-                                      args:    { name: { value: name }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
+                                      args:    { name:  { value: name },
+                                                 pizza: { price_cents: { cents: 900 }, size: { value: "small" } } })
     end
 
     def query_test(setups:, expect:)

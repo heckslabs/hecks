@@ -2,8 +2,15 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `process_manager "Name" do ... end` block into a
+      # `ProcessManager` — its own `starts_on`/`ends_on` events, what
+      # correlates its instances (`correlates_by`), and the `transition`-
+      # declared state machine whose `dispatch`es (each optionally paired
+      # with its own per-dispatch `compensates`) become its handlers. States
+      # are DERIVED from the transitions rather than declared separately
+      # (S7, ADR 0025).
       class ProcessManagerBuilder
-        GRAMMAR_CONTEXT = "ProcessManager"
+        GRAMMAR_CONTEXT = "ProcessManager".freeze
 
         class InvalidProcessManager < StandardError; end
 
@@ -189,8 +196,10 @@ module Hecks
         end
 
         def validate!
-          raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-                                       "nothing would tie its events to one instance" unless @correlates_by
+          unless @correlates_by
+            raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
+                                         "nothing would tie its events to one instance"
+          end
 
           # THE FIELD, NAMED — never the value object that carries it. A bare
           # `correlates_by :end_to_end` reads whatever the payload holds under
@@ -202,19 +211,29 @@ module Hecks
           # holds a head to. This is a syntactic check, not a type check: it
           # does not know or care whether the field IS a value object, only
           # that the declaration cannot leave that question open.
-          raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
-                                       "field rather than one of its scalars — say which one, e.g. " \
-                                       "#{@correlates_by}.value" unless @correlates_by.to_s.include?(".")
+          unless @correlates_by.to_s.include?(".")
+            raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
+                                         "field rather than one of its scalars — say which one, e.g. " \
+                                         "#{@correlates_by}.value"
+          end
 
-          raise InvalidProcessManager, "#{@name} declares no starts_on — " \
-                                       "nothing would ever begin it" if @starts_on.to_s.empty?
+          if @starts_on.to_s.empty?
+            raise InvalidProcessManager, "#{@name} declares no starts_on — " \
+                                         "nothing would ever begin it"
+          end
 
-          raise InvalidProcessManager, "#{@name} declares no transitions — " \
-                                       "it would start and then ignore every event" if @handlers.empty?
+          if @handlers.empty?
+            raise InvalidProcessManager, "#{@name} declares no transitions — " \
+                                         "it would start and then ignore every event"
+          end
         end
 
+        # THE BODY OF ONE `transition ... do ... end` block — collects the
+        # `dispatch` calls (each optionally opening its own `compensates`
+        # via the nested `DispatchBuilder`) that fire when this transition
+        # is taken.
         class HandlerBuilder
-          GRAMMAR_CONTEXT = "Handler"
+          GRAMMAR_CONTEXT = "Handler".freeze
 
           attr_reader :dispatches
 
@@ -282,7 +301,7 @@ module Hecks
           # any saga dispatch already does
           # (`SagaInterpreter#dispatch_args`).
           class DispatchBuilder
-            GRAMMAR_CONTEXT = "Dispatch"
+            GRAMMAR_CONTEXT = "Dispatch".freeze
 
             include WordGate
 

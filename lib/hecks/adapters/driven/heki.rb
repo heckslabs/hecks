@@ -18,12 +18,12 @@ module Hecks
       include Snapshot
       include Journal
 
-      MAGIC = "HEKI"
+      MAGIC = "HEKI".freeze
       HEADER_BYTES = 8
 
       class Malformed < StandardError; end
 
-      attr_reader :aggregate, :path
+      attr_reader :aggregate, :path, :events
 
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
@@ -114,8 +114,6 @@ module Hecks
 
       def record_event(event) = @events << event
 
-      def events = @events
-
       # ── the OPTIONAL saga-persistence capability (§2) — Heki's own
       # shape (a sibling snapshot+journal file pair, `SagaStore`,
       # heki/saga_store.rb) rather than a table in a store this adapter
@@ -128,7 +126,7 @@ module Hecks
         saga_store.delete_saga(@domain, process_manager.to_s, correlation.to_s)
       end
 
-      def each_saga(&block) = saga_store.each_saga(@domain, &block)
+      def each_saga(&) = saga_store.each_saga(@domain, &)
 
       private
 

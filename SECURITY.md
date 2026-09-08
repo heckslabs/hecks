@@ -1,8 +1,6 @@
 # Security
 
-hecks is a research language, not a hardened production dependency —
-that's the honest framing, not a hedge, and it applies here too. It
-still runs real code against real state (the Postgres/Sqlite/Heki
+hecks runs real code against real state (the Postgres/Sqlite/Heki
 adapters, the Lambda dispatcher, the OAuth2/Google-ID-token
 authentication adapter, generated SAM/deploy artifacts) on behalf of
 whatever project embeds it, so a real vulnerability report is welcome
@@ -86,6 +84,6 @@ means more than a bad refusal message:
 
 ## Supported versions
 
-Pre-1.0 (currently 0.3.0 per `lib/hecks/version.rb`): no parallel
-maintenance branches. Fixes land on the latest release; there is no
-commitment yet to backport a security fix to an older tag.
+Currently 1.0.2 per `lib/hecks/version.rb`: no parallel maintenance
+branches. Fixes land on the latest release; there is no commitment yet
+to backport a security fix to an older tag.

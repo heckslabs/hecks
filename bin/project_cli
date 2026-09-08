@@ -35,8 +35,8 @@ def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
      .map { |path| FOLDER.domain_root(File.dirname(path)) }
      .compact
-     .map    { |path| path.delete_prefix("#{ROOT}/") }
-     .reject { |path| path.match?(%r{\A(rust|deploy|tmp|coverage)/}) }
+     .map { |path| path.delete_prefix("#{ROOT}/") }
+     .grep_v(%r{\A(rust|deploy|tmp|coverage)/})
      .uniq.sort
 end
 
@@ -111,7 +111,7 @@ wanted.each do |path|
   # launchers for one chapter, and no way to tell from the outside which one
   # somebody's muscle memory is running.
   stale = File.join(ROOT, "bin", snake)
-  FileUtils.rm_f(stale) if File.exist?(stale)
+  FileUtils.rm_f(stale)
 
   puts "  #{path}/#{snake}  ->  #{name}"
 end

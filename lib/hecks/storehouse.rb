@@ -592,19 +592,26 @@ module Hecks
       bluebook = bluebook_for(runtime)
       fqn      = aggregate ? "#{bluebook.name}::#{aggregate_ir!(bluebook, aggregate).hecks_name}" : nil
 
-      found = log_lines(bluebook.name).filter_map do |entry|
-        next unless entry[:tool] == "dispatch" && entry[:ok] && entry[:events]
-        next if fqn && !entry[:verb].to_s.start_with?("#{fqn}.")
-        next if id && entry[:id] != id
-
-        entry[:events].map { |event| event.merge(time: entry[:time], verb: entry[:verb], id: entry[:id]) }
-      end.flatten(1)
-
+      found = log_lines(bluebook.name).filter_map { |entry| entry_events(entry, fqn, id) }.flatten(1)
       found = found.last(limit.to_i) if limit
 
       ok(domain: bluebook.name, events: found)
     rescue *refusal_classes => e
       refused(e)
+    end
+
+    # One log line's own contribution to `events`, above — nil unless it
+    # was a successful dispatch carrying events, matching `fqn` (when an
+    # aggregate narrowed the search) and `id` (when a record did). A
+    # self-contained per-entry check with nothing to share with its
+    # neighbors, extracted only to keep `events` itself to the query's
+    # own shape: build the filter, apply the limit, wrap the result.
+    def entry_events(entry, fqn, id)
+      return unless entry[:tool] == "dispatch" && entry[:ok] && entry[:events]
+      return if fqn && !entry[:verb].to_s.start_with?("#{fqn}.")
+      return if id && entry[:id] != id
+
+      entry[:events].map { |event| event.merge(time: entry[:time], verb: entry[:verb], id: entry[:id]) }
     end
 
     # ── shared shape ────────────────────────────────────────────────────

@@ -82,8 +82,26 @@ module Hecks
           Array(t.aggregates).each { |aggregate| judge_aggregate(t, aggregate) }
         end
 
+        # One Declare, then one AddX pass per rule collection the aggregate
+        # carries — each pass is independent of the others (they mutate
+        # different fields), so each is its own private method below; only
+        # Declare-before-any-Add is order-sensitive, and that order is
+        # preserved here.
         def judge_aggregate(translation, aggregate)
           name = aggregate.name
+          declare_aggregate(translation, aggregate, name)
+
+          judge_renames(aggregate, name)
+          judge_moves(aggregate, name)
+          judge_converts(aggregate, name)
+          judge_drops(aggregate, name)
+          judge_retypes(aggregate, name)
+          judge_computes(aggregate, name)
+          judge_rekeys(aggregate, name)
+          judge_backfills(aggregate, name)
+        end
+
+        def declare_aggregate(translation, aggregate, name)
           parent = {
             domain: v(translation.domain),
             from:   v(translation.from),
@@ -91,45 +109,66 @@ module Hecks
           }
           send_to("Translation::TranslationAggregate.Declare", name,
                   with: { translation_ref: parent, name: v(name), was: v(aggregate.was) })
+        end
 
+        def judge_renames(aggregate, name)
           Hash(aggregate.renames).each do |from, to|
             send_to("Translation::TranslationAggregate.AddRename", name, to:   name,
                                                                          with: { from: v(from), to: v(to) })
           end
+        end
 
+        def judge_moves(aggregate, name)
           Array(aggregate.moves).each do |move|
             send_to("Translation::TranslationAggregate.AddMove", name, to:   name,
                                                                        with: { from: v(move.from), to: v(move.to) })
           end
+        end
 
+        def judge_converts(aggregate, name)
           Array(aggregate.converts).each do |convert|
             send_to("Translation::TranslationAggregate.AddConvert", name, to:   name,
-                                                                          with: { from: v(convert.from), to: v(convert.to), values: v(convert.values.inspect) })
+                                                                          with: { from:   v(convert.from),
+                                                                                  to:     v(convert.to),
+                                                                                  values: v(convert.values.inspect) })
           end
+        end
 
+        def judge_drops(aggregate, name)
           Array(aggregate.drops).each do |dropped|
             send_to("Translation::TranslationAggregate.AddDrop", name, to:   name,
                                                                        with: { value: v(dropped) })
           end
+        end
 
+        def judge_retypes(aggregate, name)
           Array(aggregate.retypes).each do |retype|
             send_to("Translation::TranslationAggregate.AddRetype", name, to:   name,
                                                                          with: { from: v(retype.from), to: v(retype.to) })
           end
+        end
 
+        def judge_computes(aggregate, name)
           Array(aggregate.computes).each do |compute|
             send_to("Translation::TranslationAggregate.AddCompute", name, to:   name,
-                                                                          with: { from: v(compute.from), to: v(compute.to), sql: v(compute.sql) })
+                                                                          with: { from: v(compute.from),
+                                                                                  to:   v(compute.to),
+                                                                                  sql:  v(compute.sql) })
           end
+        end
 
+        def judge_rekeys(aggregate, name)
           Array(aggregate.rekeys).each do |rekey|
             send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,
                                                                         with: { sql: v(rekey.sql) })
           end
+        end
 
+        def judge_backfills(aggregate, name)
           Array(aggregate.backfills).each do |backfill|
             send_to("Translation::TranslationAggregate.AddBackfill", name, to:   name,
-                                                                           with: { name: v(backfill.name), default: v(backfill.default.inspect) })
+                                                                           with: { name:    v(backfill.name),
+                                                                                   default: v(backfill.default.inspect) })
           end
         end
       end

@@ -44,8 +44,11 @@ require_relative "postgres_probe"
 # A guide whose first line is `<!-- doctest: postgres -->` runs only
 # when a local Postgres answers, and skips cleanly otherwise.
 module Doctest
-  Mismatch = Class.new(StandardError)
-  Malformed = Class.new(StandardError)
+  class Mismatch < StandardError
+  end
+
+  class Malformed < StandardError
+  end
 
   Block = Struct.new(:kind, :code, :line, keyword_init: true)
   Guide = Struct.new(:path, :blocks, :postgres, keyword_init: true)
@@ -88,6 +91,13 @@ module Doctest
 
   module_function
 
+  # A single-pass state machine over the guide's lines — `fence` is the
+  # in-progress marker (or nil), `buffer`/`start` accumulate the current
+  # block. Dispatches on the closed set of fence markers this file's own
+  # header documents. Splitting the line-loop from the `case` would mean
+  # threading `fence`/`buffer`/`start` between methods as parameters and
+  # return values instead of as plain locals closed over by one loop.
+  # rubocop:disable-next Metrics/CyclomaticComplexity
   def parse(path)
     blocks = []
     fence = nil
@@ -96,7 +106,7 @@ module Doctest
 
     File.read(path).each_line.with_index(1) do |line, number|
       if fence
-        if (fence == :hidden_boot ? line.strip == "-->" : line.strip == "```")
+        if line.strip == (fence == :hidden_boot ? "-->" : "```")
           unless %i[skip ignore].include?(fence)
             kind = fence == :hidden_boot ? :boot : fence
             blocks << Block.new(kind: kind, code: buffer.join, line: start)
@@ -223,9 +233,9 @@ module Doctest
     # Marker lines are rewritten IN PLACE — one line stays one line, so
     # every backtrace and failure names the guide's true line number.
     def transform(block)
-      block.code.each_line.with_index.map { |line, index|
+      block.code.each_line.with_index.map do |line, index|
         transform_line(line, block.line + index)
-      }.join
+      end.join
     end
 
     def transform_line(line, number)
@@ -234,7 +244,8 @@ module Doctest
         "__dt__.eq(#{number}, #{match[:expected].dump}, #{match[:code].strip.dump}) { (#{match[:code]}) }\n"
       elsif (match = line.match(/\A(?<code>.*\S)\s*#\s*~>\s*(?<klass>\w+)(?::\s*(?<message>.+?))?\s*\z/))
         single_line!(match[:code], number)
-        "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || '').dump}, #{match[:code].strip.dump}) { (#{match[:code]}) }\n"
+        "__dt__.refuses(#{number}, #{match[:klass].dump}, #{(match[:message] || '').dump}, " \
+          "#{match[:code].strip.dump}) { (#{match[:code]}) }\n"
       else
         line
       end
@@ -272,7 +283,7 @@ module Doctest
       raise Mismatch, <<~WHY
         #{@path}:#{line}
           expr:     #{expression}
-          expected: a #{klass} refusal#{message.empty? ? '' : " (#{message})"}
+          expected: a #{klass} refusal#{" (#{message})" unless message.empty?}
           actual:   no refusal at all
       WHY
     rescue Mismatch
@@ -284,7 +295,7 @@ module Doctest
       raise Mismatch, <<~WHY
         #{@path}:#{line}
           expr:     #{expression}
-          expected: #{klass}#{message.empty? ? '' : ": #{message}"}
+          expected: #{klass}#{": #{message}" unless message.empty?}
           actual:   #{raised}: #{e.message}
       WHY
     end

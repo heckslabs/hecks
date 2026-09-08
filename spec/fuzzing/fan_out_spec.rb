@@ -13,6 +13,12 @@ require "hecks/fuzzing"
 # really dispatched — the same two-engines-compared shape
 # `query_answers_match_reference` already trusts, aimed at fan-out.
 RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
+  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # read top to bottom as the fixture, not a sequence of independent
+  # steps; splitting it would scatter one readable declaration across
+  # several methods that only make sense read back-to-back.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def boot_fanout
     registry = Hecks::Runtime::Registry.new
 
@@ -89,12 +95,12 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
 
       Hecks.hecksagon("Fanout") do
         uses_framework "Governance"
-        ::Fanout::Customer.persisted_by("Memory")
-        ::Fanout::Account.persisted_by("Memory")
+        Fanout::Customer.persisted_by("Memory")
+        Fanout::Account.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 
@@ -117,9 +123,9 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   def flag(runtime, customer_id, risk)
     account = runtime.registry.bluebook("Fanout").aggregate("Account")
     snapshot = { ["Fanout", "Account"] =>
-                                          runtime.registry.repository("Fanout", account).all.to_h { |record|
+                                          runtime.registry.repository("Fanout", account).all.to_h do |record|
                                             [record.id, record.state.dup]
-                                          } }
+                                          end }
 
     mark = runtime.reactions.size
     result = runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })
@@ -167,6 +173,6 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
     findings = flag(runtime, "c1", "high")
     history = { fan_outs: findings }
 
-    expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
+    expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to be(true)
   end
 end

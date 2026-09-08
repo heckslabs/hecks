@@ -8,6 +8,14 @@ module Hecks
     module Expression
       class EvaluationError < StandardError; end
 
+      # The dotted/arithmetic leaf grammar a predicate's `Resolve` node
+      # bottoms out in — attribute lookups, literals, arithmetic, and the
+      # growing set of vendored method-call suffixes (`.match?`,
+      # `.present?`/`.blank?`, `.set?`/`.unset?`, `.split`, `.first`/
+      # `.last`, `.all?`/`.any?`/`.none?`/`.find`, ...) this file and its
+      # `resolver/block_predicates.rb` sibling parse and interpret. Each
+      # leaf's `parse` is a pure function of its own string, cached at the
+      # `Evaluator` layer; `interpret` reads state/attrs fresh each call.
       module Resolver
         SIGN_TESTS = Hecks::Vocabulary.fetch("SignTest")
 
@@ -204,6 +212,18 @@ module Hecks
           interpret(parse(expr), state, attrs)
         end
 
+        # A grammar's own dispatch table — one `return Node.new(...) if
+        # expr =~ /pattern/` per leaf production, in a FIXED precedence
+        # order (`.length` before the generic suffixes, sign tests before
+        # the rest, etc. — see this file's own history comments on why
+        # several of these were added in exactly this position). Each
+        # branch is already one line; splitting the table into smaller
+        # methods would not shrink any single check, only hide the
+        # precedence order this method's own line-by-line sequence IS.
+        # rubocop:disable-next Metrics/AbcSize
+        # rubocop:disable-next Metrics/CyclomaticComplexity
+        # rubocop:disable-next Metrics/MethodLength
+        # rubocop:disable-next Metrics/PerceivedComplexity
         def parse(expr)
           expr = expr.to_s.strip
 
@@ -233,7 +253,7 @@ module Hecks
 
           return Size.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.size\z/
 
-          if expr =~ /\A(.+)\.match\?\(\/(.*)\/([a-z]*)\)\z/m
+          if expr =~ %r{\A(.+)\.match\?\(/(.*)/([a-z]*)\)\z}m
             return MatchesRegex.new(receiver: parse(Regexp.last_match(1)),
                                     pattern:  Regexp.last_match(2),
                                     flags:    Regexp.last_match(3))
@@ -246,18 +266,21 @@ module Hecks
           return Assignment.new(receiver: parse(Regexp.last_match(1)), negated: true)  if expr =~ /\A(.+)\.unset\?\z/
 
           if expr =~ /\A(.+)\.split\("([^"]*)"\)\z/
-            return Split.new(receiver: parse(Regexp.last_match(1)), separator: Regexp.last_match(2))
+            return Split.new(receiver:  parse(Regexp.last_match(1)),
+                             separator: Regexp.last_match(2))
           end
 
           return First.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.first\z/
           return Last.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.last\z/
 
           if expr =~ /\A(.+)\.start_with\?\("([^"]*)"\)\z/
-            return StartsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
+            return StartsWith.new(receiver:  parse(Regexp.last_match(1)),
+                                  substring: Regexp.last_match(2))
           end
 
           if expr =~ /\A(.+)\.end_with\?\("([^"]*)"\)\z/
-            return EndsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
+            return EndsWith.new(receiver:  parse(Regexp.last_match(1)),
+                                substring: Regexp.last_match(2))
           end
 
           block_opener = parse_block_opener(expr)
@@ -273,6 +296,16 @@ module Hecks
           SignTest.new(operator: operator, test: test, receiver: parse(receiver))
         end
 
+        # `parse`'s own dispatch table, mirrored: one `when` per leaf node
+        # type it can produce, each already delegating to a small named
+        # helper (add, apply_sign_test, emptiness_of, ...) — the case
+        # itself IS the closed, declared set this method exists to
+        # exhaust; the `else` backstop's own comment explains why a
+        # missing arm is a bug this method is built to make loud, not
+        # quiet.
+        # rubocop:disable-next Metrics/AbcSize
+        # rubocop:disable-next Metrics/CyclomaticComplexity
+        # rubocop:disable-next Metrics/MethodLength
         def interpret(node, state, attrs)
           case node
           when IntegerLiteral, FloatLiteral, StringLiteral, BoolLiteral then node.value
@@ -363,8 +396,7 @@ module Hecks
         # found live while building this, not assumed).
         def matches_regex?(receiver_value, pattern, flags)
           text = case receiver_value
-                 when String, Symbol then receiver_value.to_s
-                 when Integer, Float then receiver_value.to_s
+                 when String, Symbol, Integer, Float then receiver_value.to_s
                  when NilClass then ""
                  else
                    raise EvaluationError, "match? expects a scalar, got #{receiver_value.class}"
@@ -557,10 +589,9 @@ module Hecks
 
         def string_of(value)
           case value
-          when String                then value
-          when Integer, Float        then value.to_s
-          when TrueClass, FalseClass then value.to_s
-          when NilClass              then ""
+          when String then value
+          when Integer, Float, TrueClass, FalseClass then value.to_s
+          when NilClass then ""
           else
             raise EvaluationError, "to_s expects a scalar, got #{describe(value)}"
           end

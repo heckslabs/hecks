@@ -116,7 +116,7 @@ module Hecks
         # `ctx.repository` is resolved once, in `#call`, before the
         # isolation decision (lock vs. CAS+retry) — not here any more.
         ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.repository.capabilities)
-        ctx.instance = step(:hydrate) {
+        ctx.instance = step(:hydrate) do
           if ctx.plan.complete_state? && ctx.plan.state_independent?
             hydrate_complete_state(ctx.repository, ctx.aggregate, ctx.command, ctx.args, ctx.route, ctx.strategy)
           elsif ctx.plan.complete_state?
@@ -126,11 +126,11 @@ module Hecks
           else
             hydrate_existing(ctx.repository, ctx.aggregate, ctx.command, ctx.args, ctx.route)
           end
-        }
+        end
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) {
+        step(:enforce_givens) do
           # STRUCTURAL, before the declared givens — the same ordering
           # NotFound/AlreadyExists already get at hydration: "does the
           # fact this command's corrects names even exist" is not a
@@ -142,7 +142,7 @@ module Hecks
           ctx.correction_bindings = @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
           @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain,
                                 declaring: ctx.aggregate, parent: ctx.instance, correction: ctx.correction_bindings)
-        }
+        end
       end
 
       def step_admissible_transition(ctx)
@@ -161,11 +161,11 @@ module Hecks
         # arithmetic via Value#with, append builds a new array), never
         # edit a held value in place.
         ctx.old_state = ctx.instance.state.dup unless ctx.command.ensures.empty?
-        step(:apply_mutations) {
-          ctx.command.mutations.each { |mutation|
+        step(:apply_mutations) do
+          ctx.command.mutations.each do |mutation|
             apply(ctx.instance, ctx.aggregate, mutation, ctx.args)
-          }
-        }
+          end
+        end
       end
 
       def step_advance_lifecycle(ctx)
@@ -188,11 +188,21 @@ module Hecks
       # `step_locate_element`/`step_apply_mutations` mutate their OWN
       # freshly-loaded copy — the only difference is WHICH already-in-
       # memory record gets handed in.
+      #
+      # Reimplements the entity command pipeline's own order (givens,
+      # transition, mutations, ensures, emit) inline, deliberately — see
+      # the comment above on why this must run strictly between this
+      # command's own mutations and its ensures/invariants/save. Splitting
+      # it would scatter that exact ordering across method boundaries and
+      # force threading element/view/transition/old_element/settled
+      # through as parameters — the `with:` bug documented just below is
+      # exactly the kind of ordering/plumbing mistake that shape invites.
+      # rubocop:disable-next Metrics/AbcSize
       def step_delegate_to_entity(ctx)
         delegation = ctx.command.mutations.find { |mutation| mutation.op == :delegate }
         return unless delegation
 
-        step(:delegate_to_entity) {
+        step(:delegate_to_entity) do
           entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
           entity = ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
                    raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
@@ -227,23 +237,23 @@ module Hecks
           transition = @rules.admissible_transition(entity, target_command, view)
 
           old_element = target_command.ensures.empty? ? nil : element.dup
-          target_command.mutations.each { |mutation|
+          target_command.mutations.each do |mutation|
             EntityElement.apply_to_element(@rules, ctx.aggregate, entity, element, mutation, target_args)
-          }
+          end
           element[entity.lifecycle.field] = transition.target if transition
 
           settled = Instance.new(aggregate: entity, id: view.id, state: element)
           @rules.enforce_ensures(settled, target_command, target_args, old: old_element, domain: ctx.domain, parent: ctx.instance)
 
           ctx.delegated_events = @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository)
-        }
+        end
       end
 
       def step_enforce_ensures(ctx)
-        step(:enforce_ensures) {
+        step(:enforce_ensures) do
           @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state,
                                  domain: ctx.domain, parent: ctx.instance, correction: ctx.correction_bindings || {})
-        }
+        end
       end
 
       def step_enforce_invariants(ctx)
@@ -261,41 +271,49 @@ module Hecks
         step(:save) do
           @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
           seed_projected_fields(ctx)
-          ctx.persistence_outcome = if ctx.strategy == DependencyPlanning::ATOMIC_PUT
-                                      # A SECOND CREATION IS NOT A FRESH ONE — see
-                                      # hydrate_complete_state's own comment; the
-                                      # same refusal, on the same terms, for the
-                                      # complete-state path. `insert_only:` asks the
-                                      # ADAPTER to decide and refuse ATOMICALLY
-                                      # (never writing a `creates?` command over an
-                                      # identity that already names a record) rather
-                                      # than this interpreter reading the record
-                                      # first to check — a `repository.find` before
-                                      # every atomic_put would be exactly the read
-                                      # this strategy exists to skip.
-                                      ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
-                                    else
-                                      # `expected_version:` is `ctx.instance.version` — nil for a
-                                      # brand-new record (never read from storage) or when the
-                                      # repository isn't CAS-capable, either of which falls straight
-                                      # through to a plain, unconditional save inside `AppendOnly#save`.
-                                      ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
-                                    end
-          if ctx.persistence_outcome.status == :conflicted
-            raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                       command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
-                                                       identity: identity_reading(ctx.aggregate),
-                                                       offered: Rendering.describe(ctx.instance.id)))
-          elsif ctx.persistence_outcome.status == :stale
-            # NOT a `RefusalWording.render` call — this is not a declared
-            # vocabulary refusal, just a plain, informative message. See
-            # `Runtime::StaleWrite`'s own comment: caught by `#call`'s
-            # retry loop, re-raised only once retries are exhausted.
-            raise(StaleWrite,
-                  "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
-                  "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
-                  "another write committed against this record after it was read")
-          end
+          ctx.persistence_outcome = persist_instance(ctx)
+          raise_for_persistence_outcome!(ctx)
+        end
+      end
+
+      def persist_instance(ctx)
+        if ctx.strategy == DependencyPlanning::ATOMIC_PUT
+          # A SECOND CREATION IS NOT A FRESH ONE — see
+          # hydrate_complete_state's own comment; the
+          # same refusal, on the same terms, for the
+          # complete-state path. `insert_only:` asks the
+          # ADAPTER to decide and refuse ATOMICALLY
+          # (never writing a `creates?` command over an
+          # identity that already names a record) rather
+          # than this interpreter reading the record
+          # first to check — a `repository.find` before
+          # every atomic_put would be exactly the read
+          # this strategy exists to skip.
+          ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
+        else
+          # `expected_version:` is `ctx.instance.version` — nil for a
+          # brand-new record (never read from storage) or when the
+          # repository isn't CAS-capable, either of which falls straight
+          # through to a plain, unconditional save inside `AppendOnly#save`.
+          ctx.repository.save(ctx.instance, expected_version: ctx.instance.version)
+        end
+      end
+
+      def raise_for_persistence_outcome!(ctx)
+        if ctx.persistence_outcome.status == :conflicted
+          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                     command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
+                                                     identity: identity_reading(ctx.aggregate),
+                                                     offered: Rendering.describe(ctx.instance.id)))
+        elsif ctx.persistence_outcome.status == :stale
+          # NOT a `RefusalWording.render` call — this is not a declared
+          # vocabulary refusal, just a plain, informative message. See
+          # `Runtime::StaleWrite`'s own comment: caught by `#call`'s
+          # retry loop, re-raised only once retries are exhausted.
+          raise(StaleWrite,
+                "#{ctx.command.hecks_name} on #{ctx.aggregate.hecks_name} " \
+                "(#{identity_reading(ctx.aggregate)}: #{Rendering.describe(ctx.instance.id)}) lost a race — " \
+                "another write committed against this record after it was read")
         end
       end
 
@@ -344,7 +362,7 @@ module Hecks
       def step_emit(ctx)
         return if ctx.dry_run
 
-        ctx.result = step(:emit) {
+        ctx.result = step(:emit) do
           # `ctx.delegated_events` is only ever set by `step_delegate_to_entity`,
           # and only when this command carries a `:delegate` mutation — an
           # empty Array (the target genuinely emitted nothing) is still
@@ -352,7 +370,7 @@ module Hecks
           next ctx.delegated_events if ctx.delegated_events
 
           @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation)
-        }
+        end
       end
 
       def hydrate_existing(repository, aggregate, command, args, route = nil)

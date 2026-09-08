@@ -40,7 +40,8 @@ require "optparse"
 
 directory = ARGV.shift
 slug      = ARGV.shift
-(directory && slug) or abort "usage: bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME --schema=NAME --database=NAME [--adapter=PostgresEra]"
+(directory && slug) or abort "usage: bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME " \
+                             "--schema=NAME --database=NAME [--adapter=PostgresEra]"
 
 options = { adapter: "PostgresEra" }
 OptionParser.new do |parser|

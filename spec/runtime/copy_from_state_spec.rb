@@ -7,6 +7,12 @@ require "spec_helper"
 # piece lists copied off the record every ply, and nothing a caller
 # hands in can be trusted to be that.
 RSpec.describe "a mutation sourced from the record's own state" do
+  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # read top to bottom as the fixture, not a sequence of independent
+  # steps; splitting it would scatter one readable declaration across
+  # several methods that only make sense read back-to-back.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def boot_board
     registry = Hecks::Runtime::Registry.new
 
@@ -92,7 +98,7 @@ RSpec.describe "a mutation sourced from the record's own state" do
         end
       end
 
-      Hecks.hecksagon("Snapshots") { ::Snapshots::Board.persisted_by("Memory") }
+      Hecks.hecksagon("Snapshots") { Snapshots::Board.persisted_by("Memory") }
     end
 
     registry.verify!

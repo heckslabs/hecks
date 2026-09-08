@@ -5,8 +5,8 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     Hecks::Bluebook::Attribute.new(name: name, type: type)
   end
 
-  def mutation(target, op, source)
-    Hecks::Bluebook::Mutation.new(target: target, op: op, source: source)
+  def mutation(target, oper, source)
+    Hecks::Bluebook::Mutation.new(target: target, op: oper, source: source)
   end
 
   let(:sku) { field(:sku, String) }
@@ -132,7 +132,8 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
     let(:narrative) { field(:narrative, String) }
 
     let(:root_aggregate) do
-      Hecks::Bluebook::Aggregate.new(name: "Account", attributes: [status, field(:number, String)], commands: [], identified_by: [:number])
+      Hecks::Bluebook::Aggregate.new(name: "Account", attributes: [status, field(:number, String)], commands: [],
+                                     identified_by: [:number])
     end
 
     let(:amend) do
@@ -148,13 +149,15 @@ RSpec.describe Hecks::Runtime::DependencyPlanning do
       Hecks::Bluebook::Entity.declare(name: "LedgerEntry", attributes: [narrative], commands: [amend])
     end
 
-    it "resolves against the ENTITY's own fields when no root_aggregate is given — the pre-fix, still-real default for a plain aggregate command" do
+    it "resolves against the ENTITY's own fields when no root_aggregate is given — the pre-fix, still-real " \
+       "default for a plain aggregate command" do
       plan = described_class::Analyzer.call(aggregate: ledger_entry, command: amend)
 
       expect(plan.unresolved_dependencies).to eq(["parent.status does not name parent aggregate state"])
     end
 
-    it "resolves parent.* against the ROOT aggregate's own fields when root_aggregate: is given, matching EntityInterpreter's real call site" do
+    it "resolves parent.* against the ROOT aggregate's own fields when root_aggregate: is given, matching " \
+       "EntityInterpreter's real call site" do
       plan = described_class::Analyzer.call(aggregate: ledger_entry, command: amend, root_aggregate: root_aggregate)
 
       expect(plan.unresolved_dependencies).to eq([])

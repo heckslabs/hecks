@@ -48,10 +48,10 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # a fuzzer-coverage question as any top-level aggregate's — so they are
   # walked here rather than silently dropping out of account the day
   # `entity "Member"` replaced `aggregate "Member"`.
-  META_DOMAIN_ALL_FEATURES = META_DOMAIN_GRAMMAR.aggregates.flat_map { |agg|
-    (agg.attributes.map { |attr| "#{agg.name}##{attr.name}" }) +
+  META_DOMAIN_ALL_FEATURES = META_DOMAIN_GRAMMAR.aggregates.flat_map do |agg|
+    agg.attributes.map { |attr| "#{agg.name}##{attr.name}" } +
       agg.entities.flat_map { |piece| piece.attributes.map { |attr| "#{piece.hecks_name}##{attr.name}" } }
-  }.freeze
+  end.freeze
 
   # META_DOMAIN_STRUCTURAL_FEATURES BOOKKEEPING — no property should ever single these out,
   # because they carry no behavior of their own to have wrong: an
@@ -82,16 +82,28 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # names the candidate property a future session should write, so
   # "unclaimed" never has to mean "unnoticed."
   META_DOMAIN_KNOWN_GAPS = {
-    "Command#references"         => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
-    "Policy#on_event"            => "which event a policy answers to is exercised by every reaction a generated sequence produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
-    "Policy#trigger_command"     => "a policy's own target command is exercised by dispatch itself; no property names a mismatch between declared trigger and what actually fired",
-    "Policy#target_domain"       => "cross-domain `across` policies have no property of their own — none of the example domains declare one yet",
-    "ReadModel#query_name"       => "the derived snake_case name is exercised by every read model ask; no property names a drift between it and the declared name",
+    "Command#references"         => "reference-typed command arguments are exercised constantly (guard dereferencing) but " \
+                                    "have no property of their own asking whether a dangling reference was ever silently " \
+                                    "accepted",
+    "Policy#on_event"            => "which event a policy answers to is exercised by every reaction a generated sequence " \
+                                    "produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
+    "Policy#trigger_command"     => "a policy's own target command is exercised by dispatch itself; no property names a " \
+                                    "mismatch between declared trigger and what actually fired",
+    "Policy#target_domain"       => "cross-domain `across` policies have no property of their own — none of the example " \
+                                    "domains declare one yet",
+    "ReadModel#query_name"       => "the derived snake_case name is exercised by every read model ask; no property names a " \
+                                    "drift between it and the declared name",
     "ReadModel#reference_name"   => "covered incidentally by aggregation_matches_recompute's own FK-join; not named on its own",
     "ReadModel#reference_target" => "same as ReadModel#reference_name",
-    "ReadModel#aggregate_heads"  => "multi-head `include` composition (beyond the single reduced head aggregation_matches_recompute checks) has no property of its own",
+    "ReadModel#aggregate_heads"  => "multi-head `include` composition (beyond the single reduced head " \
+                                    "aggregation_matches_recompute checks) has no property of its own",
     "ReadModel#options"          => "same class of gap as Query#options",
-    "Aggregate#projected_fields" => "the local half of a cross-aggregate read (S12, ADR 0025) is read by GuardState the same way an attribute is (ProjectionAbsent vs. AttributeAbsent), but nothing populates it inside a normal command dispatch — RebuildSweep is a separate, explicitly-called operation a generated fuzzer sequence never runs — so there is no dispatch-shaped behavior yet for a property to exercise. spec/runtime/rebuild_sweep_spec.rb covers the sweep itself directly instead",
+    "Aggregate#projected_fields" => "the local half of a cross-aggregate read (S12, ADR 0025) is read by GuardState the same " \
+                                    "way an attribute is (ProjectionAbsent vs. AttributeAbsent), but nothing populates it " \
+                                    "inside a normal command dispatch — RebuildSweep is a separate, explicitly-called " \
+                                    "operation a generated fuzzer sequence never runs — so there is no dispatch-shaped " \
+                                    "behavior yet for a property to exercise. spec/runtime/rebuild_sweep_spec.rb covers the " \
+                                    "sweep itself directly instead",
     # S14, ADR 0026 — Syntax/Keyword/Argument are META-DOMAIN-ONLY : the
     # language's own grammar table, dispatched once at boot by
     # `SyntaxBoot` (a dedicated, internal mechanism — spec/syntax_
@@ -101,7 +113,10 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     # Account/Customer dispatches. The fuzzer walks real corpus domains
     # (banking, pizzas, ...), none of which ever declares Syntax data —
     # there is no dispatch-shaped behavior here for a property to reach.
-    "Syntax#keywords"            => "META-DOMAIN-ONLY grammar table, seeded once by SyntaxBoot — no real domain the fuzzer walks ever dispatches Syntax data ; spec/syntax_lifecycle_spec.rb/spec/syntax_conformance_spec.rb already hold every row to the builders directly",
+    "Syntax#keywords"            => "META-DOMAIN-ONLY grammar table, seeded once by SyntaxBoot — no real domain the fuzzer " \
+                                    "walks ever dispatches Syntax data ; " \
+                                    "spec/syntax_lifecycle_spec.rb/spec/syntax_conformance_spec.rb already hold every row to " \
+                                    "the builders directly",
     "Syntax#arguments"           => "same as Syntax#keywords",
     "Keyword#word"               => "same as Syntax#keywords, one level in",
     "Keyword#context"            => "same as Syntax#keywords, one level in",
@@ -166,8 +181,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     overlap = exempted & claimed
 
     expect(overlap).to be_empty,
-                       "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked structural/guaranteed/a known gap — " \
-                       "pick one: a real property makes the exemption a lie"
+                       "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked " \
+                       "structural/guaranteed/a known gap — pick one: a real property makes the exemption a lie"
   end
 
   it "keeps GUARANTEED_BY_CONSTRUCTION and META_DOMAIN_KNOWN_GAPS from disagreeing about the same feature" do

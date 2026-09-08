@@ -13,7 +13,7 @@ require "open3"
 # nothing would have named the moment a class-body constant reference
 # quietly made that order load-bearing again. Now this spec names it,
 # and the file it names is the one that grew the dependency.
-RSpec.describe "load hygiene", io: true do
+RSpec.describe "load hygiene", :io do
   ROOT_DIR = File.expand_path("..", __dir__)
   LIB = File.join(ROOT_DIR, "lib")
 
@@ -77,7 +77,7 @@ RSpec.describe "load hygiene", io: true do
     # Same name, same value is harmless and allowed; same name,
     # different definition site with different content is the bug class.
     definitions = Hash.new { |h, k| h[k] = [] }
-    Dir[File.join(ROOT_DIR, "spec", "**", "*_spec.rb")].sort.each do |file|
+    Dir[File.join(ROOT_DIR, "spec", "**", "*_spec.rb")].each do |file|
       File.read(file).scan(/^\s+([A-Z][A-Z_0-9]*) *=[^=]/) do |(name)|
         definitions[name] << File.basename(file)
       end
@@ -87,8 +87,8 @@ RSpec.describe "load hygiene", io: true do
     colliding = definitions.select { |name, files| files.uniq.size > 1 && !shared_values.include?(name) }
 
     expect(colliding).to be_empty,
-                         "spec files sharing a top-level constant name:\n" +
-                         colliding.map { |name, files| "  #{name}: #{files.uniq.join(', ')}" }.join("\n")
+                         "spec files sharing a top-level constant name:\n" \
+                         "#{colliding.map { |name, files| "  #{name}: #{files.uniq.join(', ')}" }.join("\n")}"
   end
 
   # ADR 0033's own contract, exercised the one way that can catch it: a

@@ -74,27 +74,43 @@ module Hecks
           held_attrs = (held_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
           current_attrs = (current_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
 
-          # retype pass: same attribute name, same member structure, the
-          # TYPE's own name changed
-          (held_attrs.keys & current_attrs.keys).each do |name|
+          rules.concat(retype_rules(held_attrs, current_attrs))
+          retyped = rules.filter_map { |rule| rule[:from] if rule[:kind] == :retype }
+
+          vanished = vanished_paths(held_attrs, current_attrs, retyped)
+          appeared = appeared_paths(held_attrs, current_attrs, retyped)
+
+          # Mutates `rules` in place (not build-and-concat, like the two
+          # passes above) because it must READ its own earlier writes:
+          # `taken`, below, is recomputed from `rules` at the top of every
+          # iteration, so a target this same loop already claimed for an
+          # earlier vanished path is excluded from a later one. Passing a
+          # snapshot instead of the live array would let two vanished
+          # paths both match the same appeared target.
+          resolve_vanished_rules!(rules, vanished, appeared)
+          rules
+        end
+
+        # retype pass: same attribute name, same member structure, the
+        # TYPE's own name changed
+        def retype_rules(held_attrs, current_attrs)
+          (held_attrs.keys & current_attrs.keys).filter_map do |name|
             held = held_attrs[name]
             current = current_attrs[name]
             next if held == current
             next unless container?(held) && container?(current)
             next unless held["type"]["members"] == current["type"]["members"] && held["list"] == current["list"]
 
-            rules << { kind: :retype, from: held["type"]["type"], to: current["type"]["type"] }
+            { kind: :retype, from: held["type"]["type"], to: current["type"]["type"] }
           end
-          retyped = rules.filter_map { |rule| rule[:from] if rule[:kind] == :retype }
+        end
 
-          vanished = vanished_paths(held_attrs, current_attrs, retyped)
-          appeared = appeared_paths(held_attrs, current_attrs, retyped)
-
+        def resolve_vanished_rules!(rules, vanished, appeared)
           vanished.each do |path, signature|
             matches = appeared.select { |_, candidate| candidate == signature }.keys
             taken = rules.filter_map { |rule| rule[:to] if %i[rename move].include?(rule[:kind]) }
             matches -= taken
-            if matches.size == 1 && vanished.count { |_, other| other == signature } == 1
+            if matches.size == 1 && vanished.one? { |_, other| other == signature }
               target = matches.first
               kind = path.include?(".") || target.include?(".") ? :move : :rename
               rules << { kind: kind, from: path, to: target }
@@ -103,7 +119,6 @@ module Hecks
               rules << { kind: :unresolved, from: path, candidates: candidates }
             end
           end
-          rules
         end
 
         # Held paths that need explaining: whole attributes that vanished,

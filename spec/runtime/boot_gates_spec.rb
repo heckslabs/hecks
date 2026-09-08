@@ -82,7 +82,8 @@ RSpec.describe Hecks::Runtime::BootGates do
       expect(gates.registered?(:saga_rehydration)).to be false
     end
 
-    it "registers :saga_rehydration, but not :era_check, for a domain bound to an adapter that supports sagas but carries no eras" do
+    it "registers :saga_rehydration, but not :era_check, for a domain bound to an adapter that supports sagas " \
+       "but carries no eras" do
       sqlite_adapter = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
       dir = @dir
       registry = boot_registry do
@@ -108,7 +109,8 @@ RSpec.describe Hecks::Runtime::BootGates do
       expect(gates.registered?(:era_check)).to be false
     end
 
-    it "registers :era_check for a domain with an aggregate bound to a lineage-capable adapter (PostgresEra), needing no live database" do
+    it "registers :era_check for a domain with an aggregate bound to a lineage-capable adapter (PostgresEra), " \
+       "needing no live database" do
       # `lineage_capable?`'s own `require "pg"` stays lazy — see
       # spec/exporter_spec.rb's identical registry-construction comment —
       # so asking the REGISTRATION question never needs a live Postgres.

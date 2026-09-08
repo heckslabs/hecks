@@ -49,9 +49,9 @@ RSpec.describe "Dispatcher#dry_run?" do
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b2" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    expect {
+    expect do
       runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
-    }.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
+    end.to raise_error(Hecks::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
   # THE SHAPE dry_run WAS BUILT FOR — a `delegates_to` command's own

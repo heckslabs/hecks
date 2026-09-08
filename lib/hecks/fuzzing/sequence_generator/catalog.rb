@@ -8,7 +8,11 @@ module Hecks
         private
 
         def build_catalog(runtime)
-          creating, instance, entity_commands, queries, entity_queries = [], [], [], [], []
+          creating = []
+          instance = []
+          entity_commands = []
+          queries = []
+          entity_queries = []
           read_models = []
 
           runtime.registry.bluebooks.each do |domain_name, bluebook|
@@ -54,7 +58,7 @@ module Hecks
             populators: populators(runtime),
             # Which aggregates this corpus can actually make one of — the ones
             # `satisfiable?` is entitled to wait for.
-            creatable: creating.map { |entry| entry[:aggregate].hecks_name }.to_set }
+            creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }
         end
 
         # Which command, on which aggregate, appends to which entity list — so a

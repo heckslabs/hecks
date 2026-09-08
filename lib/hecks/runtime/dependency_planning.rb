@@ -31,6 +31,10 @@ module Hecks
         end
       end
 
+      # Walks a canonical expression's parsed nodes (the same AST
+      # Bluebook::Expression::Evaluator evaluates) and collects the
+      # dotted paths it reads — used by Analyzer to classify a
+      # given/ensures/invariant rule's dependencies without evaluating it.
       module ExpressionReads
         module_function
 
@@ -59,6 +63,13 @@ module Hecks
         end
       end
 
+      # Static, correctness-first dependency analysis for one command:
+      # walks its mutations, lifecycle transitions, and given/ensures/
+      # invariant rules to derive a Plan (read_set/write_set/
+      # complete_state?/state_independent?) describing what the command
+      # touches without executing it. `Analyzer.call` is what
+      # CommandInterpreter and EntityInterpreter both consult before
+      # choosing a dispatch strategy.
       class Analyzer
         STATEFUL_MUTATIONS = %i[append increment decrement multiply clamp remove].freeze
 
@@ -101,11 +112,11 @@ module Hecks
           # projected field just as easily as one of its real attributes
           # (`Banking::Withdrawal.Dispute`'s own `parent.account_customer_
           # status`, ATMCard's projected field, is a real, live example).
-          if aggregate.respond_to?(:projected_fields)
-            aggregate.projected_fields.each { |field| @owner_fields << field.name }
-          end
+          aggregate.projected_fields.each { |field| @owner_fields << field.name } if aggregate.respond_to?(:projected_fields)
           if root_aggregate.respond_to?(:projected_fields)
-            root_aggregate.projected_fields.each { |field| @root_owner_fields << field.name }
+            root_aggregate.projected_fields.each do |field|
+              @root_owner_fields << field.name
+            end
           end
           @payload_fields = command.attributes.to_set(&:name)
           @state_reads = Set.new
@@ -210,9 +221,7 @@ module Hecks
           lifecycle = aggregate.lifecycle
           return unless lifecycle
 
-          if command.from
-            state_reads << lifecycle.field
-          end
+          state_reads << lifecycle.field if command.from
 
           return if lifecycle.transitions_for(command.hecks_name).empty?
 
@@ -223,8 +232,8 @@ module Hecks
         def analyze_rules(rules, phase:)
           rules.each do |rule|
             ExpressionReads.paths(rule.canonical).each { |path| classify_path(path, phase) }
-          rescue ArgumentError => error
-            unresolved << "expression #{rule.canonical.inspect} could not be analyzed: #{error.message}"
+          rescue ArgumentError => e
+            unresolved << "expression #{rule.canonical.inspect} could not be analyzed: #{e.message}"
           end
         end
 
@@ -249,7 +258,6 @@ module Hecks
           name = head.to_sym
 
           if name == :parent
-            parent_field = nested.to_s.split(".", 2).first
             # `root_owner_fields` — NOT `owner_fields`. For an entity-owned
             # command `owner_fields` is the ENTITY's own attribute set;
             # `parent.X` always means the ROOT aggregate's own field, a
@@ -257,24 +265,28 @@ module Hecks
             # above, has the full bug this fixes). Identical for a plain
             # aggregate command, where root_aggregate defaults to aggregate
             # itself and the two sets are the same set.
-            if parent_field.empty? || !root_owner_fields.include?(parent_field.to_sym)
-              unresolved << "#{path} does not name parent aggregate state"
-            else
-              state_reads << parent_field.to_sym
-            end
+            resolve_nested_state_read!(path, nested, root_owner_fields, "does not name parent aggregate state")
           elsif name == :old
-            old_field = nested.to_s.split(".", 2).first
-            if old_field.empty? || !owner_fields.include?(old_field.to_sym)
-              unresolved << "#{path} does not name prior aggregate state"
-            else
-              state_reads << old_field.to_sym
-            end
+            resolve_nested_state_read!(path, nested, owner_fields, "does not name prior aggregate state")
           elsif payload_fields.include?(name)
             payload_reads << name
           elsif owner_fields.include?(name)
             state_reads << name if phase == :before || !known_writes.include?(name)
           else
             unresolved << "expression path #{path} has no payload or aggregate field"
+          end
+        end
+
+        # Shared shape behind the `:parent`/`:old` branches above: read the
+        # nested field name, check it against the given owner field set
+        # (deliberately different sets for `parent`/`old` — see the caller),
+        # and either record it as a state read or refuse with `message`.
+        def resolve_nested_state_read!(path, nested, field_set, message)
+          field = nested.to_s.split(".", 2).first
+          if field.empty? || !field_set.include?(field.to_sym)
+            unresolved << "#{path} #{message}"
+          else
+            state_reads << field.to_sym
           end
         end
 

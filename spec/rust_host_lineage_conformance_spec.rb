@@ -35,7 +35,7 @@ require_relative "support/postgres_probe"
 # `io: true` — real I/O (a `cargo build`, two Postgres roles, a mint) —
 # excluded locally by default (spec_helper.rb), always run in CI, same
 # discipline as every other Postgres/Rust spec.
-RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
+RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   RUST_HOST_DIR = File.join(InMemoryDomain::ROOT, "rust", "host")
   SEED_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_and_seed_lineage.rb")
   COMPUTE_SEED_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_and_seed_lineage_compute.rb")
@@ -103,7 +103,8 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
     JSON.parse(stdout).fetch("results")
   end
 
-  it "reads every row lineage_harness reports, connecting as the RLS-fenced app role, matching Ruby's own translated ground truth exactly" do
+  it "reads every row lineage_harness reports, connecting as the RLS-fenced app role, matching Ruby's own " \
+     "translated ground truth exactly" do
     binary = self.class.lineage_harness_binary
     skip "cargo build --bin lineage_harness failed" unless binary
 
@@ -197,6 +198,12 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
   # era-1 hold_first! path, just with a real corpus bluebook instead of
   # a synthetic one and role: passed on the FIRST check! call instead
   # of a second mint.
+  # A real Postgres database/role/lineage setup (fresh scratch DB, owner
+  # and RLS-fenced app roles, a genuine LineageManager.check! hold), one
+  # Ruby-side write, then one real Rust binary read compared two ways —
+  # every step exists only to set up the one thing under test, and the
+  # whole scratch DB is torn down together in the ensure below.
+  # rubocop:disable-next RSpec/ExampleLength
   it "reads a real corpus aggregate (Pizzas::Order) back exactly as Ruby wrote it, through the RLS-fenced app role" do
     binary = self.class.lineage_harness_binary
     skip "cargo build --bin lineage_harness failed" unless binary
@@ -243,7 +250,8 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
     fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     adapter.save(built)
 
-    results = run_harness(binary, db_name, app_role, "Pizzas", 1, [{ "op" => "read_by_id", "storage_name" => "order", "id" => "p1" }])
+    results = run_harness(binary, db_name, app_role, "Pizzas", 1,
+                          [{ "op" => "read_by_id", "storage_name" => "order", "id" => "p1" }])
     expect(results.first["ok"]).to be(true), results.first["error"]
 
     # Compared field-by-field, not as one deep #eq — Instance#[] answers
@@ -269,7 +277,8 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", io: true do
   # on the strength of it. Ground truth here is necessarily Postgres's
   # own compiled SQL, read directly (see that script's own header for
   # why that's the honest bar for this specific case, not a weakening).
-  it "reads a compute-migrated era back exactly as Postgres's own compiled SQL produced it, minted only because a real, matching approval was recorded first" do
+  it "reads a compute-migrated era back exactly as Postgres's own compiled SQL produced it, minted only " \
+     "because a real, matching approval was recorded first" do
     binary = self.class.lineage_harness_binary
     skip "cargo build --bin lineage_harness failed" unless binary
 

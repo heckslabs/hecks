@@ -93,18 +93,20 @@
 # distinction bin/project_rust's own root mod.rs comment draws).
 
 require "json"
-require "set"
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
-domain = ARGV.shift or abort "usage: bin/rust_coverage <generated-module-name>  (e.g. pizzas, banking, embryonaut, governance, identity)"
+domain = ARGV.shift or abort "usage: bin/rust_coverage <generated-module-name>  " \
+                             "(e.g. pizzas, banking, embryonaut, governance, identity)"
 
 generated_root = File.expand_path("../rust/src/generated", __dir__)
 mod_dir = File.join(generated_root, domain)
-Dir.exist?(mod_dir) or abort "#{mod_dir}: no such generated module — run bin/project_rust first, or check rust/src/generated/ for the actual directory name"
+Dir.exist?(mod_dir) or abort "#{mod_dir}: no such generated module — run bin/project_rust first, or check " \
+                             "rust/src/generated/ for the actual directory name"
 
 ir_path = File.join(mod_dir, "ir.json")
-File.exist?(ir_path) or abort "#{ir_path}: missing — this generated tree predates ir.json (bin/project_rust writes it now); re-run bin/project_rust for this domain"
+File.exist?(ir_path) or abort "#{ir_path}: missing — this generated tree predates ir.json (bin/project_rust " \
+                              "writes it now); re-run bin/project_rust for this domain"
 ir = JSON.parse(File.read(ir_path), symbolize_names: true)
 
 # ── EXPECTED CONSTRUCTS, DERIVED DIRECTLY FROM IR — independent of
@@ -116,11 +118,16 @@ ir = JSON.parse(File.read(ir_path), symbolize_names: true)
 # that isn't just ungenerated, but that `bin/project_rust` never even
 # considered). Every finding this tool ever reports traces back to one of
 # these `[kind, id]` pairs.
-def expected_from_ir(ir)
-  domain_name = ir.fetch(:name)
+# A flat walk of the IR's own fixed schema — one `expected <<` per
+# construct kind the IR can declare, in the shape the IR itself already
+# has. Each line is already one construct kind; splitting by kind would
+# not shrink any individual line, only relocate it.
+# rubocop:disable-next Metrics/AbcSize
+def expected_from_ir(payload)
+  domain_name = payload.fetch(:name)
   expected = []
 
-  ir.fetch(:aggregates).each do |aggregate|
+  payload.fetch(:aggregates).each do |aggregate|
     aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
     expected << [:aggregate, aggregate_id]
 
@@ -134,106 +141,140 @@ def expected_from_ir(ir)
     end
 
     aggregate.fetch(:ports).each do |port|
-      port.fetch(:operations).each { |op|
+      port.fetch(:operations).each do |op|
         expected << [:port_operation, "#{aggregate_id}.#{port.fetch(:name)}.#{op.fetch(:name)}"]
-      }
+      end
     end
   end
 
-  ir.fetch(:read_models).each { |rm| expected << [:read_model, "#{domain_name}::#{rm.fetch(:name)}"] }
-  ir.fetch(:policies).each { |p| expected << [:policy, "#{domain_name}::#{p.fetch(:name)}"] }
-  ir.fetch(:process_managers).each { |pm| expected << [:process_manager, "#{domain_name}::#{pm.fetch(:name)}"] }
+  payload.fetch(:read_models).each { |rm| expected << [:read_model, "#{domain_name}::#{rm.fetch(:name)}"] }
+  payload.fetch(:policies).each { |p| expected << [:policy, "#{domain_name}::#{p.fetch(:name)}"] }
+  payload.fetch(:process_managers).each { |pm| expected << [:process_manager, "#{domain_name}::#{pm.fetch(:name)}"] }
 
-  # `ir[:lineage]` — a BINDING fact (Projector::Exporter.lineage's own
+  # `payload[:lineage]` — a BINDING fact (Projector::Exporter.lineage's own
   # header), not part of `[:aggregates]`'s own canonical shape, so it's
   # its own top-level key rather than a field on each aggregate above.
   # `.fetch(:lineage, {})` — not a bare `.fetch(:lineage)` — because a
   # domain regenerated before this key existed (a stale checked-in
-  # ir.json this checkout can't refresh, e.g. Embryonaut's) simply has
+  # payload.json this checkout can't refresh, e.g. Embryonaut's) simply has
   # none, and that must read as "nothing to expect here," never a
   # KeyError this tool's own manifest cross-check would otherwise raise
   # on.
-  ir.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
+  payload.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
     expected << [:lineage_aggregate, "#{domain_name}::#{aggregate.fetch(:name)}"]
   end
 
   expected
 end
 
-# ── FALLBACK MANIFEST DERIVATION — see this file's own header,
-# "Fallback mode." Used only when `manifest.json` doesn't exist for this
-# domain. Reads the SAME quoted verb strings `emit_registry` (rust/
-# project/registry.rb) writes into `registry.rs`'s own match arms —
-# `"Domain::Aggregate.Command" => { ... }` for a top-level command,
-# `"Domain::Aggregate.Entity.Command" => { ... }` for an entity command,
-# `"Domain::Aggregate.Port.Operation" => { ... }` for a port operation —
-# all three shapes are the exact same `c[:verb].inspect => {` /
-# `p[:verb].inspect => {` pattern regardless of which of the three arm
-# builders (`aggregate_arms`/`entity_arms`/`port_arms`) wrote them, so one
-# regex covers all three.
-def derive_manifest_from_source(ir, mod_dir)
-  domain_name = ir.fetch(:name)
-  registry_src = File.exist?(File.join(mod_dir, "registry.rs")) ? File.read(File.join(mod_dir, "registry.rs")) : ""
-  routed_verbs = registry_src.scan(/^\s*"([A-Za-z0-9_:.]+)"\s*=>\s*\{/).flatten.to_set
+# ONE AGGREGATE'S OWN MANIFEST ROWS — pulled out of derive_manifest_from_source
+# because everything it computes (aggregate_id/aggregate_file/
+# aggregate_generated) is scoped to this one aggregate and used nowhere
+# else in the method; the four `each` walks below it (commands, entities,
+# ports, queries) are its own nested constructs, not shared with any
+# OTHER aggregate's rows.
+def aggregate_manifest_rows(domain_name, aggregate, mod_dir, routed_verbs)
+  aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
+  aggregate_file = File.join(mod_dir, "#{aggregate.fetch(:name).downcase}.rs")
+  aggregate_generated = File.exist?(aggregate_file)
 
-  manifest = []
+  rows = [aggregate_row(aggregate_id, aggregate_file, aggregate_generated, mod_dir)]
+  aggregate.fetch(:commands).each { |command| rows << command_row(aggregate_id, command, routed_verbs) }
+  aggregate.fetch(:entities).each { |entity| rows.concat(entity_rows(aggregate_id, entity, aggregate_generated, routed_verbs)) }
+  aggregate.fetch(:ports).each { |port| rows.concat(port_rows(aggregate_id, port, routed_verbs)) }
+  aggregate.fetch(:queries).each { |query| rows << query_row(aggregate_id, query) }
+  rows
+end
 
-  ir.fetch(:aggregates).each do |aggregate|
-    aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
-    aggregate_file = File.join(mod_dir, "#{aggregate.fetch(:name).downcase}.rs")
-    aggregate_generated = File.exist?(aggregate_file)
-    manifest << {
-      kind: "aggregate", id: aggregate_id, generated: aggregate_generated,
-      **(aggregate_generated ? {} : { gap_class: "per_instance", reason: "fallback mode: no #{File.basename(aggregate_file)} found under #{mod_dir}" })
+def aggregate_row(aggregate_id, aggregate_file, aggregate_generated, mod_dir)
+  {
+    kind: "aggregate", id: aggregate_id, generated: aggregate_generated,
+    **(if aggregate_generated
+         {}
+       else
+         { gap_class: "per_instance",
+           reason:    "fallback mode: no #{File.basename(aggregate_file)} found " \
+                      "under #{mod_dir}" }
+       end)
+  }
+end
+
+def command_row(aggregate_id, command, routed_verbs)
+  verb = "#{aggregate_id}.#{command.fetch(:name)}"
+  routed = routed_verbs.include?(verb)
+  {
+    kind: "command", id: verb, generated: routed, routed: routed,
+    **(if routed
+         {}
+       else
+         { gap_class: "per_instance",
+           reason:    "fallback mode: no \"#{verb}\" match arm in registry.rs — this checkout " \
+                      "can't re-run bin/project_rust for this domain to get a real manifest, so " \
+                      "this only says the verb isn't ROUTED; it can't say whether a dispatch_* " \
+                      "function exists but is merely unrouted, or was never generated at all" }
+       end)
+  }
+end
+
+def entity_rows(aggregate_id, entity, aggregate_generated, routed_verbs)
+  entity_id = "#{aggregate_id}.#{entity.fetch(:name)}"
+  rows = [{ kind: "entity", id: entity_id, generated: aggregate_generated }]
+  entity.fetch(:commands).each do |command|
+    verb = "#{entity_id}.#{command.fetch(:name)}"
+    routed = routed_verbs.include?(verb)
+    rows << {
+      kind: "entity_command", id: verb, generated: routed, routed: routed,
+      **(if routed
+           {}
+         else
+           { gap_class: "per_instance",
+             reason:    "fallback mode: no \"#{verb}\" match arm in registry.rs (see command's " \
+                        "own fallback note above — same caveat applies)" }
+         end)
     }
-
-    aggregate.fetch(:commands).each do |command|
-      verb = "#{aggregate_id}.#{command.fetch(:name)}"
-      routed = routed_verbs.include?(verb)
-      manifest << {
-        kind: "command", id: verb, generated: routed, routed: routed,
-        **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs — this checkout can't re-run bin/project_rust for this domain to get a real manifest, so this only says the verb isn't ROUTED; it can't say whether a dispatch_* function exists but is merely unrouted, or was never generated at all" })
-      }
-    end
-
-    aggregate.fetch(:entities).each do |entity|
-      entity_id = "#{aggregate_id}.#{entity.fetch(:name)}"
-      manifest << { kind: "entity", id: entity_id, generated: aggregate_generated }
-      entity.fetch(:commands).each do |command|
-        verb = "#{entity_id}.#{command.fetch(:name)}"
-        routed = routed_verbs.include?(verb)
-        manifest << {
-          kind: "entity_command", id: verb, generated: routed, routed: routed,
-          **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs (see command's own fallback note above — same caveat applies)" })
-        }
-      end
-    end
-
-    aggregate.fetch(:ports).each do |port|
-      port.fetch(:operations).each do |operation|
-        verb = "#{aggregate_id}.#{port.fetch(:name)}.#{operation.fetch(:name)}"
-        routed = routed_verbs.include?(verb)
-        manifest << {
-          kind: "port_operation", id: verb, generated: routed, routed: routed,
-          **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs" })
-        }
-      end
-    end
-
-    aggregate.fetch(:queries).each do |query|
-      manifest << {
-        kind: "query", id: "#{aggregate_id}.#{query.fetch(:name)}", generated: false, gap_class: "whole_kind",
-        reason: 'the "query" construct has no generated code path at all — matches kernel/cli.rs\'s own refusal for a "query" step ("query steps are not generated yet")'
-      }
-    end
   end
+  rows
+end
 
-  ir.fetch(:read_models).each do |read_model|
-    manifest << {
+def port_rows(aggregate_id, port, routed_verbs)
+  port.fetch(:operations).map do |operation|
+    verb = "#{aggregate_id}.#{port.fetch(:name)}.#{operation.fetch(:name)}"
+    routed = routed_verbs.include?(verb)
+    {
+      kind: "port_operation", id: verb, generated: routed, routed: routed,
+      **(if routed
+           {}
+         else
+           { gap_class: "per_instance",
+             reason:    "fallback mode: no \"#{verb}\" match arm in registry.rs" }
+         end)
+    }
+  end
+end
+
+def query_row(aggregate_id, query)
+  {
+    kind: "query", id: "#{aggregate_id}.#{query.fetch(:name)}", generated: false, gap_class: "whole_kind",
+    reason: 'the "query" construct has no generated code path at all — matches kernel/cli.rs\'s own ' \
+            'refusal for a "query" step ("query steps are not generated yet")'
+  }
+end
+
+# READ MODELS/POLICIES/PROCESS MANAGERS/LINEAGE — the domain-wide (not
+# per-aggregate) manifest rows, pulled out for the same reason as
+# aggregate_manifest_rows just above. See the inline comments on the
+# policy/process-manager and lineage rows for why each is shaped the way
+# it is (UNVERIFIABLE vs. unconditionally generated).
+def domain_wide_manifest_rows(domain_name, payload)
+  rows = []
+
+  rows.concat(payload.fetch(:read_models).map do |read_model|
+    {
       kind: "read_model", id: "#{domain_name}::#{read_model.fetch(:name)}", generated: false, gap_class: "whole_kind",
-      reason: 'the "read_model" construct has no generated code path at all — a distinct construct from "query" (ReadModel, a cross-aggregate ask) that happens to share the same fate'
+      reason: 'the "read_model" construct has no generated code path at all — a distinct construct from ' \
+              '"query" (ReadModel, a cross-aggregate ask) that happens to share the same fate'
     }
-  end
+  end)
 
   # POLICIES/PROCESS MANAGERS — deliberately reported as UNVERIFIABLE
   # rather than guessed at. `emit_policy_table`'s own generated rows
@@ -247,13 +288,17 @@ def derive_manifest_from_source(ir, mod_dir)
   # be matched — but is kept consistent with policies here rather than
   # having only one of the two silently gain precision fallback mode
   # can't actually promise across the board).
-  ir.fetch(:policies).each do |policy|
-    manifest << { kind: "policy", id: "#{domain_name}::#{policy.fetch(:name)}", generated: nil,
-                  reason: "fallback mode cannot verify policy routing from registry.rs alone (the generated policy table carries no policy name, only event/target-verb data) — this domain's real manifest.json would need bin/project_rust re-run against its own Bluebook source, which isn't in this checkout" }
+  payload.fetch(:policies).each do |policy|
+    rows << { kind: "policy", id: "#{domain_name}::#{policy.fetch(:name)}", generated: nil,
+              reason: "fallback mode cannot verify policy routing from registry.rs alone (the generated " \
+                      "policy table carries no policy name, only event/target-verb data) — this domain's " \
+                      "real manifest.json would need bin/project_rust re-run against its own Bluebook " \
+                      "source, which isn't in this checkout" }
   end
-  ir.fetch(:process_managers).each do |pm|
-    manifest << { kind: "process_manager", id: "#{domain_name}::#{pm.fetch(:name)}", generated: nil,
-                  reason: "fallback mode does not attempt process-manager verification either, for consistency with the policy caveat above" }
+  payload.fetch(:process_managers).each do |pm|
+    rows << { kind: "process_manager", id: "#{domain_name}::#{pm.fetch(:name)}", generated: nil,
+              reason: "fallback mode does not attempt process-manager verification either, for " \
+                      "consistency with the policy caveat above" }
   end
 
   # UNCONDITIONALLY generated, same as domain_generator.rb's own manifest
@@ -263,12 +308,39 @@ def derive_manifest_from_source(ir, mod_dir)
   # about the way a command/query verb's routing is. rust/host's
   # journal::read_lineage_head_all/_by_id + append_lineage_mutation are
   # generic over storage_name and already compiled in unconditionally —
-  # true for any domain's ir.json that names one, fallback mode or not.
-  ir.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
-    manifest << { kind: "lineage_aggregate", id: "#{domain_name}::#{aggregate.fetch(:name)}", generated: true, routed: true,
-                  reason: "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name, verified independent of this domain's own manifest.json" }
+  # true for any domain's payload.json that names one, fallback mode or not.
+  payload.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
+    rows << { kind: "lineage_aggregate", id: "#{domain_name}::#{aggregate.fetch(:name)}",
+              generated: true, routed: true,
+              reason: "read via rust/host's journal::read_lineage_head_all/_by_id, written via " \
+                      "journal::append_lineage_mutation — both generic over storage_name, verified " \
+                      "independent of this domain's own manifest.json" }
   end
 
+  rows
+end
+
+# ── FALLBACK MANIFEST DERIVATION — see this file's own header,
+# "Fallback mode." Used only when `manifest.json` doesn't exist for this
+# domain. Reads the SAME quoted verb strings `emit_registry` (rust/
+# project/registry.rb) writes into `registry.rs`'s own match arms —
+# `"Domain::Aggregate.Command" => { ... }` for a top-level command,
+# `"Domain::Aggregate.Entity.Command" => { ... }` for an entity command,
+# `"Domain::Aggregate.Port.Operation" => { ... }` for a port operation —
+# all three shapes are the exact same `c[:verb].inspect => {` /
+# `p[:verb].inspect => {` pattern regardless of which of the three arm
+# builders (`aggregate_arms`/`entity_arms`/`port_arms`) wrote them, so one
+# regex covers all three.
+def derive_manifest_from_source(payload, mod_dir)
+  domain_name = payload.fetch(:name)
+  registry_src = File.exist?(File.join(mod_dir, "registry.rs")) ? File.read(File.join(mod_dir, "registry.rs")) : ""
+  routed_verbs = registry_src.scan(/^\s*"([A-Za-z0-9_:.]+)"\s*=>\s*\{/).flatten.to_set
+
+  manifest = []
+  payload.fetch(:aggregates).each do |aggregate|
+    manifest.concat(aggregate_manifest_rows(domain_name, aggregate, mod_dir, routed_verbs))
+  end
+  manifest.concat(domain_wide_manifest_rows(domain_name, payload))
   manifest
 end
 
@@ -277,7 +349,8 @@ if File.exist?(manifest_path)
   manifest = JSON.parse(File.read(manifest_path), symbolize_names: true)
   mode = :manifest
 else
-  warn "#{domain}: no manifest.json — falling back to regex-derived coverage from registry.rs (see this file's own \"Fallback mode\" header for exactly what that can and can't tell you)"
+  warn "#{domain}: no manifest.json — falling back to regex-derived coverage from registry.rs (see this " \
+       "file's own \"Fallback mode\" header for exactly what that can and can't tell you)"
   manifest = derive_manifest_from_source(ir, mod_dir)
   mode = :fallback
 end
@@ -320,13 +393,16 @@ ALLOWLIST = [
     # "structural"` (domain_generator.rb's own manifest_entry, not
     # "per_instance" — this isn't a one-off skip, it's every command any
     # doubly-nested entity will ever declare) already names.
-    reason_match: /\Aentity nested two levels deep \(.+\) — kernel::cli\.rs's JSON router and registry\.rs's dispatch table both resolve one level of Aggregate\.Entity\.Command, not two\z/,
+    reason_match: /
+      \Aentity\ nested\ two\ levels\ deep\ \(.+\)\ —\ kernel::cli\.rs's\ JSON\ router\ and\ registry\.rs's
+      \ dispatch\ table\ both\ resolve\ one\ level\ of\ Aggregate\.Entity\.Command,\ not\ two\z
+    /x,
     doc:          "rust/project/domain_generator.rb (the manifest_entry this exact gap_class: \"structural\" comment sits " \
                   "beside) and rust/codegen/src/domain_generator.rs's identical, mirrored comment",
     note:         "Confirmed against a real run (2026-08-16): bin/rust_coverage meta's only entity_command GAP is " \
                   "Bluebook::ProcessManager.Handler.Dispatch.Bind — the one real corpus command on the one real corpus " \
                   "entity nested two levels deep. A future SECOND doubly-nested entity would be covered by the same " \
-                  "rule (matched on the general shape the reason text names, not this specific verb).",
+                  "rule (matched on the general shape the reason text names, not this specific verb)."
   },
   {
     kind:         "command",
@@ -352,7 +428,7 @@ ALLOWLIST = [
     note:         "Confirmed against a real run (2026-08-23): bin/rust_coverage meta's only 9 remaining command GAPs " \
                   "are every one of this exact shape (Aggregate/Bluebook/Command/Entity/Policy/ProcessManager/Query/" \
                   "ReadModel/ValueObject.Declare) — a future TENTH Declare-style command hitting the same shape " \
-                  "would be covered by the same rule (matched on the general reason text, not an enumerated verb list).",
+                  "would be covered by the same rule (matched on the general reason text, not an enumerated verb list)."
   },
   {
     kind:         "query",
@@ -396,7 +472,7 @@ ALLOWLIST = [
                   "own header for the full, itemized argument for each. OpenForSuspendedCustomers specifically is one " \
                   "of THREE independent failure points for the same reference-hop-field gap, tracked together as " \
                   "docs/1.0-readiness.md item 2 — Postgres indexing (fixed) and Postgres querying (still open) are the " \
-                  "other two; this codegen gap is not a one-off.",
+                  "other two; this codegen gap is not a one-off."
   },
   {
     kind:         "query",
@@ -415,14 +491,15 @@ ALLOWLIST = [
     # whole_kind reason text still sitting in that one domain's own
     # on-disk manifest.json (every OTHER domain's manifest was
     # regenerated by this change and no longer says this).
-    reason_match: /no generated code path at all — matches kernel\/cli\.rs's own refusal/,
-    doc:          "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both files, right above their empty QUERIES const)",
+    reason_match: %r{no generated code path at all — matches kernel/cli\.rs's own refusal},
+    doc:          "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both " \
+                  "files, right above their empty QUERIES const)",
     note:         "Embryonaut's own bluebook source isn't available in this repository, so bin/project_rust can't be " \
                   "re-run against it here to give it a fresh manifest.json the way banking/pizzas/governance/identity/meta " \
                   "all just got. Its registry.rs/merged.rs already carry a HAND-PATCHED, honestly-empty `QUERIES` const " \
                   "for the identical reason `AggregateScan`'s own hand-patched empty impl already sits right above each — " \
                   "this entry is the same fact, read from the coverage side instead of the source side. Delete both the " \
-                  "day this domain's next real regeneration replaces every one of them with the genuine article.",
+                  "day this domain's next real regeneration replaces every one of them with the genuine article."
   },
   {
     kind:         "read_model",
@@ -449,7 +526,7 @@ ALLOWLIST = [
     # ("declares reference_to X, but includes no matching aggregate
     # head" — a genuine authoring gap, never this generator's own scope
     # boundary, and never allowlisted).
-    reason_match: /out of scope for this generator: offset\/cursor\/consistency\/authorization\(TenantScope\)\/null_semantics/,
+    reason_match: %r{out of scope for this generator: offset/cursor/consistency/authorization\(TenantScope\)/null_semantics},
     doc:          "rust/project/read_models.rb (own header note on group_by/rootless read models being a main-only concept " \
                   "this generator doesn't cover, and #read_model_options_skip_reason's own single source for every " \
                   "'declares X — out of scope' reason this matches) and rust/project/queries.rb's own eligibility " \
@@ -458,7 +535,7 @@ ALLOWLIST = [
                   "Banking::ComplianceDashboard (declares offset), Banking::DisputedPaymentCount (declares count), " \
                   "Banking::DisputedPaymentMedian (declares median_field) — Banking::AccountsByKind (declares group_by) " \
                   "already matched before this widening; Banking::CustomerPortfolio still has no gap of its own (no " \
-                  "option this function's own list names).",
+                  "option this function's own list names)."
   },
   {
     kind:         "read_model",
@@ -482,9 +559,9 @@ ALLOWLIST = [
                   "is Bluebook::WholeBluebook, and the only unresolvable head is Member specifically — every other " \
                   "`include` on that same read model (Bluebook, Aggregate, Command, ValueObject, Query, Entity, Policy, " \
                   "ProcessManager, Handler, Dispatch, ReadModel) is a real top-level aggregate this generator already " \
-                  "handles.",
-  },
-]
+                  "handles."
+  }
+].freeze
 # REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
 # that used to live here (matching `reason_match: /cross-domain policy/`,
 # 0013's own Consequences: "omitted from the generated table entirely").
@@ -560,13 +637,14 @@ end
 # telling apart from an honestly-recorded `generated: false`. See this
 # file's own header on why this is the single most dangerous case to
 # miss.
-manifest_ids = manifest.each_with_object(Hash.new { |h, k|
+manifest_ids = manifest.each_with_object(Hash.new do |h, k|
   h[k] = Set.new
-}) { |entry, index| index[entry[:kind].to_sym] << entry[:id] }
+end) { |entry, index| index[entry[:kind].to_sym] << entry[:id] }
 unaccounted = expected_from_ir(ir).reject { |kind, id| manifest_ids[kind].include?(id) }.map do |kind, id|
   { kind: kind.to_s, id: id, generated: false, gap_class: "unaccounted",
-    reason: "expected per ir.json, but #{mode == :manifest ? 'manifest.json' : 'the fallback deriver'} has NO entry for it at all — " \
-            "not even a recorded skip; the generator's own accounting missed this construct entirely" }
+    reason: "expected per ir.json, but #{mode == :manifest ? 'manifest.json' : 'the fallback deriver'} " \
+            "has NO entry for it at all — not even a recorded skip; the generator's own accounting " \
+            "missed this construct entirely" }
 end
 
 findings = manifest + unaccounted

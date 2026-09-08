@@ -43,9 +43,9 @@ module Hecks
         args = symbolize(step.fetch("args"))
         begin
           dispatcher.dispatch(step.fetch("verb"), **args)
-        rescue *Runtime::DOMAIN_REFUSALS => refusal
+        rescue *Runtime::DOMAIN_REFUSALS => e
           raise Runtime::WiringError,
-                "the admission ledger refused at #{step['verb']} #{step['args']} — #{refusal.message}"
+                "the admission ledger refused at #{step['verb']} #{step['args']} — #{e.message}"
         end
       end
 
@@ -119,7 +119,7 @@ module Hecks
     # Every grammar/*.bluebook chapter, booted the same way the corpus
     # boots them — each alone, in a scratch registry.
     def grammar_chapters
-      Dir[File.join(DIR, "*.bluebook")].sort.map do |chapter|
+      Dir[File.join(DIR, "*.bluebook")].map do |chapter|
         registry = Runtime::Registry.new
         root = File.expand_path("../..", __dir__)
         Hecks.with_registry(registry) do
@@ -138,14 +138,24 @@ module Hecks
     # walked for the resolver's arithmetic.
     def operators_in(canonical)
       evaluator = Bluebook::Expression::Evaluator
-      node = begin
-        evaluator.parse(canonical)
+      begin
+        node = evaluator.parse(canonical)
       rescue StandardError
         return []
       end
       walk_operators(node, evaluator).uniq
     end
 
+    # A recursive descent over a CLOSED, declared set of AST node types
+    # (Evaluator's boolean/compare/include nodes, Resolver's arithmetic
+    # nodes, and the generic Struct fallback) — each branch does the
+    # same one thing (name the node's own operator, recurse into its
+    # children) and the branches don't interact, but the ABC score adds
+    # every branch's cost together. Splitting the case out per node type
+    # would trade one place that shows the whole operator vocabulary for
+    # several that each show a fragment, with no reduction in real
+    # complexity.
+    # rubocop:disable-next Metrics/AbcSize
     def walk_operators(node, evaluator)
       resolver = Bluebook::Expression::Resolver
       case node

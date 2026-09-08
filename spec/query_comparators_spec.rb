@@ -64,6 +64,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
   # afterward (`seed` is the only place anything is dispatched), so the
   # same seeded runtime is safe to share.
   before(:context) { @runtime = seed(boot) }
+
   let(:runtime) { @runtime }
 
   it "Eq matches the accounts still open" do

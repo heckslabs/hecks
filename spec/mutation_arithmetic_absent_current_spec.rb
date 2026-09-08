@@ -16,6 +16,12 @@ require "spec_helper"
 # multiply, by unwrapping `amount`'s own single numeric field rather than
 # refusing on it.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
+  # ONE INLINE BLUEBOOK, DECLARED WHOLE — a domain-definition DSL block
+  # read top to bottom as the fixture, not a sequence of independent
+  # steps; splitting it would scatter one readable declaration across
+  # several methods that only make sense read back-to-back.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def boot(&binds)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do

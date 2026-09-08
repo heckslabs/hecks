@@ -1,4 +1,5 @@
 require "hecks"
+require "tmpdir"
 
 RSpec.describe "the expression sublanguage" do
   def evaluate(expression, state = {}, args = {})
@@ -321,7 +322,8 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('value.split("::").all? { |s| s.length > 0 }', value: one_empty_segment)).to be(false)
     end
 
-    it "does not let the block predicate's own comparison operator split the whole expression, the storehouse-kernel Phrase invariant" do
+    it "does not let the block predicate's own comparison operator split the whole " \
+       "expression, the storehouse-kernel Phrase invariant" do
       expression = 'value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 }'
 
       expect(evaluate(expression, value: "dispatch::lexicon::query::command_bus")).to be(true)
@@ -351,7 +353,8 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate("[0, 1 + 1].any? { |n| n > 5 }")).to be(false)
     end
 
-    it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain re-routing check this grammar gap forced a workaround for" do
+    it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain " \
+       "re-routing check this grammar gap forced a workaround for" do
       # legs.any? { |l| an outer condition on l, AND some other leg satisfies an inner condition }
       legs_with_a_later_leg = [
         { "load" => "SESTO", "unload" => "USNYC" },
@@ -375,7 +378,8 @@ RSpec.describe "the expression sublanguage" do
       ]
     end
 
-    it "projects a field off the first matching element, the find-then-project shape a caller-precomputed field used to stand in for" do
+    it "projects a field off the first matching element, the find-then-project shape a caller-precomputed field " \
+       "used to stand in for" do
       expect(evaluate('legs.find { |l| l.load == "USNYC" }.voyage == "V002"', legs: legs)).to be(true)
     end
 
@@ -397,7 +401,9 @@ RSpec.describe "the expression sublanguage" do
         .to raise_error(Hecks::Bluebook::Expression::EvaluationError, /find expects a list, got "oops"/)
     end
 
-    it "nests inside a block predicate's own predicate — the shipping-domain re-routing check that first exposed this: scanning for .find and .any?/.all?/.none? SEPARATELY found the wrong (inner) occurrence when they nest, the same crash signature nested .any? had before parse_block_opener unified the scan" do
+    it "nests inside a block predicate's own predicate — the shipping-domain re-routing check that first exposed " \
+       "this: scanning for .find and .any?/.all?/.none? SEPARATELY found the wrong (inner) occurrence when they " \
+       "nest, the same crash signature nested .any? had before parse_block_opener unified the scan" do
       two_legs = [
         { "load" => "SESTO", "unload" => "USNYC" },
         { "load" => "USNYC", "unload" => "AUSYD" }
@@ -545,7 +551,7 @@ RSpec.describe "the expression sublanguage" do
 
       theirs = begin
         locals = bindings.map { |name, value| "#{name} = #{value.inspect}; " }.join
-        eval("#{locals}#{expression}")
+        eval("#{locals}#{expression}", binding, __FILE__, __LINE__) # e.g. amount = 7; amount.modulo(3)
       rescue StandardError
         :raised
       end
@@ -667,7 +673,10 @@ RSpec.describe "the expression sublanguage" do
   # header). `forget`/`forget_all` are the real invalidation API.
   describe "cache invalidation" do
     around do |example|
-      Dir.mktmpdir { |dir| @tmp_file = File.join(dir, "sample.rb"); example.run }
+      Dir.mktmpdir do |dir|
+        @tmp_file = File.join(dir, "sample.rb")
+        example.run
+      end
     end
 
     it "forget re-parses a specific file's tree on the next read, not before" do

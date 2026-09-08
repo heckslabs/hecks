@@ -21,8 +21,8 @@ RSpec.describe "role-based command rejections" do
         Cafeteria::Order.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
     registry.verify!
@@ -80,9 +80,9 @@ RSpec.describe "role-based command rejections" do
 
   it "refuses when the bound caller's role does not match" do
     build(&CAFETERIA_DOMAIN)
-    expect {
+    expect do
       Hecks.as_caller(role: "Chef") { Order.place!(ref: { value: "o1" }) }
-    }.to raise_error(Hecks::Runtime::Unauthorized, /refused — role: Customer, and the caller stated Chef/)
+    end.to raise_error(Hecks::Runtime::Unauthorized, /refused — role: Customer, and the caller stated Chef/)
   end
 
   it "dispatches unchanged when the command declares no role at all" do
@@ -108,7 +108,7 @@ RSpec.describe "role-based command rejections" do
     Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
 
     reaction = runtime.reactions.first
-    expect(reaction[:delivered]).to eq(true)
+    expect(reaction[:delivered]).to be(true)
     expect(Order.find("o1").events.map(&:name)).to include("OrderPrepared")
   end
 
@@ -137,13 +137,13 @@ RSpec.describe "role-based command rejections" do
     end
 
     it "refuses an identified caller with no matching grant, even though the role it typed matches" do
-      runtime = build(&CAFETERIA_DOMAIN)
+      build(&CAFETERIA_DOMAIN)
       Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
       order = Order.find("o1")
 
-      expect {
+      expect do
         Hecks.as_caller(role: "Chef", actor_id: "u2") { order.prepare! }
-      }.to raise_error(Hecks::Runtime::Unauthorized, /refused — role: Chef, and the caller stated Chef/)
+      end.to raise_error(Hecks::Runtime::Unauthorized, /refused — role: Chef, and the caller stated Chef/)
     end
 
     it "refuses an identified caller whose real assignment is for a different role" do
@@ -152,9 +152,9 @@ RSpec.describe "role-based command rejections" do
       Hecks.as_caller(role: "Customer", actor_id: "u3") { Order.place!(ref: { value: "o1" }) }
       order = Order.find("o1")
 
-      expect {
+      expect do
         Hecks.as_caller(role: "Chef", actor_id: "u3") { order.prepare! }
-      }.to raise_error(Hecks::Runtime::Unauthorized)
+      end.to raise_error(Hecks::Runtime::Unauthorized)
     end
 
     # `as_of` — OPT-IN on top of `actor_id`, same shape: unbound, the
@@ -178,9 +178,9 @@ RSpec.describe "role-based command rejections" do
         order = Order.find("o1")
 
         before_start = Time.parse("2025-12-31").to_i
-        expect {
+        expect do
           Hecks.as_caller(role: "Chef", actor_id: "u5", as_of: before_start) { order.prepare! }
-        }.to raise_error(Hecks::Runtime::Unauthorized)
+        end.to raise_error(Hecks::Runtime::Unauthorized)
       end
 
       it "dispatches when as_of is bound and the assignment has already started" do
@@ -221,9 +221,9 @@ RSpec.describe "role-based command rejections" do
         Hecks.as_caller(role: "Customer") { Order.place!(ref: { value: "o1" }) }
         order = Order.find("o1")
 
-        expect {
+        expect do
           Hecks.as_caller(role: "Chef", actor_id: "u8", scope: "south-kitchen") { order.prepare! }
-        }.to raise_error(Hecks::Runtime::Unauthorized)
+        end.to raise_error(Hecks::Runtime::Unauthorized)
       end
 
       it "dispatches when the bound scope matches the assignment's own scope" do

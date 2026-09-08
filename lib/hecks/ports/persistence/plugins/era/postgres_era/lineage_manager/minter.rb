@@ -20,10 +20,29 @@ module Hecks
             label = hash[0, Runtime::StorageShape::LABEL_LENGTH]
             ordinal = latest[:ordinal] + 1
 
+            edge = resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
+            ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
+            check_coverage!(registry, bluebook, shadow(latest[:held_text]), edge)
+
+            chain = edge_chain(registry, bluebook, lineage.eras, label)
+            audit!(bluebook, lineage, chain, ordinal, edge)
+            lineage.mint_era!(
+              ordinal: ordinal, hash: hash, label: label, held_text: current_text,
+              aggregates: bluebook.aggregates, edges: chain, role: role,
+              projection: Runtime::StorageShape.project(bluebook)
+            )
+            ordinal
+          end
+
+          # Find the one translation edge that leaves the held era, and
+          # validate it: exactly one edge must leave (eras fork
+          # mechanically — a second edge from the same source is a wiring
+          # mistake, not a merge to resolve automatically), and it must
+          # target the current shape's label (otherwise the edge is stale
+          # and boot must not silently mint past it).
+          def resolve_edge!(registry, bluebook, lineage, latest, label, ordinal, directory)
             edges = registry.translations.select { |t| t.domain == bluebook.name && t.from == latest[:label] }
-            if edges.empty?
-              refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory)
-            end
+            refuse_toward_the_scaffold!(registry, bluebook, lineage, latest, ordinal, directory) if edges.empty?
             if edges.size > 1
               raise Runtime::WiringError,
                     "cannot boot #{bluebook.name}: #{edges.size} translation edges leave era #{latest[:ordinal]} " \
@@ -36,43 +55,35 @@ module Hecks
                     "cannot boot #{bluebook.name}: the translation edge from #{latest[:label]} targets " \
                     "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run bin/scaffold_translation"
             end
+            edge
+          end
 
-            # A compute's (and, the same way, a rekey's) only verification
-            # is the audit's human-approved sample — mint stays
-            # non-interactive by requiring the approval to already exist,
-            # recorded IN THIS DATABASE by `bin/translation_audit …
-            # --approve` and bound to what was actually reviewed: this
-            # edge's parsed content, and the journal as it stood when the
-            # samples were read. A journal that has advanced past the
-            # review invalidates it — the approved samples no longer cover
-            # the data.
-            if edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
-              approval = lineage.approval_for(from: edge.from, to: edge.to)
-              unless approval && approval[:edge_digest] == Translation::Audit.edge_digest(edge)
-                raise Runtime::WiringError,
-                      "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
-                      "rule, and the audit's human-approved sample is its only verification — run " \
-                      "bin/translation_audit with --approve, then boot again"
-              end
-              tip = lineage.last_ordinal
-              if approval[:reviewed_ordinal] != tip
-                raise Runtime::WiringError,
-                      "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \
-                      "review (ordinal #{approval[:reviewed_ordinal]} reviewed, #{tip} now) — the samples a " \
-                      "human approved no longer cover the data; re-run bin/translation_audit with --approve"
-              end
+          # A compute's (and, the same way, a rekey's) only verification
+          # is the audit's human-approved sample — mint stays
+          # non-interactive by requiring the approval to already exist,
+          # recorded IN THIS DATABASE by `bin/translation_audit …
+          # --approve` and bound to what was actually reviewed: this
+          # edge's parsed content, and the journal as it stood when the
+          # samples were read. A journal that has advanced past the
+          # review invalidates it — the approved samples no longer cover
+          # the data.
+          def ensure_compute_rekey_approved!(bluebook, lineage, edge, ordinal)
+            return unless edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
+
+            approval = lineage.approval_for(from: edge.from, to: edge.to)
+            unless approval && approval[:edge_digest] == Translation::Audit.edge_digest(edge)
+              raise Runtime::WiringError,
+                    "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
+                    "rule, and the audit's human-approved sample is its only verification — run " \
+                    "bin/translation_audit with --approve, then boot again"
             end
+            tip = lineage.last_ordinal
+            return unless approval[:reviewed_ordinal] != tip
 
-            check_coverage!(registry, bluebook, shadow(latest[:held_text]), edge)
-
-            chain = edge_chain(registry, bluebook, lineage.eras, label)
-            audit!(bluebook, lineage, chain, ordinal, edge)
-            lineage.mint_era!(
-              ordinal: ordinal, hash: hash, label: label, held_text: current_text,
-              aggregates: bluebook.aggregates, edges: chain, role: role,
-              projection: Runtime::StorageShape.project(bluebook)
-            )
-            ordinal
+            raise Runtime::WiringError,
+                  "cannot mint era #{ordinal} of #{bluebook.name}: the journal advanced past the approved " \
+                  "review (ordinal #{approval[:reviewed_ordinal]} reviewed, #{tip} now) — the samples a " \
+                  "human approved no longer cover the data; re-run bin/translation_audit with --approve"
           end
 
           # No edge yet: the boot refuses toward the authoring loop —
@@ -96,7 +107,7 @@ module Hecks
           # Diff the held era against the current shape and write the edge
           # file — confident rules inline, ambiguities as parse-refusing
           # `unresolved` lines. Returns the file path.
-          def scaffold!(registry, bluebook, lineage, latest, directory)
+          def scaffold!(_registry, bluebook, lineage, latest, directory)
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
 

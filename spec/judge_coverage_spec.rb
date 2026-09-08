@@ -83,10 +83,10 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
-  def banking       = @banking
-  def paging        = @paging
-  def grammar       = @grammar
-  def relationships = @relationships
+  attr_reader :banking
+  attr_reader :paging
+  attr_reader :grammar
+  attr_reader :relationships
 
   # Records what the judge asks for, without judging anything.
   class Spy

@@ -5,6 +5,10 @@ RSpec.describe "relationship declarations" do
     Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipFixture", &block)
   end
 
+  # Inline domain declares all four relationship kinds on one aggregate so
+  # the IR and assembly round-trip checks below prove them together;
+  # splitting would re-declare the same fixture chapter for no real gain.
+  # rubocop:disable-next RSpec/ExampleLength
   it "preserves relationship kind and cardinality through canonical IR and assembly" do
     chapter = build_chapter do
       vision "relationships read as the domain concepts they represent"
@@ -56,6 +60,10 @@ RSpec.describe "relationship declarations" do
     expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
   end
 
+  # Inline domain nests an entity with all three relationship kinds so this
+  # proves the same declarations work on an owned entity, not just an
+  # aggregate; splitting would just re-declare the fixture chapter twice.
+  # rubocop:disable-next RSpec/ExampleLength
   it "uses the same relationship declarations on an entity" do
     chapter = build_chapter do
       vision "owned pieces may retain structural relationships"

@@ -11,6 +11,10 @@ module Hecks
     # inside a boot, over a suite that was never going to be scoped.
     class Malformed < StandardError; end
 
+    # The `test "description" do ... end` block's own receiver — collects
+    # `tests`/`setup`/`input`/`expect` calls and builds a `TestCase` (ir.rb).
+    # `validate_expect!` (private, below) is where a malformed or empty
+    # `expect` is refused at build time rather than silently passing later.
     class TestCaseBuilder
       def initialize(description)
         @description   = description
@@ -76,6 +80,9 @@ module Hecks
       end
     end
 
+    # The top-level `Hecks.behaviors "Name" do ... end` receiver — collects
+    # `vision`/`loads`/`test` calls and builds a `BehaviorsSuite` (ir.rb),
+    # refusing to build one missing either `vision` or `loads` (`#build`).
     class BehaviorsBuilder
       def initialize(name, source_path:)
         @name        = name

@@ -19,11 +19,11 @@ RSpec.describe Hecks::Adapters::LocalStorage do
 
       Hecks.hecksagon("Pizzas") do
         uses_framework "Governance"
-        ::Pizzas::Order.persisted_by("LocalStorage")
+        Pizzas::Order.persisted_by("LocalStorage")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

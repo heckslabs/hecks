@@ -16,7 +16,7 @@ require_relative "../../../support/postgres_probe"
 # is), and a superuser bypasses RLS unconditionally regardless of
 # FORCE, so "the owner is fenced too" is untestable without a real,
 # ordinary, non-superuser owner role.
-RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", io: true do
+RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io do
   RESET_DB = "hecks_reset_spec".freeze
   RESET_OWNER = "hecks_reset_spec_owner".freeze
 

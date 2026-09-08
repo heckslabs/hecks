@@ -2,8 +2,14 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `policy "Name" do ... end` block into a `Policy` — a
+      # reaction wired at chapter scope: `on` the event it watches, an
+      # optional `where` guard evaluated against the event's own payload, an
+      # optional `for_each` fan-out query, and the `trigger` command it
+      # dispatches (`with:` projecting the event's payload onto the
+      # command's own arguments when the two shapes differ).
       class PolicyBuilder
-        GRAMMAR_CONTEXT = "Policy"
+        GRAMMAR_CONTEXT = "Policy".freeze
 
         include WordGate
 

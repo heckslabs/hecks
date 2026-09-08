@@ -11,6 +11,14 @@ require_relative "value"
 
 module Hecks
   module Runtime
+    # Answers one declared aggregate or entity query against a
+    # repository: prefers a native adapter hook (Ports::Query.execute)
+    # when the store can answer directly, falling back to interpreting
+    # wheres/order_by/limit/offset over every loaded record itself.
+    # #reference_call/#reference_interpret are a SEPARATE, deliberately
+    # naive re-implementation of the same evaluation, used only as the
+    # fuzzer's oracle to catch divergence between adapters and this
+    # interpreter's own native path.
     class QueryInterpreter
       attr_reader :registry
 
@@ -114,11 +122,11 @@ module Hecks
       # has no concept of a reference at all — it would just read the
       # raw id straight off the record and compare THAT).
       def reference_interpret(records, declared, args, domain:, shape:)
-        matched = records.select { |r|
-          declared.wheres.all? { |w|
+        matched = records.select do |r|
+          declared.wheres.all? do |w|
             reference_where_holds?(w, r, args, domain: domain, shape: shape)
-          }
-        }
+          end
+        end
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
         # #interpret's own rows above.
@@ -157,16 +165,8 @@ module Hecks
 
       def entity_rows(domain, aggregate, dotted, args)
         entity_name, query_name = Naming.split_dotted(dotted)
-        entity = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
-                 raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                          aggregate: aggregate.hecks_name, entity: entity_name.inspect))
-        declared = entity.query(query_name) ||
-                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_query_missing",
-                                                            entity: entity_name, query: query_name.inspect))
+        entity, declared, list_attr = resolve_entity_query(aggregate, entity_name, query_name)
         declared = TenantScope.apply(declared, args)
-        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
-                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                             aggregate: aggregate.hecks_name, entity: entity_name))
 
         parent_key = Naming.reference_key(aggregate.hecks_name)
         rows = @registry.repository(domain, aggregate).all.flat_map do |record|
@@ -184,6 +184,25 @@ module Hecks
         # several.
         skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
         declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
+      end
+
+      # THE THREE DECLARATIONS `entity_rows` NEEDS BEFORE IT CAN READ A
+      # SINGLE RECORD — the entity itself, its declared query, and the
+      # list attribute that holds it on the aggregate. Extracted from
+      # `entity_rows` (pure extraction, same lookups, same order, same
+      # UnknownVerb refusals) purely to separate "which declarations does
+      # this dotted name resolve to" from the row-computation that follows.
+      def resolve_entity_query(aggregate, entity_name, query_name)
+        entity = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
+                 raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                          aggregate: aggregate.hecks_name, entity: entity_name.inspect))
+        declared = entity.query(query_name) ||
+                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_query_missing",
+                                                            entity: entity_name, query: query_name.inspect))
+        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
+                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
+                                                             aggregate: aggregate.hecks_name, entity: entity_name))
+        [entity, declared, list_attr]
       end
 
       # FieldPath.dig, not a raw `element[clause.field.to_sym]` — an
@@ -277,9 +296,9 @@ module Hecks
       def ordered(records, order_by, null_semantics = nil)
         field = order_by&.field
         Ports::Query::Ordering.apply(records, order_by, null_semantics,
-                                     identity: ->(record) { record.id.to_s }) { |record|
+                                     identity: ->(record) { record.id.to_s }) do |record|
           comparable(QuerySpecification::FieldPath.dig(record, field))
-        }
+        end
       end
     end
   end

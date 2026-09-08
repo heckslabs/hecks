@@ -10,12 +10,8 @@ module Hecks
           edge.aggregates.each do |aggregate|
             header = "  aggregate #{aggregate.name.inspect}"
             header += ", was: #{aggregate.was.inspect}" if aggregate.was
-            if aggregate.rules.empty?
-              lines << "#{header} do"
-            else
-              lines << "#{header} do"
-              aggregate.rules.each { |rule| lines << "    #{render_rule(rule)}" }
-            end
+            lines << "#{header} do"
+            aggregate.rules.each { |rule| lines << "    #{render_rule(rule)}" } unless aggregate.rules.empty?
             lines << "  end"
           end
           edge.retired.each { |name| lines << "  retired #{name.inspect}" }

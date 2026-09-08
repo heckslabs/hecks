@@ -13,7 +13,7 @@ require "json"
 domain = ARGV.fetch(0)
 runtime = Hecks.boot(domain)
 
-def entries_for(repository, aggregate)
+def entries_for(repository, _aggregate)
   case repository
   when Hecks::Ports::Persistence::AppendOnly
     repository.entries.map { |entry| { "operation" => entry.operation, "id" => entry.id, "state" => entry.state } }

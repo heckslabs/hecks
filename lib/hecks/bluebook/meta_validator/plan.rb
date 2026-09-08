@@ -35,6 +35,10 @@ module Hecks
       # nothing — that is the judge's job.
       class Plan
         # One append command: the verb, and the value-object-field -> argument map.
+        # `:map` shadows Enumerable#map on purpose — `spec/plan_spec.rb`
+        # itself asserts `appends["emits"].map` reads the field (a Hash),
+        # not an Enumerable#map result. Verified before disabling this cop.
+        # rubocop:disable-next Lint/StructNewOverride
         Append = Struct.new(:verb, :map, keyword_init: true)
 
         # One setting command. `targets` is target -> argument ; Lifecycle sets two

@@ -2,8 +2,15 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `.hecksagon` file's top-level DSL block into a `Hecksagon`
+      # — a domain's own WIRING: which adapter binds to which verb
+      # (`persisted_by`, `projected_by`, ...), which framework/vendored
+      # bluebooks it attaches, which external events it subscribes to, and
+      # its bare chapter-root port. Kept separate from the bluebook itself
+      # (the domain's own declared MODEL) because wiring is an operational
+      # decision, not a fact the domain states about itself.
       class HecksagonBuilder
-        GRAMMAR_CONTEXT = "Hecksagon"
+        GRAMMAR_CONTEXT = "Hecksagon".freeze
 
         include WordGate
 

@@ -11,7 +11,7 @@ RSpec.describe Hecks::Fuzzing::ValueGenerator do
     end
 
     it "produces the same sequence of primitives across types for the same seed" do
-      sequence = ->(seed) do
+      sequence = lambda do |seed|
         random = Random.new(seed)
         [
           described_class.string_value(random),

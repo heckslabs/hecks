@@ -53,6 +53,10 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
   # PRIMITIVE 1 — CommandBuilder#given's own two-pool chain: its OWN
   # owner (the piece), then a SIBLING piece's entity-wide pool.
   describe "resolve_hash_chain (CommandBuilder#given)" do
+    # A minimal but real bluebook proving the hash-chain's two pools (own
+    # owner, then sibling entity) — trimming either entity would collapse
+    # the very fallback this primitive exists to prove.
+    # rubocop:disable-next RSpec/ExampleLength
     it "finds a match in the SECOND pool when the first has none" do
       registry = load(<<~BLUEBOOK)
         Hecks.bluebook "HashChain", version: "v1" do
@@ -198,6 +202,11 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
       BLUEBOOK
     end
 
+    # Needs a THIRD aggregate (Box) sharing no `declared_by:` conflict, to
+    # prove the unambiguous path actually resolves rather than merely never
+    # hitting the ambiguous branch by omission; a minimal 2-aggregate chapter
+    # wouldn't distinguish the two.
+    # rubocop:disable-next RSpec/ExampleLength
     it "resolves unambiguously when exactly one candidate is registered" do
       registry = load(<<~BLUEBOOK)
         Hecks.bluebook "OwnerKeyedSingle", version: "v1" do
@@ -252,6 +261,10 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
       expect(box.preconditions.first.canonical).to eq('customer.status == "active"')
     end
 
+    # Needs THREE aggregates (A, B, and an unrelated C also naming "x") to
+    # prove ambiguity is about genuinely conflicting candidates, not just any
+    # repeated description; a 2-aggregate fixture couldn't show that.
+    # rubocop:disable-next RSpec/ExampleLength
     it "refuses AMBIGUOUS when two candidates exist and declared_by: is omitted" do
       expect do
         load(<<~BLUEBOOK)

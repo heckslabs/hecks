@@ -141,8 +141,9 @@ RSpec.describe "a composite-identified aggregate with two entities" do
                                                                     serial: { value: "KEY-1" })
 
     expect do
-      runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                                                      serial: { value: "KEY-1" })
+      runtime.dispatch("Banking::SafeDepositBox.KeyIssuance.Return", branch_code: { value: "DOWNTOWN" },
+                                                                     box_number:  { value: 12 },
+                                                                     serial:      { value: "KEY-1" })
     end.to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "issued"/)
   end
 

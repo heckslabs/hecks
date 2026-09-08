@@ -31,7 +31,7 @@ module Hecks
       # per execute, not a persistent connection — D1 has no connection to
       # hold open.
       class Connection
-        ENDPOINT = "https://api.cloudflare.com/client/v4"
+        ENDPOINT = "https://api.cloudflare.com/client/v4".freeze
 
         def initialize(account_id:, database_id:, api_token:)
           @uri = URI("#{ENDPOINT}/accounts/#{account_id}/d1/database/#{database_id}/query")
@@ -65,34 +65,39 @@ module Hecks
           request.body = JSON.generate(payload)
 
           response = Net::HTTP.start(@uri.host, @uri.port, use_ssl: true) { |http| http.request(request) }
-          body =
-            begin
-              JSON.parse(response.body)
-            rescue JSON::ParserError
-              raise Runtime::WiringError, "D1 query failed: non-JSON response (HTTP #{response.code}): #{response.body}"
-            end
+          body = parse_d1_body(response)
+          messages = (body["errors"] || []).map { |error| error["message"] }.join("; ")
 
-          unless body["success"]
-            messages = (body["errors"] || []).map { |error| error["message"] }.join("; ")
-            raise Runtime::WiringError, "D1 query failed: #{messages.empty? ? response.body : messages}"
-          end
+          raise Runtime::WiringError, "D1 query failed: #{messages.empty? ? response.body : messages}" unless body["success"]
 
           results = body.fetch("result")
           failed = results.find { |result| result["success"] == false }
-          if failed
-            messages = (body["errors"] || []).map { |error| error["message"] }.join("; ")
-            detail =
-              if failed.key?("error")
-                failed["error"]
-              elsif failed.key?("message")
-                failed["message"]
-              else
-                messages
-              end
-            raise Runtime::WiringError, "D1 query failed: #{detail.to_s.empty? ? 'a batched statement failed' : detail}"
-          end
+          raise Runtime::WiringError, "D1 query failed: #{failed_statement_detail(failed, messages)}" if failed
 
           results
+        end
+
+        def parse_d1_body(response)
+          JSON.parse(response.body)
+        rescue JSON::ParserError
+          raise Runtime::WiringError, "D1 query failed: non-JSON response (HTTP #{response.code}): #{response.body}"
+        end
+
+        # `messages` is the whole-response :errors fallback, tried LAST —
+        # a per-statement `failed["error"]`/`failed["message"]` (checked
+        # by key presence, not truthiness, so an explicit `nil` still
+        # counts as "the key was there") is always more specific to WHICH
+        # statement failed, when either is present.
+        def failed_statement_detail(failed, messages)
+          detail =
+            if failed.key?("error")
+              failed["error"]
+            elsif failed.key?("message")
+              failed["message"]
+            else
+              messages
+            end
+          detail.to_s.empty? ? "a batched statement failed" : detail
         end
 
         public
@@ -170,7 +175,10 @@ module Hecks
         order_sql = "ORDER BY id"
         if order_by
           name = order_by.to_s.split(".").first
-          raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by" unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+          unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+            raise Runtime::WiringError,
+                  "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+          end
 
           spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
           order_sql = "ORDER BY #{order_clause(spec, nil)}"
@@ -256,6 +264,16 @@ module Hecks
       # matching Sqlite#atomic_put's `next` (skip append AND project both,
       # together) with no second HTTP call and no gap for another writer to
       # land in between the check and the write.
+      # Three SQL statements, built here and batched together as ONE
+      # transaction below — see the comment above on the real TOCTOU gap
+      # this exact shape closes (the existence check moved INSIDE the
+      # batch, not run as a separate earlier round trip). Splitting the
+      # per-statement builders out would still need columns/values/slots/
+      # not_exists/quoted_table threaded into each, and would separate
+      # three pieces of ONE atomic batch across methods with no single
+      # place left to see that they are, together, the fix.
+      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/MethodLength
       def atomic_put(entry, insert_only: false)
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
         columns = (["id"] + persisted_fields.map { |field| field[:name].to_s }).map { |column| quote_ident(column) }
@@ -343,9 +361,10 @@ module Hecks
       # already uses through `Connection#execute`.
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
         @db.execute(
-          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
-          "VALUES (?, ?, ?, ?, ?, ?)",
-          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory), JSON.generate(completed_compensations)]
+          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, " \
+          "completed_compensations) VALUES (?, ?, ?, ?, ?, ?)",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory),
+           JSON.generate(completed_compensations)]
         )
       end
 
@@ -360,7 +379,8 @@ module Hecks
         return enum_for(:each_saga) unless block_given?
 
         @db.execute(
-          "SELECT process_manager, correlation, state, memory, completed_compensations FROM hecks_saga_instances WHERE domain = ?",
+          "SELECT process_manager, correlation, state, memory, completed_compensations " \
+          "FROM hecks_saga_instances WHERE domain = ?",
           [@domain]
         ).each do |row|
           yield row["process_manager"], row["correlation"], row["state"],

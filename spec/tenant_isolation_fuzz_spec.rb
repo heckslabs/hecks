@@ -126,13 +126,19 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
 
         expected.each do |slug, refs|
           expect(actual_refs(dispatchers.fetch(slug)).sort).to eq(refs.sort),
-                                                               "seed #{seed}: tenant #{slug} expected exactly #{refs.sort.inspect}"
+                                                               "seed #{seed}: tenant #{slug} expected exactly " \
+                                                               "#{refs.sort.inspect}"
         end
       end
     end
   end
 
-  it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds", io: true do
+  # A real scratch Postgres database, created once and torn down once
+  # (ensure) around a loop of several interleaved-write seeds — each
+  # seed reuses the same live database, so splitting per seed would
+  # mean paying a fresh CREATE/DROP DATABASE per seed for no real gain.
+  # rubocop:disable-next RSpec/ExampleLength
+  it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds", :io do
     skip "no local Postgres reachable" unless PostgresProbe.available?
 
     db = "hecks_tenant_isolation_fuzz_spec"
@@ -161,7 +167,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
 
           expected.each do |slug, refs|
             expect(actual_refs(dispatchers.fetch(slug)).sort).to eq(refs.sort),
-                                                                 "seed #{seed}: tenant #{slug} expected exactly #{refs.sort.inspect}"
+                                                                 "seed #{seed}: tenant #{slug} expected exactly " \
+                                                                 "#{refs.sort.inspect}"
           end
         end
       end

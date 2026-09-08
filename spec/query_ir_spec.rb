@@ -121,7 +121,7 @@ RSpec.describe Hecks::QueryIR do
       expect(preview[:name]).to eq("Aggregate")
       expect(preview[:field]).to eq("preconditions")
       by_touchpoint = preview[:touchpoints].to_h { |t| [t[:touchpoint], t[:present]] }
-      expect(by_touchpoint.values).to all(eq(true))
+      expect(by_touchpoint.values).to all(be(true))
       expect(by_touchpoint.keys).to include("meta-domain grammar declares it", "Reconstruction's hand-typed method reads it")
     end
 
@@ -156,7 +156,7 @@ RSpec.describe Hecks::QueryIR do
 
       expect(text).to include("== Command#givens ==")
       expect(text).to match(/\[\s*yes\]/)
-      expect(text).to match(/\[\s*n\/a\]/)
+      expect(text).to match(%r{\[\s*n/a\]})
       expect(text).to match(%r{\d+/\d+ applicable touchpoint\(s\)})
     end
   end

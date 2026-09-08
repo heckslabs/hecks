@@ -9,43 +9,47 @@ RSpec.describe Hecks::Bluebook::ProjectLoader do
     FileUtils.remove_entry(@root) if @root
   end
 
-  it "crawls Bluebook folders and registers commands and snake_case queries" do
-    write_bluebook("catalog", <<~RUBY)
-      Hecks.bluebook "Catalog" do
-        aggregate "Book" do
-          identified_by :id
-          description "A book"
-          command "Add" do
-          end
-          query "Available" do
-          end
-        end
-      end
-    RUBY
-    write_world("catalog", "Catalog")
-    write_bluebook("billing", <<~RUBY)
-      Hecks.bluebook "Billing" do
-        aggregate "Invoice" do
-          identified_by :id
-          description "An invoice"
-          command "Issue" do
+  context "with catalog and billing domains on disk" do
+    before do
+      write_bluebook("catalog", <<~RUBY)
+        Hecks.bluebook "Catalog" do
+          aggregate "Book" do
+            identified_by :id
+            description "A book"
+            command "Add" do
+            end
+            query "Available" do
+            end
           end
         end
-      end
-    RUBY
-    write_world("billing", "Billing")
+      RUBY
+      write_world("catalog", "Catalog")
+      write_bluebook("billing", <<~RUBY)
+        Hecks.bluebook "Billing" do
+          aggregate "Invoice" do
+            identified_by :id
+            description "An invoice"
+            command "Issue" do
+            end
+          end
+        end
+      RUBY
+      write_world("billing", "Billing")
+    end
 
-    register = described_class.load(@root)
+    it "crawls Bluebook folders and registers commands and snake_case queries" do
+      register = described_class.load(@root)
 
-    expect(register.entries.keys).to contain_exactly(
-      "Acme::Billing::Invoice.Issue",
-      "Acme::Catalog::Book.Add",
-      "Acme::Catalog::Book.available"
-    )
-    expect(register.fetch("Acme::Catalog::Book.available")).to be_query
-    expect(register.commands.map { |entry| entry.fqn.to_s }).to contain_exactly(
-      "Acme::Billing::Invoice.Issue", "Acme::Catalog::Book.Add"
-    )
+      expect(register.entries.keys).to contain_exactly(
+        "Acme::Billing::Invoice.Issue",
+        "Acme::Catalog::Book.Add",
+        "Acme::Catalog::Book.available"
+      )
+      expect(register.fetch("Acme::Catalog::Book.available")).to be_query
+      expect(register.commands.map { |entry| entry.fqn.to_s }).to contain_exactly(
+        "Acme::Billing::Invoice.Issue", "Acme::Catalog::Book.Add"
+      )
+    end
   end
 
   it "refuses two discovered definitions of the same public address" do
@@ -107,6 +111,6 @@ RSpec.describe Hecks::Bluebook::ProjectLoader do
       ("  latest #{latest.inspect}" if latest),
       "end"
     ].compact
-    File.write(File.join(directory, "#{name}.world"), lines.join("\n") + "\n")
+    File.write(File.join(directory, "#{name}.world"), "#{lines.join("\n")}\n")
   end
 end

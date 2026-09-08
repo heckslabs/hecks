@@ -21,6 +21,11 @@ RSpec.describe "an entity's attribute types" do
     end
   end
 
+  # A real Hecks.boot over a real file proves one end-to-end claim: this
+  # bluebook, as a whole, refuses to load. The fixture is the whole point —
+  # it's the literal source Prism reads — so it stays inline rather than
+  # built up dynamically from a shared helper.
+  # rubocop:disable-next RSpec/ExampleLength
   it "refuses an entity attribute naming an undeclared value object" do
     source = <<~BLUEBOOK
       Hecks.bluebook "Repro" do
@@ -67,6 +72,9 @@ RSpec.describe "an entity's attribute types" do
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /no ValueObject with aggregate, name .*Bogus/)
   end
 
+  # Same rationale as the refusal case just above: one real Hecks.boot over
+  # one literal, inline fixture proving the accepting counterpart claim.
+  # rubocop:disable-next RSpec/ExampleLength
   it "accepts an entity attribute naming a value object its own aggregate declares" do
     source = <<~BLUEBOOK
       Hecks.bluebook "Repro" do

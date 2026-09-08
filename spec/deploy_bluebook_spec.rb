@@ -96,7 +96,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
   # THE END-TO-END PROOF — bin/project_deploy itself dispatches into
   # this domain, not a parallel hand-rolled check that happens to agree
   # with it today and silently drifts tomorrow.
-  describe "bin/project_deploy, driven through a scratch fixture domain", io: true do
+  describe "bin/project_deploy, driven through a scratch fixture domain", :io do
     # `bin/project_deploy` always writes to `<repo_root>/deploy/
     # <domain_basename>` regardless of where the SOURCE domain lives
     # (`root`/`out_dir` in bin/project_deploy are computed from the
@@ -104,7 +104,36 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     # basename here is deliberately unique and the generated directory
     # is removed after every run, or each example would leave a real,
     # permanent `deploy/scratch/` behind in the actual repo.
-    FIXTURE_BASENAME = "deploy_bluebook_spec_fixture"
+    FIXTURE_BASENAME = "deploy_bluebook_spec_fixture".freeze
+
+    # Shared by `run_project_deploy` and the `owner_stack` test below,
+    # which cannot use `run_project_deploy` itself — its `ensure
+    # FileUtils.rm_rf(generated_dir)` deletes the generated Makefile
+    # before that test gets a chance to read it.
+    def write_scratch_fixture_bluebook(domain_dir)
+      bluebook_dir = File.join(domain_dir, "bluebook")
+      FileUtils.mkdir_p(bluebook_dir)
+
+      File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
+        Hecks.bluebook "Scratch" do
+          aggregate "Thing" do
+            identified_by :name
+            attribute :name, ThingName
+            value_object "ThingName" do
+              attribute :value, String
+              invariant("named") { !value.to_s.empty? }
+            end
+            command "Create" do
+              attribute :name, ThingName
+              sets :name
+              emits "ThingCreated"
+            end
+          end
+        end
+      BLUEBOOK
+
+      bluebook_dir
+    end
 
     def run_project_deploy(world_body)
       root = File.expand_path("..", __dir__)
@@ -112,26 +141,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
       Dir.mktmpdir do |dir|
         domain_dir = File.join(dir, FIXTURE_BASENAME)
-        bluebook_dir = File.join(domain_dir, "bluebook")
-        FileUtils.mkdir_p(bluebook_dir)
-
-        File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
-          Hecks.bluebook "Scratch" do
-            aggregate "Thing" do
-              identified_by :name
-              attribute :name, ThingName
-              value_object "ThingName" do
-                attribute :value, String
-                invariant("named") { !value.to_s.empty? }
-              end
-              command "Create" do
-                attribute :name, ThingName
-                sets :name
-                emits "ThingCreated"
-              end
-            end
-          end
-        BLUEBOOK
+        bluebook_dir = write_scratch_fixture_bluebook(domain_dir)
 
         File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), world_body)
 
@@ -200,26 +210,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
       Dir.mktmpdir do |dir|
         domain_dir = File.join(dir, FIXTURE_BASENAME)
-        bluebook_dir = File.join(domain_dir, "bluebook")
-        FileUtils.mkdir_p(bluebook_dir)
-
-        File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
-          Hecks.bluebook "Scratch" do
-            aggregate "Thing" do
-              identified_by :name
-              attribute :name, ThingName
-              value_object "ThingName" do
-                attribute :value, String
-                invariant("named") { !value.to_s.empty? }
-              end
-              command "Create" do
-                attribute :name, ThingName
-                sets :name
-                emits "ThingCreated"
-              end
-            end
-          end
-        BLUEBOOK
+        bluebook_dir = write_scratch_fixture_bluebook(domain_dir)
 
         File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.world"), <<~WORLD)
           Hecks.world "Scratch" do

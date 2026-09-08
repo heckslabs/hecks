@@ -18,12 +18,12 @@ RSpec.describe "Identity" do
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"))
       Hecks.hecksagon("Identity") do
         uses_framework "Governance"
-        ::Identity::Identity.persisted_by("Memory")
-        ::Identity::ExternalIdentifier.persisted_by("Memory")
+        Identity::Identity.persisted_by("Memory")
+        Identity::ExternalIdentifier.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

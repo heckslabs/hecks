@@ -13,6 +13,13 @@ require_relative "../naming"
 
 module Hecks
   module Runtime
+    # The runtime's single dispatch entry point for one booted registry:
+    # routes a "Domain::Aggregate.Command"-shaped verb to the right
+    # sub-interpreter (command, entity, port operation, query, read
+    # model), then runs every policy and saga reaction the resulting
+    # events trigger. Also the door reactions dispatch back through
+    # (#reenter), and the one place reaction-cascade depth is tracked, to
+    # keep a policy/saga loop from re-triggering itself without bound.
     class Dispatcher
       MAX_REACTION_DEPTH = 5
 

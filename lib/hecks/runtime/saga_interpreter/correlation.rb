@@ -14,8 +14,8 @@ module Hecks
         # correlation key even IS is representation-dependent (the object
         # itself? its serialised text?). `:"end_to_end.value"` reads the one
         # field with a single unambiguous rendering.
-        def saga_correlation(pm, event)
-          path  = pm.correlates_by.to_s.split(".")
+        def saga_correlation(process_manager, event)
+          path  = process_manager.correlates_by.to_s.split(".")
           # A LATER EVENT MAY ALREADY HOLD THE SCALAR. `reference.value` digs a
           # value object's field out of a FRESH declaration (TransferRequested's
           # `reference` IS a TransferReference) — but a downstream event this
@@ -45,7 +45,7 @@ module Hecks
           # Keyed by `correlation_head`
           # rather than a bare scalar so an event stamped by one saga cannot be
           # misread by an unrelated one correlating on a different field.
-          stamped = event.correlation && event.correlation[pm.correlation_head.to_s]
+          stamped = event.correlation && event.correlation[process_manager.correlation_head.to_s]
           return stamped unless stamped.nil? || stamped.to_s.empty?
 
           # A SELF-REFERENCING LEG carries the correlation forward under its
@@ -69,7 +69,7 @@ module Hecks
           # not by which dispatch convention the caller happened to use.
           #
           # GATED, still — a manually-dispatched command on a wholly
-          # UNRELATED aggregate can share an event NAME this pm happens to
+          # UNRELATED aggregate can share an event NAME this process_manager happens to
           # handle (`Drawer.Take` also emits "Taken", the same name a
           # SAGA-DISPATCHED leg uses) with nothing this saga should read as
           # its own conversation. What makes a leg genuinely
@@ -79,17 +79,17 @@ module Hecks
           # name: `OnboardingCase.identity_heads` really does include
           # `:reference`, `correlates_by :"reference.value"`'s own head ;
           # `Drawer.identity_heads` is `[:number]`, nowhere close.
-          self_identified?(pm, event) ? event.id : nil
+          self_identified?(process_manager, event) ? event.id : nil
         end
 
-        def self_identified?(pm, event)
+        def self_identified?(process_manager, event)
           domain, bare_name = event.aggregate.to_s.split("::", 2)
           return false unless bare_name
 
           construct = @registry.bluebook(domain)&.aggregate(bare_name)
           return false unless construct
 
-          construct.identity_heads.map(&:to_s).include?(pm.correlation_head.to_s)
+          construct.identity_heads.map(&:to_s).include?(process_manager.correlation_head.to_s)
         end
       end
     end

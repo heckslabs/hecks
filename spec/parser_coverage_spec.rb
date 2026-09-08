@@ -22,7 +22,7 @@ require "open3"
 # RSpec still evaluates a group's top-level body while building the
 # example tree even when `io: true` excludes every example in it —
 # tagging the group alone doesn't stop plain body code from running.
-RSpec.describe "the Rust parser's own coverage", io: true do
+RSpec.describe "the Rust parser's own coverage", :io do
   COVERAGE_RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
   COVERAGE_BINARY_PATH     = File.join(COVERAGE_RUST_PARSER_DIR, "target", "debug", "hecks-parse")
 
@@ -56,11 +56,11 @@ RSpec.describe "the Rust parser's own coverage", io: true do
   # through a real lifecycle rather than merely declared — `SyntaxBoot.
   # call` hands back the same shape `rows("Keyword")` used to.
   DECLARED_PAIRS = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-                                                             .select { |row| live?(row) }.map { |row|
+                                                             .select { |row| live?(row) }.map do |row|
     [
       row[:word], row[:context]
     ]
-  }.uniq.sort
+  end.uniq.sort
 
   # EVERY (word, context) PAIR THIS PARSER GENUINELY BUILDS REAL IR FOR,
   # confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparisons,
