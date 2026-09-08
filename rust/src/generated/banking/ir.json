@@ -303,6 +303,16 @@
           "emits": [
             "CustomerRegistered"
           ],
+          "events": [
+            {
+              "name": "CustomerRegistered",
+              "payload": [
+                "reference",
+                "name",
+                "email"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -343,6 +353,14 @@
           "emits": [
             "CustomerSuspended"
           ],
+          "events": [
+            {
+              "name": "CustomerSuspended",
+              "payload": [
+                "standing"
+              ]
+            }
+          ],
           "from": "active",
           "provenance": null
         },
@@ -376,6 +394,14 @@
           "emits": [
             "CustomerReinstated"
           ],
+          "events": [
+            {
+              "name": "CustomerReinstated",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "suspended",
           "provenance": null
         },
@@ -398,6 +424,14 @@
           ],
           "emits": [
             "CustomerClosed"
+          ],
+          "events": [
+            {
+              "name": "CustomerClosed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "active",
@@ -1091,6 +1125,17 @@
           "emits": [
             "AccountOpened"
           ],
+          "events": [
+            {
+              "name": "AccountOpened",
+              "payload": [
+                "customer",
+                "number",
+                "kind",
+                "daily_limit"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -1171,6 +1216,15 @@
           ],
           "emits": [
             "AccountCredited"
+          ],
+          "events": [
+            {
+              "name": "AccountCredited",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
           ],
           "from": "open",
           "provenance": null
@@ -1379,6 +1433,15 @@
           "emits": [
             "AccountDebited"
           ],
+          "events": [
+            {
+              "name": "AccountDebited",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
+          ],
           "from": "open",
           "provenance": null
         },
@@ -1423,6 +1486,14 @@
           "emits": [
             "AccountFrozen"
           ],
+          "events": [
+            {
+              "name": "AccountFrozen",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "open",
           "provenance": null
         },
@@ -1466,6 +1537,14 @@
           ],
           "emits": [
             "AccountUnfrozen"
+          ],
+          "events": [
+            {
+              "name": "AccountUnfrozen",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "frozen",
           "provenance": null
@@ -1529,6 +1608,14 @@
           ],
           "emits": [
             "AccountClosed"
+          ],
+          "events": [
+            {
+              "name": "AccountClosed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "open",
@@ -1639,6 +1726,15 @@
           "emits": [
             "FeeApplied"
           ],
+          "events": [
+            {
+              "name": "FeeApplied",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
+          ],
           "from": "open",
           "provenance": null
         },
@@ -1745,6 +1841,14 @@
           "emits": [
             "FeeCorrected"
           ],
+          "events": [
+            {
+              "name": "FeeCorrected",
+              "payload": [
+                "amount"
+              ]
+            }
+          ],
           "from": "open",
           "provenance": null
         },
@@ -1814,6 +1918,14 @@
           ],
           "emits": [
             "InterestAccrued"
+          ],
+          "events": [
+            {
+              "name": "InterestAccrued",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": "open",
           "provenance": null
@@ -1936,6 +2048,14 @@
           ],
           "emits": [
             "InterestCorrected"
+          ],
+          "events": [
+            {
+              "name": "InterestCorrected",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": "open",
           "provenance": null
@@ -2251,6 +2371,15 @@
               "emits": [
                 "LedgerEntryAmended"
               ],
+              "events": [
+                {
+                  "name": "LedgerEntryAmended",
+                  "payload": [
+                    "adjustment",
+                    "narrative"
+                  ]
+                }
+              ],
               "from": null,
               "provenance": null
             },
@@ -2357,6 +2486,14 @@
               ],
               "emits": [
                 "LedgerEntryReversed"
+              ],
+              "events": [
+                {
+                  "name": "LedgerEntryReversed",
+                  "payload": [
+                    "narrative"
+                  ]
+                }
               ],
               "from": null,
               "provenance": null
@@ -2912,6 +3049,16 @@
           "emits": [
             "OnboardingOpened"
           ],
+          "events": [
+            {
+              "name": "OnboardingOpened",
+              "payload": [
+                "customer",
+                "reference",
+                "account_number"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -2956,6 +3103,14 @@
           "emits": [
             "OnboardingCleared"
           ],
+          "events": [
+            {
+              "name": "OnboardingCleared",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "screening",
           "provenance": null
         },
@@ -2999,6 +3154,14 @@
           ],
           "emits": [
             "OnboardingDeclined"
+          ],
+          "events": [
+            {
+              "name": "OnboardingDeclined",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "screening",
           "provenance": null
@@ -3510,6 +3673,16 @@
           "emits": [
             "ATMCardIssued"
           ],
+          "events": [
+            {
+              "name": "ATMCardIssued",
+              "payload": [
+                "account",
+                "serial",
+                "daily_fee"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -3570,6 +3743,14 @@
           ],
           "emits": [
             "ATMCardRenamed"
+          ],
+          "events": [
+            {
+              "name": "ATMCardRenamed",
+              "payload": [
+                "nickname"
+              ]
+            }
           ],
           "from": [
             "issued",
@@ -3667,6 +3848,15 @@
           "emits": [
             "CashWithdrawn"
           ],
+          "events": [
+            {
+              "name": "CashWithdrawn",
+              "payload": [
+                "cents",
+                "narrative"
+              ]
+            }
+          ],
           "from": "active",
           "provenance": null
         },
@@ -3711,6 +3901,14 @@
           "emits": [
             "ATMCardActivated"
           ],
+          "events": [
+            {
+              "name": "ATMCardActivated",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "issued",
           "provenance": null
         },
@@ -3754,6 +3952,14 @@
           ],
           "emits": [
             "ATMCardRetired"
+          ],
+          "events": [
+            {
+              "name": "ATMCardRetired",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "issued",
@@ -4031,6 +4237,14 @@
               ],
               "emits": [
                 "WithdrawalDisputed"
+              ],
+              "events": [
+                {
+                  "name": "WithdrawalDisputed",
+                  "payload": [
+                    "narrative"
+                  ]
+                }
               ],
               "from": "taken",
               "provenance": null
@@ -4502,6 +4716,18 @@
           "emits": [
             "CardAuthorized"
           ],
+          "events": [
+            {
+              "name": "CardAuthorized",
+              "payload": [
+                "authorisation",
+                "tags",
+                "account",
+                "amount",
+                "merchant"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -4567,6 +4793,14 @@
           ],
           "emits": [
             "CardCaptured"
+          ],
+          "events": [
+            {
+              "name": "CardCaptured",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "authorized",
           "provenance": null
@@ -4634,6 +4868,14 @@
           "emits": [
             "CardVoided"
           ],
+          "events": [
+            {
+              "name": "CardVoided",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "authorized",
           "provenance": null
         },
@@ -4700,6 +4942,14 @@
           "emits": [
             "CardRefunded"
           ],
+          "events": [
+            {
+              "name": "CardRefunded",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "captured",
           "provenance": null
         },
@@ -4765,6 +5015,14 @@
           ],
           "emits": [
             "CardReversed"
+          ],
+          "events": [
+            {
+              "name": "CardReversed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "captured",
           "provenance": null
@@ -4850,6 +5108,14 @@
           "emits": [
             "CardDisputed"
           ],
+          "events": [
+            {
+              "name": "CardDisputed",
+              "payload": [
+                "disputed_by"
+              ]
+            }
+          ],
           "from": [
             "captured",
             "refunded"
@@ -4919,6 +5185,14 @@
           "emits": [
             "CardChargedBack"
           ],
+          "events": [
+            {
+              "name": "CardChargedBack",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "disputed",
           "provenance": null
         },
@@ -4984,6 +5258,14 @@
           ],
           "emits": [
             "CardDisputeRejected"
+          ],
+          "events": [
+            {
+              "name": "CardDisputeRejected",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "disputed",
           "provenance": null
@@ -5669,6 +5951,17 @@
           "emits": [
             "BoxRented"
           ],
+          "events": [
+            {
+              "name": "BoxRented",
+              "payload": [
+                "branch_code",
+                "box_number",
+                "size",
+                "customer"
+              ]
+            }
+          ],
           "from": "vacant",
           "provenance": null
         },
@@ -5713,6 +6006,20 @@
           "emits": [
             "BoxSurrendered",
             "KeyReturnDue"
+          ],
+          "events": [
+            {
+              "name": "BoxSurrendered",
+              "payload": [
+
+              ]
+            },
+            {
+              "name": "KeyReturnDue",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "rented",
           "provenance": null
@@ -5796,6 +6103,16 @@
           "emits": [
             "BoxOpened"
           ],
+          "events": [
+            {
+              "name": "BoxOpened",
+              "payload": [
+                "date",
+                "sequence",
+                "note"
+              ]
+            }
+          ],
           "from": "rented",
           "provenance": null
         },
@@ -5855,6 +6172,14 @@
           ],
           "emits": [
             "KeyIssued"
+          ],
+          "events": [
+            {
+              "name": "KeyIssued",
+              "payload": [
+                "serial"
+              ]
+            }
           ],
           "from": "rented",
           "provenance": null
@@ -6032,6 +6357,14 @@
               ],
               "emits": [
                 "VisitAnnotated"
+              ],
+              "events": [
+                {
+                  "name": "VisitAnnotated",
+                  "payload": [
+                    "note"
+                  ]
+                }
               ],
               "from": "logged",
               "provenance": null
@@ -6246,6 +6579,14 @@
               ],
               "emits": [
                 "KeyReturned"
+              ],
+              "events": [
+                {
+                  "name": "KeyReturned",
+                  "payload": [
+                    "serial"
+                  ]
+                }
               ],
               "from": null,
               "provenance": null
@@ -6741,6 +7082,19 @@
           "emits": [
             "StatementGenerated"
           ],
+          "events": [
+            {
+              "name": "StatementGenerated",
+              "payload": [
+                "period",
+                "opening_balance",
+                "closing_balance",
+                "generated_on",
+                "frequency",
+                "account"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         }
@@ -7161,6 +7515,18 @@
           "emits": [
             "TransferRequested"
           ],
+          "events": [
+            {
+              "name": "TransferRequested",
+              "payload": [
+                "reference",
+                "amount",
+                "narrative",
+                "source",
+                "destination"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -7226,6 +7592,14 @@
           ],
           "emits": [
             "TransferDebited"
+          ],
+          "events": [
+            {
+              "name": "TransferDebited",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "requested",
           "provenance": null
@@ -7293,6 +7667,14 @@
           "emits": [
             "TransferSettled"
           ],
+          "events": [
+            {
+              "name": "TransferSettled",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "credited",
           "provenance": null
         },
@@ -7358,6 +7740,14 @@
           ],
           "emits": [
             "TransferCredited"
+          ],
+          "events": [
+            {
+              "name": "TransferCredited",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "debited",
           "provenance": null
@@ -7425,6 +7815,14 @@
           "emits": [
             "TransferReversed"
           ],
+          "events": [
+            {
+              "name": "TransferReversed",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "debited",
           "provenance": null
         },
@@ -7490,6 +7888,14 @@
           ],
           "emits": [
             "TransferRejected"
+          ],
+          "events": [
+            {
+              "name": "TransferRejected",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "requested",
           "provenance": null
@@ -8057,6 +8463,18 @@
           "emits": [
             "ExternalTransferRequested"
           ],
+          "events": [
+            {
+              "name": "ExternalTransferRequested",
+              "payload": [
+                "end_to_end",
+                "account",
+                "amount",
+                "beneficiary",
+                "direction"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8122,6 +8540,14 @@
           ],
           "emits": [
             "ExternalTransferSent"
+          ],
+          "events": [
+            {
+              "name": "ExternalTransferSent",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "requested",
           "provenance": null
@@ -8189,6 +8615,14 @@
           "emits": [
             "ExternalTransferRecalled"
           ],
+          "events": [
+            {
+              "name": "ExternalTransferRecalled",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "sent",
           "provenance": null
         },
@@ -8254,6 +8688,14 @@
           ],
           "emits": [
             "ExternalTransferReturned"
+          ],
+          "events": [
+            {
+              "name": "ExternalTransferReturned",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "sent",
           "provenance": null
@@ -8873,6 +9315,18 @@
           "emits": [
             "PaymentScheduled"
           ],
+          "events": [
+            {
+              "name": "PaymentScheduled",
+              "payload": [
+                "instruction",
+                "account",
+                "amount",
+                "recipient",
+                "due_on"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -8938,6 +9392,14 @@
           ],
           "emits": [
             "ScheduledPaymentExecuted"
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentExecuted",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "scheduled",
           "provenance": null
@@ -9005,6 +9467,14 @@
           "emits": [
             "ScheduledPaymentCancelled"
           ],
+          "events": [
+            {
+              "name": "ScheduledPaymentCancelled",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "scheduled",
           "provenance": null
         },
@@ -9070,6 +9540,14 @@
           ],
           "emits": [
             "ScheduledPaymentFailed"
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentFailed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "scheduled",
           "provenance": null
@@ -9206,6 +9684,14 @@
           "emits": [
             "ScheduledPaymentFailed"
           ],
+          "events": [
+            {
+              "name": "ScheduledPaymentFailed",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "failed",
           "provenance": null
         },
@@ -9297,6 +9783,14 @@
           ],
           "emits": [
             "ScheduledPaymentAbandoned"
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentAbandoned",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "failed",
           "provenance": null
@@ -9740,6 +10234,7 @@
         "cleared",
         "declined"
       ],
+      "initial_state": "screening",
       "handlers": [
         {
           "event_type": "OnboardingCleared",
@@ -9791,6 +10286,7 @@
         "settled",
         "reversed"
       ],
+      "initial_state": "requested",
       "handlers": [
         {
           "event_type": "TransferRequested",
@@ -9939,6 +10435,7 @@
         "requested",
         "returned"
       ],
+      "initial_state": "requested",
       "handlers": [
         {
           "event_type": "ExternalTransferRequested",

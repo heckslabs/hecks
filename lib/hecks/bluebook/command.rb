@@ -79,6 +79,11 @@ module Hecks
         ensures:    -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
         mutations:  many(:mutations),
         emits:      :emits,
+        # STAGE 8 — the event payload schema as an IR FACT: an emission's
+        # payload is the command's coerced arguments (C7.1), so each event
+        # this command announces carries exactly these attribute names.
+        # `emits` stays the name list every existing reader knows.
+        events:     -> { emits.map { |event| { "name" => event.to_s, "payload" => attributes.map { |a| a.name.to_s } } } },
         # THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR
         # 0025 — "lifecycle state becomes a command guard") — a GUARD,
         # not a transition: `command "Debit", from: "open"` replaces

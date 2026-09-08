@@ -57,11 +57,17 @@ module Hecks
 
         # Model-only, each for its own reason rather than by oversight.
         COMPUTED = {
-          "Bluebook"    => { ir_version:     "the EMISSION's own version, not the domain's",
-                             canonical_form: "the normalisation table every reader needs beside the IR" },
-          "ValueObject" => { closed_set:     "an empty one_of and no one_of are otherwise indistinguishable" },
-          "Aggregate"   => { ports:          "declared in the hecksagon, attached after the aggregate exists" },
-          "Policy"      => { where_ast:      "the structured form of `where`, derived from the same text at emission" }
+          "Bluebook"       => { ir_version:     "the EMISSION's own version, not the domain's",
+                                canonical_form: "the normalisation table every reader needs beside the IR" },
+          "ValueObject"    => { closed_set:     "an empty one_of and no one_of are otherwise indistinguishable" },
+          "Aggregate"      => { ports:          "declared in the hecksagon, attached after the aggregate exists" },
+          "Policy"         => { where_ast:      "the structured form of `where`, derived from the same text at emission" },
+          # STAGE 8 (docs/semantics/bluebook-semantics.md) — facts a code
+          # generator used to decide for itself, now stated by the IR so no
+          # runtime derives them a second time.
+          "ProcessManager" => { initial_state: "the state a fresh saga instance starts in — the first declared state" },
+          "Command"        => { events: "each emitted event with its payload schema — the command's own " \
+                                        "attribute names, the coerced arguments an emission carries" }
         }.freeze
 
         # DECLARED, AND DELIBERATELY NOT EMITTED. The category that had no

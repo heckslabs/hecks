@@ -473,6 +473,14 @@
           "emits": [
             "RosterOpened"
           ],
+          "events": [
+            {
+              "name": "RosterOpened",
+              "payload": [
+                "name"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -513,6 +521,14 @@
           "emits": [
             "SeatMarked"
           ],
+          "events": [
+            {
+              "name": "SeatMarked",
+              "payload": [
+                "to"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -544,6 +560,14 @@
           ],
           "emits": [
             "MarkNoticed"
+          ],
+          "events": [
+            {
+              "name": "MarkNoticed",
+              "payload": [
+                "to"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -584,6 +608,14 @@
           ],
           "emits": [
             "RosterHonored"
+          ],
+          "events": [
+            {
+              "name": "RosterHonored",
+              "payload": [
+                "rank"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -671,6 +703,15 @@
           ],
           "emits": [
             "SeatAdded"
+          ],
+          "events": [
+            {
+              "name": "SeatAdded",
+              "payload": [
+                "number",
+                "row"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -809,6 +850,15 @@
           ],
           "emits": [
             "MemberEnlisted"
+          ],
+          "events": [
+            {
+              "name": "MemberEnlisted",
+              "payload": [
+                "id",
+                "age"
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -1133,6 +1183,15 @@
           "emits": [
             "SeatAssigned"
           ],
+          "events": [
+            {
+              "name": "SeatAssigned",
+              "payload": [
+                "member",
+                "number"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -1170,6 +1229,9 @@
             }
           ],
           "emits": [
+
+          ],
+          "events": [
 
           ],
           "from": null,
@@ -1388,6 +1450,14 @@
               ],
               "emits": [
                 "MemberRetired"
+              ],
+              "events": [
+                {
+                  "name": "MemberRetired",
+                  "payload": [
+                    "id"
+                  ]
+                }
               ],
               "from": null,
               "provenance": null

@@ -412,6 +412,15 @@
           "emits": [
             "PizzaCreated"
           ],
+          "events": [
+            {
+              "name": "PizzaCreated",
+              "payload": [
+                "name",
+                "pizza"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -485,6 +494,15 @@
           ],
           "emits": [
             "ToppingAdded"
+          ],
+          "events": [
+            {
+              "name": "ToppingAdded",
+              "payload": [
+                "topping",
+                "amount"
+              ]
+            }
           ],
           "from": "available",
           "provenance": null
@@ -601,6 +619,15 @@
           ],
           "emits": [
             "PizzaPurchased"
+          ],
+          "events": [
+            {
+              "name": "PizzaPurchased",
+              "payload": [
+                "amount",
+                "customer_name"
+              ]
+            }
           ],
           "from": "available",
           "provenance": null

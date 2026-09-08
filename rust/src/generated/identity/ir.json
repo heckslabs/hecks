@@ -96,6 +96,14 @@
           "emits": [
             "IdentityRegistered"
           ],
+          "events": [
+            {
+              "name": "IdentityRegistered",
+              "payload": [
+                "identity_id"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         }
@@ -350,6 +358,17 @@
           ],
           "emits": [
             "ExternalIdentifierLinked"
+          ],
+          "events": [
+            {
+              "name": "ExternalIdentifierLinked",
+              "payload": [
+                "identity",
+                "key",
+                "issuer",
+                "subject"
+              ]
+            }
           ],
           "from": null,
           "provenance": null

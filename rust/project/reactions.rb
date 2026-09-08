@@ -360,7 +360,7 @@ module RustProjection
       pm_exprs = process_managers.map do |pm|
         handlers = pm[:handlers].map { |h| emit_handler(h, literal_fns) }
         "crate::kernel::ProcessManagerDef { name: #{pm[:name].inspect}, correlates_by: #{pm[:correlates_by].inspect}, " \
-          "starts_on: #{pm[:starts_on].inspect}, ends_on: #{pm[:ends_on].inspect}, initial_state: #{pm[:states].first.inspect}, " \
+          "starts_on: #{pm[:starts_on].inspect}, ends_on: #{pm[:ends_on].inspect}, initial_state: #{pm.fetch(:initial_state).inspect}, " \
           "handlers: &[#{handlers.join(', ')}] }"
       end
 

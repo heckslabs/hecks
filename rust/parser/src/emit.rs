@@ -330,6 +330,26 @@ fn command_json(c: &ir::Command) -> JsonValue {
             JsonValue::Array(c.mutations.iter().map(mutation_json).collect()),
         ),
         ("emits".to_string(), JsonValue::strings(&c.emits)),
+        // STAGE 8 — `IR::Command`'s own `events`: each emitted event with
+        // its payload schema, the command's attribute names (C7.1: an
+        // emission's payload is the coerced arguments).
+        (
+            "events".to_string(),
+            JsonValue::Array(
+                c.emits
+                    .iter()
+                    .map(|event| {
+                        JsonValue::Object(vec![
+                            ("name".to_string(), JsonValue::str(event.clone())),
+                            (
+                                "payload".to_string(),
+                                JsonValue::strings(&c.attributes.iter().map(|a| a.name.clone()).collect::<Vec<_>>()),
+                            ),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
         ("from".to_string(), command_from_json(&c.from)),
         (
             "provenance".to_string(),
@@ -733,6 +753,9 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
         ("starts_on".to_string(), JsonValue::opt_str(&pm.starts_on)),
         ("ends_on".to_string(), JsonValue::opt_str(&pm.ends_on)),
         ("states".to_string(), JsonValue::strings(&pm.states)),
+        // STAGE 8 — `IR::ProcessManager`'s own `initial_state`: the first
+        // declared state, stated rather than re-derived by a generator.
+        ("initial_state".to_string(), JsonValue::opt_str(&pm.states.first().cloned())),
         (
             "handlers".to_string(),
             JsonValue::Array(

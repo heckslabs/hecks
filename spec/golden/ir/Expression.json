@@ -163,6 +163,20 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "OperatorProposed",
+              "payload": [
+                "symbol",
+                "category",
+                "precedence",
+                "arity",
+                "grammar",
+                "strategy",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -360,6 +374,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "OperatorRendered",
+              "payload": [
+                "target",
+                "form"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -412,6 +435,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "OperatorAdmitted",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -458,6 +489,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "OperatorRetired",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -1082,6 +1121,19 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "NormalisationProposed",
+              "payload": [
+                "name",
+                "strategy",
+                "source_token",
+                "replacement",
+                "boundary",
+                "position"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -1213,6 +1265,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "NormalisationRead",
+              "payload": [
+                "target",
+                "form"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -1265,6 +1326,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "NormalisationAdmitted",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -1311,6 +1380,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "NormalisationRetired",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -1907,6 +1984,17 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ExpressionExtracted",
+              "payload": [
+                "description",
+                "source",
+                "canonical",
+                "subject"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -1949,6 +2037,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ReferenceNoted",
+              "payload": [
+                "name",
+                "kind"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -1979,6 +2076,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ExpressionAdmitted",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "givens": [
@@ -2050,6 +2155,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ExpressionRejected",
+              "payload": [
+                "reason"
+              ]
+            }
           ],
           "from": null,
           "givens": [

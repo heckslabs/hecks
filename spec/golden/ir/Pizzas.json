@@ -73,6 +73,15 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PizzaCreated",
+              "payload": [
+                "name",
+                "pizza"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -131,6 +140,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ToppingAdded",
+              "payload": [
+                "topping",
+                "amount"
+              ]
+            }
           ],
           "from": "available",
           "givens": [
@@ -205,6 +223,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "PizzaPurchased",
+              "payload": [
+                "amount",
+                "customer_name"
+              ]
+            }
           ],
           "from": "available",
           "givens": [

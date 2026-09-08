@@ -133,6 +133,19 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "Bound",
+              "payload": [
+                "hecksagon_ref",
+                "aggregate",
+                "verb",
+                "adapter",
+                "role",
+                "hecksagon"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -1271,6 +1284,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "HecksagonDeclared",
+              "payload": [
+                "domain"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -1311,6 +1332,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "SubscriptionAdded",
+              "payload": [
+                "event"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -1350,6 +1379,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "FrameworkMemberAttached",
+              "payload": [
+                "member"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -1388,6 +1425,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "VendoredBluebookAttached",
+              "payload": [
+                "package"
+              ]
+            }
           ],
           "from": null,
           "givens": [

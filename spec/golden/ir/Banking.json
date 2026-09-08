@@ -83,6 +83,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CustomerRegistered",
+              "payload": [
+                "reference",
+                "name",
+                "email"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
 
@@ -141,6 +151,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CustomerSuspended",
+              "payload": [
+                "standing"
+              ]
+            }
+          ],
           "from": "active",
           "givens": [
 
@@ -171,6 +189,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CustomerReinstated",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "suspended",
           "givens": [
@@ -204,6 +230,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CustomerClosed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "active",
@@ -642,6 +676,17 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "AccountOpened",
+              "payload": [
+                "customer",
+                "number",
+                "kind",
+                "daily_limit"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -740,6 +785,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "AccountCredited",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
           ],
           "from": "open",
           "givens": [
@@ -896,6 +950,15 @@
               "description": "a ledger entry was posted"
             }
           ],
+          "events": [
+            {
+              "name": "AccountDebited",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
+          ],
           "from": "open",
           "givens": [
             {
@@ -1010,6 +1073,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "AccountFrozen",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "open",
           "givens": [
             {
@@ -1054,6 +1125,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "AccountUnfrozen",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "frozen",
           "givens": [
             {
@@ -1097,6 +1176,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "AccountClosed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "open",
@@ -1182,6 +1269,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "FeeApplied",
+              "payload": [
+                "amount",
+                "narrative"
+              ]
+            }
           ],
           "from": "open",
           "givens": [
@@ -1278,6 +1374,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "FeeCorrected",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": "open",
           "givens": [
@@ -1385,6 +1489,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "InterestAccrued",
+              "payload": [
+                "amount"
+              ]
+            }
+          ],
           "from": "open",
           "givens": [
             {
@@ -1454,6 +1566,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "InterestCorrected",
+              "payload": [
+                "amount"
+              ]
+            }
           ],
           "from": "open",
           "givens": [
@@ -1634,6 +1754,15 @@
               "ensures": [
 
               ],
+              "events": [
+                {
+                  "name": "LedgerEntryAmended",
+                  "payload": [
+                    "adjustment",
+                    "narrative"
+                  ]
+                }
+              ],
               "from": null,
               "givens": [
                 {
@@ -1782,6 +1911,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "LedgerEntryReversed",
+                  "payload": [
+                    "narrative"
+                  ]
+                }
               ],
               "from": null,
               "givens": [
@@ -2761,6 +2898,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "OnboardingOpened",
+              "payload": [
+                "customer",
+                "reference",
+                "account_number"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -2832,6 +2979,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "OnboardingCleared",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "screening",
           "givens": [
             {
@@ -2875,6 +3030,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "OnboardingDeclined",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "screening",
           "givens": [
@@ -3192,6 +3355,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ATMCardIssued",
+              "payload": [
+                "account",
+                "serial",
+                "daily_fee"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -3296,6 +3469,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ATMCardRenamed",
+              "payload": [
+                "nickname"
+              ]
+            }
+          ],
           "from": [
             "issued",
             "active"
@@ -3369,6 +3550,15 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CashWithdrawn",
+              "payload": [
+                "cents",
+                "narrative"
+              ]
+            }
           ],
           "from": "active",
           "givens": [
@@ -3444,6 +3634,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ATMCardActivated",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "issued",
           "givens": [
             {
@@ -3487,6 +3685,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ATMCardRetired",
+              "payload": [
+
+              ]
+            }
           ],
           "from": [
             "issued",
@@ -3580,6 +3786,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "WithdrawalDisputed",
+                  "payload": [
+                    "narrative"
+                  ]
+                }
               ],
               "from": "taken",
               "givens": [
@@ -4248,6 +4462,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CardAuthorized",
+              "payload": [
+                "authorisation",
+                "tags",
+                "account",
+                "amount",
+                "merchant"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -4361,6 +4587,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CardCaptured",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "authorized",
           "givens": [
             {
@@ -4426,6 +4660,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CardVoided",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "authorized",
           "givens": [
@@ -4493,6 +4735,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CardRefunded",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "captured",
           "givens": [
             {
@@ -4558,6 +4808,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CardReversed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "captured",
           "givens": [
@@ -4633,6 +4891,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CardDisputed",
+              "payload": [
+                "disputed_by"
+              ]
+            }
           ],
           "from": [
             "captured",
@@ -4712,6 +4978,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "CardChargedBack",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "disputed",
           "givens": [
             {
@@ -4777,6 +5051,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "CardDisputeRejected",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "disputed",
           "givens": [
@@ -5329,6 +5611,17 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "BoxRented",
+              "payload": [
+                "branch_code",
+                "box_number",
+                "size",
+                "customer"
+              ]
+            }
+          ],
           "from": "vacant",
           "givens": [
             {
@@ -5410,6 +5703,20 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "BoxSurrendered",
+              "payload": [
+
+              ]
+            },
+            {
+              "name": "KeyReturnDue",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "rented",
           "givens": [
             {
@@ -5483,6 +5790,16 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "BoxOpened",
+              "payload": [
+                "date",
+                "sequence",
+                "note"
+              ]
+            }
+          ],
           "from": "rented",
           "givens": [
             {
@@ -5544,6 +5861,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "KeyIssued",
+              "payload": [
+                "serial"
+              ]
+            }
           ],
           "from": "rented",
           "givens": [
@@ -5641,6 +5966,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "VisitAnnotated",
+                  "payload": [
+                    "note"
+                  ]
+                }
               ],
               "from": "logged",
               "givens": [
@@ -5864,6 +6197,14 @@
               ],
               "ensures": [
 
+              ],
+              "events": [
+                {
+                  "name": "KeyReturned",
+                  "payload": [
+                    "serial"
+                  ]
+                }
               ],
               "from": null,
               "givens": [
@@ -6433,6 +6774,19 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "StatementGenerated",
+              "payload": [
+                "period",
+                "opening_balance",
+                "closing_balance",
+                "generated_on",
+                "frequency",
+                "account"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -6873,6 +7227,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TransferRequested",
+              "payload": [
+                "reference",
+                "amount",
+                "narrative",
+                "source",
+                "destination"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -7042,6 +7408,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TransferDebited",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "requested",
           "givens": [
             {
@@ -7107,6 +7481,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "TransferSettled",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "credited",
           "givens": [
@@ -7174,6 +7556,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TransferCredited",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "debited",
           "givens": [
             {
@@ -7240,6 +7630,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "TransferReversed",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "debited",
           "givens": [
             {
@@ -7305,6 +7703,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "TransferRejected",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "requested",
           "givens": [
@@ -7821,6 +8227,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ExternalTransferRequested",
+              "payload": [
+                "end_to_end",
+                "account",
+                "amount",
+                "beneficiary",
+                "direction"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -7934,6 +8352,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ExternalTransferSent",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "requested",
           "givens": [
             {
@@ -8000,6 +8426,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ExternalTransferRecalled",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "sent",
           "givens": [
             {
@@ -8065,6 +8499,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ExternalTransferReturned",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "sent",
           "givens": [
@@ -8538,6 +8980,18 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "PaymentScheduled",
+              "payload": [
+                "instruction",
+                "account",
+                "amount",
+                "recipient",
+                "due_on"
+              ]
+            }
+          ],
           "from": null,
           "givens": [
             {
@@ -8651,6 +9105,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ScheduledPaymentExecuted",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "scheduled",
           "givens": [
             {
@@ -8717,6 +9179,14 @@
           "ensures": [
 
           ],
+          "events": [
+            {
+              "name": "ScheduledPaymentCancelled",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": "scheduled",
           "givens": [
             {
@@ -8782,6 +9252,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentFailed",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "scheduled",
           "givens": [
@@ -8880,6 +9358,14 @@
               },
               "canonical": "attempts.value == old.attempts.value + 1",
               "description": "a retry never lowers the attempt count"
+            }
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentFailed",
+              "payload": [
+
+              ]
             }
           ],
           "from": "failed",
@@ -8983,6 +9469,14 @@
           ],
           "ensures": [
 
+          ],
+          "events": [
+            {
+              "name": "ScheduledPaymentAbandoned",
+              "payload": [
+
+              ]
+            }
           ],
           "from": "failed",
           "givens": [
@@ -9605,6 +10099,7 @@
           "to_state": "declined"
         }
       ],
+      "initial_state": "screening",
       "name": "Onboarding",
       "starts_on": "OnboardingOpened",
       "states": [
@@ -9754,6 +10249,7 @@
           "to_state": "reversed"
         }
       ],
+      "initial_state": "requested",
       "name": "Settlement",
       "starts_on": "TransferRequested",
       "states": [
@@ -9802,6 +10298,7 @@
           "to_state": "returned"
         }
       ],
+      "initial_state": "requested",
       "name": "ExternalSettlement",
       "starts_on": "ExternalTransferRequested",
       "states": [

@@ -129,7 +129,11 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # OTHER kind of key this round trip cannot compare.
   def strip_invariant_ast(node)
     case node
-    when Hash then node.except(:ast, :where_ast).transform_values { |v| strip_invariant_ast(v) }
+    # `events` and `initial_state` (stage 8) are COMPUTED keys like
+    # `where_ast`: pure functions of the declaration, stated in the IR so
+    # no generator re-derives them, never stored by the meta-domain and
+    # so never read back — the same exemption `ast`/`where_ast` have.
+    when Hash then node.except(:ast, :where_ast, :events, :initial_state).transform_values { |v| strip_invariant_ast(v) }
     when Array then node.map { |v| strip_invariant_ast(v) }
     else node
     end

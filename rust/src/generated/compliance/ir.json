@@ -104,6 +104,14 @@
           "emits": [
             "AccountFreezeReviewOpened"
           ],
+          "events": [
+            {
+              "name": "AccountFreezeReviewOpened",
+              "payload": [
+                "number"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -127,6 +135,14 @@
           "emits": [
             "AccountFreezeReviewCleared"
           ],
+          "events": [
+            {
+              "name": "AccountFreezeReviewCleared",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -149,6 +165,14 @@
           ],
           "emits": [
             "AccountFreezeReviewEscalated"
+          ],
+          "events": [
+            {
+              "name": "AccountFreezeReviewEscalated",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "provenance": null
@@ -357,6 +381,15 @@
           "emits": [
             "BoxSurrenderReviewOpened"
           ],
+          "events": [
+            {
+              "name": "BoxSurrenderReviewOpened",
+              "payload": [
+                "branch_code",
+                "box_number"
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -380,6 +413,14 @@
           "emits": [
             "BoxSurrenderReviewCleared"
           ],
+          "events": [
+            {
+              "name": "BoxSurrenderReviewCleared",
+              "payload": [
+
+              ]
+            }
+          ],
           "from": null,
           "provenance": null
         },
@@ -402,6 +443,14 @@
           ],
           "emits": [
             "BoxSurrenderReviewEscalated"
+          ],
+          "events": [
+            {
+              "name": "BoxSurrenderReviewEscalated",
+              "payload": [
+
+              ]
+            }
           ],
           "from": null,
           "provenance": null
