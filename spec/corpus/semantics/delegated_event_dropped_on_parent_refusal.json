@@ -1,0 +1,284 @@
+{
+  "domain": "examples/chess",
+  "ruby_only": true,
+  "spec": [
+    "C7.2",
+    "C8.1"
+  ],
+  "note": "A delegating door whose PARENT refuses after the delegated leg succeeded: Game.MovePiece delegates to Piece.Move (givens pass, mutations apply, PieceMoved would be the result) and then the door's own ensures — the mover's king must remain on the board — fails, because white's king was captured. Per C7.2 nothing from that step exists: no PieceMoved, no state change. Before this fixture Ruby recorded the delegated event (on the event log AND in the adapter, outside the save transaction) before the parent could refuse.",
+  "steps": [
+    {
+      "verb": "Chess::Game.Start",
+      "args": {
+        "label": {
+          "value": "g1"
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wk"
+        },
+        "kind": {
+          "value": "king"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 4,
+          "rank": 0
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.PlacePiece",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wp"
+        },
+        "kind": {
+          "value": "pawn"
+        },
+        "color": {
+          "value": "white"
+        },
+        "square": {
+          "file": 0,
+          "rank": 1
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.AdvanceTurn",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "turn": {
+          "value": "black"
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.CapturePiece",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wk"
+        },
+        "by": {
+          "value": "black"
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.AdvanceTurn",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "turn": {
+          "value": "white"
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.MovePiece",
+      "args": {
+        "label": {
+          "value": "g1"
+        },
+        "id": {
+          "value": "wp"
+        },
+        "destination": {
+          "file": 0,
+          "rank": 2
+        },
+        "by": {
+          "value": "white"
+        },
+        "outcome": {
+          "value": "ongoing"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Chess::Game.MovePiece",
+        "error": "MovePiece refused — the mover's own king remains on the board after the move",
+        "kind": "EnsuresNotMet"
+      }
+    ],
+    "instances": {
+      "Chess::Game#g1": {
+        "label": {
+          "value": "g1"
+        },
+        "turn": {
+          "value": "white"
+        },
+        "draw_offer": {
+          "value": "none"
+        },
+        "ply": {
+          "value": 2
+        },
+        "pieces": [
+          {
+            "id": {
+              "value": "wk"
+            },
+            "kind": {
+              "value": "king"
+            },
+            "color": {
+              "value": "white"
+            },
+            "square": {
+              "file": 4,
+              "rank": 0
+            },
+            "moved": {
+              "value": "unmoved"
+            },
+            "status": "captured"
+          },
+          {
+            "id": {
+              "value": "wp"
+            },
+            "kind": {
+              "value": "pawn"
+            },
+            "color": {
+              "value": "white"
+            },
+            "square": {
+              "file": 0,
+              "rank": 1
+            },
+            "moved": {
+              "value": "unmoved"
+            },
+            "status": "on_board"
+          }
+        ],
+        "status": "in_progress"
+      }
+    },
+    "events": [
+      {
+        "name": "GameStarted",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wk"
+          },
+          "kind": {
+            "value": "king"
+          },
+          "color": {
+            "value": "white"
+          },
+          "square": {
+            "file": 4,
+            "rank": 0
+          }
+        }
+      },
+      {
+        "name": "PiecePlaced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wp"
+          },
+          "kind": {
+            "value": "pawn"
+          },
+          "color": {
+            "value": "white"
+          },
+          "square": {
+            "file": 0,
+            "rank": 1
+          }
+        }
+      },
+      {
+        "name": "TurnAdvanced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "turn": {
+            "value": "black"
+          }
+        }
+      },
+      {
+        "name": "PieceCaptured",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "id": {
+            "value": "wk"
+          },
+          "by": {
+            "value": "black"
+          }
+        }
+      },
+      {
+        "name": "TurnAdvanced",
+        "aggregate": "Chess::Game",
+        "id": "g1",
+        "payload": {
+          "label": {
+            "value": "g1"
+          },
+          "turn": {
+            "value": "white"
+          }
+        }
+      }
+    ]
+  }
+}

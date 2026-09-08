@@ -173,10 +173,12 @@ it, except for one law they must uphold (C8.4).
   arguments. Event order across a dispatch is semantic.
 - **C7.2 (settled)** A refused or faulted command emits nothing and
   records nothing — including events from a delegated entity command
-  whose parent later refuses. (Ruby currently violates the delegated
-  half: `step_delegate_to_entity` records events before the parent's
-  ensures/invariants/save. That is a bug against this clause, tracked
-  for its own fix; the fixture lands with the fix.)
+  whose parent later refuses: the delegated leg's emission is part of
+  the parent's own `emit` step, after save, inside the same commit
+  boundary. (Ruby once recorded delegated events before the parent's
+  ensures/invariants/save, outside the transaction; fixed against this
+  clause.) (fixtures: `invariant_refused_events_dropped.json`,
+  `delegated_event_dropped_on_parent_refusal.json`)
 - **C7.3 (settled)** `occurred_at` is environmental (C9.1), not part of
   the semantic payload.
 
