@@ -402,6 +402,7 @@ pub fn dispatch_draft(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractDrafted"],
         args.to_json(),
         mutations,
@@ -482,6 +483,7 @@ pub fn dispatch_send(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractSent"],
         args.to_json(),
         mutations,
@@ -552,6 +554,7 @@ pub fn dispatch_sign(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractSigned"],
         args.to_json(),
         mutations,
@@ -622,6 +625,7 @@ pub fn dispatch_activate(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractActivated"],
         args.to_json(),
         mutations,
@@ -692,6 +696,7 @@ pub fn dispatch_complete(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractCompleted"],
         args.to_json(),
         mutations,
@@ -762,6 +767,7 @@ pub fn dispatch_terminate(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractTerminated"],
         args.to_json(),
         mutations,
@@ -835,6 +841,7 @@ pub fn dispatch_revise(
         &[
 
         ],
+        &contract_invariants(),
         &["ContractRevised"],
         args.to_json(),
         mutations,
@@ -867,3 +874,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn contract_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

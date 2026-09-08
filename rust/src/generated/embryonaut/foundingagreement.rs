@@ -349,6 +349,7 @@ pub fn dispatch_draft(
         &[
 
         ],
+        &foundingagreement_invariants(),
         &["FoundingAgreementDrafted"],
         args.to_json(),
         mutations,
@@ -425,6 +426,7 @@ pub fn dispatch_circulate(
         &[
 
         ],
+        &foundingagreement_invariants(),
         &["FoundingAgreementCirculated"],
         args.to_json(),
         mutations,
@@ -497,6 +499,7 @@ pub fn dispatch_execute(
         &[
 
         ],
+        &foundingagreement_invariants(),
         &["FoundingAgreementExecuted"],
         args.to_json(),
         mutations,
@@ -527,3 +530,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn foundingagreement_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

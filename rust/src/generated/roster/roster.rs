@@ -779,6 +779,7 @@ pub fn dispatch_entity_member_retire(
         &[
             crate::kernel::EnsuresSpec { description: "someone still serves", expr: Expr::BlockPredicate { mode: crate::kernel::BlockMode::Any, receiver: Box::new(Expr::Lookup("parent.crew")), param: "m", predicate: Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("m.status")), right: Box::new(Expr::Str("active".to_string())) }) } },
         ],
+        &roster_invariants(),
         &["MemberRetired"],
         args.to_json(),
         mutations,
@@ -894,6 +895,14 @@ impl Roster {
     }
 }
 
+fn roster_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for OpenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -965,6 +974,7 @@ pub fn dispatch_open(
         &[
 
         ],
+        &roster_invariants(),
         &["RosterOpened"],
         args.to_json(),
         mutations,
@@ -1054,6 +1064,7 @@ pub fn dispatch_mark(
         &[
 
         ],
+        &roster_invariants(),
         &["SeatMarked"],
         args.to_json(),
         mutations,
@@ -1143,6 +1154,7 @@ pub fn dispatch_notice(
         &[
 
         ],
+        &roster_invariants(),
         &["MarkNoticed"],
         args.to_json(),
         mutations,
@@ -1232,6 +1244,7 @@ pub fn dispatch_honor(
         &[
 
         ],
+        &roster_invariants(),
         &["RosterHonored"],
         args.to_json(),
         mutations,
@@ -1323,6 +1336,7 @@ pub fn dispatch_add_seat(
         &[
 
         ],
+        &roster_invariants(),
         &["SeatAdded"],
         args.to_json(),
         mutations,
@@ -1418,6 +1432,7 @@ pub fn dispatch_enlist(
         &[
 
         ],
+        &roster_invariants(),
         &["MemberEnlisted"],
         args.to_json(),
         mutations,
@@ -1517,6 +1532,7 @@ pub fn dispatch_assign(
         &[
 
         ],
+        &roster_invariants(),
         &["SeatAssigned"],
         args.to_json(),
         mutations,
@@ -1636,6 +1652,7 @@ pub fn dispatch_retire(
         &[
 
         ],
+        &roster_invariants(),
         &["MemberRetired"],
         delegate_facts.clone(),
         mutations,

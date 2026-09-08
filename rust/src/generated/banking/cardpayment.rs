@@ -399,6 +399,14 @@ impl CardPayment {
     }
 }
 
+fn cardpayment_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for AuthorizeArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -484,6 +492,7 @@ pub fn dispatch_authorize(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardAuthorized"],
         args.to_json(),
         mutations,
@@ -581,6 +590,7 @@ pub fn dispatch_capture(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardCaptured"],
         args.to_json(),
         mutations,
@@ -670,6 +680,7 @@ pub fn dispatch_void(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardVoided"],
         args.to_json(),
         mutations,
@@ -759,6 +770,7 @@ pub fn dispatch_refund(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardRefunded"],
         args.to_json(),
         mutations,
@@ -848,6 +860,7 @@ pub fn dispatch_reverse(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardReversed"],
         args.to_json(),
         mutations,
@@ -939,6 +952,7 @@ pub fn dispatch_dispute(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardDisputed"],
         args.to_json(),
         mutations,
@@ -1028,6 +1042,7 @@ pub fn dispatch_chargeback(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardChargedBack"],
         args.to_json(),
         mutations,
@@ -1117,6 +1132,7 @@ pub fn dispatch_reject_dispute(
         &[
 
         ],
+        &cardpayment_invariants(),
         &["CardDisputeRejected"],
         args.to_json(),
         mutations,

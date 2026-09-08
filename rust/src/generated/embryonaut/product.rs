@@ -260,6 +260,7 @@ pub fn dispatch_conceive(
         &[
 
         ],
+        &product_invariants(),
         &["ProductConceived"],
         args.to_json(),
         mutations,
@@ -334,6 +335,7 @@ pub fn dispatch_set_vision(
         &[
 
         ],
+        &product_invariants(),
         &["VisionSet"],
         args.to_json(),
         mutations,
@@ -404,6 +406,7 @@ pub fn dispatch_begin_development(
         &[
 
         ],
+        &product_invariants(),
         &["DevelopmentStarted"],
         args.to_json(),
         mutations,
@@ -474,6 +477,7 @@ pub fn dispatch_launch(
         &[
 
         ],
+        &product_invariants(),
         &["ProductLaunched"],
         args.to_json(),
         mutations,
@@ -544,6 +548,7 @@ pub fn dispatch_sunset(
         &[
 
         ],
+        &product_invariants(),
         &["ProductSunset"],
         args.to_json(),
         mutations,
@@ -574,3 +579,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn product_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

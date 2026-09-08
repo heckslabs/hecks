@@ -610,6 +610,7 @@ pub fn dispatch_entity_withdrawal_dispute(
         &[
 
         ],
+        &atmcard_invariants(),
         &["WithdrawalDisputed"],
         args.to_json(),
         mutations,
@@ -725,6 +726,14 @@ impl ATMCard {
     }
 }
 
+fn atmcard_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for IssueArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -801,6 +810,7 @@ pub fn dispatch_issue(
         &[
 
         ],
+        &atmcard_invariants(),
         &["ATMCardIssued"],
         args.to_json(),
         mutations,
@@ -894,6 +904,7 @@ pub fn dispatch_rename(
         &[
 
         ],
+        &atmcard_invariants(),
         &["ATMCardRenamed"],
         args.to_json(),
         mutations,
@@ -987,6 +998,7 @@ pub fn dispatch_withdraw(
         &[
 
         ],
+        &atmcard_invariants(),
         &["CashWithdrawn"],
         args.to_json(),
         mutations,
@@ -1077,6 +1089,7 @@ pub fn dispatch_activate(
         &[
 
         ],
+        &atmcard_invariants(),
         &["ATMCardActivated"],
         args.to_json(),
         mutations,
@@ -1165,6 +1178,7 @@ pub fn dispatch_retire(
         &[
 
         ],
+        &atmcard_invariants(),
         &["ATMCardRetired"],
         args.to_json(),
         mutations,

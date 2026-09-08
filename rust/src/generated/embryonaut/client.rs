@@ -259,6 +259,7 @@ pub fn dispatch_add_prospect(
         &[
 
         ],
+        &client_invariants(),
         &["ProspectAdded"],
         args.to_json(),
         mutations,
@@ -333,6 +334,7 @@ pub fn dispatch_engage(
         &[
 
         ],
+        &client_invariants(),
         &["ClientEngaged"],
         args.to_json(),
         mutations,
@@ -403,6 +405,7 @@ pub fn dispatch_pause(
         &[
 
         ],
+        &client_invariants(),
         &["ClientPaused"],
         args.to_json(),
         mutations,
@@ -473,6 +476,7 @@ pub fn dispatch_reactivate(
         &[
 
         ],
+        &client_invariants(),
         &["ClientReactivated"],
         args.to_json(),
         mutations,
@@ -543,6 +547,7 @@ pub fn dispatch_churn(
         &[
 
         ],
+        &client_invariants(),
         &["ClientChurned"],
         args.to_json(),
         mutations,
@@ -573,3 +578,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn client_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

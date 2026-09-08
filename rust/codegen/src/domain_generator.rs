@@ -536,6 +536,9 @@ pub fn generate(
             puts_blank(&mut out);
         }
 
+        puts_str(&mut out, &commands::emit_invariants_fn(aggregate));
+        puts_blank(&mut out);
+
         let mut registry_commands: Vec<CommandEntry> = Vec::new();
         for command in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
             let reason = commands::command_skip_reason(command, aggregate, &value_objects_by_name);

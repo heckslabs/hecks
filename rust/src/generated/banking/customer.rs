@@ -402,6 +402,14 @@ impl Customer {
     }
 }
 
+fn customer_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for RegisterArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -475,6 +483,7 @@ pub fn dispatch_register(
         &[
 
         ],
+        &customer_invariants(),
         &["CustomerRegistered"],
         args.to_json(),
         mutations,
@@ -569,6 +578,7 @@ pub fn dispatch_suspend(
         &[
 
         ],
+        &customer_invariants(),
         &["CustomerSuspended"],
         args.to_json(),
         mutations,
@@ -658,6 +668,7 @@ pub fn dispatch_reinstate(
         &[
 
         ],
+        &customer_invariants(),
         &["CustomerReinstated"],
         args.to_json(),
         mutations,
@@ -746,6 +757,7 @@ pub fn dispatch_close(
         &[
 
         ],
+        &customer_invariants(),
         &["CustomerClosed"],
         args.to_json(),
         mutations,

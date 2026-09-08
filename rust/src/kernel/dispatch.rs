@@ -20,7 +20,7 @@
 // generic by construction: nothing here needs to change per command shape
 // for either check to already be enforced.
 
-use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld, WithParent};
+use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, Value, WithOld, WithParent};
 use super::refusal_wording::RefusalSite;
 use super::{Event, Json, MutationRecord, Refusal, Repository, SetProjectedField, ToJson};
 
@@ -56,6 +56,70 @@ pub struct GivenSpec {
 pub struct EnsuresSpec {
     pub description: &'static str,
     pub expr: Expr,
+}
+
+/// `enforce_invariants` — `CommandRules::Admissibility#enforce_invariants`
+/// + `#check_entity_invariants`, read directly (docs/semantics/
+/// bluebook-semantics.md C6.2). Runs after `ensures`, before save, on the
+/// CANDIDATE record: the aggregate's own rules with no argument scope
+/// (`NoFields` — Ruby's `attrs = {}`), then every element of every
+/// entity list whose entity declares invariants, with `parent` bound to
+/// the owner (`WithParent`), recursing into nested pieces exactly as Ruby
+/// does — an entity with NO invariants of its own is not descended into,
+/// matching `check_entity_invariants`' own `next if invariants.empty?`.
+/// Generated once per aggregate (`<aggregate>_invariants()`, `rust/
+/// project/commands.rb#emit_invariants_fn`) and passed to every dispatch
+/// of that aggregate's commands, entity commands included — Ruby checks
+/// the PARENT on an entity command too (`EntityInterpreter
+/// #step_enforce_invariants`).
+pub struct InvariantSpec {
+    pub description: &'static str,
+    pub expr: Expr,
+}
+
+pub struct EntityInvariants {
+    pub name: &'static str,
+    pub list_field: &'static str,
+    pub specs: Vec<InvariantSpec>,
+    pub nested: Vec<EntityInvariants>,
+}
+
+pub struct InvariantSet {
+    pub aggregate: Vec<InvariantSpec>,
+    pub entities: Vec<EntityInvariants>,
+}
+
+pub fn enforce_invariants(record: &dyn Fielded, aggregate_name: &str, set: &InvariantSet) -> Result<(), Refusal> {
+    for rule in &set.aggregate {
+        let ctx = EvalContext { args: &NoFields, instance: record };
+        if !interpret(&rule.expr, &ctx)?.truthy() {
+            // `"#{aggregate.hecks_name} refused — #{invariant.description}"`
+            return Err(Refusal::InvariantViolation(format!("{aggregate_name} refused — {}", rule.description)));
+        }
+    }
+    for entity in &set.entities {
+        enforce_entity_invariants(record, entity)?;
+    }
+    Ok(())
+}
+
+fn enforce_entity_invariants(owner: &dyn Fielded, entity: &EntityInvariants) -> Result<(), Refusal> {
+    let Some(elements) = owner.items(entity.list_field) else { return Ok(()) };
+    for element in elements {
+        let Field::Nested(element) = element else { continue };
+        let with_parent = WithParent { args: &NoFields, parent: owner };
+        for rule in &entity.specs {
+            let ctx = EvalContext { args: &with_parent, instance: element };
+            if !interpret(&rule.expr, &ctx)?.truthy() {
+                // `"#{entity.hecks_name} refused — #{invariant.description}"`
+                return Err(Refusal::InvariantViolation(format!("{} refused — {}", entity.name, rule.description)));
+            }
+        }
+        for nested in &entity.nested {
+            enforce_entity_invariants(element, nested)?;
+        }
+    }
+    Ok(())
 }
 
 /// `admissible_transition` — the check half of a lifecycle transition.
@@ -136,6 +200,7 @@ pub fn dispatch<'a, T, R>(
     // provide.
     apply_mutations: impl FnOnce(&mut T) -> Result<(), Refusal> + 'a,
     ensures: &[EnsuresSpec],
+    invariants: &InvariantSet,
     emits: &[&'static str],
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
@@ -270,6 +335,8 @@ where
             }
         }
     }
+
+    enforce_invariants(&record, aggregate_name, invariants)?;
 
     for (field, value) in seed_projections {
         record.set_projected_field(field, value);
@@ -447,6 +514,7 @@ pub fn dispatch_entity<'a, T, E, R>(
     transition: Option<TransitionCheck>,
     apply_mutations: impl FnOnce(&mut E) -> Result<(), Refusal> + 'a,
     ensures: &[EnsuresSpec],
+    invariants: &InvariantSet,
     emits: &[&'static str],
     payload: Json,
     mutations: &mut Vec<MutationRecord>,
@@ -490,6 +558,8 @@ where
         ensures,
         false,
     )?;
+
+    enforce_invariants(&record, aggregate_name, invariants)?;
 
     for (field, value) in seed_projections {
         record.set_projected_field(field, value);

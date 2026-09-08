@@ -315,6 +315,14 @@ impl ExternalIdentifier {
     }
 }
 
+fn externalidentifier_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for LinkArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -387,6 +395,7 @@ pub fn dispatch_link(
         &[
 
         ],
+        &externalidentifier_invariants(),
         &["ExternalIdentifierLinked"],
         args.to_json(),
         mutations,

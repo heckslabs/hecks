@@ -747,6 +747,7 @@ pub fn dispatch_entity_ledgerentry_amend(
         &[
 
         ],
+        &account_invariants(),
         &["LedgerEntryAmended"],
         args.to_json(),
         mutations,
@@ -841,6 +842,7 @@ pub fn dispatch_entity_ledgerentry_reverse(
         &[
 
         ],
+        &account_invariants(),
         &["LedgerEntryReversed"],
         args.to_json(),
         mutations,
@@ -966,6 +968,16 @@ impl Account {
     }
 }
 
+fn account_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![
+            crate::kernel::InvariantSpec { description: "the balance never goes negative", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Int(0)) } },
+        ],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for OpenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1047,6 +1059,7 @@ pub fn dispatch_open(
         &[
 
         ],
+        &account_invariants(),
         &["AccountOpened"],
         args.to_json(),
         mutations,
@@ -1146,6 +1159,7 @@ pub fn dispatch_credit(
         &[
 
         ],
+        &account_invariants(),
         &["AccountCredited"],
         args.to_json(),
         mutations,
@@ -1244,6 +1258,7 @@ pub fn dispatch_debit(
             crate::kernel::EnsuresSpec { description: "the balance fell by exactly the amount", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("old.balance.cents")), right: Box::new(Expr::Add(Box::new(Expr::Lookup("balance.cents")), Box::new(Expr::Lookup("amount.cents")))) } },
             crate::kernel::EnsuresSpec { description: "a ledger entry was posted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("ledger")))), right: Box::new(Expr::Add(Box::new(Expr::Size(Box::new(Expr::Lookup("old.ledger")))), Box::new(Expr::Int(1)))) } },
         ],
+        &account_invariants(),
         &["AccountDebited"],
         args.to_json(),
         mutations,
@@ -1334,6 +1349,7 @@ pub fn dispatch_freeze_account(
         &[
 
         ],
+        &account_invariants(),
         &["AccountFrozen"],
         args.to_json(),
         mutations,
@@ -1422,6 +1438,7 @@ pub fn dispatch_unfreeze(
         &[
 
         ],
+        &account_invariants(),
         &["AccountUnfrozen"],
         args.to_json(),
         mutations,
@@ -1511,6 +1528,7 @@ pub fn dispatch_close_account(
         &[
 
         ],
+        &account_invariants(),
         &["AccountClosed"],
         args.to_json(),
         mutations,
@@ -1606,6 +1624,7 @@ pub fn dispatch_apply_fee(
         &[
 
         ],
+        &account_invariants(),
         &["FeeApplied"],
         args.to_json(),
         mutations,
@@ -1700,6 +1719,7 @@ pub fn dispatch_correct_fee(
         &[
 
         ],
+        &account_invariants(),
         &["FeeCorrected"],
         args.to_json(),
         mutations,
@@ -1790,6 +1810,7 @@ pub fn dispatch_accrue_interest(
         &[
 
         ],
+        &account_invariants(),
         &["InterestAccrued"],
         args.to_json(),
         mutations,
@@ -1882,6 +1903,7 @@ pub fn dispatch_correct_interest(
         &[
 
         ],
+        &account_invariants(),
         &["InterestCorrected"],
         args.to_json(),
         mutations,

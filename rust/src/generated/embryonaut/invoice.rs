@@ -298,6 +298,7 @@ pub fn dispatch_draft(
         &[
 
         ],
+        &invoice_invariants(),
         &["InvoiceDrafted"],
         args.to_json(),
         mutations,
@@ -376,6 +377,7 @@ pub fn dispatch_send(
         &[
 
         ],
+        &invoice_invariants(),
         &["InvoiceSent"],
         args.to_json(),
         mutations,
@@ -446,6 +448,7 @@ pub fn dispatch_mark_paid(
         &[
 
         ],
+        &invoice_invariants(),
         &["InvoicePaid"],
         args.to_json(),
         mutations,
@@ -516,6 +519,7 @@ pub fn dispatch_mark_overdue(
         &[
 
         ],
+        &invoice_invariants(),
         &["InvoiceOverdue"],
         args.to_json(),
         mutations,
@@ -586,6 +590,7 @@ pub fn dispatch_void(
         &[
 
         ],
+        &invoice_invariants(),
         &["InvoiceVoided"],
         args.to_json(),
         mutations,
@@ -616,3 +621,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn invoice_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

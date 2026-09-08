@@ -395,6 +395,14 @@ impl RoleAssignment {
     }
 }
 
+fn roleassignment_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for AssignArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -469,6 +477,7 @@ pub fn dispatch_assign(
         &[
 
         ],
+        &roleassignment_invariants(),
         &["RoleAssigned"],
         args.to_json(),
         mutations,
@@ -564,6 +573,7 @@ pub fn dispatch_revoke(
         &[
 
         ],
+        &roleassignment_invariants(),
         &["RoleRevoked"],
         args.to_json(),
         mutations,

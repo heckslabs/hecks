@@ -484,6 +484,14 @@ impl Policy {
     }
 }
 
+fn policy_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for BindArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -543,6 +551,7 @@ pub fn dispatch_bind(
         &[
 
         ],
+        &policy_invariants(),
         &["TriggerBindingAttached"],
         args.to_json(),
         mutations,

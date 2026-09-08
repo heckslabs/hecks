@@ -449,6 +449,9 @@ module RustProjection
             puts "skipping #{domain_name}::#{aggregate[:name]}'s JSON router acting-command entries: #{acting_router_reason}"
           end
 
+          f.puts Projector.emit_invariants_fn(aggregate)
+          f.puts
+
           aggregate[:commands].each do |command|
             command_verb = "#{domain_name}::#{aggregate[:name]}.#{command[:name]}"
             reason = Projector.command_skip_reason(command, aggregate, value_objects_by_name)

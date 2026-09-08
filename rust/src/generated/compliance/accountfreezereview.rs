@@ -159,6 +159,14 @@ impl AccountFreezeReview {
     }
 }
 
+fn accountfreezereview_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for OpenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -221,6 +229,7 @@ pub fn dispatch_open(
         &[
 
         ],
+        &accountfreezereview_invariants(),
         &["AccountFreezeReviewOpened"],
         args.to_json(),
         mutations,
@@ -309,6 +318,7 @@ pub fn dispatch_clear(
         &[
 
         ],
+        &accountfreezereview_invariants(),
         &["AccountFreezeReviewCleared"],
         args.to_json(),
         mutations,
@@ -397,6 +407,7 @@ pub fn dispatch_escalate(
         &[
 
         ],
+        &accountfreezereview_invariants(),
         &["AccountFreezeReviewEscalated"],
         args.to_json(),
         mutations,

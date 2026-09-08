@@ -2,6 +2,60 @@ module RustProjection
   module Projector
     module_function
 
+    # THE AGGREGATE'S OWN INVARIANT SET, generated once per aggregate file
+    # and passed to every dispatch of its commands (entity commands
+    # included — Ruby checks the PARENT on those too). Mirrors
+    # `Admissibility#enforce_invariants`/`#check_entity_invariants`: the
+    # aggregate's rules, then each entity list whose entity declares
+    # invariants (an entity with none is not descended into, exactly as
+    # Ruby's `next if invariants.empty?`), nested pieces recursively.
+    # docs/semantics/bluebook-semantics.md C6.2.
+    def invariants_fn_name(aggregate) = "#{rust_ident_field(aggregate[:name]).downcase}_invariants"
+
+    def emit_invariants_fn(aggregate)
+      [
+        "fn #{invariants_fn_name(aggregate)}() -> crate::kernel::InvariantSet {",
+        "    use crate::kernel::Expr;",
+        "    crate::kernel::InvariantSet {",
+        "        aggregate: #{invariant_specs_vec(aggregate[:invariants], 8)},",
+        "        entities: #{entity_invariants_vec(aggregate, 8)},",
+        "    }",
+        "}"
+      ].join("\n")
+    end
+
+    def invariant_specs_vec(rules, indent)
+      return "vec![]" if rules.empty?
+
+      pad  = " " * (indent + 4)
+      rows = rules.map do |rule|
+        "#{pad}crate::kernel::InvariantSpec { description: #{rust_string_literal(rule[:description])}, " \
+          "expr: #{ExprEmitter.emit_ast(rule[:ast])} },"
+      end
+      "vec![\n#{rows.join("\n")}\n#{' ' * indent}]"
+    end
+
+    def entity_invariants_vec(owner, indent)
+      pieces = owner[:entities].filter_map do |entity|
+        next if entity[:invariants].empty?
+
+        list = owner[:attributes].find { |a| a[:list] && a[:type].to_s == entity[:name].to_s }
+        next unless list
+
+        [entity, list[:name].to_s]
+      end
+      return "vec![]" if pieces.empty?
+
+      pad  = " " * (indent + 4)
+      rows = pieces.map do |entity, list_field|
+        "#{pad}crate::kernel::EntityInvariants { name: #{rust_string_literal(entity[:name])}, " \
+          "list_field: #{rust_string_literal(list_field)}, " \
+          "specs: #{invariant_specs_vec(entity[:invariants], indent + 4)}, " \
+          "nested: #{entity_invariants_vec(entity, indent + 4)} },"
+      end
+      "vec![\n#{rows.join("\n")}\n#{' ' * indent}]"
+    end
+
     # The `transition:` argument `dispatch`/`dispatch_entity` take.
     # `None` covers two different "no check" cases on purpose: no
     # transition row at all, and an UNCONSTRAINED row (`from: nil` —
@@ -492,6 +546,7 @@ module RustProjection
         "tmpl_transition_placeholder()" => transition_arg,
         "tmpl_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
         "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n"),
+        "tmpl_invariants_placeholder()" => "#{invariants_fn_name(aggregate)}()",
         "tmpl_emit_placeholder()" => emits_out.map(&:inspect).join(", "),
         "args.to_json()," => payload
       )
@@ -834,6 +889,7 @@ module RustProjection
         "tmpl_transition_placeholder()" => transition_arg,
         "tmpl_entity_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
         "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n"),
+        "tmpl_invariants_placeholder()" => "#{invariants_fn_name(parent_aggregate)}()",
         "tmpl_emit_placeholder()" => command[:emits].map(&:inspect).join(", ")
       )
 

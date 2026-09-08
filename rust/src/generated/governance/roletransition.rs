@@ -243,6 +243,14 @@ impl RoleTransition {
     }
 }
 
+fn roletransition_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for GrantArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -313,6 +321,7 @@ pub fn dispatch_grant(
         &[
 
         ],
+        &roletransition_invariants(),
         &["RoleTransitionGranted"],
         args.to_json(),
         mutations,
@@ -406,6 +415,7 @@ pub fn dispatch_revoke(
         &[
 
         ],
+        &roletransition_invariants(),
         &["RoleTransitionRevoked"],
         args.to_json(),
         mutations,

@@ -921,6 +921,7 @@ pub fn dispatch_entity_keyword_deprecate(
         &[
 
         ],
+        &syntax_invariants(),
         &["KeywordDeprecated"],
         args.to_json(),
         mutations,
@@ -1011,6 +1012,7 @@ pub fn dispatch_entity_keyword_retire(
         &[
 
         ],
+        &syntax_invariants(),
         &["KeywordRetired"],
         args.to_json(),
         mutations,
@@ -1241,6 +1243,7 @@ pub fn dispatch_entity_argument_deprecate(
         &[
 
         ],
+        &syntax_invariants(),
         &["ArgumentDeprecated"],
         args.to_json(),
         mutations,
@@ -1331,6 +1334,7 @@ pub fn dispatch_entity_argument_retire(
         &[
 
         ],
+        &syntax_invariants(),
         &["ArgumentRetired"],
         args.to_json(),
         mutations,
@@ -1429,6 +1433,14 @@ impl Syntax {
     }
 }
 
+fn syntax_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for DeclareArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1497,6 +1509,7 @@ pub fn dispatch_declare(
         &[
 
         ],
+        &syntax_invariants(),
         &["SyntaxDeclared"],
         args.to_json(),
         mutations,
@@ -1622,6 +1635,7 @@ pub fn dispatch_keyword(
         &[
 
         ],
+        &syntax_invariants(),
         &["KeywordAdmitted"],
         args.to_json(),
         mutations,
@@ -1778,6 +1792,7 @@ pub fn dispatch_argument(
         &[
 
         ],
+        &syntax_invariants(),
         &["ArgumentAdmitted"],
         args.to_json(),
         mutations,

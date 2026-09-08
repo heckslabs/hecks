@@ -860,6 +860,7 @@ pub fn dispatch_entity_handler_dispatch(
         &[
 
         ],
+        &processmanager_invariants(),
         &["SendDeclared"],
         args.to_json(),
         mutations,
@@ -975,6 +976,14 @@ impl ProcessManager {
     }
 }
 
+fn processmanager_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for StateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1031,6 +1040,7 @@ pub fn dispatch_state(
         &[
 
         ],
+        &processmanager_invariants(),
         &["SagaStateAttached"],
         args.to_json(),
         mutations,
@@ -1126,6 +1136,7 @@ pub fn dispatch_handler(
         &[
 
         ],
+        &processmanager_invariants(),
         &["LegDeclared"],
         args.to_json(),
         mutations,

@@ -543,6 +543,7 @@ pub fn dispatch_draft(
         &[
 
         ],
+        &proposal_invariants(),
         &["ProposalDrafted"],
         args.to_json(),
         mutations,
@@ -629,6 +630,7 @@ pub fn dispatch_send(
         &[
 
         ],
+        &proposal_invariants(),
         &["ProposalSent"],
         args.to_json(),
         mutations,
@@ -699,6 +701,7 @@ pub fn dispatch_accept(
         &[
 
         ],
+        &proposal_invariants(),
         &["ProposalAccepted"],
         args.to_json(),
         mutations,
@@ -769,6 +772,7 @@ pub fn dispatch_decline(
         &[
 
         ],
+        &proposal_invariants(),
         &["ProposalDeclined"],
         args.to_json(),
         mutations,
@@ -839,6 +843,7 @@ pub fn dispatch_expire(
         &[
 
         ],
+        &proposal_invariants(),
         &["ProposalExpired"],
         args.to_json(),
         mutations,
@@ -869,3 +874,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn proposal_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

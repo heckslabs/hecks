@@ -971,6 +971,7 @@ pub fn dispatch_entity_member_pair(
         &[
 
         ],
+        &valueobject_invariants(),
         &["PairBound"],
         args.to_json(),
         mutations,
@@ -1083,6 +1084,14 @@ impl ValueObject {
     }
 }
 
+fn valueobject_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for FieldArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1160,6 +1169,7 @@ pub fn dispatch_field(
         &[
 
         ],
+        &valueobject_invariants(),
         &["ShapeFieldAttached"],
         args.to_json(),
         mutations,
@@ -1263,6 +1273,7 @@ pub fn dispatch_close(
         &[
 
         ],
+        &valueobject_invariants(),
         &["ShapeClosed"],
         args.to_json(),
         mutations,
@@ -1356,6 +1367,7 @@ pub fn dispatch_assert(
         &[
 
         ],
+        &valueobject_invariants(),
         &["AssertionAttached"],
         args.to_json(),
         mutations,
@@ -1447,6 +1459,7 @@ pub fn dispatch_member(
         &[
 
         ],
+        &valueobject_invariants(),
         &["MemberDeclared"],
         args.to_json(),
         mutations,
