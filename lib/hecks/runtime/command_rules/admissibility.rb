@@ -143,7 +143,7 @@ module Hecks
           attrs = attrs.merge(parent: parent.state) if parent
           attrs = attrs.merge(correction) unless correction.empty?
           command.givens.each do |given|
-            next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
+            next if Bluebook::Expression::Evaluator.call_rule(given, state, attrs)
 
             raise GivenNotMet.new(
               "#{command.hecks_name} refused — #{given.description}",
@@ -265,7 +265,7 @@ module Hecks
           attrs = attrs.merge(correction) unless correction.empty?
           attrs = attrs.merge(old: old)
           command.ensures.each do |rule|
-            next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)
+            next if Bluebook::Expression::Evaluator.call_rule(rule, state, attrs)
 
             raise EnsuresNotMet, "#{command.hecks_name} refused — #{rule.description}"
           end
@@ -294,7 +294,7 @@ module Hecks
           state = GuardState.new(subject)
           attrs = {}
           aggregate.invariants.each do |invariant|
-            next if Bluebook::Expression::Evaluator.call(invariant.canonical, state, attrs)
+            next if Bluebook::Expression::Evaluator.call_rule(invariant, state, attrs)
 
             raise InvariantViolation, "#{aggregate.hecks_name} refused — #{invariant.description}"
           end
@@ -339,7 +339,7 @@ module Hecks
               attrs = { parent: owner_instance.state }
 
               entity.invariants.each do |invariant|
-                next if Bluebook::Expression::Evaluator.call(invariant.canonical, element_state, attrs)
+                next if Bluebook::Expression::Evaluator.call_rule(invariant, element_state, attrs)
 
                 raise InvariantViolation, "#{entity.hecks_name} refused — #{invariant.description}"
               end

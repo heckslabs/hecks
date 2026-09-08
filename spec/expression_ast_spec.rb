@@ -1,7 +1,6 @@
 require "spec_helper"
 require "json"
 require "hecks/fuzzing/bounded_exhaustive_expressions"
-require_relative "support/ast_reader"
 
 # EVERY RULE ROW CARRIES ITS STRUCTURED FORM, AND THAT FORM IS THE WHOLE
 # MEANING.
@@ -9,11 +8,10 @@ require_relative "support/ast_reader"
 # A `given`/`ensures`/invariant/precondition/policy `where` travels in
 # the IR as `{description, canonical, ast}` (`Expression::AstJson.
 # rule_row`) — `canonical` for anything that displays, `ast` for anything
-# that evaluates. Before this, `ast` rode on value-object invariants
-# alone and every other reader re-parsed the text with its own parser
-# (`rust/codegen/src/expr/*`, `rust/host/src/expr_json.rs`, the Ruby
-# runtime itself). This spec pins the contract those readers will move
-# onto:
+# that evaluates. The Ruby runtime now walks `ast` at dispatch
+# (`Evaluator.call_rule` + `Expression::AstReader`; HECKS_EVAL=string
+# reverts to text for one release), and the Rust generators transcribe
+# it — this spec pins the contract every reader stands on:
 #
 #   1. `ast` is present at every rule site, in every corpus chapter, and
 #      is a pure function of `canonical`.
@@ -141,10 +139,11 @@ RSpec.describe "the structured expression AST every rule row carries" do
   end
 
   it "names every op the reader knows and no other — the roster is the reader's contract" do
-    # The reader (spec/support/ast_reader.rb) mirrors ExprAstJson arm for arm;
+    # The reader (lib/hecks/bluebook/expression/ast_reader.rb) mirrors ExprAstJson arm for arm;
     # an op that only one side knows is a drift between them.
     roster = ExprAstJson::OPS
-    reader_ops = File.read(File.join(__dir__, "support/ast_reader.rb")).scan(/when "([a-z_]+)"/).flatten.uniq
+    reader_ops = File.read(File.expand_path("../lib/hecks/bluebook/expression/ast_reader.rb",
+                                            __dir__)).scan(/when "([a-z_]+)"/).flatten.uniq
     expect(reader_ops.sort).to eq(roster.sort)
   end
 
@@ -161,7 +160,8 @@ RSpec.describe "the structured expression AST every rule row carries" do
     disagreements = ExprAstGenerator.all_predicates.filter_map do |expr|
       via_text = outcome.call { ExprAstEvaluator.call(expr, state, attrs) }
       via_ast  = outcome.call do
-        ExprAstEvaluator.interpret(AstReader.read_predicate(ExprAstJson.emit_predicate(expr)), state, attrs)
+        ExprAstEvaluator.interpret(Hecks::Bluebook::Expression::AstReader.read_predicate(ExprAstJson.emit_predicate(expr)),
+                                   state, attrs)
       end
       [expr, via_text, via_ast] unless via_text == via_ast
     end

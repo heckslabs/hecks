@@ -17,7 +17,7 @@ module Hecks
         where:           :where,
         for_each:        :for_each,
         with_spec:       -> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } },
-        where_ast:       -> { where && Expression::AstJson.emit_predicate(where) }
+        where_ast:       -> { where_ast }
       )
 
       attr_reader :name, :on_event, :trigger_command, :target_domain, :where, :for_each, :with_spec
