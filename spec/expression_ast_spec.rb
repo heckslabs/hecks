@@ -19,18 +19,18 @@ require_relative "support/ast_reader"
 #      is a pure function of `canonical`.
 #   2. It is plain JSON: serialising and re-reading it is the identity,
 #      byte-for-byte deterministic.
-#   3. Its `"op"` tags are a CLOSED roster (`AstJson::OPS`), and paths
+#   3. Its `"op"` tags are a CLOSED roster (`ExprAstJson::OPS`), and paths
 #      are segment arrays, never dotted strings.
 #   4. It carries the whole meaning: for every well-typed expression the
 #      bounded-exhaustive generator can spell, reading the emitted `ast`
 #      back into evaluator nodes and interpreting THOSE answers exactly
 #      what interpreting the parsed text answers — same value, or the
 #      same `EvaluationError`.
-#   5. Emission is total: no generated expression makes `AstJson` raise.
+#   5. Emission is total: no generated expression makes `ExprAstJson` raise.
 RSpec.describe "the structured expression AST every rule row carries" do
-  AstJson = Hecks::Bluebook::Expression::AstJson
-  Evaluator = Hecks::Bluebook::Expression::Evaluator
-  BEE = Hecks::Fuzzing::BoundedExhaustiveExpressions
+  ExprAstJson = Hecks::Bluebook::Expression::AstJson
+  ExprAstEvaluator = Hecks::Bluebook::Expression::Evaluator
+  ExprAstGenerator = Hecks::Fuzzing::BoundedExhaustiveExpressions
 
   CHAPTERS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
@@ -105,8 +105,8 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
     rows.each do |name, path, row|
       expect(row).to have_key(:ast), "#{name} #{path.join('.')} has no ast"
-      expect(row[:ast]).to eq(AstJson.emit_predicate(row[:canonical])),
-                           "#{name} #{path.join('.')}: ast is not AstJson.emit_predicate(canonical)"
+      expect(row[:ast]).to eq(ExprAstJson.emit_predicate(row[:canonical])),
+                           "#{name} #{path.join('.')}: ast is not ExprAstJson.emit_predicate(canonical)"
     end
   end
 
@@ -116,7 +116,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
     policies.each do |name, policy|
       expect(policy).to have_key(:where_ast), "#{name} policy #{policy[:name]} has no where_ast"
-      expected = policy[:where] && AstJson.emit_predicate(policy[:where])
+      expected = policy[:where] && ExprAstJson.emit_predicate(policy[:where])
       expect(policy[:where_ast]).to eq(expected), "#{name} policy #{policy[:name]}: where_ast disagrees with where"
     end
   end
@@ -134,23 +134,23 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
   it "uses only the closed op roster, with paths as segment arrays" do
     asts = irs.values.flat_map { |ir| rule_rows(ir).map { |_, row| row[:ast] } }
-    expect(asts.flat_map { |ast| ops_in(ast) }.uniq - AstJson::OPS).to be_empty
+    expect(asts.flat_map { |ast| ops_in(ast) }.uniq - ExprAstJson::OPS).to be_empty
 
     segment = be_a(String).and(satisfy("be a non-empty, undotted segment") { |s| !s.empty? && !s.include?(".") })
     expect(asts.flat_map { |ast| paths_in(ast) }).to all(be_an(Array).and(all(segment)))
   end
 
   it "names every op the reader knows and no other — the roster is the reader's contract" do
-    # The reader (spec/support/ast_reader.rb) mirrors AstJson arm for arm;
+    # The reader (spec/support/ast_reader.rb) mirrors ExprAstJson arm for arm;
     # an op that only one side knows is a drift between them.
-    roster = AstJson::OPS
+    roster = ExprAstJson::OPS
     reader_ops = File.read(File.join(__dir__, "support/ast_reader.rb")).scan(/when "([a-z_]+)"/).flatten.uniq
     expect(reader_ops.sort).to eq(roster.sort)
   end
 
   it "carries the whole meaning: reading the ast back and interpreting it answers what the text answers" do
-    state = BEE.synthetic_state
-    attrs = BEE.synthetic_attrs
+    state = ExprAstGenerator.synthetic_state
+    attrs = ExprAstGenerator.synthetic_attrs
 
     outcome = lambda do |&block|
       { ok: block.call }
@@ -158,9 +158,9 @@ RSpec.describe "the structured expression AST every rule row carries" do
       { refused: e.message }
     end
 
-    disagreements = BEE.all_predicates.filter_map do |expr|
-      via_text = outcome.call { Evaluator.call(expr, state, attrs) }
-      via_ast  = outcome.call { Evaluator.interpret(AstReader.read_predicate(AstJson.emit_predicate(expr)), state, attrs) }
+    disagreements = ExprAstGenerator.all_predicates.filter_map do |expr|
+      via_text = outcome.call { ExprAstEvaluator.call(expr, state, attrs) }
+      via_ast  = outcome.call { ExprAstEvaluator.interpret(AstReader.read_predicate(ExprAstJson.emit_predicate(expr)), state, attrs) }
       [expr, via_text, via_ast] unless via_text == via_ast
     end
 
@@ -169,8 +169,8 @@ RSpec.describe "the structured expression AST every rule row carries" do
   end
 
   it "emits an ast for every well-typed expression the bounded-exhaustive generator can spell" do
-    crashes = BEE.all_predicates.filter_map do |expr|
-      AstJson.emit_predicate(expr)
+    crashes = ExprAstGenerator.all_predicates.filter_map do |expr|
+      ExprAstJson.emit_predicate(expr)
       nil
     rescue StandardError => e
       [expr, e.class, e.message]
