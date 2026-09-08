@@ -75,11 +75,13 @@ module Hecks
         # rebuilt one, or a placeholder resolved outside build_rule)
         # falls back to parsing its canonical — same cache, same key.
         #
-        # HECKS_EVAL=string reverts to the text path wholesale, kept for
-        # one release as the escape hatch while the ast path beds in.
+        # THE `ast` IS THE RULE (C2.1). The `HECKS_EVAL=string` escape
+        # hatch that reverted this to the text path for one release is
+        # gone (stage 9): every runtime rule site evaluates the structured
+        # tree, and `call` above — the text path — is the build-time
+        # parser and the equivalence oracle spec/expression_ast_spec.rb
+        # holds this against, never a dispatch-time door.
         def call_rule(rule, state, attrs = {})
-          return call(rule.canonical, state, attrs) if ENV["HECKS_EVAL"] == "string"
-
           interpret(ast_cache[rule.canonical] ||= nodes_for(rule), state, attrs)
         end
 
