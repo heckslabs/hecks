@@ -513,5 +513,5 @@ fn describe_field(field: Option<Field<'_>>) -> String {
 }
 
 pub(crate) fn eval_error(message: String) -> Refusal {
-    Refusal::TypeMismatch(message)
+    Refusal::Fault(message)
 }

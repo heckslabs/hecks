@@ -166,6 +166,7 @@ pub enum Refusal {
     AbsentArgument(String),
     UnknownArgument(String),
     Unauthorized(String),
+    Fault(String),
 }
 
 impl Refusal {
@@ -185,6 +186,7 @@ impl Refusal {
             Refusal::AbsentArgument(_) => "AbsentArgument",
             Refusal::UnknownArgument(_) => "UnknownArgument",
             Refusal::Unauthorized(_) => "Unauthorized",
+            Refusal::Fault(_) => "Fault",
         }
     }
 }
@@ -201,7 +203,8 @@ impl std::fmt::Display for Refusal {
             | Refusal::TypeMismatch(msg)
             | Refusal::AbsentArgument(msg)
             | Refusal::UnknownArgument(msg)
-            | Refusal::Unauthorized(msg) => write!(f, "{msg}"),
+            | Refusal::Unauthorized(msg)
+            | Refusal::Fault(msg) => write!(f, "{msg}"),
         }
     }
 }

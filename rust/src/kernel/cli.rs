@@ -619,10 +619,10 @@ fn run_filter(store: &Store, filter: &Json) -> Result<Vec<Json>, Refusal> {
     let value = filter.require("value", "query filter")?;
 
     let comparator = query_comparators::QueryComparator::parse(op)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown query comparator {op:?}")))?;
+        .ok_or_else(|| Refusal::Fault(format!("unknown query comparator {op:?}")))?;
     let entries = store
         .scan(aggregate)
-        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))?;
+        .ok_or_else(|| Refusal::Fault(format!("unknown aggregate {aggregate:?}")))?;
 
     let matched = repository::filter_entries(entries, field, comparator, value);
     Ok(matched.into_iter().map(|(id, record)| repository::row_json(id, record)).collect())

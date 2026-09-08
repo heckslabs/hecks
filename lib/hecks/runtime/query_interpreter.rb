@@ -278,7 +278,8 @@ module Hecks
         declared.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name])
+          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name],
+                                                           boundary: false)
         end
       end
 

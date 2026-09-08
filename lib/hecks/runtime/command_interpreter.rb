@@ -47,7 +47,7 @@ module Hecks
       # `result` and `transition`/`old_state` default to nil until the step
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
-                           :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :delegated_events,
+                           :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
                            :dry_run, :correction_bindings, :outbox_rows)
 
       def initialize(registry, rules:)
@@ -245,7 +245,15 @@ module Hecks
           settled = Instance.new(aggregate: entity, id: view.id, state: element)
           @rules.enforce_ensures(settled, target_command, target_args, old: old_element, domain: ctx.domain, parent: ctx.instance)
 
-          ctx.delegated_events = @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository)
+          # NOT emitted here — C7.2 (docs/semantics/bluebook-semantics.md):
+          # a refused command records nothing, and the parent's own
+          # `ensures`/`enforce_invariants`/`save` steps still run after
+          # this one. The target's emission is parked and performed by
+          # `step_emit`, after the parent committed — where every other
+          # command's events are emitted too. (Before this, the entity
+          # leg's events were on the event log and in the adapter before
+          # the parent could refuse.)
+          ctx.pending_delegation = [target_command, target_args]
         end
       end
 
@@ -352,9 +360,10 @@ module Hecks
 
       # A DELEGATING COMMAND EMITS NOTHING OF ITS OWN (`CommandBuilder#build`'s
       # own guard refuses declaring `emits` alongside `delegates_to`) — its
-      # result IS whatever `step_delegate_to_entity` already collected from
-      # the target entity command's own `emits`, not a second, empty call
-      # into `@rules.emit` for a command with no announced events at all.
+      # result IS the target entity command's own `emits`, parked by
+      # `step_delegate_to_entity` and emitted HERE, after save (C7.2), not
+      # a second, empty call into `@rules.emit` for a command with no
+      # announced events at all.
       #
       # `dry_run:` skips this too, same reasoning as `step_save` — nothing
       # was committed, so `ctx.result` stays nil and `Dispatcher#dry_run?`
@@ -363,11 +372,16 @@ module Hecks
         return if ctx.dry_run
 
         ctx.result = step(:emit) do
-          # `ctx.delegated_events` is only ever set by `step_delegate_to_entity`,
-          # and only when this command carries a `:delegate` mutation — an
-          # empty Array (the target genuinely emitted nothing) is still
-          # truthy in Ruby, so this reads correctly either way.
-          next ctx.delegated_events if ctx.delegated_events
+          # `ctx.pending_delegation` is only ever set by
+          # `step_delegate_to_entity`, and only when this command carries a
+          # `:delegate` mutation.
+          if ctx.pending_delegation
+            target_command, target_args = ctx.pending_delegation
+            # The same dispatch, so the same correlation — a saga-driven
+            # door's events used to lose their stamp here.
+            next @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository,
+                             ctx.correlation)
+          end
 
           @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation)
         end

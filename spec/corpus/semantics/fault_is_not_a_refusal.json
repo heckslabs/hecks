@@ -1,0 +1,92 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C8.1",
+    "C8.3"
+  ],
+  "note": "A FAULT is its own outcome: an ad-hoc ask naming a comparator the language does not have, and one naming an aggregate the domain does not declare, are the language refusing to interpret the ask — classified `Fault` by both runtimes, never a refusal class (Ruby once recorded a bare RuntimeError, the Rust kernel a TypeMismatch refusal). The accepted step before them is untouched.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "query": {
+        "aggregate": "Banking::Customer",
+        "field": "status",
+        "op": "startswith",
+        "value": "a"
+      }
+    },
+    {
+      "query": {
+        "aggregate": "Banking::Bogus",
+        "field": "status",
+        "op": "eq",
+        "value": "active"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "filter Banking::Customer.status startswith",
+        "error": "unknown query comparator \"startswith\"",
+        "kind": "Fault"
+      },
+      {
+        "verb": "filter Banking::Bogus.status eq",
+        "error": "unknown aggregate \"Banking::Bogus\"",
+        "kind": "Fault"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      }
+    ]
+  }
+}
