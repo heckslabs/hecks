@@ -143,7 +143,27 @@ module Hecks
                                                       op: op, target: target, offered: Rendering.describe(current))
           end
 
-          current + (sign * amount)
+          bounded(current + (sign * amount), op, current, sign * amount, sign.positive? ? "+" : "-")
+        end
+
+        # C3.3/C3.4 — an effect's arithmetic is held to the same value
+        # model an expression's is: Integer is signed 64-bit, Float is
+        # finite. A result outside that is an evaluation FAULT (never a
+        # refusal, C8.3), worded as the Rust kernel's own generated
+        # `checked_add`/`checked_sub`/`checked_mul` word it.
+        INT64_RANGE = (-(2**63))..((2**63) - 1)
+
+        def bounded(result, oper, lhs, rhs, symbol)
+          if result.is_a?(Integer)
+            return result if INT64_RANGE.cover?(result)
+
+            raise Bluebook::Expression::EvaluationError,
+                  "#{oper} overflowed: #{lhs} #{symbol} #{rhs.abs} does not fit in a 64-bit integer"
+          end
+          return result unless result.is_a?(Float) && !result.finite?
+
+          raise Bluebook::Expression::EvaluationError,
+                "#{oper} overflowed: #{lhs} #{symbol} #{rhs.abs} is not a finite number"
         end
 
         def arithmetic_value_object(current, amount, target, sign, oper)
@@ -164,7 +184,8 @@ module Hecks
           end
 
           field = shared_numeric.first
-          current.with(field, current[field] + (sign * amount[field]))
+          current.with(field, bounded(current[field] + (sign * amount[field]), oper,
+                                      current[field], amount[field], sign.positive? ? "+" : "-"))
         end
 
         # Not a bare `.find(...)&.sign || -1` — that silently answered
@@ -195,7 +216,7 @@ module Hecks
 
           if current.is_a?(Value) && amount.is_a?(Value)
             return combine_value_object(current, amount, target, "multiply") do |c, a|
-              c * a
+              bounded(c * a, "multiply", c, a, "*")
             end
           end
 
@@ -209,7 +230,7 @@ module Hecks
                                                       offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
           end
 
-          current * amount
+          bounded(current * amount, "multiply", current, amount, "*")
         end
 
         # Vendored addition, not (yet) upstream hecks (migration plan

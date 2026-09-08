@@ -716,6 +716,8 @@ pub fn parse_body(
         }
     }
 
+    lifecycle::seal_commands(file, *pos, &entity.name, entity.lifecycle.as_ref(), &entity.commands)?;
+
     Ok((
         entity,
         pending_chapter_entity_givens,

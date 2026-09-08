@@ -134,7 +134,6 @@ Hecks.bluebook "Pizzas" do
       given("a payment was actually made")         { amount.cents.positive? }
 
       sets :customer_name
-      sets :status,        to: "sold"
 
       emits "PizzaPurchased"
     end

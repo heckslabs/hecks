@@ -906,7 +906,6 @@ pub fn dispatch_purchase(
         |record| {
         record.customer_name = args.customer_name.clone();
         record.status = "sold".to_string();
-        record.status = "sold".to_string();
             Ok(())
         },
         &[

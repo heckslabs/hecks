@@ -70,9 +70,18 @@ RSpec.describe "numeric boundary values" do
       expect(clamp(bignum, [0, 10], "fee")).to eq(10)
     end
 
-    it "multiply on a Bignum still works" do
-      bignum = 2**100
-      expect(multiply(bignum, 2, "fee")).to eq(bignum * 2)
+    # C3.3 (docs/semantics/bluebook-semantics.md) — Integer is signed
+    # 64-bit everywhere; a product that leaves that range is an
+    # evaluation FAULT, not a Bignum. Ruby's own ceiling-less Integer is
+    # exactly what the clause refuses to lean on.
+    it "multiply that leaves 64 bits is a fault — Ruby's Bignum is not the language's Integer" do
+      expect { multiply(2**62, 4, "fee") }
+        .to raise_error(Hecks::Bluebook::Expression::EvaluationError,
+                        "multiply overflowed: #{2**62} * 4 does not fit in a 64-bit integer")
+    end
+
+    it "multiply that stays within 64 bits still works" do
+      expect(multiply(2**61, 2, "fee")).to eq(2**62)
     end
   end
 end

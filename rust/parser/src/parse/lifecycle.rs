@@ -40,6 +40,7 @@ pub fn parse_body(
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Lifecycle")? else {
+            refuse_ambiguity(file, *pos, &lifecycle)?;
             return Ok(lifecycle);
         };
 
@@ -76,6 +77,92 @@ pub fn parse_body(
             }
         }
     }
+}
+
+/// `LifecycleBuilder#refuse_ambiguity!` — C5.3 (docs/semantics/
+/// bluebook-semantics.md): two transitions for one command whose `from:`
+/// sets overlap (or where either has no `from:`) were silently
+/// first-wins; refused once the state machine can be read whole. Rows
+/// are already EXPANDED one per `from:` state, so an overlap is one
+/// command reaching two different targets from one `from_state` (`None`
+/// overlaps everything). A `from:` naming a state nothing declares is
+/// NOT refused — that is a `bin/model_check` reachability finding a
+/// bluebook may exhibit on purpose. Same wording as Ruby's.
+fn refuse_ambiguity(file: &str, line: usize, lifecycle: &ir::Lifecycle) -> ParseResult<()> {
+    let mut seen: Vec<(&str, Option<&str>, &str)> = Vec::new();
+    for row in &lifecycle.transitions {
+        let from = row.from_state.as_deref();
+        let earlier = seen.iter().find(|(c, f, t)| {
+            *c == row.command && *t != row.to_state && (f.is_none() || from.is_none() || *f == from)
+        });
+        if let Some((_, _, earlier_target)) = earlier {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "lifecycle :{} declares two transitions for {:?} from the same state (=> {:?} and => {:?}) — \
+                     which one fires would be declaration order; give them disjoint from: states",
+                    lifecycle.field, row.command, earlier_target, row.to_state
+                ),
+            ));
+        }
+        seen.push((&row.command, from, &row.to_state));
+    }
+    Ok(())
+}
+
+/// `AggregateBuilder::Sealing#seal_lifecycle_guards` + the lifecycle half
+/// of `#seal_mutation_targets` (and `EntityBuilder`'s twins) — C5.3: a
+/// `sets` on the lifecycle field is refused, and a `from:` on an owner
+/// with no lifecycle at all. `owner` is the aggregate or entity name;
+/// `line` the owner's own.
+pub fn seal_commands(
+    file: &str,
+    line: usize,
+    owner: &str,
+    lifecycle: Option<&ir::Lifecycle>,
+    commands: &[ir::Command],
+) -> ParseResult<()> {
+    for command in commands {
+        if let Some(lifecycle) = lifecycle {
+            for mutation in &command.mutations {
+                let target = match mutation {
+                    ir::Mutation::Append { target, .. } => target,
+                    ir::Mutation::Other { target, .. } => target,
+                    _ => continue,
+                };
+                if *target == lifecycle.field {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!(
+                            "{owner}.{} sets {target}, {owner}'s lifecycle field — a lifecycle field moves only by \
+                             transition; declare one instead of setting it",
+                            command.name
+                        ),
+                    ));
+                }
+            }
+        }
+        let Some(from) = &command.from else { continue };
+        let froms: Vec<&String> = match from {
+            ir::CommandFrom::Single(s) => vec![s],
+            ir::CommandFrom::Multiple(v) => v.iter().collect(),
+        };
+        if lifecycle.is_none() {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "{owner}.{} guards from: {:?}, but {owner} declares no lifecycle — from: checks a lifecycle \
+                     field, and there is none here to check",
+                    command.name,
+                    froms.iter().map(|s| s.as_str()).collect::<Vec<_>>()
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn text_value(raw: &str) -> String {

@@ -439,6 +439,9 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         .filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() != "corrects")
         .map(|m| mutations::emit_mutation_line(exemplar, m, aggregate, command, value_objects_by_name, true))
         .collect();
+    if mutations::reads_pre_state(mutations_list) {
+        mutation_lines.insert(0, mutations::pre_state_line());
+    }
     // `corrects`'s own OTHER half — see `rust/project/commands.rb`'s own
     // `corrects_flag_mutation_lines` for the full reasoning: stamp the
     // fact forward onto the record for every command whose own `emits`
@@ -755,6 +758,9 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
         .iter()
         .map(|m| mutations::emit_mutation_line(exemplar, m, entity, target, value_objects_by_name, false))
         .collect();
+    if mutations::reads_pre_state(target.get("mutations").map(Json::each).unwrap_or(&[])) {
+        mutation_lines.insert(0, mutations::pre_state_line());
+    }
     if let Some(t) = &transition {
         if !t.to_state.is_empty() {
             mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
@@ -883,6 +889,9 @@ pub fn emit_entity_command(
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, entity, command, value_objects_by_name, false)).collect();
+    if mutations::reads_pre_state(mutations_list) {
+        mutation_lines.insert(0, mutations::pre_state_line());
+    }
     if let Some(t) = &transition {
         if !t.to_state.is_empty() {
             mutation_lines.push(format!("        record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));

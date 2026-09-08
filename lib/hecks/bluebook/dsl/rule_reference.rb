@@ -59,8 +59,9 @@ module Hecks
                   "extraction — #{extraction_failure}"
           end
 
-          struct_class.new(description: description, canonical: canonical, predicate: predicate,
-                           ast: Expression::AstJson.emit_predicate(canonical))
+          ast = Expression::AstJson.refuse_unshared_patterns!(Expression::AstJson.emit_predicate(canonical),
+                                                              owner: owner_name, word: "#{word} #{description.inspect}")
+          struct_class.new(description: description, canonical: canonical, predicate: predicate, ast: ast)
         end
 
         # PRIMITIVE 1 — an ORDERED CHAIN of flat `Hash[description] =>

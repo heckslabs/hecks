@@ -1008,7 +1008,7 @@ pub fn dispatch_retry(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["failed"] }),
         |record| {
-        { let current = record.attempts.clone().unwrap(); record.attempts = Some(RetryCount { value: current.value + (1), ..current }); }
+        { let current = record.attempts.clone().unwrap(); record.attempts = Some(RetryCount { value: { let amount = 1; current.value.checked_add(amount).ok_or_else(|| crate::kernel::Refusal::Fault(format!("increment overflowed: {} + {} does not fit in a 64-bit integer", current.value, amount)))? }, ..current }); }
         record.status = "failed".to_string();
             Ok(())
         },

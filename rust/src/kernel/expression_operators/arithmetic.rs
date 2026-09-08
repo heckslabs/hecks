@@ -53,6 +53,12 @@ pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
 // pure function (rather than inlined in `modulo` above) so it can be unit
 // tested directly, without constructing an `Expr`/`EvalContext`.
 fn floored_mod(r: i64, d: i64) -> i64 {
+    // `i64::MIN % -1` is the one modulo whose intermediate overflows
+    // (C3.3): its answer is 0 in every integer model, and Rust's `%`
+    // would panic reaching it — answered directly rather than computed.
+    if d == -1 {
+        return 0;
+    }
     let raw = r % d;
     if raw != 0 && (raw < 0) != (d < 0) { raw + d } else { raw }
 }
@@ -73,6 +79,27 @@ mod tests {
         assert_eq!(floored_mod(0, 3), 0);
         assert_eq!(floored_mod(6, 3), 0);
         assert_eq!(floored_mod(-6, 3), 0);
+    }
+
+    // C3.3 — the one modulo whose intermediate overflows answers 0,
+    // never panics.
+    #[test]
+    fn i64_min_modulo_minus_one_is_zero() {
+        assert_eq!(floored_mod(i64::MIN, -1), 0);
+    }
+}
+
+#[cfg(test)]
+mod float_sum_tests {
+    use super::sum;
+    use crate::kernel::expr::Value;
+
+    // C3.4 — a Float is finite; a sum that overflows to infinity is an
+    // evaluation fault, not a value.
+    #[test]
+    fn refuses_a_float_sum_that_is_not_finite() {
+        let result = sum(&Value::Float(1.0e308), &Value::Float(1.0e308));
+        assert!(result.is_err(), "1e308 + 1e308 must fault, not answer inf");
     }
 }
 
@@ -133,7 +160,13 @@ fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
     }
     let l = require_number(lhs, "addition")?;
     let r = require_number(rhs, "addition")?;
-    Ok(Value::Float(l + r))
+    let sum = l + r;
+    // C3.4 — a Float is finite; a sum that is not is the same evaluation
+    // fault an Integer overflow is, worded as `Resolver#add` words it.
+    if !sum.is_finite() {
+        return Err(eval_error(format!("addition overflowed: {l} + {r} is not a finite number")));
+    }
+    Ok(Value::Float(sum))
 }
 
 /// Shared with `sign_test.rs` — see this file's own header.

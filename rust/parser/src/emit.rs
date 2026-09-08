@@ -440,6 +440,10 @@ fn mutation_source_json(source: &Option<ir::MutationSource>) -> JsonValue {
             ("kind".to_string(), JsonValue::str("literal")),
             ("value".to_string(), ruby_value_json(value)),
         ]),
+        Some(ir::MutationSource::State(name)) => JsonValue::Object(vec![
+            ("kind".to_string(), JsonValue::str("state")),
+            ("name".to_string(), JsonValue::str(name.clone())),
+        ]),
         None => JsonValue::Null,
     }
 }

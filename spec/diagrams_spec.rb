@@ -36,12 +36,19 @@ RSpec.describe "the generated diagrams" do
         aggregate "Payment" do
           identified_by :reference
           attribute :reference, PaymentReference
+          attribute :channel,   Channel
           value_object "PaymentReference" do
+            attribute :value, String
+          end
+          value_object "Channel" do
             attribute :value, String
           end
           command "Create" do
             attribute :reference, PaymentReference
             sets :reference
+            # A LITERAL SOURCE — the diagram spells it quoted, distinct
+            # from an argument source (the diagram spec below reads it).
+            sets :channel, to: "online"
             emits "PaymentCreated"
           end
         end
@@ -316,9 +323,13 @@ RSpec.describe "the generated diagrams" do
                                "attr_Order_customer_name[customer_name]")
   end
 
+  # Pizzas' own `Purchase` used to be the example here — its `sets :status,
+  # to: "sold"` went with C5.3 (a lifecycle field moves only by
+  # transition), so the scratch chapter's `Create` carries the literal now.
   it "states a literal source verbatim, quoted, distinct from an argument source" do
-    diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
-    expect(diagram).to include("cmd_Order_Purchase([\"Order.Purchase\"]) -->|\"sets: 'sold'\"| attr_Order_status[status]")
+    diagram = Hecks::Projector.call(:diagrams, bluebook: scratch_chapter)["Payment_surface.mmd"]
+    expect(diagram).to include("cmd_Payment_Create([\"Payment.Create\"]) -->|\"sets: 'online'\"| " \
+                               "attr_Payment_channel[channel]")
   end
 
   it "names an append's own field names, not a single source, since it has none" do

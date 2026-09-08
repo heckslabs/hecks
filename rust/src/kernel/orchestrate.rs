@@ -6,9 +6,10 @@
 // recursively, inside the SAME call, bounded by a reaction-depth ceiling
 // rather than a queue or a separate tick. `PolicyInterpreter#react`+
 // `SagaInterpreter#advance` are the Ruby originals this ports; both run
-// off the SAME announced-event list, in the same order Ruby runs them in
-// (`announced.each { @policies.react }`, THEN `announced.each { @sagas.
-// advance }`), which is why they're one function here too, not two.
+// off the SAME announced-event list, in the order C10.2 fixes for both
+// runtimes — the whole batch logged first, then per event in `emits`
+// order: that event's policies, then its sagas (`Outbox::Relay#deliver`'s
+// own loop) — which is why they're one function here too, not two.
 //
 // THE REACTION/SAGA LOG (`registry.reaction_log`/`saga_log`) IS PRODUCED
 // NOW, not just the side effects — `PolicyInterpreter#deliver`'s and
@@ -265,6 +266,27 @@ pub struct CompletedCompensation {
 /// below already derived it inline the same way before this existed;
 /// factored out once a second call site (`correlation_of`'s new middle
 /// tier) needed the identical derivation.
+/// C10.3 — the leg that answers `event` from `state`, or none. Mirrors
+/// `Behaviour::ProcessManager#handler_for(event, state)`; build refuses
+/// two legs on one (event, state) pair, so the first match is the only
+/// match.
+fn select_leg<'a>(pm: &'a ProcessManagerDef, event: &str, state: &str) -> Option<&'a Handler> {
+    pm.handlers.iter().find(|h| h.event_type == event && h.from_state == state)
+}
+
+/// `SagaInterpreter#leg_mismatch` — "in X, not Y", every answering leg's
+/// own from: listed when several do.
+fn leg_mismatch(pm: &ProcessManagerDef, event: &str, state: &str) -> String {
+    let mut expected: Vec<String> = Vec::new();
+    for h in pm.handlers.iter().filter(|h| h.event_type == event) {
+        let spelled = format!("{:?}", h.from_state);
+        if !expected.contains(&spelled) {
+            expected.push(spelled);
+        }
+    }
+    format!("in {state:?}, not {}", expected.join(" or "))
+}
+
 fn correlation_head(correlates_by: &str) -> &str {
     correlates_by.split('.').next().unwrap_or(correlates_by)
 }
@@ -450,14 +472,20 @@ pub fn orchestrate<S: AggregateScan>(
         }
     }
 
-    for event in events {
-        // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — before any reaction
-        // it triggers runs, mirroring `CommandInterpreter#step_emit`
-        // committing an event before `Dispatcher#dispatch` ever calls
-        // `@policies.react`/`@sagas.advance` on it. A reaction fires off
-        // an ALREADY-LOGGED fact, never the other way around.
+    // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — the WHOLE batch, before
+    // any reaction to any of it runs (C10.1/C10.2, docs/semantics/
+    // bluebook-semantics.md), mirroring `CommandInterpreter#step_emit`
+    // committing every announced event before `Dispatcher#dispatch` ever
+    // calls `@policies.react`/`@sagas.advance` on the first. A reaction
+    // fires off an ALREADY-LOGGED fact, and a two-event command's second
+    // event is logged before the first event's reactions, never after.
+    for event in &events {
         all_events.push(event.clone());
+    }
 
+    // THEN PER EVENT, in `emits` order — its policies, then its sagas
+    // (C10.2): `Outbox::Relay#deliver`'s own loop.
+    for event in events {
         // NOT depth-gated here — Ruby's own `SagaInterpreter#advance`
         // calls `begin_saga`/`advance_saga`/`end_saga` UNCONDITIONALLY
         // for every event, regardless of depth (this file's header); the
@@ -944,7 +972,9 @@ fn advance_saga<S: AggregateScan>(
     saga_log: &mut Vec<Json>,
 ) {
     for pm in tables.process_managers {
-        let Some(handler) = pm.handlers.iter().find(|h| h.event_type == event.name) else { continue };
+        if !pm.handlers.iter().any(|h| h.event_type == event.name) {
+            continue;
+        }
         let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else { continue };
 
         let key = (pm.name.to_string(), correlation.clone());
@@ -965,13 +995,18 @@ fn advance_saga<S: AggregateScan>(
             ]));
             continue;
         };
-        if state != handler.from_state {
+        // THE LEG IS CHOSEN BY (EVENT, CURRENT STATE) — C10.3
+        // (`SagaInterpreter#advance_saga`'s own `handler_for(event.name,
+        // instance[:state])`). Two legs on the same event from different
+        // states each answer exactly when their own state is current;
+        // build refuses two on one pair, so this `find` is unambiguous.
+        let Some(handler) = select_leg(pm, &event.name, &state) else {
             saga_log.push(record(vec![
                 ("advanced", Json::Bool(false)),
-                ("reason", Json::str(format!("in {state:?}, not {:?}", handler.from_state))),
+                ("reason", Json::str(leg_mismatch(pm, &event.name, &state))),
             ]));
             continue;
-        }
+        };
 
         if let Some(slot) = sagas.get_mut(&key) {
             slot.state = handler.to_state.to_string();
@@ -1282,14 +1317,15 @@ fn compensate<S: AggregateScan>(
     saga_log: &mut Vec<Json>,
 ) {
     let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else { return };
-    // `pm.handler_for(REFUSED)` — event_type ALONE, read directly
-    // (`IR::ProcessManager#handler_for`: `@handlers.find { |h| h.
-    // event_type == event.to_s }`, no from_state in the match at all). A
-    // from_state mismatch is a SEPARATE check below, logged as its own
-    // `advanced: false` finding — folding it into this `find`'s own
-    // predicate (this file's prior bug) made that branch unreachable and
-    // silently dropped the log entry Ruby produces for exactly this case.
-    let Some(compensation) = pm.handlers.iter().find(|h| h.event_type == REFUSED) else { return };
+    // `pm.handles?(REFUSED)` first — a procedure with no compensating
+    // leg at all is silent (Ruby's own `return unless ... handles?`).
+    // The leg itself is then selected by (REFUSED, current state) —
+    // C10.3, one rule for every leg — and a state no compensating leg
+    // answers from is logged as its own `advanced: false` finding, the
+    // entry Ruby's `leg_mismatch` produces for exactly this case.
+    if !pm.handlers.iter().any(|h| h.event_type == REFUSED) {
+        return;
+    }
 
     let record = |extra: Vec<(&str, Json)>| -> Json {
         let mut fields = vec![
@@ -1301,13 +1337,13 @@ fn compensate<S: AggregateScan>(
         Json::obj(fields)
     };
 
-    if current_state != compensation.from_state {
+    let Some(compensation) = select_leg(pm, REFUSED, &current_state) else {
         saga_log.push(record(vec![
             ("advanced", Json::Bool(false)),
-            ("reason", Json::str(format!("in {current_state:?}, not {:?}", compensation.from_state))),
+            ("reason", Json::str(leg_mismatch(pm, REFUSED, &current_state))),
         ]));
         return;
-    }
+    };
 
     if let Some(slot) = sagas.get_mut(key) {
         slot.state = compensation.to_state.to_string();
@@ -1729,5 +1765,245 @@ mod tests {
              then B's and A's own forward dispatches to be logged delivered once their \
              downstream cascade returns — saga_log was: {saga_log:?}"
         );
+    }
+
+    // C10.3 — the kernel half of spec/corpus/semantics/
+    // saga_leg_selected_by_state.json (whose domain is Ruby-only): two
+    // legs on ONE event from different states, each reached exactly when
+    // its own from: is the instance's current state.
+    fn two_leg_test_dispatch(
+        _store: &mut MultiLegTestStore,
+        verb: &str,
+        _args: &Json,
+        _caller_role: Option<&str>,
+        _mutations: &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal> {
+        let event = |name: &str| Event {
+            name: name.to_string(),
+            aggregate: "Test::Parcel".to_string(),
+            id: "p1".to_string(),
+            payload: Json::obj(vec![("id", Json::str("p1"))]),
+            occurred_at: None,
+            correlation: None,
+        };
+        match verb {
+            "Test::Post" => Ok(vec![event("Posted"), event("Scanned"), event("Scanned")]),
+            "Test::Deliver" => Ok(vec![event("Delivered")]),
+            other => panic!("unexpected verb in two-leg selection test: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_saga_leg_is_selected_by_event_and_current_state_so_two_legs_on_one_event_are_both_reachable() {
+        static HANDLERS: &[Handler] = &[
+            Handler { event_type: "Scanned", from_state: "posted", to_state: "picked_up", dispatches: &[] },
+            Handler {
+                event_type: "Scanned",
+                from_state: "picked_up",
+                to_state: "handed_over",
+                dispatches: &[DispatchSpec { command_name: "Deliver", with: &[], compensates: None }],
+            },
+        ];
+        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+            name: "Delivery",
+            correlates_by: "id",
+            starts_on: "Posted",
+            ends_on: "Delivered",
+            initial_state: "posted",
+            handlers: HANDLERS,
+        }];
+        static POLICIES: &[PolicyRule] = &[];
+        static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
+        static QUERIES: &[crate::kernel::QueryDef] = &[];
+
+        let tables = Tables {
+            policies: POLICIES,
+            cross_domain_policies: CROSS_DOMAIN_POLICIES,
+            process_managers: PROCESS_MANAGERS,
+            reference_key_fn: multi_leg_no_reference_key,
+            queries: QUERIES,
+            command_creates_fn: multi_leg_always_creates,
+            identity_head_fn: multi_leg_no_identity_head,
+            command_attributes_fn: multi_leg_no_declared_attributes,
+        };
+
+        let mut store = MultiLegTestStore;
+        let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+        let mut all_events = Vec::new();
+        let mut mutations = Vec::new();
+        let mut cross_domain = Vec::new();
+        let mut reaction_log = Vec::new();
+        let mut saga_log: Vec<Json> = Vec::new();
+
+        let outcome = orchestrate(
+            &mut store,
+            two_leg_test_dispatch,
+            tables,
+            &mut sagas,
+            "Test::Post",
+            &Json::Object(vec![]),
+            None,
+            None,
+            None,
+            0,
+            &mut all_events,
+            &mut mutations,
+            &mut cross_domain,
+            &mut reaction_log,
+            &mut saga_log,
+        );
+        assert!(outcome.is_ok(), "Post should not refuse: {outcome:?}");
+
+        let advances: Vec<(String, String)> = saga_log
+            .iter()
+            .filter_map(|entry| {
+                if !matches!(entry.get("advanced"), Some(Json::Bool(true))) {
+                    return None;
+                }
+                Some((
+                    entry.get("from").and_then(Json::as_str).unwrap_or("").to_string(),
+                    entry.get("to").and_then(Json::as_str).unwrap_or("").to_string(),
+                ))
+            })
+            .collect();
+        assert_eq!(
+            advances,
+            vec![("posted".to_string(), "picked_up".to_string()), ("picked_up".to_string(), "handed_over".to_string())],
+            "the second Scanned must reach the second leg, not re-find the first — saga_log was: {saga_log:?}"
+        );
+        assert!(
+            all_events.iter().any(|e| e.name == "Delivered"),
+            "the second leg's own dispatch must have run — events were: {all_events:?}"
+        );
+        assert!(
+            !sagas.contains_key(&("Delivery".to_string(), "p1".to_string())),
+            "Delivered is ends_on — the instance should have been retired"
+        );
+    }
+
+    // C10.2 — the kernel half of spec/corpus/semantics/
+    // reaction_order_per_event.json (whose domain is Ruby-only): one
+    // dispatch announces two events; a saga leg answers the first, a
+    // policy the second. The whole batch is logged before any reaction,
+    // then reactions run per event in emits order.
+    fn two_event_test_dispatch(
+        _store: &mut MultiLegTestStore,
+        verb: &str,
+        _args: &Json,
+        _caller_role: Option<&str>,
+        _mutations: &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal> {
+        let event = |name: &str| Event {
+            name: name.to_string(),
+            aggregate: "Test::Run".to_string(),
+            id: "r1".to_string(),
+            payload: Json::obj(vec![("id", Json::str("r1"))]),
+            occurred_at: None,
+            correlation: None,
+        };
+        match verb {
+            "Test::Start" => Ok(vec![event("Started")]),
+            "Test::Advance" => Ok(vec![event("Legged"), event("Reported")]),
+            "Test::Log" => Ok(vec![event("Logged")]),
+            "Test::Note" => Ok(vec![event("Noted")]),
+            other => panic!("unexpected verb in two-event ordering test: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_batch_is_logged_whole_then_reacted_to_per_event_policies_before_sagas() {
+        static HANDLERS: &[Handler] = &[Handler {
+            event_type: "Legged",
+            from_state: "started",
+            to_state: "logged",
+            dispatches: &[DispatchSpec { command_name: "Log", with: &[], compensates: None }],
+        }];
+        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+            name: "Route",
+            correlates_by: "id",
+            starts_on: "Started",
+            ends_on: "Logged",
+            initial_state: "started",
+            handlers: HANDLERS,
+        }];
+        static POLICIES: &[PolicyRule] = &[PolicyRule {
+            policy_name: "Audit",
+            event_name: "Reported",
+            event_qualifier: None,
+            target_verb: "Test::Note",
+            where_expr: None,
+            for_each: None,
+            for_each_key: None,
+            with_spec: &[],
+        }];
+        static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
+        static QUERIES: &[crate::kernel::QueryDef] = &[];
+
+        let tables = Tables {
+            policies: POLICIES,
+            cross_domain_policies: CROSS_DOMAIN_POLICIES,
+            process_managers: PROCESS_MANAGERS,
+            reference_key_fn: multi_leg_no_reference_key,
+            queries: QUERIES,
+            command_creates_fn: multi_leg_always_creates,
+            identity_head_fn: multi_leg_no_identity_head,
+            command_attributes_fn: multi_leg_no_declared_attributes,
+        };
+
+        let mut store = MultiLegTestStore;
+        let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+        let mut all_events = Vec::new();
+        let mut mutations = Vec::new();
+        let mut cross_domain = Vec::new();
+        let mut reaction_log = Vec::new();
+        let mut saga_log: Vec<Json> = Vec::new();
+
+        for verb in ["Test::Start", "Test::Advance"] {
+            let outcome = orchestrate(
+                &mut store,
+                two_event_test_dispatch,
+                tables,
+                &mut sagas,
+                verb,
+                &Json::Object(vec![]),
+                None,
+                None,
+                None,
+                0,
+                &mut all_events,
+                &mut mutations,
+                &mut cross_domain,
+                &mut reaction_log,
+                &mut saga_log,
+            );
+            assert!(outcome.is_ok(), "{verb} should not refuse: {outcome:?}");
+        }
+
+        let names: Vec<&str> = all_events.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["Started", "Legged", "Reported", "Logged", "Noted"],
+            "both announced events precede every reaction, and the first event's saga leg precedes the second \
+             event's policy — reaction_log: {reaction_log:?}, saga_log: {saga_log:?}"
+        );
+    }
+
+    #[test]
+    fn a_leg_miss_names_every_from_state_the_event_could_have_answered_from() {
+        static HANDLERS: &[Handler] = &[
+            Handler { event_type: "Scanned", from_state: "posted", to_state: "picked_up", dispatches: &[] },
+            Handler { event_type: "Scanned", from_state: "picked_up", to_state: "handed_over", dispatches: &[] },
+        ];
+        let pm = ProcessManagerDef {
+            name: "Delivery",
+            correlates_by: "id",
+            starts_on: "Posted",
+            ends_on: "Delivered",
+            initial_state: "posted",
+            handlers: HANDLERS,
+        };
+        assert_eq!(select_leg(&pm, "Scanned", "picked_up").map(|h| h.to_state), Some("handed_over"));
+        assert!(select_leg(&pm, "Scanned", "handed_over").is_none());
+        assert_eq!(leg_mismatch(&pm, "Scanned", "handed_over"), "in \"handed_over\", not \"posted\" or \"picked_up\"");
     }
 }

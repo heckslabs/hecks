@@ -180,6 +180,16 @@ module Hecks
         # one, made deliberately: `as:` reads as "the instance being
         # corrected," which is naturally the latest fact on record, not
         # an arbitrary one.
+        # C9.2 (docs/semantics/bluebook-semantics.md) — a correction target
+        # is judged against the record's DURABLE history: the events the
+        # aggregate's own store recorded (`AppendOnly#events`), which
+        # survive a restart the way the Rust kernel's persisted
+        # `emitted_<event>` flag does. The in-process log is the fallback
+        # only for an adapter that records no readable history.
+        def correction_history(domain, aggregate)
+          @registry.repository(domain, aggregate).events || @registry.event_log
+        end
+
         def enforce_correction_target(instance, aggregate, command, domain:)
           bindings = {}
           command.mutations.each do |mutation|
@@ -187,8 +197,8 @@ module Hecks
 
             event_key  = "#{domain}::#{aggregate.hecks_name}"
             event_name = mutation.target.to_s
-            corrected = @registry.event_log.reverse.find do |event|
-              event.name == event_name && event.aggregate == event_key && event.id == instance.id
+            corrected = correction_history(domain, aggregate).reverse.find do |event|
+              event.name == event_name && event.aggregate == event_key && event.id.to_s == instance.id.to_s
             end
 
             unless corrected
@@ -260,7 +270,12 @@ module Hecks
           # one) wins right alongside it — a settled-record ensures can
           # reference the correction target exactly as freely as a
           # pre-mutation given already can.
-          attrs = args.merge(dereference(domain, command, args))
+          # C2.3 (docs/semantics/bluebook-semantics.md) — an ensures reads
+          # the SETTLED STATE first: an argument that shares a field's
+          # name does not shadow the candidate here (it does in a given,
+          # C2.2), so `sets :note` + `ensures { note == ... }` judges what
+          # landed, and `old.<field>` remains the pre-state.
+          attrs = args.reject { |name, _| subject.key?(name) }.merge(dereference(domain, command, args))
           attrs = attrs.merge(parent: parent.state) if parent
           attrs = attrs.merge(correction) unless correction.empty?
           attrs = attrs.merge(old: old)

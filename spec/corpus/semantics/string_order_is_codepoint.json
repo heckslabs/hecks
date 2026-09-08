@@ -1,0 +1,85 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C3.6",
+    "C3.2"
+  ],
+  "note": "String ordering is codepoint order (C3.6), never a locale's collation: Relabel \"é\" (U+00E9) sorts after \"m\" and is accepted; Relabel \"M\" (U+004D) sorts before it and is refused by the given, even though a dictionary would place M after m. The label ends as \"é\".",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Relabel",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "é"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Relabel",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "M"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.Relabel",
+        "error": "Relabel refused — the label sorts after m",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": "é"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "Relabelled",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "é"
+          }
+        }
+      }
+    ]
+  }
+}

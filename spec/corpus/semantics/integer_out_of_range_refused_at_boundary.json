@@ -1,0 +1,65 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C3.3",
+    "C3.7"
+  ],
+  "note": "An Integer argument past ±2^63-1 is refused at the boundary as TypeMismatch (C3.3 held at the value-object boundary, C3.7) — a refusal, not a fault, because it is caller input; the tally is untouched.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.SetCount",
+      "args": {
+        "tally": "t1",
+        "count": {
+          "value": 9223372036854775808
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.SetCount",
+        "error": "Count.value must fit in a 64-bit integer, got 9223372036854775808",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      }
+    ]
+  }
+}

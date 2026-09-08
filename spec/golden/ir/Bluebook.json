@@ -23635,6 +23635,20 @@
               ],
               [
                 "site",
+                "integer_range"
+              ],
+              [
+                "template",
+                "{type}.{field} must fit in a 64-bit integer, got {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "TypeMismatch"
+              ],
+              [
+                "site",
                 "pattern_mismatch"
               ],
               [

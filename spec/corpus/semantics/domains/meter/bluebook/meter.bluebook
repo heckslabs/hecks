@@ -1,0 +1,46 @@
+Hecks.bluebook "Metering" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C4.2).
+  # A command's effects are ONE UPDATE SET evaluated against the
+  # pre-dispatch state: every source reads the state as it was before
+  # the command, whatever order the effects are declared in. `Read`
+  # deliberately declares `sets :current` BEFORE `sets :previous, to:
+  # state(:current)` — under sequential, intermediate-reading effects
+  # (the pre-C4.2 reading of both runtimes) `previous` would copy the
+  # value `current` had JUST been set to; under C4.2 it copies the
+  # reading the meter held before this one. No example domain reads a
+  # field it writes in the same command, so the clause needed its own.
+  vision "A meter keeps its latest reading and the one before it."
+  core
+
+  aggregate "Gauge" do
+    identified_by :tag
+
+    attribute :tag,      Tag
+    attribute :current,  Reading, default: { value: 0 }
+    attribute :previous, Reading, default: { value: 0 }
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    value_object "Reading" do
+      attribute :value, Integer
+    end
+
+    command "Install" do
+      goal "Mount a gauge, reading zero"
+      attribute :tag, Tag
+      emits "MeterInstalled"
+    end
+
+    command "Read" do
+      goal "Take a reading, keeping the one before it"
+      reference_to Gauge
+      attribute :current, Reading
+      # DECLARED WRITE-FIRST ON PURPOSE — see the header.
+      sets :current
+      sets :previous, to: state(:current)
+      emits "MeterRead"
+    end
+  end
+end

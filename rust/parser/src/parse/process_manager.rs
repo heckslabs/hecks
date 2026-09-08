@@ -128,6 +128,30 @@ pub fn parse_body(
             }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
+                    // C10.3 (docs/semantics/bluebook-semantics.md) — a
+                    // leg is selected by (event, current state), so two
+                    // legs on one pair would be picked by declaration
+                    // order, silently. Refused at build, mirroring
+                    // `ProcessManagerBuilder#refuse_ambiguous_legs!`
+                    // (same wording, same `from: [...]` fan-out reading).
+                    if let Some(earlier) = pm
+                        .handlers
+                        .iter()
+                        .find(|h| h.event_type == handler.event_type && h.from_state == handler.from_state)
+                    {
+                        return Err(Diagnostic::new(
+                            file,
+                            line,
+                            format!(
+                                "{name} declares two transitions on {event:?} from {from:?} (=> {a:?} and => {b:?}) — \
+                                 a leg is selected by (event, current state), so only one may answer",
+                                event = handler.event_type,
+                                from = handler.from_state,
+                                a = earlier.to_state,
+                                b = handler.to_state,
+                            ),
+                        ));
+                    }
                     pm.handlers.push(handler);
                 }
             }

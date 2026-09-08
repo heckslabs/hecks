@@ -20,7 +20,7 @@
 // generic by construction: nothing here needs to change per command shape
 // for either check to already be enforced.
 
-use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, Value, WithOld, WithParent};
+use super::expr::{interpret, EvalContext, Expr, Field, Fielded, NoFields, StateFirst, Value, WithOld, WithParent};
 use super::refusal_wording::RefusalSite;
 use super::{Event, Json, MutationRecord, Refusal, Repository, SetProjectedField, ToJson};
 
@@ -263,7 +263,11 @@ where
             // exactly what `aggregate_qualified_name` already is
             // (this function's own header comment on that field).
             if let Some(event_name) = given.corrects_event {
-                return Err(Refusal::GivenNotMet(format!(
+                // ITS OWN CLASS (C8.2/C9.2, spec/corpus/semantics/
+                // correction_needs_prior_emission.json): Ruby raises
+                // `NothingToCorrect`, not `GivenNotMet` — the corpus
+                // compares kinds, and this used to answer the wrong one.
+                return Err(Refusal::NothingToCorrect(format!(
                     "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{id} has never emitted it"
                 )));
             }
@@ -324,7 +328,9 @@ where
     apply_mutations(&mut record)?;
 
     if let Some(old) = &old_snapshot {
-        let with_old = WithOld { args, old };
+        // C2.3 — the settled state first; see `StateFirst`.
+        let state_first = StateFirst { args, settled: &record };
+        let with_old = WithOld { args: &state_first, old };
         for rule in ensures {
             let ctx = EvalContext { args: &with_old, instance: &record };
             if !interpret(&rule.expr, &ctx)?.truthy() {
@@ -483,8 +489,10 @@ where
         let parent_after = record.clone();
         let with_parent = WithParent { args, parent: &parent_after };
         let ensures_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
-        let with_old = WithOld { args: ensures_args, old };
         let settled = &get_list(record)[position];
+        // C2.3 — the settled element first; see `StateFirst`.
+        let state_first = StateFirst { args: ensures_args, settled };
+        let with_old = WithOld { args: &state_first, old };
         for rule in ensures {
             let ctx = EvalContext { args: &with_old, instance: settled };
             if !interpret(&rule.expr, &ctx)?.truthy() {

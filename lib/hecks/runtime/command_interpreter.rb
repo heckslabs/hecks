@@ -162,8 +162,14 @@ module Hecks
         # edit a held value in place.
         ctx.old_state = ctx.instance.state.dup unless ctx.command.ensures.empty?
         step(:apply_mutations) do
+          # ONE UPDATE SET OVER THE PRE-DISPATCH STATE (C4.2, docs/
+          # semantics/bluebook-semantics.md): every effect's sources read
+          # `pre` — the state as it was before this command — and its
+          # target is written to the candidate; declaration order carries
+          # no meaning, and build refuses a field written twice.
+          pre = ctx.instance.state.dup
           ctx.command.mutations.each do |mutation|
-            apply(ctx.instance, ctx.aggregate, mutation, ctx.args)
+            apply(ctx.instance, ctx.aggregate, mutation, ctx.args, pre)
           end
         end
       end
@@ -237,8 +243,9 @@ module Hecks
           transition = @rules.admissible_transition(entity, target_command, view)
 
           old_element = target_command.ensures.empty? ? nil : element.dup
+          pre = element.dup # C4.2 — the update set reads the element as it was
           target_command.mutations.each do |mutation|
-            EntityElement.apply_to_element(@rules, ctx.aggregate, entity, element, mutation, target_args)
+            EntityElement.apply_to_element(@rules, ctx.aggregate, entity, element, mutation, target_args, pre)
           end
           element[entity.lifecycle.field] = transition.target if transition
 

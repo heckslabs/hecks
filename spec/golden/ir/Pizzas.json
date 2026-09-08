@@ -286,15 +286,6 @@
                 "name": "customer_name"
               },
               "target": "customer_name"
-            },
-            {
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "literal",
-                "value": "sold"
-              },
-              "target": "status"
             }
           ],
           "name": "Purchase",

@@ -184,6 +184,18 @@ module Hecks
                 # targets an EVENT name, not a field either; checked instead
                 # by `seal_correction_targets`, below.
                 next if [:delegate, :corrects].include?(mutation.op)
+
+                # C5.3 (docs/semantics/bluebook-semantics.md) — the
+                # lifecycle field moves ONLY by transition; a `sets` on it
+                # would be overwritten by any transition and bypass the
+                # state machine otherwise. Refused at build — except for
+                # FROZEN ERA TEXT (`MetaValidator.shadow_parsing?`), which
+                # is history and must keep parsing as the language tightens.
+                if @lifecycle && mutation.target.to_sym == @lifecycle.field.to_sym && !MetaValidator.shadow_parsing?
+                  raise Malformed,
+                        "#{@name}.#{command.hecks_name} sets #{mutation.target}, #{@name}'s lifecycle field — " \
+                        "a lifecycle field moves only by transition; declare one instead of setting it"
+                end
                 next if known.include?(mutation.target.to_sym)
 
                 raise Malformed,

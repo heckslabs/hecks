@@ -283,6 +283,7 @@ pub fn parse_body(
                 owner_value_objects,
                 owner_entities,
             );
+            refuse_duplicate_targets(file, *pos, &command)?;
             return Ok((command, pending));
         };
         let line = gated.line.number;
@@ -417,6 +418,50 @@ fn resolve_implicit_attributes(
             ),
         }
     }
+}
+
+/// `Literal.read`'s own `state(:name)` recognition (lib/hecks/literal.rb):
+/// the exact `state(:identifier)` spelling and nothing looser.
+fn state_ref(raw: &str) -> Option<String> {
+    let inner = raw.strip_prefix("state(:")?.strip_suffix(')')?;
+    let mut chars = inner.chars();
+    let first = chars.next()?;
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return None;
+    }
+    if !chars.all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return None;
+    }
+    Some(inner.to_string())
+}
+
+/// `CommandBuilder#refuse_duplicate_targets!` — C4.2 (docs/semantics/
+/// bluebook-semantics.md): a command's effects are ONE UPDATE SET over
+/// the pre-dispatch state, so a field written twice has no meaning to
+/// give. `delegate`/`corrects` name a command and an event, never a
+/// field, and are not counted. Same wording as Ruby's.
+fn refuse_duplicate_targets(file: &str, line: usize, command: &ir::Command) -> ParseResult<()> {
+    let mut seen: Vec<(&str, &str)> = Vec::new();
+    for mutation in &command.mutations {
+        let (target, op) = match mutation {
+            ir::Mutation::Append { target, .. } => (target.as_str(), "append"),
+            ir::Mutation::Other { target, op, .. } => (target.as_str(), op.as_str()),
+            _ => continue,
+        };
+        if let Some((_, earlier)) = seen.iter().find(|(t, _)| *t == target) {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "{} writes {target} twice ({earlier} and {op}) — a command's effects are one update set over \
+                     the pre-dispatch state, so each field is written at most once",
+                    command.name
+                ),
+            ));
+        }
+        seen.push((target, op));
+    }
+    Ok(())
 }
 
 /// `CommandBuilder#resolve_bare_set!` — `sets :field` ALONE (the
@@ -700,9 +745,17 @@ fn build_mutation(
             }
         }
     }
-    let source = match value {
-        ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
-        other => ir::MutationSource::Literal(other),
+    // `state(:field)` — `Literal::StateRef`'s own spelling (lib/hecks/
+    // literal.rb): the record's own field, never an argument and never
+    // a literal value. Classified before the Symbol/literal split, the
+    // same way `CommandBuilder#sets` sees a `StateRef` object rather
+    // than a Symbol.
+    let source = match state_ref(raw.trim()) {
+        Some(name) => ir::MutationSource::State(name),
+        None => match value {
+            ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
+            other => ir::MutationSource::Literal(other),
+        },
     };
     Ok(ir::Mutation::Other {
         target,

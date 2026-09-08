@@ -521,6 +521,44 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, /repeats the target/)
     end
 
+    # C4.2 (docs/semantics/bluebook-semantics.md) — effects are one update
+    # set over the pre-dispatch state; a field written twice would make
+    # declaration order significant (last-wins), which the update set
+    # says it is not.
+    # C3.6 (docs/semantics/bluebook-semantics.md) — a rule's `.match?`
+    # pattern is held to PatternSubset exactly as an attribute's own
+    # `pattern:` already is: a regex whose meaning depends on the engine
+    # reading it is refused at build, at every rule site.
+    it "refuses a .match? pattern outside PatternSubset in a given — a backreference means different things " \
+       "to different engines" do
+      expect do
+        build_command("Echoed") do
+          given("the tag doubles") { tag.value.match?(/(a)\1/) }
+        end
+      end.to raise_error(Malformed, /given "the tag doubles" matches against "\(a\)\\\\1", which uses a backreference/)
+    end
+
+    it "refuses a .match? pattern outside PatternSubset in a policy where too" do
+      expect do
+        build_bluebook("Watched") do
+          policy "Echo" do
+            on      "Started"
+            where { name.match?(/(?=x)/) }
+            trigger "Thing.Next"
+          end
+        end
+      end.to raise_error(Malformed, /Echo's where matches against "\(\?=x\)", which uses a lookahead/)
+    end
+
+    it "refuses writing one field twice in a command — effects are one update set, not a sequence" do
+      expect do
+        build_command("Twice") do
+          sets :status, to: "open"
+          sets :status, to: "closed"
+        end
+      end.to raise_error(Malformed, /Do writes status twice \(set and set\)/)
+    end
+
     it "then_set is gone — sets is the word now (ADR 0025 reverts the rename)" do
       # `sets` is the word; `then_set` was the era every existing bluebook was
       # written under (Syntax::Keyword still carries it as `was:`) — reachable
@@ -1168,6 +1206,38 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(/names no from:/)
     end
 
+    # C10.3 (docs/semantics/bluebook-semantics.md) — a leg is selected by
+    # (event, current state). Two legs answering the same event from
+    # different states are the point (see spec/corpus/semantics/
+    # saga_leg_selected_by_state.json); two from the SAME state would
+    # leave the runtime picking by declaration order, silently.
+    it "process_manager refuses two transitions on one event from the same state — the leg would be ambiguous" do
+      expect do
+        build_bluebook("Ambiguous") do
+          process_manager "Broken" do
+            correlates_by :"id.value"
+            starts_on "Started"
+            transition "Next" => "b", from: "a"
+            transition "Next" => "c", from: ["z", "a"]
+          end
+        end
+      end.to raise_error(/declares two transitions on "Next" from "a"/)
+    end
+
+    it "process_manager accepts two transitions on one event from different states" do
+      pm = build_bluebook("TwoLegs") do
+        process_manager "Relay" do
+          correlates_by :"id.value"
+          starts_on "Started"
+          transition "Next" => "b", from: "a"
+          transition "Next" => "c", from: "b"
+        end
+      end.process_managers.first
+
+      expect([pm.handler_for("Next", "a").to_state, pm.handler_for("Next", "b").to_state]).to eq(%w[b c])
+      expect(pm.handler_for("Next", "c")).to be_nil
+    end
+
     it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
       # ProcessManagerBuilder#validate! only knows the spelling has a dot ;
       # the whole-document check knows what that dot actually reaches.
@@ -1593,6 +1663,43 @@ RSpec.describe "the DSL surface" do
 
       expect([machine.field, machine.default]).to eq([:status, "pending"])
       expect(machine.target_for("Purchase")).to eq("sold")
+    end
+
+    # C5.3 (docs/semantics/bluebook-semantics.md) — the lifecycle field
+    # moves only by transition, and the state machine is checked whole at
+    # build: no `sets` on the field, no `from:` naming an undeclared
+    # state, no two transitions for one command.
+    it "refuses sets on the lifecycle field — it moves only by transition" do
+      expect do
+        build_aggregate("Bypassed") do
+          lifecycle :status, default: "open" do
+            transition "Close" => "closed", from: "open"
+          end
+          command("Force") { sets :status, to: "closed" }
+        end
+      end.to raise_error(Malformed, /Force sets status, Thing's lifecycle field/)
+    end
+
+    it "refuses two transitions for one command from the same state — which fires would be declaration order" do
+      expect do
+        build_aggregate("Twice") do
+          lifecycle :status, default: "open" do
+            transition "Close" => "closed", from: "open"
+            transition "Close" => "shut",   from: "open"
+          end
+        end
+      end.to raise_error(Malformed, /declares two transitions for "Close" from the same state/)
+    end
+
+    it "keeps two transitions for one command from disjoint states — the current state picks" do
+      machine = build_aggregate("Forked") do
+        lifecycle :status, default: "open" do
+          transition "Close" => "closed",   from: "open"
+          transition "Close" => "archived", from: "closed"
+        end
+      end.lifecycle
+
+      expect(machine.target_for("Close", "closed")).to eq("archived")
     end
 
     it "invariant declares an aggregate-level rule, checked after every command" do

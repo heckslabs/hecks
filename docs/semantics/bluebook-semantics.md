@@ -55,11 +55,15 @@ it, except for one law they must uphold (C8.4).
   arguments first, then the subject's state; an unknown head is an
   evaluation fault (C8.3), not "false". `parent`, `old` and correction
   bindings are ordinary heads injected by the step that defines them.
-- **C2.3 (OPEN — argument shadowing)** Because arguments shadow state
-  (C2.2), an `ensures` naming a field that is also a command argument
-  reads the *argument*, not the settled state. Today: Ruby and Rust
-  agree. The open question: should post-state rules resolve state
-  first, or should the collision be refused at build?
+- **C2.3 (settled)** A post-state rule resolves the *settled state
+  first*: inside an `ensures`, a head that is both one of the command's
+  arguments and one of the subject's fields names the candidate field,
+  not the argument — the opposite of a `given` (C2.2). So `sets :note`
+  followed by `ensures { note == ... }` judges what landed, and
+  `old.<field>` still names the pre-state. An argument that shares a
+  field's name is simply unreadable inside that `ensures`; there is no
+  `args.` spelling. Both runtimes drop such arguments from the ensures
+  scope. (fixture: `ensures_reads_settled_state.json`)
 - **C2.4 (settled)** `given` and the lifecycle `from:` guard observe
   the pre-dispatch state; `ensures` observes the candidate state plus
   `old` (the pre-dispatch state, always); aggregate and entity
@@ -79,23 +83,35 @@ it, except for one law they must uphold (C8.4).
   float (`1 == 1.0`); ordering (`<`) is defined for two numbers or two
   strings and is otherwise an evaluation fault.
   (fixture: `numeric_int_float_compare.json`)
-- **C3.3 (OPEN — integer width)** Ruby integers are unbounded; the Rust
-  kernel refuses on checked i64 overflow. The open decision: Integer =
-  signed 64-bit with overflow as fault, everywhere. Until settled, no
-  conforming domain may rely on values beyond ±2^63-1.
-- **C3.4 (OPEN — floats)** Floats are IEEE doubles. NaN and infinities
-  are refused at value-object boundaries but unguarded for bare
-  attributes; comparison algebra makes `NaN > 1` true. The open
-  decision: refuse non-finite floats at every boundary.
+- **C3.3 (settled)** Integer is a signed 64-bit integer everywhere. A
+  value outside ±2^63-1 offered at a boundary is `TypeMismatch`
+  (`integer_range`); an expression sum or an effect's
+  `increment`/`decrement`/`multiply` whose result leaves that range is
+  an evaluation fault (C8.3) — never a wrap, never a promotion, never a
+  panic. Modulo is floored (the sign of the divisor), and the one
+  modulo whose intermediate overflows, `-2^63 % -1`, is 0. (fixtures:
+  `integer_overflow_is_fault.json`,
+  `integer_out_of_range_refused_at_boundary.json`)
+- **C3.4 (settled)** Float is an IEEE double and always finite. NaN and
+  the infinities are refused at every boundary — value-object fields
+  and bare arguments alike (`non_finite_field`) — and an expression sum
+  or an effect's arithmetic whose result is not finite is an evaluation
+  fault (C8.3). The corpus format (JSON) cannot spell a non-finite
+  float, so no fixture offers one; the arithmetic path is pinned.
+  (fixture: `float_overflow_is_fault.json`)
 - **C3.5 (settled)** Value-object equality is structural and
   type-tagged: same type, same fields. List equality is ordered and
   structural. `nil` equals only `nil`; `nil` never satisfies `<`/`>`
   (fault, C8.3). (fixture: `nil_equality.json`)
-- **C3.6 (OPEN — strings)** Length counts characters; ordering is
-  host-collation today. `.match?` accepts the host regex dialect while
-  attribute `pattern:` is held to the portable `PatternSubset`. The
-  open decision: hold `.match?` to `PatternSubset` too, and define
-  ordering as codepoint order.
+- **C3.6 (settled)** A string's `size` counts Unicode scalar values;
+  string ordering is codepoint order, never a locale's collation. A
+  rule's `.match?` pattern is held to the portable `PatternSubset`
+  exactly as an attribute's `pattern:` is, refused at build at every
+  rule site (givens, ensures, invariants, preconditions, a policy's
+  `where`); the flags `i`/`m`/`x` keep their one meaning. Recorded
+  gap: `hecks-parse` does not yet parse `.match?` at all (a G-clause
+  for the grammar work), so its build check has no site until it does.
+  (fixture: `string_order_is_codepoint.json`)
 - **C3.7 (settled)** Declared value-object arguments are coerced and
   validated (type, closed set, `admits`, `pattern`, VO invariants)
   before givens run; a mismatch is `TypeMismatch`, a refusal.
@@ -121,15 +137,16 @@ it, except for one law they must uphold (C8.4).
   `remove`, `increment`, `decrement`, `multiply`, `clamp`, `delegate`,
   `corrects` — plus the implicit lifecycle transition (§5). There is no
   arbitrary-code effect and never will be.
-- **C4.2 (OPEN — ordering model)** Today effects apply sequentially in
-  declaration order, each reading the intermediate state, and two
-  writes to one field mean last-wins. The open decision (the plan's
-  recommendation): an update set evaluated against the pre-dispatch
-  state, applied atomically, with duplicate targets refused at build.
-  No corpus domain distinguishes the two today; a fixture must pin the
-  choice when it lands. Until then no conforming domain may write one
-  field twice in one command or read a field it wrote earlier in the
-  same command.
+- **C4.2 (settled)** A command's effects are one *update set*
+  evaluated against the pre-dispatch state: every source — an argument,
+  a literal, or the record's own field via `state(:field)` — reads the
+  state as it was before the command, and every target is written to
+  the candidate. Declaration order carries no meaning. A field written
+  twice in one command is refused at build (Ruby builders and
+  `hecks-parse`, same wording), so there is no last-wins to define.
+  No example domain reads a field it writes in the same command, so
+  the fixture's domain is corpus-owned. (fixture:
+  `effects_read_the_pre_state.json`)
 - **C4.3 (settled)** `append` adds one element at the tail; list order
   is append order. `remove` removes every structurally-equal element.
   Entity `append` refuses a duplicate identity (`AlreadyExists`).
@@ -137,9 +154,15 @@ it, except for one law they must uphold (C8.4).
 - **C4.4 (settled)** `increment`/`decrement`/`multiply`/`clamp` are
   numeric; an absent target reads as 0; a non-numeric operand is
   `TypeMismatch`.
-- **C4.5 (OPEN — entity identity minting)** An appended entity with no
-  explicit identity is minted `list size + 1`, which can collide after
-  a `remove`. The open decision: an IR-declared minting strategy.
+- **C4.5 (settled)** An appended entity with no explicit identity is
+  minted one past the highest integer identity the list holds (1 when
+  empty) — never `size + 1`, which repeats an identity the moment a
+  list has shrunk. There is one strategy, so the IR declares none;
+  both runtimes mint by this rule (Ruby `MutationApplier#next_identity`,
+  the Rust generators' emitted mint). No construct in the language
+  shrinks an entity list today (`remove` matches by structural equality
+  and an entity is never offered whole), so no fixture can distinguish
+  the two rules yet; banking's ledger sequences pin the common case.
 
 ## §5 Lifecycle
 
@@ -152,11 +175,15 @@ it, except for one law they must uphold (C8.4).
   (fixture: `lifecycle_from_guard_refused.json`)
 - **C5.2 (settled)** A fresh or loaded record without the field holds
   the declared initial state.
-- **C5.3 (OPEN — bypass and validation)** `sets` on the lifecycle field
-  is accepted today and then overwritten by any transition; a `from:`
-  naming an undeclared state is never refused; duplicate transitions
-  for one command are silently first-wins. The open decision: refuse
-  all three at build.
+- **C5.3 (settled)** The lifecycle field moves only by transition.
+  Refused at build, in the Ruby builders and `hecks-parse`: a `sets`
+  on the lifecycle field, and two transitions for one command whose
+  `from:` states overlap (a transition with no `from:` overlaps every
+  other) — two from disjoint states are the legitimate shape, the
+  current state picking between them. A `from:` naming a state no
+  transition reaches is *not* a build refusal: it is a reachability
+  finding (`bin/model_check`: unreachable state, dead transition), and
+  a bluebook may declare one on purpose.
 
 ## §6 Postconditions and invariants
 
@@ -169,11 +196,12 @@ it, except for one law they must uphold (C8.4).
   failure is `InvariantViolation` and nothing commits — no state, no
   events. (fixtures: `invariant_refused_events_dropped.json`,
   `entity_invariant_on_candidate.json`)
-- **C6.3 (OPEN — VO invariants at load)** Value-object invariants run
-  at construction — which today includes re-validation when a stored
-  record is *loaded*, so tightening an invariant can make old records
-  unreadable. The open decision: construction-from-input only; stored
-  state is trusted, migration is the era system's job.
+- **C6.3 (settled)** Value-object validation — type, closed set,
+  `admits`, `pattern`, invariants — runs on construction from *input*
+  only. State read back from the store is trusted as it was written,
+  so tightening an invariant never makes an old record unreadable;
+  migration is the era system's job. (Ruby: `Value.hydrate`, the one
+  load door, is trusted; the Rust kernel validates arguments only.)
 
 ## §7 Events
 
@@ -226,10 +254,14 @@ it, except for one law they must uphold (C8.4).
   history (`corrects`). Identical (S, C, env) gives an identical
   outcome; nothing else (ordering of unrelated state, host hash order,
   process identity) may influence it.
-- **C9.2 (OPEN — correction history)** `corrects` consults an
-  in-process event log today, so a correction target emitted before a
-  restart is invisible on Ruby (`NothingToCorrect`) while Rust keeps a
-  persisted flag. The open decision: the flag-field model everywhere.
+- **C9.2 (settled)** A correction target is judged against the
+  record's *durable* history: whether this record has ever emitted
+  the corrected event, as the store remembers it — never against a
+  process's own memory. The Rust kernel keeps that fact as a persisted
+  `emitted_<event>` flag on the record; Ruby reads the events the
+  aggregate's own store recorded. Both survive a restart; both answer
+  `NothingToCorrect` for a record that never emitted it. (fixture:
+  `correction_needs_prior_emission.json`)
 
 ## §10 Reactions
 
@@ -237,14 +269,26 @@ it, except for one law they must uphold (C8.4).
   command commits, outside its atomic boundary; a refused or defective
   reaction never un-commits the trigger. A policy's `where` reads the
   event payload; unmet is a silent skip.
-- **C10.2 (OPEN — ordering)** Ruby runs all policies then all sagas per
-  announcement batch, in bluebook load order; the Rust kernel
-  interleaves per event. The open decision: per event, in `emits`
-  order — policies in declaration order, then sagas.
-- **C10.3 (OPEN — saga leg selection)** `handler_for` selects the first
-  handler matching the event *name*, so a second leg on the same event
-  with a different `from:` state is unreachable. The open decision:
-  select by (event, current state); ambiguity refused at build.
+- **C10.2 (settled)** Every event a dispatch announces is committed
+  (C7.1) before any reaction to any of them runs. Reactions then run
+  per event, in `emits` order: for each event, its policies — the
+  emitting domain's own in declaration order, then other domains' in
+  load order — and then its sagas in declaration order. So a two-event
+  command's second event precedes the first event's reactions in the
+  history, and the first event's saga leg lands before the second
+  event's policy. (fixture: `reaction_order_per_event.json` — on the
+  corpus-owned `spec/corpus/semantics/domains/courier`, because no
+  example command emits twice)
+- **C10.3 (settled)** A saga leg is selected by (event, *current
+  state*): of the legs answering an event, the one whose `from:` is the
+  instance's current state runs; if none is, the instance is left where
+  it is and the miss is logged ("in X, not Y or Z"). Two legs answering
+  the same event from different states are therefore both reachable.
+  Two legs on one (event, state) pair are refused at build, in both the
+  Ruby builders and `hecks-parse`. The compensating (`:refused`) leg is
+  selected by the same rule. (fixture: `saga_leg_selected_by_state.json`
+  — its domain is corpus-owned, `spec/corpus/semantics/domains/relay`,
+  because no example domain declares two legs on one event)
 - **C10.4 (settled)** Reaction depth is bounded (5); a reaction beyond
   the bound is recorded undelivered, never run.
 
