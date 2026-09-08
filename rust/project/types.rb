@@ -23,7 +23,7 @@ module RustProjection
       name = rust_ident(vo[:name])
       type_name = vo[:name].to_s
       body = vo[:invariants].map do |inv|
-        expr = ExprEmitter.emit_predicate(inv[:canonical])
+        expr = ExprEmitter.emit_ast(inv[:ast])
         <<~RUST.rstrip
                   {
                       let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
