@@ -15,6 +15,8 @@ Hecks.bluebook "Tallying" do
     attribute :count,  Count,  default: { value: 0 }
     attribute :weight, Weight, default: { value: 0.0 }
     attribute :label,  Label,  default: { value: "" }
+    attribute :limit,  Count,  optional: true
+    attribute :tags,   list_of(Label)
 
     value_object "Tag" do
       attribute :value, String
@@ -88,6 +90,53 @@ Hecks.bluebook "Tallying" do
       given("the total is positive") { weight.value + more.value > 0 }
       sets :weight, increment: :more
       emits "Weighed"
+    end
+
+    # NUMERIC COMPARISON IS BY VALUE ACROSS INTEGER AND FLOAT (C3.2):
+    # a Float weight of 1.0 satisfies `== 1`.
+    command "Certify" do
+      goal "Certify a tally that weighs exactly one"
+      reference_to Tally
+      given("it weighs exactly one") { weight.value == 1 }
+      emits "Certified"
+    end
+
+    # NIL (C3.5): an absent optional equals only nil; ordering against
+    # nil is a fault.
+    # `cap`, not `limit` — a given reads arguments first (C2.2), so an
+    # argument named `limit` would shadow the field this given asks about.
+    command "Cap" do
+      goal "Set the cap, once"
+      reference_to Tally
+      attribute :cap, Count
+      given("no cap yet") { limit == nil }
+      sets :limit, to: :cap
+      emits "Capped"
+    end
+
+    command "Check" do
+      goal "Confirm the count is under the cap"
+      reference_to Tally
+      given("the count is under the cap") { count.value < limit.value }
+      emits "Checked"
+    end
+
+    # APPEND AND REMOVE (C4.3): remove takes every structurally-equal
+    # element, append keeps order.
+    command "TagWith" do
+      goal "Add a tag"
+      reference_to Tally
+      attribute :label, Label
+      sets :tags, append: { value: :label }
+      emits "Tagged"
+    end
+
+    command "Untag" do
+      goal "Remove every tag equal to the one given"
+      reference_to Tally
+      attribute :label, Label
+      sets :tags, remove: :label
+      emits "Untagged"
     end
 
     # STRING ORDER IS CODEPOINT ORDER (C3.6): "é" sorts after "m",
