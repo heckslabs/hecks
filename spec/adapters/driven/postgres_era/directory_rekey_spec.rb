@@ -18,8 +18,7 @@ require_relative "../../../support/postgres_probe"
 # the edge file's own comment). Runs only when a Postgres server is
 # reachable — the shared probe in support/postgres_probe.rb, like every
 # other Postgres spec here.
-RSpec.describe "the Directory example's real rekey edge (examples/directory)",
-               io: true do
+RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
   DIRECTORY_DB = "hecks_directory_rekey_spec".freeze
   DOMAIN_ROOT = File.expand_path("../../../../examples/directory", __dir__).freeze
 
@@ -93,6 +92,13 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)",
     Hecks::Adapters::PostgresEra.new(aggregate: member, settings: { database: DIRECTORY_DB, domain: "Directory" })
   end
 
+  # One end-to-end scenario: seed several distinct historical records,
+  # prove the mint refuses the rekey without a human approval, approve
+  # it, mint, then check every record resolved under its new identity
+  # AND the raw journal stayed untouched. Splitting would either re-pay
+  # the real-Postgres seed/mint setup or separate the approval gate
+  # from the multi-row proof it exists to establish.
+  # rubocop:disable-next RSpec/ExampleLength
   it "mints the committed edge — a real compute+rekey pair, agreeing on more than one row" do
     registry = check!(ERA_1_SOURCE)
     adapter = adapter_for(registry)

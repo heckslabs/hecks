@@ -24,8 +24,8 @@ module Hecks
       # real layering inversion (runtime depends on bluebook, not the
       # reverse). "" (not nil) for ops with no sign, matching every other
       # optional IR text field's own absent-is-empty-string convention.
-      def self.sign_for(op)
-        Hecks::Vocabulary.rows("MutationOp").find { |row| row["name"] == op.to_s }&.fetch("sign", "") || ""
+      def self.sign_for(oper)
+        Hecks::Vocabulary.rows("MutationOp").find { |row| row["name"] == oper.to_s }&.fetch("sign", "") || ""
       end
 
       emits_ir(target: :target, op: :op, sign: -> { Mutation.sign_for(op) })

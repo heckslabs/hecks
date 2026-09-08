@@ -80,7 +80,7 @@ require_relative "support/ruby_codegen_prelude"
 # excluded by the `io: true` filter, so tagging the group alone wasn't
 # enough; the build itself had to move into a `before(:context)` hook,
 # which — unlike plain body code — really is skipped when excluded.
-RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
+RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
 
@@ -92,7 +92,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
 
   before(:context) { self.class.build_codegen! }
 
-  def self.json_shaped(ir) = JSON.parse(JSON.generate(ir), symbolize_names: true)
+  def self.json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
   # THE SAME sequence `bin/project_rust` itself loads a single-bluebook
   # domain through (persistence/extraction ports, memory + prism +
@@ -130,17 +130,17 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # CODEGEN_PENDING_MEMBERS below for what's genuinely still open and why).
   CODEGEN_CORPUS_MEMBERS = [
     ["pizzas", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
-    ["identity", -> {
+    ["identity", lambda {
       domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook"), "Identity")
     }],
-    ["governance", -> {
+    ["governance", lambda {
       domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"), "Governance")
     }],
-    ["compliance", -> {
+    ["compliance", lambda {
       domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
     }],
     ["banking", -> { domain_ir(InMemoryDomain::BANKING_BLUEBOOK_DIR, "Banking") }],
-    ["bluebook_language", -> { meta_ir }],
+    ["bluebook_language", -> { meta_ir }]
   ].freeze
 
   # A REAL, per-member reason — never a placeholder. See this file's own
@@ -151,7 +151,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
                     "checked out here — only rust/src/generated/embryonaut's own already-compiled output exists " \
                     "in THIS repo, with no `.bluebook` this spec's own Kernel.load-based domain_ir helper can " \
                     "load. A real follow-up item once that repo's source is reachable from a codegen-parity run, " \
-                    "not a shape/algorithm gap in rust/codegen itself.",
+                    "not a shape/algorithm gap in rust/codegen itself."
   }.freeze
 
   # Corpus members that reach FULL whole-file byte-exactness — every
@@ -172,8 +172,16 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty
   end
 
+  # CODEGEN_CORPUS_MEMBERS is an Array of [name, loader] pairs, not a Hash
+  # (see its own definition above) — Style/HashSlice's autocorrect assumed
+  # otherwise from the `|name, _|` block shape alone and rewrote this to
+  # `.slice(*WHOLE_FILE_MEMBERS)`, which is Array#slice (start/length or
+  # index/range args, not a splat of keys) and raised ArgumentError at
+  # load time. False positive — the receiver isn't a Hash.
+  # rubocop:disable-next Style/HashSlice
   CODEGEN_CORPUS_MEMBERS.select { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
-    it "#{name}: Rust hecks-codegen's FULL domain .rs output (every aggregate file + registry.rs + mod.rs) is byte-identical to Ruby's" do
+    it "#{name}: Rust hecks-codegen's FULL domain .rs output (every aggregate file + registry.rs + " \
+       "mod.rs) is byte-identical to Ruby's" do
       ir = ir_loader.call
 
       Dir.mktmpdir do |tmp|
@@ -202,7 +210,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
           ruby_path = File.join(ruby_dir, basename)
           rust_path = File.join(rust_dir, basename)
           expect(File.exist?(ruby_path)).to be(true),
-                                            "#{name}/#{basename}: Ruby's own DomainGenerator.call didn't write this file — compared_names is stale"
+                                            "#{name}/#{basename}: Ruby's own DomainGenerator.call didn't write this file — " \
+                                            "compared_names is stale"
           expect(File.exist?(rust_path)).to be(true), "#{name}/#{basename}: hecks-codegen domain didn't write this file"
 
           ruby_text = File.read(ruby_path)
@@ -217,8 +226,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # file for — mirrors that method's own `unsupported_attribute_types`
   # skip check exactly (rather than hand-listing basenames), so this can
   # never silently drift from which aggregates a real run actually emits.
-  def generated_aggregate_basenames(ir)
-    ir[:aggregates].filter_map do |aggregate|
+  def generated_aggregate_basenames(payload)
+    payload[:aggregates].filter_map do |aggregate|
       vo_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
       next nil if RustProjection::Projector.unsupported_attribute_types(aggregate, vo_by_name).any?
 
@@ -226,6 +235,10 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
     end
   end
 
+  # Same false positive as above (Style/HashSlice): CODEGEN_CORPUS_MEMBERS
+  # is an Array, not a Hash, so Style/HashExcept's `.except(*array)`
+  # rewrite is Array#except (not a real method) rather than Hash#except.
+  # rubocop:disable-next Style/HashExcept
   CODEGEN_CORPUS_MEMBERS.reject { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
     it "#{name}: Rust hecks-codegen's prelude .rs output is byte-identical to Ruby's, per aggregate" do
       ir = ir_loader.call

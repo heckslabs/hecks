@@ -45,6 +45,19 @@ RSpec.describe "the era check at boot" do
     registry
   end
 
+  # Shared by the shape_guard! examples below: booting "Shaped" and
+  # fetching its bluebook is identical setup each uses before deriving
+  # its own stored_hash/projection to check re-attestation against.
+  def shaped_bluebook(root, source: ERA_V1)
+    registry, = load_domain(root, source)
+    registry.bluebook("Shaped")
+  end
+
+  # JSON round-trip: stored projections come back string-keyed.
+  def shaped_projection(root, source: ERA_V1)
+    JSON.parse(JSON.generate(Hecks::Runtime::StorageShape.project(shaped_bluebook(root, source: source))))
+  end
+
   it "reads source containing non-ASCII bytes even when the process default external encoding is US-ASCII" do
     # The tebako-packaged production container runs with no locale set,
     # so Ruby's default external encoding is US-ASCII — a real prose
@@ -110,22 +123,28 @@ RSpec.describe "the era check at boot" do
     end
   end
 
-  it "re-attestation recomputes the era name: cosmetic edits pass, a shape change refuses hard" do
+  # The four examples below are independent facts about shape_guard!'s
+  # re-attestation, previously bundled into one example that shared a
+  # stored_hash. Each recomputes it via the shared shaped_bluebook
+  # helper (cheap: no real I/O, just an in-memory bluebook boot), so
+  # nothing here re-pays real setup cost by being split.
+  it "cosmetic edits (comments, whitespace) still project to the minted era name" do
     Dir.mktmpdir do |root|
-      registry, = load_domain(root, ERA_V1)
-      bluebook = registry.bluebook("Shaped")
-      stored_hash = Hecks::Runtime::StorageShape.mint_hash(bluebook)
-
-      # comments and whitespace still project to the minted name
+      stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
       cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
+
       expect(
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic, stored_hash: stored_hash
         )
       ).to eq(:cosmetic)
+    end
+  end
 
-      # a shape edit would retroactively redefine era 1 — no --accept
-      # gets past this
+  it "a shape edit would retroactively redefine era 1 — no --accept gets past this" do
+    Dir.mktmpdir do |root|
+      stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
+
       expect do
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: stored_hash
@@ -134,51 +153,66 @@ RSpec.describe "the era check at boot" do
         Hecks::Runtime::WiringError,
         /the edit changed the era's SHAPE, not just its text.*retroactively redefine what era 1 meant/m
       )
+    end
+  end
 
-      # unloadable text is not attestable at all — held texts are
-      # bootable source. A plain Ruby syntax error, not a rule the
-      # meta-domain enforces (an empty `vision`, say) — S0a's own
-      # shadow-parse legacy grammar (docs/dsl-work-slices.md) means
-      # `shadow_parse` no longer refuses THAT, on purpose: a since-
-      # tightened meta-domain rule must not make a frozen era text that
-      # once booted fine suddenly unattestable. What still cannot load,
-      # under any grammar, is text that is not even valid Ruby.
+  # unloadable text is not attestable at all — held texts are bootable
+  # source. A plain Ruby syntax error, not a rule the meta-domain
+  # enforces (an empty `vision`, say) — S0a's own shadow-parse legacy
+  # grammar (docs/dsl-work-slices.md) means `shadow_parse` no longer
+  # refuses THAT, on purpose: a since-tightened meta-domain rule must
+  # not make a frozen era text that once booted fine suddenly
+  # unattestable. What still cannot load, under any grammar, is text
+  # that is not even valid Ruby.
+  it "unloadable text is not attestable at all" do
+    Dir.mktmpdir do |root|
+      stored_hash = Hecks::Runtime::StorageShape.mint_hash(shaped_bluebook(root))
+
       expect do
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: "Hecks.bluebook \"Shaped\" do\n  ((((\nend\n", stored_hash: stored_hash
         )
       end.to raise_error(Hecks::Runtime::WiringError, /does not load as a bluebook/)
-
-      # an era that was never named cannot be shape-checked — reported,
-      # not refused
-      expect(
-        Hecks::Translation::Reattest.shape_guard!(
-          domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: nil
-        )
-      ).to eq(:unnamed)
     end
   end
 
-  it "the shape guard prefers the stored projection, so it survives a canonical-form change" do
-    Dir.mktmpdir do |root|
-      registry, = load_domain(root, ERA_V1)
-      bluebook = registry.bluebook("Shaped")
-      # JSON round-trip: stored projections come back string-keyed
-      projection = JSON.parse(JSON.generate(Hecks::Runtime::StorageShape.project(bluebook)))
+  it "an era that was never named cannot be shape-checked — reported, not refused" do
+    expect(
+      Hecks::Translation::Reattest.shape_guard!(
+        domain: "Shaped", ordinal: 1, text: ERA_DRIFTED, stored_hash: nil
+      )
+    ).to eq(:unnamed)
+  end
 
-      # a hash minted under a DIFFERENT canonical form would no longer
-      # match a recomputation — the projection comparison must win, or
-      # every cosmetic edit to an old-form era false-refuses
+  # The three examples below are independent facts about shape_guard!
+  # preferring stored_projection over stored_hash, previously bundled
+  # into one example that shared a projection. Each recomputes it via
+  # the shared shaped_projection helper (cheap: no real I/O), so
+  # nothing here re-pays real setup cost by being split.
+  #
+  # a hash minted under a DIFFERENT canonical form would no longer
+  # match a recomputation — the projection comparison must win, or
+  # every cosmetic edit to an old-form era false-refuses
+  it "prefers a matching stored projection over a stored_hash minted under a different canonical form" do
+    Dir.mktmpdir do |root|
+      projection = shaped_projection(root)
       wrong_form_hash = "0" * 64
       cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
+
       expect(
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic,
           stored_hash: wrong_form_hash, stored_projection: projection
         )
       ).to eq(:cosmetic)
+    end
+  end
 
-      # and a real shape change still refuses, judged structurally
+  it "a real shape change still refuses under stored_projection, judged structurally" do
+    Dir.mktmpdir do |root|
+      projection = shaped_projection(root)
+      wrong_form_hash = "0" * 64
+
       expect do
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: ERA_DRIFTED,
@@ -188,9 +222,16 @@ RSpec.describe "the era check at boot" do
         Hecks::Runtime::WiringError,
         /no longer projects to the shape frozen for era 1.*retroactively redefine what era 1 meant/m
       )
+    end
+  end
 
-      # a stored projection also lets an UNNAMED era be shape-checked —
-      # strictly better than the :unnamed shrug
+  # a stored projection also lets an UNNAMED era be shape-checked —
+  # strictly better than the :unnamed shrug
+  it "a stored projection lets an UNNAMED era be shape-checked, not just shrugged at" do
+    Dir.mktmpdir do |root|
+      projection = shaped_projection(root)
+      cosmetic = "# an operator fixed a typo in a comment\n#{ERA_V1}"
+
       expect(
         Hecks::Translation::Reattest.shape_guard!(
           domain: "Shaped", ordinal: 1, text: cosmetic,

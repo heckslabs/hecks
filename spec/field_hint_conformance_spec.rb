@@ -28,7 +28,7 @@ RSpec.describe "the declared field hints" do
     "email"    => Hecks::Forms::FieldShape::EMAIL_HINT,
     "url"      => Hecks::Forms::FieldShape::URL_HINT,
     "tel"      => Hecks::Forms::FieldShape::TEL_HINT,
-    "textarea" => Hecks::Forms::FieldShape::TEXTAREA_HINT,
+    "textarea" => Hecks::Forms::FieldShape::TEXTAREA_HINT
   }.freeze
 
   it "declares at least one hint, so a language regression doesn't silently empty this" do
@@ -42,11 +42,13 @@ RSpec.describe "the declared field hints" do
   it "holds Ruby's table equal to the declared hints, both directions, pattern source included" do
     expect(FIELD_HINT_RUBY_TABLE.keys.sort).to eq(DECLARED_FIELD_HINTS.keys.sort),
                                                "Ruby and the language disagree about which hint names exist: " \
-                                               "#{(FIELD_HINT_RUBY_TABLE.keys - DECLARED_FIELD_HINTS.keys) + (DECLARED_FIELD_HINTS.keys - FIELD_HINT_RUBY_TABLE.keys)}"
+                                               "#{(FIELD_HINT_RUBY_TABLE.keys - DECLARED_FIELD_HINTS.keys) +
+                                                  (DECLARED_FIELD_HINTS.keys - FIELD_HINT_RUBY_TABLE.keys)}"
 
     DECLARED_FIELD_HINTS.each do |name, row|
       expect(FIELD_HINT_RUBY_TABLE[name].source).to eq(row[:pattern]),
-                                                    "#{name.inspect} reads #{FIELD_HINT_RUBY_TABLE[name].source.inspect} in Ruby, " \
+                                                    "#{name.inspect} reads " \
+                                                    "#{FIELD_HINT_RUBY_TABLE[name].source.inspect} in Ruby, " \
                                                     "which Vocabulary::FieldHint declares as #{row[:pattern].inspect}"
     end
   end

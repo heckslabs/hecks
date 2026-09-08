@@ -3,6 +3,13 @@ require_relative "../ports/persistence"
 
 module Hecks
   module Projector
+    # Registry-wide serialization to Hash/JSON: bluebook IR
+    # (`call`/`json`), era-adapter lineage-capability flags (`lineage`),
+    # and translation edges in both their DIGEST-relevant declared shape
+    # (`translation_hash`, what ApprovalDigest hashes) and their
+    # consumer-ready COMPILED shape with precompiled SQL attached
+    # (`translations`/`compiled_translation_aggregate`). Read directly by
+    # bin/ir, bin/project_rust, and the translation/audit approval digest.
     module Exporter
       module_function
 
@@ -150,7 +157,9 @@ module Hecks
 
         translation_aggregate(aggregate).merge(
           compiled_state_expression: Translation::RuleCompiler.compile_rules(aggregate),
-          compiled_id_expression:    Translation::RuleCompiler.rekeyed?(aggregate) ? Translation::RuleCompiler.compile_id_expression(aggregate) : nil
+          compiled_id_expression:    (if Translation::RuleCompiler.rekeyed?(aggregate)
+                                        Translation::RuleCompiler.compile_id_expression(aggregate)
+                                      end)
         )
       end
     end

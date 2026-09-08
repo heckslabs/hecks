@@ -118,7 +118,8 @@ module Hecks
         return respond(405, "text/plain", "GET only") unless request.get?
 
         if format == "html"
-          html("#{chapter.name}::#{aggregate.hecks_name}", RecordRenderer.index(registry: @registry, domain: chapter.name, aggregate: aggregate),
+          html("#{chapter.name}::#{aggregate.hecks_name}",
+               RecordRenderer.index(registry: @registry, domain: chapter.name, aggregate: aggregate),
                breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
         else
           instances = @registry.repository(chapter.name, aggregate).all
@@ -196,7 +197,7 @@ module Hecks
       end
 
       def command_json(request, domain, aggregate, command)
-        return json(200, command.to_h) if request.get? && request.GET.reject { |k, _| k == "format" }.empty?
+        return json(200, command.to_h) if request.get? && request.GET.except("format").empty?
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
         _, envelope = submitted_command(request, aggregate, command)
@@ -213,7 +214,7 @@ module Hecks
         return respond(405, "text/plain", "GET only") unless request.get?
 
         params = request.GET
-        asked = params.reject { |k, _| k == "format" }
+        asked = params.except("format")
         return query_json(domain, aggregate, query, asked) if format != "html"
 
         query_html(domain, aggregate, query, asked)
@@ -252,7 +253,7 @@ module Hecks
       def run_query(domain, aggregate, query, fields, asked)
         args = Params.extract(fields, asked)
         rows = @dispatcher.query("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}", **args)
-        [rows.map { |row| Record.new(row[:id], row.reject { |k, _| k == :id }) }, nil]
+        [rows.map { |row| Record.new(row[:id], row.except(:id)) }, nil]
       # L10 (docs/audits/2026-08-10-main-bug-audit.md) — `Params.extract`
       # (params.rb's `extract_list`) reads a list-of-value-object line as
       # JSON (the honest fallback for a multi-attribute list element this
@@ -275,7 +276,8 @@ module Hecks
         # sites in this file (see aggregate_route's own comment).
         return json(200, instance.state.merge(id: instance.id)) if format != "html"
 
-        html("#{domain}::#{aggregate.hecks_name} #{id}", RecordRenderer.show(registry: @registry, domain: domain, aggregate: aggregate, id: id),
+        html("#{domain}::#{aggregate.hecks_name} #{id}",
+             RecordRenderer.show(registry: @registry, domain: domain, aggregate: aggregate, id: id),
              breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [id, nil]])
       end
 
@@ -283,7 +285,9 @@ module Hecks
         return json(404, { error: "NotFound", message: "no #{aggregate.hecks_name} #{id}" }) if format != "html"
 
         respond(404, "text/html; charset=utf-8",
-                Page.render(title: "not found", body: "<h1>Not found</h1><p>No #{Escape.html(aggregate.hecks_name)} #{Escape.html(id)}.</p>"))
+                Page.render(title: "not found",
+                            body:  "<h1>Not found</h1><p>No #{Escape.html(aggregate.hecks_name)} " \
+                                   "#{Escape.html(id)}.</p>"))
       end
 
       def find_aggregate(chapter, name)

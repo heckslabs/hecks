@@ -38,15 +38,13 @@ module Hecks
         aggregates = Array(@declaration[:aggregates]).map { |row| AggregateAssembly.new(row).aggregate }
         models     = Array(@declaration[:read_models]).map { |row| Build.call("ReadModel", row) }
 
-        chapter = Build.call(
+        Build.call(
           "Bluebook", @declaration,
           aggregates:       aggregates,
           read_models:      models,
           policies:         reactions(aggregates),
           process_managers: Array(@declaration[:process_managers]).map { |row| process_manager(row) }
         )
-
-        chapter
       end
 
       private

@@ -35,7 +35,9 @@ module Hecks
           # unchanged: registered only when this registry has an aggregate
           # actually bound to a lineage-capable adapter.
           def contribute_boot_gates(registry, gates)
-            gates.register(:era_compute_rules, ->(reg, _dir) { Runtime::EraCheck.check_compute_rules_for_registry!(reg) }, phase: :pre_verify)
+            gates.register(:era_compute_rules, lambda { |reg, _dir|
+              Runtime::EraCheck.check_compute_rules_for_registry!(reg)
+            }, phase: :pre_verify)
             gates.register(:era_check, Runtime::EraCheck.method(:check_lineage!), phase: :pre_verify) if
               Runtime::EraCheck.lineage_capable_registry?(registry)
           end

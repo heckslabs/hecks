@@ -1,6 +1,12 @@
 module Hecks
   module QuerySpecification
     module Common
+      # Null-handling shared between the in-memory and SQL query
+      # engines: stable null-aware ordering (#order, #sql_order) and
+      # which comparators a null value can never satisfy (#unmatchable?,
+      # #sql_predicate) — kept in one place because Memory, Postgres and
+      # SQLite each default nulls differently and must be made to agree
+      # explicitly rather than leaking their own native behavior.
       module NullPolicy
         module_function
 
@@ -82,8 +88,6 @@ module Hecks
             ["#{expression} IS NULL", []]
           elsif value.nil? && operation.to_s == "ne"
             ["#{expression} IS NOT NULL", []]
-          else
-            nil
           end
         end
       end

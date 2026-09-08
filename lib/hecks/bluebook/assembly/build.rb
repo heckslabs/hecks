@@ -20,7 +20,7 @@ module Hecks
           contract = Assembly.contract(category)
           keywords = contract.fields.to_h { |keyword, (key, reader)| [keyword, read(reader, row[key])] }
 
-          holder(contract).public_send(contract.make, **keywords.merge(extra))
+          holder(contract).public_send(contract.make, **keywords, **extra)
         end
 
         def holder(contract)
@@ -37,8 +37,11 @@ module Hecks
           when Array
             # [:each, reader] maps a list ; [:option, name] reads one named option,
             # which needs its name as well as its value.
-            reader.first == :each ? Array(value).map { |held| Marks.public_send(reader.last, held) }
-                                  : Marks.option(reader.last, value)
+            if reader.first == :each
+              Array(value).map { |held| Marks.public_send(reader.last, held) }
+            else
+              Marks.option(reader.last, value)
+            end
           else Marks.public_send(reader, value)
           end
         end

@@ -1,5 +1,9 @@
 module Hecks
   module Bluebook
+    # Reopened here for `CONTRACTS`/`.contract(category)` — the one table of
+    # every construct category's own `Contract` (Bluebook, Aggregate,
+    # Command, ValueObject, Query, ...); see `Contract`'s own header
+    # (contract.rb) for the struct format each entry below fills in.
     class Assembly
       # ONE TABLE, WHERE THERE WERE FIVE HAND-WRITTEN MIRRORS OF IT.
       #

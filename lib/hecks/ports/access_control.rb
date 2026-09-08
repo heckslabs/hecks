@@ -19,7 +19,7 @@ module Hecks
     # a domain's adapter here calls that directly, rather than this
     # port re-deriving Governance-query logic another port already owns.
     module AccessControl
-      NAME = "access_control"
+      NAME = "access_control".freeze
 
       module_function
 

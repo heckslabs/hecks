@@ -66,12 +66,10 @@ module Hecks
           # raw payload would be checking the envelope.
           coerced = value_object_for(aggregate, attribute.type)
                     .then do |value_object|
-                      if value.is_a?(self) && value.type_name == value_object&.hecks_name
+                      if value_object.nil? || (value.is_a?(self) && value.type_name == value_object.hecks_name)
                         value
-                      elsif value_object
-                        build(value_object, fields_for(value_object, attribute.name, value), aggregate)
                       else
-                        value
+                        build(value_object, fields_for(value_object, attribute.name, value), aggregate)
                       end
                     end
 
@@ -112,27 +110,41 @@ module Hecks
           paths = target.identity_paths
           return value if paths.empty?
 
-          direct_head = if value.is_a?(self) && target.identity_heads.one?
-                          head = target.identity_heads.first
-                          target.attribute(head)&.type.to_s == value.type_name ? head.to_s : nil
-                        end
-
-          parts = paths.map do |path|
-            segments = path.to_s.split(".")
-            segments.shift if direct_head && segments.first == direct_head
-            segments.reduce(materialized) do |held, segment|
-              next nil unless held.is_a?(Hash)
-
-              # `key?` decides which spelling answers, never `||` — a
-              # genuinely-held `false` must not fall through to the
-              # other spelling (usually absent) and read as `nil`.
-              sym = segment.to_sym
-              held.key?(sym) ? held[sym] : held[segment]
-            end
-          end
+          direct_head = direct_identity_head(value, target)
+          parts = paths.map { |path| identity_part(materialized, path, direct_head) }
           return value if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }
 
           Naming.identity(parts)
+        end
+
+        # Whether `value` is itself the target's own (single) identity
+        # value object — pure, self-contained: reads only `value` and
+        # `target`, decides nothing about any particular path.
+        def direct_identity_head(value, target)
+          return nil unless value.is_a?(self) && target.identity_heads.one?
+
+          head = target.identity_heads.first
+          target.attribute(head)&.type.to_s == value.type_name ? head.to_s : nil
+        end
+
+        # One identity path's own value out of the materialized hash —
+        # stripping a leading segment already covered by
+        # `direct_identity_head`, then walking the rest. Pure given its
+        # three inputs; extracted from `reference_identity` alongside
+        # `direct_identity_head` above purely to keep that method to its
+        # own guard-clause shape.
+        def identity_part(materialized, path, direct_head)
+          segments = path.to_s.split(".")
+          segments.shift if direct_head && segments.first == direct_head
+          segments.reduce(materialized) do |held, segment|
+            next nil unless held.is_a?(Hash)
+
+            # `key?` decides which spelling answers, never `||` — a
+            # genuinely-held `false` must not fall through to the
+            # other spelling (usually absent) and read as `nil`.
+            sym = segment.to_sym
+            held.key?(sym) ? held[sym] : held[segment]
+          end
         end
 
         def reference_list(attribute, value)
@@ -170,9 +182,7 @@ module Hecks
           # refuse below, unchanged -- only the genuinely unambiguous
           # single-field case auto-wraps, matching from_identifier's own
           # precedent exactly.
-          if value_object.attributes.size == 1
-            return { value_object.attributes.first.name => value }
-          end
+          return { value_object.attributes.first.name => value } if value_object.attributes.size == 1
 
           raise TypeMismatch,
                 RefusalWording.render("TypeMismatch", "value_object_shape",
@@ -218,7 +228,7 @@ module Hecks
         # `build`, so a nested field's own default is filled in before its
         # own invariants read it.
         def normalize_composite_fields(aggregate, value_object, fields)
-          return fields unless aggregate&.respond_to?(:value_object)
+          return fields unless aggregate.respond_to?(:value_object)
 
           value_object.attributes.each do |attribute|
             next if attribute.list? || !fields.key?(attribute.name)
@@ -307,16 +317,16 @@ module Hecks
           entity = find_entity(aggregate, attribute.type.to_s)
           return value unless entity
 
-          Array(value).map do |element|
+          hydrated = Array(value).map do |element|
             next element unless element.is_a?(Hash)
 
-            element.each_with_object({}) do |(name, field_value), hydrated|
+            element.each_with_object({}) do |(name, field_value), acc|
               key = name.to_sym
               field = entity.attribute(key)
-              hydrated[key] = field ? for_attribute(aggregate, field, field_value) : field_value
+              acc[key] = field ? for_attribute(aggregate, field, field_value) : field_value
             end
           end
-                      .then { |hydrated| Freezer.deep(hydrated) }
+          Freezer.deep(hydrated)
         end
 
         # `Value.identifier` used to live here: hand it a one-field value object

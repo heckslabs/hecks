@@ -83,7 +83,12 @@ module Hecks
       end
 
       def propose(word:, context:, body: "none", inner: "", opens: "", fills: "", path: nil)
-        raise Refusal, "#{context}.#{word} is already declared — one row per (word, context, form)" if keyword_rows(path).any? { |row| row[:word] == word && row[:context] == context }
+        if keyword_rows(path).any? do |row|
+          row[:word] == word && row[:context] == context
+        end
+          raise Refusal,
+                "#{context}.#{word} is already declared — one row per (word, context, form)"
+        end
 
         path = owner_path(context: context, word: word, opens: opens, paths: paths_for(path))
         source = File.read(path)
@@ -101,7 +106,8 @@ module Hecks
       end
 
       def set_status(word:, context:, to:, path: nil)
-        raise Refusal, "#{to.inspect} is not a station a word's life admits" unless %w[proposed admitted deprecated retired].include?(to)
+        raise Refusal, "#{to.inspect} is not a station a word's life admits" unless %w[proposed admitted deprecated
+                                                                                       retired].include?(to)
 
         path = path_holding_keyword(word, context, paths_for(path))
         source = File.read(path)
@@ -131,7 +137,12 @@ module Hecks
         row = keyword_rows(path).find { |r| r[:word] == word && r[:context] == context }
         raise Refusal, "#{context}.#{word} is not declared" unless row
         raise Refusal, "#{context}.#{word} was already #{row[:was]} — one rename hop, then eras" if row[:was]
-        raise Refusal, "#{context}.#{to} is already declared — a rename cannot land on a living word" if keyword_rows(path).any? { |r| r[:word] == to && r[:context] == context }
+        if keyword_rows(path).any? do |r|
+          r[:word] == to && r[:context] == context
+        end
+          raise Refusal,
+                "#{context}.#{to} is already declared — a rename cannot land on a living word"
+        end
 
         paths = paths_for(path)
         path = path_holding_keyword(word, context, paths)
@@ -161,7 +172,11 @@ module Hecks
 
       def path_holding_argument(keyword, context, at, named, paths = syntax_paths)
         paths.find do |candidate|
-          argument_blocks(File.read(candidate)).any? { |block| block.lines.any? { |line| argument_row?(line, keyword, context, at, named) } }
+          argument_blocks(File.read(candidate)).any? do |block|
+            block.lines.any? do |line|
+              argument_row?(line, keyword, context, at, named)
+            end
+          end
         end || raise(Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is not declared")
       end
 
@@ -251,7 +266,9 @@ module Hecks
 
         path = owner_path(context: context, word: keyword, paths: paths_for(path))
         source = File.read(path)
-        block  = argument_blocks(source).find { |candidate| candidate.include?(%(context: "#{context}")) } || argument_block(source)
+        block  = argument_blocks(source).find do |candidate|
+          candidate.include?(%(context: "#{context}"))
+        end || argument_block(source)
         indent = block[/^(\s*)member /, 1] || "        "
         shape = pairs_shape.to_s.empty? ? "" : %(pairs_shape: "#{pairs_shape}", )
         row = %(#{indent}member keyword: "#{keyword}", context: "#{context}", at: "#{at}", ) +
@@ -264,14 +281,21 @@ module Hecks
       end
 
       def set_argument_status(keyword:, context:, to:, at: "", named: "", path: nil)
-        raise Refusal, "#{to.inspect} is not a station an argument's life admits" unless %w[proposed admitted deprecated retired].include?(to)
+        raise Refusal, "#{to.inspect} is not a station an argument's life admits" unless %w[proposed admitted deprecated
+                                                                                            retired].include?(to)
 
         path = path_holding_argument(keyword, context, at, named, paths_for(path))
         source = File.read(path)
-        block  = argument_blocks(source).find { |candidate| candidate.lines.any? { |line| argument_row?(line, keyword, context, at, named) } }
-        rows   = block.lines.select { |line| argument_row?(line, keyword, context, at, named) }
-        raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is not " \
-                       "declared" if rows.empty?
+        block  = argument_blocks(source).find do |candidate|
+          candidate.lines.any? do |line|
+            argument_row?(line, keyword, context, at, named)
+          end
+        end
+        rows = block.lines.select { |line| argument_row?(line, keyword, context, at, named) }
+        if rows.empty?
+          raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is not " \
+                         "declared"
+        end
 
         updated = block.lines.map do |line|
           next line unless argument_row?(line, keyword, context, at, named)

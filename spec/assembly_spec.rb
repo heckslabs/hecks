@@ -180,6 +180,11 @@ RSpec.describe "a graph assembled from declarations" do
                              "#{unjustified.size} derived claim(s) do not hold:\n  #{unjustified.join("\n  ")}"
     end
 
+    # A `case kind` over the closed set of derived-claim kinds the
+    # language declares (:parent, :children, :elsewhere, :walk, an Array
+    # pair) — one place naming what each kind must justify, matching
+    # `fault_in_pair`'s own `case shape` just below for the Array kind.
+    # rubocop:disable-next Metrics/CyclomaticComplexity
     def fault_in(category, contract, field, kind, keys)
       case kind
       when :parent
@@ -255,9 +260,7 @@ RSpec.describe "a graph assembled from declarations" do
       # ("position.value", not "position" — the same reason
       # `Judge#entity_own_identity` reads only the HEAD) — so the field
       # this claims for is the path's head, not the path whole.
-      if declared.entity_owned
-        return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s)
-      end
+      return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s) if declared.entity_owned
 
       meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       ask  = meta.aggregate(category)&.query("DeclaredIn")
@@ -268,11 +271,11 @@ RSpec.describe "a graph assembled from declarations" do
     # Every key a REAL reconstructed declaration carries, gathered once. A fold has
     # to land somewhere, and this is what says whether it does.
     def declaration_keys
-      @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map { |file|
+      @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map do |file|
         built = load_chapter(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
                 load_chapter(file).bluebooks.values.first
         keys_in(Hecks::Bluebook::MetaValidator.hold(built)[:declaration])
-      }.uniq
+      end.uniq
     end
 
     def keys_in(node)
@@ -294,7 +297,8 @@ RSpec.describe "a graph assembled from declarations" do
 
         plan.category(category).appends.keys.filter_map do |list|
           shaper = contract.shaper(list)
-          next "#{category}##{list} names shaper #{shaper} and Readings has no such method" if shaper && !readings.include?(shaper)
+          unknown_shaper = shaper && !readings.include?(shaper)
+          next "#{category}##{list} names shaper #{shaper} and Readings has no such method" if unknown_shaper
           next nil if shaper
           next nil if contract.holder.nil? || contract.answers?(list.to_sym)
 

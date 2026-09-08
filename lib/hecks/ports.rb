@@ -8,6 +8,8 @@
 # and the Folder adapter load as data.
 
 module Hecks
+  # Declared empty here — each `ports/*.rb` file required below reopens it
+  # to add its own port; see the header comment above for what a port is.
   module Ports
   end
 end

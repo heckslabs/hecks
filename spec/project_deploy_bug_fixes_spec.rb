@@ -35,7 +35,7 @@ require "open3"
 #         them, so the pre-check failed before that deploy ever ran.
 #   M29 — RDS master passwords may contain `%`, invalid in libpq's URI
 #         parser; DATABASE_URL now carries a percent-encoded password.
-RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", io: true do
+RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", :io do
   def self.root = File.expand_path("..", __dir__)
 
   def self.write_fixture(dir, basename, world_body, env_local: nil)
@@ -254,7 +254,8 @@ RSpec.describe "bin/project_deploy — H13/H14/M28/M29 regressions", io: true do
           # chain to the shell — replicate that before checking syntax.
           script = chain.join("\n").sub(/\A@/, "").gsub("$$", "$")
           _stdout, stderr, status = Open3.capture3("bash", "-n", stdin_data: script)
-          expect(status.success?).to be(true), "invalid shell chain in #{generated_dir}'s deploy: recipe:\n#{stderr}\n---\n#{script}"
+          expect(status.success?).to be(true),
+                                     "invalid shell chain in #{generated_dir}'s deploy: recipe:\n#{stderr}\n---\n#{script}"
         end
       end
     end

@@ -38,13 +38,13 @@ require "hecks/fuzzing"
 # `io: true` — a real `cargo build` plus a subprocess run, same
 # convention `spec/rust_conformance_spec.rb` already uses for exactly
 # this reason (excluded locally by default, always run in CI).
-RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly instead of corrupting", io: true do
+RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly instead of corrupting", :io do
   # Distinct names from `spec/rust_conformance_spec.rb`'s own `RUST_DIR` —
   # both files' `describe` blocks assign at the same enclosing constant
   # scope, so reusing that name triggers a "already initialized constant"
   # warning across the two files when both load in one process.
   NUMERIC_COERCION_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
-  NUMERIC_COERCION_BANKING_DOMAIN = "examples/banking"
+  NUMERIC_COERCION_BANKING_DOMAIN = "examples/banking".freeze
 
   # Same helper `spec/rust_conformance_spec.rb` defines for itself — built
   # fresh for banking every time, never trusting an ambient binary left
@@ -57,11 +57,13 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
       # builds correctly today — see the fix report — so fall back to
       # that rather than skipping outright if the bracketed-empty-array
       # declaration this regex expects ever changes shape.
-      return system("cargo", "build", "--features", domain_feature, chdir: NUMERIC_COERCION_RUST_DIR, out: File::NULL, err: File::NULL) &&
+      return system("cargo", "build", "--features", domain_feature, chdir: NUMERIC_COERCION_RUST_DIR,
+                    out: File::NULL, err: File::NULL) &&
              pick_binary
     end
 
-    built = system("cargo", "build", "--no-default-features", "--features", domain_feature, chdir: NUMERIC_COERCION_RUST_DIR, out: File::NULL, err: File::NULL)
+    built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
+                   chdir: NUMERIC_COERCION_RUST_DIR, out: File::NULL, err: File::NULL)
     built ? pick_binary : nil
   end
 
@@ -87,11 +89,14 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   def overflow_steps
     [
       { "verb" => "Banking::Customer.Register",
-        "args" => { "reference" => { "value" => "CUST-OVERFLOW" }, "name" => { "given" => "Ada", "family" => "Lovelace" }, "email" => { "address" => "ada@example.com" } } },
+        "args" => { "reference" => { "value" => "CUST-OVERFLOW" }, "name" => { "given" => "Ada", "family" => "Lovelace" },
+"email" => { "address" => "ada@example.com" } } },
       { "verb" => "Banking::Account.Open",
-        "args" => { "number" => { "value" => "acct-overflow" }, "kind" => { "name" => "current" }, "daily_limit" => { "cents" => 50_000 }, "customer" => "CUST-OVERFLOW" } },
+        "args" => { "number" => { "value" => "acct-overflow" }, "kind" => { "name" => "current" },
+"daily_limit" => { "cents" => 50_000 }, "customer" => "CUST-OVERFLOW" } },
       { "verb" => "Banking::Account.Credit",
-        "args" => { "amount" => { "cents" => 10_000, "currency" => "USD" }, "narrative" => { "text" => "Opening deposit" }, "number" => { "value" => "acct-overflow" } } },
+        "args" => { "amount" => { "cents" => 10_000, "currency" => "USD" }, "narrative" => { "text" => "Opening deposit" },
+"number" => { "value" => "acct-overflow" } } },
       { "verb" => "Banking::Account.LedgerEntry.Amend",
         "args" => { "sequence" => { "value" => 1 }, "adjustment" => { "cents" => OVERFLOWING_ADJUSTMENT, "currency" => "USD" },
                     "narrative" => { "text" => "A correction too large to add" }, "number" => { "value" => "acct-overflow" } } }
@@ -106,7 +111,11 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
 
   it "L22: Rust now refuses the same overflowing addition cleanly instead of panicking or wrapping to a wrong number" do
     binary = build_rust_for("banking")
-    skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature (run bin/project_rust for it first), or `cargo build --features banking` itself failed (check for unrelated concurrent codegen changes under rust/src/generated/)" unless binary
+    unless binary
+      skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
+           "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
+           "(check for unrelated concurrent codegen changes under rust/src/generated/)"
+    end
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => overflow_steps }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus} (a panic, not a refusal):\n#{stdout}"
@@ -138,9 +147,11 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   def out_of_range_steps
     [
       { "verb" => "Banking::Customer.Register",
-        "args" => { "reference" => { "value" => "CUST-HUGE" }, "name" => { "given" => "Grace", "family" => "Hopper" }, "email" => { "address" => "grace@example.com" } } },
+        "args" => { "reference" => { "value" => "CUST-HUGE" }, "name" => { "given" => "Grace", "family" => "Hopper" },
+"email" => { "address" => "grace@example.com" } } },
       { "verb" => "Banking::Account.Open",
-        "args" => { "number" => { "value" => "acct-huge-limit" }, "kind" => { "name" => "current" }, "daily_limit" => { "cents" => HUGE_OUT_OF_RANGE }, "customer" => "CUST-HUGE" } }
+        "args" => { "number" => { "value" => "acct-huge-limit" }, "kind" => { "name" => "current" },
+"daily_limit" => { "cents" => HUGE_OUT_OF_RANGE }, "customer" => "CUST-HUGE" } }
     ]
   end
 
@@ -152,7 +163,11 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
 
   it "L21: Rust now refuses the out-of-range daily_limit cleanly instead of silently saturating to i64::MAX" do
     binary = build_rust_for("banking")
-    skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature (run bin/project_rust for it first), or `cargo build --features banking` itself failed (check for unrelated concurrent codegen changes under rust/src/generated/)" unless binary
+    unless binary
+      skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
+           "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
+           "(check for unrelated concurrent codegen changes under rust/src/generated/)"
+    end
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => out_of_range_steps }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus} (a panic, not a refusal):\n#{stdout}"

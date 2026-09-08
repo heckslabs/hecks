@@ -47,9 +47,9 @@ RSpec.describe Hecks::Fuzzing::InvalidValueGenerator do
     end
 
     it "names every kind it offers" do
-      offered = aggregate.commands.flat_map { |command|
+      offered = aggregate.commands.flat_map do |command|
         command.attributes.reject(&:list?).flat_map { |held| described_class.kinds_for(held, aggregate) }
-      }.uniq
+      end.uniq
 
       expect(offered - described_class::KINDS).to be_empty
     end
@@ -61,7 +61,7 @@ RSpec.describe Hecks::Fuzzing::InvalidValueGenerator do
       random = Random.new(5)
       values = Array.new(60) { described_class.corrupt(held, aggregate, random: random) }
 
-      expect(values.none? { |value| value.is_a?(Integer) }).to be(true)
+      expect(values.none?(Integer)).to be(true)
     end
 
     # Built directly rather than drawn from banking, because banking types its

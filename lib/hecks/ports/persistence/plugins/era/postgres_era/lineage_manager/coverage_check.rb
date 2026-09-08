@@ -66,8 +66,8 @@ module Hecks
               declared = edge.for_aggregate(aggregate.name)
               after = begin
                 lineage.translated_latest(aggregate, ordinal, chain)
-              rescue PG::Error => error
-                raise Runtime::WiringError, "cannot mint era #{ordinal} of #{bluebook.name}: #{error.message.strip}"
+              rescue PG::Error => e
+                raise Runtime::WiringError, "cannot mint era #{ordinal} of #{bluebook.name}: #{e.message.strip}"
               end
               before = if chain.size > 1
                          lineage.translated_latest(aggregate, ordinal, chain[0..-2])

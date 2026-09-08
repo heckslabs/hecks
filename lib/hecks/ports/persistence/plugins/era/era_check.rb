@@ -105,7 +105,9 @@ module Hecks
       def source_text_for(bluebook, directory)
         domain_files = Dir[File.join(directory, "*.bluebook")]
         own = domain_files.select do |path|
-          File.foreach(path, encoding: "UTF-8").any? { |line| line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook.name.inspect)}/) }
+          File.foreach(path, encoding: "UTF-8").any? do |line|
+            line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook.name.inspect)}/)
+          end
         end
         own = domain_files if own.empty? && domain_files.size == 1 && !Framework.members.key?(bluebook.name)
         own = [Framework.members[bluebook.name]].compact if own.empty?

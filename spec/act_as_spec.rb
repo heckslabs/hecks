@@ -24,8 +24,8 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 
@@ -44,11 +44,11 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
       Hecks.hecksagon("Pizzas") do
         uses_framework "Governance"
-        ::Pizzas::Order.persisted_by("Memory")
+        Pizzas::Order.persisted_by("Memory")
       end
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

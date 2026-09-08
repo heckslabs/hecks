@@ -79,7 +79,7 @@ module Hecks
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A BAD ARGUMENT AND A MISSING RECORD BOTH LAND HERE, and both want the
         # same next step: read what the verb actually takes.
-        ["#{e.message}\n\n  #{program} #{asking ? 'ask ' : ''}#{name} --help", 1]
+        ["#{e.message}\n\n  #{program} #{'ask ' if asking}#{name} --help", 1]
       rescue *Runtime::DOMAIN_REFUSALS => e
         # THE REFUSAL IS THE PRODUCT — the chapter's own sentence, verbatim.
         [e.message, 1]
@@ -177,7 +177,7 @@ module Hecks
 
         lines = ["no such #{asking ? 'question' : 'verb'}: #{name}"]
         lines += ["", "did you mean:", *near.first(5).map { |candidate| "  #{candidate}" }] unless near.empty?
-        lines += ["", "  #{program}#{asking ? ' ask' : ''}   for the full list"]
+        lines += ["", "  #{program}#{' ask' if asking}   for the full list"]
         lines.join("\n")
       end
 

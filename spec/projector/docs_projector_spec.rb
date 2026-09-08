@@ -52,7 +52,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   describe "an aggregate" do
     it "carries its own description and how it is identified" do
       expect(banking).to include(registry.bluebook("Banking").aggregate("Account").description)
-      expect(banking).to match(/Identified by `number`/)
+      expect(banking).to include("Identified by `number`")
     end
 
     # THE SINGLE MOST COMMON MISTAKE AT THIS BOUNDARY is sending a bare scalar
@@ -78,7 +78,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   describe "the lifecycle" do
     it "is a table of verb, from and to, with the state it starts in" do
       expect(banking).to include("Starts at `open`")
-      expect(banking).to match(/\| `FreezeAccount` \| `open` \| `frozen` \|/)
+      expect(banking).to include("| `FreezeAccount` | `open` | `frozen` |")
     end
   end
 
@@ -90,7 +90,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     end
 
     it "marks the one command that creates the record" do
-      expect(banking).to match(/### Open \*\(creates\)\*/)
+      expect(banking).to include("### Open *(creates)*")
     end
 
     # THE PART A CALLER CANNOT GET FROM AN ARGUMENT LIST, and most of what a
@@ -101,7 +101,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
       end
 
       it "names a reference that has to resolve" do
-        expect(banking).to match(/no `Customer` exists for the id given as `customer`/)
+        expect(banking).to include("no `Customer` exists for the id given as `customer`")
       end
 
       it "quotes a given in the chapter's own words" do
@@ -142,7 +142,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   describe "reactions" do
     it "tabulates each policy as the dispatch it causes, and where it lands" do
       expect(banking).to include("## Reactions")
-      expect(banking).to match(%r{\| `Account\.AccountFrozen` \| `AccountFreezeReview\.Open` \| Compliance \|})
+      expect(banking).to include("| `Account.AccountFrozen` | `AccountFreezeReview.Open` | Compliance |")
     end
 
     it "describes a saga by where it starts, ends and correlates" do

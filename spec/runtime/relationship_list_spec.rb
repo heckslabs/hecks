@@ -1,6 +1,12 @@
 require "spec_helper"
 
 RSpec.describe "relationship list runtime behavior" do
+  # One declarative `Hecks.bluebook` fixture, booted for this file's own
+  # examples — the line count is the DSL's own shape (three aggregates,
+  # their identities and one command each), not accidental sprawl.
+  # Splitting it would only break the single `bluebook`/`with_registry`
+  # block scope this fixture needs to be one coherent domain.
+  # rubocop:disable-next Metrics/MethodLength
   def boot_relationships
     registry = Hecks::Runtime::Registry.new
 

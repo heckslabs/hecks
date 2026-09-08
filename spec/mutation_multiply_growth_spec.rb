@@ -29,7 +29,7 @@ RSpec.describe "mutation op multiply" do
     file&.close!
   end
 
-  MUTATION_MULTIPLY_SOURCE = <<~BLUEBOOK
+  MUTATION_MULTIPLY_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationMultiplyGrowth" do
       aggregate "Organ" do
         identified_by :id
@@ -69,7 +69,7 @@ RSpec.describe "mutation op multiply" do
 
   def boot_mutation_multiply
     boot(MUTATION_MULTIPLY_SOURCE, "MutationMultiplyGrowth") do
-      ::MutationMultiplyGrowth::Organ.persisted_by("Memory")
+      MutationMultiplyGrowth::Organ.persisted_by("Memory")
     end
   end
 

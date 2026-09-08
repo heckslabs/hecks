@@ -1,8 +1,20 @@
 module Hecks
   module Bluebook
     module DSL
+      # Shared mixin for every DSL builder that declares attributes
+      # (Aggregate/Entity/Command/Query/PortOperation/ValueObject) — the
+      # `attribute`/`list_of`/`one_of` words themselves, closed-set
+      # synthesis, duplicate-name and pattern refusals, and the
+      # `identified_by` field/type resolution both a construct's own
+      # identity and a compound key are built from.
       module AttributeCollector
         ListOf = Struct.new(:type)
+        # `:values` shadows Struct#values on purpose — with one member, the
+        # generated accessor returns the flat array of permitted values
+        # directly (what every caller actually wants), not Struct#values'
+        # own `[self.values]`. No caller anywhere reads the built-in
+        # behavior; verified before disabling this cop for it.
+        # rubocop:disable-next Lint/StructNewOverride
         OneOf  = Struct.new(:values)
 
         UNSET = Object.new.freeze
@@ -261,15 +273,11 @@ module Hecks
         def resolve_identity_type!(type, as, insert_at, value_objects, context_name)
           target = Naming.demodulise(type.respond_to?(:hecks_name) ? type.hecks_name : type)
           matches = value_objects.select { |value_object| value_object.hecks_name.to_s == target }
-          if matches.size > 1
-            raise Malformed, "#{context_name}.identified_by names duplicate value object #{target}"
-          end
+          raise Malformed, "#{context_name}.identified_by names duplicate value object #{target}" if matches.size > 1
 
           vo = type.respond_to?(:attributes) ? type : matches.first
           raise Malformed, "#{context_name}.identified_by names #{target}, which is not a declared value object" unless vo
-          if vo.attributes.empty?
-            raise Malformed, "#{context_name}.identified_by names #{target}, which declares no attributes"
-          end
+          raise Malformed, "#{context_name}.identified_by names #{target}, which declares no attributes" if vo.attributes.empty?
 
           field = (as || Naming.snake(target)).to_sym
           if attributes.any? { |attribute| attribute.name == field }

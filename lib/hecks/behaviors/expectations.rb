@@ -38,6 +38,8 @@ require_relative "../ports/persistence/binding_policy"
 #    always on and `emits:` is expected to see them.
 module Hecks
   module Behaviors
+    # See this file's own header above for what this module does and the
+    # two deliberate deviations from the prior port it's built from.
     module Expectations
       module_function
 
@@ -75,6 +77,10 @@ module Hecks
       # loop or a long rspec session actually relies on. `runtime:` lets
       # a caller that already holds a booted runtime (a spec, a REPL)
       # hand it in; it is reset the same way.
+      # NOT frozen — a real cache, mutated below (`RUNTIMES[key] ||=
+      # boot_and_guard(files)`) and by #reset!. False positive for
+      # Style/MutableConstant.
+      # rubocop:disable-next Style/MutableConstant
       RUNTIMES      = {}
       RUNTIMES_LOCK = Mutex.new
       private_constant :RUNTIMES, :RUNTIMES_LOCK
@@ -137,11 +143,17 @@ module Hecks
         before = runtime.registry.event_log.length
         result = dispatch_command(runtime, verb, test.input)
 
-        return fail_result(test, "expected refused: #{test.expect[:refused].inspect} but dispatch succeeded") if test.expect.key?(:refused)
+        if test.expect.key?(:refused)
+          return fail_result(test,
+                             "expected refused: #{test.expect[:refused].inspect} but dispatch succeeded")
+        end
 
         if (expected_emits = test.expect[:emits])
           actual = runtime.registry.event_log[before..].map(&:name)
-          return fail_result(test, "expected emits: #{expected_emits.inspect}, got #{actual.inspect}") unless actual == expected_emits
+          unless actual == expected_emits
+            return fail_result(test,
+                               "expected emits: #{expected_emits.inspect}, got #{actual.inspect}")
+          end
         end
 
         check_ok(test) || check_fields(test, settled_state(runtime, verb, result)) || pass_result(test)
@@ -205,7 +217,10 @@ module Hecks
       def run_query(test, runtime, verb)
         rows = runtime.query(verb, **test.input)
 
-        return fail_result(test, "expected refused: #{test.expect[:refused].inspect} but the query succeeded") if test.expect.key?(:refused)
+        if test.expect.key?(:refused)
+          return fail_result(test,
+                             "expected refused: #{test.expect[:refused].inspect} but the query succeeded")
+        end
 
         if (expected = test.expect[:count])
           count = if rows.is_a?(Array)
@@ -307,6 +322,14 @@ module Hecks
       def qualify(command, on_aggregate, bluebooks, kind:)
         return command.to_s if command.to_s.include?(".")
 
+        candidates = qualify_candidates(command, on_aggregate, bluebooks, kind)
+        disambiguate_qualified_name(candidates, command, kind, bluebooks)
+      end
+
+      # THE SEARCH — every (bluebook, aggregate) pair that declares a
+      # command/query named `command`, narrowed to `on_aggregate` by name
+      # when given.
+      def qualify_candidates(command, on_aggregate, bluebooks, kind)
         members = kind == :query ? :queries : :commands
         pairs =
           if on_aggregate
@@ -314,8 +337,13 @@ module Hecks
           else
             bluebooks.flat_map { |bb| bb.aggregates.map { |agg| [bb, agg] } }
           end
-        candidates = pairs.select { |_, agg| agg.public_send(members).any? { |m| m.hecks_name == command.to_s } }
+        pairs.select { |_, agg| agg.public_send(members).any? { |m| m.hecks_name == command.to_s } }
+      end
 
+      # THE REPORT — zero candidates and more-than-one candidates both
+      # refuse (with a different message); exactly one resolves to its
+      # dotted FQN.
+      def disambiguate_qualified_name(candidates, command, kind, bluebooks)
         case candidates.size
         when 0
           raise ArgumentError, "no aggregate among #{bluebooks.map(&:name).inspect} declares a #{kind} " \

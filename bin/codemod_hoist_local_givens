@@ -167,7 +167,8 @@ def apply_candidate(text, candidate)
     next seg if nested
 
     seg.gsub(pattern) do
-      indent, predicate_src = Regexp.last_match(1), Regexp.last_match(2)
+      indent = Regexp.last_match(1)
+      predicate_src = Regexp.last_match(2)
       matching_occurrence?(predicate_src, candidate) ? "#{indent}given(#{candidate.description.inspect})\n" : Regexp.last_match(0)
     end
   end.join
@@ -194,6 +195,12 @@ def command_rule_map(registry)
                 .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
 end
 
+# The revert safety net (`before_rules`/`after_rules`) needs `originals`
+# captured BEFORE any candidate is applied, and `before_rules` computed
+# from that same pre-edit state — a snapshot-before-mutation ordering
+# that a split across methods would have to thread `originals`/`texts`/
+# `before_rules`/`applied` through as parameters just to preserve.
+# rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 def run_files(files, dry_run:)
   files = files.sort
   originals = files.to_h { |file| [file, File.read(file)] }
@@ -214,7 +221,10 @@ def run_files(files, dry_run:)
     applied << c if changed
   end
 
-  return { file: result_path, status: :skipped, reason: "no candidate matched its own source text", candidates: [] } if applied.empty?
+  if applied.empty?
+    return { file: result_path, status: :skipped,
+             reason: "no candidate matched its own source text", candidates: [] }
+  end
 
   texts.each { |file, text| File.write(file, text) }
   after_rules, error = Hecks::Codemod.safely do
@@ -225,7 +235,11 @@ def run_files(files, dry_run:)
   if after_rules == before_rules
     { file: result_path, status: :applied, candidates: applied }
   else
-    reason = error ? "reboot raised after edit (#{error}) — reverted" : "a command's own effective rule set changed after edit — reverted"
+    reason = if error
+               "reboot raised after edit (#{error}) — reverted"
+             else
+               "a command's own effective rule set changed after edit — reverted"
+             end
     { file: result_path, status: :skipped, reason: reason, candidates: applied }
   end
 end

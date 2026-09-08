@@ -27,8 +27,7 @@ require "pg"
 # a candidate set, not a sort key"), so no bluebook can ever declare one,
 # on any adapter. spec/dsl_spec.rb already covers that refusal; not
 # duplicated here.
-RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapters, not just Memory",
-               io: true do
+RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapters, not just Memory", :io do
   # Named distinctly from spec/runtime/query_hop_spec.rb's own top-level
   # HOP_CHAIN (same fixture, different file) — load_hygiene_spec.rb
   # flags any top-level constant name shared across spec files, and two
@@ -86,15 +85,15 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
       # same distinction).
       bind_name = adapter == "Sqlite" ? "SqlitePersistence" : adapter
       Hecks.hecksagon("HopChain") do
-        ::HopChain::Client.persisted_by(bind_name)
-        ::HopChain::Engagement.persisted_by(bind_name)
-        ::HopChain::Proposal.persisted_by(bind_name)
+        HopChain::Client.persisted_by(bind_name)
+        HopChain::Engagement.persisted_by(bind_name)
+        HopChain::Proposal.persisted_by(bind_name)
         # Node's own self-referential chain (spec/runtime/query_hop_spec.rb's
         # "revisits the same aggregate type" case) is proven once on Memory
         # already — this file's job is the SQL-adapter question for a
         # cross-AGGREGATE hop, so Node stays Memory-bound rather than
         # tripling every case below for no new coverage.
-        ::HopChain::Node.persisted_by("Memory")
+        HopChain::Node.persisted_by("Memory")
       end
       if adapter == "Postgres"
         Hecks.world "HopChain" do

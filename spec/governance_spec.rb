@@ -15,8 +15,8 @@ RSpec.describe "Governance" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/governance.bluebook"))
       Hecks.hecksagon("Governance") do
-        ::Governance::RoleAssignment.persisted_by("Memory")
-        ::Governance::RoleTransition.persisted_by("Memory")
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

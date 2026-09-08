@@ -18,7 +18,7 @@ require "open3"
 #
 # `io: true` -- real `cargo build` invocations, same convention as
 # rust_conformance_spec.rb / hecks_build_pipeline_spec.rb.
-RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", io: true do
+RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
   DFE_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
   def cargo_build(*args)

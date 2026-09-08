@@ -129,7 +129,8 @@ module Hecks
           # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
           # #corrects_impl's own comments) ride the SAME multi-binding
           # shape `:append` does.
-          return Mutation.new(target: target, op: op, source: appended(change[:fields])) if [:append, :delegate, :corrects].include?(op)
+          return Mutation.new(target: target, op: op, source: appended(change[:fields])) if [:append, :delegate,
+                                                                                             :corrects].include?(op)
 
           Mutation.new(target: target, op: op, source: classified(change[:source]))
         end

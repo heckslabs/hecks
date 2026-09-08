@@ -13,7 +13,10 @@ require "tmpdir"
 RSpec.describe "Domain.project" do
   let(:runtime)  { boot_in_memory }
   let(:bluebook) { runtime.registry.bluebook("Pizzas") }
-  let(:domain)   { runtime; Object.const_get("Pizzas") }
+  let(:domain) do
+    runtime
+    Object.const_get("Pizzas")
+  end
 
   describe "addressing a target" do
     it "takes the constant form" do
@@ -65,9 +68,9 @@ RSpec.describe "Domain.project" do
     it "writes a String artifact verbatim rather than as JSON" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "raw.txt")
-        Hecks::Projector.register(:stub_text, Class.new {
+        Hecks::Projector.register(:stub_text, Class.new do
           def self.call(bluebook:, options: {}) = "just text, not #{bluebook.name.inspect} as JSON"
-        })
+        end)
 
         domain.project(:stub_text, out: path)
 
@@ -94,7 +97,10 @@ RSpec.describe "Domain.project" do
   # carry, and answered `{"name" => "Order", "aggregates" => []}`.
   # Well-formed, confident, wrong.
   describe "an aggregate door" do
-    let(:order) { runtime; Object.const_get("Pizzas::Order") }
+    let(:order) do
+      runtime
+      Object.const_get("Pizzas::Order")
+    end
 
     it "projects its OWN IR, not its chapter's" do
       expect(order.project(Hecks::Projections::IR)).to eq(order.ir.to_h)

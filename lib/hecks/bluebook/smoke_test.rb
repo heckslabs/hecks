@@ -118,6 +118,11 @@ module Hecks
       # the time that aggregate's own turn comes, the same reason
       # `Synthesizer#args_for`'s `created` map is threaded through in
       # this same order.
+      # `created` and `failures` thread through both the aggregate loop and the
+      # read_models loop below in the declaration order the comment above already
+      # documents; splitting would turn that ordering into an implicit contract on
+      # parameter/return passing instead of one visible sequence.
+      # rubocop:disable-next Metrics/AbcSize
       def smoke_domain(dispatcher, domain)
         chapter = dispatcher.registry.bluebook(domain)
         return [] unless chapter

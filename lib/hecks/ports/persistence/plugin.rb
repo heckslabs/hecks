@@ -1,5 +1,8 @@
 module Hecks
   module Ports
+    # Reopened to hold the persistence-plugin registry (`Plugin`, below) and
+    # its call surface (`register_plugin`/`plugin?`/`each_plugin`) — see ADR
+    # 0033 and `Plugin`'s own header for the seam this fills.
     module Persistence
       # A tiny, real seam — ADR 0033. Core never names a persistence plugin;
       # a plugin makes itself known as a side effect of being `require`d, the

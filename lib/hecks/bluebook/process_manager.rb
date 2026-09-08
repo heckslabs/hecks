@@ -74,6 +74,12 @@ module Hecks
       def to_s = "#{trigger} → #{to_state} (#{undoes.join(', ')})"
     end
 
+    # The built form of a `process_manager "Name" do ... end` block,
+    # produced by `DSL::ProcessManagerBuilder` — its start/end events,
+    # correlation field, derived states, and handler rows. Its
+    # compensation half (`saga`, `Behaviour::ProcessManager#saga`) is
+    # DERIVED from the handler answering `REFUSED`, below, not declared as
+    # its own construct.
     class ProcessManager
       # The BLUEBOOK's name for this construct, asked the same way of a class
       # that has crossed over and of an IR object that has not. Collapses into

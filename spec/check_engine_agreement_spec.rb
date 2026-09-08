@@ -138,7 +138,8 @@ RSpec.describe "bin/check_engine_agreement" do
       # took: not a replacement, a second copy nobody deletes.
       poisoned = File.read(in_memory_path).sub(
         "module_function\n",
-        "module_function\n\n        def duplicated_eq_check(operation)\n          case operation\n          when \"eq\" then true\n          end\n        end\n"
+        "module_function\n\n        def duplicated_eq_check(operation)\n          " \
+        "case operation\n          when \"eq\" then true\n          end\n        end\n"
       )
       raise "fixture did not change — module_function anchor not found in in_memory.rb" if poisoned == File.read(in_memory_path)
 

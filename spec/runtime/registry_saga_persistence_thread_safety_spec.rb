@@ -49,7 +49,8 @@ require "spec_helper"
 # to catch that race reliably, not a sleep this test's correctness depends on.
 RSpec.describe Hecks::Runtime::Registry do
   describe "#saga_persistence" do
-    it "resolves a domain's saga persistence adapter at most once and hands every caller the SAME instance, even when the first lookup is raced by two threads" do
+    it "resolves a domain's saga persistence adapter at most once and hands every caller the SAME instance, " \
+       "even when the first lookup is raced by two threads" do
       registry = described_class.new
 
       resolve_calls = 0

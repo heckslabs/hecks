@@ -160,8 +160,8 @@ module Hecks
       # process-unique schema name (`SecureRandom.hex` is already
       # `require`d here for exactly that day) — flagged, not solved,
       # since nothing today calls this from more than one thread.
-      FUZZ_POSTGRES_DATABASE = "hecks_fuzz"
-      FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz"
+      FUZZ_POSTGRES_DATABASE = "hecks_fuzz".freeze
+      FUZZ_POSTGRES_SCHEMA   = "hecks_fuzz".freeze
 
       def rebind_to_postgres!(copy)
         require "pg"
@@ -182,7 +182,7 @@ module Hecks
           next if names.empty?
 
           world_path = File.join(File.dirname(hecksagon_path), "hecks_fuzz_postgres.world")
-          File.write(world_path, names.map { |name|
+          File.write(world_path, names.map do |name|
             <<~WORLD
               Hecks.world "#{name}" do
                 persisted_by("Postgres") do
@@ -191,7 +191,7 @@ module Hecks
                 end
               end
             WORLD
-          }.join("\n"))
+          end.join("\n"))
         end
 
         # Any PRE-EXISTING `.world` this copy shipped with (a real
@@ -277,7 +277,7 @@ module Hecks
       # never wires is simply unread, not broken.
       def rewrite_bindings!(copy, adapter_name)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
-          lines = File.readlines(path).reject { |line| line.match?(/\bprojected_by\s*\(?\s*"/) }
+          lines = File.readlines(path).grep_v(/\bprojected_by\s*\(?\s*"/)
           File.write(path, lines.join.gsub(/persisted_by\s*\(?\s*"[^"]+"\s*\)?/, "persisted_by(\"#{adapter_name}\")"))
         end
       end

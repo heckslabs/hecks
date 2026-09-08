@@ -6,6 +6,10 @@ require_relative "expectations"
 # that actually touches a live runtime; this file finds `.behaviors`
 # files, loads them, and maps their tests through it.
 module Hecks
+  # See this file's own header above for `.run`/`.run_all`/`.parse` — the
+  # discovery-and-aggregation half of the `.behaviors` authoring surface;
+  # `Expectations` (expectations.rb) is the impure edge that actually runs
+  # one test against a live runtime.
   module Behaviors
     FileResult = Struct.new(:path, :parse_error, :runs, keyword_init: true)
     SweepResult = Struct.new(:root, :files_swept, :files, :summary, keyword_init: true)

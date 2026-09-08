@@ -31,7 +31,7 @@ RSpec.describe "mutation op remove" do
     file&.close!
   end
 
-  MUTATION_REMOVE_SOURCE = <<~BLUEBOOK
+  MUTATION_REMOVE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "MutationRemoveGrowth" do
       aggregate "Sprint" do
         identified_by :id
@@ -78,7 +78,7 @@ RSpec.describe "mutation op remove" do
 
   def boot_mutation_remove
     boot(MUTATION_REMOVE_SOURCE, "MutationRemoveGrowth") do
-      ::MutationRemoveGrowth::Sprint.persisted_by("Memory")
+      MutationRemoveGrowth::Sprint.persisted_by("Memory")
     end
   end
 

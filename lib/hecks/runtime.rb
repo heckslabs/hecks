@@ -55,6 +55,10 @@ require_relative "runtime/tenant_check"
 require_relative "runtime/loader"
 
 module Hecks
+  # See the file header above for what this module is and owns; nested
+  # here (rather than documented in place) only because the
+  # `require_relative` calls above must run before Ruby reopens the
+  # module they populate.
   module Runtime
     class << self
       # The registry declarations are currently landing in, or nil outside a
@@ -100,8 +104,8 @@ module Hecks
       # `RoleAssignment`'s own `scope`, not just its `role_name`. See
       # `Runtime::Caller::Current`'s own header for why this lives here
       # rather than as a command-level DSL construct.
-      def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &block)
-        Caller.as(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &block)
+      def as_caller(role:, actor_id: nil, as_of: nil, scope: nil, &)
+        Caller.as(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
       end
     end
   end

@@ -24,7 +24,7 @@ module InMemoryDomain
   # ADR 0033 — the era/lineage plugin is not core-required; a spec that binds
   # PostgresEra must `require "hecks/ports/persistence/plugins/era"` itself,
   # same as any other consumer would.
-  ERA_PLUGIN = "hecks/ports/persistence/plugins/era"
+  ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
   # A chapter may reopen across several business-concept files. Load the set
   # inside the same deferred validation window Runtime::Loader uses, then judge

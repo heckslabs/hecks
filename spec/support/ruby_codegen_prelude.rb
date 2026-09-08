@@ -38,6 +38,12 @@ module RubyCodegenPrelude
   # `nil` when `domain_generator.rb` would skip this aggregate entirely
   # (unsupported attribute type(s) — no `.rs` file at all), matching that
   # absence rather than emitting a partial prelude.
+  # This method's own job (see the file header) IS the exact call
+  # sequence below — it exists to be byte-comparable against Rust's own
+  # prelude assembly. Extracting pieces would risk silently reordering
+  # or dropping one of the `puts_str`/`puts_blank` calls the parity test
+  # depends on, with no single resulting method looking wrong.
+  # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def aggregate_prelude(aggregate, source_label)
     value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
     return nil if RustProjection::Projector.unsupported_attribute_types(aggregate, value_objects_by_name).any?
@@ -99,12 +105,14 @@ module RubyCodegenPrelude
     puts_blank(out)
     record_name = RustProjection::Projector.rust_ident(aggregate[:name])
     puts_str(out,
-             RustProjection::Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true,
-extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate))
+             RustProjection::Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name,
+                                                         optional: true, extra_fields: lifecycle_extra_field(aggregate),
+                                                         aggregate: aggregate))
     puts_blank(out)
     puts_str(out,
-             RustProjection::Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name, optional: true,
-extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate))
+             RustProjection::Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name,
+                                                            optional: true, extra_fields: lifecycle_extra_field(aggregate),
+                                                            aggregate: aggregate))
     puts_blank(out)
     puts_str(out, <<~RUST)
       impl crate::kernel::ToJson for #{record_name} {
@@ -130,20 +138,21 @@ extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate))
   # `aggregate_prelude`'s own call signature stays a direct match for
   # `rust/codegen`'s own `prelude::aggregate_prelude(exemplar, ir,
   # aggregate, source_label)`.
+  # NOT frozen — a real accumulator, keyed by source_label and mutated
+  # by #write_all below ([]=) and its own #ensure (.delete). False
+  # positive for Style/MutableConstant.
+  # rubocop:disable-next Style/MutableConstant
   AGGREGATES_BY_NAME = {}
 
-  def write_all(ir, source_label, out_dir)
-    AGGREGATES_BY_NAME[source_label] = ir[:aggregates].to_h { |a| [a[:name], a] }
+  def write_all(payload, source_label, out_dir)
+    AGGREGATES_BY_NAME[source_label] = payload[:aggregates].to_h { |a| [a[:name], a] }
     FileUtils.mkdir_p(out_dir)
-    ir[:aggregates].each do |aggregate|
+    payload[:aggregates].each do |aggregate|
       text = aggregate_prelude(aggregate, source_label)
-      if text.nil?
-        puts "skipping #{aggregate[:name]}: unsupported attribute type(s)"
-        next
-      end
+      next if text.nil?
+
       path = File.join(out_dir, "#{aggregate[:name].downcase}.rs")
       File.write(path, text)
-      puts "wrote #{path}"
     end
   ensure
     AGGREGATES_BY_NAME.delete(source_label)

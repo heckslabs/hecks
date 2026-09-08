@@ -6,6 +6,12 @@ require_relative "../../query_specification/common/comparison"
 module Hecks
   module Ports
     module Query
+      # In-memory implementation of a declared query specification:
+      # applies wheres/order_by/offset/limit directly to an Array of
+      # records instead of compiling SQL. Deliberately kept in exact
+      # LIMIT/OFFSET-order agreement with SqlQueryBuilder (see #execute's
+      # own comment) so a query answers the same page regardless of
+      # which adapter backs it.
       module InMemory
         FieldPath = QuerySpecification::FieldPath
         Comparison = QuerySpecification::Common::Comparison
@@ -14,9 +20,9 @@ module Hecks
 
         def execute(records, declared, args = {}, registry: nil)
           matched = records.select do |record|
-            declared.wheres.all? { |clause|
+            declared.wheres.all? do |clause|
               holds?(clause, comparable(FieldPath.dig(record, clause.field)), args, registry: registry)
-            }
+            end
           end
           field   = declared.order_by&.field
           matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,

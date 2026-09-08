@@ -23,14 +23,14 @@ module DoctestNames
   # generated table of contents — neither is a document with claims of
   # its own to back.
   def guides
-    (Dir.glob(File.join(ROOT, "docs/implemented/guides/*.md")).sort -
+    (Dir.glob(File.join(ROOT, "docs/implemented/guides/*.md")) -
      [File.join(ROOT, "docs/implemented/guides/AUTHORING.md"),
       File.join(ROOT, "docs/implemented/guides/index.md")]) +
       [File.join(ROOT, "README.md")]
   end
 
   def reference
-    Dir.glob(File.join(ROOT, "docs/implemented/reference/*.md")).sort -
+    Dir.glob(File.join(ROOT, "docs/implemented/reference/*.md")) -
       [File.join(ROOT, "docs/implemented/reference/index.md")]
   end
 

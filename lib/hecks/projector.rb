@@ -70,9 +70,9 @@ module Hecks
     # any construct that emits IR, and `admits!` is what decides whether
     # THIS target can actually take the one handed over.
     def call(name, bluebook:, options: {})
-      projector = registry.fetch(name.to_sym) {
+      projector = registry.fetch(name.to_sym) do
         raise UnknownProjector, "no projector registered for #{name.inspect} — registered: #{registered.sort.inspect}"
-      }
+      end
       admits!(name, projector, bluebook)
       projector.call(bluebook: bluebook, options: options)
     end

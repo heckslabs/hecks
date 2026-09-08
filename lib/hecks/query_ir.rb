@@ -1,4 +1,3 @@
-require "set"
 require_relative "bluebook"
 require_relative "codemod"
 require_relative "projections/model"
@@ -49,9 +48,9 @@ module Hecks
     # makes, reusing its own Deviations data so this can never silently
     # drift from what that gate actually checks.
     def construct_diff(name)
-      klass = CONSTRUCTS.fetch(name) {
+      klass = CONSTRUCTS.fetch(name) do
         raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}"
-      }
+      end
       declared = meta_declared(name)
       emitted  = klass.ir_spec.keys
 
@@ -101,33 +100,9 @@ module Hecks
       rules = []
       chapters = chapter_name ? [registry.bluebook(chapter_name)] : registry.bluebooks.values
 
-      walk_construct = lambda do |construct, path|
-        (construct.respond_to?(:preconditions) ? construct.preconditions : []).each do |rule|
-          rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
-                            location: "#{path} (declared)")
-        end
-        (construct.respond_to?(:invariants) ? construct.invariants : []).each do |rule|
-          rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
-                            location: "#{path} (declared)")
-        end
-        construct.commands.each do |command|
-          command.givens.each do |rule|
-            rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
-                              location: "#{path}.#{command.hecks_name}")
-          end
-          command.ensures.each do |rule|
-            rules << Rule.new(kind: "ensures", description: rule.description, canonical: rule.canonical,
-                              location: "#{path}.#{command.hecks_name}")
-          end
-        end
-        construct.entities.each { |piece|
-          walk_construct.call(piece, "#{path}.#{piece.hecks_name}")
-        } if construct.respond_to?(:entities)
-      end
-
       chapters.each do |chapter|
         chapter.aggregates.each do |aggregate|
-          walk_construct.call(aggregate, aggregate.hecks_name)
+          walk_construct_rules(aggregate, aggregate.hecks_name, rules)
           aggregate.value_objects.each do |vo|
             vo.invariants.each do |rule|
               rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
@@ -138,6 +113,39 @@ module Hecks
       end
       rules
     end
+
+    # THE RECURSIVE WALK `collect_rules` drives — pulled out of that method
+    # (pure extraction, identical traversal and Rule shapes) as its own
+    # named, self-recursive method rather than a lambda closing over the
+    # same locals. `rules` is the one piece of state every call shares —
+    # threaded as a parameter and mutated in place, the same accumulator
+    # role the lambda's own closure played.
+    def walk_construct_rules(construct, path, rules)
+      (construct.respond_to?(:preconditions) ? construct.preconditions : []).each do |rule|
+        rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
+                          location: "#{path} (declared)")
+      end
+      (construct.respond_to?(:invariants) ? construct.invariants : []).each do |rule|
+        rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
+                          location: "#{path} (declared)")
+      end
+      construct.commands.each do |command|
+        command.givens.each do |rule|
+          rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
+                            location: "#{path}.#{command.hecks_name}")
+        end
+        command.ensures.each do |rule|
+          rules << Rule.new(kind: "ensures", description: rule.description, canonical: rule.canonical,
+                            location: "#{path}.#{command.hecks_name}")
+        end
+      end
+      return unless construct.respond_to?(:entities)
+
+      construct.entities.each do |piece|
+        walk_construct_rules(piece, "#{path}.#{piece.hecks_name}", rules)
+      end
+    end
+    private_class_method :walk_construct_rules
 
     # A rule's OWNER — the construct path a "(declared)" location names
     # directly, or (for a command-level `.givens`/`.ensures` entry) the
@@ -196,10 +204,10 @@ module Hecks
       all_rules.group_by { |r| [r.kind, r.description, r.canonical] }
                .map { |key, rules| [key, rules, declaration_count(rules)] }
                .select { |_, _, count| count > 1 }
-               .map { |(kind, description, canonical), rules, _|
+               .map do |(kind, description, canonical), rules, _|
         { kind: kind, description: description, canonical: canonical,
       locations: rules.map(&:location) }
-      }
+      end
     end
 
     # `given` ONLY (not `invariant`/`ensures`) also covers CROSS-ENTITY
@@ -254,9 +262,9 @@ module Hecks
     # resolved chapter-wide reference.
     def declaration_count(rules)
       declared = rules.select { |r| r.location.end_with?(" (declared)") }
-      declared_owners = declared.map { |r| owner_of(r.location) }.to_set
+      declared_owners = declared.to_set { |r| owner_of(r.location) }
       declared_given_roots = declared.select { |r| r.kind == "given" }
-                                     .map { |r| owner_of(r.location).split(".").first }.to_set
+                                     .to_set { |r| owner_of(r.location).split(".").first }
 
       standalone = rules.reject do |r|
         owner = owner_of(r.location)
@@ -282,8 +290,14 @@ module Hecks
         if diff[:missing_from_ruby].empty? && diff[:unaccounted_in_ruby].empty?
           lines << "  clean — every declared field is emitted (or a named deviation), nothing emitted is undeclared"
         else
-          lines << "  MISSING FROM RUBY (declared, not emitted, not a named deviation): #{diff[:missing_from_ruby].join(', ')}" unless diff[:missing_from_ruby].empty?
-          lines << "  UNACCOUNTED IN RUBY (emitted, not declared, not a named deviation): #{diff[:unaccounted_in_ruby].join(', ')}" unless diff[:unaccounted_in_ruby].empty?
+          unless diff[:missing_from_ruby].empty?
+            lines << "  MISSING FROM RUBY (declared, not emitted, not a named deviation): " \
+                     "#{diff[:missing_from_ruby].join(', ')}"
+          end
+          unless diff[:unaccounted_in_ruby].empty?
+            lines << "  UNACCOUNTED IN RUBY (emitted, not declared, not a named deviation): " \
+                     "#{diff[:unaccounted_in_ruby].join(', ')}"
+          end
         end
         lines.join("\n")
       end.join("\n\n")
@@ -358,6 +372,10 @@ module Hecks
     # was never supposed to have this touchpoint at all.
     def reconstruction_reads?(name, field)
       method_name = RECONSTRUCTION_METHODS[name]
+      # rubocop:disable-next Style/ReturnNilInPredicateMethodDefinition -- nil vs
+      # false is a deliberate distinction here: nil means "not applicable" (no
+      # hand-typed method to check), false means "applicable, and it fails" —
+      # see the spec's own "not-applicable (nil), not false" example.
       return nil unless method_name
 
       file, start_line = Hecks::Bluebook::MetaValidator::Reconstruction.instance_method(method_name).source_location
@@ -365,7 +383,9 @@ module Hecks
       def_line = lines[start_line - 1]
       indent = def_line[/\A\s*/]
 
-      body = lines[start_line..].take_while { |line| line.strip.empty? || line[/\A\s*/].size > indent.size || !line.lstrip.start_with?("def ") }
+      body = lines[start_line..].take_while do |line|
+        line.strip.empty? || line[/\A\s*/].size > indent.size || !line.lstrip.start_with?("def ")
+      end
       body.join.include?("#{field}:")
     end
     private_class_method :reconstruction_reads?
@@ -385,7 +405,11 @@ module Hecks
     def format_impact_preview(preview)
       lines = ["== #{preview[:name]}##{preview[:field]} =="]
       preview[:touchpoints].each do |t|
-        mark = t[:present].nil? ? "n/a" : (t[:present] ? "yes" : "NOT YET")
+        mark = if t[:present].nil?
+                 "n/a"
+               else
+                 (t[:present] ? "yes" : "NOT YET")
+               end
         lines << "  [#{mark.rjust(7)}] #{t[:touchpoint]}"
       end
       done = preview[:touchpoints].count { |t| t[:present] == true }

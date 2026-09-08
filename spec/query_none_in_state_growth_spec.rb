@@ -40,7 +40,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
     file&.close!
   end
 
-  NONE_IN_STATE_SOURCE = <<~BLUEBOOK
+  NONE_IN_STATE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "AntiJoinGrowth" do
       aggregate "Claim" do
         identified_by :id
@@ -104,8 +104,8 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
 
   def boot_anti_join
     boot(NONE_IN_STATE_SOURCE, "AntiJoinGrowth") do
-      ::AntiJoinGrowth::Claim.persisted_by("Memory")
-      ::AntiJoinGrowth::Board.persisted_by("Memory")
+      AntiJoinGrowth::Claim.persisted_by("Memory")
+      AntiJoinGrowth::Board.persisted_by("Memory")
     end
   end
 

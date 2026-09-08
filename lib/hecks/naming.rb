@@ -1,4 +1,9 @@
 module Hecks
+  # Every derived-name and identity-joining rule the language relies on —
+  # pluralisation/singularisation, snake/Pascal casing, dotted-path and verb
+  # splitting, and the command/event reference rewrites — collected here so
+  # two readers never invent two different spellings for the same
+  # derivation.
   module Naming
     # WHAT SEPARATES THE PARTS OF A DERIVED IDENTITY.
     #
@@ -71,9 +76,7 @@ module Hecks
       # is left actually ends in one of those five shapes is what
       # keeps an ordinary "-es" word (e.g. "Invoices" -> "Invoice")
       # from also losing a letter it never doubled.
-      if word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
-        return word[0..-3]
-      end
+      return word[0..-3] if word.length > 3 && word.end_with?("es") && word[0..-3].match?(/(s|x|z|ch|sh)\z/)
 
       return word[0..-2] if word.length > 1 && word.end_with?("s")
 

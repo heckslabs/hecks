@@ -11,6 +11,11 @@ require "spec_helper"
 # generic entry when its own `settings[:adapter]` matches the adapter being
 # asked about.
 RSpec.describe "World#for_binding" do
+  # The inline domain (two aggregates, two adapters under one hecksagon)
+  # IS the regression fixture — it needs both a Heki-bound and a
+  # Memory-bound sibling under the same verb to reproduce the exact
+  # generic-settings leak this pins shut.
+  # rubocop:disable-next RSpec/ExampleLength
   it "answers {} for an adapter the world configured nothing for, even when a sibling adapter under the same verb has settings" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do

@@ -2,8 +2,14 @@ require_relative "word_gate"
 module Hecks
   module Bluebook
     module DSL
+      # Parses a `query "Name" do ... end` block, declared on an aggregate
+      # or one of its entities, into a `Query` — its own parameters (plain
+      # attributes, including reference-typed ones) plus whatever `where`/
+      # `order_by`/`limit`/etc. `QuerySpecification::Common::DSL` contributes.
+      # A block parameter naming an already-declared owner attribute has its
+      # type derived from the owner rather than restated (`derive_from_owner!`).
       class QueryBuilder
-        GRAMMAR_CONTEXT = "Query"
+        GRAMMAR_CONTEXT = "Query".freeze
 
         include AttributeCollector
         include QuerySpecification::Common::DSL

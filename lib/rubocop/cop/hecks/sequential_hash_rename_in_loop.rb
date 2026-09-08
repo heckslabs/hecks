@@ -60,7 +60,7 @@ module RuboCop
               "because the first rule's write clobbers the second rule's read target before it runs (the exact " \
               "bug fixed for Lineage#apply_renames). Snapshot every old key's value FIRST, delete all old keys, " \
               "then write all new keys, so the pass applies as one simultaneous permutation instead of a " \
-              "sequence of edits each stepping on the last."
+              "sequence of edits each stepping on the last.".freeze
 
         RESTRICT_ON_SEND = [:[]=].freeze
 

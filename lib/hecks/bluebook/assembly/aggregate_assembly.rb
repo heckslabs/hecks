@@ -77,11 +77,11 @@ module Hecks
         # and resolve. Deliberately across every list that can carry one — a
         # reference the walk misses resolves to nil, and a nil target is SKIPPED
         # rather than refused, so the guarantee would go quiet instead of red.
-        def stamp_references(ir)
-          lists = [ir.attributes, *ir.commands.map(&:attributes), *ir.queries.map(&:attributes)]
-          entity_reference_lists(ir.entities, lists)
+        def stamp_references(aggregate)
+          lists = [aggregate.attributes, *aggregate.commands.map(&:attributes), *aggregate.queries.map(&:attributes)]
+          entity_reference_lists(aggregate.entities, lists)
 
-          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = ir }
+          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = aggregate }
         end
 
         # S17, ADR 0026 — walks NESTED entities too (Dispatch, inside

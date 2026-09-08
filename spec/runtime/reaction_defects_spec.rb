@@ -52,10 +52,10 @@ RSpec.describe "a reaction that cannot be delivered" do
     bluebook = Class.new do
       attr_reader :name, :policies
 
-      define_method(:initialize) { |name, policies|
+      define_method(:initialize) do |name, policies|
         @name = name
         @policies = policies
-      }
+      end
       define_method(:aggregate) { |_name| nil }
     end.new("Reflex", [policy])
 

@@ -44,35 +44,48 @@ module Hecks
         end
 
         with_spec.to_h do |key, source|
-          value = if !source.is_a?(Symbol)
-                    source
-                  elsif normalized_bindings.key?(source)
-                    normalized_bindings.fetch(source)
-                  else
-                    visible = normalized_scopes.find { |scope| scope.facts.key?(source) }
-                    unless visible
-                      names = normalized_scopes.map(&:name).join(" then ")
-                      # WHAT IS VISIBLE, NAMED. A refusal that only says which name is
-                      # missing sent a modeler guessing field after field
-                      # (`number`, `reference`…) at a fan-out row that is addressed
-                      # by ONE key — `account`, the lowercase aggregate — which
-                      # nothing else in the domain spells out. The names each scope
-                      # actually offers are the whole diagnosis; the refusal now
-                      # lists them, scope by scope.
-                      offered = normalized_scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(', ')}" }.join("; ")
-                      raise UnknownArgument,
-                            "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
-                    end
-                    visible.facts.fetch(source)
-                  end
-
+          value = resolved_mapping_value(source, normalized_bindings, normalized_scopes, label)
           [key.to_sym, Value.materialize(value)]
         end
       end
 
+      # ONE `with:` SOURCE, RESOLVED — pulled out of resolve_mapping
+      # because it is a pure function of its own arguments (a literal, a
+      # binding, or a name visible in some scope), with no dependency on
+      # anything else resolve_mapping's own to_h block is doing.
+      def resolved_mapping_value(source, bindings, scopes, label)
+        return source unless source.is_a?(Symbol)
+        return bindings.fetch(source) if bindings.key?(source)
+
+        visible = scopes.find { |scope| scope.facts.key?(source) }
+        unless visible
+          names = scopes.map(&:name).join(" then ")
+          # WHAT IS VISIBLE, NAMED. A refusal that only says which name is
+          # missing sent a modeler guessing field after field
+          # (`number`, `reference`…) at a fan-out row that is addressed
+          # by ONE key — `account`, the lowercase aggregate — which
+          # nothing else in the domain spells out. The names each scope
+          # actually offers are the whole diagnosis; the refusal now
+          # lists them, scope by scope.
+          offered = scopes.map { |scope| "#{scope.name}: #{scope.facts.keys.sort.join(', ')}" }.join("; ")
+          raise UnknownArgument,
+                "#{label}'s with: reads :#{source}, which is not visible in #{names} (visible — #{offered})"
+        end
+        visible.facts.fetch(source)
+      end
+      private_class_method :resolved_mapping_value
+
       # A reaction without an explicit projection retains wholesale legacy
       # forwarding. Choosing `with:` opts into the strict envelope: only target
       # command attributes enter `with:`, while identities become `to:`.
+      # `consumed` accumulates across the aggregate-identity and entity-
+      # identity steps below, and refuse_unconsumed! at the end reads the
+      # FINAL list — an ordering dependency threaded through one shared
+      # local. Already leans on private helpers (identity_for,
+      # source_receiver_for, command_facts, refuse_unconsumed!) for every
+      # piece that IS self-contained; what remains is the sequencing
+      # itself, which further splitting would only relocate, not remove.
+      # rubocop:disable-next Metrics/MethodLength
       def build(registry:, verb:, projected:, explicit:, passthrough: [], source_receiver: nil)
         args = projected.transform_keys(&:to_sym)
         unless explicit

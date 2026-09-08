@@ -44,7 +44,8 @@ module QueryAgreementD1Probe
 
     @available =
       begin
-        if ENV["CLOUDFLARE_ACCOUNT_ID"] && ENV["CLOUDFLARE_D1_DATABASE_ID"] && ENV["CLOUDFLARE_D1_API_TOKEN"]
+        if ENV.fetch("CLOUDFLARE_ACCOUNT_ID",
+                     nil) && ENV.fetch("CLOUDFLARE_D1_DATABASE_ID", nil) && ENV["CLOUDFLARE_D1_API_TOKEN"]
           Hecks::Adapters::D1::Connection.new(
             account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
             database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
@@ -60,8 +61,9 @@ module QueryAgreementD1Probe
   end
 end
 
-RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, PostgresEra, plain Postgres, and D1",
-               io: true do
+RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, " \
+               "PostgresEra, plain Postgres, and D1",
+               :io do
   AGREEMENT_DB = "hecks_query_agreement_spec".freeze
   # A SEPARATE scratch database from PostgresEra's own AGREEMENT_DB above
   # — both engines run against the same live server in the same test
@@ -157,6 +159,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     Hecks::Bluebook::DSL::ConstShim.with(->(const) { const }) { build_thing_aggregate }
   end
 
+  # ONE FIXTURE AGGREGATE, DECLARED WHOLE — every field and query the 11
+  # cases below ask about lives on this one builder call so a reader can see
+  # what's being asked of it in one place; splitting it apart would scatter
+  # each query's own fixture context (see the comments beside NoteValuesIn,
+  # InNoStatuses, etc.) away from the query it explains.
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
   def build_thing_aggregate
     Hecks::Bluebook::DSL::AggregateBuilder.new("Thing").tap do |builder|
       builder.lifecycle(:status, default: "open") do
@@ -198,7 +207,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       # every comma inside it, member and content alike) while Memory
       # already read a real Array correctly — a divergence, not a typo.
       builder.query("NoteValuesIn") do
-        where(:"note.value" => { in: ["flagged: high, risk today", "high, risk, reviewed"] })
+        where("note.value": { in: ["flagged: high, risk today", "high, risk, reviewed"] })
       end
       # An empty in-list is not refused at the seal — only lt/lte/gt/gte
       # get the numeric-field check — so this stays admitted, and every
@@ -228,7 +237,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.query("AtMost500") { where(balance: { lte: { cents: 500 } }) }
 
       builder.query("PriceAbove300") do
-        where(:"box.price.cents" => { gt: 300 })
+        where("box.price.cents": { gt: 300 })
         order_by :"box.price.cents"
         limit 2
       end
@@ -256,20 +265,20 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       # A NULL SATISFIES NO COMPARISON — one case per comparator, because
       # the engines had every opportunity to disagree per-operator and
       # `ne` is simply the one somebody happened to write in a bluebook.
-      builder.query("LabelNotBeta")    { where(:"label.value"  => { ne: "beta" }) }
-      builder.query("LabelIsAlpha")    { where(:"label.value"  => "alpha") }
-      builder.query("RatingAbove200")  { where(:"rating.value" => { gt: 200 }) }
-      builder.query("RatingBelow400")  { where(:"rating.value" => { lt: 400 }) }
-      builder.query("RatingInList")    { where(:"rating.value" => { in: "100,300" }) }
-      builder.query("LabelContainsPh") { where(:"label.value"  => { contains: "ph" }) }
+      builder.query("LabelNotBeta")    { where("label.value": { ne: "beta" }) }
+      builder.query("LabelIsAlpha")    { where("label.value": "alpha") }
+      builder.query("RatingAbove200")  { where("rating.value": { gt: 200 }) }
+      builder.query("RatingBelow400")  { where("rating.value": { lt: 400 }) }
+      builder.query("RatingInList")    { where("rating.value": { in: "100,300" }) }
+      builder.query("LabelContainsPh") { where("label.value": { contains: "ph" }) }
 
       # THE OTHER HALF, and the one already agreed before this: a null on
       # the value COMPARED TO is a deliberate IS NULL / IS NOT NULL, not
       # an unknown (NullPolicy.sql_predicate). Included so the two
       # readings are pinned against each other — if either drifts toward
       # the other, one of these two fails.
-      builder.query("LabelIsNull")    { where(:"label.value" => nil) }
-      builder.query("LabelIsNotNull") { where(:"label.value" => { ne: nil }) }
+      builder.query("LabelIsNull")    { where("label.value": nil) }
+      builder.query("LabelIsNotNull") { where("label.value": { ne: nil }) }
 
       # ORDERING is NullPolicy's other half again, and carries the same
       # two-implementation risk the comparators did — `order` in Ruby and
@@ -291,8 +300,10 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   let(:sqlite)   { Hecks::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
   let(:postgres) { postgres_available? ? Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
   let(:plain_postgres) do
-    postgres_available? ? Hecks::Adapters::Postgres.new(aggregate: aggregate,
-                                                        settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
+    if postgres_available?
+      Hecks::Adapters::Postgres.new(aggregate: aggregate,
+                                    settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB })
+    end
   end
   let(:d1) do
     next nil unless d1_available?

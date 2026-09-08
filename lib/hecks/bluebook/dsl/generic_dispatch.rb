@@ -269,7 +269,8 @@ module Hecks
             # would silently execute as a no-op instead of raising the
             # same "not yet implemented" refusal a genuinely unmigrated
             # word already gets.
-            raise Runtime::WiringError, "no dispatcher handles shape #{shape[:kind].inspect} — add one before shape_for can produce it"
+            raise Runtime::WiringError,
+                  "no dispatcher handles shape #{shape[:kind].inspect} — add one before shape_for can produce it"
           end
         end
 
@@ -277,6 +278,13 @@ module Hecks
         # which of the four safe shapes (context, word) is, or `nil` if
         # it falls outside this slice's own verified scope. No argument
         # values are read here; this only ever looks at the table.
+        #
+        # An early-return classification chain: each `return` depends on
+        # locals (`calls`, `fills`, `arguments`, `arg`) computed by the
+        # checks before it. Splitting per shape would mean re-deriving or
+        # threading those locals across method boundaries for a
+        # classification that is only ever read top-to-bottom once, here.
+        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def shape_for(context, word, rows)
           keyword = rows[:keywords].find { |k| k[:context] == context && k[:word] == word && k[:status] != "retired" }
           return nil unless keyword
@@ -333,7 +341,9 @@ module Hecks
           raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 0)" unless args.empty?
 
           rows = MetaValidator::SyntaxBoot.call[:keywords]
-          siblings = rows.count { |k| k[:context] == keyword[:context] && k[:fills] == keyword[:fills] && k[:status] != "retired" }
+          siblings = rows.count do |k|
+            k[:context] == keyword[:context] && k[:fills] == keyword[:fills] && k[:status] != "retired"
+          end
           value = siblings > 1 ? keyword[:word].to_sym : true
 
           builder.instance_variable_set(:"@#{keyword[:fills]}", value)

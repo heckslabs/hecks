@@ -1,4 +1,7 @@
 module Hecks
+  # Reopened here purely to require in every driven adapter under
+  # adapters/driven/ below (see the comment inside for what "driven side"
+  # means) — the actual namespace is declared in adapters.rb.
   module Adapters
     # The driven side — every store or reader an adapter declaration can
     # bind. A small adapter is one file beside this one; sqlite, postgres

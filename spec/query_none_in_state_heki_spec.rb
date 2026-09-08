@@ -47,7 +47,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
     file&.close!
   end
 
-  AGGREGATE_ANTI_JOIN_HEKI_SOURCE = <<~BLUEBOOK
+  AGGREGATE_ANTI_JOIN_HEKI_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "AggregateAntiJoinHekiGrowth" do
       aggregate "Claim" do
         identified_by :id
@@ -99,8 +99,8 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Heki query" do
 
   def boot_aggregate_anti_join
     boot(AGGREGATE_ANTI_JOIN_HEKI_SOURCE, "AggregateAntiJoinHekiGrowth") do
-      ::AggregateAntiJoinHekiGrowth::Claim.persisted_by("Heki")
-      ::AggregateAntiJoinHekiGrowth::Board.persisted_by("Heki")
+      AggregateAntiJoinHekiGrowth::Claim.persisted_by("Heki")
+      AggregateAntiJoinHekiGrowth::Board.persisted_by("Heki")
     end
   end
 

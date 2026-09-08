@@ -17,8 +17,8 @@ require "open3"
 # project_deploy_contract_spec.rb's own header already holds this
 # script to: there's nothing to require, so this runs it as a real
 # subprocess and reads back what it actually generated.
-RSpec.describe "bin/project_deploy --tenant", io: true do
-  TENANT_FIXTURE_BASENAME = "project_deploy_tenant_spec_fixture"
+RSpec.describe "bin/project_deploy --tenant", :io do
+  TENANT_FIXTURE_BASENAME = "project_deploy_tenant_spec_fixture".freeze
 
   def root = File.expand_path("..", __dir__)
 

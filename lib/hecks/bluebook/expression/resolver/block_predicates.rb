@@ -12,6 +12,9 @@
 module Hecks
   module Bluebook
     module Expression
+      # Reopens the SAME `Resolver` module resolver.rb defines — see this
+      # file's own header comment above for why the block-predicate/find
+      # family lives here rather than in resolver.rb itself.
       module Resolver
         # `receiver.all? { |x| PREDICATE }` / `.any? { ... }` / `.none? {
         # ... }` -- vendored addition, not (yet) upstream hecks
@@ -184,9 +187,7 @@ module Hecks
         # just `attrs` extended with the bound name for the span of that
         # one predicate evaluation, discarded immediately after.
         def evaluate_block_predicate(node, collection, state, attrs)
-          unless collection.is_a?(Array)
-            raise EvaluationError, "#{node.mode}? expects a list, got #{describe(collection)}"
-          end
+          raise EvaluationError, "#{node.mode}? expects a list, got #{describe(collection)}" unless collection.is_a?(Array)
 
           outcomes = collection.map { |element| interpret_with_element(node, element, state, attrs) }
 

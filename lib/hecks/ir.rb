@@ -73,6 +73,11 @@ module Hecks
     # crash on an undeclared lifecycle.
     One  = Struct.new(:source)
 
+    # The declaration side: `emits_ir(**spec)` records a construct's field ->
+    # rule map, `many`/`one` wrap a source name so a field can recurse into a
+    # list or a single nested construct, and `ir_spec` reads the declaration
+    # back — walking the superclass chain so an anonymous `Class.new(base)`
+    # inherits its base's shape instead of redeclaring it.
     module Declares
       def emits_ir(**spec)
         @ir_spec = spec
@@ -92,6 +97,10 @@ module Hecks
       end
     end
 
+    # The emission side: `to_h` reads the declaring construct's `ir_spec` and
+    # applies each field's rule (`Many#to_h`, `One&.to_h`, a plain Symbol
+    # send, or an instance-`exec`'d Proc) in declaration order to build the
+    # actual Hash.
     module Emits
       def to_h
         spec = ir_spec_for(self)

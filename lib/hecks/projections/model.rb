@@ -66,7 +66,7 @@ module Hecks
           # GENERATED — projected from the language's own #{name} aggregate.
           # DO NOT EDIT: the holding half is rendered, and #{host.fetch(:behaviour)}
           # is where anything hand-written belongs.
-          require_relative "behaviour/#{File.basename(host.fetch(:file), ".rb")}"
+          require_relative "behaviour/#{File.basename(host.fetch(:file), '.rb')}"
 
           module Hecks
             module Bluebook
@@ -92,9 +92,7 @@ module Hecks
         renders = HOST.fetch(name).fetch(:renders, {})
         width   = fields.map { |f| f.to_s.length }.max.to_i
 
-        "emits_ir(\n" +
-          fields.map { |f| "  #{"#{f}:".ljust(width + 1)} #{renders.fetch(f, ":#{f}")}" }.join(",\n") +
-          "\n)"
+        "emits_ir(\n#{fields.map { |f| "  #{"#{f}:".ljust(width + 1)} #{renders.fetch(f, ":#{f}")}" }.join(",\n")}\n)"
       end
 
       # WHAT THE CONSTRUCT EMITS: what the language declares, less every
@@ -121,18 +119,18 @@ module Hecks
         # here rather than typed in — a comment that survives
         # regeneration is one the generator writes.
         reasons = Deviations::OFF_THE_WIRE.fetch(host.fetch(:construct, ""), {})
-        (lines + accessors.map { |a|
+        (lines + accessors.map do |a|
           why = reasons[a]
           (why ? "\n# #{a.upcase}, DECLARED AND DELIBERATELY OFF THE WIRE\n# #{wrap(why)}\n" : "") +
             "attr_accessor :#{a}"
-        }).join("\n")
+        end).join("\n")
       end
 
       def constructor(host)
         args = host.fetch(:defaults).map { |f, d| d ? "#{f}: #{d}" : "#{f}:" }.join(", ")
-        body = host.fetch(:defaults).keys.map { |f|
+        body = host.fetch(:defaults).keys.map do |f|
           "  @#{f} = #{f}#{host.fetch(:coerce, {})[f]}"
-        }
+        end
         body << "\n  settle" if host.fetch(:settles, true)
 
         "def initialize(#{args})\n#{body.join("\n")}\nend"

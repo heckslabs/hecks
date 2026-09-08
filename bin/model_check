@@ -52,7 +52,7 @@ def boot(source)
     # IR only, `registry.verify!` (never called by this tool) is what
     # would need one.
     hecksagon = if File.directory?(source)
-                  Dir.glob(File.join(source, "*.hecksagon")).sort.first
+                  Dir.glob(File.join(source, "*.hecksagon")).min
                 else
                   source.sub(/\.bluebook\z/, ".hecksagon")
                 end
@@ -124,7 +124,7 @@ end
 
 domain_arg = ARGV.shift
 example_domains = Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }
-grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook").sort
+grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook")
 # THE FRAMEWORK MEMBERS, which spec/model_check_spec.rb has always walked
 # (its own MODEL_CHECK_FRAMEWORK_MEMBERS) and this script never did — so the
 # suite checked Governance and Identity while `bin/model_check` reported
@@ -132,13 +132,13 @@ grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook").sort
 # EXAMPLE_ROOTS-shaped, for the reason corpus_spec.rb's own comment gives:
 # these are framework chapters, not teaching examples with a bluebook/
 # subfolder each.
-framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook").sort
+framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook")
 
 if domain_arg
   registry = boot(bluebook_in(domain_arg.chomp("/")) || domain_arg)
   ok = examine(File.basename(domain_arg.chomp("/")), registry)
 else
-  targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.reject { |_, s| s.nil? } +
+  targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.compact +
             grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] } +
             framework_members.map { |m| [File.basename(m, ".bluebook"), m] }
 

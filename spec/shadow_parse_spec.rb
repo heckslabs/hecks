@@ -91,12 +91,12 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
 
   describe "MetaValidator.while_shadow_parsing" do
     it "is off by default, and restores itself even when the block raises" do
-      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
 
       expect { Hecks::Bluebook::MetaValidator.while_shadow_parsing { raise "boom" } }
         .to raise_error("boom")
 
-      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
     end
 
     it "is on for exactly the span of its own block" do
@@ -106,7 +106,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       end
 
       expect(seen_inside).to be(true)
-      expect(Hecks::Bluebook::MetaValidator.shadow_parsing?).to be_falsy
+      expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
     end
   end
 end

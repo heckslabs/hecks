@@ -106,6 +106,11 @@ RSpec.describe Hecks::Bluebook::SmokeTest do
   # a real record already in it — and proves that record survives a
   # smoke-test run untouched, regardless of what `dir`'s own `.hecksagon`
   # and `.world` actually bind to.
+  # A real boot-dispatch-smoke-reboot sequence proving ONE end-to-end
+  # claim — the persisted record survives the smoke-test run untouched.
+  # Splitting the before/after reboot comparison across examples would
+  # lose the very thing this test exists to prove.
+  # rubocop:disable-next RSpec/ExampleLength
   it "never touches the target directory's own real persisted data, however it's really bound" do
     dir = write_domain("SmokeWidget", <<~RUBY)
       aggregate "Item" do

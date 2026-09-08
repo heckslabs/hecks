@@ -62,6 +62,10 @@ require "tmpdir"
 require "fileutils"
 require "open3"
 
+# Namespace for the linter itself — the risky-command/echo/exit-code regexes,
+# the Makefile parser, the three checks, and the fixture generator that feeds
+# them a real bin/project_deploy-generated Makefile; see the file header above
+# for the bug class this exists to catch and how it's wired into CI.
 module DeployRecipeLint
   # "Touches prod" — bin/project_deploy's own generated recipes hit
   # AWS or a real Postgres connection through exactly these calls (this

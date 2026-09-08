@@ -32,8 +32,8 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     end
 
     it "gives a boolean type false" do
-      expect(described_class.scalar_for("TrueClass")).to eq(false)
-      expect(described_class.scalar_for("FalseClass")).to eq(false)
+      expect(described_class.scalar_for("TrueClass")).to be(false)
+      expect(described_class.scalar_for("FalseClass")).to be(false)
     end
 
     it "gives anything else a marker string" do
@@ -71,17 +71,6 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
   end
 
   describe ".args_for" do
-    it "synthesizes every declared argument for a real command, respecting each field's own type, nested or not" do
-      command = order.command("CreatePizza")
-
-      args = described_class.args_for(chapter, order, command)
-
-      expect(args).to eq(
-        name:  { value: "smoke-test" },
-        pizza: { price_cents: { cents: 0 }, size: { value: "small" } }
-      )
-    end
-
     # `AddTopping` addresses Order by a bare self-reference (no `as:`),
     # which never becomes a declared attribute at all — the caller
     # (`SmokeTest`) supplies that separately via `id:`. What `args_for`
@@ -92,6 +81,17 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       example.run
     ensure
       FileUtils.remove_entry(@root) if @root
+    end
+
+    it "synthesizes every declared argument for a real command, respecting each field's own type, nested or not" do
+      command = order.command("CreatePizza")
+
+      args = described_class.args_for(chapter, order, command)
+
+      expect(args).to eq(
+        name:  { value: "smoke-test" },
+        pizza: { price_cents: { cents: 0 }, size: { value: "small" } }
+      )
     end
 
     def referencing_command

@@ -44,7 +44,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
           results = Hecks::Fuzzing::Properties.check(history)
 
           results.each do |property, result|
-            expect(result).to eq(true), "#{domain} seed #{seed} — #{property}: #{result}"
+            expect(result).to be(true), "#{domain} seed #{seed} — #{property}: #{result}"
           end
         end
       end
@@ -54,7 +54,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
           steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
           result = Hecks::Fuzzing::Properties.replay_is_deterministic(domain, steps)
 
-          expect(result).to eq(true), "#{domain} seed #{seed}: #{result}"
+          expect(result).to be(true), "#{domain} seed #{seed}: #{result}"
         end
       end
     end
@@ -88,7 +88,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
           results = Hecks::Fuzzing::Properties.check(history)
 
           results.each do |property, result|
-            expect(result).to eq(true), "#{domain} seed #{seed} (sqlite) — #{property}: #{result}"
+            expect(result).to be(true), "#{domain} seed #{seed} (sqlite) — #{property}: #{result}"
           end
         end
       end
@@ -117,7 +117,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
                   instances: { "Pizzas::Order#p1" => { status: "available" } } }
 
-      expect(Hecks::Fuzzing::Properties.lifecycle_values_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.lifecycle_values_are_declared(history)).to be(true)
     end
 
     it "saga_advances_follow_declared_handlers names an advance no handler declares" do
@@ -135,7 +135,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   sagas:    [{ process_manager: "Settlement", on: "TransferRequested", instance: "x",
                             advanced: true, from: "requested", to: "requested" }] }
 
-      expect(Hecks::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to be(true)
     end
 
     it "query_answers_match_reference names a native answer the reference interpreter disputes" do
@@ -161,7 +161,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
         { query: "Pizzas.some_read_model", args: {}, rows: [] }
       ] }
 
-      expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.query_answers_match_reference(history)).to be(true)
     end
 
     # M23 — the property this feeds needs to be ABLE to fail on a
@@ -205,7 +205,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
            "args" => { "name"  => { "value" => "X" },
                        "pizza" => { "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } } }]
       )
-      comparable = ->(h) { h.reject { |k, _| k == :bluebook || k == :bluebooks } }
+      comparable = ->(h) { h.except(:bluebook, :bluebooks) }
 
       expect(comparable.call(first)).not_to eq(comparable.call(second))
     end
@@ -244,7 +244,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                { id: "s4", status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
                              ] }] }
 
-      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to be(true)
     end
 
     # HopChain::Proposal.PricedAboveViaEngagement — real fixture corpus,
@@ -270,7 +270,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   queries:   [{ query: "HopChain::Proposal.PricedAboveViaEngagement", args: {}, instances_at: instances,
                                 rows: [{ id: "p1", engagement: "charlie", number: { value: "p1" }, status: "drafted" }] }] }
 
-      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to be(true)
     end
 
     it "paging_offset_partitions_correctly still names an answer whose hop's far end does not actually hold" do
@@ -321,7 +321,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       expect(result).to include("Banking::SafeDepositBox.Rented").and include("a made up refusal")
     end
 
-    it "authorize_scopes_or_refuses passes a successful answer whose tenant field matches the given arg, and a correctly-worded refusal with no tenant" do
+    it "authorize_scopes_or_refuses passes a successful answer whose tenant field matches the given arg, " \
+       "and a correctly-worded refusal with no tenant" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   queries:   [
                     { query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
@@ -332,7 +333,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                              "which branch_code this ask is scoped to" }
                   ] }
 
-      expect(Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to be(true)
     end
 
     it "dispatch_binding_fidelity names a saga dispatch bound to the wrong value" do
@@ -381,7 +382,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
         ]
       }
 
-      expect(Hecks::Fuzzing::Properties.dispatch_binding_fidelity(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.dispatch_binding_fidelity(history)).to be(true)
     end
 
     it "mutations_match_recompute names an append whose after-state disagrees with the recomputed element" do
@@ -433,7 +434,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                       args:   { name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
-      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
     end
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
@@ -459,7 +460,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
                               kind: "Hecks::Runtime::GivenNotMet" }] }
 
-      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
     end
 
     # A `delegates_to` DOOR refuses with its TARGET's own given, in the
@@ -473,7 +474,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                 error: "Retire refused — a front-row holder may not retire",
                                 kind:  "Hecks::Runtime::GivenNotMet" }] }
 
-      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
 
       history[:refusals].first[:error] = "Retire refused — a made up reason"
       expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to include("a made up reason")
@@ -501,7 +502,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                 error: "Seal refused — an empty edge explains nothing",
                                 kind:  "Hecks::Runtime::GivenNotMet" }] }
 
-      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
     end
 
     it "guard_refusals_are_declared ignores a refusal sharing the same wording but a DIFFERENT raised class" do
@@ -511,10 +512,11 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       # undeclared guard; identified by `kind:`, it is skipped outright.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals:  [{ verb:  "Banking::Account.CloseAccount",
-                                error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
+                                error: "CloseAccount refused — status is closed, and CloseAccount moves it only " \
+                                       "from open, frozen",
                                 kind:  "Hecks::Runtime::LifecycleRefused" }] }
 
-      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.guard_refusals_are_declared(history)).to be(true)
     end
 
     it "lifecycle_guard_and_given_violations_are_refused names a step the guard should have refused but didn't" do
@@ -547,7 +549,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
           actual_refused: true, actual_kind: "Hecks::Runtime::LifecycleRefused" }
       ] }
 
-      expect(Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to be(true)
     end
 
     it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
@@ -580,7 +582,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                                                     memory: { customer:  "delta juliet",
                                                                               reference: { value: "corr-1" } } } } } }
 
-      expect(Hecks::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to be(true)
     end
 
     it "fanout_dispatches_once_per_matching_row names a row the reaction log missed" do
@@ -607,7 +609,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
         { policy: "ReviewOnFlag", on: "Flagged", expected_row_ids: nil, actual_row_ids: [] }
       ] }
 
-      expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to be(true)
     end
 
     it "aggregation_matches_recompute names a count that disagrees with the recomputed eligible rows" do
@@ -636,7 +638,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 2 }] }] }
 
-      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to be(true)
     end
 
     it "aggregation_matches_recompute passes a median matching the interpreter's own even/odd convention" do
@@ -648,7 +650,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   queries:  [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 200.0 }] }] }
 
-      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.aggregation_matches_recompute(history)).to be(true)
     end
 
     it "stored_records_satisfy_declared_invariants names a stored balance that violates Account's own invariant" do
@@ -664,7 +666,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   instances: { "Banking::Account#a1" => { balance: { cents: 500, currency: "USD" } } } }
 
-      expect(Hecks::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to be(true)
     end
 
     # AccountsByKind — real corpus, group_by :kind, :number, rootless. The
@@ -703,7 +705,7 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                                "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }
                              } }] }] }
 
-      expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to eq(true)
+      expect(Hecks::Fuzzing::Properties.group_by_matches_recompute(history)).to be(true)
     end
   end
 end

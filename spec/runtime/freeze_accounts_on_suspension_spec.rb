@@ -102,7 +102,8 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     expect(fan.filter_map { |r| r[:reason] }).to be_empty
   end
 
-  it "Account.OpenForCustomer answers correctly on its own — the for_each target, scoped to ONE customer, ready for whichever gap closes first" do
+  it "Account.OpenForCustomer answers correctly on its own — the for_each target, scoped to ONE customer, " \
+     "ready for whichever gap closes first" do
     runtime = build
     runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
                                                    name:      { given: "Ada", family: "Lovelace" },

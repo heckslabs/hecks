@@ -118,7 +118,7 @@ steps.each do |step|
   begin
     runtime.dispatch(verb, **args)
   rescue StandardError => e
-    refusals << { verb: verb, error: "#{e.message}" }
+    refusals << { verb: verb, error: e.message.to_s }
   end
 end
 

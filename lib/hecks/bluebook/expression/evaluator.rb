@@ -4,6 +4,13 @@ require_relative "../../vocabulary"
 module Hecks
   module Bluebook
     module Expression
+      # The boolean/comparison layer of a predicate's expression grammar —
+      # parses a canonical predicate string into an Or/And/Not/Compare/
+      # Include/Resolve AST (cached per distinct string, `ast_cache`) and
+      # interprets it against a call's own state/attrs. Leaf `Resolve`
+      # nodes delegate to `Resolver` for the dotted/arithmetic
+      # sub-grammar; `OPERATORS` is the comparison table projected from
+      # the grammar chapter (`PROJECTION`).
       module Evaluator
         Operator = Struct.new(:symbol, :compares_less_than, :compares_equal, :negated, keyword_init: true)
 
@@ -143,21 +150,21 @@ module Hecks
           end
         end
 
-        def compare(op, left, right, state, attrs)
+        def compare(comparator, left, right, state, attrs)
           lhs = Resolver.interpret(left, state, attrs)
           rhs = Resolver.interpret(right, state, attrs)
 
-          apply(op, lhs, rhs)
+          apply(comparator, lhs, rhs)
         end
 
         # The algebra itself, on values already resolved — split out so a sign
         # test (SignTest#compares_via names an Operator symbol) can apply the
         # SAME primitives compare() uses against the literal 0, rather than
         # re-deriving positive?/negative?/zero? by hand a second time.
-        def apply(op, lhs, rhs)
-          result = (op.compares_less_than && less_than(lhs, rhs)) ||
-                   (op.compares_equal && equal?(lhs, rhs))
-          op.negated ? !result : result
+        def apply(comparator, lhs, rhs)
+          result = (comparator.compares_less_than && less_than(lhs, rhs)) ||
+                   (comparator.compares_equal && equal?(lhs, rhs))
+          comparator.negated ? !result : result
         end
 
         def less_than(lhs, rhs)
@@ -224,9 +231,7 @@ module Hecks
           case (found = Resolver.interpret(haystack, state, attrs))
           when Array then found.any? { |item| equal?(item, wanted) }
           when String
-            unless wanted.is_a?(String)
-              raise EvaluationError, "no implicit conversion of #{class_of(wanted)} into String"
-            end
+            raise EvaluationError, "no implicit conversion of #{class_of(wanted)} into String" unless wanted.is_a?(String)
 
             found.include?(wanted)
           else false
@@ -312,9 +317,9 @@ module Hecks
             # its own (`[0, 0 + 0]`) used to read as a split point for
             # THIS expression's own boolean/comparison grammar, exactly
             # the way an un-tracked `{`/`}` once did for block predicates.
-            elsif char == "(" || char == "{" || char == "["
+            elsif ["(", "{", "["].include?(char)
               depth += 1
-            elsif char == ")" || char == "}" || char == "]"
+            elsif [")", "}", "]"].include?(char)
               depth -= 1
             elsif depth.zero? && expr[index, operator.length] == operator
               return index if !block_given? || yield(index)

@@ -27,7 +27,7 @@ module Hecks
     # not in the same boot as the caller; this port is the same
     # questions asked through one adapter when it is.
     module Authorization
-      NAME = "authorization"
+      NAME = "authorization".freeze
 
       module_function
 

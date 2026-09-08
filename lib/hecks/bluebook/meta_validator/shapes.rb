@@ -238,12 +238,12 @@ module Hecks
         # Mutation's own `to_h` lambda does, rather than leaving the key
         # silently absent (spec/round_trip_spec's whole point: a field the
         # language does not hold is a named gap, not a byte-for-byte one).
-        def mutation(target, op, bindings)
-          base = { target: target.to_sym, op: op.to_sym, sign: Hecks::Bluebook::Mutation.sign_for(op) }
+        def mutation(target, oper, bindings)
+          base = { target: target.to_sym, op: oper.to_sym, sign: Hecks::Bluebook::Mutation.sign_for(oper) }
           # `:delegate`/`:corrects` (CommandBuilder#delegates_to's and
           # #corrects_impl's own comments) ride the SAME multi-binding
           # shape `:append` does.
-          return base.merge(fields: appended(bindings)) if ["append", "delegate", "corrects"].include?(op)
+          return base.merge(fields: appended(bindings)) if ["append", "delegate", "corrects"].include?(oper)
 
           base.merge(source: classified(bindings.first))
         end

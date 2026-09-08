@@ -28,7 +28,7 @@ module Hecks
       def self.group(field, values, errors, reference_options, tag:, css: nil)
         inner = field.children.map { |child| render(child, values: values, errors: errors, reference_options: reference_options) }
         <<~HTML
-          <#{tag}#{css ? %( class="#{css}") : ""}>
+          <#{tag}#{%( class="#{css}") if css}>
             <legend>#{Escape.html(field.label)}#{required_mark(field)}</legend>
             #{inner.join("\n")}
           </#{tag}>
@@ -43,7 +43,7 @@ module Hecks
             <label for="#{dom_id(field.path)}">#{Escape.html(field.label)}#{required_mark(field)}</label>
             <textarea id="#{dom_id(field.path)}" name="#{Escape.attr(field.path)}"
               #{aria(field)} placeholder="one #{Escape.attr(item.label.downcase)} per line">#{Escape.html(current)}</textarea>
-            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{item.leaf? ? '' : ' — each line is one JSON object'}.</span>
+            <span class="help" id="#{dom_id(field.path)}-help">One #{Escape.html(item.label.downcase)} per line#{' — each line is one JSON object' unless item.leaf?}.</span>
           </div>
         HTML
       end
@@ -64,11 +64,11 @@ module Hecks
 
       def self.wrap(field, body, error)
         <<~HTML
-          <div class="field#{error ? ' has-error' : ''}">
-            #{field.kind == :boolean ? '' : %(<label for="#{dom_id(field.path)}">#{Escape.html(field.label)}#{required_mark(field)}</label>)}
+          <div class="field#{' has-error' if error}">
+            #{%(<label for="#{dom_id(field.path)}">#{Escape.html(field.label)}#{required_mark(field)}</label>) unless field.kind == :boolean}
             #{body}
-            #{field.help ? %(<span class="help" id="#{dom_id(field.path)}-help">#{Escape.html(field.help)}</span>) : ''}
-            #{error ? %(<span class="help" role="alert">#{Escape.html(error)}</span>) : ''}
+            #{%(<span class="help" id="#{dom_id(field.path)}-help">#{Escape.html(field.help)}</span>) if field.help}
+            #{%(<span class="help" role="alert">#{Escape.html(error)}</span>) if error}
           </div>
         HTML
       end
@@ -114,7 +114,8 @@ module Hecks
       def self.select(field, value)
         selected = value || field.default
         options = field.options.map do |option_value, option_label|
-          %(<option value="#{Escape.attr(option_value)}"#{option_value.to_s == selected.to_s ? ' selected' : ''}>#{Escape.html(option_label)}</option>)
+          %(<option value="#{Escape.attr(option_value)}"#{' selected' if option_value.to_s == selected.to_s}>) \
+            "#{Escape.html(option_label)}</option>"
         end
         blank = field.optional? ? %(<option value="">—</option>) : ""
         %(<select id="#{dom_id(field.path)}" name="#{Escape.attr(field.path)}" #{aria(field)}>#{blank}#{options.join}</select>)
@@ -124,9 +125,13 @@ module Hecks
         return input(field.tap { |f| f.html_type = "text" }, value) unless options && !options.empty?
 
         rendered = options.map do |id, label|
-          %(<option value="#{Escape.attr(id)}"#{id.to_s == value.to_s ? ' selected' : ''}>#{Escape.html(label)}</option>)
+          %(<option value="#{Escape.attr(id)}"#{' selected' if id.to_s == value.to_s}>#{Escape.html(label)}</option>)
         end
-        blank = field.optional? ? %(<option value="">—</option>) : %(<option value="" disabled#{value ? '' : ' selected'}>choose one…</option>)
+        blank = if field.optional?
+                  %(<option value="">—</option>)
+                else
+                  %(<option value="" disabled#{' selected' unless value}>choose one…</option>)
+                end
         %(<select id="#{dom_id(field.path)}" name="#{Escape.attr(field.path)}" #{aria(field)}>#{blank}#{rendered.join}</select>)
       end
 

@@ -168,7 +168,8 @@ RSpec.describe "the generated diagrams" do
 
   it "wires a policy's own trigger to the real command it names" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["dispatch.mmd"]
-    expect(diagram).to include('evt_PizzaPaymentReceived{{"PizzaPaymentReceived"}} -->|triggers| cmd_Order_Purchase(["Order.Purchase"])')
+    expect(diagram).to include('evt_PizzaPaymentReceived{{"PizzaPaymentReceived"}} -->|triggers| ' \
+                               'cmd_Order_Purchase(["Order.Purchase"])')
   end
 
   it "labels a cross-domain trigger with the domain it crosses into, in banking" do
@@ -207,7 +208,8 @@ RSpec.describe "the generated diagrams" do
   it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["ports.mmd"]
     expect(diagram).to include('Order[(Order)] -.->|exposes| op_Order_PaymentGateway_Receive[/"PaymentGateway.Receive"/]')
-    expect(diagram).to include("op_Order_PaymentGateway_Receive[/\"PaymentGateway.Receive\"/] -->|emits| evt_PizzaPaymentReceived{{\"PizzaPaymentReceived\"}}")
+    expect(diagram).to include("op_Order_PaymentGateway_Receive[/\"PaymentGateway.Receive\"/] -->|emits| " \
+                               "evt_PizzaPaymentReceived{{\"PizzaPaymentReceived\"}}")
     expect(diagram).not_to include("|to:")
   end
 
@@ -217,7 +219,8 @@ RSpec.describe "the generated diagrams" do
 
   it "draws a to: edge to the exact aggregate a port operation names, once PR #351's grammar is actually used" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: scratch_chapter)["ports.mmd"]
-    expect(diagram).to include('op_Payment_PaymentGateway_Succeeded[/"PaymentGateway.Succeeded"/] -->|to: Payment| Payment[(Payment)]')
+    expect(diagram).to include('op_Payment_PaymentGateway_Succeeded[/"PaymentGateway.Succeeded"/] -->|to: Payment| ' \
+                               "Payment[(Payment)]")
   end
 
   # ── read models -> flowchart ─────────────────────────────────────────
@@ -232,7 +235,8 @@ RSpec.describe "the generated diagrams" do
   it "merges the same aggregate into one node across several read_models — Account feeds five in banking" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["read_models.mmd"]
     account_edges = diagram.lines.count { |line| line.start_with?("    Account[(Account)]") }
-    expect(account_edges).to eq(5) # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian, AccountsByKind
+    # CustomerPortfolio, ComplianceDashboard, DisputedPaymentCount, DisputedPaymentMedian, AccountsByKind
+    expect(account_edges).to eq(5)
   end
 
   it "labels a count read_model and a median read_model with the shape of their own answer" do
@@ -308,7 +312,8 @@ RSpec.describe "the generated diagrams" do
 
   it "names the real argument a set/increment/decrement pulls from, in pizzas" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
-    expect(diagram).to include('cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| attr_Order_customer_name[customer_name]')
+    expect(diagram).to include('cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| ' \
+                               "attr_Order_customer_name[customer_name]")
   end
 
   it "states a literal source verbatim, quoted, distinct from an argument source" do
@@ -318,7 +323,8 @@ RSpec.describe "the generated diagrams" do
 
   it "names an append's own field names, not a single source, since it has none" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
-    expect(diagram).to include('cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| attr_Order_toppings[toppings]')
+    expect(diagram).to include('cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| ' \
+                               "attr_Order_toppings[toppings]")
   end
 
   # THE REAL, INTERESTING CASE: an increment/decrement's own argument
@@ -349,7 +355,8 @@ RSpec.describe "the generated diagrams" do
   # failing.
   it "swaps an embedded double quote in a literal value for a single quote, so it can't break the label's own quoting" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: banking_chapter)["Customer_surface.mmd"]
-    expect(diagram).to include("cmd_Customer_Reinstate([\"Customer.Reinstate\"]) -->|\"sets: '{:value=>'good'}'\"| attr_Customer_standing[standing]")
+    expect(diagram).to include("cmd_Customer_Reinstate([\"Customer.Reinstate\"]) -->|\"sets: '{:value=>'good'}'\"| " \
+                               "attr_Customer_standing[standing]")
   end
 
   # A REAL, GENUINE ZERO. `Order.CreatePizza` used to be this test's own
@@ -467,7 +474,11 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Governance[(Governance)]")
     expect(diagram).to include("Banking[(Banking)] -.->|attaches| Identity[(Identity)]")
     expect(diagram).to include("Banking[(Banking)] -->|reaches across| Compliance[(Compliance)]")
-    expect(diagram.lines.count { |line| line.include?("|reaches across| Compliance") }).to eq(1) # ReviewOnFreeze AND ReviewOnBoxSurrender both target it
+    expect( # ReviewOnFreeze AND ReviewOnBoxSurrender both target it
+      diagram.lines.count do |line|
+        line.include?("|reaches across| Compliance")
+      end
+    ).to eq(1)
   end
 
   it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing" do

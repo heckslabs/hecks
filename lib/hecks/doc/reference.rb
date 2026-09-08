@@ -114,7 +114,7 @@ module Hecks
           by `bin/reference` — do not edit inside the markers. The prose
           between them is hand-written and survives regeneration.*
           #{GENERATED_END}
-          #{preamble.empty? ? '' : "\n#{preamble}\n"}
+          #{"\n#{preamble}\n" unless preamble.empty?}
           #{sections.join("\n")}
         PAGE
       end
@@ -145,7 +145,7 @@ module Hecks
           ## #{row[:word]}
 
           #{generated_begin(row[:word])}
-          #{spellings}#{facts.empty? ? '' : " — #{facts.join(', ')}"}
+          #{spellings}#{" — #{facts.join(', ')}" unless facts.empty?}
           #{table}#{GENERATED_END}
 
           #{prose_or_sentinel(prose)}
@@ -181,7 +181,7 @@ module Hecks
           name = arg[:at].to_s.empty? ? "`#{arg[:named]}:`" : "positional #{arg[:at]}"
           lines << "| #{name} | #{arg[:kind]} | #{arg[:required]} | #{arg[:fills]} |"
         end
-        lines.join("\n") + "\n"
+        "#{lines.join("\n")}\n"
       end
 
       def render_index
@@ -210,6 +210,11 @@ module Hecks
       # region existed has no generated marker ahead of its first `## `,
       # so nothing is collecting when that heading arrives and no empty
       # preamble is invented — the older shape reads back unchanged.
+      # A single-pass line-scanning state machine (current/collecting/
+      # buffer/in_fence) — each branch mutates shared local state that
+      # carries into the NEXT iteration, so splitting per branch would
+      # mean passing all four back and forth by reference every line.
+      # rubocop:disable-next Metrics/PerceivedComplexity
       def harvest(text)
         prose = {}
         current = PREAMBLE
@@ -263,7 +268,7 @@ module Hecks
       end
 
       def guide_index(root)
-        paths = Dir.glob(File.join(root, "docs/implemented/guides/*.md")).sort
+        paths = Dir.glob(File.join(root, "docs/implemented/guides/*.md"))
                    .reject { |p| %w[AUTHORING.md].include?(File.basename(p)) }
         lines = paths.map do |path|
           heading = File.foreach(path).find { |line| line.start_with?("# ") }
@@ -273,7 +278,7 @@ module Hecks
         lines.join("\n")
       end
 
-      def reference_index(root)
+      def reference_index(_root)
         count = contexts.size
         "[The DSL reference](docs/implemented/reference/index.md) — #{count} contexts, generated from " \
           "the aggregate-local tables under `lib/hecks/language/` and held to them by " \
@@ -333,11 +338,11 @@ module Hecks
       end
 
       def corpus_roster(root)
-        dirs = Dir.glob(File.join(root, "examples/*/")).sort
+        dirs = Dir.glob(File.join(root, "examples/*/"))
         lines = dirs.filter_map do |dir|
           name = File.basename(dir.chomp("/"))
-          bluebooks = Dir.glob(File.join(dir, "bluebook/*.bluebook")).sort
-          bluebooks = Dir.glob(File.join(dir, "*.bluebook")).sort if bluebooks.empty?
+          bluebooks = Dir.glob(File.join(dir, "bluebook/*.bluebook"))
+          bluebooks = Dir.glob(File.join(dir, "*.bluebook")) if bluebooks.empty?
           next if bluebooks.empty?
 
           vision = bluebooks.filter_map { |bluebook| File.read(bluebook)[/vision\s+"([^"]*)"/, 1] }.first
@@ -364,7 +369,7 @@ module Hecks
       # example — a word whose only "example" is invisible or inert is a
       # word still shipping on its prose alone, which is the thing this
       # gate exists to refuse.
-      EXAMPLE_FENCE = /^```ruby(?: bluebook| boot)?[ \t]*$/.freeze
+      EXAMPLE_FENCE = /^```ruby(?: bluebook| boot)?[ \t]*$/
 
       def exemplified?(prose) = prose.to_s.match?(EXAMPLE_FENCE)
 
@@ -378,12 +383,13 @@ module Hecks
       # `harvest` already rejects empty prose and the TODO sentinel, so a
       # word with nothing written for it arrives here with a nil.
       def live_words(directory)
-        contexts.flat_map { |context|
+        rows = contexts.flat_map do |context|
           path = File.join(directory, page_name(context))
           prose = File.exist?(path) ? harvest(File.read(path)) : {}
           keywords.select { |row| row[:context] == context && live?(row) }
                   .map { |row| [row[:word], context, prose[row[:word]]] }
-        }.uniq { |word, context, _| [word, context] }
+        end
+        rows.uniq { |word, context, _| [word, context] }
       end
 
       def name_of(word, context) = "#{word} (#{context})"

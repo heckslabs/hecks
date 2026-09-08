@@ -10,7 +10,7 @@ RSpec.describe Hecks::Facade::JsonDoor do
   # Pizzas::Order, rebound to Memory rather than a real adapter, matching
   # this codebase's standing preference that specs boot against Memory and
   # reserve real-adapter specs for testing that adapter itself.
-  def order(dispatcher)
+  def order(_dispatcher)
     Pizzas::Order.create_pizza!(
       name:  { value: "Margherita" },
       pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }

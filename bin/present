@@ -47,16 +47,16 @@ Hecks.with_registry(registry) do
   Kernel.load(FORMS_BLUEBOOK)
 
   Hecks.hecksagon("Banking") do
-    ::Banking::Customer.persisted_by("Memory")
-    ::Banking::Account.persisted_by("Memory")
-    ::Banking::SafeDepositBox.persisted_by("Memory")
-    ::Banking::Transfer.persisted_by("Memory")
-    ::Banking::ATMCard.persisted_by("Memory")
-    ::Banking::CardPayment.persisted_by("Memory")
-    ::Banking::ExternalTransfer.persisted_by("Memory")
-    ::Banking::ScheduledPayment.persisted_by("Memory")
-    ::Banking::OnboardingCase.persisted_by("Memory")
-    ::Banking::Statement.persisted_by("Memory")
+    Banking::Customer.persisted_by("Memory")
+    Banking::Account.persisted_by("Memory")
+    Banking::SafeDepositBox.persisted_by("Memory")
+    Banking::Transfer.persisted_by("Memory")
+    Banking::ATMCard.persisted_by("Memory")
+    Banking::CardPayment.persisted_by("Memory")
+    Banking::ExternalTransfer.persisted_by("Memory")
+    Banking::ScheduledPayment.persisted_by("Memory")
+    Banking::OnboardingCase.persisted_by("Memory")
+    Banking::Statement.persisted_by("Memory")
   end
 end
 

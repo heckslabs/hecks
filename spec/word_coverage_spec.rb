@@ -139,7 +139,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "`move ... to:`, `compute ... to:, sql:`, and `rekey sql:`. `corpus_uses?`'s " \
     "naive whole-token scan reports a false positive for this word regardless " \
     "(see the comment on the first entry in this group), so this exemption " \
-    "also stands in for that scanner gap."
+    "also stands in for that scanner gap.".freeze
 
   # UNREACHED ON PURPOSE, each naming why — the same shape
   # plurality_coverage_spec.rb's ALLOWED_SINGLETON is. Every entry here
@@ -157,14 +157,17 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "same as cursor (Query) — refused unconditionally by ReadModelBuilder#seal_cursor.",
     "inspect_query (Query)"                =>
                                               "a real declaration would be vacuous: no adapter in this codebase implements the " \
-                                              "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate reading), " \
+                                              "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
+                                              "reading), " \
                                               "so a corpus member declaring it would exercise nothing this doctest does not " \
                                               "already. The gap is upstream of the DSL word, in the adapter layer.",
     "inspect_query (ReadModel)"            =>
-                                              "even more vacuous than the Query form — the read model runtime never reaches the " \
+                                              "even more vacuous than the Query form — the read model runtime never " \
+                                              "reaches the " \
                                               "code this word gates at all, so a real declaration is strictly inert.",
     "tells (DomainPort)"                   =>
-                                              "identical to operation, which pizzas' real PaymentGateway.Receive already proves " \
+                                              "identical to operation, which pizzas' real PaymentGateway.Receive " \
+                                              "already proves " \
                                               "for real — the two words fill the same PortOperation construct, so a second " \
                                               "corpus use under a different spelling would mean inventing a second inbound " \
                                               "integration this codebase does not otherwise need, for a word that changes " \
@@ -202,7 +205,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \
                                               "embryonaut_console repo) declares `formerly_known_as \"Embryonaut\"` for real, " \
                                               "bridging real production journal/era/approval rows the day it deployed under " \
-                                              "the new name. Written up in docs/implemented/reference/bluebook.md's own section, naming " \
+                                              "the new name. Written up in docs/implemented/reference/bluebook.md's " \
+                                              "own section, naming " \
                                               "the consumer, per principle 4's own wording.",
     # NO LONGER REFUSED. `AggregateBuilder#has_many`/`#has_one` genuinely
     # build now (S17/ADR 0026's relationship-cardinality slice un-
@@ -229,7 +233,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "identical Reference-typed attribute reference_to does, genuinely live, but no " \
                                               "real entity in this corpus (Account#Ledger entry, ATMCard#Withdrawal, ...) " \
                                               "declares a listed relationship this way over a plain attribute/reference_to " \
-                                              "yet. docs/implemented/reference/entity.md's own fixture runs it for real, which is the " \
+                                              "yet. docs/implemented/reference/entity.md's own fixture runs it for " \
+                                              "real, which is the " \
                                               "doctest bar, not this one.",
     "has_one (Entity)"                     => "same as has_many (Entity), one word over — EntityBuilder#has_one.",
     # `then_set (Command)` — the OTHER kind of structural impossibility this
@@ -248,7 +253,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "\"payments\"` for real, attaching embryonaut_bluebooks/payments' Payment " \
                                               "aggregate — a full settle/refund/dispute lifecycle shared across every project " \
                                               "that needs one rather than reimplemented per project. Written up in " \
-                                              "docs/implemented/reference/hecksagon.md's own section, naming the consumer, per principle " \
+                                              "docs/implemented/reference/hecksagon.md's own section, naming the " \
+                                              "consumer, per principle " \
                                               "4's own wording — same shape formerly_known_as (Bluebook) above already is.",
     # Translation/TranslationAggregate — item #13's remaining builders.
     # `corpus_uses?` is a NAIVE whole-token scan (its own header already

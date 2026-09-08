@@ -33,6 +33,11 @@ RSpec.describe "Memory execution-plan capabilities" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  # One instrumented `finds` counter tracked across three dispatches
+  # (first insert, duplicate-identity refusal, wrong-receiver refusal)
+  # proves the single end-to-end claim that atomic put never falls back
+  # to a read — splitting would lose the shared counter's continuity.
+  # rubocop:disable-next RSpec/ExampleLength
   it "uses atomic put only after a complete-state proof and reports its outcome" do
     runtime = boot_inventory
     item = runtime.registry.bluebook("Inventory").aggregate("Item")
@@ -60,12 +65,12 @@ RSpec.describe "Memory execution-plan capabilities" do
     # atomically (still zero `find` calls below: the conflict check reuses
     # the adapter's own native existence check, never the interpreter
     # reading the record first to ask).
-    expect {
+    expect do
       runtime.dispatch(
         "Inventory::Item.Register",
         with: { sku: "sku-1", label: { value: "Second" } }
       )
-    }.to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
+    end.to raise_error(Hecks::Runtime::AlreadyExists, /Register creates a Item that already exists/)
     expect(finds).to eq(0)
     expect(repository.find("sku-1").state[:label].to_h).to eq(value: "First")
 

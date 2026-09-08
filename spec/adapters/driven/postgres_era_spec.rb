@@ -8,8 +8,7 @@ require_relative "../../support/postgres_probe"
 # scratch database and needs no configuration at all. The reachability
 # probe itself lives in support/postgres_probe.rb, shared by every
 # Postgres spec — see that file for why.
-RSpec.describe Hecks::Adapters::PostgresEra,
-               io: true do
+RSpec.describe Hecks::Adapters::PostgresEra, :io do
   SPEC_DB = "hecks_adapter_spec".freeze
 
   before(:all) do
@@ -55,7 +54,7 @@ RSpec.describe Hecks::Adapters::PostgresEra,
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecks::Runtime::WiringError, /cannot bind PostgresEra at postgres:\/\/localhost:1\/nowhere for Order/)
+      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind PostgresEra at postgres://localhost:1/nowhere for Order})
   end
 
   it "saves and finds one back through the jsonb head" do
@@ -316,9 +315,9 @@ RSpec.describe Hecks::Adapters::PostgresEra,
     # the rest of the comparator matrix was tested only against Memory
     # (spec/query_comparators_spec.rb). One real adapter should prove
     # the other five compile and answer correctly too.
-    def where(clause_field, op, clause_value, order: nil, limit: nil, offset: nil)
+    def where(clause_field, oper, clause_value, order: nil, limit: nil, offset: nil)
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
-        [Struct.new(:field, :op, :value).new(clause_field, op, clause_value)],
+        [Struct.new(:field, :op, :value).new(clause_field, oper, clause_value)],
         order && Struct.new(:field, :direction).new(*order), limit, offset, nil
       )
       adapter.query(declared, {}).map(&:id)
@@ -334,7 +333,7 @@ RSpec.describe Hecks::Adapters::PostgresEra,
       expect(where("pizza.price_cents.cents", "lte", 1200)).to eq(%w[p1 p3])
     end
 
-    # NOTE ON SEMANTICS, not just mechanics: `contains` on a plain scalar
+    # NOTE: ON SEMANTICS, not just mechanics: `contains` on a plain scalar
     # field means substring everywhere now — the reference (in-memory)
     # interpreter's `contains?` (query_interpreter.rb) reads the same way,
     # having previously read `contains` as CSV/list membership even for a

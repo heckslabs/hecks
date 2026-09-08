@@ -24,6 +24,26 @@ module Hecks
         def layer_two!(violations, aggregate, declared, before, after)
           rekeyed = declared && !declared.rekeys.empty?
 
+          check_id_conservation!(violations, aggregate, before, after, rekeyed: rekeyed)
+
+          return unless declared
+          # No correspondence between an old id and its rekeyed row exists
+          # in Ruby (the rekey's SQL is its only implementation, same as
+          # compute's) — exempt from the per-record equivalence gate for
+          # the same reason compute paths already are, extended to the
+          # whole record since an old-id lookup into `after` can never
+          # succeed once the id itself has changed.
+          return if rekeyed
+
+          check_value_preservation!(violations, aggregate, declared, before, after)
+        end
+
+        # Record-count / id-set conservation — one of the two properties
+        # this module's own header names, and independent of the other
+        # (per-rule value preservation, below): it needs only `before`,
+        # `after`, and whether the edge rekeyed, never the declared rules
+        # themselves.
+        def check_id_conservation!(violations, aggregate, before, after, rekeyed:)
           # A rekey legitimately changes the id SET (that's the entire
           # point) — set-equality would flag every honest rekey as data
           # loss. What must still hold is RECORD COUNT: a botched rekey
@@ -43,15 +63,13 @@ module Hecks
             violations << "#{aggregate.name}: the id set changed across the edge " \
                           "(lost #{lost.sort.inspect}, gained #{gained.sort.inspect})"
           end
-          return unless declared
-          # No correspondence between an old id and its rekeyed row exists
-          # in Ruby (the rekey's SQL is its only implementation, same as
-          # compute's) — exempt from the per-record equivalence gate for
-          # the same reason compute paths already are, extended to the
-          # whole record since an old-id lookup into `after` can never
-          # succeed once the id itself has changed.
-          return if rekeyed
+        end
 
+        # Per-rule value preservation — the other property this module's
+        # header names. Only reached once `layer_two!` has already ruled
+        # out "no declared edge" and "rekeyed" (see its own comment on
+        # that second guard); this method assumes both are false.
+        def check_value_preservation!(violations, aggregate, declared, before, after)
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
           compute_paths = declared.computes.flat_map { |compute| [compute.from, compute.to] }.map(&:to_s)
 
@@ -63,7 +81,7 @@ module Hecks
             actual = strip_compute_paths(normalize(after[id]), compute_paths)
             next if expected == actual
 
-            diverged = (expected.keys | actual.keys).select { |key| expected[key] != actual[key] }
+            diverged = (expected.keys | actual.keys).reject { |key| expected[key] == actual[key] }
             violations << "#{aggregate.name}##{id}: the translated state diverges from the reference " \
                           "transform at #{diverged.sort.join(', ')}"
           end

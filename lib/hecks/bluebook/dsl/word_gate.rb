@@ -150,6 +150,11 @@ module Hecks
         # admitted-but-unimplemented, or admitted-somewhere-else-only —
         # those are real, useful refusals regardless of which
         # `method_missing` is asking.
+        # One ordered admission-then-dispatch pipeline (own context, then
+        # "Type" fallback, then admitted-elsewhere check, then dispatch) —
+        # see this method's own header comment above for the full,
+        # order-dependent account of why each check runs where it does.
+        # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
         def word_gate_dispatch(word, args, kwargs, block)
           context = self.class::GRAMMAR_CONTEXT
           rows = MetaValidator::SyntaxBoot.call

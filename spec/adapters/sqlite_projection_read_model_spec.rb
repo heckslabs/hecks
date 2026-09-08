@@ -20,7 +20,7 @@ require "tempfile"
 #   path always matched only against the root, so a chained head's own
 #   rows came back empty no matter what actually existed.
 RSpec.describe "Adapters::SqliteProjection#query_read_model" do
-  SOURCE = <<~BLUEBOOK
+  SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "ChainProjectionGrowth" do
       aggregate "Root" do
         identified_by :ref
@@ -95,12 +95,12 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.eval(SOURCE, TOPLEVEL_BINDING, file.path, 1)
         Hecks.hecksagon("ChainProjectionGrowth") do
-          ::ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
-          ::ChainProjectionGrowth::Root.projected_by("SqliteProjection")
-          ::ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
-          ::ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
-          ::ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
-          ::ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
+          ChainProjectionGrowth::Root.persisted_by("SqlitePersistence")
+          ChainProjectionGrowth::Root.projected_by("SqliteProjection")
+          ChainProjectionGrowth::Mid.persisted_by("SqlitePersistence")
+          ChainProjectionGrowth::Mid.projected_by("SqliteProjection")
+          ChainProjectionGrowth::Leaf.persisted_by("SqlitePersistence")
+          ChainProjectionGrowth::Leaf.projected_by("SqliteProjection")
         end
         Hecks.world("ChainProjectionGrowth") do
           persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }

@@ -1,5 +1,4 @@
 require "fileutils"
-require "set"
 require "tmpdir"
 require_relative "isolated_boot"
 require_relative "invalid_value_generator"

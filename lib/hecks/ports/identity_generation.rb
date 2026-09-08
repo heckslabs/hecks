@@ -24,7 +24,7 @@ module Hecks
     # the identical way: it fires on every dispatch, replay included,
     # and comparison simply excludes it.
     module IdentityGeneration
-      NAME = "identity_generation"
+      NAME = "identity_generation".freeze
 
       module_function
 

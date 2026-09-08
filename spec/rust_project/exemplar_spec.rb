@@ -8,7 +8,7 @@ require_relative "../../rust/project/exemplar"
 # composition). `Exemplar.reset!(dir: ...)` repoints the loader at each
 # example's own fixture directory.
 RSpec.describe RustProjection::Exemplar do
-  after { RustProjection::Exemplar.reset! } # back to the real tree; no stale fixture dir leaks into later specs
+  after { described_class.reset! } # back to the real tree; no stale fixture dir leaks into later specs
 
   def write_fixture(contents)
     dir = Dir.mktmpdir("exemplar_spec")
@@ -92,7 +92,8 @@ RSpec.describe RustProjection::Exemplar do
   end
 
   describe ".compose" do
-    it "renders the inner shape once per field, splices it into the outer skeleton's slot, then substitutes the outer's own markers" do
+    it "renders the inner shape once per field, splices it into the outer skeleton's slot, then substitutes " \
+       "the outer's own markers" do
       write_fixture(<<~RUST)
         // TMPL:record_struct BEGIN
         pub struct TmplType {
@@ -125,13 +126,17 @@ RSpec.describe RustProjection::Exemplar do
         // TMPL:record_struct END
       RUST
 
-      expect {
+      expect do
         described_class.compose("record_struct", {}, field_id: "record_struct:FIELD", field_subs_list: [])
-      }.to raise_error(described_class::DriftError, /no nested slot/)
+      end.to raise_error(described_class::DriftError, /no nested slot/)
     end
   end
 
   describe ".assemble" do
+    # A single input->exact-output assertion; the length is the fixture
+    # source and the expected rendered text (both slots, in one outer
+    # shape, are the point), not several things happening in sequence.
+    # rubocop:disable-next RSpec/ExampleLength
     it "fills TWO independent slots in one outer shape, each reindented by its own marker's position" do
       write_fixture(<<~RUST)
         // TMPL:codec BEGIN
@@ -160,7 +165,7 @@ RSpec.describe RustProjection::Exemplar do
         { "TmplType" => "Kind" },
         slots: {
           "codec:TO_JSON_ARM"   => described_class.render_each("codec:TO_JSON_ARM", row_subs),
-          "codec:FROM_JSON_ARM" => described_class.render_each("codec:FROM_JSON_ARM", row_subs),
+          "codec:FROM_JSON_ARM" => described_class.render_each("codec:FROM_JSON_ARM", row_subs)
         }
       )
 
@@ -187,9 +192,9 @@ RSpec.describe RustProjection::Exemplar do
         // TMPL:codec END
       RUST
 
-      expect {
+      expect do
         described_class.assemble("codec", {}, slots: { "codec:MISSING" => "x" })
-      }.to raise_error(described_class::DriftError, /no nested slot/)
+      end.to raise_error(described_class::DriftError, /no nested slot/)
     end
   end
 
@@ -228,6 +233,10 @@ RSpec.describe RustProjection::Exemplar do
       expect(out).to eq('cadence: "monthly"')
     end
 
+    # A single input->exact-output assertion against the real checked-in
+    # codec; the length is the pinned expected Rust source, not multiple
+    # separate claims.
+    # rubocop:disable-next RSpec/ExampleLength
     it "renders the real closed_set_table_codec shape, matching the checked-in StatementFrequency codec" do
       to_json_line = '        ("cadence".to_string(), crate::kernel::Json::Str(self.cadence.to_string())),'
 
@@ -255,7 +264,7 @@ RSpec.describe RustProjection::Exemplar do
         "        }",
         '        Err(crate::kernel::Refusal::TypeMismatch(format!("StatementFrequency: no member matches {:?}", v)))',
         "    }",
-        "}",
+        "}"
       ].join("\n"))
     end
 
@@ -276,10 +285,14 @@ RSpec.describe RustProjection::Exemplar do
       RUST
     end
 
+    # A single input->exact-output assertion against the real checked-in
+    # codec, both slots (to_json/from_json); the length is the pinned
+    # expected Rust source, not multiple separate claims.
+    # rubocop:disable-next RSpec/ExampleLength
     it "renders the real closed_set_codec shape, both slots, matching the checked-in LedgerDirection codec" do
       row_subs = [
         { "TmplKind" => "LedgerDirection", "TmplMemberA" => "Credit", '"tmpl_member_a"' => '"credit"' },
-        { "TmplKind" => "LedgerDirection", "TmplMemberA" => "Debit", '"tmpl_member_a"' => '"debit"' },
+        { "TmplKind" => "LedgerDirection", "TmplMemberA" => "Debit", '"tmpl_member_a"' => '"debit"' }
       ]
 
       out = described_class.assemble(
@@ -289,11 +302,11 @@ RSpec.describe RustProjection::Exemplar do
           '"tmpl_field_name"'          => '"value"',
           "tmpl_field_name"            => "value",
           '"tmpl_closed_set_type"'     => '"LedgerDirection"',
-          '"tmpl_closed_set_admitted"' => '"\"credit\", \"debit\""',
+          '"tmpl_closed_set_admitted"' => '"\"credit\", \"debit\""'
         },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => described_class.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
-          "closed_set_codec:FROM_JSON_ARM" => described_class.render_each("closed_set_codec:FROM_JSON_ARM", row_subs),
+          "closed_set_codec:FROM_JSON_ARM" => described_class.render_each("closed_set_codec:FROM_JSON_ARM", row_subs)
         }
       )
 
@@ -333,7 +346,9 @@ RSpec.describe RustProjection::Exemplar do
       )
 
       expect(out).to eq(
-        'if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got ", args.direction.value))); }'
+        'if !["credit", "debit"].contains(&args.direction.value.as_str()) { return Err(crate::kernel::Refusal::' \
+        'InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", ' \
+        '\"debit\" — got ", args.direction.value))); }'
       )
     end
   end

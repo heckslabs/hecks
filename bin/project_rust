@@ -21,12 +21,12 @@ require "json"
 # `registry.rs` gets this via `domain_generator.rb`'s own emission loop,
 # but `merged.rs` is a wholly separate `File.open` block this script
 # builds itself, so it needs the identical emission repeated here.
-def emit_group_by_bodies(f, read_models)
+def emit_group_by_bodies(file, read_models)
   read_models.each do |rmd|
     next unless rmd[:group_by_fn_body]
 
-    f.puts rmd[:group_by_fn_body]
-    f.puts
+    file.puts rmd[:group_by_fn_body]
+    file.puts
   end
 end
 
@@ -131,7 +131,7 @@ else
   # depend on the Symbol spelling, and that dependency would only surface
   # the day the producer changed. This is the seam: the generator is only
   # ever exercised against the shape its future input actually has.
-  def json_shaped(ir) = JSON.parse(JSON.generate(ir), symbolize_names: true)
+  def json_shaped(payload) = JSON.parse(JSON.generate(payload), symbolize_names: true)
 
   # `root:` — WITHOUT IT, a domain declaring `uses_embryonaut_bluebook`
   # (lifeadelics is the first real one) refuses here with "needs a
@@ -422,9 +422,13 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_reference_key_table(
       chapter_mod_names.map { |mod_name, chapter_name|
-        [chapter_name, (mod_name == target_mod_name ? target_aggregates : framework_aggregates.select { |a|
-          a[:chapter_mod] == mod_name
-        }).map { |a| a[:name] }]
+        [chapter_name, (if mod_name == target_mod_name
+                          target_aggregates
+                        else
+                          framework_aggregates.select { |a|
+                            a[:chapter_mod] == mod_name
+                          }
+                        end).map { |a| a[:name] }]
       }
     )
     f.puts
@@ -510,7 +514,8 @@ else
         # `"quoted"` form would nest unescaped double quotes and produce
         # invalid Rust (the exact class of landmine this pass is fixing
         # elsewhere for domain names/descriptions — not repeating it here).
-        f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(', ')} (both #{a} and #{b} are enabled)\");"
+        f.puts "compile_error!(\"domain features are mutually exclusive — enable only one of: #{domains.join(', ')} " \
+               "(both #{a} and #{b} are enabled)\");"
       end
     end
   end
