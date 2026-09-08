@@ -380,6 +380,14 @@ impl ExternalTransfer {
     }
 }
 
+fn externaltransfer_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for RequestArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -465,6 +473,7 @@ pub fn dispatch_request(
         &[
 
         ],
+        &externaltransfer_invariants(),
         &["ExternalTransferRequested"],
         args.to_json(),
         mutations,
@@ -562,6 +571,7 @@ pub fn dispatch_send_transfer(
         &[
 
         ],
+        &externaltransfer_invariants(),
         &["ExternalTransferSent"],
         args.to_json(),
         mutations,
@@ -651,6 +661,7 @@ pub fn dispatch_recall(
         &[
 
         ],
+        &externaltransfer_invariants(),
         &["ExternalTransferRecalled"],
         args.to_json(),
         mutations,
@@ -740,6 +751,7 @@ pub fn dispatch_return(
         &[
 
         ],
+        &externaltransfer_invariants(),
         &["ExternalTransferReturned"],
         args.to_json(),
         mutations,

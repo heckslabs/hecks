@@ -143,6 +143,7 @@ tmpl_mutation_lines_placeholder(record);
         &[
 tmpl_ensures_spec_placeholder(),
         ],
+        &tmpl_invariants_placeholder(),
         &[tmpl_emit_placeholder()],
         args.to_json(),
         mutations,
@@ -182,6 +183,9 @@ fn tmpl_transition_placeholder() -> Option<crate::kernel::TransitionCheck> {
 }
 fn tmpl_ensures_spec_placeholder() -> crate::kernel::EnsuresSpec {
     crate::kernel::EnsuresSpec { description: "", expr: crate::kernel::Expr::Bool(true) }
+}
+fn tmpl_invariants_placeholder() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
 }
 fn tmpl_emit_placeholder() -> &'static str {
     ""
@@ -313,6 +317,7 @@ tmpl_entity_mutation_lines_placeholder(record);
         &[
 tmpl_ensures_spec_placeholder(),
         ],
+        &tmpl_invariants_placeholder(),
         &[tmpl_emit_placeholder()],
         args.to_json(),
         mutations,

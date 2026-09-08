@@ -532,6 +532,7 @@ pub fn dispatch_admit(
         &[
 
         ],
+        &member_invariants(),
         &["MemberAdmitted"],
         args.to_json(),
         mutations,
@@ -612,6 +613,7 @@ pub fn dispatch_depart(
         &[
 
         ],
+        &member_invariants(),
         &["MemberDeparted"],
         args.to_json(),
         mutations,
@@ -683,6 +685,7 @@ pub fn dispatch_grant_access(
         &[
 
         ],
+        &member_invariants(),
         &["MemberAccessGranted"],
         args.to_json(),
         mutations,
@@ -754,6 +757,7 @@ pub fn dispatch_link_identity(
         &[
 
         ],
+        &member_invariants(),
         &["MemberIdentityLinked"],
         args.to_json(),
         mutations,
@@ -784,3 +788,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn member_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

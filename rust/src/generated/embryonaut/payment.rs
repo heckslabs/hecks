@@ -335,6 +335,7 @@ pub fn dispatch_record(
         &[
 
         ],
+        &payment_invariants(),
         &["PaymentRecorded"],
         args.to_json(),
         mutations,
@@ -413,6 +414,7 @@ pub fn dispatch_refund(
         &[
 
         ],
+        &payment_invariants(),
         &["PaymentRefunded"],
         args.to_json(),
         mutations,
@@ -443,3 +445,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn payment_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

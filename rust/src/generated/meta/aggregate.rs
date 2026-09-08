@@ -1256,6 +1256,14 @@ impl Aggregate {
     }
 }
 
+fn aggregate_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for IdentifyArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1312,6 +1320,7 @@ pub fn dispatch_identify(
         &[
 
         ],
+        &aggregate_invariants(),
         &["RootIdentified"],
         args.to_json(),
         mutations,
@@ -1421,6 +1430,7 @@ pub fn dispatch_attribute(
         &[
 
         ],
+        &aggregate_invariants(),
         &["AttributeAttached"],
         args.to_json(),
         mutations,
@@ -1544,6 +1554,7 @@ pub fn dispatch_reference(
         &[
 
         ],
+        &aggregate_invariants(),
         &["ReferenceAttached"],
         args.to_json(),
         mutations,
@@ -1667,6 +1678,7 @@ pub fn dispatch_holds(
         &[
 
         ],
+        &aggregate_invariants(),
         &["PieceHeld"],
         args.to_json(),
         mutations,
@@ -1774,6 +1786,7 @@ pub fn dispatch_lifecycle(
         &[
 
         ],
+        &aggregate_invariants(),
         &["LifecycleNamed"],
         args.to_json(),
         mutations,
@@ -1871,6 +1884,7 @@ pub fn dispatch_transition(
         &[
 
         ],
+        &aggregate_invariants(),
         &["TransitionAttached"],
         args.to_json(),
         mutations,
@@ -1963,6 +1977,7 @@ pub fn dispatch_seal(
         &[
 
         ],
+        &aggregate_invariants(),
         &["RootSealed"],
         args.to_json(),
         mutations,
@@ -2052,6 +2067,7 @@ pub fn dispatch_value(
         &[
 
         ],
+        &aggregate_invariants(),
         &["ValueDeclared"],
         args.to_json(),
         mutations,
@@ -2145,6 +2161,7 @@ pub fn dispatch_invariant(
         &[
 
         ],
+        &aggregate_invariants(),
         &["InvariantAttached"],
         args.to_json(),
         mutations,
@@ -2240,6 +2257,7 @@ pub fn dispatch_precondition(
         &[
 
         ],
+        &aggregate_invariants(),
         &["PreconditionAttached"],
         args.to_json(),
         mutations,
@@ -2339,6 +2357,7 @@ pub fn dispatch_projects(
         &[
 
         ],
+        &aggregate_invariants(),
         &["ProjectedFieldAttached"],
         args.to_json(),
         mutations,

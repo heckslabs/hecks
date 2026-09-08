@@ -729,6 +729,14 @@ impl ReadModel {
     }
 }
 
+fn readmodel_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for GatherArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -791,6 +799,7 @@ pub fn dispatch_gather(
         &[
 
         ],
+        &readmodel_invariants(),
         &["HeadGathered"],
         args.to_json(),
         mutations,
@@ -884,6 +893,7 @@ pub fn dispatch_group_by(
         &[
 
         ],
+        &readmodel_invariants(),
         &["GroupByFieldAdded"],
         args.to_json(),
         mutations,
@@ -973,6 +983,7 @@ pub fn dispatch_count(
         &[
 
         ],
+        &readmodel_invariants(),
         &["CountDeclared"],
         args.to_json(),
         mutations,
@@ -1062,6 +1073,7 @@ pub fn dispatch_median(
         &[
 
         ],
+        &readmodel_invariants(),
         &["MedianFieldSet"],
         args.to_json(),
         mutations,
@@ -1160,6 +1172,7 @@ pub fn dispatch_option(
         &[
 
         ],
+        &readmodel_invariants(),
         &["OptionAttached"],
         args.to_json(),
         mutations,

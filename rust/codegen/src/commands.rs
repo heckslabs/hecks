@@ -9,6 +9,83 @@ use crate::mutations;
 use crate::naming;
 use std::collections::HashMap;
 
+/// Port of `rust/project/commands.rb#invariants_fn_name` /
+/// `#emit_invariants_fn` — the aggregate's own invariant set, generated
+/// once per aggregate file and passed to every dispatch of its commands
+/// (docs/semantics/bluebook-semantics.md C6.2). Read the Ruby file's own
+/// comment for the mirrored `check_entity_invariants` walk.
+pub fn invariants_fn_name(aggregate: &Json) -> String {
+    format!("{}_invariants", naming::rust_ident_field(aggregate.get("name").and_then(Json::as_str).unwrap_or("")).to_lowercase())
+}
+
+pub fn emit_invariants_fn(aggregate: &Json) -> String {
+    [
+        format!("fn {}() -> crate::kernel::InvariantSet {{", invariants_fn_name(aggregate)),
+        "    use crate::kernel::Expr;".to_string(),
+        "    crate::kernel::InvariantSet {".to_string(),
+        format!("        aggregate: {},", invariant_specs_vec(aggregate.get("invariants").map(Json::each).unwrap_or(&[]), 8)),
+        format!("        entities: {},", entity_invariants_vec(aggregate, 8)),
+        "    }".to_string(),
+        "}".to_string(),
+    ]
+    .join("\n")
+}
+
+fn invariant_specs_vec(rules: &[Json], indent: usize) -> String {
+    if rules.is_empty() {
+        return "vec![]".to_string();
+    }
+    let pad = " ".repeat(indent + 4);
+    let rows: Vec<String> = rules
+        .iter()
+        .map(|rule| {
+            let description = rule.get("description").and_then(Json::as_str).unwrap_or("");
+            let ast = rule.get("ast").unwrap_or_else(|| panic!("invariant row has no ast: {rule:?}"));
+            format!(
+                "{pad}crate::kernel::InvariantSpec {{ description: {}, expr: {} }},",
+                naming::ruby_inspect_string(description),
+                crate::expr_emitter::emit_ast(ast)
+            )
+        })
+        .collect();
+    format!("vec![\n{}\n{}]", rows.join("\n"), " ".repeat(indent))
+}
+
+fn entity_invariants_vec(owner: &Json, indent: usize) -> String {
+    let entities = owner.get("entities").map(Json::each).unwrap_or(&[]);
+    let attributes = owner.get("attributes").map(Json::each).unwrap_or(&[]);
+    let pieces: Vec<(&Json, String)> = entities
+        .iter()
+        .filter_map(|entity| {
+            if entity.get("invariants").map(Json::each).unwrap_or(&[]).is_empty() {
+                return None;
+            }
+            let name = entity.get("name").map(Json::to_s).unwrap_or_default();
+            let list = attributes
+                .iter()
+                .find(|a| a.get("list").map(Json::as_bool).unwrap_or(false) && a.get("type").map(Json::to_s).unwrap_or_default() == name)?;
+            Some((entity, list.get("name").map(Json::to_s).unwrap_or_default()))
+        })
+        .collect();
+    if pieces.is_empty() {
+        return "vec![]".to_string();
+    }
+    let pad = " ".repeat(indent + 4);
+    let rows: Vec<String> = pieces
+        .iter()
+        .map(|(entity, list_field)| {
+            format!(
+                "{pad}crate::kernel::EntityInvariants {{ name: {}, list_field: {}, specs: {}, nested: {} }},",
+                naming::ruby_inspect_string(&entity.get("name").map(Json::to_s).unwrap_or_default()),
+                naming::ruby_inspect_string(list_field),
+                invariant_specs_vec(entity.get("invariants").map(Json::each).unwrap_or(&[]), indent + 4),
+                entity_invariants_vec(entity, indent + 4)
+            )
+        })
+        .collect();
+    format!("vec![\n{}\n{}]", rows.join("\n"), " ".repeat(indent))
+}
+
 /// Port of `rust/project/commands.rb::DEREF_PARAMS` — the two EXTRA
 /// parameters every generated `dispatch_*`/`dispatch_entity_*` function
 /// now takes, already resolved by the ROUTER (`registry.rs`'s own
@@ -515,6 +592,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             ("tmpl_transition_placeholder()", transition_arg),
             ("tmpl_mutation_lines_placeholder(record);", mutation_lines.join("\n")),
             ("tmpl_ensures_spec_placeholder(),", ensures_specs.join("\n")),
+            ("tmpl_invariants_placeholder()", format!("{}()", invariants_fn_name(aggregate))),
             ("tmpl_emit_placeholder()", emits_expr),
             ("args.to_json(),", payload),
         ],
@@ -844,6 +922,7 @@ pub fn emit_entity_command(
             ("tmpl_transition_placeholder()", transition_arg),
             ("tmpl_entity_mutation_lines_placeholder(record);", mutation_lines.join("\n")),
             ("tmpl_ensures_spec_placeholder(),", ensures_specs.join("\n")),
+            ("tmpl_invariants_placeholder()", format!("{}()", invariants_fn_name(parent_aggregate))),
             ("tmpl_emit_placeholder()", emits_expr),
         ],
     );

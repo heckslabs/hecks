@@ -347,6 +347,14 @@ impl Transfer {
     }
 }
 
+fn transfer_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for RequestArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -435,6 +443,7 @@ pub fn dispatch_request(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferRequested"],
         args.to_json(),
         mutations,
@@ -532,6 +541,7 @@ pub fn dispatch_debited(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferDebited"],
         args.to_json(),
         mutations,
@@ -621,6 +631,7 @@ pub fn dispatch_settle(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferSettled"],
         args.to_json(),
         mutations,
@@ -710,6 +721,7 @@ pub fn dispatch_credited(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferCredited"],
         args.to_json(),
         mutations,
@@ -799,6 +811,7 @@ pub fn dispatch_reverse(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferReversed"],
         args.to_json(),
         mutations,
@@ -888,6 +901,7 @@ pub fn dispatch_reject(
         &[
 
         ],
+        &transfer_invariants(),
         &["TransferRejected"],
         args.to_json(),
         mutations,

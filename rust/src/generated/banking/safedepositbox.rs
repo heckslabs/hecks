@@ -658,6 +658,7 @@ pub fn dispatch_entity_visit_annotate(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["VisitAnnotated"],
         args.to_json(),
         mutations,
@@ -830,6 +831,7 @@ pub fn dispatch_entity_keyissuance_return(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["KeyReturned"],
         args.to_json(),
         mutations,
@@ -945,6 +947,18 @@ impl SafeDepositBox {
     }
 }
 
+fn safedepositbox_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![
+            crate::kernel::EntityInvariants { name: "Visit", list_field: "visits", specs: vec![
+                crate::kernel::InvariantSpec { description: "a written note is not blank", expr: Expr::Or(Box::new(Expr::Not(Box::new(Expr::Lookup("note")))), Box::new(Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("note.text"))))))))) },
+            ], nested: vec![] },
+        ],
+    }
+}
+
 impl crate::kernel::Fielded for RentArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -1024,6 +1038,7 @@ pub fn dispatch_rent(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["BoxRented"],
         args.to_json(),
         mutations,
@@ -1118,6 +1133,7 @@ pub fn dispatch_surrender(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["BoxSurrendered", "KeyReturnDue"],
         args.to_json(),
         mutations,
@@ -1213,6 +1229,7 @@ pub fn dispatch_log_visit(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["BoxOpened"],
         args.to_json(),
         mutations,
@@ -1306,6 +1323,7 @@ pub fn dispatch_issue_key(
         &[
 
         ],
+        &safedepositbox_invariants(),
         &["KeyIssued"],
         args.to_json(),
         mutations,

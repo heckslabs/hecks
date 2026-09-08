@@ -641,6 +641,14 @@ impl Order {
     }
 }
 
+fn order_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for CreatePizzaArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -710,6 +718,7 @@ pub fn dispatch_create_pizza(
         &[
 
         ],
+        &order_invariants(),
         &["PizzaCreated"],
         args.to_json(),
         mutations,
@@ -804,6 +813,7 @@ pub fn dispatch_add_topping(
         &[
 
         ],
+        &order_invariants(),
         &["ToppingAdded"],
         args.to_json(),
         mutations,
@@ -902,6 +912,7 @@ pub fn dispatch_purchase(
         &[
 
         ],
+        &order_invariants(),
         &["PizzaPurchased"],
         args.to_json(),
         mutations,

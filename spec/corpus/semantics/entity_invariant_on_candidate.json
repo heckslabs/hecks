@@ -1,0 +1,196 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C6.2",
+    "C8.1"
+  ],
+  "note": "The same entity invariant reached through an ENTITY command: a good visit is logged, then Visit.Annotate blanks its note — the parent record is the subject of the check (Ruby's enforce_invariants runs on ctx.instance, the parent), the element is what fails, and the refusal names the entity. The logged visit keeps its original note.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Rent",
+      "args": {
+        "customer": "cust-1",
+        "branch_code": {
+          "value": "DTN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "size": {
+          "value": "small"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "args": {
+        "branch_code": {
+          "value": "DTN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "date": {
+          "value": "2026-01-01"
+        },
+        "sequence": {
+          "value": 1
+        },
+        "note": {
+          "text": "lock inspected"
+        }
+      }
+    },
+    {
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "args": {
+        "branch_code": {
+          "value": "DTN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "date": {
+          "value": "2026-01-01"
+        },
+        "sequence": {
+          "value": 1
+        },
+        "note": {
+          "text": ""
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::SafeDepositBox.Visit.Annotate",
+        "error": "Visit refused — a written note is not blank",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::SafeDepositBox#DTN:12": {
+        "customer": "cust-1",
+        "branch_code": {
+          "value": "DTN"
+        },
+        "box_number": {
+          "value": 12
+        },
+        "size": {
+          "value": "small"
+        },
+        "visits": [
+          {
+            "date": {
+              "value": "2026-01-01"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "note": {
+              "text": "lock inspected"
+            },
+            "state": "logged"
+          }
+        ],
+        "keys": [
+
+        ],
+        "status": "rented",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "BoxRented",
+        "aggregate": "Banking::SafeDepositBox",
+        "id": "DTN:12",
+        "payload": {
+          "customer": "cust-1",
+          "branch_code": {
+            "value": "DTN"
+          },
+          "box_number": {
+            "value": 12
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      },
+      {
+        "name": "BoxOpened",
+        "aggregate": "Banking::SafeDepositBox",
+        "id": "DTN:12",
+        "payload": {
+          "branch_code": {
+            "value": "DTN"
+          },
+          "box_number": {
+            "value": 12
+          },
+          "date": {
+            "value": "2026-01-01"
+          },
+          "sequence": {
+            "value": 1
+          },
+          "note": {
+            "text": "lock inspected"
+          }
+        }
+      }
+    ]
+  }
+}

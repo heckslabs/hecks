@@ -313,6 +313,7 @@ pub fn dispatch_schedule(
         &[
 
         ],
+        &engagement_invariants(),
         &["EngagementScheduled"],
         args.to_json(),
         mutations,
@@ -387,6 +388,7 @@ pub fn dispatch_complete_workshop(
         &[
 
         ],
+        &engagement_invariants(),
         &["WorkshopCompleted"],
         args.to_json(),
         mutations,
@@ -459,6 +461,7 @@ pub fn dispatch_draft_domain(
         &[
 
         ],
+        &engagement_invariants(),
         &["DomainDrafted"],
         args.to_json(),
         mutations,
@@ -531,6 +534,7 @@ pub fn dispatch_show_demo(
         &[
 
         ],
+        &engagement_invariants(),
         &["DemoShown"],
         args.to_json(),
         mutations,
@@ -561,3 +565,7 @@ if !unknown.is_empty() {
     }
 }
 
+
+fn engagement_invariants() -> crate::kernel::InvariantSet {
+    crate::kernel::InvariantSet { aggregate: vec![], entities: vec![] }
+}

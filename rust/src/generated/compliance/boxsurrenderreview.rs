@@ -238,6 +238,14 @@ impl BoxSurrenderReview {
     }
 }
 
+fn boxsurrenderreview_invariants() -> crate::kernel::InvariantSet {
+    use crate::kernel::Expr;
+    crate::kernel::InvariantSet {
+        aggregate: vec![],
+        entities: vec![],
+    }
+}
+
 impl crate::kernel::Fielded for OpenArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -305,6 +313,7 @@ pub fn dispatch_open(
         &[
 
         ],
+        &boxsurrenderreview_invariants(),
         &["BoxSurrenderReviewOpened"],
         args.to_json(),
         mutations,
@@ -395,6 +404,7 @@ pub fn dispatch_clear(
         &[
 
         ],
+        &boxsurrenderreview_invariants(),
         &["BoxSurrenderReviewCleared"],
         args.to_json(),
         mutations,
@@ -483,6 +493,7 @@ pub fn dispatch_escalate(
         &[
 
         ],
+        &boxsurrenderreview_invariants(),
         &["BoxSurrenderReviewEscalated"],
         args.to_json(),
         mutations,
