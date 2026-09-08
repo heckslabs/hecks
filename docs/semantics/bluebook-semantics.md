@@ -237,10 +237,16 @@ it, except for one law they must uphold (C8.4).
   command commits, outside its atomic boundary; a refused or defective
   reaction never un-commits the trigger. A policy's `where` reads the
   event payload; unmet is a silent skip.
-- **C10.2 (OPEN — ordering)** Ruby runs all policies then all sagas per
-  announcement batch, in bluebook load order; the Rust kernel
-  interleaves per event. The open decision: per event, in `emits`
-  order — policies in declaration order, then sagas.
+- **C10.2 (settled)** Every event a dispatch announces is committed
+  (C7.1) before any reaction to any of them runs. Reactions then run
+  per event, in `emits` order: for each event, its policies — the
+  emitting domain's own in declaration order, then other domains' in
+  load order — and then its sagas in declaration order. So a two-event
+  command's second event precedes the first event's reactions in the
+  history, and the first event's saga leg lands before the second
+  event's policy. (fixture: `reaction_order_per_event.json` — on the
+  corpus-owned `spec/corpus/semantics/domains/courier`, because no
+  example command emits twice)
 - **C10.3 (settled)** A saga leg is selected by (event, *current
   state*): of the legs answering an event, the one whose `from:` is the
   instance's current state runs; if none is, the instance is left where

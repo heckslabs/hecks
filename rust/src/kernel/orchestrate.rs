@@ -6,9 +6,10 @@
 // recursively, inside the SAME call, bounded by a reaction-depth ceiling
 // rather than a queue or a separate tick. `PolicyInterpreter#react`+
 // `SagaInterpreter#advance` are the Ruby originals this ports; both run
-// off the SAME announced-event list, in the same order Ruby runs them in
-// (`announced.each { @policies.react }`, THEN `announced.each { @sagas.
-// advance }`), which is why they're one function here too, not two.
+// off the SAME announced-event list, in the order C10.2 fixes for both
+// runtimes — the whole batch logged first, then per event in `emits`
+// order: that event's policies, then its sagas (`Outbox::Relay#deliver`'s
+// own loop) — which is why they're one function here too, not two.
 //
 // THE REACTION/SAGA LOG (`registry.reaction_log`/`saga_log`) IS PRODUCED
 // NOW, not just the side effects — `PolicyInterpreter#deliver`'s and
@@ -471,14 +472,20 @@ pub fn orchestrate<S: AggregateScan>(
         }
     }
 
-    for event in events {
-        // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — before any reaction
-        // it triggers runs, mirroring `CommandInterpreter#step_emit`
-        // committing an event before `Dispatcher#dispatch` ever calls
-        // `@policies.react`/`@sagas.advance` on it. A reaction fires off
-        // an ALREADY-LOGGED fact, never the other way around.
+    // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — the WHOLE batch, before
+    // any reaction to any of it runs (C10.1/C10.2, docs/semantics/
+    // bluebook-semantics.md), mirroring `CommandInterpreter#step_emit`
+    // committing every announced event before `Dispatcher#dispatch` ever
+    // calls `@policies.react`/`@sagas.advance` on the first. A reaction
+    // fires off an ALREADY-LOGGED fact, and a two-event command's second
+    // event is logged before the first event's reactions, never after.
+    for event in &events {
         all_events.push(event.clone());
+    }
 
+    // THEN PER EVENT, in `emits` order — its policies, then its sagas
+    // (C10.2): `Outbox::Relay#deliver`'s own loop.
+    for event in events {
         // NOT depth-gated here — Ruby's own `SagaInterpreter#advance`
         // calls `begin_saga`/`advance_saga`/`end_saga` UNCONDITIONALLY
         // for every event, regardless of depth (this file's header); the
@@ -1871,6 +1878,113 @@ mod tests {
         assert!(
             !sagas.contains_key(&("Delivery".to_string(), "p1".to_string())),
             "Delivered is ends_on — the instance should have been retired"
+        );
+    }
+
+    // C10.2 — the kernel half of spec/corpus/semantics/
+    // reaction_order_per_event.json (whose domain is Ruby-only): one
+    // dispatch announces two events; a saga leg answers the first, a
+    // policy the second. The whole batch is logged before any reaction,
+    // then reactions run per event in emits order.
+    fn two_event_test_dispatch(
+        _store: &mut MultiLegTestStore,
+        verb: &str,
+        _args: &Json,
+        _caller_role: Option<&str>,
+        _mutations: &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal> {
+        let event = |name: &str| Event {
+            name: name.to_string(),
+            aggregate: "Test::Run".to_string(),
+            id: "r1".to_string(),
+            payload: Json::obj(vec![("id", Json::str("r1"))]),
+            occurred_at: None,
+            correlation: None,
+        };
+        match verb {
+            "Test::Start" => Ok(vec![event("Started")]),
+            "Test::Advance" => Ok(vec![event("Legged"), event("Reported")]),
+            "Test::Log" => Ok(vec![event("Logged")]),
+            "Test::Note" => Ok(vec![event("Noted")]),
+            other => panic!("unexpected verb in two-event ordering test: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_batch_is_logged_whole_then_reacted_to_per_event_policies_before_sagas() {
+        static HANDLERS: &[Handler] = &[Handler {
+            event_type: "Legged",
+            from_state: "started",
+            to_state: "logged",
+            dispatches: &[DispatchSpec { command_name: "Log", with: &[], compensates: None }],
+        }];
+        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+            name: "Route",
+            correlates_by: "id",
+            starts_on: "Started",
+            ends_on: "Logged",
+            initial_state: "started",
+            handlers: HANDLERS,
+        }];
+        static POLICIES: &[PolicyRule] = &[PolicyRule {
+            policy_name: "Audit",
+            event_name: "Reported",
+            event_qualifier: None,
+            target_verb: "Test::Note",
+            where_expr: None,
+            for_each: None,
+            for_each_key: None,
+            with_spec: &[],
+        }];
+        static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
+        static QUERIES: &[crate::kernel::QueryDef] = &[];
+
+        let tables = Tables {
+            policies: POLICIES,
+            cross_domain_policies: CROSS_DOMAIN_POLICIES,
+            process_managers: PROCESS_MANAGERS,
+            reference_key_fn: multi_leg_no_reference_key,
+            queries: QUERIES,
+            command_creates_fn: multi_leg_always_creates,
+            identity_head_fn: multi_leg_no_identity_head,
+            command_attributes_fn: multi_leg_no_declared_attributes,
+        };
+
+        let mut store = MultiLegTestStore;
+        let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+        let mut all_events = Vec::new();
+        let mut mutations = Vec::new();
+        let mut cross_domain = Vec::new();
+        let mut reaction_log = Vec::new();
+        let mut saga_log: Vec<Json> = Vec::new();
+
+        for verb in ["Test::Start", "Test::Advance"] {
+            let outcome = orchestrate(
+                &mut store,
+                two_event_test_dispatch,
+                tables,
+                &mut sagas,
+                verb,
+                &Json::Object(vec![]),
+                None,
+                None,
+                None,
+                0,
+                &mut all_events,
+                &mut mutations,
+                &mut cross_domain,
+                &mut reaction_log,
+                &mut saga_log,
+            );
+            assert!(outcome.is_ok(), "{verb} should not refuse: {outcome:?}");
+        }
+
+        let names: Vec<&str> = all_events.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["Started", "Legged", "Reported", "Logged", "Noted"],
+            "both announced events precede every reaction, and the first event's saga leg precedes the second \
+             event's policy — reaction_log: {reaction_log:?}, saga_log: {saga_log:?}"
         );
     }
 

@@ -1,0 +1,80 @@
+{
+  "domain": "spec/corpus/semantics/domains/courier",
+  "ruby_only": true,
+  "spec": [
+    "C10.2",
+    "C7.1"
+  ],
+  "note": "One dispatch announces two events (RunLegged, RunReported); a saga leg answers the first, a policy answers the second. Per C10.2 reactions run per event in emits order — for each event its policies, then its sagas — so the route's RunLogged (the saga's dispatch on the first event) precedes the audit's RunNoted (the policy's dispatch on the second). The pre-C10.2 Ruby reading ran every policy of the batch before any saga and recorded RunNoted first.",
+  "steps": [
+    {
+      "verb": "Courier::Run.Start",
+      "args": {
+        "tag": {
+          "value": "r1"
+        }
+      }
+    },
+    {
+      "verb": "Courier::Run.Advance",
+      "args": {
+        "run": "r1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Courier::Run#r1": {
+        "tag": {
+          "value": "r1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "RunStarted",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "tag": {
+            "value": "r1"
+          }
+        }
+      },
+      {
+        "name": "RunLegged",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      },
+      {
+        "name": "RunReported",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      },
+      {
+        "name": "RunLogged",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+        }
+      },
+      {
+        "name": "RunNoted",
+        "aggregate": "Courier::Run",
+        "id": "r1",
+        "payload": {
+          "run": "r1"
+        }
+      }
+    ]
+  }
+}
