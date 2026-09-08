@@ -277,6 +277,14 @@ module Hecks
         # the same way, with exactly the same wording, as the identical type
         # declared directly on a command.
         def validate!(value_object, fields)
+          # C6.3 (docs/semantics/bluebook-semantics.md) — a value object is
+          # validated on CONSTRUCTION FROM INPUT only; state read back from
+          # the store is trusted as it was written, so tightening an
+          # invariant never makes an old record unreadable (migration is
+          # the era system's job). `hydrate` — the one load door — sets
+          # the flag; every input door leaves it unset.
+          return if trusting_stored_state?
+
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
           check_numeric_fields(value_object, fields)
@@ -300,12 +308,26 @@ module Hecks
         end
 
         def hydrate(aggregate, state)
-          state.each_with_object({}) do |(name, value), hydrated|
-            key       = name.to_sym
-            attribute = aggregate.attribute(key)
-            hydrated[key] = attribute ? for_attribute(aggregate, attribute, value) : value
+          trusting_stored_state do
+            state.each_with_object({}) do |(name, value), hydrated|
+              key       = name.to_sym
+              attribute = aggregate.attribute(key)
+              hydrated[key] = attribute ? for_attribute(aggregate, attribute, value) : value
+            end
           end
         end
+
+        TRUSTED_LOAD_KEY = :hecks_trusting_stored_state
+
+        def trusting_stored_state
+          previous = Thread.current[TRUSTED_LOAD_KEY]
+          Thread.current[TRUSTED_LOAD_KEY] = true
+          yield
+        ensure
+          Thread.current[TRUSTED_LOAD_KEY] = previous
+        end
+
+        def trusting_stored_state? = Thread.current[TRUSTED_LOAD_KEY] == true
 
         # S17, ADR 0026 — SEARCHES THE WHOLE ENTITY TREE, not only the
         # root's own direct children. `aggregate` here is always the

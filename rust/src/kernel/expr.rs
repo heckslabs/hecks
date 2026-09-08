@@ -206,6 +206,33 @@ impl<'a> Fielded for WithOld<'a> {
     }
 }
 
+/// C2.3 (docs/semantics/bluebook-semantics.md) — inside an `ensures` the
+/// SETTLED STATE comes first: an argument that shares a field's name
+/// does not shadow the candidate (it does in a `given`, C2.2). Ruby's
+/// `Admissibility#enforce_ensures` drops such arguments from the rule's
+/// scope (`args.reject { |name, _| subject.key?(name) }`); this adapter
+/// is the same drop, answered lazily per lookup.
+pub struct StateFirst<'a> {
+    pub args: &'a dyn Fielded,
+    pub settled: &'a dyn Fielded,
+}
+
+impl<'a> Fielded for StateFirst<'a> {
+    fn field(&self, name: &str) -> Option<Field<'_>> {
+        if self.settled.field(name).is_some() {
+            return None;
+        }
+        self.args.field(name)
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        if self.settled.field(name).is_some() {
+            return None;
+        }
+        self.args.items(name)
+    }
+}
+
 /// `attrs.merge(parent: parent.state …)` — `Admissibility#enforce_givens`
 /// and `#enforce_ensures`, read directly: an ENTITY command's own
 /// predicates read the owning record under one name, `parent`, on the

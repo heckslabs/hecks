@@ -163,8 +163,10 @@ Hecks.bluebook "Pizzas" do
       # payment for an already-sold pizza should.
       given("the payment covers the price") { amount.cents >= pizza.price_cents.cents }
 
+      # THE LIFECYCLE MOVES IT (C5.3) — `transition "Purchase" => "sold"`
+      # above is what sets `status`; a `sets` on the lifecycle field is
+      # refused at build.
       sets :customer_name
-      sets :status,        to: "sold"
 
       emits PizzaPurchased
     end

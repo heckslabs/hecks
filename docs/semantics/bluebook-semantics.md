@@ -55,11 +55,15 @@ it, except for one law they must uphold (C8.4).
   arguments first, then the subject's state; an unknown head is an
   evaluation fault (C8.3), not "false". `parent`, `old` and correction
   bindings are ordinary heads injected by the step that defines them.
-- **C2.3 (OPEN — argument shadowing)** Because arguments shadow state
-  (C2.2), an `ensures` naming a field that is also a command argument
-  reads the *argument*, not the settled state. Today: Ruby and Rust
-  agree. The open question: should post-state rules resolve state
-  first, or should the collision be refused at build?
+- **C2.3 (settled)** A post-state rule resolves the *settled state
+  first*: inside an `ensures`, a head that is both one of the command's
+  arguments and one of the subject's fields names the candidate field,
+  not the argument — the opposite of a `given` (C2.2). So `sets :note`
+  followed by `ensures { note == ... }` judges what landed, and
+  `old.<field>` still names the pre-state. An argument that shares a
+  field's name is simply unreadable inside that `ensures`; there is no
+  `args.` spelling. Both runtimes drop such arguments from the ensures
+  scope. (fixture: `ensures_reads_settled_state.json`)
 - **C2.4 (settled)** `given` and the lifecycle `from:` guard observe
   the pre-dispatch state; `ensures` observes the candidate state plus
   `old` (the pre-dispatch state, always); aggregate and entity
@@ -171,11 +175,15 @@ it, except for one law they must uphold (C8.4).
   (fixture: `lifecycle_from_guard_refused.json`)
 - **C5.2 (settled)** A fresh or loaded record without the field holds
   the declared initial state.
-- **C5.3 (OPEN — bypass and validation)** `sets` on the lifecycle field
-  is accepted today and then overwritten by any transition; a `from:`
-  naming an undeclared state is never refused; duplicate transitions
-  for one command are silently first-wins. The open decision: refuse
-  all three at build.
+- **C5.3 (settled)** The lifecycle field moves only by transition.
+  Refused at build, in the Ruby builders and `hecks-parse`: a `sets`
+  on the lifecycle field, and two transitions for one command whose
+  `from:` states overlap (a transition with no `from:` overlaps every
+  other) — two from disjoint states are the legitimate shape, the
+  current state picking between them. A `from:` naming a state no
+  transition reaches is *not* a build refusal: it is a reachability
+  finding (`bin/model_check`: unreachable state, dead transition), and
+  a bluebook may declare one on purpose.
 
 ## §6 Postconditions and invariants
 
@@ -188,11 +196,12 @@ it, except for one law they must uphold (C8.4).
   failure is `InvariantViolation` and nothing commits — no state, no
   events. (fixtures: `invariant_refused_events_dropped.json`,
   `entity_invariant_on_candidate.json`)
-- **C6.3 (OPEN — VO invariants at load)** Value-object invariants run
-  at construction — which today includes re-validation when a stored
-  record is *loaded*, so tightening an invariant can make old records
-  unreadable. The open decision: construction-from-input only; stored
-  state is trusted, migration is the era system's job.
+- **C6.3 (settled)** Value-object validation — type, closed set,
+  `admits`, `pattern`, invariants — runs on construction from *input*
+  only. State read back from the store is trusted as it was written,
+  so tightening an invariant never makes an old record unreadable;
+  migration is the era system's job. (Ruby: `Value.hydrate`, the one
+  load door, is trusted; the Rust kernel validates arguments only.)
 
 ## §7 Events
 
@@ -245,10 +254,14 @@ it, except for one law they must uphold (C8.4).
   history (`corrects`). Identical (S, C, env) gives an identical
   outcome; nothing else (ordering of unrelated state, host hash order,
   process identity) may influence it.
-- **C9.2 (OPEN — correction history)** `corrects` consults an
-  in-process event log today, so a correction target emitted before a
-  restart is invisible on Ruby (`NothingToCorrect`) while Rust keeps a
-  persisted flag. The open decision: the flag-field model everywhere.
+- **C9.2 (settled)** A correction target is judged against the
+  record's *durable* history: whether this record has ever emitted
+  the corrected event, as the store remembers it — never against a
+  process's own memory. The Rust kernel keeps that fact as a persisted
+  `emitted_<event>` flag on the record; Ruby reads the events the
+  aggregate's own store recorded. Both survive a restart; both answer
+  `NothingToCorrect` for a record that never emitted it. (fixture:
+  `correction_needs_prior_emission.json`)
 
 ## §10 Reactions
 
