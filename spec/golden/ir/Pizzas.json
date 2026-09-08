@@ -135,6 +135,27 @@
           "from": "available",
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "toppings"
+                    ]
+                  }
+                },
+                "op": "compare",
+                "right": {
+                  "op": "int",
+                  "value": 10
+                }
+              },
               "canonical": "toppings.size < 10",
               "description": "at most 10 toppings"
             }
@@ -188,14 +209,69 @@
           "from": "available",
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "op": "sign_test",
+                "receiver": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "toppings"
+                    ]
+                  }
+                }
+              },
               "canonical": "toppings.size.positive?",
               "description": "a pizza needs at least one topping"
             },
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "op": "sign_test",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              },
               "canonical": "amount.cents.positive?",
               "description": "a payment was actually made"
             },
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "pizza",
+                    "price_cents",
+                    "cents"
+                  ]
+                }
+              },
               "canonical": "amount.cents >= pizza.price_cents.cents",
               "description": "the payment covers the price"
             }
@@ -351,7 +427,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -390,7 +468,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 },
                 "op": "compare",
                 "right": {
@@ -430,7 +510,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -468,7 +550,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -508,7 +592,9 @@
                 "op": "sign_test",
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               },
               "canonical": "value.positive?",
@@ -651,6 +737,7 @@
       "target_domain": null,
       "trigger_command": "Order.Purchase",
       "where": null,
+      "where_ast": null,
       "with_spec": [
 
       ]

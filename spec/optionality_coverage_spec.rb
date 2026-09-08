@@ -80,6 +80,8 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # work, not a side effect of a Ruby wire-format fix.
   ALLOWED_UNSET = {
     "where"             => "new Policy surface, dispatch-tested inline -- see this file's own comment",
+    "where_ast"         => "derived from `where`, so null exactly where `where` is (above); its shape is " \
+                           "pinned against the Chess corpus by spec/expression_ast_spec.rb",
     "formerly_known_as" => "real and dispatch/boot-tested outside the golden corpus (spec/dsl_spec.rb, " \
                            "spec/adapters/driven/postgres_era/domain_rename_spec.rb) -- see this file's own comment"
   }.freeze

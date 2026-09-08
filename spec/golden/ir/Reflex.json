@@ -477,6 +477,7 @@
       "target_domain": null,
       "trigger_command": "Light.Log",
       "where": null,
+      "where_ast": null,
       "with_spec": [
 
       ]
@@ -488,6 +489,7 @@
       "target_domain": null,
       "trigger_command": "Echo.Ring",
       "where": null,
+      "where_ast": null,
       "with_spec": [
 
       ]
@@ -499,6 +501,7 @@
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send",
       "where": null,
+      "where_ast": null,
       "with_spec": [
 
       ]

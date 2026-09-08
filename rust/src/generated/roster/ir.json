@@ -618,7 +618,41 @@
           "givens": [
             {
               "description": "seat numbers are unique",
-              "canonical": "seats.none? { |s| s.number.value == number.value }"
+              "canonical": "seats.none? { |s| s.number.value == number.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "seats"
+                  ]
+                },
+                "param": "s",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "s",
+                      "number",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "number",
+                      "value"
+                    ]
+                  }
+                }
+              }
             }
           ],
           "ensures": [
@@ -671,11 +705,91 @@
           "givens": [
             {
               "description": "nobody enlists twice",
-              "canonical": "crew.none? { |m| m.id.value == id.value }"
+              "canonical": "crew.none? { |m| m.id.value == id.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "crew"
+                  ]
+                },
+                "param": "m",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "m",
+                      "id",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "id",
+                      "value"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "an open seat remains",
-              "canonical": "seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } }"
+              "canonical": "seats.any? { |s| assignments.none? { |a| a.number.value == s.number.value } }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "any",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "seats"
+                  ]
+                },
+                "param": "s",
+                "predicate": {
+                  "op": "block_predicate",
+                  "mode": "none",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "assignments"
+                    ]
+                  },
+                  "param": "a",
+                  "predicate": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "a",
+                        "number",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "lookup",
+                      "path": [
+                        "s",
+                        "number",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
             }
           ],
           "ensures": [
@@ -729,23 +843,268 @@
           "givens": [
             {
               "description": "the member is enlisted",
-              "canonical": "crew.any? { |m| m.id.value == member.value }"
+              "canonical": "crew.any? { |m| m.id.value == member.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "any",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "crew"
+                  ]
+                },
+                "param": "m",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "m",
+                      "id",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "member",
+                      "value"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "the seat exists",
-              "canonical": "seats.any? { |s| s.number.value == number.value }"
+              "canonical": "seats.any? { |s| s.number.value == number.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "any",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "seats"
+                  ]
+                },
+                "param": "s",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "s",
+                      "number",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "number",
+                      "value"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "the seat is free",
-              "canonical": "assignments.none? { |a| a.number.value == number.value }"
+              "canonical": "assignments.none? { |a| a.number.value == number.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "assignments"
+                  ]
+                },
+                "param": "a",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "a",
+                      "number",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "number",
+                      "value"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "the member sits nowhere else",
-              "canonical": "assignments.none? { |a| a.member.value == member.value }"
+              "canonical": "assignments.none? { |a| a.member.value == member.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "assignments"
+                  ]
+                },
+                "param": "a",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "a",
+                      "member",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "member",
+                      "value"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "a front-row seat takes a member of age",
-              "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\" || crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }"
+              "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\" || crew.all? { |m| m.id.value != member.value || m.age.value >= 21 }",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "find",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "seats"
+                      ]
+                    },
+                    "param": "s",
+                    "predicate": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "s",
+                          "number",
+                          "value"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "number",
+                          "value"
+                        ]
+                      }
+                    },
+                    "path": [
+                      "row",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "back"
+                  }
+                },
+                "right": {
+                  "op": "block_predicate",
+                  "mode": "all",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "crew"
+                    ]
+                  },
+                  "param": "m",
+                  "predicate": {
+                    "op": "or",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": true
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "m",
+                          "id",
+                          "value"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "member",
+                          "value"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": true,
+                        "equal": false,
+                        "negated": true
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "m",
+                          "age",
+                          "value"
+                        ]
+                      },
+                      "right": {
+                        "op": "int",
+                        "value": 21
+                      }
+                    }
+                  }
+                }
+              }
             }
           ],
           "ensures": [
@@ -887,13 +1246,141 @@
               "givens": [
                 {
                   "description": "a front-row holder may not retire",
-                  "canonical": "parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == \"front\" } }"
+                  "canonical": "parent.assignments.none? { |a| a.member.value == id.value && parent.seats.any? { |s| s.number.value == a.number.value && s.row.value == \"front\" } }",
+                  "ast": {
+                    "op": "block_predicate",
+                    "mode": "none",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "assignments"
+                      ]
+                    },
+                    "param": "a",
+                    "predicate": {
+                      "op": "and",
+                      "left": {
+                        "op": "compare",
+                        "cmp": {
+                          "less_than": false,
+                          "equal": true,
+                          "negated": false
+                        },
+                        "left": {
+                          "op": "lookup",
+                          "path": [
+                            "a",
+                            "member",
+                            "value"
+                          ]
+                        },
+                        "right": {
+                          "op": "lookup",
+                          "path": [
+                            "id",
+                            "value"
+                          ]
+                        }
+                      },
+                      "right": {
+                        "op": "block_predicate",
+                        "mode": "any",
+                        "receiver": {
+                          "op": "lookup",
+                          "path": [
+                            "parent",
+                            "seats"
+                          ]
+                        },
+                        "param": "s",
+                        "predicate": {
+                          "op": "and",
+                          "left": {
+                            "op": "compare",
+                            "cmp": {
+                              "less_than": false,
+                              "equal": true,
+                              "negated": false
+                            },
+                            "left": {
+                              "op": "lookup",
+                              "path": [
+                                "s",
+                                "number",
+                                "value"
+                              ]
+                            },
+                            "right": {
+                              "op": "lookup",
+                              "path": [
+                                "a",
+                                "number",
+                                "value"
+                              ]
+                            }
+                          },
+                          "right": {
+                            "op": "compare",
+                            "cmp": {
+                              "less_than": false,
+                              "equal": true,
+                              "negated": false
+                            },
+                            "left": {
+                              "op": "lookup",
+                              "path": [
+                                "s",
+                                "row",
+                                "value"
+                              ]
+                            },
+                            "right": {
+                              "op": "str",
+                              "value": "front"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               ],
               "ensures": [
                 {
                   "description": "someone still serves",
-                  "canonical": "parent.crew.any? { |m| m.status == \"active\" }"
+                  "canonical": "parent.crew.any? { |m| m.status == \"active\" }",
+                  "ast": {
+                    "op": "block_predicate",
+                    "mode": "any",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "crew"
+                      ]
+                    },
+                    "param": "m",
+                    "predicate": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "m",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "active"
+                      }
+                    }
+                  }
                 }
               ],
               "mutations": [
@@ -956,7 +1443,8 @@
           "to",
           ":number"
         ]
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "OnSeatMarkedNotice",
@@ -967,7 +1455,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "OnSeatAssignedHonorFront",
@@ -981,7 +1470,26 @@
           "rank",
           "\"officer\""
         ]
-      ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "number",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "int",
+          "value": 1
+        }
+      }
     }
   ],
   "process_managers": [

@@ -37,11 +37,7 @@ module Hecks
         # `Expression::AstJson`'s own header — built for `rust/host`'s
         # own mint-time invariant check (`reference_validate.rs`), which
         # has no kernel crate to parse `canonical` with.
-        invariants: lambda {
-          invariants.map do |rule|
-            { description: rule.description, canonical: rule.canonical, ast: Expression::AstJson.emit_predicate(rule.canonical) }
-          end
-        },
+        invariants: -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         closed_set: :closed_set?,
         # THE FIELD NAME IS STRINGIFIED, NEVER THE VALUE. A `member` row can
         # hold any of the scalar types an attribute declares — `Integer 84`

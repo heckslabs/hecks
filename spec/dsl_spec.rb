@@ -500,8 +500,11 @@ RSpec.describe "the DSL surface" do
       end
 
       expect(spelled.ensures.map(&:canonical)).to eq(["old.balance.cents <= balance.cents"])
-      expect(spelled.to_h[:ensures]).to eq([{ description: "it landed",
-                                              canonical:   "old.balance.cents <= balance.cents" }])
+      expect(spelled.to_h[:ensures].size).to eq(1)
+      row = spelled.to_h[:ensures].first
+      expect(row).to include(description: "it landed", canonical: "old.balance.cents <= balance.cents")
+      # The structured form rides beside the text, derived from it.
+      expect(row[:ast]).to eq(Hecks::Bluebook::Expression::AstJson.emit_predicate(row[:canonical]))
     end
 
     it "sets alone, with no operation named at all, means to: the same field — the omittable case" do

@@ -81,7 +81,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -119,7 +121,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -167,7 +171,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "given"
+                      "path": [
+                        "given"
+                      ]
                     }
                   }
                 }
@@ -184,7 +190,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "family"
+                      "path": [
+                        "family"
+                      ]
                     }
                   }
                 }
@@ -622,7 +630,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -663,7 +673,9 @@
                   },
                   "receiver": {
                     "op": "lookup",
-                    "path": "cents"
+                    "path": [
+                      "cents"
+                    ]
                   }
                 }
               }
@@ -701,7 +713,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -785,7 +799,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "currency"
+                      "path": [
+                        "currency"
+                      ]
                     }
                   }
                 },
@@ -838,7 +854,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             },
@@ -858,7 +876,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "currency"
+                      "path": [
+                        "currency"
+                      ]
                     }
                   }
                 },
@@ -939,7 +959,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "text"
+                      "path": [
+                        "text"
+                      ]
                     }
                   }
                 }
@@ -1003,7 +1025,26 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer.status == \"active\""
+              "canonical": "customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -1083,7 +1124,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -1146,25 +1205,154 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "the balance covers it",
-              "canonical": "balance.cents >= amount.cents"
+              "canonical": "balance.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "balance",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             },
             {
               "description": "the daily limit allows it",
-              "canonical": "daily_limit.cents >= amount.cents"
+              "canonical": "daily_limit.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "daily_limit",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
             {
               "description": "the balance fell by exactly the amount",
-              "canonical": "old.balance.cents == balance.cents + amount.cents"
+              "canonical": "old.balance.cents == balance.cents + amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "old",
+                    "balance",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "add",
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "balance",
+                      "cents"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "amount",
+                      "cents"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "a ledger entry was posted",
-              "canonical": "ledger.size == old.ledger.size + 1"
+              "canonical": "ledger.size == old.ledger.size + 1",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "size",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "ledger"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "add",
+                  "left": {
+                    "op": "size",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "old",
+                        "ledger"
+                      ]
+                    }
+                  },
+                  "right": {
+                    "op": "int",
+                    "value": 1
+                  }
+                }
+              }
             }
           ],
           "mutations": [
@@ -1205,7 +1393,25 @@
           "givens": [
             {
               "description": "customer is not closed",
-              "canonical": "customer_status != \"closed\""
+              "canonical": "customer_status != \"closed\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "closed"
+                }
+              }
             }
           ],
           "ensures": [
@@ -1231,7 +1437,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -1257,11 +1481,44 @@
           "givens": [
             {
               "description": "customer is not closed",
-              "canonical": "customer_status != \"closed\""
+              "canonical": "customer_status != \"closed\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "closed"
+                }
+              }
             },
             {
               "description": "an account closes empty",
-              "canonical": "balance.cents.zero?"
+              "canonical": "balance.cents.zero?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "balance",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -1309,11 +1566,51 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "the balance covers a fee",
-              "canonical": "balance.cents >= amount.cents"
+              "canonical": "balance.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "balance",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -1365,11 +1662,51 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "a correction cannot exceed collected fees",
-              "canonical": "fees_cents.cents >= amount.cents"
+              "canonical": "fees_cents.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "fees_cents",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -1431,7 +1768,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -1483,15 +1838,77 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "a correction cannot exceed accrued interest",
-              "canonical": "interest_cents.cents >= amount.cents"
+              "canonical": "interest_cents.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "interest_cents",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             },
             {
               "description": "the balance covers an interest correction",
-              "canonical": "balance.cents >= amount.cents"
+              "canonical": "balance.cents >= amount.cents",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "balance",
+                    "cents"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -1527,17 +1944,72 @@
       "invariants": [
         {
           "description": "the balance never goes negative",
-          "canonical": "balance.cents >= 0"
+          "canonical": "balance.cents >= 0",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": true,
+              "equal": false,
+              "negated": true
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "balance",
+                "cents"
+              ]
+            },
+            "right": {
+              "op": "int",
+              "value": 0
+            }
+          }
         }
       ],
       "preconditions": [
         {
           "description": "customer is active",
-          "canonical": "customer_status == \"active\""
+          "canonical": "customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         },
         {
           "description": "customer is not closed",
-          "canonical": "customer_status != \"closed\""
+          "canonical": "customer_status != \"closed\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": true
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "closed"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -1653,19 +2125,104 @@
               "givens": [
                 {
                   "description": "customer is active",
-                  "canonical": "parent.customer_status == \"active\""
+                  "canonical": "parent.customer_status == \"active\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "customer_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "active"
+                    }
+                  }
                 },
                 {
                   "description": "account is open",
-                  "canonical": "parent.status == \"open\""
+                  "canonical": "parent.status == \"open\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "open"
+                    }
+                  }
                 },
                 {
                   "description": "entry is posted",
-                  "canonical": "state == \"posted\""
+                  "canonical": "state == \"posted\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "state"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "posted"
+                    }
+                  }
                 },
                 {
                   "description": "an amendment leaves a non-negative amount",
-                  "canonical": "amount.cents + adjustment.cents >= 0"
+                  "canonical": "amount.cents + adjustment.cents >= 0",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": true,
+                      "equal": false,
+                      "negated": true
+                    },
+                    "left": {
+                      "op": "add",
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "amount",
+                          "cents"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "adjustment",
+                          "cents"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "int",
+                      "value": 0
+                    }
+                  }
                 }
               ],
               "ensures": [
@@ -1717,15 +2274,71 @@
               "givens": [
                 {
                   "description": "customer is active",
-                  "canonical": "parent.customer_status == \"active\""
+                  "canonical": "parent.customer_status == \"active\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "customer_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "active"
+                    }
+                  }
                 },
                 {
                   "description": "account is open",
-                  "canonical": "parent.status == \"open\""
+                  "canonical": "parent.status == \"open\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "open"
+                    }
+                  }
                 },
                 {
                   "description": "entry is posted",
-                  "canonical": "state == \"posted\""
+                  "canonical": "state == \"posted\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "state"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "posted"
+                    }
+                  }
                 }
               ],
               "ensures": [
@@ -1773,15 +2386,71 @@
           "preconditions": [
             {
               "description": "entry is posted",
-              "canonical": "state == \"posted\""
+              "canonical": "state == \"posted\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "state"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "posted"
+                }
+              }
             },
             {
               "description": "customer is active",
-              "canonical": "parent.customer_status == \"active\""
+              "canonical": "parent.customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "parent",
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "parent.status == \"open\""
+              "canonical": "parent.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "parent",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "invariants": [
@@ -2090,7 +2759,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -2128,7 +2799,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -2182,7 +2855,26 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer.status == \"active\""
+              "canonical": "customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2234,7 +2926,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2260,7 +2970,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2282,11 +3010,47 @@
       "preconditions": [
         {
           "description": "case is screening",
-          "canonical": "status == \"screening\""
+          "canonical": "status == \"screening\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "screening"
+            }
+          }
         },
         {
           "description": "customer is active",
-          "canonical": "customer_status == \"active\""
+          "canonical": "customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -2426,7 +3190,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -2487,7 +3253,9 @@
                 },
                 "left": {
                   "op": "lookup",
-                  "path": "amount"
+                  "path": [
+                    "amount"
+                  ]
                 },
                 "right": {
                   "op": "int",
@@ -2528,7 +3296,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -2565,7 +3335,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             }
@@ -2601,7 +3373,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "text"
+                      "path": [
+                        "text"
+                      ]
                     }
                   }
                 }
@@ -2655,11 +3429,50 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
+              "canonical": "account.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account.status == \"open\""
+              "canonical": "account.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2720,7 +3533,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2776,11 +3607,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2814,7 +3681,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2840,7 +3725,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -2865,15 +3768,90 @@
       "preconditions": [
         {
           "description": "card is issued or active",
-          "canonical": "[\"issued\", \"active\"].include?(status)"
+          "canonical": "[\"issued\", \"active\"].include?(status)",
+          "ast": {
+            "op": "or",
+            "left": {
+              "op": "compare",
+              "cmp": {
+                "less_than": false,
+                "equal": true,
+                "negated": false
+              },
+              "left": {
+                "op": "lookup",
+                "path": [
+                  "status"
+                ]
+              },
+              "right": {
+                "op": "str",
+                "value": "issued"
+              }
+            },
+            "right": {
+              "op": "compare",
+              "cmp": {
+                "less_than": false,
+                "equal": true,
+                "negated": false
+              },
+              "left": {
+                "op": "lookup",
+                "path": [
+                  "status"
+                ]
+              },
+              "right": {
+                "op": "str",
+                "value": "active"
+              }
+            }
+          }
         },
         {
           "description": "account is open",
-          "canonical": "account_status == \"open\""
+          "canonical": "account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "customer is active",
-          "canonical": "account_customer_status == \"active\""
+          "canonical": "account_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -2969,15 +3947,72 @@
               "givens": [
                 {
                   "description": "customer is active",
-                  "canonical": "parent.account_customer_status == \"active\""
+                  "canonical": "parent.account_customer_status == \"active\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "account_customer_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "active"
+                    }
+                  }
                 },
                 {
                   "description": "account is open",
-                  "canonical": "parent.account_status == \"open\""
+                  "canonical": "parent.account_status == \"open\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "account_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "open"
+                    }
+                  }
                 },
                 {
                   "description": "card is not retired",
-                  "canonical": "parent.status != \"retired\""
+                  "canonical": "parent.status != \"retired\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": true
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "retired"
+                    }
+                  }
                 }
               ],
               "ensures": [
@@ -3214,7 +4249,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             }
@@ -3250,7 +4287,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -3288,7 +4327,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -3362,11 +4403,50 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
+              "canonical": "account.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account.status == \"open\""
+              "canonical": "account.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3436,11 +4516,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3466,11 +4582,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3496,11 +4648,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3526,11 +4714,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3565,11 +4789,48 @@
           "givens": [
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             },
             {
               "description": "customer is active",
-              "canonical": "disputed_by.status == \"active\""
+              "canonical": "disputed_by.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "disputed_by",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3606,11 +4867,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3636,11 +4933,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -3662,23 +4995,113 @@
       "preconditions": [
         {
           "description": "payment is disputed",
-          "canonical": "status == \"disputed\""
+          "canonical": "status == \"disputed\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "disputed"
+            }
+          }
         },
         {
           "description": "payment is captured",
-          "canonical": "status == \"captured\""
+          "canonical": "status == \"captured\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "captured"
+            }
+          }
         },
         {
           "description": "payment is authorized",
-          "canonical": "status == \"authorized\""
+          "canonical": "status == \"authorized\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "authorized"
+            }
+          }
         },
         {
           "description": "account is open",
-          "canonical": "account_status == \"open\""
+          "canonical": "account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "customer is active",
-          "canonical": "account_customer_status == \"active\""
+          "canonical": "account_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -3895,7 +5318,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -3934,7 +5359,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -3971,7 +5398,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -4007,7 +5436,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -4067,7 +5498,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -4170,7 +5603,26 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer.status == \"active\""
+              "canonical": "customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -4231,7 +5683,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -4287,7 +5757,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -4331,7 +5819,25 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "customer_status == \"active\""
+              "canonical": "customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             }
           ],
           "ensures": [
@@ -4360,7 +5866,25 @@
       "preconditions": [
         {
           "description": "customer is active",
-          "canonical": "customer_status == \"active\""
+          "canonical": "customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -4447,11 +5971,49 @@
               "givens": [
                 {
                   "description": "customer is active",
-                  "canonical": "parent.customer_status == \"active\""
+                  "canonical": "parent.customer_status == \"active\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "customer_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "active"
+                    }
+                  }
                 },
                 {
                   "description": "box is rented",
-                  "canonical": "parent.status == \"rented\""
+                  "canonical": "parent.status == \"rented\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "rented"
+                    }
+                  }
                 }
               ],
               "ensures": [
@@ -4501,17 +6063,83 @@
           "preconditions": [
             {
               "description": "customer is active",
-              "canonical": "parent.customer_status == \"active\""
+              "canonical": "parent.customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "parent",
+                    "customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "box is rented",
-              "canonical": "parent.status == \"rented\""
+              "canonical": "parent.status == \"rented\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "parent",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "rented"
+                }
+              }
             }
           ],
           "invariants": [
             {
               "description": "a written note is not blank",
-              "canonical": "!note || !note.text.to_s.empty?"
+              "canonical": "!note || !note.text.to_s.empty?",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "not",
+                  "expr": {
+                    "op": "lookup",
+                    "path": [
+                      "note"
+                    ]
+                  }
+                },
+                "right": {
+                  "op": "not",
+                  "expr": {
+                    "op": "empty",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "note",
+                          "text"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
             }
           ],
           "lifecycle": {
@@ -4565,11 +6193,49 @@
               "givens": [
                 {
                   "description": "customer is active",
-                  "canonical": "parent.customer_status == \"active\""
+                  "canonical": "parent.customer_status == \"active\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "customer_status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "active"
+                    }
+                  }
                 },
                 {
                   "description": "box is rented",
-                  "canonical": "parent.status == \"rented\""
+                  "canonical": "parent.status == \"rented\"",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "rented"
+                    }
+                  }
                 }
               ],
               "ensures": [
@@ -4736,7 +6402,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -4796,7 +6464,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -4963,11 +6633,50 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
+              "canonical": "account.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account.status == \"open\""
+              "canonical": "account.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5142,7 +6851,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -5181,7 +6892,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             }
@@ -5217,7 +6930,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "text"
+                      "path": [
+                        "text"
+                      ]
                     }
                   }
                 }
@@ -5291,23 +7006,106 @@
           "givens": [
             {
               "description": "source customer is active",
-              "canonical": "source.customer.status == \"active\""
+              "canonical": "source.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "source account is open",
-              "canonical": "source.status == \"open\""
+              "canonical": "source.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             },
             {
               "description": "a transfer names its source",
-              "canonical": "!source.empty?"
+              "canonical": "!source.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "source"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "a transfer goes somewhere",
-              "canonical": "!destination.empty?"
+              "canonical": "!destination.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "destination"
+                    ]
+                  }
+                }
+              }
             },
             {
               "description": "a transfer moves BETWEEN accounts",
-              "canonical": "source != destination"
+              "canonical": "source != destination",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "destination"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -5377,11 +7175,47 @@
           "givens": [
             {
               "description": "source customer is active",
-              "canonical": "source_customer_status == \"active\""
+              "canonical": "source_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "source account is open",
-              "canonical": "source_account_status == \"open\""
+              "canonical": "source_account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5407,11 +7241,47 @@
           "givens": [
             {
               "description": "destination customer is active",
-              "canonical": "destination_customer_status == \"active\""
+              "canonical": "destination_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "destination_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "destination account is open",
-              "canonical": "destination_account_status == \"open\""
+              "canonical": "destination_account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "destination_account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5437,11 +7307,47 @@
           "givens": [
             {
               "description": "destination customer is active",
-              "canonical": "destination_customer_status == \"active\""
+              "canonical": "destination_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "destination_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "destination account is open",
-              "canonical": "destination_account_status == \"open\""
+              "canonical": "destination_account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "destination_account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5467,11 +7373,47 @@
           "givens": [
             {
               "description": "source customer is active",
-              "canonical": "source_customer_status == \"active\""
+              "canonical": "source_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "source account is open",
-              "canonical": "source_account_status == \"open\""
+              "canonical": "source_account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5497,11 +7439,47 @@
           "givens": [
             {
               "description": "source customer is active",
-              "canonical": "source_customer_status == \"active\""
+              "canonical": "source_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "source account is open",
-              "canonical": "source_account_status == \"open\""
+              "canonical": "source_account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "source_account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5523,27 +7501,135 @@
       "preconditions": [
         {
           "description": "transfer is debited",
-          "canonical": "status == \"debited\""
+          "canonical": "status == \"debited\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "debited"
+            }
+          }
         },
         {
           "description": "destination account is open",
-          "canonical": "destination_account_status == \"open\""
+          "canonical": "destination_account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "destination_account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "destination customer is active",
-          "canonical": "destination_customer_status == \"active\""
+          "canonical": "destination_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "destination_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         },
         {
           "description": "transfer is requested",
-          "canonical": "status == \"requested\""
+          "canonical": "status == \"requested\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "requested"
+            }
+          }
         },
         {
           "description": "source account is open",
-          "canonical": "source_account_status == \"open\""
+          "canonical": "source_account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "source_account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "source customer is active",
-          "canonical": "source_customer_status == \"active\""
+          "canonical": "source_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "source_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -5758,7 +7844,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             }
@@ -5794,7 +7882,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -5868,11 +7958,50 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
+              "canonical": "account.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account.status == \"open\""
+              "canonical": "account.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5942,11 +8071,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -5972,11 +8137,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6002,11 +8203,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6028,19 +8265,91 @@
       "preconditions": [
         {
           "description": "transfer is sent",
-          "canonical": "status == \"sent\""
+          "canonical": "status == \"sent\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "sent"
+            }
+          }
         },
         {
           "description": "account is open",
-          "canonical": "account_status == \"open\""
+          "canonical": "account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "customer is active",
-          "canonical": "account_customer_status == \"active\""
+          "canonical": "account_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         },
         {
           "description": "transfer is requested",
-          "canonical": "status == \"requested\""
+          "canonical": "status == \"requested\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "requested"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -6230,7 +8539,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "cents"
+                  "path": [
+                    "cents"
+                  ]
                 }
               }
             }
@@ -6266,7 +8577,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -6304,7 +8617,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 }
@@ -6345,7 +8660,9 @@
                   },
                   "receiver": {
                     "op": "lookup",
-                    "path": "value"
+                    "path": [
+                      "value"
+                    ]
                   }
                 }
               }
@@ -6383,7 +8700,9 @@
                 },
                 "receiver": {
                   "op": "lookup",
-                  "path": "value"
+                  "path": [
+                    "value"
+                  ]
                 }
               }
             }
@@ -6455,11 +8774,50 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
+              "canonical": "account.customer.status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "customer",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account.status == \"open\""
+              "canonical": "account.status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account",
+                    "status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6529,11 +8887,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6559,11 +8953,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6589,11 +9019,47 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             }
           ],
           "ensures": [
@@ -6619,21 +9085,109 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             },
             {
               "description": "a retry is still allowed",
-              "canonical": "attempts.value < max_attempts.value"
+              "canonical": "attempts.value < max_attempts.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "attempts",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "max_attempts",
+                    "value"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
             {
               "description": "a retry never lowers the attempt count",
-              "canonical": "attempts.value == old.attempts.value + 1"
+              "canonical": "attempts.value == old.attempts.value + 1",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "attempts",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "add",
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "old",
+                      "attempts",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "int",
+                    "value": 1
+                  }
+                }
+              }
             }
           ],
           "mutations": [
@@ -6666,15 +9220,73 @@
           "givens": [
             {
               "description": "customer is active",
-              "canonical": "account_customer_status == \"active\""
+              "canonical": "account_customer_status == \"active\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_customer_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "active"
+                }
+              }
             },
             {
               "description": "account is open",
-              "canonical": "account_status == \"open\""
+              "canonical": "account_status == \"open\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "account_status"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              }
             },
             {
               "description": "every retry is exhausted",
-              "canonical": "attempts.value >= max_attempts.value"
+              "canonical": "attempts.value >= max_attempts.value",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "attempts",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "max_attempts",
+                    "value"
+                  ]
+                }
+              }
             }
           ],
           "ensures": [
@@ -6696,19 +9308,91 @@
       "preconditions": [
         {
           "description": "payment is failed",
-          "canonical": "status == \"failed\""
+          "canonical": "status == \"failed\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "failed"
+            }
+          }
         },
         {
           "description": "payment is scheduled",
-          "canonical": "status == \"scheduled\""
+          "canonical": "status == \"scheduled\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "scheduled"
+            }
+          }
         },
         {
           "description": "account is open",
-          "canonical": "account_status == \"open\""
+          "canonical": "account_status == \"open\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "open"
+            }
+          }
         },
         {
           "description": "customer is active",
-          "canonical": "account_customer_status == \"active\""
+          "canonical": "account_customer_status == \"active\"",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": false,
+              "equal": true,
+              "negated": false
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "account_customer_status"
+              ]
+            },
+            "right": {
+              "op": "str",
+              "value": "active"
+            }
+          }
         }
       ],
       "projected_fields": [
@@ -6978,7 +9662,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "RetryOnPaymentFailure",
@@ -6989,7 +9674,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "FreezeAccountsOnSuspension",
@@ -7003,7 +9689,8 @@
           "account",
           ":account"
         ]
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "NotifyOnClosure",
@@ -7014,7 +9701,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "ReviewOnBoxSurrender",
@@ -7025,7 +9713,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     },
     {
       "name": "FlagKeyReturn",
@@ -7036,7 +9725,8 @@
       "for_each": null,
       "with_spec": [
 
-      ]
+      ],
+      "where_ast": null
     }
   ],
   "process_managers": [

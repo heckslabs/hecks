@@ -50,7 +50,11 @@ module Hecks
           # a binding that reads an event field and one that supplies a
           # literal string are otherwise indistinguishable once written
           # down (see `MetaValidator::Readings`' own note on exactly that).
-          renders:   { with_spec: "-> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }" },
+          renders:   { with_spec: "-> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }",
+                       # COMPUTED (Deviations::COMPUTED["Policy"]): the structured
+                       # form of `where`, a pure function of that text, the same
+                       # `ast` every rule row carries beside its `canonical`.
+                       where_ast: "-> { where && Expression::AstJson.emit_predicate(where) }" },
           settles:   false
         }
       }.freeze
@@ -87,8 +91,11 @@ module Hecks
 
       # The emission, keyed as the model spells it and sourced as the
       # language declares it.
+      # A COMPUTED field (Deviations::COMPUTED) is emitted too — it is
+      # model-only by definition, so it rides after the declared fields
+      # and MUST have a `renders` entry, there being nothing to `send`.
       def emits(bluebook, name)
-        fields  = emitted_fields(bluebook, name)
+        fields  = emitted_fields(bluebook, name) + Deviations.computed(name)
         renders = HOST.fetch(name).fetch(:renders, {})
         width   = fields.map { |f| f.to_s.length }.max.to_i
 

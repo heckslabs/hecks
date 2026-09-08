@@ -80,6 +80,24 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              },
               "canonical": "status == \"open\"",
               "description": "the drawer is open"
             }
@@ -123,10 +141,50 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": false,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "status"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "str",
+                  "value": "open"
+                }
+              },
               "canonical": "status == \"open\"",
               "description": "the drawer is open"
             },
             {
+              "ast": {
+                "cmp": {
+                  "equal": false,
+                  "less_than": true,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "cents",
+                    "cents"
+                  ]
+                },
+                "op": "compare",
+                "right": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              },
               "canonical": "cents.cents >= amount.cents",
               "description": "the cents cover it"
             }
@@ -380,6 +438,21 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "cmp": {
+                  "equal": true,
+                  "less_than": true,
+                  "negated": true
+                },
+                "op": "sign_test",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "amount",
+                    "cents"
+                  ]
+                }
+              },
               "canonical": "amount.cents.positive?",
               "description": "a wire moves something"
             }

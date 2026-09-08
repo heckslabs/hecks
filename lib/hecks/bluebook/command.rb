@@ -1,5 +1,6 @@
 require_relative "behaviour/command"
 require_relative "../vocabulary"
+require_relative "expression/ast_json"
 
 module Hecks
   module Bluebook
@@ -74,8 +75,8 @@ module Hecks
         goal:       :goal,
         references: :references,
         attributes: many(:attributes),
-        givens:     -> { givens.map { |rule| { description: rule.description, canonical: rule.canonical } } },
-        ensures:    -> { ensures.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        givens:     -> { givens.map { |rule| Expression::AstJson.rule_row(rule) } },
+        ensures:    -> { ensures.map { |rule| Expression::AstJson.rule_row(rule) } },
         mutations:  many(:mutations),
         emits:      :emits,
         # THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR

@@ -106,6 +106,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "verb",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!verb.value.to_s.empty?",
               "description": "a wiring names its verb"
             }
@@ -186,6 +202,22 @@
           "from": null,
           "givens": [
             {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "key",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
               "canonical": "!key.value.to_s.empty?",
               "description": "a setting names its key"
             }
@@ -453,7 +485,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -491,7 +525,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
@@ -529,7 +565,9 @@
                     "op": "to_s",
                     "receiver": {
                       "op": "lookup",
-                      "path": "value"
+                      "path": [
+                        "value"
+                      ]
                     }
                   }
                 },
