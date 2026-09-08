@@ -1,97 +1,105 @@
-//! Port of `rust/project/expr_emitter.rb` — walks the AST `expr::parse`
-//! (this crate's own port of `Evaluator.parse`/`Resolver.parse`) produces
-//! and emits Rust `Expr` data-literal source, mirroring the Ruby file's
-//! `emit_bool`/`emit_resolver`/`emit_comparison` directly, node for node.
+//! Port of `rust/project/expr_emitter.rb` — walks the `ast` tree every
+//! IR rule row carries (`Expression::AstJson.rule_row`) and emits Rust
+//! `Expr` data-literal source, mirroring the Ruby file's `emit_ast`/
+//! `emit_comparison` directly, arm for arm. This generator no longer
+//! parses `canonical` text at all: the one parse happened at IR emission
+//! (in Ruby's `Evaluator.parse`, behind `AstJson`), and both generators
+//! transcribe the SAME tree. The former `rust/codegen/src/expr/` — a
+//! hand-ported second parser of the expression sublanguage — is gone
+//! with it, and so is the drift class it carried.
+//!
+//! A LITERAL-array `include?` haystack never reaches here — `AstJson.
+//! emit_include` already rewrote it into an OR of equalities at emission
+//! (see that file's comment), so the `include` arm only ever sees a real
+//! field/string haystack.
 
-use crate::expr::evaluator::Evaluator;
-use crate::expr::resolver::Resolver;
-use crate::expr::Operator;
+use crate::json::Json;
 use crate::naming::ruby_inspect_string;
 
-pub fn emit_predicate(canonical: &str) -> String {
-    emit_bool(&crate::expr::evaluator::parse(canonical))
-}
+pub fn emit_ast(node: &Json) -> String {
+    let op = node.get("op").and_then(Json::as_str).unwrap_or_else(|| panic!("ast node has no string \"op\": {node:?}"));
+    let sub = |key: &str| emit_ast(field(node, op, key));
+    let boxed = |key: &str| format!("Box::new({})", sub(key));
+    let text = |key: &str| ruby_inspect_string(field(node, op, key).as_str().unwrap_or_else(|| panic!("{op}'s {key:?} isn't a string: {node:?}")));
 
-pub fn emit_bool(node: &Evaluator) -> String {
-    match node {
-        Evaluator::Or(left, right) => format!("Expr::Or(Box::new({}), Box::new({}))", emit_bool(left), emit_bool(right)),
-        Evaluator::And(left, right) => format!("Expr::And(Box::new({}), Box::new({}))", emit_bool(left), emit_bool(right)),
-        Evaluator::Not(inner) => format!("Expr::Not(Box::new({}))", emit_bool(inner)),
-        Evaluator::Compare { operator, left, right } => {
-            format!("Expr::Compare {{ op: {}, left: Box::new({}), right: Box::new({}) }}", emit_comparison(operator), emit_resolver(left), emit_resolver(right))
-        }
-        Evaluator::Include { haystack, needle } => emit_include(haystack, needle),
-        Evaluator::Resolve(expr) => emit_resolver(expr),
+    match op {
+        "or" => format!("Expr::Or({}, {})", boxed("left"), boxed("right")),
+        "and" => format!("Expr::And({}, {})", boxed("left"), boxed("right")),
+        "not" => format!("Expr::Not({})", boxed("expr")),
+        "compare" => format!("Expr::Compare {{ op: {}, left: {}, right: {} }}", emit_comparison(field(node, op, "cmp")), boxed("left"), boxed("right")),
+        "include" => format!("Expr::Include {{ haystack: {}, needle: {} }}", boxed("haystack"), boxed("needle")),
+        "int" => format!("Expr::Int({})", field(node, op, "value").to_s()),
+        "float" => format!("Expr::Float({}f64)", field(node, op, "value").to_s()),
+        "str" => format!("Expr::Str({}.to_string())", text("value")),
+        "bool" => format!("Expr::Bool({})", field(node, op, "value").to_s()),
+        "nil" => "Expr::Nil".to_string(),
+        "lookup" => format!("Expr::Lookup({})", ruby_inspect_string(&path_of(node, op).join("."))),
+        "add" => format!("Expr::Add({}, {})", boxed("left"), boxed("right")),
+        "sign_test" => format!("Expr::SignTest {{ op: {}, receiver: {} }}", emit_comparison(field(node, op, "cmp")), boxed("receiver")),
+        "empty" => format!("Expr::Empty({})", boxed("receiver")),
+        "to_s" => format!("Expr::ToS({})", boxed("receiver")),
+        "modulo" => format!("Expr::Modulo {{ receiver: {}, divisor: {} }}", boxed("receiver"), boxed("divisor")),
+        "size" => format!("Expr::Size({})", boxed("receiver")),
+        "block_predicate" => format!(
+            "Expr::BlockPredicate {{ mode: crate::kernel::BlockMode::{}, receiver: {}, param: {}, predicate: {} }}",
+            block_mode(node, op),
+            boxed("receiver"),
+            text("param"),
+            boxed("predicate")
+        ),
+        "find" => format!(
+            "Expr::Find {{ receiver: {}, param: {}, predicate: {}, path: &[{}] }}",
+            boxed("receiver"),
+            text("param"),
+            boxed("predicate"),
+            path_of(node, op).iter().map(|segment| ruby_inspect_string(segment)).collect::<Vec<_>>().join(", ")
+        ),
+        "array" => format!(
+            "Expr::Array(vec![{}])",
+            field(node, op, "elements").each().iter().map(emit_ast).collect::<Vec<_>>().join(", ")
+        ),
+        "matches_regex" => format!("Expr::MatchesRegex {{ receiver: {}, pattern: {}.to_string(), flags: {}.to_string() }}", boxed("receiver"), text("pattern"), text("flags")),
+        "presence" => format!("Expr::Presence {{ receiver: {}, negated: {} }}", boxed("receiver"), field(node, op, "negated").to_s()),
+        "assignment" => format!("Expr::Assignment {{ receiver: {}, negated: {} }}", boxed("receiver"), field(node, op, "negated").to_s()),
+        "split" => format!("Expr::Split {{ receiver: {}, separator: {}.to_string() }}", boxed("receiver"), text("separator")),
+        "starts_with" => format!("Expr::StartsWith {{ receiver: {}, substring: {}.to_string() }}", boxed("receiver"), text("substring")),
+        "ends_with" => format!("Expr::EndsWith {{ receiver: {}, substring: {}.to_string() }}", boxed("receiver"), text("substring")),
+        "first" => format!("Expr::First({})", boxed("receiver")),
+        "last" => format!("Expr::Last({})", boxed("receiver")),
+        // Every op `AstJson::OPS` names has an arm above — this firing
+        // means the roster grew an op this generator has no rendering
+        // for yet (a real bug in THIS file), or the input isn't an ast
+        // at all. Hard failure, never a silent Unsupported case.
+        other => panic!("unhandled ast op {other:?} — no Rust rendering exists for it in this generator (rust/codegen/src/expr_emitter.rs#emit_ast)"),
     }
 }
 
-pub fn emit_comparison(op: &Operator) -> String {
-    format!("crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}", op.compares_less_than, op.compares_equal, op.negated)
+/// Fully qualified, not `use`d bare — see `rust/project/expr_emitter.rb`'s
+/// own `emit_comparison` comment: the self-hosted grammar declares its own
+/// "Comparison" type, and qualifying here means the two can never collide
+/// in a generated file.
+pub fn emit_comparison(cmp: &Json) -> String {
+    let flag = |key: &str| cmp.get(key).unwrap_or_else(|| panic!("cmp has no {key:?}: {cmp:?}")).to_s();
+    format!("crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}", flag("less_than"), flag("equal"), flag("negated"))
 }
 
-/// Port of `rust/project/expr_emitter.rb`'s own `emit_include` — see that
-/// file's own header comment for the full reasoning. Short version: the
-/// kernel's `Value::List` is a length, never a real element set, so a
-/// LITERAL haystack (`["issued", "active"].include?(status)`) is
-/// rewritten into `needle == "issued" || needle == "active"` at
-/// generation time, using the SAME `Expr::Compare`/`Expr::Or` every other
-/// equality/either-or check already compiles to — not a new kernel
-/// `Value` shape for a haystack that's always fully known before a
-/// single record is ever read. A non-literal haystack (a real list-typed
-/// field, or a String) still emits `Expr::Include` unchanged.
-fn emit_include(haystack: &Resolver, needle: &Resolver) -> String {
-    let Resolver::ArrayLiteral(elements) = haystack else {
-        return format!("Expr::Include {{ haystack: Box::new({}), needle: Box::new({}) }}", emit_resolver(haystack), emit_resolver(needle));
-    };
+fn field<'a>(node: &'a Json, op: &str, key: &str) -> &'a Json {
+    node.get(key).unwrap_or_else(|| panic!("{op} node has no {key:?} field: {node:?}"))
+}
 
-    if elements.is_empty() {
-        return "Expr::Bool(false)".to_string();
-    }
-
-    let eq = crate::expr::find_operator("==");
-    elements
+fn path_of(node: &Json, op: &str) -> Vec<String> {
+    field(node, op, "path")
+        .each()
         .iter()
-        .map(|element| format!("Expr::Compare {{ op: {}, left: Box::new({}), right: Box::new({}) }}", emit_comparison(&eq), emit_resolver(needle), emit_resolver(element)))
-        .reduce(|left, right| format!("Expr::Or(Box::new({left}), Box::new({right}))"))
-        .unwrap()
+        .map(|segment| segment.as_str().map(str::to_string).unwrap_or_else(|| panic!("{op}'s path has a non-string segment: {node:?}")))
+        .collect()
 }
 
-pub fn emit_resolver(node: &Resolver) -> String {
-    match node {
-        Resolver::IntegerLiteral(v) => format!("Expr::Int({v})"),
-        Resolver::FloatLiteral(v) => format!("Expr::Float({v}f64)"),
-        Resolver::StringLiteral(v) => format!("Expr::Str({}.to_string())", ruby_inspect_string(v)),
-        Resolver::BoolLiteral(v) => format!("Expr::Bool({v})"),
-        Resolver::NilLiteral => "Expr::Nil".to_string(),
-        Resolver::Lookup(path) => format!("Expr::Lookup({})", ruby_inspect_string(path)),
-        Resolver::Addition(left, right) => format!("Expr::Add(Box::new({}), Box::new({}))", emit_resolver(left), emit_resolver(right)),
-        Resolver::SignTest { operator, receiver } => format!("Expr::SignTest {{ op: {}, receiver: Box::new({}) }}", emit_comparison(operator), emit_resolver(receiver)),
-        Resolver::Empty(receiver) => format!("Expr::Empty(Box::new({}))", emit_resolver(receiver)),
-        Resolver::ToS(receiver) => format!("Expr::ToS(Box::new({}))", emit_resolver(receiver)),
-        Resolver::Modulo { receiver, divisor } => format!("Expr::Modulo {{ receiver: Box::new({}), divisor: Box::new({}) }}", emit_resolver(receiver), emit_resolver(divisor)),
-        Resolver::Size(receiver) => format!("Expr::Size(Box::new({}))", emit_resolver(receiver)),
-        Resolver::BlockPredicate { mode, receiver, param, predicate } => format!(
-            "Expr::BlockPredicate {{ mode: crate::kernel::BlockMode::{}, receiver: Box::new({}), param: {}, predicate: Box::new({}) }}",
-            mode.rust_name(),
-            emit_resolver(receiver),
-            ruby_inspect_string(param),
-            emit_bool(predicate)
-        ),
-        Resolver::Find { receiver, param, predicate, path } => format!(
-            "Expr::Find {{ receiver: Box::new({}), param: {}, predicate: Box::new({}), path: &[{}] }}",
-            emit_resolver(receiver),
-            ruby_inspect_string(param),
-            emit_bool(predicate),
-            path.iter().map(|segment| ruby_inspect_string(segment)).collect::<Vec<_>>().join(", ")
-        ),
-        // Never reached in practice — `emit_include`, above, intercepts
-        // an `ArrayLiteral` haystack before it would ever recurse in
-        // here (the only shape the real grammar ever builds one for; see
-        // `Vocabulary::IncludeHaystack`). Kept as a real panic rather
-        // than folded into a `_ =>` arm, matching this match's own "no
-        // silent Unsupported case" discipline — a bare array literal
-        // reaching here is a genuinely new shape this generator has no
-        // rendering for yet, not a case to paper over.
-        Resolver::ArrayLiteral(_) => panic!("unhandled resolver node ArrayLiteral outside an Include haystack — the real grammar never builds one there; this generator is stale"),
+fn block_mode(node: &Json, op: &str) -> &'static str {
+    match field(node, op, "mode").as_str() {
+        Some("all") => "All",
+        Some("any") => "Any",
+        Some("none") => "None",
+        other => panic!("block_predicate's mode {other:?} is none of all/any/none: {node:?}"),
     }
 }

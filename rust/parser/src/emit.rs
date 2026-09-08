@@ -284,6 +284,11 @@ fn given_json(g: &ir::Given) -> JsonValue {
             JsonValue::opt_str(&g.description),
         ),
         ("canonical".to_string(), JsonValue::str(g.canonical.clone())),
+        // The structured form, derived from the same text — the exact
+        // tree Ruby's `AstJson.rule_row` puts beside `canonical`, and
+        // byte-compared by parser parity since the expression parser
+        // moved here from `rust/codegen`.
+        ("ast".to_string(), crate::expr::ast_json::emit_predicate(&g.canonical)),
     ])
 }
 
