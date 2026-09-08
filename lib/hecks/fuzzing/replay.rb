@@ -121,7 +121,7 @@ module Hecks
                   rows = run_filter(runtime, question)
                   queries << { query: question, rows: rows, instances_at: snapshot_instances(runtime) }
                 rescue StandardError => e
-                  refusals << { verb: filter_label(question), error: e.message, kind: e.class.name }
+                  refusals << { verb: filter_label(question), error: e.message, kind: refusal_kind(e) }
                 end
                 next
               end
@@ -174,7 +174,7 @@ module Hecks
               end
               queries << entry
 
-              refusals << { verb: question, error: native_error.message, kind: native_error.class.name } if native_error
+              refusals << { verb: question, error: native_error.message, kind: refusal_kind(native_error) } if native_error
               next
             end
 
@@ -281,7 +281,7 @@ module Hecks
               # would misread every one of those as a guard, or a guard as
               # one of those. The class is unambiguous where the string
               # is not.
-              refusals << { verb: step["verb"], error: e.message, kind: e.class.name }
+              refusals << { verb: step["verb"], error: e.message, kind: refusal_kind(e) }
               # ONLY a refusal raised BY THE GUARD ITSELF counts here —
               # measured, not assumed: a step whose args were simply
               # incomplete (AbsentArgument, from normalize_args — which
@@ -665,17 +665,30 @@ module Hecks
       # Sorted by id ascending regardless — `Ports::Query::Ordering`'s own
       # header explains why an ask with no declared order still needs
       # this tier ("the identity tier is what makes an ask total").
+      # THE OUTCOME CLASS a recorded refusal row names (C8.2/C8.3,
+      # docs/semantics/bluebook-semantics.md): a domain refusal is its own
+      # class; an evaluation FAULT — the language refusing to interpret a
+      # broken rule or input — is `"Fault"`, the same word the Rust kernel
+      # emits (`Refusal::Fault`), never a refusal class and never a raw
+      # Ruby exception name.
+      def refusal_kind(error)
+        error.is_a?(Bluebook::Expression::EvaluationError) ? "Fault" : error.class.name
+      end
+
       def run_filter(runtime, filter)
         aggregate_ref = filter["aggregate"].to_s
         field         = filter["field"].to_s
         op            = filter["op"].to_s
         value         = filter["value"]
 
-        raise "unknown query comparator #{op.inspect}" unless FILTER_COMPARATORS.include?(op)
+        # A malformed ad-hoc ask is a FAULT (C8.3), not a bare RuntimeError.
+        unless FILTER_COMPARATORS.include?(op)
+          raise Bluebook::Expression::EvaluationError, "unknown query comparator #{op.inspect}"
+        end
 
         domain_name, aggregate_name = aggregate_ref.split("::", 2)
         aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
-        raise "unknown aggregate #{aggregate_ref.inspect}" unless aggregate
+        raise Bluebook::Expression::EvaluationError, "unknown aggregate #{aggregate_ref.inspect}" unless aggregate
 
         clause  = QuerySpecification::Common::WhereClause.new(field: field, op: op, value: value)
         records = runtime.registry.repository(domain_name, aggregate).all

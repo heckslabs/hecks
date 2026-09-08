@@ -100,11 +100,20 @@ it, except for one law they must uphold (C8.4).
   validated (type, closed set, `admits`, `pattern`, VO invariants)
   before givens run; a mismatch is `TypeMismatch`, a refusal.
   (fixture: `vo_argument_type_refused.json`)
-- **C3.8 (OPEN — bare primitives)** A bare-primitive attribute
-  (`attribute :count, Integer`) is not type-checked at the boundary
-  today, so ordinary caller input can reach rule evaluation as the
-  wrong type and fault (C8.3). The open decision: type-check every
-  declared argument, making wrong-typed input a `TypeMismatch`.
+- **C3.8 (settled)** Every declared argument is type-checked at the
+  boundary, bare primitives included: an `Integer` or `Float` argument
+  must arrive as that numeric class, a `String` or boolean argument
+  must not arrive as a composite (list or map); a mismatch is
+  `TypeMismatch`, worded like a value-object field's. So wrong-typed
+  caller input is a refusal before any rule runs, never a fault (C8.3).
+  Known asymmetry, recorded not hidden: a `String` argument still
+  admits another scalar (an integer) in Ruby — the self-hosted
+  grammar's bootstrap relies on it — while the Rust boundary refuses
+  it; no corpus input exercises the difference. The check is the
+  *command* boundary's: a query's declared argument types name the
+  argument for callers and generators, never a runtime shape —
+  comparison unwraps both sides itself — so a query argument is not
+  type-checked here.
 
 ## §4 Effects
 
@@ -173,10 +182,12 @@ it, except for one law they must uphold (C8.4).
   arguments. Event order across a dispatch is semantic.
 - **C7.2 (settled)** A refused or faulted command emits nothing and
   records nothing — including events from a delegated entity command
-  whose parent later refuses. (Ruby currently violates the delegated
-  half: `step_delegate_to_entity` records events before the parent's
-  ensures/invariants/save. That is a bug against this clause, tracked
-  for its own fix; the fixture lands with the fix.)
+  whose parent later refuses: the delegated leg's emission is part of
+  the parent's own `emit` step, after save, inside the same commit
+  boundary. (Ruby once recorded delegated events before the parent's
+  ensures/invariants/save, outside the transaction; fixed against this
+  clause.) (fixtures: `invariant_refused_events_dropped.json`,
+  `delegated_event_dropped_on_parent_refusal.json`)
 - **C7.3 (settled)** `occurred_at` is environmental (C9.1), not part of
   the semantic payload.
 
@@ -192,12 +203,16 @@ it, except for one law they must uphold (C8.4).
   refusing rule's description. The class is semantic; the corpus
   compares it. Wording templates are shared, but prose is not the
   contract — the class and the refusing site are.
-- **C8.3 (OPEN — faults)** An evaluation fault (unknown name, nil
-  ordering, wrong-typed operand reaching an operator) is today a raised
-  `EvaluationError` in Ruby (escapes dispatch) but a `TypeMismatch`
-  *refusal* in the Rust kernel — a live accepted/refused/fault
-  disagreement. The open decision: fault is its own outcome, never a
-  refusal; with C3.8 settled, no ordinary caller input can cause one.
+- **C8.3 (settled)** An evaluation fault — an unknown name, nil
+  ordering, a wrong-typed operand reaching an operator, a malformed
+  ad-hoc ask — is the **fault** outcome: never a refusal class, never a
+  raw host exception name. Both runtimes name it `Fault` on the wire
+  (Ruby raises `Expression::EvaluationError`, which every harness and
+  door classifies as `Fault`; the Rust kernel's `Refusal::Fault`).
+  State and history are unchanged (C8.1). With C3.8, no ordinary
+  caller input reaches a fault: a fault is a broken domain or a
+  malformed ask, and a conforming runtime may surface it as an error
+  rather than a refusal. (fixture: `fault_is_not_a_refusal.json`)
 - **C8.4 (settled)** The one law the persistence boundary owes the
   semantics: commit is all-or-nothing — a dispatch's state change and
   its events become durable together or not at all.
