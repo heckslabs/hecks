@@ -59,8 +59,10 @@ module Hecks
             aggregate      = bluebook&.aggregate(aggregate_name)
             next unless aggregate
 
+            # THE SAME `ast` THE RUNTIME WALKS — a property that judged the
+            # TEXT a second time would be a third evaluator (stage 9).
             violated = aggregate.invariants.find do |invariant|
-              !Bluebook::Expression::Evaluator.call(invariant.canonical, state)
+              !Bluebook::Expression::Evaluator.call_rule(invariant, state)
             end
             next "#{key} violates #{aggregate_name}'s own declared invariant #{violated.description.inspect}" if violated
 
@@ -85,7 +87,7 @@ module Hecks
 
             Array(owner_state[list_attr.name]).each do |element|
               violated = entity.invariants.find do |invariant|
-                !Bluebook::Expression::Evaluator.call(invariant.canonical, element)
+                !Bluebook::Expression::Evaluator.call_rule(invariant, element)
               end
               if violated
                 return "#{key}'s own #{entity.hecks_name} violates its declared invariant " \

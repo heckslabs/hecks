@@ -610,8 +610,10 @@ module Hecks
 
       def fan_out_finding(runtime, snapshot, policy, event, domain, reactions_since)
         payload = event.payload.transform_keys(&:to_sym)
+        # THE SAME `ast` THE RUNTIME WALKS (`PolicyInterpreter#where_holds?`)
+        # — never the text a second time (stage 9).
         held = policy.where.to_s.empty? ||
-               Bluebook::Expression::Evaluator.call(policy.where, {}, payload)
+               Bluebook::Expression::Evaluator.call_rule(policy.where_rule, {}, payload)
 
         expected = held ? expected_fan_out_rows(runtime, snapshot, policy, domain, payload) : nil
 

@@ -8,10 +8,12 @@ require "hecks/fuzzing/bounded_exhaustive_expressions"
 # A `given`/`ensures`/invariant/precondition/policy `where` travels in
 # the IR as `{description, canonical, ast}` (`Expression::AstJson.
 # rule_row`) — `canonical` for anything that displays, `ast` for anything
-# that evaluates. The Ruby runtime now walks `ast` at dispatch
-# (`Evaluator.call_rule` + `Expression::AstReader`; HECKS_EVAL=string
-# reverts to text for one release), and the Rust generators transcribe
-# it — this spec pins the contract every reader stands on:
+# that evaluates. The Ruby runtime walks `ast` at dispatch
+# (`Evaluator.call_rule` + `Expression::AstReader`; the text path,
+# `Evaluator.call`, is the build-time parser and this spec's own
+# oracle — the `HECKS_EVAL=string` hatch is gone, stage 9), and the
+# Rust generators transcribe it — this spec pins the contract every
+# reader stands on:
 #
 #   1. `ast` is present at every rule site, in every corpus chapter, and
 #      is a pure function of `canonical`.
