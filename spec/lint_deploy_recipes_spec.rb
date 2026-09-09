@@ -350,22 +350,30 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
     end
 
     it "cleans up every fixture domain it generates under deploy/, win or lose" do
-      before_entries = Dir.children(File.join(self.class.root, "deploy")).sort
       Open3.capture3("ruby", self.class.script)
-      after_entries = Dir.children(File.join(self.class.root, "deploy")).sort
 
-      # Named, not just "they differ" — a bare eq failure here gives no
-      # way to tell "left something behind" from "something else in the
-      # SAME shared deploy/ directory disappeared or appeared out from
-      # under this example" apart (both are real possibilities under
-      # parallel_rspec: this directory isn't scoped per-worker). Whoever
-      # sees this next gets an actual lead instead of having to
-      # reproduce it blind.
-      added = after_entries - before_entries
-      removed = before_entries - after_entries
-      expect(after_entries).to eq(before_entries),
-                               "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
-                               "under deploy/ after it finishes -- added: #{added.inspect}, removed: #{removed.inspect}"
+      # NAMED, not "the whole listing is unchanged" — that first version
+      # of this check found a real bug in ITSELF, not in
+      # bin/lint_deploy_recipes: deploy/ is shared, unscoped scratch
+      # space, and other spec files (spec/project_deploy_bug_fixes_spec.rb's
+      # own "h14_own_fixture", for one) generate their own fixtures
+      # there too. Confirmed live — a before/after directory-listing
+      # diff caught "added: [\"h14_own_fixture\"]" that had nothing to
+      # do with this example: a DIFFERENT spec file's own
+      # before(:context), running concurrently in a different
+      # parallel_rspec worker, created it in the same shared directory
+      # during this example's own before/after window. What this
+      # example can actually verify is narrower and immune to that:
+      # bin/lint_deploy_recipes always namespaces its own fixtures
+      # "lint_deploy_recipes_fixture_<label>" (its own CLI body, above)
+      # — checking that prefix specifically, rather than the directory's
+      # full contents, is what a concurrent sibling's own unrelated
+      # entries can no longer make flaky.
+      leftover = Dir.children(File.join(self.class.root, "deploy")).grep(/\Alint_deploy_recipes_fixture_/)
+
+      expect(leftover).to be_empty,
+                          "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
+                          "under deploy/ after it finishes -- found: #{leftover.inspect}"
     end
   end
 end
