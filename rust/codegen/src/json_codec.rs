@@ -506,7 +506,6 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
         &[
             ("TmplKind", name),
             ("\"tmpl_field_name\"", naming::ruby_inspect_string(&field_name)),
-            ("tmpl_field_name", field_name),
             ("\"tmpl_closed_set_type\"", naming::ruby_inspect_string(&type_name)),
             ("\"tmpl_closed_set_admitted\"", naming::ruby_inspect_string(&admitted)),
         ],

@@ -186,6 +186,28 @@ impl Json {
         }
     }
 
+    /// Ruby's own `#to_s`, close enough for `Value::Admission#member_matches?`'s
+    /// `fields[field].to_s == value.to_s` — a closed-set (`one_of`) membership
+    /// check compares the RAW offered value's string form against each
+    /// member's own already-stringified text, with NO shape check run first
+    /// (Ruby's `fields_for` auto-wraps any bare, non-Hash value into the
+    /// single attribute's slot untouched — an Array, a Bool, whatever arrived
+    /// — and `admit_member` runs on that raw value directly). A String
+    /// answers itself; nil answers ""; true/false answer "true"/"false"; a
+    /// whole-valued number answers its bare integer digits (Ruby's
+    /// `Integer#to_s`); anything else (Array/Object, or a genuinely
+    /// fractional number) is never going to equal a member's own string text
+    /// anyway, so a reasonable fallback (not a precise match) is enough.
+    pub fn ruby_to_s(&self) -> String {
+        match self {
+            Json::Str(s) => s.clone(),
+            Json::Null => String::new(),
+            Json::Bool(b) => b.to_string(),
+            Json::Num(n) if n.fract() == 0.0 && n.abs() < 1e15 => format!("{}", *n as i64),
+            _ => self.to_json_string(),
+        }
+    }
+
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Json::Str(s) => Some(s),

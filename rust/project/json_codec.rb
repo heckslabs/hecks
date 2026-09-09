@@ -618,7 +618,6 @@ module RustProjection
         {
           "TmplKind" => name,
           '"tmpl_field_name"' => field_name.inspect,
-          "tmpl_field_name" => field_name,
           '"tmpl_closed_set_type"' => type_name.inspect,
           '"tmpl_closed_set_admitted"' => admitted.inspect,
         },
