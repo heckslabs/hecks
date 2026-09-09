@@ -487,15 +487,26 @@ impl Size {
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        let raw = v.require("value", "Size")?.as_str()
-            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Size.value: expected string".to_string()))?;
-        match raw {
+        // A `one_of` closed set is admission-checked on the RAW offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"value": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only THEN is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        let candidate = v.dig("value").cloned().unwrap_or(crate::kernel::Json::Null);
+        match candidate.ruby_to_s().as_str() {
             "small" => Ok(Size::Small),
             "large" => Ok(Size::Large),
-            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+            _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "Size"),
                 ("admitted", "\"small\", \"large\""),
-                ("offered", &format!("{:?}", other)),
+                ("offered", &candidate.inspect()),
             ]))),
         }
     }

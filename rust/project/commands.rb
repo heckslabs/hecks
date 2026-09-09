@@ -119,7 +119,17 @@ module RustProjection
       return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)" if unsupported_ops.any?
 
       corrects = corrects_of(command)
-      return "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet" if corrects && corrects_reverses?(corrects)
+      # `derive_reverses_mutations!` (mutations.rb, called before this
+      # ever runs) already appended the derived inverse mutation(s) onto
+      # THIS command when every sibling mutation it reverses was
+      # increment/decrement — the one shape Ruby's own `seal_correction_
+      # targets` has resolved. Skip ONLY when that pass left this command
+      # untouched: nothing emits the event, or a sibling mutation is one
+      # of the non-invertible ops (append/remove/set/multiply/clamp)
+      # Ruby's own authors haven't finished designing a reversal for
+      # (ADR 0041) — the real, still-open gap, not this whole construct.
+      return "corrects #{corrects[:target]}, reverses: true — the derived append/remove-reversal shape is a real, separate gap Ruby's own authors haven't finished designing (AggregateBuilder#seal_correction_targets's own comment) — not generated yet" \
+        if corrects && corrects_reverses?(corrects) && command[:mutations].none? { |m| m[:op].to_s != "corrects" }
 
       delegate_problem = delegate_skip_reason(command, aggregate, value_objects_by_name)
       return delegate_problem if delegate_problem

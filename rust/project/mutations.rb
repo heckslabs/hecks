@@ -617,6 +617,52 @@ module RustProjection
       end
     end
 
+    # `AggregateBuilder::Sealing#seal_correction_targets`'s own derivation,
+    # read directly and reproduced exactly: a `corrects EVENT, reverses:
+    # true` command has no `sets` of its own — every sibling command that
+    # `emits` EVENT hands over its own non-`:corrects` mutations, and each
+    # one that's INVERTIBLE (only `increment`/`decrement` ever are — Ruby's
+    # own `inverse_op` table, unchanged) gets appended onto the correcting
+    # command as its opposite op, same target, same source. Mutated onto
+    # `aggregate[:commands]` BEFORE `command_skip_reason`/mutation-line
+    # emission ever read a command's `[:mutations]` — same idiom, same
+    # call site, as `mark_append_optional_fields!` just above — so nothing
+    # downstream needs a second notion of "this command's mutations."
+    # Left untouched (and therefore still caught by `command_skip_reason`'s
+    # own `reverses: true` refusal) whenever nothing emits the event, or
+    # any sibling mutation is one of the non-invertible ops
+    # (`append`/`remove`/`set`/`multiply`/`clamp`) Ruby's own authors
+    # haven't finished designing a reversal for (ADR 0041) — this pass
+    # only ever ADDS mutations for the one shape that's genuinely resolved
+    # on the Ruby side, never guesses at the rest.
+    INVERSE_MUTATION_OP = { "increment" => "decrement", "decrement" => "increment" }.freeze
+
+    def derive_reverses_mutations!(aggregate)
+      emitted_by = Hash.new { |hash, key| hash[key] = [] }
+      aggregate[:commands].each { |command| Array(command[:emits]).each { |event_name| emitted_by[event_name.to_s] << command } }
+
+      aggregate[:commands].each do |command|
+        correction = corrects_of(command)
+        next unless correction && corrects_reverses?(correction)
+
+        sources = emitted_by[correction[:target].to_s]
+        next if sources.empty?
+
+        derived = sources.flat_map { |c| c[:mutations] }.reject { |m| m[:op].to_s == "corrects" }
+        next if derived.empty? || derived.any? { |m| !INVERSE_MUTATION_OP.key?(m[:op].to_s) }
+
+        # `reverses: true` alongside an explicit `sets` is `Malformed` in
+        # Ruby (never reaches this pass there at all) — here, simply never
+        # derive a SECOND time onto a command that already has one, so a
+        # generator re-run over already-derived IR stays idempotent.
+        next if command[:mutations].any? { |m| m[:op].to_s != "corrects" }
+
+        derived.each do |m|
+          command[:mutations] << { op: INVERSE_MUTATION_OP.fetch(m[:op].to_s), target: m[:target], source: m[:source] }
+        end
+      end
+    end
+
     # `optional:` — true for an aggregate RECORD (every non-list field is
     # `Option`-wrapped, emit_record's own reason) and false for an ENTITY
     # element (emit_entity's fields are plain, never `Option`-wrapped — an
