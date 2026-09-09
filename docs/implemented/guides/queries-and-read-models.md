@@ -631,6 +631,126 @@ choice about how much of it to filter — the contrast is the point:
 `where`/`order_by`/`limit` are there when a report needs a working set,
 and absent entirely when a report is meant to gather everything.
 
+## `on:` — filtering ONE many-side collection when there's more than one
+
+`CustomerPortfolio`, above, gathers everything because it declares no
+`where` at all. What if it wanted to? `ComplianceDashboard`'s own
+`where` narrows the ONE many-side head it has — a read model with
+SEVERAL used to have no way to say which one a `where`/`order_by`/
+`limit`/`offset` meant, and refused to declare any of them at all.
+`on:` (ADR 0055) names it directly. A tiny, invented domain proves it —
+not `examples/banking/bluebook/`'s own real files, since those are also
+read by `rust/parser`, which doesn't yet recognize `on:` (see the ADR's
+own Rust-parity section for why this capability stays Ruby-only,
+deliberately, for now):
+
+```ruby bluebook
+Hecks.bluebook("Bookshelf") do
+  vision "A tiny bookshelf domain, invented for this guide alone."
+  generic
+
+  aggregate "Novel" do
+    identified_by :ref
+    attribute :ref, Ref
+    value_object "Ref" do
+      attribute :value, String
+    end
+
+    command "Publish" do
+      sets :ref
+      emits NovelPublished
+    end
+  end
+
+  aggregate "Character" do
+    identified_by :ref
+    attribute :ref, Ref
+    attribute :superseded_by, CharacterRef, optional: true
+    reference_to Novel, as: :novel
+    value_object "Ref" do
+      attribute :value, String
+    end
+    value_object "CharacterRef" do
+      attribute :value, String
+    end
+
+    command "Introduce" do
+      sets :ref
+      sets :novel
+      sets :superseded_by
+      emits CharacterIntroduced
+    end
+  end
+
+  aggregate "Note" do
+    identified_by :ref
+    attribute :ref, Ref
+    reference_to Novel, as: :novel
+    value_object "Ref" do
+      attribute :value, String
+    end
+
+    command "Write" do
+      sets :ref
+      sets :novel
+      emits NoteWritten
+    end
+  end
+
+  # THE REAL GAP THIS DSL WORD CLOSES — a read model gathering a novel's
+  # own Character/Note collections, wanting to narrow Character alone
+  # (superseded cards dropped) without dropping Note, its unrelated
+  # sibling — the exact shape `seal_query_options` used to refuse
+  # outright the moment a second many-side `include` appeared.
+  read_model "NovelSummary" do
+    reference_to Novel
+    include Novel
+    include Character
+    include Note
+
+    where(superseded_by: nil, on: Character)
+  end
+end
+```
+
+```ruby boot
+Hecks.hecksagon("Bookshelf") do
+  Bookshelf::Novel.persisted_by("Memory")
+  Bookshelf::Character.persisted_by("Memory")
+  Bookshelf::Note.persisted_by("Memory")
+end
+```
+
+```ruby
+runtime.dispatch("Bookshelf::Novel.Publish", ref: { value: "n1" })
+runtime.dispatch("Bookshelf::Character.Introduce", ref: { value: "c1" }, novel: "n1")
+runtime.dispatch("Bookshelf::Character.Introduce", ref: { value: "c2" }, novel: "n1", superseded_by: { value: "c1" })
+runtime.dispatch("Bookshelf::Note.Write", ref: { value: "note1" }, novel: "n1")
+
+summary = runtime.query("Bookshelf.novel_summary", novel: "n1")
+
+summary.first[:characters].map { |c| c[:ref][:value] }
+# => ["c1"]
+summary.first[:notes].map { |n| n[:ref][:value] }
+# => ["note1"]
+```
+
+`c2`, introduced already superseded by `c1`, is the one `on: Character`
+cuts — `characters` narrows to the working set the same way
+`Character.Active`'s own plain query already would, elsewhere. `notes`
+carries no `on:` of its own at all and comes back whole: a targeted
+option on ONE many-side head leaves every OTHER one exactly as
+declared, the same way `CustomerPortfolio`'s own total absence of
+`where` left all six of its collections untouched, above.
+
+`card_payments` narrows to the same six disputes `ComplianceDashboard`'s
+own `where` already proved, above — `on: CardPayment` is what names
+which collection the clause means now that there's more than one to
+choose from. `atm_cards` comes back whole: a targeted option on ONE
+many-side head leaves every OTHER one exactly as declared, the same way
+`CustomerPortfolio`'s own total absence of `where` left all six of its
+collections untouched.
+
 ## The gate that makes any of this trustworthy
 
 None of the above means much if Memory answers one way and Sqlite

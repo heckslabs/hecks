@@ -146,6 +146,24 @@ module RustProjection
       extra = read_model.keys.map(&:to_sym) - READ_MODEL_BARE_KEYS
       return read_model_options_skip_reason(extra) if extra.any?
 
+      # ADR 0055 — a DEFENSIVE guard, not a ported capability. Ruby's own
+      # `seal_query_options` used to make it structurally impossible for
+      # this generator to ever see more than one many-side head with
+      # where/order_by/limit/offset declared at all; ADR 0055 relaxed
+      # that (an `on:` names WHICH many-side head each option applies
+      # to), so it's possible now. `read_model_filtered_head_as` below
+      # still trusts the OLD invariant unconditionally (`aggregate_heads
+      # .find { |head| head[:many] }` — the FIRST many-side head, no
+      # matter how many there are), so left unguarded this generator
+      # would silently apply a `Character`-targeted `where` to whichever
+      # many-side head happened to be declared first (e.g. `Part`) — a
+      # real, silent Ruby/Rust divergence, not merely an unported
+      # capability. Refused cleanly instead, the same honest shape as
+      # every other out-of-scope option this generator already names;
+      # full multi-target codegen is a real, separate follow-up (ADR
+      # 0055's own Rust-parity section), not attempted here.
+      return multi_target_options_skip_reason if multi_target_options?(read_model)
+
       # A GENUINE `group_by` declaration (a non-empty value, not just the
       # key's own unconditional presence — see `READ_MODEL_BARE_KEYS`'s
       # own comment). Checked before the `reference_to`/root-fetch check
@@ -191,6 +209,29 @@ module RustProjection
     # options declared — at bluebook declare time), so this doesn't
     # re-derive or re-check it either: the first many-side head IS the
     # eligible one whenever any option is declared at all.
+    # ADR 0055's own guard — see `read_model_skip_reason`'s header. True
+    # only for the shape this generator cannot yet trust itself to pick
+    # the right head for: MORE THAN ONE many-side head with ANY
+    # where/order_by/limit/offset declared at all (targeted via `on:` or
+    # not — this generator has no per-head codegen either way yet, so a
+    # `on:`-targeted option on a 3-many-head model is exactly as
+    # unsupported as an old-style untargeted one would have been if
+    # Ruby's own seal hadn't already made that combination impossible).
+    def multi_target_options?(read_model)
+      many = read_model[:aggregate_heads].count { |head| head[:many] }
+      return false if many <= 1
+
+      Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] || read_model[:offset]
+    end
+
+    def multi_target_options_skip_reason
+      "declares where/order_by/limit/offset with more than one many-side included aggregate — " \
+        "ADR 0055's own `on:` lets Ruby's interpreter apply each option to a specific many-side " \
+        "head, but this generator still trusts \"the first many-side head is the eligible one\" " \
+        "(read_model_filtered_head_as) and has no per-head codegen yet — not generated yet, " \
+        "refused rather than risk applying an option to the wrong head"
+    end
+
     def read_model_filtered_head_as(read_model)
       declared = Array(read_model[:wheres]).any? || read_model[:order_by] || read_model[:limit] ||
                  read_model[:offset] || read_model.dig(:authorization, :tenant)

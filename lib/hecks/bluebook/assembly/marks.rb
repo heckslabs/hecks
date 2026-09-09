@@ -170,9 +170,19 @@ module Hecks
         # a saga with nothing to do.
         def read(value) = Literal.read(value)
 
+        # `target:` (ADR 0055) — read straight off the wire, unconverted:
+        # it's already the bare aggregate-name STRING `WhereClause#to_h`/
+        # `OrderBy#to_h`/`LimitSpec#to_h` wrote (`resolve_target`'s own
+        # `Naming.demodulise` already ran once, at DSL-build time; this is
+        # the REPLAY path every real boot actually goes through, reading
+        # that same wire shape back — see this class's own header). Absent
+        # from `clause`/`declared` entirely on older wire data that never
+        # declared `on:` — `clause[:target]`/`declared[:target]` reads
+        # `nil` for a missing key exactly like an explicit `nil` would,
+        # so this is additive, not a migration.
         def where_clause(clause)
           QuerySpecification::Common::WhereClause.new(
-            field: clause[:field], op: clause[:op].to_sym, value: read(clause[:value])
+            field: clause[:field], op: clause[:op].to_sym, value: read(clause[:value]), target: clause[:target]
           )
         end
 
@@ -180,14 +190,14 @@ module Hecks
           return nil unless declared
 
           QuerySpecification::Common::OrderBy.new(
-            field: declared[:field], direction: declared[:direction].to_sym
+            field: declared[:field], direction: declared[:direction].to_sym, target: declared[:target]
           )
         end
 
         def limit(declared)
           return nil unless declared
 
-          QuerySpecification::Common::LimitSpec.new(value: read(declared[:value]))
+          QuerySpecification::Common::LimitSpec.new(value: read(declared[:value]), target: declared[:target])
         end
 
         # EVERY OTHER SPECIFICATION OPTION, from one table.

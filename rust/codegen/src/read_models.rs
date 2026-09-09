@@ -19,6 +19,16 @@ pub fn read_model_skip_reason(read_model: &Json, aggregates_by_name: &HashMap<St
         return Some(read_model_options_skip_reason(&extra));
     }
 
+    // ADR 0055 — mirrors `rust/project/read_models.rb`'s own identical
+    // guard; read that file's header for the full reasoning (Ruby's own
+    // `seal_query_options` now permits more than one many-side head with
+    // options declared, via `on:`, and `read_model_filtered_head_as`
+    // below still trusts "the first many-side head is the eligible one"
+    // unconditionally — refused here rather than silently miscompiled).
+    if multi_target_options(read_model) {
+        return Some(multi_target_options_skip_reason());
+    }
+
     if read_model.get("group_by").map(Json::each).unwrap_or(&[]).iter().any(|_| true) {
         return group_by_skip_reason(read_model, aggregates_by_name, unsupported_names);
     }
@@ -52,6 +62,32 @@ fn read_model_options_skip_reason(extra: &[&str]) -> String {
         "declares {} — out of scope for this generator: cursor/consistency/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches",
         sorted.join(", ")
     )
+}
+
+/// ADR 0055's own guard — mirrors `rust/project/read_models.rb`'s
+/// `multi_target_options?` exactly. True only for the shape this
+/// generator cannot yet trust itself to pick the right head for: MORE
+/// THAN ONE many-side head with ANY where/order_by/limit/offset declared
+/// at all (targeted via `on:` or not — this generator has no per-head
+/// codegen either way yet).
+fn multi_target_options(read_model: &Json) -> bool {
+    let many = read_model.get("aggregate_heads").map(Json::each).unwrap_or(&[]).iter().filter(|h| h.get("many").map(Json::as_bool).unwrap_or(false)).count();
+    if many <= 1 {
+        return false;
+    }
+
+    read_model.get("wheres").map(Json::each).unwrap_or(&[]).iter().any(|_| true)
+        || read_model.get("order_by").is_some()
+        || read_model.get("limit").is_some()
+        || read_model.get("offset").is_some()
+}
+
+fn multi_target_options_skip_reason() -> String {
+    "declares where/order_by/limit/offset with more than one many-side included aggregate — ADR 0055's own `on:` \
+     lets Ruby's interpreter apply each option to a specific many-side head, but this generator still trusts \"the \
+     first many-side head is the eligible one\" (read_model_filtered_head_as) and has no per-head codegen yet — not \
+     generated yet, refused rather than risk applying an option to the wrong head"
+        .to_string()
 }
 
 /// `IR::ReadModel#filtered_head_name`, ported directly.

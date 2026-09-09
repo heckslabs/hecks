@@ -67,7 +67,10 @@ module Hecks
         # reads it — not the identity unwrap, which is gone : an identity is
         # declared as a path and followed.
         reference_id = args.fetch(model.reference_name).to_s
-        eligible = model.filtered_head_name
+        # Plural (ADR 0055) — `on:` lets `where`/`order_by`/`limit`/`offset`
+        # each name a different many-side head, so more than one can be
+        # eligible in the same read model now.
+        eligible = model.filtered_head_names
 
         # ROOT FIRST, ALWAYS — see this method's own header. Mirrors
         # `ReadModelInterpreter#project`'s identical partition, for the
@@ -87,7 +90,7 @@ module Hecks
                  else
                    select_related(aggregate, projected)
                  end
-          rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
+          rows = Ports::Query::InMemory.execute(rows, model.options_for(head[:as]), args) if eligible.include?(head[:as])
           projected << { aggregate: head[:aggregate], rows: rows }
           reports[head[:as]] = if head[:many]
                                  rows.map { |row| Runtime::Value.materialize(row.to_h) }
