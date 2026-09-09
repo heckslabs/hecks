@@ -1,0 +1,42 @@
+{
+  "grammar": [
+    "G10"
+  ],
+  "canonical": "crew.none? { |m| m.id.value == member.value }",
+  "ruby_only": false,
+  "note": "A block-opener suffix (.all?/.any?/.none?) with |param| introduces BlockPredicate{mode, receiver, param, predicate}.",
+  "expect_ast": {
+    "op": "block_predicate",
+    "mode": "none",
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "crew"
+      ]
+    },
+    "param": "m",
+    "predicate": {
+      "op": "compare",
+      "cmp": {
+        "less_than": false,
+        "equal": true,
+        "negated": false
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "m",
+          "id",
+          "value"
+        ]
+      },
+      "right": {
+        "op": "lookup",
+        "path": [
+          "member",
+          "value"
+        ]
+      }
+    }
+  }
+}

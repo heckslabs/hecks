@@ -1,0 +1,27 @@
+{
+  "grammar": [
+    "G4",
+    "G7"
+  ],
+  "canonical": "!tags.include?(forbidden)",
+  "ruby_only": false,
+  "note": "! negates the WHOLE boolean expression that follows — not(include(..)), never a malformed receiver. hecks-parse regained this the same round this fixture was added (it had reintroduced the historical Ruby bug: trying .include? before !).",
+  "expect_ast": {
+    "op": "not",
+    "expr": {
+      "op": "include",
+      "haystack": {
+        "op": "lookup",
+        "path": [
+          "tags"
+        ]
+      },
+      "needle": {
+        "op": "lookup",
+        "path": [
+          "forbidden"
+        ]
+      }
+    }
+  }
+}

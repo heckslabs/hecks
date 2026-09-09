@@ -1,0 +1,29 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "toppings.length < 10",
+  "ruby_only": false,
+  "note": ".length is the SAME production as .size (Ruby's own Array/String alias) — both parse to Size, tried in the SAME precedence slot.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": true,
+      "equal": false,
+      "negated": false
+    },
+    "left": {
+      "op": "size",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "toppings"
+        ]
+      }
+    },
+    "right": {
+      "op": "int",
+      "value": 10
+    }
+  }
+}

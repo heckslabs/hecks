@@ -1,0 +1,16 @@
+{
+  "grammar": [
+    "G9",
+    "G11"
+  ],
+  "canonical": "reference.starts_with?(\"acct-\")",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11): StartsWith{receiver, substring} unrecognised by hecks-parse.",
+  "expect_ast": {
+    "op": "lookup",
+    "path": [
+      "reference",
+      "starts_with?(\"acct-\")"
+    ]
+  }
+}

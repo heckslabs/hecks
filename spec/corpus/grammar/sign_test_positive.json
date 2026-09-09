@@ -1,0 +1,23 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "amount.cents.positive?",
+  "ruby_only": false,
+  "note": "A sign-test suffix (.positive?/.negative?/.zero?) is SignTest, not a boolean method Lookup.",
+  "expect_ast": {
+    "op": "sign_test",
+    "cmp": {
+      "less_than": true,
+      "equal": true,
+      "negated": true
+    },
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "amount",
+        "cents"
+      ]
+    }
+  }
+}

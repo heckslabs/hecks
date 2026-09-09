@@ -1,0 +1,17 @@
+{
+  "grammar": [
+    "G9",
+    "G11"
+  ],
+  "canonical": "filename.ends_with?(\".csv\")",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11): EndsWith{receiver, substring} unrecognised by hecks-parse.",
+  "expect_ast": {
+    "op": "lookup",
+    "path": [
+      "filename",
+      "ends_with?(\"",
+      "csv\")"
+    ]
+  }
+}
