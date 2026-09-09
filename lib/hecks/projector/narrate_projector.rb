@@ -284,18 +284,11 @@ module Hecks
 
       # ── small sentence carpentry ──────────────────────────────────────
 
-      def to_sentence_list(items, conj: "and")
-        case items.size
-        when 0 then ""
-        when 1 then items[0].to_s
-        when 2 then "#{items[0]} #{conj} #{items[1]}"
-        else "#{items[0..-2].join(', ')}, #{conj} #{items[-1]}"
-        end
-      end
+      # Both now live in `Naming` (a second projection, the glossary,
+      # needed them); kept here as names so this file reads as it did.
+      def to_sentence_list(items, conj: "and") = Naming.to_sentence_list(items, conj: conj)
 
-      def a_or_an(word)
-        %w[a e i o u].include?(word.to_s[0].to_s.downcase) ? "an" : "a"
-      end
+      def a_or_an(word) = Naming.a_or_an(word)
     end
   end
 end

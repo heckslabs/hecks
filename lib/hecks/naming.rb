@@ -39,6 +39,47 @@ module Hecks
           .downcase
     end
 
+    # AN IDENTIFIER AS A PERSON WOULD SAY IT — `ATMCard` -> "ATM card",
+    # `AccrueInterest` -> "Accrue interest", `daily_limit` -> "Daily
+    # limit", `Back office` -> "Back office". The same two word-boundary
+    # splits `snake` uses, with a space instead of an underscore — plus
+    # the one thing `snake` cannot give back: an all-caps run stays an
+    # acronym ("ATM", "KYC") instead of being lowercased into a word
+    # nobody says ("Atm"). First word capitalized, the rest lowercased,
+    # so a headword reads as sentence case whatever casing it was
+    # declared in.
+    def words(text)
+      parts = text.to_s
+                  .tr("_", " ")
+                  .gsub(/([A-Z]+)([A-Z][a-z])/, '\1 \2')
+                  .gsub(/([a-z\d])([A-Z])/, '\1 \2')
+                  .split
+      parts.each_with_index.map do |part, index|
+        next part if part.match?(/\A[A-Z]{2,}\z/)
+
+        index.zero? ? part.capitalize : part.downcase
+      end.join(" ")
+    end
+
+    # "A, B, and C" / "A or B" — the Oxford-comma list every English
+    # sentence a projection writes wants; lived in `NarrateProjector`
+    # alone until a second projection needed it.
+    def to_sentence_list(items, conj: "and")
+      case items.size
+      when 0 then ""
+      when 1 then items[0].to_s
+      when 2 then "#{items[0]} #{conj} #{items[1]}"
+      else "#{items[0..-2].join(', ')}, #{conj} #{items[-1]}"
+      end
+    end
+
+    # The vowel-LETTER heuristic — safe here for the same reason
+    # `Projections::Statements#article` gives: a construct name is a
+    # plain word, never "hour" or "university".
+    def a_or_an(word)
+      %w[a e i o u].include?(word.to_s[0].to_s.downcase) ? "an" : "a"
+    end
+
     # The name a COLLECTION of something takes.
     #
     # There were two of these and one was wrong. A read model's gathered heads
