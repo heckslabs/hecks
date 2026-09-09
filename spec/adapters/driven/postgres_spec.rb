@@ -77,11 +77,12 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   end
 
   it "saves and finds one back through its own typed columns" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" },
+                      pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available"))
 
     found = adapter.find("p1")
     expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 })
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
     expect(found.status).to eq("available")
   end
 
@@ -179,9 +180,10 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
 
   describe "a declared `where`/`order_by` query" do
     it "pushes `CostingLessThan` (a two-level jsonb-nested numeric path) down to SQL, correctly ordered" do
-      adapter.save(instance("cheap", name: { value: "Bare" }, pizza: { price_cents: { cents: 300 } }))
-      adapter.save(instance("mid", name: { value: "Basic" }, pizza: { price_cents: { cents: 900 } }))
-      adapter.save(instance("pricey", name: { value: "Loaded" }, pizza: { price_cents: { cents: 1500 } }))
+      adapter.save(instance("cheap", name: { value: "Bare" }, pizza: { price_cents: { cents: 300 }, size: { value: "small" } }))
+      adapter.save(instance("mid", name: { value: "Basic" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }))
+      adapter.save(instance("pricey", name:  { value: "Loaded" },
+                                      pizza: { price_cents: { cents: 1500 }, size: { value: "small" } }))
 
       # Filters on the two-level nested `pizza.price_cents.cents` path,
       # orders (ascending) by the declared query's OWN `order_by :name` —
@@ -196,9 +198,9 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       # cast is what keeps 900 correctly ahead of 1200. Exactly the bug
       # PostgresEra's own numeric_field? comment describes — proven here
       # against a jsonb-extracted member, where the cast is still needed.
-      adapter.save(instance("a", name: { value: "A" }, pizza: { price_cents: { cents: 900 } }))
-      adapter.save(instance("b", name: { value: "B" }, pizza: { price_cents: { cents: 1200 } }))
-      adapter.save(instance("c", name: { value: "C" }, pizza: { price_cents: { cents: 300 } }))
+      adapter.save(instance("a", name: { value: "A" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }))
+      adapter.save(instance("b", name: { value: "B" }, pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }))
+      adapter.save(instance("c", name: { value: "C" }, pizza: { price_cents: { cents: 300 }, size: { value: "small" } }))
 
       ordered = adapter.all(order_by: :"pizza.price_cents.cents")
       expect(ordered.map(&:id)).to eq(%w[c a b])

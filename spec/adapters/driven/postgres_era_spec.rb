@@ -58,11 +58,12 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   end
 
   it "saves and finds one back through the jsonb head" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" },
+                      pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available"))
 
     found = adapter.find("p1")
     expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 })
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
     expect(found.status).to eq("available")
   end
 
@@ -253,9 +254,12 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   describe "query pushdown — compile fully into SQL, or refuse" do
     before do
-      adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
-      adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 } }, status: "available"))
-      adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 900 } }, status: "sold"))
+      adapter.save(instance("p1", name: { value: "Margherita" },
+                      pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available"))
+      adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 }, size: { value: "small" } },
+status: "available"))
+      adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } },
+status: "sold"))
     end
 
     it "compiles equality on the lifecycle field" do
@@ -361,9 +365,11 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     end
 
     it "places nulls per the declared policy, not Postgres's own ASC/DESC default" do
-      adapter.save(instance("p4", name: { value: "Unpurchased" }, pizza: { price_cents: { cents: 500 } }, status: "available"))
-      adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } },
-                                    status: "available", customer_name: { value: "Alex" }))
+      adapter.save(instance("p4", name: { value: "Unpurchased" },
+                            pizza: { price_cents: { cents: 500 }, size: { value: "small" } }, status: "available"))
+      adapter.save(instance("p1", name: { value: "Margherita" },
+                            pizza: { price_cents: { cents: 1200 }, size: { value: "small" } },
+                            status: "available", customer_name: { value: "Alex" }))
 
       first_mode = Struct.new(:mode).new("first")
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
