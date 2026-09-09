@@ -7,6 +7,49 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-09
+
+**`rust/host` closes its silent-wrongness gaps against a real
+persistence backend.** It now refuses loudly at boot when a domain
+binds an aggregate to a persistence adapter it has no backend for
+(previously it dispatched through its own flat Postgres path
+regardless of what the domain declared, with lineage/era boot gates
+skipping silently since Heki is never lineage-capable). Its
+cross-domain delivery loop no longer drops sibling reactions the
+instant one delivery exhausts its retries. `PostgresEra`'s advisory
+lock (ADR 0036) now covers its whole cross-process dispatch order
+instead of only `append`/`atomic_put`, and its lock-key domain default
+no longer risks colliding with an unrelated domain when constructed
+without an explicit `domain:`.
+
+**`bin/run` no longer crashes on any domain that declares a `port`.**
+`CliProjector#port_spec` called a method (`receiver_options`) defined
+nowhere in the codebase — `examples/pizzas`' `PaymentGateway` port
+included, so `bin/run examples/pizzas` failed with `NoMethodError`
+before printing even a help listing. No corpus domain's `.bluebook`
+exercised a port, so nothing caught it until now.
+
+**Rust parity fixes from the ongoing Ruby/Rust survey.** Closed-set
+(`one_of`) `from_json` admission now matches Ruby's check ordering
+instead of requiring the wrapped-string shape before admission is
+checked; `corrects` now ports `reverses: true` (increment/decrement)
+correctly; policies and process managers now merge across chapters the
+same way Ruby does. ADR 0037's remaining "honest addendum" divergences
+were re-verified live (not just re-read) — one closed outright, the
+rest confirmed already fixed by the generated-dispatch reordering that
+shipped for Findings 3-5.
+
+**Reliability and hygiene:** Postgres adapter self-heals a missing
+column or a killed connection on boot instead of failing over the
+whole domain; two specs that were silently passing without exercising
+the behavior they claimed to (`read_model_interpreter_spec`,
+`parser_parity_spec`) now actually test it; a new Ubiquitous Language
+glossary projector; value-object *lists* now hydrate correctly (ADR
+0047 previously only covered single value-object attributes);
+`read_model`'s `on:` now names which many-side a nested
+`where`/`order_by`/`limit`/`offset` targets; `rspec_rust_io` splits
+into 3 parallel CI jobs.
+
 ## [1.1.0] - 2026-09-09
 
 **Transactional outbox for domain events and external effects (ADR
