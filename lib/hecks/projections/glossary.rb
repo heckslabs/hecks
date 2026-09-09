@@ -110,9 +110,22 @@ module Hecks
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.value_objects.map do |vo|
             Entry.new(term: vo.hecks_name, kind: "Value Object", within: aggregate.hecks_name,
-                      definition: value_object_shape(vo))
+                      definition: value_object_definition(vo))
           end
         end
+      end
+
+      # THE SHAPE, THEN THE RULES — a value object's own `invariant`
+      # bodies are real authored prose ("a currency is a three-letter
+      # code"), not derived the way the shape above is, and were
+      # sitting unread by this projector until now: `to_h`'s own
+      # `invariants` field already carries them, one `description` per
+      # `Bluebook::Invariant`.
+      def value_object_definition(value_object)
+        sentence = value_object_shape(value_object)
+        rules = value_object.invariants.map(&:description)
+        sentence += " Must satisfy: #{rules.join('; ')}." unless rules.empty?
+        sentence
       end
 
       # A CLOSED SET'S ROWS, not just their first field — the same

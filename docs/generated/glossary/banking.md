@@ -14,8 +14,8 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **AccountDebited** | Event | Raised by `Debit`. |
 | **AccountFrozen** | Event | Raised by `FreezeAccount`. Triggers policy `ReviewOnFreeze` → `AccountFreezeReview.Open` in Compliance. |
 | **AccountKind** *(Account)* | Value Object | One of `current`, `savings`, `reserve`. |
-| **AccountNumber** *(Account)* | Value Object | { value: String } |
-| **AccountNumber** *(OnboardingCase)* | Value Object | { value: String } |
+| **AccountNumber** *(Account)* | Value Object | { value: String } Must satisfy: an account number is present. |
+| **AccountNumber** *(OnboardingCase)* | Value Object | { value: String } Must satisfy: an account number is present. |
 | **AccountOpened** | Event | Raised by `Open`. |
 | **AccountsByKind** | Read Model | Every account the bank holds, sorted into what kind it is, then by its own number. |
 | **AccountUnfrozen** | Event | Raised by `Unfreeze`. |
@@ -36,13 +36,13 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Authorize** *(CardPayment)* | Command | Put a hold on funds for a purchase |
 | **Back office** | Role | Issues `CorrectFee`, `CorrectInterest`, `Amend`, `Reverse`, `Retire`, `Abandon`. |
 | **Banking** | Domain | Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery. |
-| **BeneficiaryName** *(ExternalTransfer)* | Value Object | { value: String } |
-| **BoxNumber** *(SafeDepositBox)* | Value Object | { value: Integer } |
+| **BeneficiaryName** *(ExternalTransfer)* | Value Object | { value: String } Must satisfy: a beneficiary name is present. |
+| **BoxNumber** *(SafeDepositBox)* | Value Object | { value: Integer } Must satisfy: a box is numbered from one. |
 | **BoxOpened** | Event | Raised by `LogVisit`. |
 | **BoxRented** | Event | Raised by `Rent`. |
 | **BoxSurrendered** | Event | Raised by `Surrender`. Triggers policy `ReviewOnBoxSurrender` → `BoxSurrenderReview.Open` in Compliance. |
 | **Branch clerk** | Role | Issues `Register`, `Close`, `Open`, `CloseAccount`, `Issue`, `Rent`. |
-| **BranchCode** *(SafeDepositBox)* | Value Object | { value: String } |
+| **BranchCode** *(SafeDepositBox)* | Value Object | { value: String } Must satisfy: a branch is coded. |
 | **ByFee** *(ATMCard)* | Query | Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical. |
 | **Cancel** *(ScheduledPayment)* | Command | Call off a payment before its due date |
 | **Capture** *(CardPayment)* | Command | Turn an authorization into an actual charge |
@@ -56,7 +56,7 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **CardPayment** | Lifecycle | Starts at `authorized`. States: `authorized`, `captured`, `voided`, `refunded`, `reversed`, `disputed`, `charged_back`. |
 | **CardRefunded** | Event | Raised by `Refund`. |
 | **CardReversed** | Event | Raised by `Reverse`. |
-| **CardSerial** *(ATMCard)* | Value Object | { value: String } |
+| **CardSerial** *(ATMCard)* | Value Object | { value: String } Must satisfy: a card serial is present. |
 | **CardVoided** | Event | Raised by `Void`. |
 | **CashWithdrawn** | Event | Raised by `Withdraw`. |
 | **Chargeback** *(CardPayment)* | Command | Uphold a customer's dispute and claw the charge back |
@@ -73,14 +73,14 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Customer** | Lifecycle | Starts at `active`. States: `active`, `suspended`, `closed`. |
 | **Customer** | Role | Issues `Rename`, `Withdraw`, `Activate`, `Dispute`, `Surrender`, `Request`, `Recall`, `Schedule`, `Cancel`. |
 | **CustomerClosed** | Event | Raised by `Close`. |
-| **CustomerNumber** *(Customer)* | Value Object | { value: String } |
+| **CustomerNumber** *(Customer)* | Value Object | { value: String } Must satisfy: a customer reference is present. |
 | **CustomerPortfolio** | Read Model | A customer's cross-account position, rebuilt from aggregate heads. |
 | **CustomerRegistered** | Event | Raised by `Register`. |
 | **CustomerReinstated** | Event | Raised by `Reinstate`. |
-| **CustomerStanding** *(Customer)* | Value Object | { value: String } |
+| **CustomerStanding** *(Customer)* | Value Object | { value: String } Must satisfy: a standing is named. |
 | **CustomerSuspended** | Event | Raised by `Suspend`. Triggers policy `FreezeAccountsOnSuspension` → `Account.FreezeAccount`. |
-| **DailyFee** *(ATMCard)* | Value Object | { amount: Float } |
-| **DailyLimit** *(Account)* | Value Object | { cents: Integer } |
+| **DailyFee** *(ATMCard)* | Value Object | { amount: Float } Must satisfy: a daily fee is non-negative. |
+| **DailyLimit** *(Account)* | Value Object | { cents: Integer } Must satisfy: a daily limit is non-negative. |
 | **Debit** *(Account)* | Command | Take money out, if it is there to take |
 | **Debited** *(Transfer)* | Command | Record that the source account has given up the money |
 | **Decline** *(OnboardingCase)* | Command | Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone |
@@ -93,7 +93,7 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **EmailAddress** *(Customer)* | Value Object | { address: String } |
 | **EndToEndReference** *(ExternalTransfer)* | Value Object | { value: String } |
 | **Execute** *(ScheduledPayment)* | Command | Collect a payment on its due date |
-| **ExternalAmount** *(ExternalTransfer)* | Value Object | { cents: Integer } |
+| **ExternalAmount** *(ExternalTransfer)* | Value Object | { cents: Integer } Must satisfy: an external transfer amount is positive. |
 | **ExternalSettlement** | Saga | Starts on `ExternalTransferRequested`, ends on `ExternalTransferSent`. States: `requested` → `returned`. |
 | **ExternalTransfer** | Aggregate | A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome. |
 | **ExternalTransfer** | Lifecycle | Starts at `requested`. States: `requested`, `sent`, `recalled`, `returned`. |
@@ -122,20 +122,20 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **KeyIssued** | Event | Raised by `IssueKey`. |
 | **KeyReturnDue** | Event | Raised by `Surrender`. Triggers policy `FlagKeyReturn` → `Notifications.Send` in Notifications. |
 | **KeyReturned** | Event | Raised by `Return`. |
-| **KeySerial** *(SafeDepositBox)* | Value Object | { value: String } |
+| **KeySerial** *(SafeDepositBox)* | Value Object | { value: String } Must satisfy: a key is serialed. |
 | **LedgerDirection** *(Account)* | Value Object | One of `credit`, `debit`. |
 | **LedgerEntry** *(Account)* | Entity | One movement across the account, in the order it was posted. |
 | **LedgerEntry** | Lifecycle | Starts at `posted`. States: `posted`, `reversed`. |
 | **LedgerEntryAmended** | Event | Raised by `Amend`. |
 | **LedgerEntryReversed** | Event | Raised by `Reverse`. |
-| **LedgerSequence** *(Account)* | Value Object | { value: Integer } |
+| **LedgerSequence** *(Account)* | Value Object | { value: Integer } Must satisfy: a ledger sequence is positive. |
 | **LogVisit** *(SafeDepositBox)* | Command | Record that the box was opened |
-| **MerchantName** *(CardPayment)* | Value Object | { value: String } |
-| **Money** *(Account)* | Value Object | { cents: Integer, currency: String } |
+| **MerchantName** *(CardPayment)* | Value Object | { value: String } Must satisfy: a merchant name is present. |
+| **Money** *(Account)* | Value Object | { cents: Integer, currency: String } Must satisfy: a currency is a three-letter code. |
 | **MovementDirection** *(ExternalTransfer)* | Value Object | { value: String } |
-| **Narrative** *(Account)* | Value Object | { text: String } |
-| **Narrative** *(ATMCard)* | Value Object | { text: String } |
-| **Narrative** *(Transfer)* | Value Object | { text: String } |
+| **Narrative** *(Account)* | Value Object | { text: String } Must satisfy: a movement explains itself. |
+| **Narrative** *(ATMCard)* | Value Object | { text: String } Must satisfy: a withdrawal explains itself. |
+| **Narrative** *(Transfer)* | Value Object | { text: String } Must satisfy: a transfer explains itself. |
 | **NotGoodStanding** *(Customer)* | Query | Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply "good". |
 | **NotifyOnClosure** | Policy | On `AccountClosed`, dispatches `Notifications.Send` in Notifications. |
 | **Onboarding** | Saga | Starts on `OnboardingOpened`, ends on `AccountOpened`. States: `screening` → `cleared` → `declined`. |
@@ -144,20 +144,20 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **OnboardingCleared** | Event | Raised by `Clear`. |
 | **OnboardingDeclined** | Event | Raised by `Decline`. |
 | **OnboardingOpened** | Event | Raised by `Open`. |
-| **OnboardingReference** *(OnboardingCase)* | Value Object | { value: String } |
+| **OnboardingReference** *(OnboardingCase)* | Value Object | { value: String } Must satisfy: an onboarding case is referenced. |
 | **Open** *(Account)* | Command | Give a customer somewhere to keep money |
 | **Open** *(OnboardingCase)* | Command | Open a KYC case for a newly registered customer, naming the account it will become |
 | **Open** *(Account)* | Query | Accounts that can transact today. |
 | **OpenForCustomer** *(Account)* | Query | One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry. |
 | **OpenForSuspendedCustomers** *(Account)* | Query | Open accounts whose customer has since been suspended — live money movement nobody should be approving right now. |
 | **Overdrawn** *(Account)* | Query | Accounts below a floor the caller supplies — the morning risk report. |
-| **PaymentAmount** *(CardPayment)* | Value Object | { cents: Integer } |
-| **PaymentDueDate** *(ScheduledPayment)* | Value Object | { value: String } |
-| **PaymentRecipient** *(ScheduledPayment)* | Value Object | { value: String } |
+| **PaymentAmount** *(CardPayment)* | Value Object | { cents: Integer } Must satisfy: a payment amount is positive. |
+| **PaymentDueDate** *(ScheduledPayment)* | Value Object | { value: String } Must satisfy: a payment due date is present. |
+| **PaymentRecipient** *(ScheduledPayment)* | Value Object | { value: String } Must satisfy: a payment recipient is present. |
 | **PaymentScheduled** | Event | Raised by `Schedule`. |
 | **Pending** *(CardPayment)* | Query | Authorized charges not yet captured, voided, or otherwise resolved. |
-| **PersonName** *(Customer)* | Value Object | { given: String, family: String } |
-| **PositiveMoney** *(Account)* | Value Object | { cents: Integer, currency: String } |
+| **PersonName** *(Customer)* | Value Object | { given: String, family: String } Must satisfy: a given name is present; a family name is present. |
+| **PositiveMoney** *(Account)* | Value Object | { cents: Integer, currency: String } Must satisfy: an amount is positive; a currency is a three-letter code. |
 | **Reachable** *(Account)* | Query | Accounts that still exist as far as a caller is concerned — anything short of closed. |
 | **Recall** *(ExternalTransfer)* | Command | Ask the external network to stop a transfer already sent |
 | **Recent** *(Withdrawal)* | Query | The first two withdrawals still standing, whatever else was taken. |
@@ -174,8 +174,8 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Request** *(ExternalTransfer)* | Command | Send money to an account outside the bank |
 | **Retire** *(ATMCard)* | Command | Take a card out of service |
 | **Retry** *(ScheduledPayment)* | Command | Re-present a failed payment, up to the limit the schedule names |
-| **RetryCount** *(ScheduledPayment)* | Value Object | { value: Integer } |
-| **RetryLimit** *(ScheduledPayment)* | Value Object | { value: Integer } |
+| **RetryCount** *(ScheduledPayment)* | Value Object | { value: Integer } Must satisfy: a retry count is non-negative. |
+| **RetryLimit** *(ScheduledPayment)* | Value Object | { value: Integer } Must satisfy: a retry limit is positive. |
 | **RetryOnPaymentFailure** | Policy | On `ScheduledPaymentFailed`, dispatches `ScheduledPayment.Retry`. |
 | **Return** *(ExternalTransfer)* | Command | Record that the external network sent the money back |
 | **Return** *(KeyIssuance)* | Command | Take a key back when a holder is done with it |
@@ -188,7 +188,7 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **SafeDepositBox** | Aggregate | A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face. |
 | **SafeDepositBox** | Lifecycle | Starts at `vacant`. States: `vacant`, `rented`. |
 | **Schedule** *(ScheduledPayment)* | Command | Set up a payment to collect on a future date |
-| **ScheduledAmount** *(ScheduledPayment)* | Value Object | { cents: Integer } |
+| **ScheduledAmount** *(ScheduledPayment)* | Value Object | { cents: Integer } Must satisfy: a scheduled payment amount is positive. |
 | **ScheduledPayment** | Aggregate | An instruction held for a future date, which may execute once or be cancelled before it does. |
 | **ScheduledPayment** | Lifecycle | Starts at `scheduled`. States: `scheduled`, `executed`, `cancelled`, `failed`, `abandoned`. |
 | **ScheduledPaymentAbandoned** | Event | Raised by `Abandon`. |
@@ -203,23 +203,23 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Size** *(SafeDepositBox)* | Value Object | One of `small`, `medium`, `large`. |
 | **Statement** | Aggregate | A snapshot of one account's activity over one period, generated once and never revised. |
 | **StatementAmount** *(Statement)* | Value Object | { cents: Integer } |
-| **StatementDate** *(Statement)* | Value Object | { value: String } |
+| **StatementDate** *(Statement)* | Value Object | { value: String } Must satisfy: a statement is dated. |
 | **StatementFrequency** *(Statement)* | Value Object | One of: { cadence: "monthly", retention_months: 84, paper_fee_cents: 0 }; { cadence: "quarterly", retention_months: 120, paper_fee_cents: 0 }; { cadence: "annual", retention_months: 240, paper_fee_cents: 500 }. |
 | **StatementGenerated** | Event | Raised by `Generate`. |
-| **StatementPeriod** *(Statement)* | Value Object | { value: String } |
+| **StatementPeriod** *(Statement)* | Value Object | { value: String } Must satisfy: a statement names its period. |
 | **StrictlyAbove** *(Account)* | Query | Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line. |
 | **Surrender** *(SafeDepositBox)* | Command | Give the box back and take the keys off the account |
 | **Suspend** *(Customer)* | Command | Stop a customer transacting while something is investigated |
 | **Suspended** *(Customer)* | Query | The compliance queue, newest concern first. |
 | **System** | Role | Issues `ApplyFee`, `AccrueInterest`, `Capture`, `Void`, `Refund`, `Reverse`, `Generate`, `Debited`, `Settle`, `Credited`, `Reject`, `SendTransfer`, `Return`, `Execute`, `Fail`, `Retry`. |
-| **Tag** *(CardPayment)* | Value Object | { value: String } |
+| **Tag** *(CardPayment)* | Value Object | { value: String } Must satisfy: a tag is not the empty string. |
 | **Teller** | Role | Issues `Credit`, `Debit`. |
 | **Transfer** | Aggregate | Money leaving one account for another. Two movements that must both happen, or neither. |
 | **Transfer** | Lifecycle | Starts at `requested`. States: `requested`, `debited`, `credited`, `settled`, `reversed`, `rejected`. |
 | **TransferCredited** | Event | Raised by `Credited`. |
 | **TransferDebited** | Event | Raised by `Debited`. |
-| **TransferMoney** *(Transfer)* | Value Object | { cents: Integer } |
-| **TransferReference** *(Transfer)* | Value Object | { value: String } |
+| **TransferMoney** *(Transfer)* | Value Object | { cents: Integer } Must satisfy: a transfer amount is positive. |
+| **TransferReference** *(Transfer)* | Value Object | { value: String } Must satisfy: a transfer is referenced. |
 | **TransferRejected** | Event | Raised by `Reject`. |
 | **TransferRequested** | Event | Raised by `Request`. |
 | **TransferReversed** | Event | Raised by `Reverse`. |
@@ -229,13 +229,13 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Visit** *(SafeDepositBox)* | Entity | One opening of the box, in the order it happened that day. |
 | **Visit** | Lifecycle | Starts at `logged`. States: `logged`. |
 | **VisitAnnotated** | Event | Raised by `Annotate`. |
-| **VisitDate** *(SafeDepositBox)* | Value Object | { value: String } |
+| **VisitDate** *(SafeDepositBox)* | Value Object | { value: String } Must satisfy: a visit names its date. |
 | **VisitNote** *(SafeDepositBox)* | Value Object | { text: String } |
-| **VisitSequence** *(SafeDepositBox)* | Value Object | { value: Integer } |
+| **VisitSequence** *(SafeDepositBox)* | Value Object | { value: Integer } Must satisfy: a visit sequence is positive. |
 | **Void** *(CardPayment)* | Command | Cancel an authorization before it settles |
 | **Withdraw** *(ATMCard)* | Command | Take cash out at a machine |
 | **Withdrawal** *(ATMCard)* | Entity | One handful of cash, in the order it was taken. |
 | **Withdrawal** | Lifecycle | Starts at `taken`. States: `taken`, `disputed`. |
-| **WithdrawalAmount** *(ATMCard)* | Value Object | { cents: Integer } |
+| **WithdrawalAmount** *(ATMCard)* | Value Object | { cents: Integer } Must satisfy: a withdrawal amount is positive. |
 | **WithdrawalDisputed** | Event | Raised by `Dispute`. |
-| **WithdrawalSequence** *(ATMCard)* | Value Object | { value: Integer } |
+| **WithdrawalSequence** *(ATMCard)* | Value Object | { value: Integer } Must satisfy: a withdrawal sequence is positive. |
