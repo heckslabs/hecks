@@ -3,9 +3,14 @@ require_relative "../projector"
 module Hecks
   module Projections
     # A CHAPTER, PROJECTED AS ITS UBIQUITOUS LANGUAGE — one alphabetized
-    # glossary entry per term the business actually uses: every Aggregate,
-    # Entity, Value Object, Command (a verb), Query (a question), Read
-    # Model, Event, Role, and Saga a bluebook declares.
+    # glossary entry per term the business actually uses: the Domain
+    # itself, and every Aggregate, Entity, Value Object, Command (a
+    # verb), Query (a question), Read Model, Event, Role, Lifecycle,
+    # Saga, and Policy it declares — every BUSINESS-domain construct
+    # the language's own §30 reference distinguishes. Deliberately not
+    # the deployment/wiring half (World, Hecksagon, Port, Adapter,
+    # Translation): Evans' Ubiquitous Language is the business model, not
+    # the plumbing that runs it.
     #
     # THE POINT OF THIS PROJECTION, and why it is not just `DocsProjector`
     # re-sorted. Evans' Ubiquitous Language is a glossary the DOMAIN
@@ -48,6 +53,7 @@ module Hecks
 
       def entries(bluebook)
         entries = []
+        entries += domain_entries(bluebook)
         entries += aggregate_entries(bluebook)
         entries += entity_entries(bluebook)
         entries += value_object_entries(bluebook)
@@ -56,8 +62,21 @@ module Hecks
         entries += read_model_entries(bluebook)
         entries += event_entries(bluebook)
         entries += role_entries(bluebook)
+        entries += lifecycle_entries(bluebook)
         entries += saga_entries(bluebook)
+        entries += policy_entries(bluebook)
         entries.sort_by { |entry| [entry.term.downcase, entry.kind] }
+      end
+
+      # THE CHAPTER ITSELF, AS A TERM — the one construct every other
+      # entry here lives inside (`Hecks.bluebook "Banking" do ... end`),
+      # and the one place `vision` — the single sentence written for a
+      # reader who doesn't know the domain yet — actually lives. Without
+      # this, `vision` only ever surfaced in the page header; folded in
+      # here too so the fact survives a reader who jumps straight to the
+      # alphabetized list.
+      def domain_entries(bluebook)
+        [Entry.new(term: bluebook.name, kind: "Domain", definition: bluebook.vision)]
       end
 
       def aggregate_entries(bluebook)
@@ -144,8 +163,10 @@ module Hecks
       # spells one as a bare string in a command's `emits:`. So it earns
       # a glossary entry by appearing there, and its "definition" is the
       # one fact the graph actually holds about it: which verb(s) raise
-      # it. That is derived, not invented — nobody wrote a sentence this
-      # restates.
+      # it, and — the other half nothing raises without a reader
+      # crossing over to check `bluebook.policies` by hand — which
+      # policy (if any) reacts to it. That is derived, not invented —
+      # nobody wrote a sentence this restates.
       def event_entries(bluebook)
         by_event = Hash.new { |h, k| h[k] = [] }
         holders(bluebook).each do |holder|
@@ -154,8 +175,23 @@ module Hecks
           end
         end
         by_event.map do |event, commands|
-          Entry.new(term: event, kind: "Event",
-                    definition: "Raised by #{commands.uniq.map { |c| "`#{c}`" }.join(', ')}.")
+          sentence = "Raised by #{commands.uniq.map { |c| "`#{c}`" }.join(', ')}."
+          reactions = policies_on(bluebook, event)
+          sentence += " #{reactions.join(' ')}" unless reactions.empty?
+          Entry.new(term: event, kind: "Event", definition: sentence)
+        end
+      end
+
+      # A POLICY NAMES ITS EVENT QUALIFIED (`"Account.AccountFrozen"`) —
+      # `bare` strips the aggregate a policy's own `on_event`/
+      # `trigger_command` always carries but an event's own glossary
+      # term (keyed off `emits:`, which is never qualified) never does.
+      def bare(qualified) = qualified.to_s.split(".").last
+
+      def policies_on(bluebook, event)
+        bluebook.policies.select { |policy| bare(policy.on_event) == event }.map do |policy|
+          domain = " in #{policy.target_domain}" if policy.target_domain
+          "Triggers policy `#{policy.name}` → `#{policy.trigger_command}`#{domain}."
         end
       end
 
@@ -173,11 +209,51 @@ module Hecks
         end
       end
 
+      # A LIFECYCLE HAS NO NAME OF ITS OWN — it is a body nested inside
+      # the aggregate or entity it governs (`lifecycle :status do ...
+      # end`), so it earns a glossary entry under ITS HOLDER's term,
+      # the same way `Command`/`Query` do — a reader who looks up
+      # `Account` and a reader who looks up what states an Account can
+      # hold are asking two different questions of the same name.
+      def lifecycle_entries(bluebook)
+        holders(bluebook).select(&:lifecycle).map do |holder|
+          lifecycle = holder.lifecycle
+          states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
+          Entry.new(term: holder.hecks_name, kind: "Lifecycle",
+                    definition: "Starts at `#{lifecycle.default}`. States: #{states.map { |s| "`#{s}`" }.join(', ')}.")
+        end
+      end
+
+      # A SAGA'S OWN HANDLERS/DISPATCHES ARE NAMELESS TOO — the same
+      # shape as a Lifecycle's transitions, one level up: a sequence of
+      # states no individual step is worth its own glossary row for.
+      # `states`, from the builder's own precomputed leg order
+      # (`Behaviour::ProcessManager#saga`, the same field
+      # `DocsProjector#closing` already reads), says what a Lifecycle
+      # entry says for an aggregate — the shape of the whole journey,
+      # not just where it starts and ends.
       def saga_entries(bluebook)
         bluebook.process_managers.map do |saga|
           shape = saga.to_h
-          Entry.new(term: shape[:name], kind: "Saga",
-                    definition: "Starts on `#{shape[:starts_on]}`, ends on `#{shape[:ends_on]}`.")
+          sentence = "Starts on `#{shape[:starts_on]}`, ends on `#{shape[:ends_on]}`."
+          states = Array(shape[:states])
+          sentence += " States: #{states.map { |s| "`#{s}`" }.join(' → ')}." unless states.empty?
+          Entry.new(term: shape[:name], kind: "Saga", definition: sentence)
+        end
+      end
+
+      # A POLICY IS A NAMED CONSTRUCT TOO (`policy "ReviewOnFreeze" do
+      # ... end`), the same as a Saga — so it earns its own glossary
+      # entry rather than surfacing only as a parenthetical on the
+      # event that triggers it. `for_each`, when declared, fans the
+      # dispatch out over more than one record; stated here because a
+      # reader who only sees "dispatches X" would otherwise assume one.
+      def policy_entries(bluebook)
+        bluebook.policies.map do |policy|
+          sentence = "On `#{bare(policy.on_event)}`, dispatches `#{policy.trigger_command}`"
+          sentence += " in #{policy.target_domain}" if policy.target_domain
+          sentence += ", once per `#{policy.for_each}` row" if policy.for_each
+          Entry.new(term: policy.name, kind: "Policy", definition: "#{sentence}.")
         end
       end
 

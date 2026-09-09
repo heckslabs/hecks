@@ -14,11 +14,14 @@ The ubiquitous language: every term Pizzas declares, alphabetized, in the domain
 | **Customer** | Role | Issues `Purchase`. |
 | **CustomerName** *(Order)* | Value Object | { value: String } |
 | **Expensive** *(Order)* | Query | — |
+| **OnPizzaPaymentReceived** | Policy | On `PizzaPaymentReceived`, dispatches `Order.Purchase`. |
 | **Order** | Aggregate | An order that gathers toppings on a pizza and is eventually sold to a customer. |
+| **Order** | Lifecycle | Starts at `available`. States: `available`, `sold`. |
 | **Pizza** *(Order)* | Value Object | { price_cents: Price, size: Size } |
 | **PizzaCreated** | Event | Raised by `CreatePizza`. |
 | **PizzaName** *(Order)* | Value Object | { value: String } |
 | **PizzaPurchased** | Event | Raised by `Purchase`. |
+| **Pizzas** | Domain | Put toppings on a pizza and sell it to a customer. |
 | **Price** *(Order)* | Value Object | { cents: Integer } |
 | **Purchase** *(Order)* | Command | Buy the pizza |
 | **Size** *(Order)* | Value Object | One of `small`, `large`. |
