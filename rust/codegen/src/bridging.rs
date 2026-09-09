@@ -406,8 +406,27 @@ pub fn corrects_of(command: &Json) -> Option<&Json> {
     command.get("mutations").map(Json::each).unwrap_or(&[]).iter().find(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "corrects")
 }
 
-/// `reverses: true` — the harder, derived-mutation shape this generator
-/// (like its Ruby sibling) refuses rather than guesses at.
+/// `reverses: true` — the harder, derived-mutation shape.
+///
+/// `rust/project/mutations.rb#derive_reverses_mutations!` now resolves
+/// this for the ONE invertible case (increment/decrement) by MUTATING an
+/// aggregate's own `[:commands]` IR before codegen ever reads it — the
+/// same "mutate the tree, then generate normally" idiom `mark_append_
+/// optional_fields!` already uses there. This generator's own `Json`
+/// (see `json.rs`'s own header) has no mutation API, exactly the reason
+/// `mark_append_optional_fields!` was deliberately left unported
+/// (`mutations.rs`'s own header) — and, exactly like that gap, this is
+/// CONFIRMED currently harmless: no real corpus command declares
+/// `corrects EVENT, reverses: true` on an invertible mutation today (ADR
+/// 0041 — the real corpus motivation, `Banking::Account.CorrectFee`,
+/// uses the explicit-`sets` shape instead). So `corrects_reverses` here
+/// keeps refusing UNCONDITIONALLY, for every mutation kind including
+/// increment/decrement — a real, named, confirmed-harmless divergence
+/// FROM THE OTHER GENERATOR (not from Ruby: nothing in either real
+/// generator's own corpus exercises the shape this narrows), left this
+/// way deliberately rather than forcing a mutable-tree port for no
+/// currently-observable behavioral gain. Re-open this the day a real
+/// corpus command needs it.
 pub fn corrects_reverses(mutation: &Json) -> bool {
     mutation
         .get("source")

@@ -162,6 +162,7 @@ module RustProjection
         # whatever the domain author wrote by hand (mutations.rb's own
         # header on why this is safe to run unconditionally, every time).
         Projector.mark_append_optional_fields!(aggregate, value_objects_by_name)
+        Projector.derive_reverses_mutations!(aggregate)
 
         unsupported = Projector.unsupported_attribute_types(aggregate, value_objects_by_name)
         if unsupported.any?
