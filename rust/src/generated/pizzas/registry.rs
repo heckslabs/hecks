@@ -78,6 +78,7 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
@@ -88,7 +89,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.pizza.check_invariants()?;
-              crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role)?;
+              crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -102,7 +103,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::pizzas::order::AddToppingArgs::from_json(facts_json)?;
                       args.topping.check_invariants()?;
                       args.amount.check_invariants()?;
-              crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role)?;
+              crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -116,7 +117,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       if let Some(v) = &args.customer_name { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Customer"), "Purchase", caller_role)?;
+              crate::kernel::check_role(Some("Customer"), "Purchase", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

@@ -376,8 +376,11 @@ pub fn run(input: &str) -> String {
 
         if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
             let caller_role = step.get("role").and_then(Json::as_str);
+            // `actor_id:` — the SAME sibling opt-in `role:` always was
+            // (see the real command step's own identical comment, below).
+            let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
             let command_input = command_input(step, args);
-            dry_runs.push(dry_run(&store, verb, command_input, caller_role));
+            dry_runs.push(dry_run(&store, verb, command_input, caller_role, caller_actor_id));
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
             continue;
@@ -397,6 +400,23 @@ pub fn run(input: &str) -> String {
         // re-entry (`orchestrate.rs`'s own `None` at every recursive call
         // site mirrors `Dispatcher#reenter`'s `Caller.without`).
         let caller_role = step.get("role").and_then(Json::as_str);
+
+        // `actor_id:` — the SAME sibling opt-in `role:` always was: a
+        // caller that states only a `role:` (no `actor_id:`) is checked
+        // exactly the way it always has been, string equality against
+        // the command's own declared `role`
+        // (`kernel::repository::check_role`'s own doc comment has the
+        // full split) — this key is purely ADDITIVE, an absent
+        // `"actor_id"` behaves byte-for-byte like every step written
+        // before this key existed. A caller that ALSO names WHO it is
+        // (`Hecksagain.as_caller(role:, actor_id:)`, Ruby's own
+        // `lib/hecksagain/runtime/caller.rb`) reaches a real Governance
+        // `RoleAssignment` lookup instead, once this compiled domain
+        // actually has Governance's own aggregates merged in. Threaded
+        // the identical way `caller_role` already is: ONLY into this
+        // top-level `orchestrate` call, never into a reaction's own
+        // re-entry.
+        let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
 
         // `occurred_at:` — the SAME door pattern `role:` just above already
         // is: this kernel has no clock (`Event::occurred_at`'s own field
@@ -448,6 +468,7 @@ pub fn run(input: &str) -> String {
             verb,
             command_input,
             caller_role,
+            caller_actor_id,
             None,
             occurred_at,
             0,
@@ -526,9 +547,9 @@ pub fn run(input: &str) -> String {
 /// `Dispatcher#dry_run?` — evaluate a command against a throwaway copy
 /// of the store. `{"verb", "ok"}` or `{"verb", "ok": false, "error"}`,
 /// the error being the very refusal a real dispatch would have raised.
-fn dry_run(store: &Store, verb: &str, command_input: &Json, caller_role: Option<&str>) -> Json {
+fn dry_run(store: &Store, verb: &str, command_input: &Json, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Json {
     let mut scratch = store.clone();
-    match dispatch_by_name(&mut scratch, verb, command_input, caller_role, &mut Vec::new()) {
+    match dispatch_by_name(&mut scratch, verb, command_input, caller_role, caller_actor_id, &mut Vec::new()) {
         Ok(_) => Json::obj(vec![("verb", Json::str(verb.to_string())), ("ok", Json::Bool(true))]),
         Err(refusal) => Json::obj(vec![("verb", Json::str(verb.to_string())), ("ok", Json::Bool(false)), ("error", Json::str(refusal.to_string()))]),
     }
@@ -576,6 +597,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                 let args = step.get("args").unwrap_or(&empty_args);
                 let caller_role = step.get("role").and_then(Json::as_str);
                 // See `run`'s own identical comment, above.
+                let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
                 let occurred_at = step.get("occurred_at").and_then(Json::as_str);
                 if step.get("snapshot").is_some() {
                     snapshot = Some((store.clone(), sagas.clone()));
@@ -592,7 +614,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                 } else if step.get("instances").is_some() {
                     Json::obj(vec![("ok", Json::Bool(true)), ("instances", Json::Object(store.instances()))])
                 } else if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
-                    dry_run(&store, verb, command_input(&step, args), caller_role)
+                    dry_run(&store, verb, command_input(&step, args), caller_role, caller_actor_id)
                 } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
                     let mut events: Vec<Event> = Vec::new();
                     let outcome = orchestrate(
@@ -603,6 +625,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                         verb,
                         command_input(&step, args),
                         caller_role,
+                        caller_actor_id,
                         None,
                         occurred_at,
                         0,

@@ -71,7 +71,7 @@ pub use reference_lookup::{
     SetProjectedField, WithReferences, DEREFERENCE_DEPTH,
 };
 pub use refusal_wording::RefusalSite;
-pub use repository::{check_reference, check_role, filter_entries, row_json, AggregateScan, InMemoryRepository, Repository};
+pub use repository::{check_reference, check_role, filter_entries, holds_role, row_json, AggregateScan, InMemoryRepository, Repository};
 pub use routing::{CommandInvocation, RoutingEnvelope};
 
 #[derive(Debug, Clone)]
