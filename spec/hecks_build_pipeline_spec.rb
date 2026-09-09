@@ -146,4 +146,37 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
       FileUtils.remove_entry(ruby_snapshot) if ruby_snapshot
     end
   end
+
+  # --- bin/project_wasm's own opt-in delegation to hecks-build ----------
+
+  describe "bin/project_wasm, opted into the all-Rust pipeline" do
+    # A deploy-path audit found `bin/project_wasm` never checked
+    # HECKS_PARSER/HECKS_CODEGEN at all — it always shelled to the Ruby
+    # generator, even for a caller who had opted into an end-to-end Rust
+    # build everywhere else, so the .wasm a Makefile-driven deploy ships
+    # to Lambda went through Ruby regardless. This proves the fix: opted
+    # in, `bin/project_wasm` delegates to `hecks-build --wasm` (already
+    # proven above to match the Ruby pipeline's generated source byte
+    # for byte) instead of running its own regenerate-then-cargo-build
+    # sequence, and produces the identical compiled artifact either way.
+    def run_hecks_build_wasm!(domain)
+      _out, err, status = Open3.capture3({ "PATH" => ENV.fetch("PATH", nil) }, HECKS_BUILD_BINARY, domain, "--wasm",
+                                         chdir: HB_ROOT)
+      raise "hecks-build #{domain} --wasm failed:\n#{err}" unless status.success?
+    end
+
+    it "produces the identical .wasm hecks-build --wasm produces directly, not the Ruby generator's own build" do
+      domain = "examples/pizzas"
+      dist_wasm = File.join(HB_ROOT, "rust", "dist", "pizzas.wasm")
+
+      run_hecks_build_wasm!(domain)
+      direct_wasm = File.binread(dist_wasm)
+
+      env = { "PATH" => ENV.fetch("PATH", nil), "HECKS_PARSER" => "rust", "HECKS_CODEGEN" => "rust" }
+      _out, err, status = Open3.capture3(env, "ruby", "bin/project_wasm", domain, chdir: HB_ROOT)
+      raise "bin/project_wasm (opt-in) #{domain} failed:\n#{err}" unless status.success?
+
+      expect(File.binread(dist_wasm)).to eq(direct_wasm)
+    end
+  end
 end
