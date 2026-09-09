@@ -1,0 +1,33 @@
+{
+  "grammar": [
+    "G8"
+  ],
+  "canonical": "sequence.modulo(2) == 0",
+  "ruby_only": false,
+  "note": ".modulo(n) is Modulo{receiver, divisor}, not method-call Lookup.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "modulo",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "sequence"
+        ]
+      },
+      "divisor": {
+        "op": "int",
+        "value": 2
+      }
+    },
+    "right": {
+      "op": "int",
+      "value": 0
+    }
+  }
+}

@@ -56,7 +56,11 @@
         },
         "label": {
           "value": ""
-        }
+        },
+        "limit": null,
+        "tags": [
+
+        ]
       }
     },
     "events": [

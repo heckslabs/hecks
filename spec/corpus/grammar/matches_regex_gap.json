@@ -1,0 +1,18 @@
+{
+  "grammar": [
+    "G9",
+    "G11"
+  ],
+  "canonical": "\"a1\".match?(/\\A[a-z]\\d\\z/)",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11, catalogued not fixed): hecks-parse's own expr resolver has no production for .match?(/../) at all — it falls through to the Lookup catch-all instead of MatchesRegex, silently misparsing the whole receiver-plus-pattern text as one bogus dotted path. Marked ruby_only; hecks-parse's own output is NOT compared for this fixture.",
+  "expect_ast": {
+    "op": "matches_regex",
+    "receiver": {
+      "op": "str",
+      "value": "a1"
+    },
+    "pattern": "\\A[a-z]\\d\\z",
+    "flags": ""
+  }
+}

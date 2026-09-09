@@ -1,0 +1,56 @@
+{
+  "grammar": [
+    "G4"
+  ],
+  "canonical": "status == \"open\" || status == \"review\" && flagged",
+  "ruby_only": false,
+  "note": "|| binds looser than && (no parens): a || (b && c), never (a || b) && c.",
+  "expect_ast": {
+    "op": "or",
+    "left": {
+      "op": "compare",
+      "cmp": {
+        "less_than": false,
+        "equal": true,
+        "negated": false
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "status"
+        ]
+      },
+      "right": {
+        "op": "str",
+        "value": "open"
+      }
+    },
+    "right": {
+      "op": "and",
+      "left": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "status"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "review"
+        }
+      },
+      "right": {
+        "op": "lookup",
+        "path": [
+          "flagged"
+        ]
+      }
+    }
+  }
+}

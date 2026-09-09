@@ -1,0 +1,26 @@
+{
+  "grammar": [
+    "G6"
+  ],
+  "canonical": "status == \"closed\"",
+  "ruby_only": false,
+  "note": "A double-quoted literal is StringLiteral with the quotes stripped.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "status"
+      ]
+    },
+    "right": {
+      "op": "str",
+      "value": "closed"
+    }
+  }
+}

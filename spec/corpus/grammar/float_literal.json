@@ -1,0 +1,26 @@
+{
+  "grammar": [
+    "G6"
+  ],
+  "canonical": "rate == 0.5",
+  "ruby_only": false,
+  "note": "A decimal literal is FloatLiteral, not parsed as two integers around a dot.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "rate"
+      ]
+    },
+    "right": {
+      "op": "float",
+      "value": 0.5
+    }
+  }
+}

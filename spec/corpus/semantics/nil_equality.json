@@ -1,0 +1,116 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C3.5",
+    "C8.3"
+  ],
+  "note": "nil equals only nil and never satisfies an ordering (C3.5). With no cap set, Check's given orders the count against `limit.value` — nil — and FAULTS; Cap 5 passes `limit == nil` and lands; a second Cap 6 is refused because the cap is no longer nil; Check now compares 0 < 5 and is accepted.",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Check",
+      "args": {
+        "tally": "t1"
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Cap",
+      "args": {
+        "tally": "t1",
+        "cap": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Cap",
+      "args": {
+        "tally": "t1",
+        "cap": {
+          "value": 6
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Check",
+      "args": {
+        "tally": "t1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Tallying::Tally.Check",
+        "error": "comparison of Integer with nil failed",
+        "kind": "Fault"
+      },
+      {
+        "verb": "Tallying::Tally.Cap",
+        "error": "Cap refused — no cap yet",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": {
+          "value": 5
+        },
+        "tags": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "Capped",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "cap": {
+            "value": 5
+          }
+        }
+      },
+      {
+        "name": "Checked",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "state.to_s == \"closed\"",
+  "ruby_only": false,
+  "note": ".to_s is ToS{receiver}, callable on a lookup of any declared type.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "to_s",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "state"
+        ]
+      }
+    },
+    "right": {
+      "op": "str",
+      "value": "closed"
+    }
+  }
+}

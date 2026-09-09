@@ -1,0 +1,18 @@
+{
+  "grammar": [
+    "G10",
+    "G11"
+  ],
+  "canonical": "toppings.first",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11): the bare .first/.last collection accessors are unrecognised by hecks-parse (no production, distinct from the block-opener .find).",
+  "expect_ast": {
+    "op": "first",
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "toppings"
+      ]
+    }
+  }
+}

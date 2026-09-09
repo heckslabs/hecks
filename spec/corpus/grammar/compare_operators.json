@@ -1,0 +1,30 @@
+{
+  "grammar": [
+    "G4"
+  ],
+  "canonical": "balance.cents >= amount.cents",
+  "ruby_only": false,
+  "note": "The full comparator set (==, !=, <, <=, >, >=) reduces to one algebraic triple {less_than, equal, negated} — this fixture pins >=.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": true,
+      "equal": false,
+      "negated": true
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "balance",
+        "cents"
+      ]
+    },
+    "right": {
+      "op": "lookup",
+      "path": [
+        "amount",
+        "cents"
+      ]
+    }
+  }
+}

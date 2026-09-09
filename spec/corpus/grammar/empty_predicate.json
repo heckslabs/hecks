@@ -1,0 +1,20 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "!source.empty?",
+  "ruby_only": false,
+  "note": "Same G7 !-before-include?/compare precedence rule applies to ANY boolean suffix, not just .include? — .empty? included.",
+  "expect_ast": {
+    "op": "not",
+    "expr": {
+      "op": "empty",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "source"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,212 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C5.1",
+    "C8.2"
+  ],
+  "note": "A command's from: is a pure guard on the lifecycle field (C5.1). Debit is from: \"open\"; once the account is frozen a Debit the balance easily covers is LifecycleRefused, and the balance is untouched.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "opening deposit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "while frozen"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — status is \"frozen\", and Debit moves it only from \"open\"",
+        "kind": "LifecycleRefused"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "opening deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "amount": {
+            "cents": 10000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "opening deposit"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      }
+    ]
+  }
+}

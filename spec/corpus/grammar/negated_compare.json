@@ -1,0 +1,29 @@
+{
+  "grammar": [
+    "G4"
+  ],
+  "canonical": "!(status == \"closed\")",
+  "ruby_only": false,
+  "note": "A parenthesized comparison negates as a whole; strip_parens then not(compare(..)).",
+  "expect_ast": {
+    "op": "not",
+    "expr": {
+      "op": "compare",
+      "cmp": {
+        "less_than": false,
+        "equal": true,
+        "negated": false
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "status"
+        ]
+      },
+      "right": {
+        "op": "str",
+        "value": "closed"
+      }
+    }
+  }
+}

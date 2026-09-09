@@ -1,0 +1,137 @@
+{
+  "domain": "spec/corpus/semantics/domains/tally",
+  "ruby_only": true,
+  "spec": [
+    "C4.3"
+  ],
+  "note": "append adds at the tail in order; remove takes every structurally-equal element (C4.3). Tags x, y, x then Untag x leaves exactly [y].",
+  "steps": [
+    {
+      "verb": "Tallying::Tally.Open",
+      "args": {
+        "tag": {
+          "value": "t1"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.TagWith",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "x"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.TagWith",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "y"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.TagWith",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "x"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Untag",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "x"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Tallying::Tally#t1": {
+        "tag": {
+          "value": "t1"
+        },
+        "count": {
+          "value": 0
+        },
+        "weight": {
+          "value": 0.0
+        },
+        "label": {
+          "value": ""
+        },
+        "limit": null,
+        "tags": [
+          {
+            "value": "y"
+          }
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "TallyOpened",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tag": {
+            "value": "t1"
+          }
+        }
+      },
+      {
+        "name": "Tagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "x"
+          }
+        }
+      },
+      {
+        "name": "Tagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "y"
+          }
+        }
+      },
+      {
+        "name": "Tagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "x"
+          }
+        }
+      },
+      {
+        "name": "Untagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "x"
+          }
+        }
+      }
+    ]
+  }
+}

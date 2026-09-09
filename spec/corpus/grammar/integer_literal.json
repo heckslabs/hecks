@@ -1,0 +1,27 @@
+{
+  "grammar": [
+    "G6"
+  ],
+  "canonical": "amount.cents == 500",
+  "ruby_only": false,
+  "note": "A bare integer is IntegerLiteral.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "amount",
+        "cents"
+      ]
+    },
+    "right": {
+      "op": "int",
+      "value": 500
+    }
+  }
+}

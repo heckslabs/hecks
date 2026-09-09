@@ -1,0 +1,42 @@
+{
+  "grammar": [
+    "G8"
+  ],
+  "canonical": "ledger.size == old.ledger.size + 1",
+  "ruby_only": false,
+  "note": "left + right is Addition; old.x is an ordinary dotted Lookup, not special syntax.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "size",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "ledger"
+        ]
+      }
+    },
+    "right": {
+      "op": "add",
+      "left": {
+        "op": "size",
+        "receiver": {
+          "op": "lookup",
+          "path": [
+            "old",
+            "ledger"
+          ]
+        }
+      },
+      "right": {
+        "op": "int",
+        "value": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C1.3",
+    "C8.2"
+  ],
+  "note": "Within one step, rules are checked in declaration order and the first failure refuses (C1.3). ApplyFee declares `customer is active` before `the balance covers a fee`; with the customer suspended AND a zero balance both fail, and the refusal cites the first.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "standing": {
+          "value": "under review"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 500,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "monthly fee"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.ApplyFee",
+        "error": "ApplyFee refused — customer is active",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "under review"
+        },
+        "status": "suspended"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "suspended"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      },
+      {
+        "name": "CustomerSuspended",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "standing": {
+            "value": "under review"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+        }
+      }
+    ]
+  }
+}

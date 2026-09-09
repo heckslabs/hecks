@@ -1,0 +1,19 @@
+{
+  "grammar": [
+    "G9",
+    "G11"
+  ],
+  "canonical": "full_name.split(\" \")",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11): Split{receiver, separator} unrecognised by hecks-parse.",
+  "expect_ast": {
+    "op": "split",
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "full_name"
+      ]
+    },
+    "separator": " "
+  }
+}

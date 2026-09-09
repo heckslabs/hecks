@@ -1,0 +1,23 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "balance.cents.negative?",
+  "ruby_only": false,
+  "note": "",
+  "expect_ast": {
+    "op": "sign_test",
+    "cmp": {
+      "less_than": true,
+      "equal": false,
+      "negated": false
+    },
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "balance",
+        "cents"
+      ]
+    }
+  }
+}

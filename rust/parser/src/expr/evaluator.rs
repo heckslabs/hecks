@@ -23,6 +23,27 @@ pub fn parse(expr: &str) -> Evaluator {
     if let Some((left, right)) = split_top_level(&expr, "&&") {
         return Evaluator::And(Box::new(parse(left)), Box::new(parse(right)));
     }
+
+    // Tried BEFORE `.include?`/comparisons, not after — port of
+    // `evaluator.rb`'s own fix, with its exact reasoning: `!` negates the
+    // WHOLE boolean expression that follows it (`!names.include?(x)`
+    // means `!(names.include?(x))`, never "call .include? on the negated
+    // receiver"), so the leading marker has to be stripped and the
+    // remainder re-parsed before `match_include`'s naive `rfind` gets a
+    // chance to scan across it. Confirmed live: `match_include` has no
+    // concept of a leading `!` at all, so trying it first (as this file
+    // used to) swallows the `!` straight into the haystack text
+    // ("!names"), which `resolver::parse` cannot resolve as membership —
+    // every spelling of negated membership fell through to `Lookup`
+    // instead of `Not(Include(..))`, exactly the historical Ruby bug
+    // this crate had silently reintroduced (spec/corpus/grammar/
+    // negated_include.json is the fixture that catches it).
+    if let Some(inner) = expr.strip_prefix('!') {
+        if !inner.is_empty() {
+            return Evaluator::Not(Box::new(parse(inner)));
+        }
+    }
+
     if let Some((haystack, needle)) = match_include(&expr) {
         return Evaluator::Include { haystack: resolver::parse(haystack), needle: resolver::parse(needle) };
     }
@@ -30,12 +51,6 @@ pub fn parse(expr: &str) -> Evaluator {
     for op in OPERATORS.iter() {
         if let Some((left, right)) = split_comparison(&expr, op.symbol) {
             return Evaluator::Compare { operator: *op, left: resolver::parse(left), right: resolver::parse(right) };
-        }
-    }
-
-    if let Some(inner) = expr.strip_prefix('!') {
-        if !inner.is_empty() {
-            return Evaluator::Not(Box::new(parse(inner)));
         }
     }
 
