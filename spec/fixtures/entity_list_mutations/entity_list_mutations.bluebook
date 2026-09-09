@@ -15,6 +15,16 @@ Hecks.bluebook "EntityListMutations" do
 
     attribute :name, BoardName
     attribute :lists, list_of(TaggedList)
+    # AGGREGATE-LEVEL (not entity-owned), and populated by a bare `sets`
+    # from a whole-array command argument rather than element-by-element
+    # `append:` — the exact shape ADR 0047 traced to a real bug in
+    # `Value::Coercion#hydrate_entity_list`: routed into the ENTITY
+    # branch's own value-object fallback, which used to hand back the
+    # raw argument array untouched (plain Hashes, never real `Value`
+    # instances), so `remove:`'s `Value#==` against a raw Hash never
+    # matched anything. `SetTags`/`RemoveTagFromBoard` below exist only
+    # to exercise this path directly, aggregate-level, argument-sourced.
+    attribute :tags, list_of(Tag)
 
     value_object "BoardName" do
       attribute :value, String
@@ -103,6 +113,30 @@ Hecks.bluebook "EntityListMutations" do
       attribute :name, BoardName
 
       emits "BoardOpened"
+    end
+
+    command "SetTags" do
+      role "Editor"
+      goal "Replace this board's own tags in one shot — bare `sets`, argument-sourced (ADR 0047's own repro shape)"
+
+      reference_to Board
+      attribute :tags, list_of(Tag)
+
+      sets :tags
+
+      emits "TagsSet"
+    end
+
+    command "RemoveTagFromBoard" do
+      role "Editor"
+      goal "Remove a tag from the board's own list, by value"
+
+      reference_to Board
+      attribute :tag, Tag
+
+      sets :tags, remove: :tag
+
+      emits "TagRemovedFromBoard"
     end
 
     command "AddList" do

@@ -395,9 +395,27 @@ module Hecks
 
         # Frozen through: a list read back out of the store is an answer,
         # not a handle on what is stored.
+        #
+        # ADR 0047 — this used to bail (`return value unless entity`) the
+        # moment `attribute.type` named a value object rather than an
+        # entity, handing back the raw, un-hydrated argument untouched.
+        # A `sets :field` mutation sourced from a whole-array argument (as
+        # opposed to element-by-element `append:`) went straight through
+        # `for_attribute`'s `:list` branch, so `Banking::CardPayment.
+        # Authorize`'s own `sets :tags` (`list_of(Tag)`) stored plain
+        # Ruby Hashes as its `tags` elements forever — never a real
+        # `Value`, never through `Tag`'s own `pattern:`/`invariant`
+        # checks. `remove:`'s `==` comparison (a real `Value` against a
+        # raw `Hash`) then always failed, since `Hash#==` refuses anything
+        # that isn't itself a compatible Hash — the bug ADR 0047 traces in
+        # full. Delegating to `hydrate_value_object_list` below closes
+        # that gap the same way the ENTITY branch already worked: build a
+        # real, validated `Value` per element, reusing `for_attribute`'s
+        # own composite-construction path rather than inventing a second
+        # one.
         def hydrate_entity_list(aggregate, attribute, value)
           entity = find_entity(aggregate, attribute.type.to_s)
-          return value unless entity
+          return hydrate_value_object_list(aggregate, attribute, value) unless entity
 
           hydrated = Array(value).map do |element|
             next element unless element.is_a?(Hash)
@@ -409,6 +427,51 @@ module Hecks
             end
           end
           Freezer.deep(hydrated)
+        end
+
+        # The value-object sibling of the entity branch above: an element
+        # already shaped like the target `Value` (or a `Hash`/scalar that
+        # `fields_for` can still open) is rebuilt through the SAME `build`
+        # a scalar composite attribute already uses (`for_attribute`'s own
+        # `coerced = ... build(value_object, fields_for(...), aggregate)`
+        # line) — same defaults, same `pattern:`/`admits:`/invariant
+        # checks, same `trusting_stored_state?` bypass on a trusted load.
+        # `attribute.type` naming neither an entity nor a value object
+        # (a `list_of(String)`, say) has no shape to rebuild into, so the
+        # element passes through unchanged, exactly as the entity branch's
+        # own non-Hash elements do.
+        #
+        # NOT `Array(value).map` (unlike the entity branch above) — `value`
+        # here is not always genuinely list-shaped. `MutationApplier#
+        # removed`'s own `Value.for_attribute(aggregate, attribute, value)`
+        # call (`attribute` = the LIST attribute, `mutation.target`; `value`
+        # = the single REMOVE-target argument, already a real `Value` by
+        # the time it gets here) reuses this exact branch — for `remove:`,
+        # not for a whole-list `sets`. `Array(a_real_Value)` alone would be
+        # harmless (`Value` defines neither `to_a` nor `to_ary`, so Kernel
+        # wraps it `[value]`), but `Array(a_Hash)` is NOT harmless: Ruby's
+        # `Array()` opens a bare Hash into its own `[[k, v], ...]` pairs,
+        # not `[hash]` — silently shredding a single-element Hash-shaped
+        # target into garbage instead of hydrating it. Branching on
+        # `value.is_a?(Array)` up front (true only for a genuine whole-list
+        # `sets`/hydrate load) keeps the single-target shape a single
+        # target, hydrated the same way, never listified.
+        def hydrate_value_object_list(aggregate, attribute, value)
+          return value unless aggregate.respond_to?(:value_object)
+
+          value_object = value_object_for(aggregate, attribute.type)
+          return value unless value_object
+
+          return hydrate_value_object_element(aggregate, attribute, value_object, value) unless value.is_a?(Array)
+
+          hydrated = value.map { |element| hydrate_value_object_element(aggregate, attribute, value_object, element) }
+          Freezer.deep(hydrated)
+        end
+
+        def hydrate_value_object_element(aggregate, attribute, value_object, element)
+          return element if element.is_a?(self) && element.type_name == value_object.hecks_name
+
+          build(value_object, fields_for(value_object, attribute.name, element), aggregate)
         end
 
         # `Value.identifier` used to live here: hand it a one-field value object
