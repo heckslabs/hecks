@@ -150,9 +150,32 @@ module Hecks
         @aggregate = aggregate
         @db = self.class.connect_for(aggregate.name, settings)
         # The domain names the journal (one journal per lineage). The
-        # factory injects it; a directly-instantiated adapter (specs,
-        # consoles) journals under the aggregate's own name.
-        @domain = self.class.setting(settings, :domain, default: aggregate.storage_name).to_s
+        # factory injects it as the owning bluebook's own declared name
+        # (`RepositoryFactory.build`'s own `domain` positional arg —
+        # `bluebook.name`, confirmed at `outbox.rb`'s own call site —
+        # never this default in real dispatch). This default exists only
+        # for a directly-instantiated adapter (specs, consoles) that
+        # skips the factory.
+        #
+        # When the aggregate DOES have an owning chapter (`hecks_owner`
+        # set — true for any aggregate sealed through a real bluebook,
+        # even if this adapter itself was built by hand), default to the
+        # chapter's own declared PascalCase name. That's the same string
+        # `rust/host`'s `pg_advisory_xact_lock` key derives from
+        # (`HECKS_DOMAIN`, deploy-time-set to `world.domain`) — the
+        # aggregate's own snake_case `storage_name` silently disagreed
+        # with it (`hashtext` is byte-sensitive: `"chess"` and `"Chess"`
+        # never collide), which is ADR 0036 Blocker 1.
+        #
+        # When there's no owning chapter at all (a bare
+        # `AggregateBuilder` fixture built outside any real bluebook —
+        # `hecks_owner` is only ever stamped by chapter construction, see
+        # `traits.rb`'s `hecks_owner = self`) there is no chapter name to
+        # match Rust against in the first place, so fall back to the
+        # aggregate's own name, same as before this ADR.
+        @domain = self.class.setting(
+          settings, :domain, default: aggregate.hecks_owner&.name || aggregate.storage_name
+        ).to_s
         @lineage = Lineage.new(@db, @domain)
         @lineage.ensure_base!
         # The era gate resolves which era this boot IS (an old checkout
