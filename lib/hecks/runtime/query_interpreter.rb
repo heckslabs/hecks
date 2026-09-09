@@ -274,13 +274,39 @@ module Hecks
         value.is_a?(Symbol) ? args[value] : value
       end
 
+      # `boundary: false` always (C3.8 — a query's declared argument types
+      # name the argument for callers and generators, never a runtime
+      # shape checked here). `argument:`, though, is NOT always false: C3.7
+      # says a named query's declared VALUE-OBJECT arguments are built —
+      # nil-checked — the same way a command argument's own is, so a `nil`
+      # offered for a non-optional value-object-typed query attribute
+      # (Governance::RoleAssignment.AssignmentsForActor's `actor_id`, say)
+      # has to reach Value::Coercion#nil_argument's TypeMismatch the same
+      # way `Interpreting#coerce_declared_arguments`'s `argument: true`
+      # already gets a command argument there — passing `argument: false`
+      # unconditionally (as this used to) let it through as a silent,
+      # unfiltered query instead, a real Ruby/Rust divergence the fuzzer
+      # caught (QualityControl BUG#2). C3.8's own bare-scalar carve-out
+      # stays intact: `checked_vo?` is only true for a value-object-typed
+      # attribute, so a bare `String`/`Integer` query argument offered nil
+      # still passes through exactly as it always did.
       def normalize_args(aggregate, declared, args)
         declared.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, normalized[attribute.name],
-                                                           boundary: false)
+          value = normalized[attribute.name]
+          argument = checked_vo?(aggregate, attribute, value)
+          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, value,
+                                                           boundary: false, argument: argument)
         end
+      end
+
+      def checked_vo?(aggregate, attribute, value)
+        return false unless value.nil?
+        return false if attribute.optional? || attribute.list? || attribute.reference?
+        return false unless aggregate.respond_to?(:value_object)
+
+        !Value.value_object_for(aggregate, attribute.type).nil?
       end
 
       def comparable(value) = QuerySpecification::Common::Comparison.comparable(value)
