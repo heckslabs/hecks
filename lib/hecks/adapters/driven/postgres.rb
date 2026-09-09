@@ -10,6 +10,7 @@ require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
 require_relative "postgres/outbox"
+require_relative "postgres/reconnect"
 require_relative "../../runtime/instance"
 
 module Hecks
@@ -46,6 +47,7 @@ module Hecks
       include SchemaBuilder
       include Codec
       include PostgresOutbox
+      include PostgresReconnect
 
       SQL_TYPES = { "Integer" => "bigint", "Float" => "double precision" }.freeze
 
@@ -93,6 +95,7 @@ module Hecks
 
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
+        @settings  = settings
         @db = self.class.connect_for(aggregate.name, settings)
         # THE OPTIONAL saga-persistence capability's own scoping column
         # (§2/§4) — falls back to the aggregate's own storage name for a
@@ -118,7 +121,7 @@ module Hecks
       def table = @aggregate.storage_name
 
       def find(id)
-        result = @db.exec_params("SELECT * FROM #{quoted_table} WHERE id = $1", [id.to_s])
+        result = pg_exec_params("SELECT * FROM #{quoted_table} WHERE id = $1", [id.to_s])
         return nil if result.ntuples.zero?
 
         instance_from_row(result[0])
@@ -140,13 +143,13 @@ module Hecks
           order_sql = "ORDER BY #{order_clause(spec, nil)}"
         end
 
-        @db.exec("SELECT * FROM #{quoted_table} #{order_sql}").map { |row| instance_from_row(row) }
+        pg_exec("SELECT * FROM #{quoted_table} #{order_sql}").map { |row| instance_from_row(row) }
       end
 
-      def count = @db.exec("SELECT COUNT(*) FROM #{quoted_table}")[0]["count"].to_i
+      def count = pg_exec("SELECT COUNT(*) FROM #{quoted_table}")[0]["count"].to_i
 
       def append(entry)
-        @db.exec_params(
+        pg_exec_params(
           "INSERT INTO #{quoted_entry_table} (aggregate_id, operation, state, mirrors) VALUES ($1, $2, $3, $4)",
           # `mirrors` (unlike `state`) is a NULLABLE column — an absent
           # mirrors hash must bind a real SQL NULL, not the four-character
@@ -178,7 +181,7 @@ module Hecks
       # rubocop:disable Metrics/AbcSize -- the CAS/plain upsert split is one
       # protocol; splitting it would hide the version handshake.
       def project(entry, expected_version: nil)
-        return @db.exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
+        return pg_exec_params("DELETE FROM #{quoted_table} WHERE id = $1", [entry.id]) if entry.delete?
 
         instance = Runtime::Instance.new(aggregate: @aggregate, id: entry.id, state: entry.state)
         columns  = (["id"] + persisted_fields.map { |field| field[:name].to_s } + ["hecks_version"])
@@ -195,7 +198,7 @@ module Hecks
         end
         sql += " RETURNING hecks_version"
 
-        result = @db.exec_params(sql, values)
+        result = pg_exec_params(sql, values)
         return nil if result.ntuples.zero?
 
         instance.version = result[0]["hecks_version"].to_i
@@ -204,7 +207,7 @@ module Hecks
       # rubocop:enable Metrics/AbcSize
 
       def entries
-        @db.exec("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
+        pg_exec("SELECT aggregate_id, operation, state, mirrors FROM #{quoted_entry_table} ORDER BY sequence").map do |row|
           state = JSON.parse(row["state"])
           Ports::Persistence::Entry.new(
             operation: row["operation"] || "save",
@@ -216,8 +219,8 @@ module Hecks
       end
 
       def reset!
-        @db.exec("DELETE FROM #{quoted_table}")
-        @db.exec("DELETE FROM #{quoted_entry_table}")
+        pg_exec("DELETE FROM #{quoted_table}")
+        pg_exec("DELETE FROM #{quoted_entry_table}")
         self
       end
 
@@ -239,12 +242,12 @@ module Hecks
       def atomic_put(entry, insert_only: false)
         status = nil
         transaction do
-          @db.exec_params(
+          pg_exec_params(
             "SELECT pg_advisory_xact_lock(" \
             "hashtext(current_schema() || ':' || $1), hashtext($2))",
             [table, entry.id.to_s]
           )
-          exists = !@db.exec_params(
+          exists = !pg_exec_params(
             "SELECT 1 FROM #{quoted_table} WHERE id = $1",
             [entry.id.to_s]
           ).ntuples.zero?
@@ -269,14 +272,14 @@ module Hecks
       end
 
       def record_event(event)
-        @db.exec_params(
+        pg_exec_params(
           "INSERT INTO events (name, aggregate, aggregate_id, payload, occurred_at) VALUES ($1, $2, $3, $4, $5)",
           [event.name, event.aggregate, event.id.to_s, JSON.generate(event.payload), event.occurred_at]
         )
       end
 
       def events
-        @db.exec("SELECT * FROM events ORDER BY id").map do |row|
+        pg_exec("SELECT * FROM events ORDER BY id").map do |row|
           Runtime::Event.new(
             name:        row["name"],
             aggregate:   row["aggregate"],
@@ -291,7 +294,7 @@ module Hecks
       # shape as PostgresEra's own (postgres_era.rb), not lineage-
       # specific, copied verbatim.
       def save_saga(process_manager:, correlation:, state:, memory:, completed_compensations: [])
-        @db.exec_params(
+        pg_exec_params(
           "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory, completed_compensations) " \
           "VALUES ($1, $2, $3, $4, $5, $6) " \
           "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
@@ -303,7 +306,7 @@ module Hecks
       end
 
       def delete_saga(process_manager:, correlation:)
-        @db.exec_params(
+        pg_exec_params(
           "DELETE FROM hecks_saga_instances WHERE domain = $1 AND process_manager = $2 AND correlation = $3",
           [@domain, process_manager.to_s, correlation.to_s]
         )
@@ -312,7 +315,7 @@ module Hecks
       def each_saga
         return enum_for(:each_saga) unless block_given?
 
-        @db.exec_params(
+        pg_exec_params(
           "SELECT process_manager, correlation, state, memory, completed_compensations " \
           "FROM hecks_saga_instances WHERE domain = $1",
           [@domain]
@@ -381,7 +384,7 @@ module Hecks
       end
 
       def execute_query(sql, binds)
-        @db.exec_params(sql, binds).map { |row| instance_from_row(row) }
+        pg_exec_params(sql, binds).map { |row| instance_from_row(row) }
       end
 
       # Stamps `.version` (adapter bookkeeping, never domain state — see
