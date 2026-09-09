@@ -10001,6 +10001,60 @@
 
     ]
   },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Customer",
+        "storage_name": "customer",
+        "adapter": "Heki"
+      },
+      {
+        "name": "Account",
+        "storage_name": "account",
+        "adapter": "Heki"
+      },
+      {
+        "name": "OnboardingCase",
+        "storage_name": "onboarding_case",
+        "adapter": "Heki"
+      },
+      {
+        "name": "ATMCard",
+        "storage_name": "atm_card",
+        "adapter": "Heki"
+      },
+      {
+        "name": "CardPayment",
+        "storage_name": "card_payment",
+        "adapter": "Heki"
+      },
+      {
+        "name": "SafeDepositBox",
+        "storage_name": "safe_deposit_box",
+        "adapter": "Heki"
+      },
+      {
+        "name": "Statement",
+        "storage_name": "statement",
+        "adapter": "Heki"
+      },
+      {
+        "name": "Transfer",
+        "storage_name": "transfer",
+        "adapter": "Heki"
+      },
+      {
+        "name": "ExternalTransfer",
+        "storage_name": "external_transfer",
+        "adapter": "Heki"
+      },
+      {
+        "name": "ScheduledPayment",
+        "storage_name": "scheduled_payment",
+        "adapter": "Heki"
+      }
+    ]
+  },
   "translations": [
 
   ],
