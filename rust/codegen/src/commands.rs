@@ -341,41 +341,62 @@ fn optional_source_mismatches_with(command: &Json, aggregate: &Json, value_objec
 /// attribute returns early into `hydrate_entity_list` first) — matching
 /// that silent non-enforcement, rather than refusing to generate the
 /// command at all the way `constraint_list_problems` used to (removed).
+/// Port of `rust/project/commands.rb#argument_check_lines` — ONE
+/// attribute's own admits-constraint-plus-invariant pair, against an
+/// ARBITRARY already-bound value expression. Factored out of
+/// `invariant_checks_for` (below) so `json_codec.rs`'s own
+/// `emit_from_json_flat` can run the IDENTICAL two checks against a bare
+/// local (ADR 0037 Finding 7's own fix) instead of waiting for
+/// `invariant_checks_for`'s POST-construction copy to run against the
+/// whole already-built `args.{field}`.
+pub fn argument_check_lines(exemplar: &Exemplar, attr: &Json, value_expr: &str, aggregates_by_name: &HashMap<String, &Json>, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+
+    if !crate::attr::list(attr) {
+        // RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rs`'s own
+        // value-object-field door passes `self.{field}` raw and never
+        // wraps the result itself, trusting `constraints.rs`'s own
+        // internal optional-handling to be self-contained.
+        if let Some(c) = crate::constraints::emit_admits_check(exemplar, value_expr, attr, aggregates_by_name, value_objects_by_name) {
+            lines.push(format!("        {c}"));
+        }
+    }
+
+    let vo = value_objects_by_name.get(crate::attr::type_name(attr));
+    if let Some(vo) = vo {
+        if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
+            let line = if crate::attr::optional(attr) {
+                if crate::attr::list(attr) {
+                    format!("        if let Some(items) = &{value_expr} {{ for item in items {{ item.check_invariants()?; }} }}")
+                } else {
+                    format!("        if let Some(v) = &{value_expr} {{ v.check_invariants()?; }}")
+                }
+            } else if crate::attr::list(attr) {
+                format!("        for item in &{value_expr} {{ item.check_invariants()?; }}")
+            } else {
+                format!("        {value_expr}.check_invariants()?;")
+            };
+            lines.push(line);
+        }
+    }
+
+    lines
+}
+
+/// Port of `rust/project/commands.rb#invariant_checks_for` — the
+/// POST-construction copy, run against the WHOLE already-built Args
+/// struct (`args.{field}`), kept deliberately redundant with
+/// `emit_from_json_flat`'s own interleaved copy (see
+/// `argument_check_lines`, above, and `domain_generator.rs`'s own
+/// comment on why the redundancy itself is kept).
 pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_name: &HashMap<String, &Json>, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
     let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let mut lines: Vec<String> = Vec::new();
 
     for attr in attrs {
         let field = naming::rust_ident_field(crate::attr::name(attr));
-
-        if !crate::attr::list(attr) {
-            // RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rs`'s own
-            // value-object-field door passes `self.{field}` raw and never
-            // wraps the result itself, trusting `constraints.rs`'s own
-            // internal optional-handling to be self-contained.
-            let value_expr = format!("args.{field}");
-            if let Some(c) = crate::constraints::emit_admits_check(exemplar, &value_expr, attr, aggregates_by_name, value_objects_by_name) {
-                lines.push(format!("        {c}"));
-            }
-        }
-
-        let vo = value_objects_by_name.get(crate::attr::type_name(attr));
-        if let Some(vo) = vo {
-            if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) {
-                let line = if crate::attr::optional(attr) {
-                    if crate::attr::list(attr) {
-                        format!("        if let Some(items) = &args.{field} {{ for item in items {{ item.check_invariants()?; }} }}")
-                    } else {
-                        format!("        if let Some(v) = &args.{field} {{ v.check_invariants()?; }}")
-                    }
-                } else if crate::attr::list(attr) {
-                    format!("        for item in &args.{field} {{ item.check_invariants()?; }}")
-                } else {
-                    format!("        args.{field}.check_invariants()?;")
-                };
-                lines.push(line);
-            }
-        }
+        let value_expr = format!("args.{field}");
+        lines.extend(argument_check_lines(exemplar, attr, &value_expr, aggregates_by_name, value_objects_by_name));
     }
 
     lines
@@ -957,7 +978,7 @@ pub fn emit_entity_command(
         crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
         crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
-        crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, Some(&qualified_command_name), true),
+        crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, Some(&qualified_command_name), true, true, Some(aggregates_by_name)),
         entity_dispatch_fn,
     ]
     .join("\n\n")

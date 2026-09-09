@@ -138,6 +138,8 @@ pub fn emit_port_operation(
             None,
             Some(&format!("{port_name}.{operation_name}")),
             false,
+            true,
+            Some(aggregates_by_name),
         ),
         dispatch_fn,
     ]

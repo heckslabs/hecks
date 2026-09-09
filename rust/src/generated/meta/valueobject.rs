@@ -970,9 +970,13 @@ if !absent.is_empty() {
         ("declared", "key, value"),
     ])));
 }
+        let key = MemberText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.key expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let value = MemberText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.value expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?;
+        value.check_invariants()?;
         Ok(Self {
-        key: MemberText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.key expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?,
-        value: MemberText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.value expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?,
+        key,
+        value,
         })
     }
 }
@@ -1259,15 +1263,31 @@ if !absent.is_empty() {
         ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
     ])));
 }
+        let name = ValueObjectName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.name expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let r#type = ValueObjectName::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.type expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        r#type.check_invariants()?;
+        let list = ValueObjectName::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.list expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        list.check_invariants()?;
+        let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &optional { v.check_invariants()?; }
+        let pattern = match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pattern { v.check_invariants()?; }
+        let default = match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &default { v.check_invariants()?; }
+        let admits = match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &admits { v.check_invariants()?; }
+        let relationship = match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &relationship { v.check_invariants()?; }
         Ok(Self {
-        name: ValueObjectName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.name expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?,
-        r#type: ValueObjectName::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.type expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?,
-        list: ValueObjectName::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.list expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?,
-        optional: match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(&x.coerce_single_field("value"))?) },
-        pattern: match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) },
-        default: match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) },
-        admits: match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) },
-        relationship: match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) },
+        name,
+        r#type,
+        list,
+        optional,
+        pattern,
+        default,
+        admits,
+        relationship,
         })
     }
 }
@@ -1359,8 +1379,10 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+        let rows = match v.get("rows") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &rows { v.check_invariants()?; }
         Ok(Self {
-        rows: match v.get("rows") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(&x.coerce_single_field("value"))?) },
+        rows,
         })
     }
 }
@@ -1465,9 +1487,13 @@ if !absent.is_empty() {
         ("declared", "description, canonical"),
     ])));
 }
+        let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &description { v.check_invariants()?; }
+        let canonical = ValueObjectText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssertArgs.canonical expects ValueObjectText, got nil".to_string()))?.coerce_single_field("value"))?;
+        canonical.check_invariants()?;
         Ok(Self {
-        description: match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) },
-        canonical: ValueObjectText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssertArgs.canonical expects ValueObjectText, got nil".to_string()))?.coerce_single_field("value"))?,
+        description,
+        canonical,
         })
     }
 }
@@ -1567,8 +1593,10 @@ if !absent.is_empty() {
         ("declared", "position"),
     ])));
 }
+        let position = MemberPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberArgs.position expects MemberPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        position.check_invariants()?;
         Ok(Self {
-        position: MemberPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberArgs.position expects MemberPosition, got nil".to_string()))?.coerce_single_field("value"))?,
+        position,
         })
     }
 }

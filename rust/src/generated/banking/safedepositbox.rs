@@ -648,8 +648,10 @@ if !absent.is_empty() {
         ("declared", "note"),
     ])));
 }
+        let note = VisitNote::from_json(&v.get("note").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitAnnotateEntityArgs.note expects VisitNote, got nil".to_string()))?.coerce_single_field("text"))?;
+        note.check_invariants()?;
         Ok(Self {
-        note: VisitNote::from_json(&v.get("note").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitAnnotateEntityArgs.note expects VisitNote, got nil".to_string()))?.coerce_single_field("text"))?,
+        note,
         })
     }
 }
@@ -836,8 +838,10 @@ if !absent.is_empty() {
         ("declared", "serial"),
     ])));
 }
+        let serial = KeySerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeyIssuanceReturnEntityArgs.serial expects KeySerial, got nil".to_string()))?.coerce_single_field("value"))?;
+        serial.check_invariants()?;
         Ok(Self {
-        serial: KeySerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeyIssuanceReturnEntityArgs.serial expects KeySerial, got nil".to_string()))?.coerce_single_field("value"))?,
+        serial,
         })
     }
 }
@@ -1129,11 +1133,17 @@ if !absent.is_empty() {
         ("declared", "branch_code, box_number, size, customer"),
     ])));
 }
+        let branch_code = BranchCode::from_json(&v.get("branch_code").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.branch_code expects BranchCode, got nil".to_string()))?.coerce_single_field("value"))?;
+        branch_code.check_invariants()?;
+        let box_number = BoxNumber::from_json(&v.get("box_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.box_number expects BoxNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        box_number.check_invariants()?;
+        let size = Size::from_json(&v.get("size").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.size expects Size, got nil".to_string()))?.coerce_single_field("value"))?;
+        let customer = { let x = v.get("customer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RentArgs.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RentArgs.customer: expected String".to_string()) })? };
         Ok(Self {
-        branch_code: BranchCode::from_json(&v.get("branch_code").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.branch_code expects BranchCode, got nil".to_string()))?.coerce_single_field("value"))?,
-        box_number: BoxNumber::from_json(&v.get("box_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.box_number expects BoxNumber, got nil".to_string()))?.coerce_single_field("value"))?,
-        size: Size::from_json(&v.get("size").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.size expects Size, got nil".to_string()))?.coerce_single_field("value"))?,
-        customer: { let x = v.get("customer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RentArgs.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RentArgs.customer: expected String".to_string()) })? },
+        branch_code,
+        box_number,
+        size,
+        customer,
         })
     }
 }
@@ -1333,10 +1343,16 @@ if !absent.is_empty() {
         ("declared", "date, sequence, note"),
     ])));
 }
+        let date = VisitDate::from_json(&v.get("date").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LogVisitArgs.date expects VisitDate, got nil".to_string()))?.coerce_single_field("value"))?;
+        date.check_invariants()?;
+        let sequence = VisitSequence::from_json(&v.get("sequence").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LogVisitArgs.sequence expects VisitSequence, got nil".to_string()))?.coerce_single_field("value"))?;
+        sequence.check_invariants()?;
+        let note = match v.get("note") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(VisitNote::from_json(&x.coerce_single_field("text"))?) };
+        if let Some(v) = &note { v.check_invariants()?; }
         Ok(Self {
-        date: VisitDate::from_json(&v.get("date").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LogVisitArgs.date expects VisitDate, got nil".to_string()))?.coerce_single_field("value"))?,
-        sequence: VisitSequence::from_json(&v.get("sequence").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LogVisitArgs.sequence expects VisitSequence, got nil".to_string()))?.coerce_single_field("value"))?,
-        note: match v.get("note") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(VisitNote::from_json(&x.coerce_single_field("text"))?) },
+        date,
+        sequence,
+        note,
         })
     }
 }
@@ -1436,8 +1452,10 @@ if !absent.is_empty() {
         ("declared", "serial"),
     ])));
 }
+        let serial = KeySerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueKeyArgs.serial expects KeySerial, got nil".to_string()))?.coerce_single_field("value"))?;
+        serial.check_invariants()?;
         Ok(Self {
-        serial: KeySerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueKeyArgs.serial expects KeySerial, got nil".to_string()))?.coerce_single_field("value"))?,
+        serial,
         })
     }
 }

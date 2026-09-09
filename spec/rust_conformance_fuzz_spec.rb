@@ -32,13 +32,25 @@ require_relative "support/rust_conformance_helpers"
 # blocked this bridge: refusals compare by KIND, not prose (C8.2), and
 # ADR 0037's findings 3 and 4 are closed in both generators, along with
 # three more the un-pended run turned up (its status addendum has the
-# full list). One real, narrow finding remains and blocks gating —
-# Finding 7: an earlier-declared argument's invariant failure and a
-# later-declared argument's shape failure, on the same command, refuse
-# in different orders on the two runtimes (Ruby validates one argument
-# fully before moving to the next; the generated Rust checks every
-# argument's shape before any argument's invariant). `pending:`, not
-# `skip`, citing Finding 7 by number — un-pend locally once it closes.
+# full list). Finding 7 — an earlier-declared argument's invariant
+# failure and a later-declared argument's shape failure, on the same
+# command, used to refuse in different orders on the two runtimes — is
+# CLOSED too, in both generators (`rust/project/json_codec.rb#emit_
+# from_json_flat`/`rust/codegen/src/json_codec.rs`'s own `interleave_
+# checks`): every command/entity-command/port-operation Args struct now
+# builds one declared attribute's shape, THEN that same attribute's own
+# admits-constraint-plus-invariant pair, before moving to the next
+# attribute, matching Ruby's own `coerce_declared_arguments` exactly.
+# Finding 5 (`resolve_state_references` never ported — see ADR 0037's
+# own updated status) turned out to already be moot: the bluebook
+# redeclaration its root cause depended on (`SafeDepositBox.Rent`'s own
+# `attribute :customer, CustomerNumber`) was removed by unrelated work
+# (PR #409, 2026-08-28) before this was ever re-verified live — `sets
+# :customer` now bridges straight to the aggregate's own `Reference
+# <Customer>` type, so the ALREADY-PORTED command-level `resolve_
+# references` check (`rust/project/domain_generator.rb#reference_
+# checks`) catches the dangling-reference case on both engines today,
+# confirmed against the real compiled binary, not just re-read source.
 RSpec.describe "Rust conformance, over generated sequences (native binary)", :io do
   include RustConformanceHelpers
 
@@ -71,22 +83,12 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
       # splitting per field or per seed would re-pay the cargo build and
       # subprocess spawns, and would scatter one seed's related
       # divergences across separate failures instead of one readable report.
-      # Finding 7 is a property of the CONSTRUCT (an earlier argument
-      # whose value is shape-valid but invariant-invalid, followed by a
-      # later argument that is shape-invalid, on one command) — reachable
-      # in either domain in principle, but these ten FIXED seeds only
-      # reach it for banking (`Governance::RoleAssignment.Assign`, seed
-      # 5) today. `pending:` only where it currently fires, so pizzas
-      # keeps gating everything else this bridge already closed.
-      finding_7_pending = if File.basename(domain) == "banking"
-                            "ADR 0037 Finding 7 — shape-vs-invariant argument ordering diverges " \
-                              "across two runtimes"
-                          end
+      # Both examples GATE now — ADR 0037's own catalogue (findings 3, 4,
+      # 5, 6, 7) is fully closed; no `pending:` left on either domain.
 
       # rubocop:disable-next RSpec/ExampleLength
       it "agrees with Ruby across #{SEEDS_PER_DOMAIN} generated sequences (instances, events, refusals, " \
-         "reactions, sagas, queries)",
-         pending: finding_7_pending do
+         "reactions, sagas, queries)" do
         feature = File.basename(domain).downcase
         binary = build_rust_for(feature)
         skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary

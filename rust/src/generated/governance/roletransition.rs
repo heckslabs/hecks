@@ -371,10 +371,16 @@ if !absent.is_empty() {
         ("declared", "from_role, to_role, starts_at"),
     ])));
 }
+        let from_role = RoleName::from_json(&v.get("from_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.from_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?;
+        from_role.check_invariants()?;
+        let to_role = RoleName::from_json(&v.get("to_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.to_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?;
+        to_role.check_invariants()?;
+        let starts_at = Timestamp::from_json(&v.get("starts_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.starts_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?;
+        starts_at.check_invariants()?;
         Ok(Self {
-        from_role: RoleName::from_json(&v.get("from_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.from_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?,
-        to_role: RoleName::from_json(&v.get("to_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.to_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?,
-        starts_at: Timestamp::from_json(&v.get("starts_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.starts_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?,
+        from_role,
+        to_role,
+        starts_at,
         })
     }
 }
@@ -474,8 +480,10 @@ if !absent.is_empty() {
         ("declared", "ends_at"),
     ])));
 }
+        let ends_at = Timestamp::from_json(&v.get("ends_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RevokeArgs.ends_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?;
+        ends_at.check_invariants()?;
         Ok(Self {
-        ends_at: Timestamp::from_json(&v.get("ends_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RevokeArgs.ends_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?,
+        ends_at,
         })
     }
 }

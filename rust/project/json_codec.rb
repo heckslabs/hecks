@@ -243,10 +243,37 @@ module RustProjection
     # every OTHER caller (value objects, entity commands — neither ever
     # passes `unknown_argument_allowlist`, so this default is never
     # actually read).
+    #
+    # `interleave_checks:` (ADR 0037 Finding 7) — FALSE (the default,
+    # every value-object `from_json`) keeps this method's ORIGINAL
+    # one-shot shape: every field's shape built straight into one
+    # `Ok(Self { field: rhs, ... })` struct literal, invariants checked
+    # entirely separately, afterward (`commands.rb`'s own
+    # `invariant_checks_for`, run from the generated `dispatch_*`
+    # function). TRUE — every command/entity-command/port-operation Args
+    # struct, which is the only shape Ruby's own `coerce_declared_
+    # arguments` (interpreting.rb) actually walks one argument at a time
+    # — builds each field into its own `let` binding FIRST, runs that
+    # SAME field's own admits-constraint-plus-invariant pair
+    # (`commands.rb`'s `argument_check_lines`) immediately after, THEN
+    # moves to the next declared attribute, and only assembles `Ok(Self
+    # { field1, field2, ... })` (shorthand — every binding is already
+    # named exactly like its field) once every argument has cleared both
+    # its own shape AND its own invariant. This is what makes an
+    # EARLIER-declared argument's own invariant failure win over a
+    # LATER-declared argument's shape failure, on both engines, matching
+    # Ruby's own per-argument atomicity exactly — before this fix, EVERY
+    # field's shape was built (one `from_json` call each) before ANY
+    # field's invariant ran at all, so a later field's shape mismatch
+    # could reach a `TypeMismatch` before an earlier field's own already-
+    # broken invariant ever got the chance to refuse first. `aggregates_
+    # by_name:` is required whenever `interleave_checks` is true — the
+    # SAME full-IR lookup `argument_check_lines`'s own `admits:` door
+    # needs to resolve a closed set declared elsewhere in the chapter.
     def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name,
-                            absent_argument_check: false)
-      field_exprs = attributes.map do |attr|
-        ident = rust_ident_field(attr[:name])
+                            absent_argument_check: false, interleave_checks: false, aggregates_by_name: nil)
+      idents = attributes.map { |attr| rust_ident_field(attr[:name]) }
+      field_exprs = attributes.zip(idents).map do |attr, ident|
         key = rust_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
         rhs =
@@ -277,7 +304,13 @@ module RustProjection
           else
             composite_from_json_expr(attr, value_objects_by_name, required_field_expr(struct_name, key, attr[:type]))
           end
-        Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
+
+        if interleave_checks
+          checks = argument_check_lines(attr, ident, aggregates_by_name, value_objects_by_name)
+          (["        let #{ident} = #{rhs};"] + checks).join("\n")
+        else
+          Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
+        end
       end
 
       unknown_check =
@@ -291,7 +324,7 @@ module RustProjection
       # ones second, and only then does any field get typed.
       unknown_check += emit_absent_argument_check(command_name, attributes) if absent_argument_check
 
-      emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
+      emit_from_json_skeleton(struct_name, field_exprs, unknown_check, shorthand_fields: interleave_checks ? idents : nil)
     end
 
     # Shared by `emit_from_json_flat` and `emit_from_json_state` — the
@@ -336,9 +369,27 @@ module RustProjection
       RUST
     end
 
-    def emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
-      field_block = field_exprs.map { |f| "        #{f}" }.join("\n")
+    # `shorthand_fields:` (ADR 0037 Finding 7) — nil (the default) keeps
+    # the ORIGINAL shape: `field_exprs` are already-complete `ident:
+    # rhs,` lines, folded straight into the struct literal. An Array
+    # (interleaved callers only, `emit_from_json_flat` above) means
+    # `field_exprs` are instead already-indented, ALREADY-TERMINATED
+    # multi-line `let`+check blocks — each one runs its OWN attribute's
+    # shape-then-invariant pair to completion before the next attribute's
+    # own block even starts — folded into the PREAMBLE (ahead of `Ok(Self
+    # {`, not inside it) since none of them are struct-literal syntax
+    # themselves; the struct literal itself then closes over the
+    # shorthand field-init form (`field1, field2, ...` — every `let`
+    # binding is already named exactly like the field it fills).
+    def emit_from_json_skeleton(struct_name, field_exprs, unknown_check, shorthand_fields: nil)
       preamble = emit_object_shape_check(struct_name) + unknown_check
+      field_block =
+        if shorthand_fields
+          preamble += field_exprs.map { |f| "#{f}\n" }.join
+          shorthand_fields.map { |f| "        #{f}," }.join("\n")
+        else
+          field_exprs.map { |f| "        #{f}" }.join("\n")
+        end
       # Trailing "\n" — see `emit_to_json_flat`'s own comment on why.
       "#{Exemplar.render(
         'from_json_flat',

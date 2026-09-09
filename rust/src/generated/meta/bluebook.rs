@@ -932,8 +932,10 @@ if !absent.is_empty() {
         ("declared", "context"),
     ])));
 }
+        let context = AttachesToContext::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttachArgs.context expects AttachesToContext, got nil".to_string()))?.coerce_single_field("value"))?;
+        context.check_invariants()?;
         Ok(Self {
-        context: AttachesToContext::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttachArgs.context expects AttachesToContext, got nil".to_string()))?.coerce_single_field("value"))?,
+        context,
         })
     }
 }
@@ -1049,12 +1051,22 @@ if !absent.is_empty() {
         ("declared", "strategy, source_token, replacement, boundary, position"),
     ])));
 }
+        let strategy = RuleText::from_json(&v.get("strategy").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.strategy expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?;
+        strategy.check_invariants()?;
+        let source_token = RuleText::from_json(&v.get("source_token").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.source_token expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?;
+        source_token.check_invariants()?;
+        let replacement = RuleText::from_json(&v.get("replacement").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.replacement expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?;
+        replacement.check_invariants()?;
+        let boundary = RuleText::from_json(&v.get("boundary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.boundary expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?;
+        boundary.check_invariants()?;
+        let position = match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &position { v.check_invariants()?; }
         Ok(Self {
-        strategy: RuleText::from_json(&v.get("strategy").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.strategy expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
-        source_token: RuleText::from_json(&v.get("source_token").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.source_token expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
-        replacement: RuleText::from_json(&v.get("replacement").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.replacement expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
-        boundary: RuleText::from_json(&v.get("boundary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.boundary expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
-        position: match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?) },
+        strategy,
+        source_token,
+        replacement,
+        boundary,
+        position,
         })
     }
 }

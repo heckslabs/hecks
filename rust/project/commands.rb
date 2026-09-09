@@ -342,32 +342,59 @@ module RustProjection
     # refusing to generate the command at all (this file used to refuse
     # via `constraint_list_problems`, since removed — real, confirmed
     # non-enforcement isn't a gap to name, it's the actual answer).
+    # ONE ATTRIBUTE's own admits-constraint-plus-invariant pair, against
+    # an ARBITRARY already-bound value expression — factored out of
+    # `invariant_checks_for` (below) so `json_codec.rb`'s own
+    # `emit_from_json_flat` can run the IDENTICAL two checks against a
+    # bare local (`let #{ident} = ...;`, ADR 0037 Finding 7's own fix)
+    # instead of waiting for `invariant_checks_for`'s POST-construction
+    # copy to run against the whole already-built `args.#{field}`. Same
+    # two doors either caller needs (`admits:` usage-level constraint,
+    # nested-VO invariant recursion), same per-attribute grouping — only
+    # the value expression differs.
+    def argument_check_lines(attr, value_expr, aggregates_by_name, value_objects_by_name)
+      lines = []
+
+      unless attr[:list]
+        # RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rb`'s own value-
+        # object-field door (the OTHER caller of `emit_admits_check`)
+        # passes `self.#{field}` raw and never wraps the result itself,
+        # trusting `constraints.rb`'s own internal `optional_scalar_expr`/
+        # `wrap_if_optional` to do the ENTIRE optional-handling, self-
+        # contained.
+        constraint = emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
+        lines << "        #{constraint}" if constraint
+      end
+
+      if value_objects_by_name.key?(attr[:type]) && !value_objects_by_name[attr[:type]][:closed_set]
+        lines << if attr[:optional]
+          attr[:list] ? "        if let Some(items) = &#{value_expr} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &#{value_expr} { v.check_invariants()?; }"
+        else
+          attr[:list] ? "        for item in &#{value_expr} { item.check_invariants()?; }" : "        #{value_expr}.check_invariants()?;"
+        end
+      end
+
+      lines
+    end
+
+    # THE POST-CONSTRUCTION COPY — `args.#{field}` against the WHOLE
+    # already-built Args struct, run a second time at both the router
+    # level (registry.rb's own `invariant_check_lines`, ahead of
+    # `refuse_role_mismatch`/`resolve_references`, R3) and again at the
+    # top of the generated `dispatch_*`/`dispatch_operation_*` function
+    # itself — deliberately kept, not replaced, by `emit_from_json_flat`'s
+    # own INTERLEAVED copy (`argument_check_lines`, above, called with a
+    # bare local instead of `args.#{field}`) now doing the same work
+    # per-argument, in declaration order, before the NEXT argument's own
+    # shape is even built: every real caller reaches a generated dispatch
+    # fn exclusively through the router, so this redundant copy only ever
+    # re-confirms what `from_json` already enforced correctly — see
+    # `domain_generator.rb`'s own comment on why the redundancy itself is
+    # kept.
     def invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
       command[:attributes].flat_map do |attr|
         field = rust_ident_field(attr[:name])
-        lines = []
-
-        unless attr[:list]
-          # RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rb`'s own value-
-          # object-field door (the OTHER caller of `emit_admits_check`)
-          # passes `self.#{field}` raw and never wraps the result itself,
-          # trusting `constraints.rb`'s own internal `optional_scalar_expr`/
-          # `wrap_if_optional` to do the ENTIRE optional-handling, self-
-          # contained.
-          value_expr = "args.#{field}"
-          constraint = emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name)
-          lines << "        #{constraint}" if constraint
-        end
-
-        if value_objects_by_name.key?(attr[:type]) && !value_objects_by_name[attr[:type]][:closed_set]
-          lines << if attr[:optional]
-            attr[:list] ? "        if let Some(items) = &args.#{field} { for item in items { item.check_invariants()?; } }" : "        if let Some(v) = &args.#{field} { v.check_invariants()?; }"
-          else
-            attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
-          end
-        end
-
-        lines
+        argument_check_lines(attr, "args.#{field}", aggregates_by_name, value_objects_by_name)
       end
     end
 
@@ -905,7 +932,8 @@ module RustProjection
         # `hecks-codegen`'s own separate reimplementation.
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
-                            command_name: command[:name].to_s, absent_argument_check: true),
+                            command_name: command[:name].to_s, absent_argument_check: true,
+                            interleave_checks: true, aggregates_by_name: aggregates_by_name),
         entity_dispatch_fn,
       ].join("\n\n")
     end
