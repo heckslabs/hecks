@@ -1787,6 +1787,7 @@ mod tests {
         verb: &str,
         _args: &Json,
         _caller_role: Option<&str>,
+        _caller_actor_id: Option<&str>,
         _mutations: &mut Vec<MutationRecord>,
     ) -> Result<Vec<Event>, Refusal> {
         let event = |name: &str| Event {
@@ -1856,6 +1857,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             0,
             &mut all_events,
             &mut mutations,
@@ -1902,6 +1904,7 @@ mod tests {
         verb: &str,
         _args: &Json,
         _caller_role: Option<&str>,
+        _caller_actor_id: Option<&str>,
         _mutations: &mut Vec<MutationRecord>,
     ) -> Result<Vec<Event>, Refusal> {
         let event = |name: &str| Event {
@@ -1977,6 +1980,7 @@ mod tests {
                 &mut sagas,
                 verb,
                 &Json::Object(vec![]),
+                None,
                 None,
                 None,
                 None,
