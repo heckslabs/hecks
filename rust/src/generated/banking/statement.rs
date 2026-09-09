@@ -35,6 +35,7 @@ impl crate::kernel::Fielded for StatementPeriod {
 
 impl StatementPeriod {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementPeriod.value must match [^ \\t\\n\\r], got ", self.value))); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -50,7 +51,6 @@ impl StatementPeriod {
         ])));
     }
 }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementPeriod.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -65,6 +65,9 @@ impl StatementPeriod {
 
 impl StatementPeriod {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("StatementPeriod expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -73,7 +76,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "StatementPeriod")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("StatementPeriod.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementPeriod.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("StatementPeriod.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()) })? },
         })
     }
 }
@@ -125,6 +128,9 @@ impl StatementAmount {
 
 impl StatementAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("StatementAmount expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["cents"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -133,7 +139,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        cents: { let x = v.require("cents", "StatementAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("StatementAmount.cents expects Integer, got {}", x.inspect())))? },
+        cents: { let x = v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementAmount.cents expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("StatementAmount.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -170,6 +176,7 @@ impl crate::kernel::Fielded for StatementDate {
 
 impl StatementDate {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementDate.value must match [^ \\t\\n\\r], got ", self.value))); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -185,7 +192,6 @@ impl StatementDate {
         ])));
     }
 }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementDate.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -200,6 +206,9 @@ impl StatementDate {
 
 impl StatementDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("StatementDate expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -208,7 +217,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "StatementDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("StatementDate.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementDate.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("StatementDate.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()) })? },
         })
     }
 }
@@ -297,8 +306,11 @@ impl Statement {
 
 impl Statement {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Statement expects an object, got {}", v.inspect())));
+}
         Ok(Self {
-        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Statement.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()) })?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Statement.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()) })?), },
         period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(&x.coerce_single_field("value"))?), },
         opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
         closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
@@ -461,6 +473,9 @@ impl GenerateArgs {
 
 impl GenerateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["period", "opening_balance", "closing_balance", "generated_on", "frequency", "account", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -468,13 +483,21 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["account", "closing_balance", "frequency", "generated_on", "opening_balance", "period"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Generate"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "period, opening_balance, closing_balance, generated_on, frequency, account"),
+    ])));
+}
         Ok(Self {
-        period: StatementPeriod::from_json(&v.require("period", "GenerateArgs")?.coerce_single_field("value"))?,
-        opening_balance: StatementAmount::from_json(&v.require("opening_balance", "GenerateArgs")?.coerce_single_field("cents"))?,
-        closing_balance: StatementAmount::from_json(&v.require("closing_balance", "GenerateArgs")?.coerce_single_field("cents"))?,
-        generated_on: StatementDate::from_json(&v.require("generated_on", "GenerateArgs")?.coerce_single_field("value"))?,
-        frequency: StatementFrequency::from_json(v.require("frequency", "GenerateArgs")?)?,
-        account: { let x = v.require("account", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()) })? },
+        period: StatementPeriod::from_json(&v.get("period").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.period expects StatementPeriod, got nil".to_string()))?.coerce_single_field("value"))?,
+        opening_balance: StatementAmount::from_json(&v.get("opening_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.opening_balance expects StatementAmount, got nil".to_string()))?.coerce_single_field("cents"))?,
+        closing_balance: StatementAmount::from_json(&v.get("closing_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.closing_balance expects StatementAmount, got nil".to_string()))?.coerce_single_field("cents"))?,
+        generated_on: StatementDate::from_json(&v.get("generated_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.generated_on expects StatementDate, got nil".to_string()))?.coerce_single_field("value"))?,
+        frequency: StatementFrequency::from_json(v.get("frequency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.frequency expects StatementFrequency, got nil".to_string()))?)?,
+        account: { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()) })? },
         })
     }
 }

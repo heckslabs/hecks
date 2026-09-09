@@ -37,8 +37,10 @@ it, except for one law they must uphold (C8.4).
 - **C1.2 (settled)** Which refusal a caller sees is decided by step
   order: an unknown argument outranks a type mismatch, which outranks a
   role mismatch, which outranks not-found, which outranks an unmet
-  given, which outranks a blocked lifecycle transition.
-  (fixture: `refusal_order.json`)
+  given, which outranks a blocked lifecycle transition. A declared,
+  non-optional argument the caller never mentions is `AbsentArgument`
+  (the absent names listed sorted), refused before any argument is
+  typed. (fixtures: `refusal_order.json`, `absent_argument_refused.json`)
 - **C1.3 (settled)** Within one step, rules are checked in declaration
   order and the first failure refuses; later rules of that step are not
   evaluated. (fixture: `given_first_failure_wins.json`)
@@ -115,7 +117,20 @@ it, except for one law they must uphold (C8.4).
 - **C3.7 (settled)** Declared value-object arguments are coerced and
   validated (type, closed set, `admits`, `pattern`, VO invariants)
   before givens run; a mismatch is `TypeMismatch`, a refusal.
-  (fixture: `vo_argument_type_refused.json`)
+  A value object is a typed field product: every non-optional field
+  arrives or construction refuses `TypeMismatch`, worded
+  `{type}.{field} expects {expected}, got nil` — a field never
+  mentioned and a field offered as null are the same absence, and an
+  *optional* field offered as null is simply absent. Checks run in
+  this order: nested value objects first, then the value object's own
+  field types, `admits` and `pattern`, then its invariants — so a
+  field that fails its pattern is a `TypeMismatch`, never an
+  `InvariantViolation` from an invariant that happens to read it. A
+  named query's declared value-object arguments are built the same
+  way before the query runs; its bare-scalar arguments are not typed
+  (C3.8). (fixtures: `vo_argument_type_refused.json`,
+  `vo_field_null_refused.json`, `vo_pattern_before_invariant.json`,
+  `query_argument_typed.json`)
 - **C3.8 (settled)** Every declared argument is type-checked at the
   boundary, bare primitives included: an `Integer` or `Float` argument
   must arrive as that numeric class, a `String` or boolean argument

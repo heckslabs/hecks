@@ -620,5 +620,56 @@ module RustProjection
       rows = query_defs.map { |q| emit_query_def(q) }
       Exemplar.render("query_table", QUERY_TABLE_ROW_PLACEHOLDER => rows.join("\n"))
     end
+
+    # C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — `QueryInterpreter#normalize_
+    # args` (query_interpreter.rb): every declared attribute the caller's
+    # args carry goes through `Value.for_attribute(boundary: false)`, so a
+    # VALUE-OBJECT argument is built for real (shape, pattern, admits,
+    # invariants) while a bare scalar passes untyped (C3.8's own query
+    # allowance). ADR 0037 finding 4, closed here: `named_query::run` used
+    # to read a `QueryConditionValue::Arg` straight out of the raw JSON,
+    # so a `Price`-typed `ceiling: {cents: -1}` never met `Price`'s own
+    # invariant. One `if let` per value-object argument — built, invariant-
+    # checked, dropped: the typed value is only a gate here; the comparison
+    # itself still reads the raw JSON, exactly what Ruby's own comparator
+    # sees after `comparable`. A closed set's `from_json` already refuses a
+    # non-member, so it gets no `check_invariants` (none is generated for
+    # it, types.rb). Only the aggregate's OWN value objects are typed —
+    # a borrowed identity type lives in another module (recorded gap).
+    def query_arg_checks(query, mod_path, value_objects_by_name)
+      query[:attributes].filter_map do |attr|
+        next if attr[:list] || attr[:relationship]
+
+        vo = value_objects_by_name[attr[:type]]
+        next unless vo
+
+        key   = rust_field(attr[:name])
+        build = composite_from_json_expr(attr, value_objects_by_name, "x")
+        check = vo[:closed_set] ? "" : ".check_invariants()?"
+        "if let Some(x) = args.get(#{key.inspect}) { #{mod_path}::#{build}#{check}; }"
+      end
+    end
+
+    # The gate `kernel/cli.rs` runs before `named_query::run` — one arm
+    # per query that declares a typed argument, `Ok(())` for every other
+    # verb (a query with only scalar arguments, or none, has nothing to
+    # type). Emitted beside `QUERIES` in every registry `emit_query_table`
+    # reaches (a chapter's own, the merged one, meta's).
+    def emit_query_arg_check_table(query_defs)
+      arms = query_defs.reject { |q| q[:arg_checks].empty? }.map do |q|
+        lines = q[:arg_checks].map { |line| "            #{line}" }.join("\n")
+        "        #{q[:verb].inspect} => {\n#{lines}\n            Ok(())\n        }"
+      end
+      <<~RUST
+        /// C3.7 for a named query's own arguments — `query_arg_checks`
+        /// (rust/project/queries.rb) has the full story.
+        pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+            match verb {
+        #{arms.join("\n")}
+                _ => Ok(()),
+            }
+        }
+      RUST
+    end
   end
 end

@@ -60,7 +60,8 @@ Hecks.bluebook "Bluebook" do
       attribute :option, String
       attribute :key,    String
       attribute :value,  String
-      attribute :at,     String
+      # optional: not every projection option carries an `at` (C3.7)
+      attribute :at,     String, optional: true
     end
 
     value_object "GroupByField" do

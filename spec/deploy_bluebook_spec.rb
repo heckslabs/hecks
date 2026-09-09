@@ -43,8 +43,17 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     expect(state[:timeout].value).to eq(10)
   end
 
+  # C3.7 (docs/semantics/bluebook-semantics.md) — a value object's own
+  # required fields are checked before its invariants; an explicit nil
+  # is TypeMismatch now, not the InvariantViolation an empty string
+  # would still reach.
   it "refuses an absent region" do
     expect { declare(region: { value: nil }) }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /Region\.value expects String, got nil/)
+  end
+
+  it "refuses an empty region" do
+    expect { declare(region: { value: "" }) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /Region invariant violated — a region is named/)
   end
 
