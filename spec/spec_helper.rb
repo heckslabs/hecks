@@ -80,6 +80,13 @@ RSpec.configure do |config|
   config.disable_monkey_patching!
   config.order = :random
 
+  # Enables `--only-failures` (re-run just what was red last time) and
+  # `--next-failure` (the tightest red/fix/re-run loop, one example at a
+  # time) — RSpec needs a persistence file to remember status across
+  # runs for either to work. `tmp/` is already gitignored; this is
+  # local, per-checkout state, never meant to be shared or committed.
+  config.example_status_persistence_file_path = "tmp/rspec_examples.txt"
+
   # `io: true` marks a spec (or single example) that does real,
   # uncontrolled I/O — a subprocess spawn, a live Postgres/D1
   # connection, a `cargo build` — the kind of thing that made a plain

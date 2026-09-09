@@ -2,6 +2,12 @@
 .DS_Store
 *.db
 *.db-journal
+# RSpec's own personal-override convention (auto-merged with the
+# committed .rspec, never meant to be shared) — a contributor's own
+# `--format progress --fail-fast` while iterating, without touching
+# the shared .rspec's `--format documentation` (kept for CI
+# readability). See .rspec-local.example for the recommended contents.
+.rspec-local
 # Gemfile.lock is committed (see below) — every dependency this project
 # resolves, not just json (which the Gemfile itself pins to an exact
 # version), is fixed for CI. Without this file tracked, ruby/setup-ruby's
