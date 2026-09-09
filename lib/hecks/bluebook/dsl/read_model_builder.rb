@@ -54,6 +54,72 @@ module Hecks
           @includes << [Naming.demodulise(type), as]
         end
 
+        # `on:` (ADR 0055) — OVERRIDES of `QuerySpecification::Common::DSL`'s
+        # shared `where_impl`/`order_by_impl`/`limit_impl`/`offset_impl`,
+        # scoped to `ReadModelBuilder` alone rather than added to the shared
+        # module `Query` also mixes in: a plain `query` has no
+        # `aggregate_heads` at all, so `on:` there would be a silently-
+        # ignored no-op rather than a real answer. Overriding only here
+        # means a `Query`'s own `where(..., on: X)` gets Ruby's own loud
+        # `unknown keyword: :on` instead of quietly doing nothing.
+        #
+        # `on:` names the target by TYPE (`on: Character`), resolved the
+        # same way `reference_to`/`include` already resolve their own type
+        # argument (`Naming.demodulise`) — not by the include's own `as:`
+        # alias. A read model that `include`s the SAME type twice under two
+        # different `as:` has no way to say which one `on:` means today; no
+        # real corpus read model does this, so it's a real, deliberate scope
+        # limit (see ADR 0055), not an oversight.
+        #
+        # `*positional, on:, **rest` rather than a plain `(clauses, on: nil)`
+        # — found necessary, not stylistic, by reproducing the failure
+        # directly: `where(status: "disputed")` reaches here with its
+        # `status: "disputed"` captured as `**kwargs` (GenericDispatch's own
+        # `builder.send(calls, *args, **kwargs, &block)`), and Ruby stops
+        # auto-converting a bare `**hash` call into a plain positional Hash
+        # THE MOMENT a method declares any real keyword parameter — so a
+        # `(clauses, on: nil)` signature raised "wrong number of arguments
+        # (given 0, expected 1)" on every ordinary `where(field: value)`
+        # call, never reaching `on:` at all. `**rest` sidesteps this: Ruby
+        # still auto-splits `on:` into the declared keyword and gathers
+        # every OTHER key into `rest` regardless of how the caller wrote it.
+        #
+        # `QuerySpecification::Common::WhereClause` etc — FULLY QUALIFIED,
+        # not the bare names `dsl.rb`'s own shared `where_impl` gets away
+        # with. That file is lexically nested inside `Common` itself, so
+        # `WhereClause` resolves directly; this class is nested inside
+        # `Bluebook::DSL`, which has no lexical or ancestor path to
+        # `QuerySpecification::Common` at all — a bare `WhereClause` here
+        # falls through to `const_missing` and, mid-bluebook-load, that's
+        # `ConstShim`, which resolves it against the self-hosted grammar
+        # domain's OWN unrelated `WhereClause` construct instead (a `Module`,
+        # not this `Struct`) — found directly by reproducing "undefined
+        # method `new' for module WhereClause" against a real corpus load,
+        # not guessed.
+        def where_impl(*positional, on: nil, **rest)
+          raise ArgumentError, "wrong number of arguments (given #{positional.size}, expected 1)" if positional.size > 1
+
+          @wheres ||= []
+          target = resolve_target(on)
+          clauses = (positional.first || {}).merge(rest)
+          clauses.each do |field, value|
+            op, operand = split_comparator(value)
+            @wheres << QuerySpecification::Common::WhereClause.new(field: field, op: op, value: operand, target: target)
+          end
+        end
+
+        def order_by_impl(field, direction = :asc, on: nil)
+          @order_by = QuerySpecification::Common::OrderBy.new(field: field, direction: direction, target: resolve_target(on))
+        end
+
+        def limit_impl(value, on: nil)
+          @limit = QuerySpecification::Common::LimitSpec.new(value: value, target: resolve_target(on))
+        end
+
+        def offset_impl(value, on: nil)
+          @offset = QuerySpecification::Common::OffsetSpec.new(value: value, target: resolve_target(on))
+        end
+
         # NAMES which of the eligible head's own fields to nest its rows
         # under — one level per field, the leaf being that row with the
         # named fields removed (they're already spent, as the keys that
@@ -142,27 +208,70 @@ module Hecks
 
         private
 
-        # where/order_by/limit/offset/authorize's tenant all apply to exactly
-        # one collection — the single `include`d aggregate whose head is
-        # "many" (the "one" side, the reference target itself, is a single
-        # row; ordering, paging, or tenant-scoping one row means nothing). A
-        # read model with zero many-heads has nothing for them to filter ;
-        # one with several has no way to say WHICH of several unrelated
-        # collections a caller meant — so both refuse here rather than
-        # silently applying to an arbitrary one. `authorize`'s tenant counts
-        # here too — TenantScope enforces it against this same head, so an
-        # ambiguous target is exactly as unusable as it is for the others.
+        # where/order_by/limit/offset/authorize's tenant all apply to
+        # collections — the `include`d aggregates whose heads are "many"
+        # (the "one" side, the reference target itself, is a single row;
+        # ordering, paging, or tenant-scoping one row means nothing). ADR
+        # 0055 gave `where`/`order_by`/`limit`/`offset` an `on:` to name
+        # WHICH many-side collection they mean, so this asks two questions
+        # now instead of one:
+        #
+        #   1. Does every declared `on:` actually name a many-side included
+        #      aggregate? Checked regardless of how many many-side heads
+        #      exist — a typo refuses immediately, not only once ambiguity
+        #      would otherwise bite.
+        #   2. Is there still an UNTARGETED option declared (including
+        #      `authorize`'s own `tenant:`, which has no `on:` of its own —
+        #      a real, deliberate scope limit, see ADR 0055)? An untargeted
+        #      option still needs exactly one many-side head to mean
+        #      anything unambiguous — the ORIGINAL rule, unchanged, and
+        #      still worded the same way (`spec/runtime/
+        #      read_model_interpreter_spec.rb`'s existing refusal regex
+        #      still matches).
+        #
+        # A read model with several many-side heads is legal precisely when
+        # every declared option names one; a read model with a single
+        # many-side head is unaffected either way, `on:` or not.
         def seal_query_options
-          declared = @wheres&.any? || @order_by || @limit || @offset || @authorization&.tenant
-          return unless declared
+          many = Array(@aggregate_heads).select { |head| head[:many] }
 
-          many = Array(@aggregate_heads).count { |head| head[:many] }
-          return if many == 1
+          validate_declared_targets!(many)
+          return unless untargeted_option_declared?
+          return if many.size == 1
 
           raise Malformed,
-                "#{@name} declares where/order_by/limit/offset but includes #{many} many-side " \
+                "#{@name} declares where/order_by/limit/offset but includes #{many.size} many-side " \
                 "aggregates, not exactly one — these options apply to a single collection; " \
-                "name which one by including only it, or drop the options"
+                "name which one with `on:` (e.g. `where(field: value, on: Character)`), or drop the options"
+        end
+
+        # Question 1 of `seal_query_options`'s own two, split out to keep
+        # both under the same "one job per method" shape every OTHER seal in
+        # this file already holds to (each raises its own one Malformed, for
+        # its own one reason).
+        def validate_declared_targets!(many)
+          many_by_aggregate = many.to_h { |head| [head[:aggregate], head] }
+          declared_targets = Array(@wheres).map(&:target) + [@order_by&.target, @limit&.target, @offset&.target]
+
+          declared_targets.compact.uniq.each do |target|
+            next if many_by_aggregate.key?(target)
+
+            raise Malformed,
+                  "#{@name}'s `on: #{target}` doesn't name one of its own many-side included " \
+                  "aggregates (it includes #{many.map { |head| head[:aggregate] }.join(', ')} as " \
+                  "many-side heads)"
+          end
+        end
+
+        # Question 2 of `seal_query_options`'s own two — see that method's
+        # header. `authorize`'s own `tenant:` has no `on:` at all (ADR 0055's
+        # own documented scope limit), so it always counts as untargeted.
+        def untargeted_option_declared?
+          Array(@wheres).any? { |where| where.target.nil? } ||
+            (@order_by && @order_by.target.nil?) ||
+            (@limit && @limit.target.nil?) ||
+            (@offset && @offset.target.nil?) ||
+            @authorization&.tenant
         end
 
         # Same shape as `seal_query_options`, same reason — `group_by`
@@ -226,6 +335,12 @@ module Hecks
                 "#{@name} declares cursor, but no interpreter implements cursor " \
                 "pagination — use limit/offset instead"
         end
+
+        # `on:`'s own resolution (ADR 0055) — same demodulise `reference_to`/
+        # `include` already use for their own type argument. `nil` when `on:`
+        # is omitted, matching every other optional field's "absent, not
+        # false" reading in this file.
+        def resolve_target(on) = on && Naming.demodulise(on)
 
         def add_aggregate_head(type, name, many:)
           @aggregate_heads ||= []

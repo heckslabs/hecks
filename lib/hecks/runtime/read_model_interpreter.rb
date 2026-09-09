@@ -50,10 +50,11 @@ module Hecks
         refuse_object_reference(model, args) unless rootless
         reference_id = reference(args.fetch(model.reference_name)) unless rootless
         # Computed off the ORIGINAL model, before TenantScope wraps it — the
-        # "which head do options apply to" question is about what the
+        # "which head(s) do options apply to" question is about what the
         # bluebook author declared, not about the synthetic tenant clause
-        # the wrapper adds underneath.
-        eligible = model.filtered_head_name
+        # the wrapper adds underneath. Plural (ADR 0055) — `on:` lets more
+        # than one many-side head be eligible at once.
+        eligible = model.filtered_head_names
         model = TenantScope.apply(model, args)
         # A ROOTLESS, `group_by`-declared, or `count`/`median`-declared
         # model skips the SQLite native escape hatch entirely (there is
@@ -119,7 +120,7 @@ module Hecks
                      end
                    end
                  end
-          rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
+          rows = Ports::Query::InMemory.execute(rows, model.options_for(head[:as]), args) if eligible.include?(head[:as])
           projected << { aggregate: head[:aggregate], rows: rows }
           rows_by_as[head[:as]] = head[:many] ? rows : rows.first
         end
