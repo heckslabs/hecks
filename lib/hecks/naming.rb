@@ -102,10 +102,37 @@ module Hecks
       text.include?(".") ? text.split(".", 2).last : text
     end
 
+    # DOMAIN, AGGREGATE, then the REST dot-joined into one command path.
+    #
+    # The `::` boundary between domain and aggregate is unambiguous by
+    # construction — every caller here has already prefixed the domain
+    # itself (`PolicyInterpreter#deliver`, `SagaInterpreter#qualified`,
+    # `Router#dispatch`'s own rebuilt string) before this ever runs. A
+    # THIRD `::` segment can still show up past that boundary: a bare
+    # `ScopedConstant` naming a port operation (`command_ref`'s own
+    # comment — `Aggregate::Port::Operation`, three colon-joined
+    # segments with no `.` of its own) only gets its LAST `::` rewritten
+    # to `.` there, at DSL-build time, because nothing at that point
+    # knows yet whether the constant names a port operation or a
+    # domain-qualified command (`Domain::Aggregate::Command`, the OTHER
+    # shape `command_ref` documents) — both are textually identical.
+    # Here, past the already-resolved domain boundary, any leftover
+    # `::` is unambiguous: it is that same rewrite artifact, and folding
+    # it into the dot-joined tail recovers exactly the
+    # `Aggregate::Port.Operation` shape a working port dispatch already
+    # expects (`spec/port_operation_interpreter_spec.rb`'s own
+    # `"Payments::Payment.PaymentGateway.Receive"`). `Outbox::Fanout
+    # .kind_for` and `ReactionInvocation#resolve_target` both already
+    # assume this contract on their own end; this is what actually
+    # delivers it to them.
     def split_verb(verb)
       path, command = verb.to_s.split(".", 2)
-      domain, aggregate = path.to_s.split("::", 2)
-      return nil unless domain && aggregate && command
+      return nil unless path && command
+
+      domain, aggregate, *rest = path.to_s.split("::")
+      return nil unless domain && aggregate
+
+      command = "#{rest.join('.')}.#{command}" unless rest.empty?
 
       [domain, aggregate, command]
     end

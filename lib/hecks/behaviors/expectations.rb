@@ -194,11 +194,24 @@ module Hecks
       # mixed facts into the strict envelope — identities lifted into
       # `to:`, declared facts into `with:` — so a behaviors dispatch now
       # goes through the exact same separation a policy's projection
-      # does. A verb that resolves to no command (a port operation —
-      # "Pizzas::Order.PaymentGateway.Receive") keeps the loose
-      # passthrough: its own input already spells the port form's
-      # `to:`/`with:`, which the dispatcher's port branch reads directly.
+      # does. A verb that names a port operation (checked explicitly,
+      # below — "Pizzas::Order.PaymentGateway.Receive") keeps the loose
+      # passthrough instead: its own input already spells the port
+      # form's `to:`/`with:`, which the dispatcher's port branch reads
+      # directly, and `ReactionInvocation.build`'s explicit envelope
+      # expects a command's own declared attributes at the top level,
+      # not a port operation's already-wrapped `to:`/`with:` shape.
+      #
+      # THIS USED TO RELY ON `resolve_target` RAISING `UnknownVerb` for
+      # any port-operation verb — true only so long as nothing else ever
+      # asked it to resolve one. Now that a `policy` can legitimately
+      # `trigger` a port operation (`ReactionInvocation#resolve_target`'s
+      # own port-operation branch), that raise is gone, so this checks
+      # for a port operation directly instead of leaning on a refusal
+      # that no longer happens.
       def dispatch_command(runtime, verb, args)
+        return runtime.dispatch(verb, **args) if port_operation?(runtime, verb)
+
         invocation = begin
           Runtime::ReactionInvocation.build(registry: runtime.registry, verb: verb,
                                             projected: args, explicit: true)
@@ -212,6 +225,21 @@ module Hecks
         else
           runtime.dispatch(verb, with: invocation[:with])
         end
+      end
+
+      # THE SAME "Head.Rest" SHAPE `Dispatcher#dispatch` AND
+      # `ReactionInvocation#resolve_target` BOTH ALREADY CHECK — a bare
+      # domain/aggregate lookup plus a port-name lookup, no command
+      # resolution needed since all this asks is whether one exists.
+      def port_operation?(runtime, verb)
+        domain, aggregate_name, command_path = Naming.split_verb(verb)
+        return false unless command_path
+
+        aggregate = runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+        return false unless aggregate
+
+        head, rest = command_path.split(".", 2)
+        rest && !!aggregate.port(head)
       end
 
       def run_query(test, runtime, verb)

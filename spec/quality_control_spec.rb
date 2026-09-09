@@ -144,15 +144,7 @@ RSpec.describe "QualityControl" do
     # THE FRICTION THIS REMOVED. Every claim used to want
     # `now.value=$(date +%s) window.value=900` typed in front of it, which is a
     # shell incantation an agent gets wrong by pasting a stale number.
-    # PENDING: exercises Hecks::Facade::CliRunner, which projects a
-    # domain's command line off Projector::CliProjector — part of this
-    # branch's own independent projections/CLI refactor, deliberately left
-    # behind by this extraction because it structurally conflicts with
-    # main's own already-shipped Projection arc (commit 34c2001). The ledger
-    # itself needs no CLI layer to work — every other example in this file
-    # dispatches straight through `runtime`. Re-enable once a CLI projection
-    # exists on main (or this ledger gets its own bespoke `bin/qc`).
-    it "fills now from the clock when the caller leaves it out", skip: "CliRunner is out of scope for this extraction" do
+    it "fills now from the clock when the caller leaves it out" do
       target
       text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
 
@@ -162,10 +154,7 @@ RSpec.describe "QualityControl" do
 
     # SO A SPEC OR A CALLER REPRODUCING A MOMENT IS BELIEVED. The door supplies
     # only what was omitted.
-    #
-    # PENDING: see the note above — CliRunner is out of scope for this
-    # extraction.
-    it "believes an explicit time over the clock", skip: "CliRunner is out of scope for this extraction" do
+    it "believes an explicit time over the clock" do
       target
       text, = cli("target.claim", "id=banking", "held_by.value=agent-one", "now.value=55")
 
@@ -175,10 +164,7 @@ RSpec.describe "QualityControl" do
     # THE HOLE THIS CLOSED. `window` was an argument, so any agent could take a
     # live claim from any other by asking with a window of one second — the
     # guard read a number the CALLER supplied and dutifully agreed.
-    #
-    # PENDING: see the note above — CliRunner is out of scope for this
-    # extraction.
-    it "does not let a claimer name the window it is judged against", skip: "CliRunner is out of scope for this extraction" do
+    it "does not let a claimer name the window it is judged against" do
       target
       _, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
       expect(code).to eq(0)
@@ -243,9 +229,7 @@ RSpec.describe "QualityControl" do
     # REACHABLE FROM THE ONLY DOOR THERE IS. The dispatcher has always
     # answered a report; the projected CLI never listed one, so a caller with
     # no Ruby could not ask for the one reading that counts.
-    # PENDING: exercises Hecks::Facade::CliRunner — see the note above
-    # "the clock" describe block. Out of scope for this extraction.
-    it "is a question the command line offers", skip: "CliRunner is out of scope for this extraction" do
+    it "is a question the command line offers" do
       a_logged_bug("BUG#1")
 
       text, code = Hecks::Facade::CliRunner.call(
@@ -541,23 +525,22 @@ RSpec.describe "QualityControl" do
     # THE DOMAIN DOES THE ASKING. `Raise` records the intent; the policy fires
     # the port; the adapter answers; a second policy records what came back.
     #
-    # PENDING: `trigger Ticket::IssueTracker::File` — a policy triggering an
+    # FIXED: `trigger Ticket::IssueTracker::File` — a policy triggering an
     # `asks`/`tells` PORT OPERATION (three segments: aggregate, port,
     # operation) rather than a plain command (two segments: aggregate,
-    # command) — never resolves. `Naming.command_ref`'s bare-constant
+    # command) used to never resolve. `Naming.command_ref`'s bare-constant
     # rewrite (only the LAST `::` becomes `.`) turns this into
-    # "Ticket::IssueTracker.File", which `Dispatcher#parse`/`#split_verb`
-    # then reads as domain="Ticket", aggregate="IssueTracker" — nothing
-    # resolves, the reaction fires and silently does nothing (a policy's own
-    # failure does not crash its triggering command). Confirmed nowhere else
-    # in the live corpus triggers an `asks`/`tells` operation from a policy —
-    # this ledger is the first real user of that combination. A genuine gap
-    # in the `asks`/`tells` migration, not a QualityControl-specific bug —
-    # worth its own follow-up in Naming.command_ref/PolicyBuilder, not
-    # force-fixed here. Every OTHER Ticket verb (Raise/Submit/Filed/Refused/
-    # Retry/Abandon/Close) dispatches straight and is fully covered above.
-    it "files it through the port and records what the tracker said",
-       skip: "asks/tells triggered from a policy does not resolve yet" do
+    # "Ticket::IssueTracker.File", which `Naming.split_verb` now folds any
+    # LEFTOVER `::` past the already-resolved domain boundary into the
+    # dot-joined command path instead of capping at two pieces — recovering
+    # "Ticket.IssueTracker.File", the same shape a working port dispatch
+    # already used. `ReactionInvocation#resolve_target` gained a matching
+    # port-operation branch (checked before entity resolution, same order
+    # `Dispatcher#dispatch` already uses), and `PortOperation#creates?`
+    # (always false) lets `source_receiver_for` lift the triggering
+    # event's own id as the operation's receiver the same way it already
+    # does for a plain same-aggregate command.
+    it "files it through the port and records what the tracker said" do
       raise_ticket(a_paused_bug)
 
       expect(runtime.events.map(&:name)).to include("IssueFiled", "TicketFiled")
@@ -566,8 +549,7 @@ RSpec.describe "QualityControl" do
 
     # EVERY FAILURE IS AN ANSWER — the raise from the far side becomes the
     # refusal the chapter named, and the retry policy takes it from there.
-    it "turns a dead token into the refusal it named, and asks again",
-       skip: "asks/tells triggered from a policy does not resolve yet" do
+    it "turns a dead token into the refusal it named, and asks again" do
       runtime = boot_quality_control(RefusingTracker)
       allow(self).to receive(:runtime).and_return(runtime) if respond_to?(:allow)
 
