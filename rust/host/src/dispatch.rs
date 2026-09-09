@@ -401,12 +401,30 @@ pub async fn handle(
     // already read it (`Outcome.result["cross_domain_deliveries"]`) and
     // this doesn't touch that contract, it only adds a second, unified
     // view alongside the same-domain entries `"reactions"` already
-    // carries. NOT done on the `Err` branch below — a hard delivery fault
-    // makes this whole call return `Err`, discarding `result` entirely
-    // (see this function's own "delivered after commit" comment), so
-    // there is no response for a `"reactions"` entry to ever reach;
-    // `journal::record_dead_letter` is that path's own durable record.
+    // carries. NOT done once ANY delivery in this loop has failed — a
+    // hard delivery fault makes this whole call return `Err`, discarding
+    // `result` entirely (see this function's own "delivered after
+    // commit" comment), so there is no response for a `"reactions"`
+    // entry to ever reach; `journal::record_dead_letter` is that path's
+    // own durable record.
+    //
+    // EVERY REACTION GETS ITS OWN ATTEMPT, EVEN AFTER AN EARLIER ONE
+    // FAILS — `SafeDepositBox.Surrender` (safe_deposit_boxes.bluebook's
+    // own header: "TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS")
+    // is a real, live example of one step firing more than one
+    // cross-domain reaction. Returning on the FIRST failed delivery
+    // used to silently abandon every reaction after it in this same
+    // loop — not just undelivered, but never even attempted, and
+    // missing from `hecks_cross_domain_dead_letters` too: a real, zero-
+    // crash-required data-loss bug, found and fixed the same session as
+    // ADR 0036's cross-process lock (a different flavor of the same
+    // underlying question — does every reaction this dispatch owes
+    // actually get a durable outcome). `first_failure` remembers only
+    // the FIRST error to return — matching the pre-existing contract
+    // exactly (this call still visibly fails once for the caller) while
+    // no longer using that return to cut the loop short.
     let mut cross_domain_deliveries = Vec::new();
+    let mut first_failure: Option<anyhow::Error> = None;
     for reaction in &pending_cross_domain {
         match lambda_client::deliver_with_retry(invoker, reaction).await {
             Ok(record) => {
@@ -432,9 +450,14 @@ pub async fn handle(
                     failure.attempts as i32,
                 )
                 .await?;
-                return Err(failure.error);
+                if first_failure.is_none() {
+                    first_failure = Some(failure.error);
+                }
             }
         }
+    }
+    if let Some(error) = first_failure {
+        return Err(error);
     }
     if let Some(response) = result.as_object_mut() {
         response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
@@ -1306,5 +1329,72 @@ mod tests {
         assert_eq!(target_domain, "Compliance");
         assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
         assert_eq!(attempts, lambda_client::MAX_DELIVERY_ATTEMPTS as i32);
+    }
+
+    // A SECOND cross-domain reaction, from the SAME step, must not go
+    // dark just because the FIRST one's delivery exhausted its retries
+    // — `SafeDepositBox.Surrender` (safe_deposit_boxes.bluebook's own
+    // header: "TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS") emits
+    // BOTH `BoxSurrendered` (-> `ReviewOnBoxSurrender`, across
+    // Compliance) and `KeyReturnDue` (-> `FlagKeyReturn`, across
+    // Notifications) from one command. Before this test's own fix, the
+    // delivery loop in `handle` above `return`ed the instant the FIRST
+    // reaction's delivery failed — the second reaction was never even
+    // attempted, and got no dead-letter row either: a real, silent,
+    // zero-crash-required drop, not a crash-window edge case.
+    #[tokio::test]
+    async fn a_failed_cross_domain_delivery_does_not_drop_a_sibling_reaction_from_the_same_step() {
+        let client = scratch_db("rust_host_dispatch_test_11").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "SafeDepositBox"]).await;
+        let config = test_config("Banking", 1);
+        let invoker = AlwaysFailingInvoker::new();
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0022"), None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registration should succeed");
+
+        let rent_args = serde_json::json!({
+            "branch_code": { "value": "downtown" },
+            "box_number": { "value": 12 },
+            "size": { "value": "small" },
+            "customer": "CUST-0022",
+        });
+        handle(&client, &wasm_path(), "Banking::SafeDepositBox.Rent", rent_args, None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("rent should succeed");
+
+        // Both ReviewOnBoxSurrender (-> Compliance) and FlagKeyReturn
+        // (-> Notifications) fire here; both deliveries exhaust every
+        // retry against AlwaysFailingInvoker.
+        let surrender_args = serde_json::json!({ "branch_code": { "value": "downtown" }, "box_number": { "value": 12 } });
+        let outcome =
+            handle(&client, &wasm_path(), "Banking::SafeDepositBox.Surrender", surrender_args, None, &config, &invoker)
+                .await;
+
+        assert!(outcome.is_err(), "still fails the invocation visibly, same contract as a single failed delivery");
+        assert_eq!(
+            *invoker.calls.lock().unwrap(),
+            lambda_client::MAX_DELIVERY_ATTEMPTS * 2,
+            "BOTH reactions should have been attempted MAX_DELIVERY_ATTEMPTS times each — \
+             the fix under test is exactly this: a fresh Vec would only ever show one policy's worth"
+        );
+
+        let guard = client.lock().await;
+        let dead_letters = guard
+            .query("SELECT policy FROM hecks_cross_domain_dead_letters ORDER BY policy", &[])
+            .await
+            .unwrap();
+        let policies: Vec<String> = dead_letters.iter().map(|row| row.get(0)).collect();
+        assert_eq!(
+            policies,
+            vec!["FlagKeyReturn".to_string(), "ReviewOnBoxSurrender".to_string()],
+            "BOTH sibling reactions must be dead-lettered, not just whichever ran first: {policies:?}"
+        );
     }
 }
