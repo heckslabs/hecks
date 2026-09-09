@@ -23,6 +23,21 @@ use super::{named_query, orchestrate, query_comparators, read_model, repository,
 use crate::generated::active::{command_attributes_for_verb, command_creates, dispatch_by_name, identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
 use std::collections::HashMap;
 
+// C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — the generated gate
+// (`queries.rb#emit_query_arg_check_table`) that builds and invariant-
+// checks every value-object argument BEFORE `named_query::run` reads
+// the raw JSON (ADR 0037 finding 4). embryonaut's generated tree is a
+// committed snapshot with no source in this repo (.github/workflows/
+// ci.yml's own note beside its exclusion from the regeneration step)
+// and predates this gate, so under that one feature its named queries
+// stay answered untyped, exactly as before — a shim, named as one.
+#[cfg(not(feature = "embryonaut"))]
+use crate::generated::active::check_query_args;
+#[cfg(feature = "embryonaut")]
+fn check_query_args(_verb: &str, _args: &Json) -> Result<(), Refusal> {
+    Ok(())
+}
+
 pub fn run(input: &str) -> String {
     let parsed = match Json::parse(input) {
         Ok(v) => v,
@@ -220,7 +235,7 @@ pub fn run(input: &str) -> String {
             let caller_role = step.get("role").and_then(Json::as_str);
             match query {
                 Json::Str(question) if question.contains("::") => match named_query::find(QUERIES, question) {
-                    Some(def) => match named_query::run(&store, def, args, caller_role) {
+                    Some(def) => match check_query_args(question, args).and_then(|()| named_query::run(&store, def, args, caller_role)) {
                         Ok(entries) => {
                             let rows = Json::Array(entries.into_iter().map(|(id, record)| repository::row_json(id, record)).collect());
                             query_results.push(Json::obj(vec![

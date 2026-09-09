@@ -369,6 +369,27 @@ crate::kernel::QueryDef {
 },
 ];
 
+/// C3.7 for a named query's own arguments — `query_arg_checks`
+/// (rust/project/queries.rb) has the full story.
+pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    match verb {
+        "Pizzas::Order.CostingLessThan" => {
+            if let Some(x) = args.get("ceiling") { crate::generated::pizzas::order::Price::from_json(&x.coerce_single_field("cents"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Governance::RoleAssignment.AssignmentsForActor" => {
+            if let Some(x) = args.get("actor_id") { crate::generated::governance::roleassignment::IdentityId::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Governance::RoleTransition.Allowed" => {
+            if let Some(x) = args.get("from_role") { crate::generated::governance::roletransition::RoleName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            if let Some(x) = args.get("to_role") { crate::generated::governance::roletransition::RoleName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 
 ];

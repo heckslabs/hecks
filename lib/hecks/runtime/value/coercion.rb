@@ -55,8 +55,15 @@ module Hecks
         # itself, so a `reference: {value: ...}` offered against a `String`
         # query field is the documented allowance (see banking's own
         # `Account.OpenForCustomer`), not a C3.8 mismatch.
-        def for_attribute(aggregate, attribute, value, boundary: true)
-          return value if attribute.nil? || value.nil? # :optional
+        # `argument: true` is the CALLER'S door only (`Interpreting#normalize_
+        # args`, every command/entity/port dispatch): the one place a nil
+        # for a non-optional attribute is the caller leaving a required
+        # argument empty (C3.7). Every other caller — `sets` copying an
+        # optional argument into state, hydration, entity elements,
+        # identity, defaults — is state assembly, where nil is a legitimate
+        # "absent is not empty" value the aggregate's own attribute may hold.
+        def for_attribute(aggregate, attribute, value, boundary: true, argument: false)
+          return nil_or_missing(aggregate, attribute, value, argument) if attribute.nil? || value.nil?
           return reference_list(attribute, value) if attribute.list? && attribute.reference?
           return reference_identity(attribute, value) if attribute.reference?
           return hydrate_entity_list(aggregate, attribute, value) if attribute.list? # :list
@@ -81,6 +88,41 @@ module Hecks
 
           admit_declared_set(aggregate, attribute, coerced)
           coerced
+        end
+
+        # NIL IS NOT A VALUE FOR A NON-OPTIONAL ARGUMENT (C3.7/C3.8). An
+        # `optional:` attribute and a load from the store pass nil through
+        # as they always did; a command argument offered as null for a
+        # required attribute is
+        # refused as the field the caller left empty — a value object is
+        # BUILT from no fields, so its first required field refuses with
+        # exactly the wording the Rust side's `from_json` gives it
+        # ("Money.cents expects Integer, got nil"), and a bare scalar
+        # refuses through `check_bare_primitive`'s own wording. Lists and
+        # references keep their nil passthrough (their absence is an empty
+        # relationship, `validate_relationship_cardinality`'s business).
+        # The `attribute.nil?`/`value.nil?` branch of `for_attribute`,
+        # pulled out on its own — an unknown attribute has no shape left
+        # to branch on, and a nil VALUE is either an ordinary absence
+        # (state assembly, hydration, a query ask) or, at the argument
+        # door only, `nil_argument`'s own C3.7 refusal.
+        private def nil_or_missing(aggregate, attribute, value, argument)
+          return value if attribute.nil? || !value.nil?
+
+          argument ? nil_argument(aggregate, attribute) : value
+        end
+
+        private def nil_argument(aggregate, attribute)
+          return nil if attribute.optional? || trusting_stored_state?
+          return nil if attribute.list? || attribute.reference?
+
+          value_object = aggregate.respond_to?(:value_object) ? value_object_for(aggregate, attribute.type) : nil
+          return build(value_object, {}, aggregate) if value_object
+
+          raise TypeMismatch,
+                RefusalWording.render("TypeMismatch", "numeric_field",
+                                      type: aggregate.hecks_name, field: attribute.name,
+                                      expected: attribute.type, offered: "nil")
         end
 
         # A BARE PRIMITIVE IS TYPE-CHECKED AT THE BOUNDARY TOO (C3.8,
@@ -285,6 +327,7 @@ module Hecks
           # the flag; every input door leaves it unset.
           return if trusting_stored_state?
 
+          check_required_fields(value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
           check_numeric_fields(value_object, fields)
@@ -547,6 +590,29 @@ module Hecks
           raise TypeMismatch,
                 RefusalWording.render("TypeMismatch", "non_finite_field",
                                       type: type_name, field: field_name, offered: Rendering.describe(given))
+        end
+
+        # C3.7 — A VALUE OBJECT IS A TYPED FIELD PRODUCT: every non-optional
+        # field arrives, or construction refuses. A missing field and a null
+        # one are the same absence (`fields[name]` reads nil for both), worded
+        # as the type mismatch it is — "{type}.{field} expects {expected}, got
+        # nil" — the identical string the Rust side's generated `from_json`
+        # gives the same input, so the corpus can pin it on both. Checked
+        # FIRST: an invariant reading a field that never arrived is exactly
+        # the thing that used to answer "invariant violated" (or nothing at
+        # all — `ToppingName`'s `{value: null}` used to be accepted and
+        # stored). A `default:` has already been filled in by `apply_defaults`;
+        # a list field's absence is an empty list, never a refusal.
+        private def check_required_fields(value_object, fields)
+          value_object.attributes.each do |attribute|
+            next if attribute.optional? || attribute.list?
+            next unless fields[attribute.name].nil?
+
+            raise TypeMismatch,
+                  RefusalWording.render("TypeMismatch", "numeric_field",
+                                        type: value_object.hecks_name, field: attribute.name,
+                                        expected: attribute.type, offered: "nil")
+          end
         end
 
         # Checked BEFORE invariants, because an invariant reading a mistyped field

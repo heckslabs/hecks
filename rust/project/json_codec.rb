@@ -56,8 +56,24 @@ module RustProjection
       return proper if scalar_type != "String"
 
       generic = json_type_error(struct_name, key, scalar_type)
-      "if matches!(#{value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) " \
+      # `Json::Null` words like a composite too ("expects String, got nil"
+      # — `Json::inspect` spells null `nil`, `Rendering.describe(nil)`'s own
+      # spelling), so a present-but-null field refuses with exactly the
+      # wording Ruby's `check_required_fields` (coercion.rb) gives it.
+      "if matches!(#{value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) " \
         "{ #{proper} } else { #{generic} }"
+    end
+
+    # A NON-OPTIONAL FIELD THE CALLER'S JSON NEVER MENTIONS — `Value.
+    # validate!`'s own `check_required_fields` (coercion.rb, C3.7): a
+    # missing field is refused exactly as a null one is, "{type}.{field}
+    # expects {expected}, got nil", the `numeric_field` wording site. For a
+    # command's own top-level arguments `emit_absent_argument_check` runs
+    # first, so this is only ever reached for a value object's own field
+    # (or an entity/port shape that check does not cover).
+    def required_field_expr(struct_name, key, expected)
+      message = "#{struct_name}.#{key} expects #{expected}, got nil"
+      "v.get(#{key.inspect}).ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{message.inspect}.to_string()))?"
     end
 
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
@@ -123,7 +139,7 @@ module RustProjection
       # reaches for the default.
       return %(match v.get(#{key.inspect}) { Some(x) => x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})?, None => #{literal_rhs(default)} }) if default
 
-      %({ let x = v.require(#{key.inspect}, #{struct_name.inspect})?; x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})? })
+      %({ let x = #{required_field_expr(struct_name, key, scalar_type)}; x.#{accessor}()#{wrap}.ok_or_else(|| #{scalar_type_error(struct_name, key, scalar_type, 'x')})? })
     end
 
     # The scalar-extraction half of `scalar_from_json_expr`, applied to an
@@ -172,6 +188,34 @@ module RustProjection
     # own name ("CreditArgs") — the two differ by exactly the same "Args"
     # suffix `rust_ident(command[:name]) + "Args"` always adds, confirmed
     # against Ruby's own live wording.
+    # `ArgumentGate#refuse_absent_arguments` (argument_gate.rb), generated:
+    # every declared non-optional name the caller's JSON never mentions,
+    # SORTED (Ruby's own `(required - given).sort`), refused as
+    # `AbsentArgument` through the same wording site — BEFORE any field is
+    # built, so a missing top-level argument is never a nested field's own
+    # `TypeMismatch` (ADR 0037 finding 3, closed here). `declared` reads
+    # `declared_reading`'s way: every attribute in declaration order, or
+    # "none". Only ever emitted for a command's own args struct
+    # (`absent_argument_check:` below) — a value object's missing field is
+    # `required_field_expr`'s business.
+    def emit_absent_argument_check(command_name, attributes)
+      required = attributes.reject { |a| a[:optional] }.map { |a| rust_field(a[:name]) }.sort
+      return "" if required.empty?
+
+      declared = attributes.map { |a| a[:name].to_s }
+      reading  = declared.empty? ? "none" : declared.join(", ")
+      <<~RUST
+                let absent: Vec<&str> = [#{required.map(&:inspect).join(', ')}].into_iter().filter(|key| v.get(key).is_none()).collect();
+                if !absent.is_empty() {
+                    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+                        ("command", #{command_name.inspect}),
+                        ("absent", absent.join(", ").as_str()),
+                        ("declared", #{reading.inspect}),
+                    ])));
+                }
+      RUST
+    end
+
     def emit_unknown_argument_check(command_name, known_keys, declared_names)
       <<~RUST
                 let unknown = v.unknown_keys(&[#{known_keys.map(&:inspect).join(', ')}]);
@@ -199,7 +243,8 @@ module RustProjection
     # every OTHER caller (value objects, entity commands — neither ever
     # passes `unknown_argument_allowlist`, so this default is never
     # actually read).
-    def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name)
+    def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name,
+                            absent_argument_check: false)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -214,20 +259,23 @@ module RustProjection
             array_error = json_type_error(struct_name, key, "an array")
             "match v.get(#{key.inspect}) { " \
               "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
-              "None => None, }"
+              "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
           elsif attr[:list]
             elem_type = rust_ident(attr[:type])
             "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
               "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
               "None => Vec::new(), }"
           elsif attr[:optional] && scalar
-            "match v.get(#{key.inspect}) { Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}), None => None, }"
+            # `Some(Json::Null) | None` — an optional argument offered as
+            # null is the same absence as an omitted key (`for_attribute`'s
+            # own nil passthrough for an `optional:` attribute, coercion.rb).
+            "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}) }"
           elsif attr[:optional]
-            "match v.get(#{key.inspect}) { Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}), None => None, }"
+            "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}) }"
           elsif scalar
             scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
           else
-            composite_from_json_expr(attr, value_objects_by_name, "v.require(#{key.inspect}, #{struct_name.inspect})?")
+            composite_from_json_expr(attr, value_objects_by_name, required_field_expr(struct_name, key, attr[:type]))
           end
         Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
@@ -239,6 +287,9 @@ module RustProjection
         else
           ""
         end
+      # Ruby's own DISPATCH_ORDER: unknown arguments refuse first, absent
+      # ones second, and only then does any field get typed.
+      unknown_check += emit_absent_argument_check(command_name, attributes) if absent_argument_check
 
       emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
     end
@@ -262,13 +313,37 @@ module RustProjection
     # span in Ruby (unknown_check already ends in its own "\n" when
     # present, matching the ORIGINAL's own string concatenation) fixes
     # the one case this needs fixed without touching the other.
+    # `Value.fields_for` (coercion.rb) refuses a composite VALUE offered
+    # as anything but a Hash (or the single-field auto-wrap `composite_
+    # from_json_expr` already applies before reaching here) — a bare
+    # Array or scalar silently defaulted every field instead of refusing
+    # when EVERY field happens to declare a `default:` (ADR 0037's fuzz
+    # bridge found this live: a `Money`-typed query argument offered as
+    # `[2, 9]`, both fields defaulted, answered instead of refusing).
+    # Checked before any field read, for every generated `from_json` —
+    # a real command dispatch's own top-level args are already a JSON
+    # object by the time they reach here, so this never fires for the
+    # ordinary case; it fires exactly where the shape genuinely was
+    # wrong. Kind only (`TypeMismatch`) is pinned across runtimes (C8.2);
+    # the wording does not attempt Ruby's caller-side attribute name,
+    # which this generic skeleton does not have in hand.
+    def emit_object_shape_check(struct_name)
+      message = "#{struct_name} expects an object"
+      <<~RUST
+                if !matches!(v, crate::kernel::Json::Object(_)) {
+                    return Err(crate::kernel::Refusal::TypeMismatch(format!("#{message}, got {}", v.inspect())));
+                }
+      RUST
+    end
+
     def emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
       field_block = field_exprs.map { |f| "        #{f}" }.join("\n")
+      preamble = emit_object_shape_check(struct_name) + unknown_check
       # Trailing "\n" — see `emit_to_json_flat`'s own comment on why.
       "#{Exemplar.render(
         'from_json_flat',
         'TmplFlatType2' => struct_name,
-        "let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {" => "#{unknown_check}        Ok(Self {",
+        "let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {" => "#{preamble}        Ok(Self {",
         'tmpl_ident: tmpl_rhs_placeholder(),' => field_block
       )}\n"
     end

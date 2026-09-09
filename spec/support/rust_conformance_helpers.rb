@@ -126,4 +126,37 @@ module RustConformanceHelpers
   def structural_refusal_gap?(entry)
     (entry["error"] || "").include?(STRUCTURAL_REFUSAL_MARKER)
   end
+
+  # THE SAME BOUNDARY, SEEN FROM RUBY'S QUERY LOG — when Rust refuses a
+  # named query as "not generated", Ruby answered it for real and logged
+  # an ordinary (error-free) query entry, so `structural_refusal_gap?`
+  # never matches it. Rust's own structural refusals are the ground truth
+  # for which verbs to drop, the same way `cross_domain_policy_names`
+  # reads Rust's own `cross_domain_reactions` rather than re-deriving.
+  # THE WIRE FORMAT'S OWN LOSS, NOT A BEHAVIORAL DIVERGENCE. `Json::Num`
+  # (rust/src/kernel/json.rs) is a plain `f64` end to end — every integer
+  # this kernel's own JSON parser reads, including a query's own echoed
+  # `args`, goes through it. An integer outside `f64`'s 53-bit exact
+  # range (found live: a generated query `ceiling`/`floor` around
+  # `1.27e30`) survives Ruby's own JSON round-trip exactly but is
+  # ALREADY rounded the moment Rust's JSON parser reads the wire bytes
+  # this fuzz bridge hands it — before any query-argument typing runs.
+  # Normalizing both sides to the SAME `f64` rounding before comparing
+  # says exactly that: once the wire format's own precision is
+  # accounted for, the two engines agree. It is not applied to anything
+  # this bridge treats as a refusal wording (those compare by KIND,
+  # C8.2) — only to a query's own echoed `args`/`reference_rows`, which
+  # this bridge compares by value.
+  def reduce_to_wire_precision(value)
+    case value
+    when Integer then value.abs < (1 << 53) ? value : value.to_f
+    when Hash    then value.transform_values { |v| reduce_to_wire_precision(v) }
+    when Array   then value.map { |v| reduce_to_wire_precision(v) }
+    else value
+    end
+  end
+
+  def structurally_refused_verbs(rust_output)
+    rust_output.fetch("refusals").select { |r| structural_refusal_gap?(r) }.to_set { |r| r["verb"] }
+  end
 end

@@ -64,6 +64,9 @@ impl VocabularyName {
 
 impl VocabularyName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VocabularyName expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -72,7 +75,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "VocabularyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("VocabularyName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("VocabularyName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -957,6 +960,9 @@ impl Vocabulary {
 
 impl Vocabulary {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Vocabulary expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VocabularyName::from_json(&x.coerce_single_field("value"))?), },
         })

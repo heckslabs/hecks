@@ -296,6 +296,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &queries::emit_query_table(&ex, &merged_queries));
     puts_blank(&mut merged_rs);
+    puts_str(&mut merged_rs, &queries::emit_query_arg_check_table(&merged_queries));
+    puts_blank(&mut merged_rs);
     for rmd in &merged_read_models {
         if let Some(body) = &rmd.group_by_fn_body {
             puts_str(&mut merged_rs, body);

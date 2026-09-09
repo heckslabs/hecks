@@ -50,6 +50,9 @@ impl RosterName {
 
 impl RosterName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RosterName expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -58,7 +61,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RosterName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RosterName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RosterName.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RosterName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RosterName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RosterName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -110,6 +113,9 @@ impl Motto {
 
 impl Motto {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Motto expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -118,7 +124,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Motto")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Motto.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Motto.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Motto.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Motto.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Motto.value: expected String".to_string()) })? },
         })
     }
 }
@@ -302,6 +308,9 @@ impl MemberId {
 
 impl MemberId {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberId expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -310,7 +319,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "MemberId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("MemberId.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MemberId.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberId.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("MemberId.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MemberId.value: expected String".to_string()) })? },
         })
     }
 }
@@ -362,6 +371,9 @@ impl SeatNumber {
 
 impl SeatNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SeatNumber expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -370,7 +382,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "SeatNumber")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("SeatNumber.value expects Integer, got {}", x.inspect())))? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SeatNumber.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("SeatNumber.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -422,6 +434,9 @@ impl Age {
 
 impl Age {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Age expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -430,7 +445,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Age")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Age.value expects Integer, got {}", x.inspect())))? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Age.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Age.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -528,6 +543,9 @@ impl Seat {
 
 impl Seat {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Seat expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["number", "row"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -536,8 +554,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        number: SeatNumber::from_json(&v.require("number", "Seat")?.coerce_single_field("value"))?,
-        row: Row::from_json(&v.require("row", "Seat")?.coerce_single_field("value"))?,
+        number: SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Seat.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?,
+        row: Row::from_json(&v.get("row").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Seat.row expects Row, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -593,6 +611,9 @@ impl Assignment {
 
 impl Assignment {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Assignment expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["member", "number"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -601,8 +622,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        member: MemberId::from_json(&v.require("member", "Assignment")?.coerce_single_field("value"))?,
-        number: SeatNumber::from_json(&v.require("number", "Assignment")?.coerce_single_field("value"))?,
+        member: MemberId::from_json(&v.get("member").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Assignment.member expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?,
+        number: SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Assignment.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -655,6 +676,9 @@ impl Member {
 
 impl Member {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Member expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         id: MemberId::from_json(&v.require("id", "Member")?.coerce_single_field("value"))?,
         age: Age::from_json(&v.require("age", "Member")?.coerce_single_field("value"))?,
@@ -739,8 +763,11 @@ impl MemberRetireEntityArgs {
 
 impl MemberRetireEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberRetireEntityArgs expects an object, got {}", v.inspect())));
+}
         Ok(Self {
-        id: match v.get("id") { Some(x) => Some(MemberId::from_json(&x.coerce_single_field("value"))?), None => None, },
+        id: match v.get("id") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(MemberId::from_json(&x.coerce_single_field("value"))?) },
         })
     }
 }
@@ -848,6 +875,9 @@ impl Roster {
 
 impl Roster {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Roster expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RosterName::from_json(&x.coerce_single_field("value"))?), },
         motto: match v.get("motto") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Motto::from_json(&x.coerce_single_field("value"))?), },
@@ -995,6 +1025,9 @@ impl OpenArgs {
 
 impl OpenArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("OpenArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["name", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1002,8 +1035,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Open"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name"),
+    ])));
+}
         Ok(Self {
-        name: RosterName::from_json(&v.require("name", "OpenArgs")?.coerce_single_field("value"))?,
+        name: RosterName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.name expects RosterName, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1085,6 +1126,9 @@ impl MarkArgs {
 
 impl MarkArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1092,8 +1136,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["to"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Mark"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "to"),
+    ])));
+}
         Ok(Self {
-        to: SeatNumber::from_json(&v.require("to", "MarkArgs")?.coerce_single_field("value"))?,
+        to: SeatNumber::from_json(&v.get("to").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.to expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1175,6 +1227,9 @@ impl NoticeArgs {
 
 impl NoticeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NoticeArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1183,7 +1238,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        to: match v.get("to") { Some(x) => Some(SeatNumber::from_json(&x.coerce_single_field("value"))?), None => None, },
+        to: match v.get("to") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(SeatNumber::from_json(&x.coerce_single_field("value"))?) },
         })
     }
 }
@@ -1265,6 +1320,9 @@ impl HonorArgs {
 
 impl HonorArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HonorArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["rank", "id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1272,8 +1330,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["rank"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Honor"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "rank"),
+    ])));
+}
         Ok(Self {
-        rank: Rank::from_json(&v.require("rank", "HonorArgs")?.coerce_single_field("value"))?,
+        rank: Rank::from_json(&v.get("rank").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HonorArgs.rank expects Rank, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1358,6 +1424,9 @@ impl AddSeatArgs {
 
 impl AddSeatArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddSeatArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["number", "row", "id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1365,9 +1434,17 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["number", "row"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddSeat"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "number, row"),
+    ])));
+}
         Ok(Self {
-        number: SeatNumber::from_json(&v.require("number", "AddSeatArgs")?.coerce_single_field("value"))?,
-        row: Row::from_json(&v.require("row", "AddSeatArgs")?.coerce_single_field("value"))?,
+        number: SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?,
+        row: Row::from_json(&v.get("row").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.row expects Row, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1454,6 +1531,9 @@ impl EnlistArgs {
 
 impl EnlistArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EnlistArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "age", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1461,9 +1541,17 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["age", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Enlist"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id, age"),
+    ])));
+}
         Ok(Self {
-        id: MemberId::from_json(&v.require("id", "EnlistArgs")?.coerce_single_field("value"))?,
-        age: Age::from_json(&v.require("age", "EnlistArgs")?.coerce_single_field("value"))?,
+        id: MemberId::from_json(&v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.id expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?,
+        age: Age::from_json(&v.get("age").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.age expects Age, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1554,6 +1642,9 @@ impl AssignArgs {
 
 impl AssignArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AssignArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["member", "number", "id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1561,9 +1652,17 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["member", "number"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Assign"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "member, number"),
+    ])));
+}
         Ok(Self {
-        member: MemberId::from_json(&v.require("member", "AssignArgs")?.coerce_single_field("value"))?,
-        number: SeatNumber::from_json(&v.require("number", "AssignArgs")?.coerce_single_field("value"))?,
+        member: MemberId::from_json(&v.get("member").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.member expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?,
+        number: SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1673,6 +1772,9 @@ impl RetireArgs {
 
 impl RetireArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RetireArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "roster", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1680,8 +1782,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["id"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Retire"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id"),
+    ])));
+}
         Ok(Self {
-        id: MemberId::from_json(&v.require("id", "RetireArgs")?.coerce_single_field("value"))?,
+        id: MemberId::from_json(&v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetireArgs.id expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }

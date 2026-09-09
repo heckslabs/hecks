@@ -50,6 +50,9 @@ impl RuleText {
 
 impl RuleText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RuleText expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -58,7 +61,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RuleText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RuleText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RuleText.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RuleText.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()) })? },
         })
     }
 }
@@ -122,6 +125,9 @@ impl NormalisationRule {
 
 impl NormalisationRule {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -130,11 +136,11 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        strategy: { let x = v.require("strategy", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.strategy expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.strategy: expected String".to_string()) })? },
-        source_token: { let x = v.require("source_token", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.source_token expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token: expected String".to_string()) })? },
-        replacement: { let x = v.require("replacement", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.replacement expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.replacement: expected String".to_string()) })? },
-        boundary: { let x = v.require("boundary", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.boundary expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.boundary: expected String".to_string()) })? },
-        position: match v.get("position") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.position expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.position: expected String".to_string()) })?), None => None, },
+        strategy: { let x = v.get("strategy").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.strategy expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.strategy expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.strategy: expected String".to_string()) })? },
+        source_token: { let x = v.get("source_token").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.source_token expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token: expected String".to_string()) })? },
+        replacement: { let x = v.get("replacement").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.replacement expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.replacement expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.replacement: expected String".to_string()) })? },
+        boundary: { let x = v.get("boundary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.boundary expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.boundary expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.boundary: expected String".to_string()) })? },
+        position: match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("NormalisationRule.position expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("NormalisationRule.position: expected String".to_string()) })?) },
         })
     }
 }
@@ -200,6 +206,9 @@ impl BluebookName {
 
 impl BluebookName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BluebookName expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -208,7 +217,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "BluebookName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("BluebookName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("BluebookName.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BluebookName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("BluebookName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("BluebookName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -274,6 +283,9 @@ impl Vision {
 
 impl Vision {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Vision expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -282,7 +294,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Vision")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Vision.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Vision.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Vision.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Vision.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Vision.value: expected String".to_string()) })? },
         })
     }
 }
@@ -348,6 +360,9 @@ impl Classification {
 
 impl Classification {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Classification expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -356,7 +371,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Classification")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Classification.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Classification.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Classification.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Classification.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Classification.value: expected String".to_string()) })? },
         })
     }
 }
@@ -422,6 +437,9 @@ impl Version {
 
 impl Version {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Version expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -430,7 +448,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Version")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Version.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Version.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Version.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Version.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Version.value: expected String".to_string()) })? },
         })
     }
 }
@@ -496,6 +514,9 @@ impl FormerlyKnownAs {
 
 impl FormerlyKnownAs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FormerlyKnownAs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -504,7 +525,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "FormerlyKnownAs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("FormerlyKnownAs.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("FormerlyKnownAs.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FormerlyKnownAs.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("FormerlyKnownAs.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("FormerlyKnownAs.value: expected String".to_string()) })? },
         })
     }
 }
@@ -570,6 +591,9 @@ impl AttachesToContext {
 
 impl AttachesToContext {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AttachesToContext expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -578,7 +602,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "AttachesToContext")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AttachesToContext.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AttachesToContext.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttachesToContext.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AttachesToContext.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AttachesToContext.value: expected String".to_string()) })? },
         })
     }
 }
@@ -756,6 +780,9 @@ impl Bluebook {
 
 impl Bluebook {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Bluebook expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BluebookName::from_json(&x.coerce_single_field("value"))?), },
         vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?), },
@@ -887,6 +914,9 @@ impl AttachArgs {
 
 impl AttachArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AttachArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["context", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -894,8 +924,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["context"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Attach"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "context"),
+    ])));
+}
         Ok(Self {
-        context: AttachesToContext::from_json(&v.require("context", "AttachArgs")?.coerce_single_field("value"))?,
+        context: AttachesToContext::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttachArgs.context expects AttachesToContext, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -993,6 +1031,9 @@ impl NormaliseArgs {
 
 impl NormaliseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NormaliseArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1000,12 +1041,20 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["boundary", "replacement", "source_token", "strategy"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Normalise"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "strategy, source_token, replacement, boundary, position"),
+    ])));
+}
         Ok(Self {
-        strategy: RuleText::from_json(&v.require("strategy", "NormaliseArgs")?.coerce_single_field("value"))?,
-        source_token: RuleText::from_json(&v.require("source_token", "NormaliseArgs")?.coerce_single_field("value"))?,
-        replacement: RuleText::from_json(&v.require("replacement", "NormaliseArgs")?.coerce_single_field("value"))?,
-        boundary: RuleText::from_json(&v.require("boundary", "NormaliseArgs")?.coerce_single_field("value"))?,
-        position: match v.get("position") { Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        strategy: RuleText::from_json(&v.get("strategy").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.strategy expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
+        source_token: RuleText::from_json(&v.get("source_token").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.source_token expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
+        replacement: RuleText::from_json(&v.get("replacement").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.replacement expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
+        boundary: RuleText::from_json(&v.get("boundary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormaliseArgs.boundary expects RuleText, got nil".to_string()))?.coerce_single_field("value"))?,
+        position: match v.get("position") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?) },
         })
     }
 }

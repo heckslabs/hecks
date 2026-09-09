@@ -263,6 +263,15 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
 
+/// C3.7 for a named query's own arguments — `query_arg_checks`
+/// (rust/project/queries.rb) has the full story.
+pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    match verb {
+
+        _ => Ok(()),
+    }
+}
+
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 
 ];

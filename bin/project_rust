@@ -327,6 +327,8 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_query_table(meta_result[:queries])
     f.puts
+    f.puts RustProjection::Projector.emit_query_arg_check_table(meta_result[:queries])
+    f.puts
     emit_group_by_bodies(f, meta_result[:read_models])
     f.puts RustProjection::Projector.emit_read_model_table(meta_result[:read_models])
   end
@@ -439,6 +441,8 @@ else
     f.puts RustProjection::Projector.emit_command_attributes_table(merged_aggregates)
     f.puts
     f.puts RustProjection::Projector.emit_query_table(merged_queries)
+    f.puts
+    f.puts RustProjection::Projector.emit_query_arg_check_table(merged_queries)
     f.puts
     emit_group_by_bodies(f, merged_read_models)
     f.puts RustProjection::Projector.emit_read_model_table(merged_read_models)

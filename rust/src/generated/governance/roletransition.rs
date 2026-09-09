@@ -64,6 +64,9 @@ impl RoleName {
 
 impl RoleName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RoleName expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -72,7 +75,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "RoleName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("RoleName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RoleName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RoleName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -138,6 +141,9 @@ impl Timestamp {
 
 impl Timestamp {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Timestamp expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -146,7 +152,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Timestamp")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Timestamp.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Timestamp.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Timestamp.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()) })? },
         })
     }
 }
@@ -198,6 +204,9 @@ impl RoleTransition {
 
 impl RoleTransition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RoleTransition expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         from_role: match v.get("from_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(&x.coerce_single_field("value"))?), },
         to_role: match v.get("to_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(&x.coerce_single_field("value"))?), },
@@ -344,6 +353,9 @@ impl GrantArgs {
 
 impl GrantArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("GrantArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["from_role", "to_role", "starts_at", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -351,10 +363,18 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["from_role", "starts_at", "to_role"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Grant"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "from_role, to_role, starts_at"),
+    ])));
+}
         Ok(Self {
-        from_role: RoleName::from_json(&v.require("from_role", "GrantArgs")?.coerce_single_field("value"))?,
-        to_role: RoleName::from_json(&v.require("to_role", "GrantArgs")?.coerce_single_field("value"))?,
-        starts_at: Timestamp::from_json(&v.require("starts_at", "GrantArgs")?.coerce_single_field("value"))?,
+        from_role: RoleName::from_json(&v.get("from_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.from_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?,
+        to_role: RoleName::from_json(&v.get("to_role").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.to_role expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?,
+        starts_at: Timestamp::from_json(&v.get("starts_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GrantArgs.starts_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -436,6 +456,9 @@ impl RevokeArgs {
 
 impl RevokeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RevokeArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["ends_at", "id", "role_transition", "from_role", "to_role", "starts_at"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -443,8 +466,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["ends_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Revoke"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "ends_at"),
+    ])));
+}
         Ok(Self {
-        ends_at: Timestamp::from_json(&v.require("ends_at", "RevokeArgs")?.coerce_single_field("value"))?,
+        ends_at: Timestamp::from_json(&v.get("ends_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RevokeArgs.ends_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }

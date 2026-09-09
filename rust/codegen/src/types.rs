@@ -22,34 +22,11 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
     // re-indented to match its embedding context) — found live, byte-
     // diffing against Ruby's real output: a "nicely re-indented" version
     // (this function's own first draft) was a real, confirmed mismatch.
-    let mut body: Vec<String> = invariants
-        .iter()
-        .map(|inv| {
-            let ast = inv.get("ast").unwrap_or_else(|| panic!("invariant row has no ast: {inv:?}"));
-            let description = inv.get("description").and_then(Json::as_str).unwrap_or("");
-            let expr = crate::expr_emitter::emit_ast(ast);
-            format!(
-                "{{\n    let ctx = crate::kernel::EvalContext {{ args: &crate::kernel::NoFields, instance: self }};\n    if !crate::kernel::interpret(&{expr}, &ctx)?.truthy() {{\n        let mut offered = self.to_json();\n        if let crate::kernel::Json::Object(fields) = &mut offered {{\n            fields.sort_by(|a, b| a.0.cmp(&b.0));\n        }}\n        let offered = offered.to_json_string();\n        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[\n            (\"name\", {}),\n            (\"description\", {}),\n            (\"offered\", offered.as_str()),\n        ])));\n    }}\n}}",
-                naming::ruby_inspect_string(&type_name),
-                naming::ruby_inspect_string(description),
-            )
-        })
-        .collect();
-
+    // ORDER IS RUBY'S OWN — see types.rb's `emit_check_invariants`: nested
+    // value objects first, then this one's own `admits`/`pattern`, its
+    // invariants LAST (C3.7).
+    let mut body: Vec<String> = Vec::new();
     let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
-
-    for attr in attributes {
-        if crate::attr::list(attr) {
-            continue;
-        }
-        let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));
-        if let Some(line) = crate::constraints::emit_admits_check(exemplar, &field, attr, aggregates_by_name, value_objects_by_name) {
-            body.push(format!("        {line}"));
-        }
-        if let Some(line) = crate::constraints::emit_pattern_check(exemplar, &field, attr, &name, value_objects_by_name) {
-            body.push(format!("        {line}"));
-        }
-    }
 
     for attr in attributes {
         if naming::effective_scalar_type(crate::attr::type_name(attr)).is_some() {
@@ -66,6 +43,34 @@ pub fn emit_check_invariants(exemplar: &Exemplar, vo: &Json, value_objects_by_na
             body.push(format!("        self.{field}.check_invariants()?;"));
         }
     }
+
+    for attr in attributes {
+        if crate::attr::list(attr) {
+            continue;
+        }
+        let field = format!("self.{}", naming::rust_ident_field(crate::attr::name(attr)));
+        if let Some(line) = crate::constraints::emit_admits_check(exemplar, &field, attr, aggregates_by_name, value_objects_by_name) {
+            body.push(format!("        {line}"));
+        }
+        if let Some(line) = crate::constraints::emit_pattern_check(exemplar, &field, attr, &name, value_objects_by_name) {
+            body.push(format!("        {line}"));
+        }
+    }
+
+    let invariant_lines: Vec<String> = invariants
+        .iter()
+        .map(|inv| {
+            let ast = inv.get("ast").unwrap_or_else(|| panic!("invariant row has no ast: {inv:?}"));
+            let description = inv.get("description").and_then(Json::as_str).unwrap_or("");
+            let expr = crate::expr_emitter::emit_ast(ast);
+            format!(
+                "{{\n    let ctx = crate::kernel::EvalContext {{ args: &crate::kernel::NoFields, instance: self }};\n    if !crate::kernel::interpret(&{expr}, &ctx)?.truthy() {{\n        let mut offered = self.to_json();\n        if let crate::kernel::Json::Object(fields) = &mut offered {{\n            fields.sort_by(|a, b| a.0.cmp(&b.0));\n        }}\n        let offered = offered.to_json_string();\n        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[\n            (\"name\", {}),\n            (\"description\", {}),\n            (\"offered\", offered.as_str()),\n        ])));\n    }}\n}}",
+                naming::ruby_inspect_string(&type_name),
+                naming::ruby_inspect_string(description),
+            )
+        })
+        .collect();
+    body.extend(invariant_lines);
 
     format!("impl {name} {{\n    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {{\n{}\n        Ok(())\n    }}\n}}\n", body.join("\n"))
 }

@@ -1367,6 +1367,50 @@ crate::kernel::QueryDef {
 },
 ];
 
+/// C3.7 for a named query's own arguments — `query_arg_checks`
+/// (rust/project/queries.rb) has the full story.
+pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    match verb {
+        "Bluebook::Aggregate.DeclaredIn" => {
+            if let Some(x) = args.get("bluebook") { crate::generated::meta::aggregate::IdentityField::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::Bluebook.Called" => {
+            if let Some(x) = args.get("name") { crate::generated::meta::bluebook::BluebookName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::Command.DeclaredIn" => {
+            if let Some(x) = args.get("aggregate") { crate::generated::meta::command::CommandText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::Entity.DeclaredIn" => {
+            if let Some(x) = args.get("aggregate") { crate::generated::meta::entity::EntityText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::Policy.DeclaredIn" => {
+            if let Some(x) = args.get("bluebook") { crate::generated::meta::policy::PolicyText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::ProcessManager.DeclaredIn" => {
+            if let Some(x) = args.get("bluebook") { crate::generated::meta::processmanager::ProcessManagerText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::ReadModel.DeclaredIn" => {
+            if let Some(x) = args.get("bluebook") { crate::generated::meta::readmodel::ReadModelText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::Query.DeclaredIn" => {
+            if let Some(x) = args.get("aggregate") { crate::generated::meta::query::QueryText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Bluebook::ValueObject.DeclaredIn" => {
+            if let Some(x) = args.get("aggregate") { crate::generated::meta::valueobject::ValueObjectText::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
 
 ];

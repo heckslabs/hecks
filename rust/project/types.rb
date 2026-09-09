@@ -22,25 +22,24 @@ module RustProjection
     def emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
       name = rust_ident(vo[:name])
       type_name = vo[:name].to_s
-      body = vo[:invariants].map do |inv|
-        expr = ExprEmitter.emit_ast(inv[:ast])
-        <<~RUST.rstrip
-                  {
-                      let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
-                      if !crate::kernel::interpret(&#{expr}, &ctx)?.truthy() {
-                          let mut offered = self.to_json();
-                          if let crate::kernel::Json::Object(fields) = &mut offered {
-                              fields.sort_by(|a, b| a.0.cmp(&b.0));
-                          }
-                          let offered = offered.to_json_string();
-                          return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
-                              ("name", #{type_name.inspect}),
-                              ("description", #{rust_string_literal(inv[:description])}),
-                              ("offered", offered.as_str()),
-                          ])));
-                      }
-                  }
-        RUST
+
+      # ORDER IS RUBY'S OWN (`Value.build` -> `normalize_composite_fields`
+      # -> `validate!`, coercion.rb; C3.7): every NESTED value object is
+      # validated first, then this one's own field constraints (`admits`,
+      # `pattern`), and its invariants LAST — so a field that fails its
+      # pattern is a `TypeMismatch`, never an `InvariantViolation` from an
+      # invariant that happened to read the same field (ADR 0037's fuzz
+      # bridge found the old invariants-first order live).
+      body = []
+
+      vo[:attributes].each do |attr|
+        next if SCALAR.key?(attr[:type])
+
+        nested = value_objects_by_name[attr[:type]]
+        next unless nested && !nested[:closed_set]
+
+        field = rust_ident_field(attr[:name])
+        body << (attr[:list] ? "        for item in &self.#{field} { item.check_invariants()?; }" : "        self.#{field}.check_invariants()?;")
       end
 
       # `check_admitted`/`check_patterns` — `admission.rb`'s/`coercion.rb`'s
@@ -59,14 +58,25 @@ module RustProjection
         body << "        #{pattern_line}" if pattern_line
       end
 
-      vo[:attributes].each do |attr|
-        next if SCALAR.key?(attr[:type])
-
-        nested = value_objects_by_name[attr[:type]]
-        next unless nested && !nested[:closed_set]
-
-        field = rust_ident_field(attr[:name])
-        body << (attr[:list] ? "        for item in &self.#{field} { item.check_invariants()?; }" : "        self.#{field}.check_invariants()?;")
+      body += vo[:invariants].map do |inv|
+        expr = ExprEmitter.emit_ast(inv[:ast])
+        <<~RUST.rstrip
+                  {
+                      let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+                      if !crate::kernel::interpret(&#{expr}, &ctx)?.truthy() {
+                          let mut offered = self.to_json();
+                          if let crate::kernel::Json::Object(fields) = &mut offered {
+                              fields.sort_by(|a, b| a.0.cmp(&b.0));
+                          }
+                          let offered = offered.to_json_string();
+                          return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+                              ("name", #{type_name.inspect}),
+                              ("description", #{rust_string_literal(inv[:description])}),
+                              ("offered", offered.as_str()),
+                          ])));
+                      }
+                  }
+        RUST
       end
 
       <<~RUST

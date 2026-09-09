@@ -487,7 +487,7 @@ module RustProjection
             f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name, sparse: true)
             f.puts
             allowlist = Projector.command_argument_allowlist(aggregate, command, ir[:process_managers])
-            f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name, unknown_argument_allowlist: allowlist, command_name: command[:name].to_s)
+            f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name, unknown_argument_allowlist: allowlist, command_name: command[:name].to_s, absent_argument_check: true)
             f.puts
 
             # A CREATING command's identity comes from its own typed args
@@ -713,6 +713,8 @@ module RustProjection
           query_defs << {
             verb: query_verb,
             aggregate: "#{domain_name}::#{aggregate[:name]}",
+            arg_checks: Projector.query_arg_checks(query, "crate::generated::#{mod_name}::#{aggregate[:name].downcase}",
+                                                   value_objects_by_name),
             conditions: Projector.query_conditions_with_authorization(query),
             order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by], query[:null_semantics]) : nil,
             offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
@@ -867,6 +869,8 @@ module RustProjection
         f.puts Projector.emit_command_attributes_table(registry_aggregates)
         f.puts
         f.puts Projector.emit_query_table(query_defs)
+        f.puts
+        f.puts Projector.emit_query_arg_check_table(query_defs)
         f.puts
         read_model_defs.each do |rmd|
           next unless rmd[:group_by_fn_body]

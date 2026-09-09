@@ -1,0 +1,86 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C3.7"
+  ],
+  "note": "Field constraints (pattern) are checked before the value object's own invariants: an empty ToppingName fails its pattern as a TypeMismatch, never as the 'a topping is named' InvariantViolation that reads the same field (ADR 0037's fuzz bridge found the Rust side checking invariants first).",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": ""
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName.value must match [^ \\t\\n\\r], got \"\"",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#everything": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": {
+            "value": "everything"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 2400
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
