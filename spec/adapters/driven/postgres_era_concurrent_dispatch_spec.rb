@@ -32,25 +32,25 @@ require_relative "../../support/postgres_probe"
 # exact shape a Ruby process and `rust/host` take in production — can
 # actually exercise the cross-process gap this fix closes.
 RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :io do
-  DATABASE = "hecks_postgres_era_concurrency_spec".freeze
+  ERA_CONCURRENCY_DATABASE = "hecks_postgres_era_concurrency_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{DATABASE}")
+    admin.exec("DROP DATABASE IF EXISTS #{ERA_CONCURRENCY_DATABASE} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{ERA_CONCURRENCY_DATABASE}")
     admin.close
   end
 
   after(:all) do
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{ERA_CONCURRENCY_DATABASE} WITH (FORCE)")
     admin.close
   end
 
   before do
-    scrub = PG.connect(dbname: DATABASE)
+    scrub = PG.connect(dbname: ERA_CONCURRENCY_DATABASE)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
@@ -121,7 +121,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
         EraConcurrencyGap::Account.persisted_by("PostgresEra")
       end
       Hecks.world("EraConcurrencyGap") do
-        persisted_by("PostgresEra") { database(DATABASE) }
+        persisted_by("PostgresEra") { database(ERA_CONCURRENCY_DATABASE) }
       end
     end
 
