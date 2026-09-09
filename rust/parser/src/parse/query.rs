@@ -49,10 +49,17 @@ pub fn parse_body(
             "attribute" => query
                 .attributes
                 .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
-            "where" => query
-                .wheres
-                .extend(query_derive::where_clauses(&gated.args.named)),
+            "where" => {
+                query_derive::refuse_on_target(file, line, "where", &gated.args.named)?;
+                query
+                    .wheres
+                    .extend(query_derive::where_clauses(&gated.args.named))
+            }
             "order_by" => {
+                // See read_model.rs's own identical comment: `order_by`
+                // has a fixed argument schema, so the gate already
+                // refuses an undeclared `on:` upstream — no defensive
+                // check needed here, unlike `where`.
                 let field = super::positional_symbol(file, line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
