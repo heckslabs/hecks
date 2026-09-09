@@ -1,0 +1,96 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/qa-loop/SKILL.md's Phase 4).
+#
+# TARGETED AT ONE SPECIFIC, ALREADY-CONFIRMED DIVERGENCE CLASS: an entity
+# command dispatched with BOTH a nonexistent addressed element AND an
+# argument that fails its own invariant. ADR 0037's re-verification
+# (2026-09-09) found Ruby and Rust disagree on which refusal wins for
+# exactly this shape on `Banking::Account.LedgerEntry.Amend` (seed 34) —
+# Ruby raises the argument's InvariantViolation first, Rust answers
+# NotFound because its entity-addressing extraction never builds/
+# invariant-checks a typed value object for the addressing field at all.
+# Confirmed still open, correctly left unfixed (needs a real codegen
+# capability, not a one-line guard) — this domain is the re-trigger-in-
+# a-new-context half of the loop's own strategy: same class of bug,
+# unrelated business shape, to see whether it's LedgerEntry-specific or
+# general to every entity command.
+Hecks.bluebook "LedgerOrdering" do
+  vision "One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?"
+
+  core
+
+  aggregate "Folder" do
+    description "A folder holding slips, addressed by reference."
+
+    identified_by :reference
+
+    attribute :reference, FolderReference
+    attribute :slips,     list_of(Slip)
+
+    value_object "FolderReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a folder is referenced") { !value.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Start a folder"
+
+      attribute :reference, FolderReference
+
+      emits "FolderOpened"
+    end
+
+    command "AddSlip" do
+      role "Clerk"
+      goal "Add a slip to the folder"
+
+      reference_to Folder
+      attribute :reference, SlipReference
+      attribute :amount,    SlipAmount
+
+      sets :slips, append: { reference: :reference, amount: :amount }
+
+      emits "SlipAdded"
+    end
+
+    value_object "SlipReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a slip is referenced") { !value.to_s.empty? }
+    end
+
+    # THE INVARIANT AT THE CENTER OF THE STRESS TEST — positive only, so
+    # `amount.value=-1` is guaranteed to fail it, and a nonexistent
+    # `to.entity` is guaranteed to fail existence. Same dispatch, both
+    # failures true at once: which one the runtime reports first is
+    # exactly what's under test.
+    value_object "SlipAmount" do
+      attribute :value, Integer
+      invariant("a slip amount is positive") { value.positive? }
+    end
+
+    entity "Slip" do
+      description "One slip in the folder, with an amount that must be positive."
+
+      identified_by :reference
+
+      attribute :reference, SlipReference
+      attribute :amount,    SlipAmount, optional: true
+
+      # THE STRESS COMMAND. Dispatch this against a `to.entity` that does
+      # not exist, carrying an `amount.value` that fails its own
+      # invariant, on BOTH engines, and diff which refusal comes back.
+      command "Amend" do
+        role "Clerk"
+        goal "Change what a slip is worth"
+
+        attribute :amount, SlipAmount
+
+        sets :amount
+
+        emits "SlipAmended"
+      end
+    end
+  end
+end
