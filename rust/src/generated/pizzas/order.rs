@@ -782,9 +782,13 @@ if !absent.is_empty() {
         ("declared", "name, pizza"),
     ])));
 }
+        let name = PizzaName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.name expects PizzaName, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let pizza = Pizza::from_json(v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))?)?;
+        pizza.check_invariants()?;
         Ok(Self {
-        name: PizzaName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.name expects PizzaName, got nil".to_string()))?.coerce_single_field("value"))?,
-        pizza: Pizza::from_json(v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))?)?,
+        name,
+        pizza,
         })
     }
 }
@@ -888,9 +892,13 @@ if !absent.is_empty() {
         ("declared", "topping, amount"),
     ])));
 }
+        let topping = ToppingName::from_json(&v.get("topping").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.topping expects ToppingName, got nil".to_string()))?.coerce_single_field("value"))?;
+        topping.check_invariants()?;
+        let amount = ToppingAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.amount expects ToppingAmount, got nil".to_string()))?.coerce_single_field("value"))?;
+        amount.check_invariants()?;
         Ok(Self {
-        topping: ToppingName::from_json(&v.get("topping").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.topping expects ToppingName, got nil".to_string()))?.coerce_single_field("value"))?,
-        amount: ToppingAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.amount expects ToppingAmount, got nil".to_string()))?.coerce_single_field("value"))?,
+        topping,
+        amount,
         })
     }
 }
@@ -997,9 +1005,13 @@ if !absent.is_empty() {
         ("declared", "amount, customer_name"),
     ])));
 }
+        let amount = Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PurchaseArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?;
+        amount.check_invariants()?;
+        let customer_name = match v.get("customer_name") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &customer_name { v.check_invariants()?; }
         Ok(Self {
-        amount: Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PurchaseArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?,
-        customer_name: match v.get("customer_name") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?) },
+        amount,
+        customer_name,
         })
     }
 }
@@ -1025,9 +1037,13 @@ impl PaymentGatewayReceiveArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("PaymentGatewayReceiveArgs expects an object, got {}", v.inspect())));
 }
+        let customer_name = CustomerName::from_json(&v.get("customer_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.customer_name expects CustomerName, got nil".to_string()))?.coerce_single_field("value"))?;
+        customer_name.check_invariants()?;
+        let amount = Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?;
+        amount.check_invariants()?;
         Ok(Self {
-        customer_name: CustomerName::from_json(&v.get("customer_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.customer_name expects CustomerName, got nil".to_string()))?.coerce_single_field("value"))?,
-        amount: Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?,
+        customer_name,
+        amount,
         })
     }
 }
