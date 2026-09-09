@@ -65,6 +65,75 @@ pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
+/// Every aggregate's declared persistence adapter name — `Exporter.
+/// persistence` (exporter.rb), a BINDING fact like `lineage` above, not
+/// part of an aggregate's own canonical shape, riding in `ir.json` as
+/// its own top-level `persistence` key. Unlike `lineage_capable_
+/// aggregates`, this covers EVERY aggregate a domain declares, not just
+/// the lineage-capable ones — `rust/host` has exactly one backend
+/// (Postgres/PostgresEra, `journal.rs`/`dispatch.rs`), and an aggregate
+/// bound to anything else (Heki, Memory, Sqlite, D1, LocalStorage) is
+/// invisible to it: no adapter/backend trait exists here to even notice
+/// the mismatch. See `refuse_unsupported_persistence_adapters` below,
+/// the actual consumer.
+pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
+    domain_ir
+        .get("persistence")
+        .and_then(|p| p.get("aggregates"))
+        .and_then(|v| v.as_array())
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|entry| {
+                    let name = entry.get("name")?.as_str()?;
+                    let adapter = entry.get("adapter")?.as_str()?;
+                    Some((name.to_string(), adapter.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The only persistence adapters `rust/host` has a real backend for
+/// today. Anything else bound in a domain's own `.world` is a silent
+/// gap, not a loud one, without this check — see the function below.
+pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra"];
+
+/// Refuses loudly, at boot, if this domain binds any aggregate to a
+/// persistence adapter `rust/host` cannot actually serve — closing a
+/// silent-wrongness gap found by direct trace: examples/banking binds
+/// every aggregate to `Heki` (a local flock+journal file store,
+/// lib/hecks/adapters/driven/heki.rb), which `rust/host` has never had
+/// any code path for. Without this check, `main.rs` boots clean
+/// regardless (Heki is never lineage-capable, so the era/lineage gate
+/// above skips silently too) and `dispatch::handle` proceeds straight
+/// into its own flat Postgres rehydrate-replay path against
+/// `hecks_lambda_journal`/`hecks_lambda_snapshot` — tables seeded EMPTY
+/// for a domain whose real state lives entirely in `.heki` files this
+/// runtime never opens. The result is silent state bifurcation: two
+/// independent, diverging histories for the same nominal domain, with
+/// no error anywhere — a request rust/host serves could report
+/// "not found" for an account Ruby's own store has always had, or
+/// accept a create Ruby would refuse as a duplicate. Refusing at boot
+/// instead trades that for a loud, immediate, correct failure.
+pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), String> {
+    let unsupported: Vec<String> = persistence_adapters(domain_ir)
+        .into_iter()
+        .filter(|(_, adapter)| !SUPPORTED_PERSISTENCE_ADAPTERS.contains(&adapter.as_str()))
+        .map(|(name, adapter)| format!("{name} (persisted_by {adapter:?})"))
+        .collect();
+    if unsupported.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "rust/host only has a backend for {SUPPORTED_PERSISTENCE_ADAPTERS:?} today; this domain \
+         also binds: {}. Dispatching against it here would silently build a second, disjoint \
+         history nothing but this runtime ever reads, while the real state stays wherever its own \
+         adapter actually wrote it — refusing instead of risking that.",
+        unsupported.join(", ")
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,5 +154,59 @@ mod tests {
     fn lineage_capable_aggregates_is_empty_for_a_domain_with_no_lineage_key() {
         let ir = serde_json::json!({ "name": "Banking" });
         assert_eq!(lineage_capable_aggregates(&ir), Vec::<(String, String)>::new());
+    }
+
+    #[test]
+    fn persistence_adapters_reads_every_declared_aggregate() {
+        let ir = serde_json::json!({
+            "name": "Banking",
+            "persistence": { "aggregates": [
+                { "name": "Account", "storage_name": "account", "adapter": "Heki" },
+                { "name": "Transfer", "storage_name": "transfer", "adapter": "Heki" }
+            ] }
+        });
+        assert_eq!(
+            persistence_adapters(&ir),
+            vec![
+                ("Account".to_string(), "Heki".to_string()),
+                ("Transfer".to_string(), "Heki".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn persistence_adapters_is_empty_for_a_domain_with_no_persistence_key() {
+        let ir = serde_json::json!({ "name": "Pizzas" });
+        assert_eq!(persistence_adapters(&ir), Vec::<(String, String)>::new());
+    }
+
+    #[test]
+    fn refuse_unsupported_persistence_adapters_passes_postgres_and_postgres_era() {
+        let ir = serde_json::json!({
+            "name": "Pizzas",
+            "persistence": { "aggregates": [
+                { "name": "Order", "storage_name": "order", "adapter": "PostgresEra" }
+            ] }
+        });
+        assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
+    }
+
+    #[test]
+    fn refuse_unsupported_persistence_adapters_refuses_heki_by_name() {
+        let ir = serde_json::json!({
+            "name": "Banking",
+            "persistence": { "aggregates": [
+                { "name": "Account", "storage_name": "account", "adapter": "Heki" }
+            ] }
+        });
+        let err = refuse_unsupported_persistence_adapters(&ir).unwrap_err();
+        assert!(err.contains("Account"), "error should name the offending aggregate: {err}");
+        assert!(err.contains("Heki"), "error should name the unsupported adapter: {err}");
+    }
+
+    #[test]
+    fn refuse_unsupported_persistence_adapters_passes_a_domain_with_no_persistence_key() {
+        let ir = serde_json::json!({ "name": "Pizzas" });
+        assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
     }
 }
