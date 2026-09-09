@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "hecks/fuzzing"
+require_relative "support/rust_conformance_helpers"
 
 # L21/L22 (docs/audits/2026-08-11-bug-triage.md, Tier 7) — two silent
 # numeric-corruption bugs in the Rust kernel, re-verified against current
@@ -46,30 +47,25 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   NUMERIC_COERCION_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
   NUMERIC_COERCION_BANKING_DOMAIN = "examples/banking".freeze
 
-  # Same helper `spec/rust_conformance_spec.rb` defines for itself — built
-  # fresh for banking every time, never trusting an ambient binary left
-  # over from some other domain's own build (that exact failure mode is
-  # cited in that file's own comment).
-  def build_rust_for(domain_feature)
-    cargo_toml = File.read(File.join(NUMERIC_COERCION_RUST_DIR, "Cargo.toml"))
-    unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
-      # `--features banking` alone (no `--no-default-features`) also
-      # builds correctly today — see the fix report — so fall back to
-      # that rather than skipping outright if the bracketed-empty-array
-      # declaration this regex expects ever changes shape.
-      return system("cargo", "build", "--features", domain_feature, chdir: NUMERIC_COERCION_RUST_DIR,
-                    out: File::NULL, err: File::NULL) &&
-             pick_binary
-    end
+  include RustConformanceHelpers
 
-    built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
-                   chdir: NUMERIC_COERCION_RUST_DIR, out: File::NULL, err: File::NULL)
-    built ? pick_binary : nil
-  end
-
-  def pick_binary
-    binary = File.join(NUMERIC_COERCION_RUST_DIR, "target", "debug", "rust")
-    File.executable?(binary) ? binary : nil
+  # Delegates to the shared, process-wide-memoized RustConformanceHelpers
+  # #build_rust_for (spec/support/rust_conformance_helpers.rb) instead of
+  # this file's own hand-duplicated build+cache logic — the two `it`
+  # examples below both request "banking", and (per that module's own
+  # comment) so do most of rust_conformance_spec.rb's fixtures whenever
+  # `config.order = :random` interleaves this file's examples with
+  # theirs in the same rspec process; sharing one cache means only the
+  # FIRST such request anywhere in the process pays for a real `cargo
+  # build`. The old local fallback to a bare `--features banking` (no
+  # `--no-default-features`) build if Cargo.toml's own feature-
+  # declaration shape ever changed is dropped here: it was never
+  # exercised (the regex the shared helper checks matches today, same as
+  # it always did), and keeping a second, unmemoized build path around
+  # for a case that's never hit would just reintroduce the duplication
+  # this change removes.
+  def build_rust_for_numeric_coercion(domain_feature)
+    build_rust_for(domain_feature, NUMERIC_COERCION_RUST_DIR)
   end
 
   # L22 — `LedgerEntry.Amend`'s own declared `given` (examples/banking/
@@ -115,7 +111,7 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   end
 
   it "L22: Rust now refuses the same overflowing addition cleanly instead of panicking or wrapping to a wrong number" do
-    binary = build_rust_for("banking")
+    binary = build_rust_for_numeric_coercion("banking")
     unless binary
       skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
            "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
@@ -171,7 +167,7 @@ RSpec.describe "Rust numeric coercion — overflow/out-of-range refuses cleanly 
   end
 
   it "L21: Rust now refuses the out-of-range daily_limit cleanly instead of silently saturating to i64::MAX" do
-    binary = build_rust_for("banking")
+    binary = build_rust_for_numeric_coercion("banking")
     unless binary
       skip "could not build a banking-feature Rust binary — either rust/Cargo.toml has no banking feature " \
            "(run bin/project_rust for it first), or `cargo build --features banking` itself failed " \
