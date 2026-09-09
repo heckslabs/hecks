@@ -147,6 +147,17 @@ module Hecks
           yield
         end
 
+        # ONLY an adapter advertising `:cross_process_lock` (PostgresEra —
+        # see ADR 0036) implements this; `run_dispatch_order_with_isolation`
+        # (runtime/interpreting.rb) checks `capabilities` before ever
+        # calling it, so the plain `yield` fallback here only guards
+        # against a stray direct call, not the real dispatch path.
+        def with_write_lock(&)
+          return @adapter.with_write_lock(&) if @adapter.respond_to?(:with_write_lock)
+
+          yield
+        end
+
         # THE OUTBOX CONTRACT — four optional adapter methods, probed
         # together the way `save_saga`/`delete_saga`/`each_saga` are
         # (`Registry::SagaPersistence`): an adapter either has an outbox
