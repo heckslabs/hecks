@@ -1,0 +1,48 @@
+{
+  "grammar": [
+    "G6",
+    "G7"
+  ],
+  "canonical": "[\"issued\", \"active\"].include?(status)",
+  "ruby_only": false,
+  "note": "A literal array on the LEFT of .include? is an ArrayLiteral of StringLiterals, the haystack of an Include node — not desugared to OR at the grammar layer (AstJson does that desugaring at emission, one level up).",
+  "expect_ast": {
+    "op": "or",
+    "left": {
+      "op": "compare",
+      "cmp": {
+        "less_than": false,
+        "equal": true,
+        "negated": false
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "status"
+        ]
+      },
+      "right": {
+        "op": "str",
+        "value": "issued"
+      }
+    },
+    "right": {
+      "op": "compare",
+      "cmp": {
+        "less_than": false,
+        "equal": true,
+        "negated": false
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "status"
+        ]
+      },
+      "right": {
+        "op": "str",
+        "value": "active"
+      }
+    }
+  }
+}

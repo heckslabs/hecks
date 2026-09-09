@@ -1,0 +1,29 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "toppings.size < 10",
+  "ruby_only": false,
+  "note": ".size is Size{receiver}.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": true,
+      "equal": false,
+      "negated": false
+    },
+    "left": {
+      "op": "size",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "toppings"
+        ]
+      }
+    },
+    "right": {
+      "op": "int",
+      "value": 10
+    }
+  }
+}

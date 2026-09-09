@@ -1,0 +1,293 @@
+{
+  "domain": "examples/banking",
+  "spec": [
+    "C1.2",
+    "C8.2"
+  ],
+  "note": "Which refusal a caller sees is decided by step order (C1.2). A Credit carrying both an unknown argument and a mistyped amount is UnknownArgument, not TypeMismatch; a mistyped amount aimed at an account that does not exist is TypeMismatch, not NotFound; a well-formed Debit of a missing account is NotFound; on a frozen account a Debit the balance cannot cover is GivenNotMet (the given outranks the lifecycle guard), and a Debit the balance covers is LifecycleRefused. Role mismatch sits between type mismatch and not-found but needs Governance attached, so it is not exercised here.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "opening deposit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 25.5,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "both wrong"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "number": {
+          "value": "acct-9"
+        },
+        "amount": {
+          "cents": 25.5,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "mistyped, and no such account"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "number": {
+          "value": "acct-9"
+        },
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "no such account"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 999999,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "frozen, and more than the balance"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "number": {
+          "value": "acct-1"
+        },
+        "amount": {
+          "cents": 100,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "frozen"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "Credit does not declare colour — it takes amount, narrative",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Account.Credit",
+        "error": "PositiveMoney.cents expects Integer, got 25.5",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "no Account with number.value \"acct-9\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — the balance covers it",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Banking::Account.Debit",
+        "error": "Debit refused — status is \"frozen\", and Debit moves it only from \"open\"",
+        "kind": "LifecycleRefused"
+      }
+    ],
+    "instances": {
+      "Banking::Customer#cust-1": {
+        "reference": {
+          "value": "cust-1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        },
+        "standing": {
+          "value": "good"
+        },
+        "status": "active"
+      },
+      "Banking::Account#acct-1": {
+        "customer": "cust-1",
+        "number": {
+          "value": "acct-1"
+        },
+        "balance": {
+          "cents": 10000,
+          "currency": "USD"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        },
+        "ledger": [
+          {
+            "amount": {
+              "cents": 10000,
+              "currency": "USD"
+            },
+            "narrative": {
+              "text": "opening deposit"
+            },
+            "direction": {
+              "value": "credit"
+            },
+            "sequence": {
+              "value": 1
+            },
+            "state": "posted"
+          }
+        ],
+        "fees_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "interest_cents": {
+          "cents": 0,
+          "currency": "USD"
+        },
+        "status": "frozen",
+        "customer_status": "active"
+      }
+    },
+    "events": [
+      {
+        "name": "CustomerRegistered",
+        "aggregate": "Banking::Customer",
+        "id": "cust-1",
+        "payload": {
+          "reference": {
+            "value": "cust-1"
+          },
+          "name": {
+            "given": "Ada",
+            "family": "Lovelace"
+          },
+          "email": {
+            "address": "ada@example.com"
+          }
+        }
+      },
+      {
+        "name": "AccountOpened",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "customer": "cust-1",
+          "number": {
+            "value": "acct-1"
+          },
+          "kind": {
+            "name": "current"
+          },
+          "daily_limit": {
+            "cents": 50000
+          }
+        }
+      },
+      {
+        "name": "AccountCredited",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          },
+          "amount": {
+            "cents": 10000,
+            "currency": "USD"
+          },
+          "narrative": {
+            "text": "opening deposit"
+          }
+        }
+      },
+      {
+        "name": "AccountFrozen",
+        "aggregate": "Banking::Account",
+        "id": "acct-1",
+        "payload": {
+          "number": {
+            "value": "acct-1"
+          }
+        }
+      }
+    ]
+  }
+}

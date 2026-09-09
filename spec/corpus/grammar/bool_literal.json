@@ -1,0 +1,26 @@
+{
+  "grammar": [
+    "G6"
+  ],
+  "canonical": "flagged == true",
+  "ruby_only": false,
+  "note": "true/false are BoolLiteral nodes, not Lookup paths.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "flagged"
+      ]
+    },
+    "right": {
+      "op": "bool",
+      "value": true
+    }
+  }
+}

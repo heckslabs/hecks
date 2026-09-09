@@ -1,0 +1,26 @@
+{
+  "grammar": [
+    "G4",
+    "G6"
+  ],
+  "canonical": "customer_status != nil",
+  "ruby_only": false,
+  "note": "nil is its own literal node, not a bare Lookup — compare/equality treats it as a real operand.",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": true
+    },
+    "left": {
+      "op": "lookup",
+      "path": [
+        "customer_status"
+      ]
+    },
+    "right": {
+      "op": "nil"
+    }
+  }
+}

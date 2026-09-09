@@ -1,0 +1,16 @@
+{
+  "grammar": [
+    "G9",
+    "G11"
+  ],
+  "canonical": "middle_name.presence",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11): same shape as matches_regex_gap — Presence{receiver} has no hecks-parse production, falls to Lookup.",
+  "expect_ast": {
+    "op": "lookup",
+    "path": [
+      "middle_name",
+      "presence"
+    ]
+  }
+}

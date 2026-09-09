@@ -1,0 +1,15 @@
+{
+  "grammar": [
+    "G6"
+  ],
+  "canonical": "parent.status",
+  "ruby_only": false,
+  "note": "A bare dotted name with no recognised suffix/operator anywhere is the catch-all Lookup{path} — this is also PATH, the one production every other rule falls through to.",
+  "expect_ast": {
+    "op": "lookup",
+    "path": [
+      "parent",
+      "status"
+    ]
+  }
+}

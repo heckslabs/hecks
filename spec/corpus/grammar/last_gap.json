@@ -1,0 +1,18 @@
+{
+  "grammar": [
+    "G10",
+    "G11"
+  ],
+  "canonical": "toppings.last",
+  "ruby_only": true,
+  "note": "KNOWN GAP (G11).",
+  "expect_ast": {
+    "op": "last",
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "toppings"
+      ]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "grammar": [
+    "G10"
+  ],
+  "canonical": "toppings.all? { |t| t.amount.value > 0 }",
+  "ruby_only": false,
+  "note": "",
+  "expect_ast": {
+    "op": "block_predicate",
+    "mode": "all",
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "toppings"
+      ]
+    },
+    "param": "t",
+    "predicate": {
+      "op": "compare",
+      "cmp": {
+        "less_than": true,
+        "equal": true,
+        "negated": true
+      },
+      "left": {
+        "op": "lookup",
+        "path": [
+          "t",
+          "amount",
+          "value"
+        ]
+      },
+      "right": {
+        "op": "int",
+        "value": 0
+      }
+    }
+  }
+}

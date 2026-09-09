@@ -1,0 +1,57 @@
+{
+  "grammar": [
+    "G10"
+  ],
+  "canonical": "seats.find { |s| s.number.value == number.value }.row.value == \"back\"",
+  "ruby_only": false,
+  "note": "find's own block-opener form additionally carries a dotted PROJECTION PATH after the closing brace — Find{receiver, param, predicate, path}, distinct from the three boolean modes (which admit no trailing path).",
+  "expect_ast": {
+    "op": "compare",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "left": {
+      "op": "find",
+      "receiver": {
+        "op": "lookup",
+        "path": [
+          "seats"
+        ]
+      },
+      "param": "s",
+      "predicate": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "s",
+            "number",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "lookup",
+          "path": [
+            "number",
+            "value"
+          ]
+        }
+      },
+      "path": [
+        "row",
+        "value"
+      ]
+    },
+    "right": {
+      "op": "str",
+      "value": "back"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "grammar": [
+    "G9"
+  ],
+  "canonical": "amount.cents.zero?",
+  "ruby_only": false,
+  "note": "",
+  "expect_ast": {
+    "op": "sign_test",
+    "cmp": {
+      "less_than": false,
+      "equal": true,
+      "negated": false
+    },
+    "receiver": {
+      "op": "lookup",
+      "path": [
+        "amount",
+        "cents"
+      ]
+    }
+  }
+}

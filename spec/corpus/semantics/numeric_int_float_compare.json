@@ -2,11 +2,9 @@
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
   "spec": [
-    "C3.4",
-    "C8.3",
-    "C8.1"
+    "C3.2"
   ],
-  "note": "A Float is finite (C3.4). Weigh 1e308 is accepted; a second Weigh 1e308 evaluates a given whose sum is not finite — a FAULT, before any effect, leaving the weight at 1e308 (C8.1). Both runtimes' doubles would have answered Infinity; the language does not.",
+  "note": "Numeric comparison is by value across integer and float (C3.2): after Weigh 1.0 the Float weight satisfies the given `weight.value == 1` and Certify is accepted; after a further Weigh 0.5 (weight 1.5) the same given refuses.",
   "steps": [
     {
       "verb": "Tallying::Tally.Open",
@@ -21,8 +19,14 @@
       "args": {
         "tally": "t1",
         "more": {
-          "value": 1.0e+308
+          "value": 1.0
         }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Certify",
+      "args": {
+        "tally": "t1"
       }
     },
     {
@@ -30,17 +34,23 @@
       "args": {
         "tally": "t1",
         "more": {
-          "value": 1.0e+308
+          "value": 0.5
         }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Certify",
+      "args": {
+        "tally": "t1"
       }
     }
   ],
   "expect": {
     "refusals": [
       {
-        "verb": "Tallying::Tally.Weigh",
-        "error": "addition overflowed: 1.0e+308 + 1.0e+308 is not a finite number",
-        "kind": "Fault"
+        "verb": "Tallying::Tally.Certify",
+        "error": "Certify refused — it weighs exactly one",
+        "kind": "GivenNotMet"
       }
     ],
     "instances": {
@@ -52,7 +62,7 @@
           "value": 0
         },
         "weight": {
-          "value": 1.0e+308
+          "value": 1.5
         },
         "label": {
           "value": ""
@@ -81,7 +91,26 @@
         "payload": {
           "tally": "t1",
           "more": {
-            "value": 1.0e+308
+            "value": 1.0
+          }
+        }
+      },
+      {
+        "name": "Certified",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1"
+        }
+      },
+      {
+        "name": "Weighed",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "more": {
+            "value": 0.5
           }
         }
       }
