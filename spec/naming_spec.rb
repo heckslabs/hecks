@@ -14,6 +14,26 @@ RSpec.describe Hecks::Naming do
     )
   end
 
+  # NOT IN THE JSON CONTRACT — that file's keys are pinned above for
+  # Rust parity, and `words` is a Ruby-side reading aid (the glossary's
+  # headwords), not a rule the runtime derives identities from.
+  describe ".words" do
+    {
+      "ATMCard"                => "ATM card",
+      "AccrueInterest"         => "Accrue interest",
+      "ScheduledPaymentFailed" => "Scheduled payment failed",
+      "daily_limit"            => "Daily limit",
+      "end_to_end"             => "End to end",
+      "Back office"            => "Back office",
+      "KYC"                    => "KYC",
+      "given"                  => "Given"
+    }.each do |identifier, spoken|
+      it "#{identifier.inspect} is said #{spoken.inspect}" do
+        expect(described_class.words(identifier)).to eq(spoken)
+      end
+    end
+  end
+
   describe ".snake" do
     cases("snake").each do |row|
       it "#{row['in'].inspect} becomes #{row['out'].inspect}" do
