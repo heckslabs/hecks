@@ -1595,6 +1595,44 @@ crate::kernel::QueryDef {
 },
 ];
 
+/// C3.7 for a named query's own arguments — `query_arg_checks`
+/// (rust/project/queries.rb) has the full story.
+pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    match verb {
+        "Banking::Account.Overdrawn" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.HighBalance" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.StrictlyAbove" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.AtMost" => {
+            if let Some(x) = args.get("cap") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Governance::RoleAssignment.AssignmentsForActor" => {
+            if let Some(x) = args.get("actor_id") { crate::generated::governance::roleassignment::IdentityId::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Governance::RoleTransition.Allowed" => {
+            if let Some(x) = args.get("from_role") { crate::generated::governance::roletransition::RoleName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            if let Some(x) = args.get("to_role") { crate::generated::governance::roletransition::RoleName::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        "Identity::ExternalIdentifier.ResolvedBy" => {
+            if let Some(x) = args.get("issuer") { crate::generated::identity::externalidentifier::Issuer::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            if let Some(x) = args.get("subject") { crate::generated::identity::externalidentifier::Subject::from_json(&x.coerce_single_field("value"))?.check_invariants()?; }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 pub fn group_by_accountsbykind(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
     let unwrapped: Vec<crate::kernel::Json> = rows
         .into_iter()

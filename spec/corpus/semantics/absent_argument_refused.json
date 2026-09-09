@@ -1,0 +1,96 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C1.1",
+    "C1.2",
+    "C8.2"
+  ],
+  "note": "A declared, non-optional argument the caller never mentions is AbsentArgument — its own refusal class, worded by the absent_args site, before any field is typed (ADR 0037 finding 3: the Rust side used to reach a nested field's TypeMismatch instead). Two absent names are listed sorted.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "basil"
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping was not given amount — it takes topping, amount",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "AddTopping was not given amount, topping — it takes topping, amount",
+        "kind": "AbsentArgument"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#everything": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": {
+            "value": "everything"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 2400
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

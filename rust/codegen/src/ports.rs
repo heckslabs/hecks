@@ -137,6 +137,7 @@ pub fn emit_port_operation(
             value_objects_by_name,
             None,
             Some(&format!("{port_name}.{operation_name}")),
+            false,
         ),
         dispatch_fn,
     ]

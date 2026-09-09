@@ -1,0 +1,91 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C3.7",
+    "C3.8"
+  ],
+  "note": "A named query's declared value-object argument is built and invariant-checked before the query runs — a negative Price ceiling is an InvariantViolation, the same refusal a command argument gets — while a well-formed one answers (ADR 0037 finding 4: the Rust kernel used to read the raw JSON and answer no rows).",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Order.CostingLessThan",
+      "args": {
+        "ceiling": {
+          "cents": -1
+        }
+      }
+    },
+    {
+      "query": "Pizzas::Order.CostingLessThan",
+      "args": {
+        "ceiling": {
+          "cents": 3000
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.CostingLessThan",
+        "error": "Price invariant violated — a price is never negative (given {\"cents\":-1})",
+        "kind": "InvariantViolation"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#everything": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": {
+            "value": "everything"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 2400
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
