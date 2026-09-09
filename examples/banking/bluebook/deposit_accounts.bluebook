@@ -328,6 +328,7 @@ Hecks.bluebook "Banking" do
 
     command "ApplyFee", from: "open" do
       role "System"
+      goal "Charge the account a fee"
 
       reference_to Account
       attribute :amount, PositiveMoney
@@ -341,6 +342,7 @@ Hecks.bluebook "Banking" do
 
     command "CorrectFee", from: "open" do
       role "Back office"
+      goal "Reverse a fee that was applied in error"
 
       reference_to Account
       attribute :amount, PositiveMoney
@@ -358,6 +360,7 @@ Hecks.bluebook "Banking" do
 
     command "AccrueInterest", from: "open" do
       role "System"
+      goal "Credit the account with interest earned"
 
       reference_to Account
       attribute :amount, PositiveMoney
@@ -369,6 +372,7 @@ Hecks.bluebook "Banking" do
 
     command "CorrectInterest", from: "open" do
       role "Back office"
+      goal "Reverse interest that was accrued in error"
 
       reference_to Account
       attribute :amount, PositiveMoney
