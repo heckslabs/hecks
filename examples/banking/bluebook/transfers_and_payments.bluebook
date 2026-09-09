@@ -221,6 +221,7 @@ Hecks.bluebook "Banking" do
 
     command "Request" do
       role "Customer"
+      goal "Send money to an account outside the bank"
 
       attribute :end_to_end, EndToEndReference
       # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` is
@@ -240,6 +241,7 @@ Hecks.bluebook "Banking" do
     # below matches a `transition` above.
     command "SendTransfer", from: "requested" do
       role "System"
+      goal "Release the transfer to the external network"
 
       reference_to ExternalTransfer
       given("customer is active")
@@ -249,6 +251,7 @@ Hecks.bluebook "Banking" do
 
     command "Recall", from: "sent" do
       role "Customer"
+      goal "Ask the external network to stop a transfer already sent"
 
       reference_to ExternalTransfer
       given("customer is active")
@@ -258,6 +261,7 @@ Hecks.bluebook "Banking" do
 
     command "Return", from: "sent" do
       role "System"
+      goal "Record that the external network sent the money back"
 
       reference_to ExternalTransfer
       given("customer is active")
@@ -266,6 +270,7 @@ Hecks.bluebook "Banking" do
     end
 
     query "Sent" do
+      description "Transfers already released to the external network, awaiting its outcome."
       where(status: "sent")
     end
   end
@@ -333,6 +338,7 @@ Hecks.bluebook "Banking" do
 
     command "Schedule" do
       role "Customer"
+      goal "Set up a payment to collect on a future date"
 
       attribute :instruction, InstructionReference
       # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` is
@@ -352,6 +358,7 @@ Hecks.bluebook "Banking" do
     # below matches a `transition` above.
     command "Execute", from: "scheduled" do
       role "System"
+      goal "Collect a payment on its due date"
 
       reference_to ScheduledPayment
       given("customer is active")
@@ -361,6 +368,7 @@ Hecks.bluebook "Banking" do
 
     command "Cancel", from: "scheduled" do
       role "Customer"
+      goal "Call off a payment before its due date"
 
       reference_to ScheduledPayment
       given("customer is active")
@@ -424,6 +432,7 @@ Hecks.bluebook "Banking" do
     end
 
     query "Due" do
+      description "Payments still scheduled, ordered by when they're due."
       where(status: "scheduled")
       order_by :due_on
     end

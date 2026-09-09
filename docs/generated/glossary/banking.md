@@ -18,12 +18,12 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **AccountOpened** | Event | Raised by `Open`. |
 | **AccountsByKind** | Read Model | Every account the bank holds, sorted into what kind it is, then by its own number. |
 | **AccountUnfrozen** | Event | Raised by `Unfreeze`. |
-| **AccrueInterest** *(Account)* | Command | — |
+| **AccrueInterest** *(Account)* | Command | Credit the account with interest earned |
 | **Activate** *(ATMCard)* | Command | Start using a card |
 | **Active** *(ATMCard)* | Query | Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first. |
 | **Amend** *(LedgerEntry)* | Command | Correct a movement posted for the wrong amount |
 | **Annotate** *(Visit)* | Command | Note something unusual about a visit after the fact |
-| **ApplyFee** *(Account)* | Command | — |
+| **ApplyFee** *(Account)* | Command | Charge the account a fee |
 | **ATMCard** | Aggregate | A card issued against an account, and the cash taken with it. |
 | **ATMCardActivated** | Event | Raised by `Activate`. |
 | **ATMCardIssued** | Event | Raised by `Issue`. |
@@ -31,7 +31,7 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **ATMCardRetired** | Event | Raised by `Retire`. |
 | **AtMost** *(Account)* | Query | Accounts holding no more than a cap the caller supplies — the small-balance closure candidates. |
 | **AuthorisationCode** *(CardPayment)* | Value Object | { value: String } |
-| **Authorize** *(CardPayment)* | Command | — |
+| **Authorize** *(CardPayment)* | Command | Put a hold on funds for a purchase |
 | **Back office** | Role | Issues `CorrectFee`, `CorrectInterest`, `Amend`, `Reverse`, `Retire`, `Abandon`. |
 | **BeneficiaryName** *(ExternalTransfer)* | Value Object | { value: String } |
 | **BoxNumber** *(SafeDepositBox)* | Value Object | { value: Integer } |
@@ -41,8 +41,8 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Branch clerk** | Role | Issues `Register`, `Close`, `Open`, `CloseAccount`, `Issue`, `Rent`. |
 | **BranchCode** *(SafeDepositBox)* | Value Object | { value: String } |
 | **ByFee** *(ATMCard)* | Query | Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical. |
-| **Cancel** *(ScheduledPayment)* | Command | — |
-| **Capture** *(CardPayment)* | Command | — |
+| **Cancel** *(ScheduledPayment)* | Command | Call off a payment before its due date |
+| **Capture** *(CardPayment)* | Command | Turn an authorization into an actual charge |
 | **CardAuthorized** | Event | Raised by `Authorize`. |
 | **CardCaptured** | Event | Raised by `Capture`. |
 | **CardChargedBack** | Event | Raised by `Chargeback`. |
@@ -55,14 +55,14 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **CardSerial** *(ATMCard)* | Value Object | { value: String } |
 | **CardVoided** | Event | Raised by `Void`. |
 | **CashWithdrawn** | Event | Raised by `Withdraw`. |
-| **Chargeback** *(CardPayment)* | Command | — |
+| **Chargeback** *(CardPayment)* | Command | Uphold a customer's dispute and claw the charge back |
 | **Clear** *(OnboardingCase)* | Command | Pass a customer's identity and screening checks |
 | **Close** *(Customer)* | Command | End the relationship |
 | **CloseAccount** *(Account)* | Command | Close an account that has been emptied |
 | **Compliance officer** | Role | Issues `Suspend`, `Reinstate`, `FreezeAccount`, `Unfreeze`, `Clear`, `Decline`, `Chargeback`, `RejectDispute`. |
 | **ComplianceDashboard** | Read Model | One account, its own status, and any card charges disputed against it — the working set for a compliance review. |
-| **CorrectFee** *(Account)* | Command | — |
-| **CorrectInterest** *(Account)* | Command | — |
+| **CorrectFee** *(Account)* | Command | Reverse a fee that was applied in error |
+| **CorrectInterest** *(Account)* | Command | Reverse interest that was accrued in error |
 | **Credit** *(Account)* | Command | Put money in |
 | **Credited** *(Transfer)* | Command | Record that the destination credit committed |
 | **Customer** | Aggregate | A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing. |
@@ -81,13 +81,13 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **Decline** *(OnboardingCase)* | Command | Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone |
 | **Dispute** *(CardPayment)* | Command | Challenge a payment that already settled |
 | **Dispute** *(Withdrawal)* | Command | Challenge a withdrawal that was not mine |
-| **Disputed** *(CardPayment)* | Query | — |
+| **Disputed** *(CardPayment)* | Query | Charges currently under a customer's dispute, awaiting a compliance decision. |
 | **DisputedPaymentCount** | Read Model | How many of an account's own card charges are under dispute — a single number, not the rows themselves. |
 | **DisputedPaymentMedian** | Read Model | The median amount of an account's own disputed card charges. |
-| **Due** *(ScheduledPayment)* | Query | — |
+| **Due** *(ScheduledPayment)* | Query | Payments still scheduled, ordered by when they're due. |
 | **EmailAddress** *(Customer)* | Value Object | { address: String } |
 | **EndToEndReference** *(ExternalTransfer)* | Value Object | { value: String } |
-| **Execute** *(ScheduledPayment)* | Command | — |
+| **Execute** *(ScheduledPayment)* | Command | Collect a payment on its due date |
 | **ExternalAmount** *(ExternalTransfer)* | Value Object | { cents: Integer } |
 | **ExternalSettlement** | Saga | Starts on `ExternalTransferRequested`, ends on `ExternalTransferSent`. |
 | **ExternalTransfer** | Aggregate | A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome. |
@@ -143,35 +143,35 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **PaymentDueDate** *(ScheduledPayment)* | Value Object | { value: String } |
 | **PaymentRecipient** *(ScheduledPayment)* | Value Object | { value: String } |
 | **PaymentScheduled** | Event | Raised by `Schedule`. |
-| **Pending** *(CardPayment)* | Query | — |
+| **Pending** *(CardPayment)* | Query | Authorized charges not yet captured, voided, or otherwise resolved. |
 | **PersonName** *(Customer)* | Value Object | { given: String, family: String } |
 | **PositiveMoney** *(Account)* | Value Object | { cents: Integer, currency: String } |
 | **Reachable** *(Account)* | Query | Accounts that still exist as far as a caller is concerned — anything short of closed. |
-| **Recall** *(ExternalTransfer)* | Command | — |
+| **Recall** *(ExternalTransfer)* | Command | Ask the external network to stop a transfer already sent |
 | **Recent** *(Visit)* | Query | The last few visits, whatever the box has seen. |
 | **Recent** *(Withdrawal)* | Query | The first two withdrawals still standing, whatever else was taken. |
-| **Refund** *(CardPayment)* | Command | — |
+| **Refund** *(CardPayment)* | Command | Give the money back after a charge settled |
 | **Register** *(Customer)* | Command | Take on a new customer |
 | **Reinstate** *(Customer)* | Command | Let a cleared customer transact again |
 | **Reject** *(Transfer)* | Command | Refuse a transfer before any money moved |
-| **RejectDispute** *(CardPayment)* | Command | — |
+| **RejectDispute** *(CardPayment)* | Command | Uphold the charge and close a customer's dispute |
 | **Rename** *(ATMCard)* | Command | Name a card so it is recognisable |
 | **Rent** *(SafeDepositBox)* | Command | Assign the box to a customer |
 | **Rented** *(SafeDepositBox)* | Query | Boxes currently assigned to a customer, for the annual access audit. |
-| **Request** *(ExternalTransfer)* | Command | — |
+| **Request** *(ExternalTransfer)* | Command | Send money to an account outside the bank |
 | **Request** *(Transfer)* | Command | Send money to another account |
 | **Retire** *(ATMCard)* | Command | Take a card out of service |
 | **Retry** *(ScheduledPayment)* | Command | Re-present a failed payment, up to the limit the schedule names |
 | **RetryCount** *(ScheduledPayment)* | Value Object | { value: Integer } |
 | **RetryLimit** *(ScheduledPayment)* | Value Object | { value: Integer } |
 | **Return** *(KeyIssuance)* | Command | Take a key back when a holder is done with it |
-| **Return** *(ExternalTransfer)* | Command | — |
+| **Return** *(ExternalTransfer)* | Command | Record that the external network sent the money back |
 | **Reverse** *(Transfer)* | Command | Put the money back when the credit could not be made |
-| **Reverse** *(CardPayment)* | Command | — |
+| **Reverse** *(CardPayment)* | Command | Undo a captured charge with no customer dispute involved |
 | **Reverse** *(LedgerEntry)* | Command | Undo a movement that should not have been posted |
 | **Reversed** *(LedgerEntry)* | Query | Entries that were undone — the audit trail nobody wants to need. |
 | **SafeDepositBox** | Aggregate | A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face. |
-| **Schedule** *(ScheduledPayment)* | Command | — |
+| **Schedule** *(ScheduledPayment)* | Command | Set up a payment to collect on a future date |
 | **ScheduledAmount** *(ScheduledPayment)* | Value Object | { cents: Integer } |
 | **ScheduledPayment** | Aggregate | An instruction held for a future date, which may execute once or be cancelled before it does. |
 | **ScheduledPaymentAbandoned** | Event | Raised by `Abandon`. |
@@ -179,8 +179,8 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **ScheduledPaymentExecuted** | Event | Raised by `Execute`. |
 | **ScheduledPaymentFailed** | Event | Raised by `Fail`, `Retry`. |
 | **Screening** *(OnboardingCase)* | Query | Cases still waiting on a compliance decision. |
-| **SendTransfer** *(ExternalTransfer)* | Command | — |
-| **Sent** *(ExternalTransfer)* | Query | — |
+| **SendTransfer** *(ExternalTransfer)* | Command | Release the transfer to the external network |
+| **Sent** *(ExternalTransfer)* | Query | Transfers already released to the external network, awaiting its outcome. |
 | **Settle** *(Transfer)* | Command | Record that the destination has received it |
 | **Settlement** | Saga | Starts on `TransferRequested`, ends on `TransferSettled`. |
 | **Size** *(SafeDepositBox)* | Value Object | One of `small`, `medium`, `large`. |
@@ -213,7 +213,7 @@ The ubiquitous language: every term Banking declares, alphabetized, in the domai
 | **VisitDate** *(SafeDepositBox)* | Value Object | { value: String } |
 | **VisitNote** *(SafeDepositBox)* | Value Object | { text: String } |
 | **VisitSequence** *(SafeDepositBox)* | Value Object | { value: Integer } |
-| **Void** *(CardPayment)* | Command | — |
+| **Void** *(CardPayment)* | Command | Cancel an authorization before it settles |
 | **Withdraw** *(ATMCard)* | Command | Take cash out at a machine |
 | **Withdrawal** *(ATMCard)* | Entity | One handful of cash, in the order it was taken. |
 | **WithdrawalAmount** *(ATMCard)* | Value Object | { cents: Integer } |
