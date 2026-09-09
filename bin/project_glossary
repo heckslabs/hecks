@@ -1,31 +1,34 @@
 #!/usr/bin/env ruby
 
 # Projects a booted domain's own declaration into its Ubiquitous
-# Language glossary — one alphabetized Markdown table, one entry per
-# term the bluebook declares (Aggregate, Entity, Value Object, Command,
-# Query, Read Model, Event, Role, Saga). The projection itself is
-# Projections::Glossary (see its own header for the DDD framing); this
-# boots the given domain, finds its one real chapter, and asks the
-# registry for it.
+# Language glossary — the document every domain carries with it, for
+# the whole team (Projections::Glossary's own header has the DDD
+# framing). Two files, one source: `glossary.md`, and `html/index.html`
+# rendered from that Markdown, written into the domain's own folder:
 #
 #   bin/project_glossary <domain-path> <ChapterName>
 #   bin/project_glossary examples/banking Banking
+#   # => examples/banking/glossary/glossary.md
+#   #    examples/banking/glossary/html/index.html
+#
+# spec/glossary_spec.rb re-projects both and refuses a diff, so the
+# committed glossary can never lag the bluebook it describes.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecks"
-require "fileutils"
 
 domain_path  = ARGV[0] or abort "usage: bin/project_glossary <domain-path> <ChapterName>"
 chapter_name = ARGV[1] or abort "usage: bin/project_glossary <domain-path> <ChapterName>"
 
-runtime = Hecks.boot(File.expand_path(domain_path, Dir.pwd))
+domain  = File.expand_path(domain_path, Dir.pwd)
+runtime = Hecks.boot(domain)
 chapter = runtime.registry.bluebook(chapter_name)
 
-directory = File.expand_path("../docs/generated/glossary", __dir__)
-FileUtils.mkdir_p(directory)
-path = File.join(directory, "#{Hecks::Naming.snake(chapter_name)}.md")
+written = Hecks::Projector.write(
+  Hecks::Projector.call(:glossary, bluebook: chapter),
+  File.join(domain, "glossary"), as: :files
+)
 
-File.write(path, Hecks::Projector.call(:glossary, bluebook: chapter))
-
-puts "wrote #{path}"
+puts "wrote #{written.size} file(s):"
+written.each { |path| puts "  #{path}" }

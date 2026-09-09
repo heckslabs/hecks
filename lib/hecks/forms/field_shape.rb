@@ -1,4 +1,5 @@
 require_relative "../bluebook/attribute"
+require_relative "../naming"
 require_relative "value_object_shape"
 
 module Hecks
@@ -36,10 +37,11 @@ module Hecks
         # genuinely dotted path ("amount.cents") drops everything before
         # the last ".".
         segment = text.to_s.split(".").last.to_s
-        words = segment.split("_")
-        return segment if words.empty?
+        return segment if segment.empty?
 
-        ([words.first.capitalize] + words.drop(1)).join(" ")
+        # The word split itself is `Naming.words`' now — the one
+        # humanizer, shared with the glossary projection.
+        Naming.words(segment)
       end
 
       # The full dotted path, each segment humanized and joined with

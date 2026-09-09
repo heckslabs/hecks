@@ -1,0 +1,271 @@
+/* The glossary page. Ledger paper: faint blue horizontal rules between
+   entries, one red vertical margin rule down the navigation. The rules
+   carry information — the red marks the section in view, the blue
+   separates entries — and nothing else on the page is decoration. */
+
+:root {
+  --paper: #f3f5f8;
+  --panel: #ffffff;
+  --ink: #1a2b4a;
+  --ink-soft: #4a5873;
+  --ink-faint: #8592a8;
+  --rule: #c9d3e3;
+  --red: #b0413e;
+  --red-wash: rgba(176, 65, 62, 0.09);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1726;
+    --panel: #141e33;
+    --ink: #e3e7ee;
+    --ink-soft: #b4bdd0;
+    --ink-faint: #7f8ba6;
+    --rule: #2a3854;
+    --red: #d9635f;
+    --red-wash: rgba(217, 99, 95, 0.14);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1726;
+  --panel: #141e33;
+  --ink: #e3e7ee;
+  --ink-soft: #b4bdd0;
+  --ink-faint: #7f8ba6;
+  --rule: #2a3854;
+  --red: #d9635f;
+  --red-wash: rgba(217, 99, 95, 0.14);
+}
+
+html { color-scheme: light dark; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.55;
+  font-variant-numeric: oldstyle-nums;
+}
+
+a { color: var(--red); }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.page {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* ── the rail ───────────────────────────────────────────────────── */
+
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 2.4rem 1.3rem 2rem 1.6rem;
+  border-right: 1px solid var(--rule);
+  font-family: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.92rem;
+}
+
+.rail .domain {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.rail .sub { color: var(--ink-faint); margin: 0.15rem 0 1.4rem; font-size: 0.82rem; }
+
+.rail input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.rail input::placeholder { color: var(--ink-faint); }
+
+.rail .count { color: var(--ink-faint); font-size: 0.78rem; margin: 0.45rem 0 1.2rem; }
+
+.rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--red);
+}
+
+.rail li a {
+  display: block;
+  padding: 0.28rem 0.85rem;
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.rail li a:hover { color: var(--ink); }
+
+.rail li a[aria-current="true"] {
+  color: var(--ink);
+  font-weight: 600;
+  border-left-color: var(--ink);
+}
+
+/* ── the text column ────────────────────────────────────────────── */
+
+main {
+  padding: 3.2rem 4rem 7rem 3.6rem;
+  max-width: 47rem;
+}
+
+header h1 {
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.012em;
+  margin: 0 0 1.1rem;
+}
+
+.vision {
+  font-size: 1.28rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+
+.lede { color: var(--ink-soft); margin: 0 0 1.6rem; max-width: 62ch; }
+
+figure { margin: 1.2rem 0 1.8rem; }
+
+figcaption, .caption {
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  margin: 0 0 0.4rem;
+}
+
+.caption { margin-top: 1.6rem; }
+
+pre.mermaid {
+  margin: 0;
+  padding: 1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+pre.mermaid svg { display: block; max-width: 100%; height: auto; }
+
+section { margin-top: 4.5rem; scroll-margin-top: 1.5rem; }
+
+section h2 {
+  display: inline-block;
+  font-size: 2.1rem;
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--red);
+}
+
+.about {
+  font-size: 1.18rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0.7rem;
+  max-width: 60ch;
+}
+
+section > p:not(.about):not(.caption) { margin: 0 0 0.8rem; max-width: 62ch; }
+
+.rules {
+  list-style: none;
+  margin: 0 0 1.2rem;
+  padding: 0;
+  max-width: 62ch;
+}
+
+.rules li {
+  padding: 0.38rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.terms { margin-top: 1.8rem; border-top: 1px solid var(--rule); }
+
+.term {
+  display: grid;
+  grid-template-columns: 12.5rem minmax(0, 1fr);
+  column-gap: 1.6rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+  scroll-margin-top: 1.5rem;
+}
+
+.term h3 {
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.05rem 0 0;
+}
+
+.term p { margin: 0 0 0.4rem; }
+.term p:last-child { margin-bottom: 0; }
+
+.term p.rule { color: var(--ink-soft); font-size: 0.95rem; }
+
+.term a, .rules a {
+  color: var(--red);
+  font-style: italic;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* A search narrows the page to the terms that match. */
+section.searching figure,
+section.searching .rules,
+section.searching .caption,
+section.searching .about,
+section.searching > p { display: none; }
+
+section.searching .terms { border-top: 0; margin-top: 0.8rem; }
+
+/* Landing on a term from a link. */
+.landed { animation: land 1.4s ease-out; }
+
+@keyframes land {
+  from { background: var(--red-wash); }
+  to { background: transparent; }
+}
+
+@media (max-width: 760px) {
+  .page { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .rail ol { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; border-left: 0; }
+  .rail li a { padding: 0.2rem 0.4rem; border-left: 0; }
+  .rail li a[aria-current="true"] { border-bottom: 2px solid var(--red); }
+  main { padding: 1.8rem 1.2rem 4rem; }
+  header h1 { font-size: 2.3rem; }
+  .term { grid-template-columns: 1fr; row-gap: 0.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .landed { animation: none; }
+}
