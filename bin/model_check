@@ -133,6 +133,13 @@ grammar_chapters = Dir.glob("#{ROOT}/lib/hecks/grammar/*.bluebook")
 # these are framework chapters, not teaching examples with a bluebook/
 # subfolder each.
 framework_members = Dir.glob("#{ROOT}/lib/hecks/framework/bluebook/*.bluebook")
+# THE QA LEDGER — a real domain like any other (`qa/bluebook/`, the same
+# nested shape `bluebook_in` already expects), so it gets the same
+# model-check discipline: dead states, deaf policies, the corpus-wide
+# checks every example domain already earns. Not under `examples/`
+# itself — it is tooling the practice runs against those domains, not a
+# teaching sample of the language.
+qa_members = Dir.glob("#{ROOT}/qa/bluebook/*.bluebook")
 
 if domain_arg
   registry = boot(bluebook_in(domain_arg.chomp("/")) || domain_arg)
@@ -140,7 +147,8 @@ if domain_arg
 else
   targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.compact +
             grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] } +
-            framework_members.map { |m| [File.basename(m, ".bluebook"), m] }
+            framework_members.map { |m| [File.basename(m, ".bluebook"), m] } +
+            qa_members.map { |m| [File.basename(m, ".bluebook"), m] }
 
   # TWO PASSES OVER THE SAME BOOTS, not two boots — PASS 1 boots every
   # target once (booting is the expensive part) and accumulates every

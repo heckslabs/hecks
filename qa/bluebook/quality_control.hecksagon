@@ -1,0 +1,40 @@
+# THE LIVE LEDGER'S OWN WIRING — separate from `spec/quality_control_spec.rb`'s
+# inline `Hecks.hecksagon` block, which re-declares this same shape bound to
+# Memory for fast, isolated tests (see that spec's own header on why). This
+# file is what a real boot (`bin/model_check`, and eventually a running QA
+# loop) reads: `Heki`, so a Target's claim, a Sweep's checks, and a Bug's
+# whole history survive between runs — the one thing this ledger cannot do
+# on `Memory` and still be a ledger.
+Hecks.hecksagon "QualityControl" do
+  uses_framework "Governance"
+
+  QualityControl::Target.persisted_by("Heki")
+  QualityControl::Sweep.persisted_by("Heki")
+  QualityControl::Bug.persisted_by("Heki")
+  QualityControl::Ticket.persisted_by("Heki")
+  QualityControl::Clearance.persisted_by("Heki")
+
+  # THE OUTSIDE WORLD, THROUGH A SWAPPABLE ADAPTER — no adapter is bound
+  # here (deliberately dormant; see the loop's own design notes on why:
+  # no GitHub issues are filed on Ticket's behalf yet). Declaring the port
+  # is still real: it is what lets `Ticket.Submit` name a target for
+  # `FileWhenSubmitted`'s policy to trigger, and what `bin/model_check`'s
+  # deaf-policy check reads this file FOR.
+  QualityControl::Ticket.port "IssueTracker" do
+    asks "File", to: Ticket do
+      answers "IssueFiled"
+      refuses "IssueFilingRefused"
+    end
+
+    tells "Closed", to: Ticket do
+      emits "IssueClosedUpstream"
+    end
+  end
+
+  QualityControl::Clearance.port "CI" do
+    asks "Run", to: Clearance do
+      answers "SuitePassed"
+      refuses "SuiteFailed"
+    end
+  end
+end

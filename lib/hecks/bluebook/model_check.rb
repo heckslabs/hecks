@@ -59,11 +59,42 @@ module Hecks
       # add (no event of Notifications' own to name) and no real domain
       # to point `uses_framework` at.
       ALLOWED_FINDINGS = {
-        "banking" => [
+        "banking"         => [
           [:unacknowledged_relationship, "NotifyOnClosure"],
           [:unknown_target_domain, "NotifyOnClosure"],
           [:unacknowledged_relationship, "FlagKeyReturn"],
           [:unknown_target_domain, "FlagKeyReturn"]
+        ],
+        # QualityControl is the FIRST domain in this corpus to trigger an
+        # `asks`/`tells` PORT OPERATION from a `policy` — every other
+        # `asks`/`tells` user (there is exactly one: this ledger's own
+        # IssueTracker/CI ports) only ever gets dispatched directly, never
+        # through a policy's own `on`/`trigger`. Two real, narrow gaps in
+        # that combination, confirmed by reading the checker itself, not
+        # domain defects:
+        #   - `unknown_trigger` (FileWhenSubmitted, AskOnceMore): a
+        #     policy's `trigger Ticket::IssueTracker::File` — three
+        #     segments (aggregate, port, operation) — is not a shape
+        #     `Naming.command_ref`'s bare-constant rewrite was built for
+        #     (`Account::Debit`, two segments); it rewrites to
+        #     "Ticket::IssueTracker.File", which parses as a totally
+        #     different aggregate.
+        #   - `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
+        #     RecordTheRefusal): `ModelCheck.emitted_events` calls
+        #     `.emits` on every port operation, which is empty for an
+        #     `asks` — its two endings live in `.answers`/`.refuses`
+        #     instead (`PortOperationBuilder#refuse_wrong_words!`), so an
+        #     outbound operation's own events never enter the known-emits
+        #     set at all.
+        # Both belong to Naming/PolicyBuilder and ModelCheck.emitted_events
+        # respectively — real follow-ups, not something to force-fix here.
+        "quality_control" => [
+          [:unknown_trigger, "FileWhenSubmitted"],
+          [:unknown_trigger, "AskOnceMore"],
+          [:deaf_policy, "ClearOnPass"],
+          [:deaf_policy, "RefuseOnFail"],
+          [:deaf_policy, "RecordTheIssue"],
+          [:deaf_policy, "RecordTheRefusal"]
         ]
       }.freeze
 

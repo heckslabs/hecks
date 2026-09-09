@@ -206,11 +206,22 @@ RSpec.describe "the model checker" do
     # own FRAMEWORK_MEMBERS comment for why this isn't EXAMPLE_ROOTS-shaped.
     MODEL_CHECK_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook",
                                                        "*.bluebook")).freeze
+    # THE QA LEDGER — see bin/model_check's own copy of this comment
+    # (qa_members): a real domain, `qa/bluebook/`-shaped like
+    # MODEL_CHECK_FRAMEWORK_MEMBERS' flat siblings, not EXAMPLE_ROOTS-
+    # shaped. Missing this once already crashed "names nothing in the
+    # allowlist that the checker no longer finds" below — MODEL_CHECK_ALLOWED
+    # (shared with bin/model_check) named "quality_control", but
+    # MODEL_CHECK_CORPUS didn't, and `.fetch(name) { next }`'s `next` only
+    # exits the fetch block (returning nil), not the outer `each` — so
+    # `source` silently became nil instead of skipping the entry.
+    MODEL_CHECK_QA_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "qa/bluebook", "*.bluebook")).freeze
 
     MODEL_CHECK_CORPUS = (
       MODEL_CHECK_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
       MODEL_CHECK_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
-      MODEL_CHECK_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
+      MODEL_CHECK_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] } +
+      MODEL_CHECK_QA_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
     ).compact.freeze
 
     # The SAME constant bin/model_check reads — one table, not a copy.
