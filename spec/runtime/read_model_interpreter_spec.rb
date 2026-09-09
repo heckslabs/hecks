@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tmpdir"
+require "json"
 
 # where/order_by/limit/offset used to be accepted by a read_model's DSL
 # and silently ignored by every interpreter — a declared filter that
@@ -597,11 +598,22 @@ RSpec.describe "a read model's query options" do
   end
 
   # A distinct real boot (Sqlite adapter, real tmp db file) proving the
-  # SAME options apply through Sqlite's own native path — the boot
-  # shape is specific to this adapter and reuses seed_disputed_card_
-  # payments already, so nothing left here is duplicated setup.
+  # SAME options apply against a real SQLite-backed AUTHORITATIVE store
+  # — the boot shape is specific to this adapter and reuses
+  # seed_disputed_card_payments already, so nothing left here is
+  # duplicated setup.
+  #
+  # NOT SQLite's own NATIVE path, despite this example's own former
+  # title claiming it was — no `projected_by` is bound anywhere below,
+  # so `Runtime::Registry#read_repository` never has a projection
+  # repository to hand back and always falls through to the plain
+  # `SqlitePersistence`-backed one, which has no `query_read_model` at
+  # all (only `Adapters::SqliteProjection` does). This example was, and
+  # remains, still the IN-PROCESS `ReadModelInterpreter` path — just
+  # backed by a real SQLite file instead of an in-memory Hash. Renamed
+  # to say that; the actual native-path proof is the NEXT example.
   # rubocop:disable-next RSpec/ExampleLength
-  it "applies the same options through Sqlite's native projected-table path" do
+  it "applies the same options through a real Sqlite-backed authoritative store (in-process path)" do
     Dir.mktmpdir do |dir|
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
@@ -630,9 +642,98 @@ RSpec.describe "a read model's query options" do
 
       seed_disputed_card_payments
 
+      # THE ONLY REPOSITORY IN PLAY IS SqlitePersistence — confirms the
+      # claim above by construction rather than by comment alone. A
+      # future edit that adds a stray `projected_by` here would move
+      # this example onto the native path silently; this guard turns
+      # that into a loud failure instead.
+      account = registry.bluebook("Banking").aggregate("Account")
+      repository = registry.read_repository("Banking", account)
+      unless repository.adapter.is_a?(Hecks::Adapters::Sqlite) && !repository.adapter.is_a?(Hecks::Adapters::SqliteProjection)
+        raise "expected the plain SqlitePersistence path, got #{repository.adapter.class}"
+      end
+
       rows = runtime.query("Banking.compliance_dashboard", account: "acct-1")
       # `offset 5` — see the in-memory version of this same assertion above.
       expect(rows.first[:card_payments].map { |p| p[:amount][:cents] }).to eq([300, 250, 200, 150, 100])
+    end
+  end
+
+  # THE REAL NATIVE-PATH PROOF — M19's own two fixed bugs
+  # (`spec/adapters/sqlite_projection_read_model_spec.rb`) are the only
+  # existing coverage of `SqliteProjection#query_read_model` against
+  # `ReadModelInterpreter#project`, and neither exercises a read model
+  # with real `where`/`order_by`/`limit`/`offset` options at all — the
+  # ADR 0055 `on:` feature (this whole file's own subject) had ZERO
+  # coverage proving the two engines agree on it, the previous example's
+  # own mislabeled title notwithstanding.
+  #
+  # `projected_by` is bound for real here, and `assert_native_path!`
+  # (below) refuses to let this example silently fall back to the
+  # in-process path the way the PREVIOUS example's own former title
+  # incorrectly assumed it already was — a false pass here would prove
+  # nothing about the native path this example exists to cover.
+  #
+  # Compares the NATIVE result against a SEPARATE, plain in-process
+  # boot (no `projected_by` at all) fed the IDENTICAL seed data, rather
+  # than a second hand-typed literal — two independently-hand-typed
+  # "expected" arrays could drift the same wrong way together and
+  # neither example would ever fail.
+  # rubocop:disable-next RSpec/ExampleLength
+  it "agrees with the in-process path through Sqlite's real native projected-table path" do
+    Dir.mktmpdir do |native_dir|
+      native_registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(native_registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/ports/projection.port"))
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter"))
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
+        Hecks.hecksagon("Banking") do
+          uses_framework "Governance"
+          Banking::Customer.persisted_by("SqlitePersistence")
+          Banking::Account.persisted_by("SqlitePersistence")
+          Banking::Account.projected_by("SqliteProjection")
+          Banking::CardPayment.persisted_by("SqlitePersistence")
+          Banking::CardPayment.projected_by("SqliteProjection")
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
+        end
+        Hecks.world("Banking") do
+          persisted_by("SqlitePersistence") { database File.join(native_dir, "banking.db") }
+          projected_by("SqliteProjection") { database File.join(native_dir, "banking-projection.db") }
+        end
+      end
+      native_registry.verify!
+      native_runtime = Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(native_registry))
+      seed_disputed_card_payments
+
+      %w[Account CardPayment].each do |name|
+        aggregate = native_registry.bluebook("Banking").aggregate(name)
+        Hecks::Ports::Projection.worker(native_registry, "Banking", aggregate)&.catch_up!
+      end
+
+      account = native_registry.bluebook("Banking").aggregate("Account")
+      repository = native_registry.read_repository("Banking", account)
+      unless repository.adapter.is_a?(Hecks::Adapters::SqliteProjection)
+        raise "expected the native SqliteProjection path, got #{repository.adapter.class}"
+      end
+
+      native_rows = native_runtime.query("Banking.compliance_dashboard", account: "acct-1")
+
+      in_process_runtime = build(adapter: "Memory")
+      seed_disputed_card_payments
+      in_process_rows = in_process_runtime.query("Banking.compliance_dashboard", account: "acct-1")
+
+      canonical = ->(rows) { JSON.parse(JSON.generate(rows)) }
+      expect(canonical.call(native_rows)).to eq(canonical.call(in_process_rows))
+      # Confirms the `where`/`order_by`/`limit`/`offset` options were
+      # actually exercised on both sides, not just an empty agreement.
+      expect(native_rows.first[:card_payments].map { |p| p[:amount][:cents] }).to eq([300, 250, 200, 150, 100])
     end
   end
 
