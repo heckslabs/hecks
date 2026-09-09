@@ -114,6 +114,7 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
@@ -123,7 +124,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let args = crate::generated::compliance::accountfreezereview::OpenArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
-              crate::kernel::check_role(Some("System"), "Open", caller_role)?;
+              crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -135,7 +136,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json)?, };
               let args = crate::generated::compliance::accountfreezereview::ClearArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -147,7 +148,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json)?, };
               let args = crate::generated::compliance::accountfreezereview::EscalateArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -160,7 +161,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::compliance::boxsurrenderreview::OpenArgs::from_json(facts_json)?;
                       args.branch_code.check_invariants()?;
                       args.box_number.check_invariants()?;
-              crate::kernel::check_role(Some("System"), "Open", caller_role)?;
+              crate::kernel::check_role(Some("System"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -172,7 +173,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json)?, };
               let args = crate::generated::compliance::boxsurrenderreview::ClearArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -184,7 +185,7 @@ pub fn dispatch_by_name(
               let facts_json = invocation.facts();
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json)?, };
               let args = crate::generated::compliance::boxsurrenderreview::EscalateArgs::from_json(facts_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -199,7 +200,7 @@ pub fn dispatch_by_name(
                       args.role_name.check_invariants()?;
                       args.scope.check_invariants()?;
                       args.starts_at.check_invariants()?;
-              crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -212,7 +213,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json)?, };
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
-              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -226,7 +227,7 @@ pub fn dispatch_by_name(
                       args.from_role.check_invariants()?;
                       args.to_role.check_invariants()?;
                       args.starts_at.check_invariants()?;
-              crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -239,7 +240,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json)?, };
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
-              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

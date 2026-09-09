@@ -216,93 +216,94 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Embryonaut::Member.Admit" => {
               let args = crate::generated::embryonaut::member::AdmitArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Admit", caller_role)?;
+              crate::kernel::check_role(Some("Managing Member"), "Admit", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::member::dispatch_admit(&mut store.member, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Member.Depart" => {
               let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
               let args = crate::generated::embryonaut::member::DepartArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Depart", caller_role)?;
+              crate::kernel::check_role(Some("Managing Member"), "Depart", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::member::dispatch_depart(&mut store.member, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Member.GrantAccess" => {
               let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
               let args = crate::generated::embryonaut::member::GrantAccessArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Admin"), "GrantAccess", caller_role)?;
+              crate::kernel::check_role(Some("Admin"), "GrantAccess", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::member::dispatch_grant_access(&mut store.member, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Member.LinkIdentity" => {
               let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
               let args = crate::generated::embryonaut::member::LinkIdentityArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("System"), "LinkIdentity", caller_role)?;
+              crate::kernel::check_role(Some("System"), "LinkIdentity", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::member::dispatch_link_identity(&mut store.member, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::FoundingAgreement.Draft" => {
               let args = crate::generated::embryonaut::foundingagreement::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Draft", caller_role)?;
+              crate::kernel::check_role(Some("Managing Member"), "Draft", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::foundingagreement::dispatch_draft(&mut store.foundingagreement, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::FoundingAgreement.Circulate" => {
               let id = crate::generated::embryonaut::foundingagreement::FoundingAgreement::extract_id(args_json)?;
               let args = crate::generated::embryonaut::foundingagreement::CirculateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Circulate", caller_role)?;
+              crate::kernel::check_role(Some("Managing Member"), "Circulate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::foundingagreement::dispatch_circulate(&mut store.foundingagreement, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::FoundingAgreement.Execute" => {
               let id = crate::generated::embryonaut::foundingagreement::FoundingAgreement::extract_id(args_json)?;
               let args = crate::generated::embryonaut::foundingagreement::ExecuteArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Execute", caller_role)?;
+              crate::kernel::check_role(Some("Managing Member"), "Execute", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::foundingagreement::dispatch_execute(&mut store.foundingagreement, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Client.AddProspect" => {
               let args = crate::generated::embryonaut::client::AddProspectArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "AddProspect", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "AddProspect", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::client::dispatch_add_prospect(&mut store.client, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Client.Engage" => {
               let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
               let args = crate::generated::embryonaut::client::EngageArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Engage", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Engage", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::client::dispatch_engage(&mut store.client, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Client.Pause" => {
               let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
               let args = crate::generated::embryonaut::client::PauseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Pause", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Pause", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::client::dispatch_pause(&mut store.client, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Client.Reactivate" => {
               let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
               let args = crate::generated::embryonaut::client::ReactivateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Reactivate", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Reactivate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::client::dispatch_reactivate(&mut store.client, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Client.Churn" => {
               let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
               let args = crate::generated::embryonaut::client::ChurnArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Churn", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Churn", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::client::dispatch_churn(&mut store.client, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Engagement.Schedule" => {
               let args = crate::generated::embryonaut::engagement::ScheduleArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Schedule", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Schedule", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::engagement::dispatch_schedule(&mut store.engagement, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
@@ -310,27 +311,27 @@ pub fn dispatch_by_name(
           "Embryonaut::Engagement.CompleteWorkshop" => {
               let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
               let args = crate::generated::embryonaut::engagement::CompleteWorkshopArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "CompleteWorkshop", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "CompleteWorkshop", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::engagement::dispatch_complete_workshop(&mut store.engagement, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Engagement.DraftDomain" => {
               let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
               let args = crate::generated::embryonaut::engagement::DraftDomainArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "DraftDomain", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "DraftDomain", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::engagement::dispatch_draft_domain(&mut store.engagement, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Engagement.ShowDemo" => {
               let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
               let args = crate::generated::embryonaut::engagement::ShowDemoArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "ShowDemo", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "ShowDemo", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::engagement::dispatch_show_demo(&mut store.engagement, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Proposal.Draft" => {
               let args = crate::generated::embryonaut::proposal::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Draft", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Draft", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
               crate::kernel::check_reference(&store.engagement, &args.engagement_id, "Engagement", "reference")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
@@ -339,34 +340,34 @@ pub fn dispatch_by_name(
           "Embryonaut::Proposal.Send" => {
               let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
               let args = crate::generated::embryonaut::proposal::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Send", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Send", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::proposal::dispatch_send(&mut store.proposal, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Proposal.Accept" => {
               let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
               let args = crate::generated::embryonaut::proposal::AcceptArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Accept", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Accept", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::proposal::dispatch_accept(&mut store.proposal, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Proposal.Decline" => {
               let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
               let args = crate::generated::embryonaut::proposal::DeclineArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Decline", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Decline", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::proposal::dispatch_decline(&mut store.proposal, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Proposal.Expire" => {
               let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
               let args = crate::generated::embryonaut::proposal::ExpireArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Expire", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Expire", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::proposal::dispatch_expire(&mut store.proposal, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Draft" => {
               let args = crate::generated::embryonaut::contract::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Draft", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Draft", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
               crate::kernel::check_reference(&store.proposal, &args.proposal_id, "Proposal", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
@@ -375,82 +376,82 @@ pub fn dispatch_by_name(
           "Embryonaut::Contract.Send" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Send", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Send", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_send(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Sign" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::SignArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Sign", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Sign", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_sign(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Activate" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::ActivateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Activate", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Activate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_activate(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Complete" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::CompleteArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Complete", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Complete", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_complete(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Terminate" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::TerminateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Terminate", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Terminate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_terminate(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Contract.Revise" => {
               let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
               let args = crate::generated::embryonaut::contract::ReviseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Revise", caller_role)?;
+              crate::kernel::check_role(Some("COO"), "Revise", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::contract::dispatch_revise(&mut store.contract, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Product.Conceive" => {
               let args = crate::generated::embryonaut::product::ConceiveArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Conceive", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "Conceive", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::product::dispatch_conceive(&mut store.product, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Product.SetVision" => {
               let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
               let args = crate::generated::embryonaut::product::SetVisionArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "SetVision", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "SetVision", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::product::dispatch_set_vision(&mut store.product, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Product.BeginDevelopment" => {
               let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
               let args = crate::generated::embryonaut::product::BeginDevelopmentArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "BeginDevelopment", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "BeginDevelopment", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::product::dispatch_begin_development(&mut store.product, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Product.Launch" => {
               let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
               let args = crate::generated::embryonaut::product::LaunchArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Launch", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "Launch", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::product::dispatch_launch(&mut store.product, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Product.Sunset" => {
               let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
               let args = crate::generated::embryonaut::product::SunsetArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Sunset", caller_role)?;
+              crate::kernel::check_role(Some("CEO"), "Sunset", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::product::dispatch_sunset(&mut store.product, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Invoice.Draft" => {
               let args = crate::generated::embryonaut::invoice::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Draft", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Draft", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
               crate::kernel::check_reference(&store.contract, &args.contract_id, "Contract", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
@@ -459,34 +460,34 @@ pub fn dispatch_by_name(
           "Embryonaut::Invoice.Send" => {
               let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
               let args = crate::generated::embryonaut::invoice::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Send", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Send", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::invoice::dispatch_send(&mut store.invoice, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Invoice.MarkPaid" => {
               let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
               let args = crate::generated::embryonaut::invoice::MarkPaidArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "MarkPaid", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "MarkPaid", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::invoice::dispatch_mark_paid(&mut store.invoice, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Invoice.MarkOverdue" => {
               let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
               let args = crate::generated::embryonaut::invoice::MarkOverdueArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "MarkOverdue", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "MarkOverdue", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::invoice::dispatch_mark_overdue(&mut store.invoice, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Invoice.Void" => {
               let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
               let args = crate::generated::embryonaut::invoice::VoidArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Void", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Void", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::invoice::dispatch_void(&mut store.invoice, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::Payment.Record" => {
               let args = crate::generated::embryonaut::payment::RecordArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Record", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Record", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.invoice, &args.invoice_id, "Invoice", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::payment::dispatch_record(&mut store.payment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
@@ -494,13 +495,13 @@ pub fn dispatch_by_name(
           "Embryonaut::Payment.Refund" => {
               let id = crate::generated::embryonaut::payment::Payment::extract_id(args_json)?;
               let args = crate::generated::embryonaut::payment::RefundArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Refund", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Refund", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::payment::dispatch_refund(&mut store.payment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::RecurringPayment.Start" => {
               let args = crate::generated::embryonaut::recurringpayment::StartArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Start", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Start", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
               crate::kernel::check_reference(&store.contract, &args.contract_id, "Contract", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
@@ -509,66 +510,66 @@ pub fn dispatch_by_name(
           "Embryonaut::RecurringPayment.AdvanceCycle" => {
               let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
               let args = crate::generated::embryonaut::recurringpayment::AdvanceCycleArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "AdvanceCycle", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "AdvanceCycle", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::recurringpayment::dispatch_advance_cycle(&mut store.recurringpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::RecurringPayment.Pause" => {
               let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
               let args = crate::generated::embryonaut::recurringpayment::PauseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Pause", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Pause", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::recurringpayment::dispatch_pause(&mut store.recurringpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::RecurringPayment.Resume" => {
               let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
               let args = crate::generated::embryonaut::recurringpayment::ResumeArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Resume", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Resume", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::recurringpayment::dispatch_resume(&mut store.recurringpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Embryonaut::RecurringPayment.Cancel" => {
               let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
               let args = crate::generated::embryonaut::recurringpayment::CancelArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Cancel", caller_role)?;
+              crate::kernel::check_role(Some("CFO"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::embryonaut::recurringpayment::dispatch_cancel(&mut store.recurringpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Assign" => {
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::Identity.Register" => {
               let args = crate::generated::identity::identity::RegisterArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
+              crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
+              crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role, caller_actor_id, &*store, QUERIES)?;
               // HAND-PATCHED, not regenerated — this whole directory is
               // orphaned. `rust/src/generated/embryonaut/` predates the
               // live Embryonaut -> EmbryonautFoundersApp rename (project_

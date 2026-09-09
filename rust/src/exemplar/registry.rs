@@ -5,9 +5,20 @@
 // the reference-check hosts a real, compiling `Store`-shaped argument.
 #![allow(dead_code, unused_variables)]
 
-fn tmpl_role_check_host(caller_role: Option<&str>) -> Result<(), crate::kernel::Refusal> {
+// `QUERIES` — a real, always-in-scope const every generated registry.rs/
+// merged.rs already defines in the SAME file as `dispatch_by_name`
+// (`rust/project/registry.rb`'s own `emit_query_table`, called once per
+// chapter and once more over the merged union) — `check_role`'s own
+// `caller_actor_id` branch (kernel/repository.rs) needs it to find
+// `Governance::RoleAssignment.AssignmentsForActor`, the SAME compiled
+// query path a real "query" step already answers through
+// (kernel/cli.rs). Empty here — this exemplar proves the CALL SHAPE
+// compiles, not any particular domain's own declared queries.
+static QUERIES: &[crate::kernel::QueryDef] = &[];
+
+fn tmpl_role_check_host(store: &TmplStore2, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
     // TMPL:role_check BEGIN
-    crate::kernel::check_role(Some("TmplRole"), "TmplCommandName", caller_role)?;
+    crate::kernel::check_role(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES)?;
     // TMPL:role_check END
     Ok(())
 }
@@ -139,6 +150,7 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    caller_actor_id: Option<&str>,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
