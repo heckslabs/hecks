@@ -20,6 +20,32 @@ domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
 root = File.expand_path("..", __dir__)
 target_mod_name = File.basename(domain)
 
+# SAME PAIRED OPT-IN bin/project_rust already honors — `HECKS_PARSER=rust
+# HECKS_CODEGEN=rust` means "compile entirely in Rust," and until now this
+# script never checked for it: it always shelled out to `bin/project_rust`
+# with no env override, so the .wasm a `make deploy`-generated Makefile
+# ships to Lambda went through the Ruby generator even on a domain built
+# end-to-end via `hecks-build` everywhere else. `rust/build`'s own
+# `build_wasm` (`build_artifact.rs`) is a verbatim port of the exact steps
+# below — same toolchain check, same `rustup run stable cargo build`
+# invocation, same `rust/dist/<domain>.{wasm,ir.json}` output paths — so
+# delegating to it here changes nothing about what gets produced, only
+# which process produces it.
+if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
+  hecks_build_dir = File.join(root, "rust", "build")
+  hecks_build_bin = File.join(hecks_build_dir, "target", "debug", "hecks-build")
+
+  puts "== cargo build (hecks-build) =="
+  system("cargo", "build", chdir: hecks_build_dir, out: $stdout, err: $stderr, exception: true)
+
+  puts "== hecks-build #{domain} --wasm =="
+  # No chdir here — `domain` resolves relative to the CURRENT directory,
+  # same as the Ruby path below (`bin/project_rust` isn't chdir'd either);
+  # `hecks-build`'s own `root::find` walks up from wherever it runs.
+  system(hecks_build_bin, domain, "--wasm", out: $stdout, err: $stderr, exception: true)
+  exit 0
+end
+
 unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-wasip1")
   abort <<~MSG
     wasm32-wasip1 isn't installed for this toolchain. Install it once with:
