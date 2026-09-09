@@ -42,6 +42,50 @@ RSpec.describe "a read model's query options" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  # ADR 0055's own `on:` — a SECOND read_model added to the real,
+  # already-loaded Banking domain FROM RUBY, not from a new file under
+  # `examples/banking/bluebook/` (see the spec below that uses this for
+  # why: `rust/parser` reads that directory's own files, never this
+  # method's in-memory addition).
+  def build_with_targeted_read_model(adapter: "Memory")
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
+      Hecks.bluebook("Banking") do
+        read_model "MultiTarget" do
+          reference_to Account
+          include Account
+          include CardPayment
+          include ATMCard
+
+          where(status: "disputed", on: CardPayment)
+        end
+      end
+      Hecks.hecksagon("Banking") do
+        uses_framework "Governance"
+        Banking::Customer.persisted_by(adapter)
+        Banking::Account.persisted_by(adapter)
+        Banking::ATMCard.persisted_by(adapter)
+        Banking::Transfer.persisted_by(adapter)
+        Banking::CardPayment.persisted_by(adapter)
+        Banking::ExternalTransfer.persisted_by(adapter)
+        Banking::ScheduledPayment.persisted_by(adapter)
+        Banking::SafeDepositBox.persisted_by(adapter)
+        Banking::OnboardingCase.persisted_by(adapter)
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
+      end
+    end
+    registry.verify!
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
   # ELEVEN disputed amounts (S13, ADR 0025 — coverage standard,
   # ComplianceDashboard gained a real `offset 5` alongside its own
   # `limit 5`) — enough for TWO full pages (the top 5, then the next
@@ -160,6 +204,93 @@ RSpec.describe "a read model's query options" do
         end
       end
     end.to raise_error(Hecks::Bluebook::DSL::Malformed, /includes 2 many-side aggregates, not exactly one/)
+  end
+
+  # `on:` naming an aggregate that ISN'T one of the read model's own
+  # many-side heads — a real typo shape (naming the wrong included type,
+  # or the root itself), distinct from the "forgot `on:` entirely"
+  # ambiguity the spec just above already covers. `Account` here is the
+  # ROOT (a single row — ordering/paging/filtering one row means
+  # nothing), never a many-side head, so it can never be a legal target
+  # regardless of how many many-side heads exist.
+  # rubocop:disable-next RSpec/ExampleLength
+  it "refuses `on:` that doesn't name one of its own many-side aggregates" do
+    expect do
+      registry = Hecks::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Mistargeted") do
+          vision "x"
+          generic
+
+          aggregate "Account" do
+            identified_by :ref
+            attribute :ref, Ref
+            value_object "Ref" do
+              attribute :value, String
+            end
+          end
+
+          aggregate "Entry" do
+            identified_by :ref
+            attribute :ref, Ref
+            reference_to Account, as: :account
+            value_object "Ref" do
+              attribute :value, String
+            end
+          end
+
+          aggregate "Note" do
+            identified_by :ref
+            attribute :ref, Ref
+            reference_to Account, as: :account
+            value_object "Ref" do
+              attribute :value, String
+            end
+          end
+
+          read_model "Both" do
+            reference_to Account
+            include Account
+            include Entry
+            include Note
+
+            where(ref: "a1", on: Account)
+          end
+        end
+      end
+    end.to raise_error(Hecks::Bluebook::DSL::Malformed, /doesn't name one of its own many-side included aggregates/)
+  end
+
+  # THE REAL GAP THIS SESSION CLOSES (ADR 0055) — a `NovelSummary`-shaped
+  # read model (children-of-the-light's own production use, four
+  # many-side includes around one root, wanting to filter exactly one)
+  # used to be impossible: `where`/`order_by`/`limit`/`offset` refused
+  # outright the moment a read model declared more than one many-side
+  # `include`, with no way to name which one a caller meant. `on:` closes
+  # that: `CardPayment` here is filtered to its own disputed set (the
+  # SAME set `ComplianceDashboard` already narrows to, minus its own
+  # `limit`/`offset`) while `ATMCard` — a SECOND many-side head with no
+  # `on:` of its own at all — comes back whole, untouched.
+  #
+  # Declared here, not in `examples/banking/bluebook/` on disk (ADR
+  # 0055's own Rust-parity section): `rust/parser`'s own `.bluebook` text
+  # parser doesn't yet recognize `on:` and would misparse it as an
+  # ordinary where-field literally named "on" — this domain is loaded
+  # from the REAL corpus files by `load_bluebook_files` below, unchanged,
+  # then extended in Ruby, so the files `rust/parser`/codegen actually
+  # read never carry this syntax at all.
+  it "filters one many-side collection with `on:`, leaving another untouched" do
+    runtime = build_with_targeted_read_model
+    seed_disputed_card_payments
+    Banking::ATMCard.issue!(account: "acct-1", serial: { value: "card-1" }, daily_fee: { amount: 0.0 })
+    Banking::ATMCard.issue!(account: "acct-1", serial: { value: "card-2" }, daily_fee: { amount: 0.0 })
+
+    rows = runtime.query("Banking.multi_target", account: "acct-1")
+
+    expect(rows.first[:card_payments].map { |p| p[:amount][:cents] }.sort).to eq(DISPUTED_AMOUNTS.sort)
+    expect(rows.first[:atm_cards].map { |c| c[:serial][:value] }.sort).to eq(%w[card-1 card-2])
   end
 
   it "leaves a read model with no declared options exactly as before" do

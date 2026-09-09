@@ -76,6 +76,44 @@ unrelated field on a different class, with zero DSL method that populates it and
 adapter that reads it — genuinely dormant, unlike `reference_to`/`include`, which are
 both live. Don't confuse the two when reading the code.
 
+### `on:` — naming WHICH many-side collection an option applies to (ADR 0055)
+
+`where`/`order_by`/`limit`/`offset` apply to exactly one collection — the single
+`include`d aggregate whose head is "many." A read model with zero many-side heads has
+nothing for them to filter; with exactly one, that head is unambiguous and needs no
+extra word. With **two or more**, an option now names its target explicitly:
+
+```ruby
+read_model "NovelSummary" do
+  reference_to Novel
+  include Novel
+  include Character
+  include Part
+  include Timeline
+  include Note
+
+  # `on: Character` — narrows THIS collection alone; Part/Timeline/Note
+  # are still gathered in full, untouched.
+  where(superseded_by: nil, on: Character)
+end
+```
+
+`on:` takes the included TYPE (matching `include`'s own argument, resolved the same
+way `reference_to`/`include` already resolve theirs) — not the include's own `as:`
+alias. Omitting `on:` still works exactly as before when there's exactly one many-side
+head; declaring `where`/`order_by`/`limit`/`offset` with no `on:` while several
+many-side heads exist is still refused, for the same reason it always was — nothing
+says which collection was meant. `on:` is scoped to `read_model` alone: a plain `query`
+has only ever had one collection to mean, so `where(..., on: X)` there is a plain,
+loud `ArgumentError`, not a silently-ignored option.
+
+**Rust parity: not yet, on purpose.** The Rust kernel's own `ReadModelDef` carries
+exactly one eligible head's worth of where/order_by/limit/offset, not a per-head map —
+a real, separate porting effort (see ADR 0055). The Ruby-side and Rust-side codegen
+generators both refuse to generate a read model that combines several many-side heads
+with any declared option at all, cleanly, rather than risk applying an option to the
+wrong head.
+
 ## One thing left unverified, not fabricated
 
 Whether `include`'s behavior on an absent match reads like an inner join (row dropped)
