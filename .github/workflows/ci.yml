@@ -703,10 +703,27 @@ jobs:
       # committed fixtures if anyone naively regenerates+diffs the same
       # way this step does. `bundle exec` pins it to Gemfile.lock's
       # version, matching what actually produced the committed files.
+      #
+      # NO `cargo build --release` HERE ANYMORE — this used to also build
+      # target/release/rust (default features only, i.e. "roster"), on
+      # the assumption that spec/rust_conformance_spec.rb or bin/
+      # rust_conformance's own "native" mode would run it. Neither does:
+      # every io: true spec below builds its OWN target/debug/rust per
+      # domain via RustConformanceHelpers#build_rust_for
+      # (rust_conformance_spec.rb, rust_conformance_fuzz_spec.rb,
+      # rust_numeric_coercion_spec.rb), and project_deploy_parity_gate_
+      # spec.rb's functional half always passes a .wasm path to bin/
+      # rust_conformance, which routes to the wasmtime branch — the
+      # native_binary (release/debug) branch only fires on the literal
+      # arg "native", which nothing in this job's 9-file rspec run below
+      # ever passes. Verified by grepping every file this job runs for
+      # `"native"`/`bin/rust_conformance`: zero consumers. Measured
+      # locally: 26.65s wall / 104.37s CPU for an artifact nothing here
+      # reads — "Build the exemplar module" right below already builds
+      # +type-checks the same default feature set (debug/test profile),
+      # so dropping the release build loses no fail-fast coverage.
       - name: Build the Rust conformance binary
-        run: |
-          bundle exec bin/project_rust examples/banking
-          cd rust && cargo build --release
+        run: bundle exec bin/project_rust examples/banking
 
       # rust/src/exemplar/** — real Rust the codegen in rust/project/*.rb
       # slices shapes out of, proven valid/idiomatic here BEFORE any Ruby
