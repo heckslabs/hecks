@@ -1,3 +1,4 @@
+require_relative "sections"
 require_relative "sentences"
 require_relative "mermaid"
 require_relative "../statements"

@@ -7,7 +7,7 @@ require "spec_helper"
 # checked for the three promises Projections::Glossary makes to a reader
 # outside engineering — no identifiers, no type labels, every link lands.
 RSpec.describe "the glossary a domain carries with it" do
-  DOMAINS = { "pizzas" => "Pizzas", "banking" => "Banking" }.freeze
+  GLOSSARY_DOMAINS = { "pizzas" => "Pizzas", "banking" => "Banking" }.freeze
 
   def chapter_of(domain, name)
     registry = Hecks::Runtime::Registry.new
@@ -27,7 +27,7 @@ RSpec.describe "the glossary a domain carries with it" do
     Dir.glob("**/*", base: committed_dir(domain)).select { |path| File.file?(File.join(committed_dir(domain), path)) }
   end
 
-  DOMAINS.each do |domain, name|
+  GLOSSARY_DOMAINS.each do |domain, name|
     describe domain do
       let(:chapter) { chapter_of(domain, name) }
       let(:tree)    { Hecks::Projector.call(:glossary, bluebook: chapter) }
