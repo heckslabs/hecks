@@ -1,0 +1,444 @@
+#!/usr/bin/env ruby
+
+# ONE CLAIM -> SWEEP -> CONCLUDE/RELEASE CYCLE, MECHANICAL END TO END.
+#
+# `.claude/skills/hecks_qa/SKILL.md` used to walk an agent through six
+# manual `bin/run` calls (boot check, pick a target, claim it, open a
+# sweep, run the existing fuzz infrastructure by hand and log a `Check`
+# per dispatch, conclude and release) — pure orchestration, no judgment,
+# and every single sweep re-paid the LLM the cost of babysitting it one
+# CLI call at a time. This script IS that orchestration, run once,
+# deterministically, with zero agent involvement on a clean sweep.
+#
+# THE ONE THING THIS SCRIPT DELIBERATELY DOES NOT DO: decide whether a
+# surprising check is a real bug, write the failing test that proves it
+# (`QualityControl::Bug.Log` requires a `demonstration` — an actual
+# reproducing test/command — which needs judgment to construct honestly),
+# or open a fix PR. The moment any check comes back surprised, this
+# script stops, prints a structured report, and exits nonzero — an agent
+# picks it up from there, following ONLY the judgment section that is all
+# that is left of `.claude/skills/hecks_qa/SKILL.md`'s own "running one
+# sweep" step.
+#
+#   bin/qa_sweep                     # least-recently-swept waiting target
+#   bin/qa_sweep banking              # a named target, by its own reference
+#   bin/qa_sweep pizzas --seeds 25    # more seeded sequences per sweep
+#
+# EXIT CODES — the only contract an agent (or a loop) needs to read:
+#   0  clean — every generated sequence held, the sweep concluded and the
+#      target released. Nothing else to do; relay the printed summary.
+#   1  an operational error — the ledger would not boot, the named target
+#      does not exist, it is already held by somebody else and the claim
+#      has not gone stale, `--seeds` was not a positive integer, and so
+#      on. Fix the actual problem; there is nothing here for an agent to
+#      pick up as QA work.
+#   2  FOUND SOMETHING — a generated sequence surprised the check. The
+#      sweep is left OPEN and the target left HELD, on purpose: no Bug is
+#      logged (that step needs a human/agent judgment call, never this
+#      script's own guess), and nothing is concluded or released. Full
+#      reproduction details are on stdout, above the exit.
+#
+# WHAT THIS REUSES RATHER THAN REINVENTS — see each file's own header:
+#   `Hecks::Fuzzing::SequenceGenerator` / `Hecks::Fuzzing::Replay` — the
+#     exact seeded-sequence generation and in-process replay `bin/fuzz`
+#     and `spec/rust_conformance_fuzz_spec.rb` already use.
+#   `Hecks::Fuzzing::Properties.check` — the single-runtime property/
+#     exception battery `bin/fuzz` grades a generated sequence against,
+#     used here as the fallback when a domain has no compiled Rust
+#     binary to differential-fuzz against instead (not every domain
+#     does — `rust/Cargo.toml` declares a feature per domain that has
+#     one; `qa/stress_domains/ledger_ordering/NOTES.md` is the exact,
+#     already-documented case of a domain this repository shipped
+#     WITHOUT one).
+#   `RustConformanceHelpers` (spec/support/rust_conformance_helpers.rb)
+#     — the Ruby-vs-Rust build/diff/known-gap-filtering machinery
+#     `spec/rust_conformance_fuzz_spec.rb` itself is built on. Required
+#     directly from spec/support/ rather than re-derived: it declares no
+#     RSpec dependency of its own (only `fileutils`), so it is exactly
+#     as reusable from a bin/ script as from a spec file.
+#
+# THE ENTITY-ADDRESSING CONVENTION — SPELLED OUT BECAUSE IT IS EASY TO
+# GET WRONG THE OTHER WAY. `Sweep.Check.Held`/`.Surprised` are ENTITY
+# commands (`entity "Check"` inside `aggregate "Sweep"`,
+# qa/bluebook/quality_control.bluebook). The CLI form (`bin/run ... held
+# to.aggregate=<sweep-id> to.entity=<n> ...`) projects that addressing as
+# TWO separate arguments — see `Projector::CliProjector#receiver_options`
+# — but that is a CLI-LAYER translation, not what the runtime itself
+# wants. Dispatched directly, in-process, the way this script and
+# `spec/quality_control_spec.rb`'s own `check` helper both do it, it is
+# `id: <the Sweep's own id>` plus the entity's own identity attribute
+# (`sequence: { value: n }`) as an ordinary command argument — confirmed
+# live against a real boot of this exact chapter while this script was
+# being written, not assumed from reading the CLI projector alone.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+# ADR 0033 — see bin/run's own identical require: the era/lineage
+# subsystem no longer loads with core, and this ledger's `persisted_by
+# "Heki"` binding needs it explicitly.
+require "hecks/ports/persistence/plugins/era"
+require "hecks/fuzzing"
+require "json"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+require_relative "../spec/support/rust_conformance_helpers"
+
+DOMAIN_DIR         = File.join(ROOT, "qa/bluebook")
+RUST_DIR           = File.join(ROOT, "rust")
+ENGINEER           = "qa_sweep".freeze
+STEPS_PER_SEQUENCE = 25
+DEFAULT_TARGETS    = { "pizzas" => "examples/pizzas", "banking" => "examples/banking" }.freeze
+
+EXIT_OK = 0
+EXIT_ERROR           = 1
+EXIT_FOUND_SOMETHING = 2
+
+USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N]".freeze
+
+# A THIN WRAPPER, NOT A REWRITE — `RustConformanceHelpers` is a plain
+# module of instance methods meant to be `include`d into an RSpec example
+# group; this is the same `include`, on a class with no RSpec anywhere
+# near it, so the exact same build/diff/filter methods
+# `spec/rust_conformance_fuzz_spec.rb` calls on `self` are called here on
+# an instance instead.
+class Differ
+  include RustConformanceHelpers
+end
+
+# ── argument parsing ─────────────────────────────────────────────────
+
+target_ref = nil
+seeds = 10
+
+until ARGV.empty?
+  arg = ARGV.shift
+  case arg
+  when "-h", "--help"
+    puts USAGE
+    exit EXIT_OK
+  when "--seeds"
+    value = ARGV.shift
+    abort "#{USAGE}\n--seeds needs a number" unless value
+
+    begin
+      seeds = Integer(value)
+    rescue ArgumentError
+      abort "#{USAGE}\n--seeds must be an integer, got #{value.inspect}"
+    end
+  else
+    abort "#{USAGE}\nunexpected argument: #{arg.inspect} (target already given: #{target_ref.inspect})" if target_ref
+
+    target_ref = arg
+  end
+end
+
+abort "#{USAGE}\n--seeds must be at least 1 — Sweep.Conclude refuses a sweep that checked nothing" if seeds < 1
+
+# ── boot the ledger for real ───────────────────────────────────────────
+#
+# `Hecks.boot` with `install_facade` at its default (true) — exactly what
+# bin/run's own JSON step-list form does — so `QualityControl::Target`,
+# `QualityControl::Sweep` and friends land as real top-level constants
+# this script dispatches through directly, the same door
+# spec/quality_control_spec.rb uses.
+
+runtime = begin
+  Hecks.boot(DOMAIN_DIR)
+rescue StandardError => e
+  abort "the QualityControl ledger did not boot — fix the ledger itself before sweeping against it " \
+        "(#{e.class}: #{e.message})"
+end
+
+def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
+
+# ── pick a target ───────────────────────────────────────────────────
+
+# EXISTENCE-CHECKED, NOT BLIND. `Target.Rotation` being empty does not
+# mean nothing has ever been `Identify`d — a target that is currently
+# `held` or `shelved` is invisible to `Rotation` too (it only answers
+# `where(status: "waiting")`), and re-`Identify`ing an id that already
+# exists is a real refusal, not a no-op. So this only mints the two
+# defaults that are not already on file, under whatever status they are
+# actually in.
+def seed_default_targets!(runtime)
+  existing = q(runtime, "Target.All").map { |row| row[:reference][:value] }
+  DEFAULT_TARGETS.each do |reference, path|
+    next if existing.include?(reference)
+
+    QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
+  end
+end
+
+def pick_target_row(runtime, target_ref)
+  if target_ref
+    row = q(runtime, "Target.All").find { |r| r[:reference][:value] == target_ref }
+    return row if row
+
+    known = q(runtime, "Target.All").map { |r| r[:reference][:value] }
+    abort "no such target: #{target_ref.inspect} — known targets: #{known.inspect}"
+  end
+
+  rotation = q(runtime, "Target.Rotation")
+  if rotation.empty?
+    seed_default_targets!(runtime)
+    rotation = q(runtime, "Target.Rotation")
+  end
+  if rotation.empty?
+    abort "the rotation is empty even after seeding pizzas/banking — nothing waiting to sweep " \
+          "(every known target is currently held or shelved)"
+  end
+
+  rotation.first
+end
+
+target_row       = pick_target_row(runtime, target_ref)
+target_reference = target_row[:reference][:value]
+target_path      = target_row[:path][:value]
+domain_path = File.join(ROOT, target_path)
+
+abort "target #{target_reference.inspect} names a path that does not exist on disk: #{domain_path}" \
+  unless File.directory?(domain_path)
+
+# ── claim it ─────────────────────────────────────────────────────────
+
+target = QualityControl::Target.find(target_reference)
+abort "target #{target_reference.inspect} vanished between being queried and being claimed" unless target
+
+begin
+  target = target.claim!(held_by: { value: ENGINEER }, now: { value: Time.now.to_i })
+rescue Hecks::Runtime::GivenNotMet => e
+  abort "target #{target_reference.inspect} is already held and its claim has not gone stale yet (#{e.message})"
+end
+
+# ── open a sweep ─────────────────────────────────────────────────────
+#
+# GLOBALLY UNIQUE ON PURPOSE — `Sweep` is `identified_by :reference`
+# with no scoping to its target, so two sweeps opened in the same wall
+# second against two DIFFERENT targets must not collide; folding the
+# target's own reference in alongside the timestamp gets that for free,
+# and a second sweep against the SAME target in the same second cannot
+# happen anyway (the claim just taken above serialises that).
+
+sweep_reference = "SW-#{target_reference}-#{Time.now.to_i}"
+sweep = QualityControl::Sweep.open!(target: target.id, reference: { value: sweep_reference },
+                                    engineer: { value: ENGINEER })
+
+# ── the existing fuzz infrastructure, called in-process ────────────────
+
+differ  = Differ.new
+feature = File.basename(domain_path).downcase
+binary  = differ.build_rust_for(feature, RUST_DIR)
+mode    = binary ? :differential : :ruby_only
+
+# THE ACTUAL RUBY-VS-RUST DIFF `spec/rust_conformance_fuzz_spec.rb` runs
+# per generated seed, factored out unchanged rather than re-derived —
+# same fields compared (instances, events, refusals, queries, sagas,
+# reactions), same known-gap filtering, same wire-precision reduction.
+# One long method because the spec's own block is: five independently
+# gated comparisons that share `ruby_result`/`rust_output` and would
+# just re-thread those two locals through five smaller methods for no
+# real gain — the spec itself keeps this inline in one `it` block for
+# the identical reason.
+# rubocop:disable-next Metrics/AbcSize
+# rubocop:disable-next Metrics/CyclomaticComplexity
+# rubocop:disable-next Metrics/PerceivedComplexity
+def diff_ruby_vs_rust(differ, domain_path, steps, binary)
+  ruby_result    = Hecks::Fuzzing::Replay.call(domain_path, steps)
+  ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
+  ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
+  ruby_refusals  = ruby_result[:refusals].map do |r|
+    { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
+  end
+  ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| row.except(:instances_at) }))
+  ruby_sagas   = JSON.parse(JSON.generate(ruby_result[:sagas]))
+
+  stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
+  return [{ field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }] unless status.success?
+
+  rust_output = JSON.parse(stdout)
+  differ.strip_emitted_flags!(rust_output["instances"])
+  differ.strip_emitted_flags!(rust_output["queries"])
+  differ.strip_occurred_at!(rust_output["events"])
+
+  divergences = []
+  divergences << { field: "instances", ruby: ruby_instances, rust: rust_output["instances"] } \
+    unless rust_output["instances"] == ruby_instances
+  divergences << { field: "events", ruby: ruby_events, rust: rust_output["events"] } \
+    unless rust_output["events"] == ruby_events
+
+  by_kind = ->(r) { r.slice("verb", "kind") }
+  gap     = ->(r) { differ.known_refusal_gap?(r) || differ.structural_refusal_gap?(r) }
+  rust_refusals       = rust_output["refusals"].reject(&gap).map(&by_kind)
+  kept_ruby_refusals  = ruby_refusals.reject(&gap).map(&by_kind)
+  divergences << { field: "refusals", ruby: kept_ruby_refusals, rust: rust_refusals } \
+    unless rust_refusals == kept_ruby_refusals
+
+  wordless      = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
+  not_generated = differ.structurally_refused_verbs(rust_output)
+  rust_queries      = rust_output["queries"].reject(&gap).map(&wordless)
+  kept_ruby_queries = ruby_queries.reject { |row| gap.call(row) || not_generated.include?(row["query"]) }.map(&wordless)
+  divergences << { field: "queries", ruby: kept_ruby_queries, rust: rust_queries } \
+    unless rust_queries == kept_ruby_queries
+
+  divergences << { field: "sagas", ruby: ruby_sagas, rust: rust_output["sagas"] } \
+    unless rust_output["sagas"] == ruby_sagas
+
+  cross_domain = differ.cross_domain_policy_names(rust_output)
+  kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
+                            .reject { |r| cross_domain.include?(r["policy"]) || differ.known_reaction_gap?(r) }
+  rust_reactions = rust_output.fetch("reactions").reject { |r| differ.known_reaction_gap?(r) }
+  divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
+    unless rust_reactions == kept_ruby_reactions
+
+  divergences
+end
+
+# THE SINGLE-RUNTIME FALLBACK — `bin/fuzz`'s own `outcome` function,
+# unchanged: a declared property violated, or an exception that escaped
+# `Replay.call`'s own per-step DOMAIN_REFUSAL isolation (a real
+# interpreter defect, not an expected refusal). Reached only when this
+# domain has no compiled Rust binary to differential-fuzz against —
+# `qa/stress_domains/ledger_ordering/NOTES.md` is the standing example of
+# exactly that (authored Ruby-only; `bin/project_rust` for it was never
+# run) — matching `bin/fuzz`'s own documented scope exactly rather than
+# inventing a narrower or wider one.
+def ruby_only_outcome(domain_path, steps)
+  history    = Hecks::Fuzzing::Replay.call(domain_path, steps)
+  violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
+  return [:clean, nil] if violations.empty?
+
+  [:property_violation, violations.map { |name, message| "#{name}: #{message}" }.join("; ")]
+rescue StandardError => e
+  [:crash, "#{e.class}: #{e.message}"]
+end
+
+def log_check!(sweep, subject:, expectation:)
+  sweep.check!(subject: { value: subject }, expectation: { value: expectation })
+end
+
+# `id:` addresses the Sweep aggregate the Check entity lives under;
+# `sequence:` is the Check's own identity within it — see this script's
+# own header comment on why this is NOT `to.aggregate=`/`to.entity=`.
+def mark_held!(runtime, sweep, sequence, observation)
+  runtime.dispatch("QualityControl::Sweep.Check.Held", id: sweep.id,
+                    sequence: { value: sequence }, observation: { value: observation })
+end
+
+def mark_surprised!(runtime, sweep, sequence, observation)
+  runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
+                    sequence: { value: sequence }, observation: { value: observation })
+end
+
+mode_label =
+  if mode == :differential
+    "Ruby vs compiled Rust (#{feature})"
+  else
+    "Ruby-only property/exception check (no compiled Rust binary for #{feature})"
+  end
+
+puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
+     "#{STEPS_PER_SEQUENCE} steps each"
+
+# ONE SEED, EITHER MODE — pulled out of the loop below so that loop reads
+# as "run a seed, log it, stop on a surprise" rather than burying that
+# shape under the two modes' own detail. Returns everything the loop and
+# (on a surprise) the final report need; nothing here talks to the
+# ledger — that stays the loop's own job.
+def run_one_seed(mode, differ, domain_path, feature, binary, seed)
+  steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: STEPS_PER_SEQUENCE)
+
+  if mode == :differential
+    subject     = "#{feature} fuzz seed #{seed} (#{STEPS_PER_SEQUENCE} steps) vs compiled Rust (#{feature})"
+    expectation = "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
+                  "reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
+    divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary)
+    clean       = divergences.empty?
+    observation = if clean
+                    "agreed across all #{STEPS_PER_SEQUENCE} steps"
+                  else
+                    "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
+                  end
+  else
+    subject     = "#{feature} fuzz seed #{seed} (#{STEPS_PER_SEQUENCE} steps), Ruby-only (no Rust binary)"
+    expectation = "no declared property is violated and the interpreter does not crash across all " \
+                  "#{STEPS_PER_SEQUENCE} generated steps"
+    verdict, message = ruby_only_outcome(domain_path, steps)
+    clean       = verdict == :clean
+    observation = clean ? "clean across all #{STEPS_PER_SEQUENCE} steps" : "#{verdict}: #{message}"
+    divergences = clean ? [] : [{ field: verdict.to_s, detail: message }]
+  end
+
+  { subject: subject, expectation: expectation, divergences: divergences, clean: clean, observation: observation }
+end
+
+surprise = nil
+
+(1..seeds).each do |seed|
+  result = run_one_seed(mode, differ, domain_path, feature, binary, seed)
+
+  sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
+  sequence = sweep.checks.last[:sequence][:value]
+
+  if result[:clean]
+    mark_held!(runtime, sweep, sequence, result[:observation])
+    puts "  seed #{seed}: held"
+    next
+  end
+
+  mark_surprised!(runtime, sweep, sequence, result[:observation])
+  puts "  seed #{seed}: SURPRISED"
+  surprise = result.merge(seed: seed)
+  break
+end
+
+# ── report and exit ─────────────────────────────────────────────────
+
+if surprise
+  puts
+  puts "=" * 72
+  puts "FOUND SOMETHING — sweep #{sweep_reference} left OPEN, target #{target_reference} left HELD."
+  puts "No Bug was logged (that needs a real failing-test demonstration, which"
+  puts "needs judgment this script does not have) and the sweep was neither"
+  puts "concluded nor released. An agent decides from here: self-contained fix"
+  puts "with a regression test and a draft PR, or a Bug left open/unclaimed for"
+  puts "something bigger. Never waived here, never filed upstream from here."
+  puts "=" * 72
+  puts
+  puts "domain:      #{target_path} (#{domain_path})"
+  puts "target:      #{target_reference}"
+  puts "sweep:       #{sweep_reference} (id #{sweep.id})"
+  puts "mode:        #{mode}"
+  puts "seed:        #{surprise[:seed]}"
+  puts "steps:       #{STEPS_PER_SEQUENCE}"
+  puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
+       "seed: #{surprise[:seed]}, steps: #{STEPS_PER_SEQUENCE})"
+  puts "subject:     #{surprise[:subject]}"
+  puts "expectation: #{surprise[:expectation]}"
+  puts "observation: #{surprise[:observation]}"
+  puts
+
+  surprise[:divergences].each do |divergence|
+    puts "-- #{divergence[:field]} --"
+    if divergence[:detail]
+      puts divergence[:detail]
+    else
+      puts "ruby: #{divergence[:ruby].inspect}"
+      puts "rust: #{divergence[:rust].inspect}"
+    end
+    puts
+  end
+
+  exit EXIT_FOUND_SOMETHING
+end
+
+notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} feature=#{feature} seeds=#{seeds} " \
+        "steps=#{STEPS_PER_SEQUENCE} — every seed held, no divergence or property violation found."
+sweep.conclude!(notes: { value: notes })
+target.release!(now: { value: Time.now.to_i })
+
+puts
+puts "clean — #{target_reference} concluded and released."
+puts notes
+exit EXIT_OK
