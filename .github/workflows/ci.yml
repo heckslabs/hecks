@@ -620,6 +620,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-main-
 
+      # rust/build ("hecks-build") — a SEPARATE crate from the main one
+      # above, same as parser/codegen/host each get their own cache
+      # below in their own jobs, but this one lives in THIS job because
+      # spec/hecks_build_pipeline_spec.rb (which builds it, once, at
+      # class-load time — `build_hecks_build!`, called bare in the
+      # describe body, before any example runs) is one of the 8 files
+      # this job's own rspec step runs. Never cached before this: the
+      # main-crate cache step above only ever covered `rust/target`,
+      # never `rust/build/target`, so every run of this job paid a
+      # fully cold `cargo build` for this crate regardless of whether
+      # anything in it had changed since the last run.
+      - name: Cache Rust build artifacts (build crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            rust/build/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
       # generated/ snapshot (which could silently drift from it), then
