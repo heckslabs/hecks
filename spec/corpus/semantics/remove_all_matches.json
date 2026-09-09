@@ -2,10 +2,9 @@
   "domain": "spec/corpus/semantics/domains/tally",
   "ruby_only": true,
   "spec": [
-    "C2.3",
-    "C6.1"
+    "C4.3"
   ],
-  "note": "Tally.Increase takes an argument named `count` — the same name as the field it increments — and its ensures reads `count.value == old.count.value + 5`. Per C2.3 an ensures resolves the settled state first, so with the count at 10 an Increase by 5 is accepted (15 == 10 + 5) and an Increase by 7 is refused EnsuresNotMet (17 != 15 + 5). Under argument-first resolution (C2.2, a given's rule) the same ensures would have compared the argument 5 with 15 and refused the first step.",
+  "note": "append adds at the tail in order; remove takes every structurally-equal element (C4.3). Tags x, y, x then Untag x leaves exactly [y].",
   "steps": [
     {
       "verb": "Tallying::Tally.Open",
@@ -16,40 +15,45 @@
       }
     },
     {
-      "verb": "Tallying::Tally.SetCount",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
-        "count": {
-          "value": 10
+        "label": {
+          "value": "x"
         }
       }
     },
     {
-      "verb": "Tallying::Tally.Increase",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
-        "count": {
-          "value": 5
+        "label": {
+          "value": "y"
         }
       }
     },
     {
-      "verb": "Tallying::Tally.Increase",
+      "verb": "Tallying::Tally.TagWith",
       "args": {
         "tally": "t1",
-        "count": {
-          "value": 7
+        "label": {
+          "value": "x"
+        }
+      }
+    },
+    {
+      "verb": "Tallying::Tally.Untag",
+      "args": {
+        "tally": "t1",
+        "label": {
+          "value": "x"
         }
       }
     }
   ],
   "expect": {
     "refusals": [
-      {
-        "verb": "Tallying::Tally.Increase",
-        "error": "Increase refused — the count grew by five",
-        "kind": "EnsuresNotMet"
-      }
+
     ],
     "instances": {
       "Tallying::Tally#t1": {
@@ -57,7 +61,7 @@
           "value": "t1"
         },
         "count": {
-          "value": 15
+          "value": 0
         },
         "weight": {
           "value": 0.0
@@ -67,7 +71,9 @@
         },
         "limit": null,
         "tags": [
-
+          {
+            "value": "y"
+          }
         ]
       }
     },
@@ -83,24 +89,46 @@
         }
       },
       {
-        "name": "CountSet",
+        "name": "Tagged",
         "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
-          "count": {
-            "value": 10
+          "label": {
+            "value": "x"
           }
         }
       },
       {
-        "name": "CountIncreased",
+        "name": "Tagged",
         "aggregate": "Tallying::Tally",
         "id": "t1",
         "payload": {
           "tally": "t1",
-          "count": {
-            "value": 5
+          "label": {
+            "value": "y"
+          }
+        }
+      },
+      {
+        "name": "Tagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "x"
+          }
+        }
+      },
+      {
+        "name": "Untagged",
+        "aggregate": "Tallying::Tally",
+        "id": "t1",
+        "payload": {
+          "tally": "t1",
+          "label": {
+            "value": "x"
           }
         }
       }

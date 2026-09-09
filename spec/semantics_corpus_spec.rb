@@ -35,6 +35,18 @@ RSpec.describe "the semantics corpus" do
     end
   end
 
+  # THE REVERSE OF THE CHECK BELOW — every fixture the document cites
+  # must exist. Stage 5 wrote seven citations ahead of their files, and
+  # nothing noticed until a reader went looking; a cited fixture that
+  # does not exist is a clause pinned by nothing.
+  it "has a file for every fixture docs/semantics/bluebook-semantics.md cites" do
+    cited = File.read(SEMANTICS_DOC).scan(/fixtures?:\s*((?:`[^`]+\.json`[\s,]*)+)/).flatten
+                .flat_map { |group| group.scan(/`([^`]+\.json)`/).flatten }.uniq
+    expect(cited).not_to be_empty
+    missing = cited.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "spec/corpus/semantics", name)) }
+    expect(missing).to eq([]), "cited but absent: #{missing.join(', ')}"
+  end
+
   it "cites only clauses docs/semantics/bluebook-semantics.md declares" do
     doc = File.read(SEMANTICS_DOC)
     SEMANTICS_FIXTURES.each do |path|
