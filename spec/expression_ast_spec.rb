@@ -89,13 +89,18 @@ RSpec.describe "the structured expression AST every rule row carries" do
     end
   end
 
-  let(:irs) do
+  # Read-only in every example below (never dispatched or mutated) —
+  # built once per file, not once per example, for speed: 7 chapters
+  # (plus the 3 meta-domains) parsed from disk is real work.
+  before(:context) do
     loaded    = CHAPTERS.to_h { |name, file| [name, load_chapter(file).bluebook(name).to_h] }
     languages = %w[Bluebook World Hecksagon].to_h do |name|
       [name, Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name).to_h]
     end
-    loaded.merge(languages)
+    @irs = loaded.merge(languages)
   end
+
+  let(:irs) { @irs }
 
   it "carries `ast` on every rule row of every corpus chapter, derived from that row's own canonical" do
     rows = irs.flat_map { |name, ir| rule_rows(ir).map { |path, row| [name, path, row] } }

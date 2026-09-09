@@ -21,7 +21,11 @@ RSpec.describe Hecks::Projector::DocsProjector do
     registry
   end
 
-  let(:registry) { corpus }
+  # Read-only across every example in this file (never dispatched
+  # against) — built once per file, not once per example, for speed.
+  before(:context) { @registry = corpus }
+
+  let(:registry) { @registry }
   let(:banking)  { described_class.call(bluebook: registry.bluebook("Banking")) }
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
 
