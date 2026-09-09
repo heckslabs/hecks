@@ -44,14 +44,18 @@ name: CI
 # `cargo`/`make`/Postgres/subprocess use — see the file lists inside each
 # job below, not just its own header comment):
 #
-#   - `rspec_rust_io` — the 8 specs that touch the SHARED `rust/` crate
-#     and its committed `rust/src/generated/` tree (Rust conformance,
-#     numeric coercion, the rust_project generator specs, the deploy
-#     parity gate's functional half). Keeps the Rust build steps; no
-#     longer keeps a Postgres service — the one spec here that used to
-#     need it (rust_host_lineage_conformance_spec.rb) moved to
-#     `rspec_rust_host` below, along with everything else that builds a
-#     genuinely separate Cargo project.
+#   - `rspec_rust_io` / `rspec_rust_io_build` / `rspec_rust_io_deploy` —
+#     the 9 specs that touch the SHARED `rust/` crate and its committed
+#     `rust/src/generated/` tree (Rust conformance, numeric coercion, the
+#     rust_project generator specs, the build-pipeline/deploy-parity
+#     specs), split three ways along the same "own checkout, no race"
+#     reasoning as rspec_rust_parser/codegen/host below — see
+#     rspec_rust_io's own header comment for why (two of the 9 are ~62%
+#     of the group's measured time and the only ones needing the wasm
+#     toolchain). No longer keeps a Postgres service — the one spec here
+#     that used to need it (rust_host_lineage_conformance_spec.rb) moved
+#     to `rspec_rust_host` below, along with everything else that builds
+#     a genuinely separate Cargo project.
 #   - `rspec_rust_parser` / `rspec_rust_codegen` / `rspec_rust_host` —
 #     each of the 4 remaining cargo-touching specs builds a COMPLETELY
 #     INDEPENDENT Cargo project (rust/parser/, rust/codegen/, rust/host/
@@ -595,6 +599,30 @@ jobs:
   # single largest chunk of this workflow's wall-clock (~7-9 minutes) and
   # lets them run concurrently with the main-crate group instead of
   # serially inside it.
+  #
+  # THREE JOBS NOW FOR THIS GROUP TOO, NOT ONE — same reasoning, one level
+  # deeper. The remaining 9 files all mutate the SAME checkout's
+  # rust/src/generated/+Cargo.toml (or run a read-only `cargo build
+  # --features <domain>` against it), which is why they were serialized
+  # into one job — but that constraint is about sharing ONE checkout, not
+  # about these files needing each other. Each has its own self-contained
+  # before(:context)/after(:context) backup-and-restore, or (the 5
+  # read-only ones) shares RustConformanceHelpers' own process-wide
+  # memoized build cache — verified by reading each file's own setup, not
+  # assumed. Measured locally (warm cache): hecks_build_pipeline_spec.rb
+  # (103.66s) and project_deploy_parity_gate_spec.rb (70.61s) alone are
+  # ~62% of the whole group's time, and are the ONLY two of the 9 that
+  # need the wasm32-wasip1 target + wasmtime — every other file here is
+  # native cargo/rustc only (confirmed by grep). Splitting those two into
+  # their own jobs — their own checkout each, so no race with this one —
+  # takes both the wasm toolchain install cost and the two heaviest files
+  # off THIS job's critical path; see rspec_rust_io_build/
+  # rspec_rust_io_deploy below. `rspec_rust_io`'s own name is a required
+  # status check in the `merge-queue-main` ruleset (confirmed live via
+  # `gh api repos/heckslabs/hecks/rulesets`) — kept as-is rather than
+  # renamed, so existing branch protection keeps working unmodified; the
+  # two split-out jobs are new names, not yet required (nothing stops
+  # adding them to the ruleset later if the team wants them enforced).
   rspec_rust_io:
     runs-on: ubuntu-latest
 
@@ -620,25 +648,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-main-
 
-      # rust/build ("hecks-build") — a SEPARATE crate from the main one
-      # above, same as parser/codegen/host each get their own cache
-      # below in their own jobs, but this one lives in THIS job because
-      # spec/hecks_build_pipeline_spec.rb (which builds it, once, at
-      # class-load time — `build_hecks_build!`, called bare in the
-      # describe body, before any example runs) is one of the 8 files
-      # this job's own rspec step runs. Never cached before this: the
-      # main-crate cache step above only ever covered `rust/target`,
-      # never `rust/build/target`, so every run of this job paid a
-      # fully cold `cargo build` for this crate regardless of whether
-      # anything in it had changed since the last run.
-      - name: Cache Rust build artifacts (build crate)
+      # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
+      # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
+      # real — previously UNCACHED here even though rspec_rust_parser/
+      # rspec_rust_codegen below already cache the exact same crates
+      # under the exact same key. actions/cache restores by key across
+      # jobs in the same workflow (from a PREVIOUS completed run, not the
+      # one running concurrently right now), so this lets that build
+      # reuse whatever those two jobs already populated last time instead
+      # of a guaranteed-cold `cargo build` on every single run.
+      - name: Cache Rust build artifacts (parser crate)
         uses: actions/cache@v4
         with:
           path: |
-            rust/build/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/parser/target
+          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-build-
+            ${{ runner.os }}-cargo-parser-
+
+      - name: Cache Rust build artifacts (codegen crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/codegen/target
+          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-codegen-
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -648,49 +687,10 @@ jobs:
       # without one — the same "provision it for real, don't skip"
       # discipline this workflow already holds Postgres/SQLite to.
       # ubuntu-latest ships a Rust toolchain already; no separate setup
-      # action needed for the native build below. The wasm32-wasip1
-      # TARGET is a different story — spec/project_deploy_parity_gate_spec.rb
-      # (Phase 8, the equivalence-gap plan) shells out to bin/project_wasm,
-      # which cross-compiles for it, and ubuntu-latest's default rustup
-      # install has no target but the host's own.
+      # action needed. NO wasm32-wasip1 target / wasmtime install here —
+      # none of the 7 files this job runs touch wasm at all (verified by
+      # grep); both files that do moved to their own jobs below.
       #
-      # TWO toolchains, not one — bin/project_wasm's own "is it
-      # installed" check (`rustup target list --installed`, bare) runs
-      # from the repo root and so resolves through rust-toolchain.toml
-      # (channel 1.98.0); its actual build line is `rustup run stable
-      # cargo build ...` (its own comment: a deliberate Homebrew-PATH
-      # workaround, predating rust-toolchain.toml) — a DIFFERENT
-      # toolchain. Installing the target on only one leaves the other
-      # either failing the check (1.98.0 missing it) or failing the
-      # real build with E0463 "can't find crate for `std`" (stable
-      # missing it) despite the check having passed. Found live
-      # shipping this very fix (main's own #416) — a `--toolchain
-      # stable`-only version of this step still failed the same way
-      # #416 originally did, one layer deeper.
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      # The runtime half of the same gap — a compiled .wasm is only
-      # useful with a WASI-preview1 host to run it under, and
-      # bin/rust_conformance's own `.wasm` branch shells out to
-      # `wasmtime run` (docs/decisions/0012-wasm-via-wasi-stdio.md).
-      # ubuntu-latest carries neither the CLI nor a package for it —
-      # confirmed live: the wasm32 target fix alone got bin/project_wasm
-      # producing a real .wasm, then bin/rust_conformance failed one
-      # step later with plain ENOENT on `wasmtime`. Pinned to the SAME
-      # 47.0.3 rust/host/Cargo.toml already depends on (as a library,
-      # separately) — not because the CLI and the embedding API need to
-      # match, but because a CI failure from those two silently
-      # drifting is exactly the kind of thing worth not inventing here.
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
-
       # `bundle exec` matters here even though bin/project_rust never
       # touches Bundler itself: run bare, `require "json"` resolves
       # against whatever `json` gem is highest on the default load path
@@ -711,17 +711,13 @@ jobs:
       # every io: true spec below builds its OWN target/debug/rust per
       # domain via RustConformanceHelpers#build_rust_for
       # (rust_conformance_spec.rb, rust_conformance_fuzz_spec.rb,
-      # rust_numeric_coercion_spec.rb), and project_deploy_parity_gate_
-      # spec.rb's functional half always passes a .wasm path to bin/
-      # rust_conformance, which routes to the wasmtime branch — the
-      # native_binary (release/debug) branch only fires on the literal
-      # arg "native", which nothing in this job's 9-file rspec run below
-      # ever passes. Verified by grepping every file this job runs for
-      # `"native"`/`bin/rust_conformance`: zero consumers. Measured
-      # locally: 26.65s wall / 104.37s CPU for an artifact nothing here
-      # reads — "Build the exemplar module" right below already builds
-      # +type-checks the same default feature set (debug/test profile),
-      # so dropping the release build loses no fail-fast coverage.
+      # rust_numeric_coercion_spec.rb). Verified by grepping every file
+      # this job runs for `"native"`/`bin/rust_conformance`: zero
+      # consumers. Measured locally: 26.65s wall / 104.37s CPU for an
+      # artifact nothing here reads — "Build the exemplar module" right
+      # below already builds+type-checks the same default feature set
+      # (debug/test profile), so dropping the release build loses no
+      # fail-fast coverage.
       - name: Build the Rust conformance binary
         run: bundle exec bin/project_rust examples/banking
 
@@ -733,14 +729,18 @@ jobs:
       - name: Build the exemplar module
         run: cd rust && cargo test --lib
 
-      # THE 8 `io: true` SPECS THAT TOUCH THE SHARED `rust/` CRATE — via
-      # before(:context)/after(:context) backup-and-restore of
-      # rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb,
-      # hecks_build_pipeline_spec.rb, project_deploy_parity_gate_spec.rb's
-      # functional half) or a read-only `cargo build --features <domain>`
-      # against the already-committed tree (rust_conformance_spec.rb,
+      # THE 7 REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
+      # CRATE — via before(:context)/after(:context) backup-and-restore
+      # of rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb)
+      # or a read-only `cargo build --features <domain>` against the
+      # already-committed tree (rust_conformance_spec.rb,
       # rust_conformance_fuzz_spec.rb, rust_numeric_coercion_spec.rb,
       # domain_feature_exclusivity_spec.rb, naming_landmines_spec.rb).
+      # semantics_corpus_spec.rb's own :io block joins them for the same
+      # reason. hecks_build_pipeline_spec.rb and
+      # project_deploy_parity_gate_spec.rb moved to their own jobs below
+      # — measured the heaviest two of the original 9 (103.66s/70.61s
+      # locally) and the only two needing wasm32-wasip1/wasmtime.
       # parser_parity_spec.rb, parser_coverage_spec.rb, codegen_parity_
       # spec.rb, and rust_host_lineage_conformance_spec.rb build a
       # SEPARATE crate each (rust/parser/, rust/codegen/, rust/host/) and
@@ -753,18 +753,121 @@ jobs:
       # mutation discipline the old serial step already used — cargo
       # builds writing into this checkout's own rust/ tree would race a
       # second worker doing the same.
-      - name: "rspec: Rust conformance + numeric coercion + deploy parity gate (serial — shared-file mutation)"
+      - name: "rspec: Rust conformance + numeric coercion + pipeline parity (serial — shared-file mutation)"
         run: |
           bundle exec rspec --tag io \
             spec/project_rust_pipeline_spec.rb \
-            spec/project_deploy_parity_gate_spec.rb \
-            spec/hecks_build_pipeline_spec.rb \
             spec/rust_conformance_spec.rb \
             spec/rust_conformance_fuzz_spec.rb \
             spec/semantics_corpus_spec.rb \
             spec/rust_numeric_coercion_spec.rb \
             spec/rust_project/domain_feature_exclusivity_spec.rb \
             spec/rust_project/naming_landmines_spec.rb
+
+  # SPLIT OUT OF rspec_rust_io ABOVE (see its own header comment) —
+  # measured locally as the single heaviest file of the original 9
+  # (103.66s, warm cache). spec/hecks_build_pipeline_spec.rb's own
+  # before(:context)/after(:context) backs up and restores rust/src/
+  # generated/+Cargo.toml itself, and build_hecks_build!/
+  # run_project_rust_opt_in!/run_hecks_build! all shell out directly
+  # rather than depending on any job-level prep step — fully
+  # self-contained, verified by reading the file, not assumed. Needs its
+  # own checkout (same shared-file-mutation reasoning as rspec_rust_io
+  # above) plus the wasm32-wasip1 target/wasmtime for its own
+  # "bin/project_wasm, opted into the all-Rust pipeline" describe block.
+  rspec_rust_io_build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (main crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-main-
+
+      # rust/build ("hecks-build") — a SEPARATE crate from the main one
+      # above; this is the one file that builds it (`build_hecks_build!`,
+      # class-load time, before any example runs).
+      - name: Cache Rust build artifacts (build crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            rust/build/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Install the wasm32-wasip1 target
+        run: |
+          rustup target add wasm32-wasip1 --toolchain stable
+          rustup target add wasm32-wasip1
+
+      - name: Install wasmtime
+        run: |
+          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
+            | tar xJ -C /tmp
+          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+          wasmtime --version
+
+      - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity"
+        run: bundle exec rspec --tag io spec/hecks_build_pipeline_spec.rb
+
+  # SPLIT OUT OF rspec_rust_io ABOVE (see its own header comment) —
+  # measured locally as the second-heaviest of the original 9 (70.61s,
+  # warm cache). spec/project_deploy_parity_gate_spec.rb's own
+  # before(:context) regenerates rust/src/generated/ and rewrites
+  # rust/Cargo.toml itself via bin/project_wasm, and tracks/restores only
+  # what IT dirtied (`tracked_diff`/`restore_tracked_diff`) — fully
+  # self-contained. Needs its own checkout plus the wasm32-wasip1
+  # target/wasmtime (real .wasm builds run under wasmtime).
+  rspec_rust_io_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (main crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-main-
+
+      - name: Install the wasm32-wasip1 target
+        run: |
+          rustup target add wasm32-wasip1 --toolchain stable
+          rustup target add wasm32-wasip1
+
+      - name: Install wasmtime
+        run: |
+          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
+            | tar xJ -C /tmp
+          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+          wasmtime --version
+
+      - name: "rspec: per-deploy Ruby/Rust parity gate"
+        run: bundle exec rspec --tag io spec/project_deploy_parity_gate_spec.rb
 
   # rust/parser/ ("hecks-parse") — an independent Cargo project, own
   # Cargo.toml/target dir, no interaction with rust/src/generated/ or
