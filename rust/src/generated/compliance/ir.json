@@ -484,6 +484,20 @@
       }
     ]
   },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "AccountFreezeReview",
+        "storage_name": "account_freeze_review",
+        "adapter": "PostgresEra"
+      },
+      {
+        "name": "BoxSurrenderReview",
+        "storage_name": "box_surrender_review",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
   "translations": [
 
   ],

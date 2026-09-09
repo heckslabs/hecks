@@ -782,6 +782,15 @@
       }
     ]
   },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Order",
+        "storage_name": "order",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
   "translations": [
     {
       "domain": "Pizzas",

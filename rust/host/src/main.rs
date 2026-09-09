@@ -233,6 +233,7 @@ async fn main() -> Result<(), Error> {
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
 
     let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
+    ir::refuse_unsupported_persistence_adapters(ir)?;
     let my_hash = storage_shape::mint_hash(ir);
     let my_label = storage_shape::mint_label(ir);
 

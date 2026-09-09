@@ -54,6 +54,30 @@ module Hecks
         { capable_aggregates: capable.map { |aggregate| { name: aggregate.name, storage_name: aggregate.storage_name } } }
       end
 
+      # A BINDING fact, same shape/reasoning as `lineage` above: every
+      # aggregate's DECLARED persistence adapter name (`persisted_by`),
+      # not part of the canonical bluebook shape `call` exports (ADR
+      # 0001 — the IR describes what's declared, never which adapter a
+      # deployment binds it to). Unlike `lineage`, this needs no era
+      # plugin — `BindingPolicy` is core, always loaded — and covers
+      # EVERY aggregate, not just lineage-capable ones: `rust/host`
+      # (`ir.rs`'s own `refuse_unsupported_persistence_adapters`) reads
+      # this to refuse loudly, at boot, against a domain bound to an
+      # adapter it has no backend for (Heki, Memory, Sqlite, D1,
+      # LocalStorage — `rust/host` understands only Postgres/PostgresEra
+      # today), rather than silently building up a second, disjoint
+      # history nothing but Rust ever reads while the real state stays
+      # wherever its own adapter actually wrote it.
+      def persistence(registry, domain_name)
+        bluebook = registry.bluebooks.fetch(domain_name)
+        aggregates = bluebook.aggregates.map do |aggregate|
+          adapter = Ports::Persistence::BindingPolicy.resolve(registry, domain_name, aggregate).adapter
+          { name: aggregate.name, storage_name: aggregate.storage_name, adapter: adapter }
+        end
+
+        { aggregates: aggregates }
+      end
+
       # Translation IR, always as an array, WITH each aggregate's
       # precompiled SQL attached (`compiled_translation_aggregate`) —
       # this is the export a consumer embeds (`ir.json`'s `translations`

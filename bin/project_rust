@@ -224,6 +224,12 @@ else
   # already reads at runtime, manifest.json) sees it the same way.
   target_ir[:lineage] = json_shaped(Hecks::Projector::Exporter.lineage(target_registry, target_domain_name))
 
+  # SAME SEAM AGAIN — `Exporter.persistence`'s own header explains why
+  # this needs no era-plugin guard (`BindingPolicy` is core) and covers
+  # every aggregate, not just lineage-capable ones: `rust/host` reads it
+  # to refuse loudly at boot against an adapter it has no backend for.
+  target_ir[:persistence] = json_shaped(Hecks::Projector::Exporter.persistence(target_registry, target_domain_name))
+
   # SAME SEAM, SAME REASONING — `Exporter.translations` walks the whole
   # registry (a shared registry can hold another domain's edges too, the
   # same way it can hold another domain's bluebook via uses_framework),

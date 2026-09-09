@@ -1522,6 +1522,15 @@
       }
     ]
   },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Roster",
+        "storage_name": "roster",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
   "translations": [
 
   ],
