@@ -524,6 +524,28 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
+      # PROVISIONED HERE TOO, EVEN THOUGH THE COMMENT ABOVE SAYS "moved to
+      # the serial job" — found live (PR #488): `spec/load_hygiene_spec.rb`
+      # ALSO reaches this database, via a fresh subprocess booting
+      # examples/pizzas/bluebook/pizzas.world (PostgresEra's own
+      # lazy-autoload path) — but never contains the literal string
+      # "hecks_pizzas" itself (that name lives in the .world file, reached
+      # indirectly), so grepping every spec/*.rb file for that string —
+      # the check the rest of this split's safety argument relied on —
+      # missed it. Rather than keep hunting for more indirect references
+      # by hand (already wrong twice), this database is now simply
+      # created here unconditionally: cheap, idempotent within this job's
+      # own fresh Postgres service, and closes the whole CLASS of "missed
+      # a hidden reference" risk rather than one instance of it. Nothing
+      # in the ~28-file set was found doing more than booting/reading
+      # against it (no test here asserts on persistent pizzas business
+      # data the way the serial job's own three files might), so a second
+      # worker also reaching it is not expected to race — but this is the
+      # kind of claim this split has already been wrong about twice, so
+      # treat it as provisional until it's held up across more real runs.
+      - name: Create the pizzas example's database
+        run: createdb -h localhost -U postgres hecks_pizzas
+
       # `--exclude-pattern` HERE IS parallel_tests' OWN TOP-LEVEL FLAG,
       # not RSpec's — deliberately NOT nested inside `-o`/`--test-options`.
       # A first version of this job passed it nested inside `-o "...
