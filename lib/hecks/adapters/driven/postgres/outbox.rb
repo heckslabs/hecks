@@ -20,11 +20,14 @@ module Hecks
         return yield unless @db.transaction_status == PG::PQTRANS_IDLE
 
         @db.transaction(&)
+      rescue PG::ConnectionBad
+        reconnect!
+        raise
       end
 
       def outbox_enqueue(rows)
         rows.filter_map do |row|
-          result = @db.exec_params(
+          result = pg_exec_params(
             "INSERT INTO hecks_outbox (delivery_id, event_uid, aggregate, domain, kind, consumer, event, status, attempts) " \
             "VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 0) ON CONFLICT (delivery_id) DO NOTHING RETURNING id",
             [row.delivery_id, row.event_uid, row.aggregate, row.domain, row.kind, row.consumer, JSON.generate(row.event)]
@@ -38,7 +41,7 @@ module Hecks
       end
 
       def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
-        @db.exec_params(
+        pg_exec_params(
           "UPDATE hecks_outbox SET status = 'claimed', attempts = attempts + 1, claimed_at = now() " \
           "WHERE id = $1 AND status = 'pending'",
           [id]
@@ -46,7 +49,7 @@ module Hecks
       end
 
       def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod
-        @db.exec_params(
+        pg_exec_params(
           "UPDATE hecks_outbox SET status = $2, error = $3, settled_at = now() WHERE id = $1",
           [id, status.to_s, error]
         ).cmd_tuples == 1
@@ -59,7 +62,7 @@ module Hecks
           sql << " AND status = $2"
           binds << status.to_s
         end
-        @db.exec_params("#{sql} ORDER BY id", binds).map do |row|
+        pg_exec_params("#{sql} ORDER BY id", binds).map do |row|
           Runtime::Outbox::Row.new(
             id: row["id"].to_i, delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
             domain: row["domain"], kind: row["kind"], consumer: row["consumer"],

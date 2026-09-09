@@ -159,6 +159,25 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
       .to eq([["PizzaPurchased", "p1", { customer: "c1" }]])
   end
 
+  it "self-heals its own connection after the backend is killed out from under it, instead of staying dead forever" do
+    adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
+    victim_pid = adapter.instance_variable_get(:@db).backend_pid
+
+    admin = PG.connect(dbname: "postgres")
+    admin.exec_params("SELECT pg_terminate_backend($1)", [victim_pid])
+    admin.close
+
+    # THE CURRENT CALL STILL RAISES — `pg_exec`/`pg_exec_params`'s own
+    # comment explains why a lost-in-flight write is never silently
+    # retried here.
+    expect { adapter.find("p1") }.to raise_error(PG::ConnectionBad)
+    # But the CONNECTION itself healed — a caller that dispatches again
+    # (a saga's own StaleWrite retry, an ordinary next request) is not
+    # stuck behind a permanently-broken handle the way chaos-testing
+    # found this adapter before this test existed.
+    expect(adapter.find("p1").status).to eq("sold")
+  end
+
   it "outlives the adapter that wrote it" do
     adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
 
@@ -176,6 +195,23 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
     db.close
 
     expect(after_indexes).to eq(before_indexes)
+  end
+
+  it "heals an existing table that predates one of the aggregate's own attributes" do
+    adapter # create the table at today's shape
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
+    # Simulate a table committed BEFORE `customer_name` was added to the
+    # bluebook — `CREATE TABLE IF NOT EXISTS` alone would leave it
+    # missing forever (chaos-tested against a real rename/add: boot
+    # passed, the first `project` died `PG::UndefinedColumn`).
+    db.exec('ALTER TABLE "order" DROP COLUMN customer_name')
+    db.close
+
+    reopened = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
+    reopened.save(instance("p1", name: { value: "Margherita" }, status: "available",
+                            customer_name: { value: "Chris" }))
+
+    expect(reopened.find("p1").customer_name.value).to eq("Chris")
   end
 
   describe "a declared `where`/`order_by` query" do
