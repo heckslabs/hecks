@@ -154,6 +154,26 @@ module Hecks
         raise UnknownVerb, "reaction target #{verb.inspect} does not resolve to an aggregate" unless aggregate
 
         *entity_names, command_name = command_path.split(".")
+
+        # A PORT OPERATION, reached by the SAME two-segment tail shape an
+        # entity command uses ("Head.Rest") — checked FIRST, same order
+        # `Dispatcher#dispatch` already resolves a live verb in (an
+        # aggregate that declared both a port and an entity of the same
+        # name would resolve to the port there too; no domain in this
+        # corpus does). A port has no `entities` of its own — the
+        # RECEIVER is always the aggregate itself — so `Target#entities`
+        # stays empty and `#command` holds the `PortOperation`, which
+        # answers `#creates?` (always false) the same way an ordinary
+        # `Command` does, letting `source_receiver_for` lift a same-
+        # aggregate policy's own Event.id as the operation's receiver
+        # exactly as it already does for a plain command.
+        if entity_names.one? && (port = aggregate.port(entity_names.first))
+          operation = port.operation(command_name)
+          raise UnknownVerb, "reaction target #{verb.inspect} does not resolve to a declared port operation" unless operation
+
+          return Target.new(aggregate: aggregate, entities: [], command: operation)
+        end
+
         owner = aggregate
         entities = entity_names.map do |entity_name|
           entity = owner.entities.find { |candidate| candidate.hecks_name == entity_name }
