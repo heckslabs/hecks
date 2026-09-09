@@ -524,25 +524,34 @@ jobs:
           ruby-version: "3.3"
           bundler-cache: true
 
+      # `--exclude-pattern` HERE IS parallel_tests' OWN TOP-LEVEL FLAG,
+      # not RSpec's — deliberately NOT nested inside `-o`/`--test-options`.
+      # A first version of this job passed it nested inside `-o "...
+      # --exclude-pattern \"...\""`, relying on `-o`'s own
+      # `Shellwords.shellsplit` (parallel_tests/cli.rb) to hand each
+      # worker's underlying `rspec` invocation a clean comma-separated
+      # glob list, the same way `rspec_postgres_io`'s own direct
+      # `--exclude-pattern "..."` already works. It didn't survive the
+      # trip: GitHub Actions' own YAML/shell layer had already consumed
+      # one layer of the nested quoting before parallel_tests ever saw
+      # the string, and confirmed live (PR #488's first CI run) that
+      # NONE of the exclusions took effect — "4 processes for 285 specs"
+      # (the full, unfiltered file count), with dsl_spec.rb,
+      # domain_refusal_spec.rb, and every Rust-building spec all
+      # running in a job with no Rust toolchain and no `hecks_pizzas`
+      # database, both failing loud.
+      #
+      # parallel_tests' own top-level `--exclude-pattern` (a REGEX,
+      # unlike RSpec's own comma-glob flag of the same name — verified
+      # against the gem source, parallel_tests-4.10.1's cli.rb:210 and
+      # test/runner.rb:240-247, `files -= files.grep(exclude_pattern)`)
+      # applies at FILE DISCOVERY, before files are even assigned to
+      # workers — no `-o` nesting, no second layer of quoting to survive.
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
-          bundle exec parallel_rspec spec -o "--tag io --tag ~fuzzing --exclude-pattern \
-            \"spec/project_rust_pipeline_spec.rb,\
-          spec/parser_parity_spec.rb,\
-          spec/project_deploy_parity_gate_spec.rb,\
-          spec/hecks_build_pipeline_spec.rb,\
-          spec/rust_conformance_spec.rb,\
-          spec/rust_conformance_fuzz_spec.rb,\
-          spec/semantics_corpus_spec.rb,\
-          spec/codegen_parity_spec.rb,\
-          spec/rust_numeric_coercion_spec.rb,\
-          spec/rust_host_lineage_conformance_spec.rb,\
-          spec/parser_coverage_spec.rb,\
-          spec/rust_project/domain_feature_exclusivity_spec.rb,\
-          spec/rust_project/naming_landmines_spec.rb,\
-          spec/dsl_spec.rb,\
-          spec/guides_spec.rb,\
-          spec/runtime/domain_refusal_spec.rb\""
+          bundle exec parallel_rspec spec \
+            --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
+            -o "--tag io --tag ~fuzzing"
 
   # FOUR JOBS, NOT ONE — `rspec_rust_io` used to run all 12 `cargo`-
   # touching `io: true` specs serially in a single checkout. Digging into
