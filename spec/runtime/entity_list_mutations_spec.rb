@@ -101,4 +101,38 @@ RSpec.describe "an entity's own list-typed attribute" do
                   .find("b4")[:lists].first
     expect(list[:count][:value]).to eq(10)
   end
+
+  # ADR 0047 — `Value::Coercion#hydrate_entity_list` used to bail out to a
+  # raw, un-hydrated passthrough the moment its target attribute's type
+  # named a value object rather than an entity, so a bare `sets :field`
+  # (a whole-array argument, as opposed to element-by-element `append:`)
+  # left the list holding plain Hashes forever — never real `Value`
+  # instances, never through the value object's own `pattern:`/
+  # `invariant` checks. `SetTags`/`RemoveTagFromBoard` exist on this
+  # fixture's `Board` aggregate (not `TaggedList`, its entity — this is
+  # the AGGREGATE-level path) purely to exercise that repro shape.
+  it "hydrates a bare-sets-populated value-object list into real Values, not raw Hashes" do
+    runtime = boot
+    runtime.dispatch("EntityListMutations::Board.OpenBoard", name: { value: "b5" })
+    runtime.dispatch("EntityListMutations::Board.SetTags", name: "b5",
+                                                           tags: [{ key: "a", value: "1" }, { key: "b", value: "2" }])
+
+    tags = runtime.registry.repository("EntityListMutations", runtime.registry.bluebook("EntityListMutations").aggregate("Board"))
+                  .find("b5")[:tags]
+    expect(tags).to all(be_a(Hecks::Runtime::Value))
+    expect(tags.map { |t| [t[:key], t[:value]] }).to eq([["a", "1"], ["b", "2"]])
+  end
+
+  it "removes an element from a bare-sets-populated value-object list by value equality" do
+    runtime = boot
+    runtime.dispatch("EntityListMutations::Board.OpenBoard", name: { value: "b6" })
+    runtime.dispatch("EntityListMutations::Board.SetTags", name: "b6",
+                                                           tags: [{ key: "a", value: "1" }, { key: "b", value: "2" }])
+
+    runtime.dispatch("EntityListMutations::Board.RemoveTagFromBoard", name: "b6", tag: { key: "a", value: "1" })
+
+    tags = runtime.registry.repository("EntityListMutations", runtime.registry.bluebook("EntityListMutations").aggregate("Board"))
+                  .find("b6")[:tags]
+    expect(tags.map { |t| [t[:key], t[:value]] }).to eq([["b", "2"]])
+  end
 end
