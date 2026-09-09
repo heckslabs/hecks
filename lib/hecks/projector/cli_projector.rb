@@ -156,6 +156,33 @@ module Hecks
          entity ? "#{entity.hecks_name}." : "", verb.hecks_name].join
       end
 
+      # THE ARGUMENTS A RECEIVER ADDS, BEFORE ANY VERB-SPECIFIC ONE. Shared by
+      # `command_spec` and `port_spec` — a port operation always addresses an
+      # aggregate record (`port_spec` passes `receiver: :aggregate`, never
+      # `:entity` or `nil`, because a port is declared on an aggregate, never
+      # an entity), and this is exactly the same "how do I name the record"
+      # question a command with a receiver already answers, so it is answered
+      # once, here, rather than duplicated.
+      #
+      # `nil` — a creating command — takes none: there is no existing record
+      # yet for `to=` to name.
+      def receiver_options(receiver, aggregate, entity)
+        case receiver
+        when :entity
+          [
+            { path: "to.aggregate", type: "String", required: true,
+              note: "id of the #{aggregate.hecks_name} holding the #{entity.hecks_name}" },
+            { path: "to.entity", type: "String", required: true,
+              note: "id of the #{entity.hecks_name} to act on" }
+          ]
+        when :aggregate
+          [{ path: "to", type: "String", required: true,
+             note: "id of the #{aggregate.hecks_name} to act on" }]
+        else
+          []
+        end
+      end
+
       # ── one verb ──────────────────────────────────────────────────────
 
       def command_spec(bluebook, aggregate, entity, command)
@@ -166,7 +193,6 @@ module Hecks
                     else
                       (command.creates? ? nil : :aggregate)
                     end
-        legacy_arguments = []
 
         # THE RECEIVER IS NOT A COMMAND ARGUMENT. An aggregate command names
         # its record through to; an entity command needs both the aggregate
@@ -178,18 +204,8 @@ module Hecks
         # Existing aggregate scripts may still spell the receiver id=... .
         # That alias is deliberately hidden from help and recorded separately
         # as legacy_arguments; new help and examples teach only to=... .
-        if entity
-          arguments = [
-            { path: "to.aggregate", type: "String", required: true,
-              note: "id of the #{aggregate.hecks_name} holding the #{entity.hecks_name}" },
-            { path: "to.entity", type: "String", required: true,
-              note: "id of the #{entity.hecks_name} to act on" }
-          ] + arguments
-        elsif receiver == :aggregate
-          arguments = [{ path: "to", type: "String", required: true,
-                         note: "id of the #{aggregate.hecks_name} to act on" }] + arguments
-          legacy_arguments = [{ path: "id", type: "String", required: true }]
-        end
+        arguments = receiver_options(receiver, aggregate, entity) + arguments
+        legacy_arguments = receiver == :aggregate ? [{ path: "id", type: "String", required: true }] : []
 
         { verb: fqn(bluebook, aggregate, command, entity), kind: :command,
           summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,

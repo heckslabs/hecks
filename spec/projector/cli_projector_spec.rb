@@ -16,6 +16,33 @@ RSpec.describe Hecks::Projector::CliProjector do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
+
+      # PORTS ARE PROJECTED TOO (`CliProjector#port_spec`), and neither
+      # banking nor pizzas' own `.bluebook` declares one — a port lives in
+      # the hecksagon, the boundary file, same as `spec/
+      # port_operation_interpreter_spec.rb` sets one up. Skipping this
+      # left `aggregate.ports.each` in `#call` dead code as far as this
+      # file's own corpus went, which is exactly how `port_spec` calling
+      # a method (`receiver_options`) that is defined nowhere in the
+      # codebase shipped and broke `bin/run` for every port-declaring
+      # domain (pizzas' real `PaymentGateway` included) without this
+      # spec file ever noticing.
+      Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
+      Hecks.hecksagon("Payments") do
+        uses_framework "Governance"
+        Payments::Payment.persisted_by("Memory")
+
+        Payments::Payment.port "PaymentGateway" do
+          operation "Receive" do
+            attribute :amount, Money
+            emits "PaymentReceived"
+          end
+        end
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
+      end
     end
     registry
   end
@@ -27,6 +54,7 @@ RSpec.describe Hecks::Projector::CliProjector do
   let(:registry) { @registry }
   let(:banking)  { described_class.call(bluebook: registry.bluebook("Banking")) }
   let(:pizzas)   { described_class.call(bluebook: registry.bluebook("Pizzas")) }
+  let(:payments) { described_class.call(bluebook: registry.bluebook("Payments")) }
 
   def option(projection, verb, path)
     projection[:verbs].fetch(verb)[:arguments].find { |a| a[:path] == path }
@@ -99,6 +127,37 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(annotate[:arguments].first(2).map { |argument| argument[:path] })
         .to eq(["to.aggregate", "to.entity"])
       expect(annotate[:arguments].map { |argument| argument[:path] }).not_to include("date", "sequence")
+    end
+
+    # A PORT IS A VERB TOO (`CliProjector#port_spec`) — it never had its own
+    # receiver-argument code, it shares `command_spec`'s via
+    # `receiver_options`, because a port operation always addresses an
+    # aggregate record exactly the way a non-creating command does. This is
+    # the one path through `#call` that only runs when a corpus actually
+    # declares a port; without it here, `port_spec` calling a
+    # never-defined method shipped undetected.
+    it "projects a port operation as a verb, with the same aggregate receiver a command gets" do
+      receive = payments[:verbs].fetch("payment.receive")
+
+      expect(receive[:kind]).to eq(:command)
+      expect(receive[:receiver]).to eq(:aggregate)
+      expect(receive[:creates]).to be(false)
+      expect(receive[:role_gated]).to be(false)
+      expect(receive[:verb]).to eq("Payments::Payment.PaymentGateway.Receive")
+
+      to = option(payments, "payment.receive", "to")
+      expect(to[:required]).to be(true)
+      expect(to[:note]).to include("Payment")
+      expect(option(payments, "payment.receive", "amount.cents")).not_to be_nil
+    end
+
+    it "shows a port verb's help with its receiver argument and issuing side" do
+      help = described_class.call(bluebook: registry.bluebook("Payments"),
+                                  options:  { verb: "payment.receive" })[:usage]
+
+      expect(help).to include("dispatches Payments::Payment.PaymentGateway.Receive")
+      expect(help).to include("issued by PaymentGateway telling Payment")
+      expect(help).to match(/^\s+to\s+String; id of the Payment to act on/)
     end
   end
 
