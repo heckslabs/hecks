@@ -5,22 +5,63 @@
 # what "a known, understood boundary, not a bug" means — that judgment is
 # real, cited, and earned per case (see rust_conformance_spec.rb's own
 # extensive comments on each), and belongs in exactly one place.
+require "fileutils"
+
 module RustConformanceHelpers
-  # Built for THIS fixture/sequence's own domain, every time — never found
-  # by trusting whatever happens to already sit at
-  # rust/target/{release,debug}/rust. See rust_conformance_spec.rb's own
-  # comment on `build_rust_for` for why an ambient binary is unsafe to
-  # trust here.
+  # PROCESS-WIDE, keyed on [rust_dir, domain_feature] — not per-example
+  # and not per-file. `spec_helper.rb`'s `config.order = :random`
+  # interleaves examples from every file in a single `rspec` process, so
+  # without this, a run touching rust_conformance_spec.rb's 22 fixtures
+  # (20 banking, 1 pizzas, 1 roster) plus rust_conformance_fuzz_spec.rb's
+  # 2 domains could interleave `--features banking` and `--features
+  # pizzas` calls in effectively any order. `cargo build --features X`
+  # immediately after a `--features Y` build forces a REAL recompile of
+  # every feature-gated compilation unit, not just a relink — measured
+  # live as the single largest chunk of CI's slowest job
+  # (rspec_rust_io's own rspec step, ~7m18s of the workflow's ~9m19s
+  # critical path). Building once per (rust_dir, domain_feature) and
+  # reusing the result for every later call collapses what could be
+  # dozens of real recompiles down to one per domain actually exercised.
+  @build_cache = {}
+
+  class << self
+    attr_reader :build_cache
+  end
+
+  # Built for THIS fixture/sequence's own domain — but only the FIRST
+  # time a given (rust_dir, domain_feature) pair is requested; every
+  # later call for the same pair returns the memoized result with no
+  # cargo invocation at all. See the module-level comment above for why
+  # this replaced "never found by trusting whatever happens to already
+  # sit at rust/target/{release,debug}/rust" — that discipline is still
+  # honored (nothing here trusts an AMBIENT binary left over from a
+  # previous rspec run or another process), it's just no longer re-paid
+  # on every single call within this one.
   def build_rust_for(domain_feature, rust_dir)
+    cache = RustConformanceHelpers.build_cache
+    cache_key = [rust_dir, domain_feature]
+    return cache[cache_key] if cache.key?(cache_key)
+
     cargo_toml = File.read(File.join(rust_dir, "Cargo.toml"))
-    return nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
+    return cache[cache_key] = nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
 
     built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
                    chdir: rust_dir, out: File::NULL, err: File::NULL)
-    return nil unless built
+    return cache[cache_key] = nil unless built
 
     binary = File.join(rust_dir, "target", "debug", "rust")
-    File.executable?(binary) ? binary : nil
+    return cache[cache_key] = nil unless File.executable?(binary)
+
+    # `cargo build` always writes to this SAME path regardless of which
+    # feature was requested — the next domain's build would silently
+    # overwrite it out from under a memoized path pointing here. Copy it
+    # out to a per-domain file immediately, before that can happen, so a
+    # cached entry stays valid (and pointing at the right domain's
+    # binary) for the rest of the process no matter what builds after it.
+    pinned = File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
+    FileUtils.cp(binary, pinned)
+    File.chmod(0o755, pinned)
+    cache[cache_key] = pinned
   end
 
   # `corrects`'s own per-record flag fields (`emitted_<event>`, docs/

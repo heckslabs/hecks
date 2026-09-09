@@ -65,6 +65,60 @@ agreement `io` spec, `bin/model_check`, `bin/doc_coverage`, and
 `rubocop`. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).
 
+### Fast local iteration
+
+The pre-push hook above is the bar a change has to clear before it
+leaves your machine — but it's not the loop you should be running on
+every edit. That loop should be scoped to what you're actually
+touching:
+
+```sh
+bundle exec rspec spec/foo_spec.rb        # one file
+bundle exec rspec spec/foo_spec.rb:42     # one example
+bundle exec rspec --only-failures         # just what was red last time
+bundle exec rspec --next-failure          # the tightest red/fix/re-run loop
+```
+
+`--only-failures`/`--next-failure` need `spec_helper.rb`'s
+`example_status_persistence_file_path` (already set, writes to
+`tmp/rspec_examples.txt` — gitignored, per-checkout state, never
+shared). A plain `bundle exec rspec` with no path already excludes
+`io: true`/`fuzzing: true` (see above), so a scoped run never pays for
+Postgres, a cargo build, or a property-replay sweep you're not
+touching.
+
+For a quieter local loop without touching the shared `.rspec` (kept at
+`--format documentation` for CI readability), copy
+`.rspec-local.example` to `.rspec-local` — RSpec auto-merges it, and
+it's gitignored:
+
+```sh
+cp .rspec-local.example .rspec-local
+```
+
+One thing NOT to fight: a single example in a domain-boot-heavy spec
+(one that calls `boot_in_memory` or loads a real Bluebook) measures
+noticeably above the "~50ms/example" baseline `spec_helper.rb`'s own
+comment cites for the fast, tag-excluded loop — closer to ~200ms,
+mostly a fresh `MetaValidator` pass and registry build per example.
+That's the isolation the suite is built on, not a bug to route around;
+scoping to the file/example you're changing (above) is what actually
+keeps the loop tight, not trying to share boot state across examples.
+
+For `PostgresEra`-flavored (`io: true`) work, keep a local Postgres
+running persistently rather than starting one per run, and create the
+scratch databases once:
+
+```sh
+createdb hecks_pizzas   # examples/pizzas/bluebook/pizzas.world wires straight at this by name
+CI=true bundle exec rspec spec/adapters/driven/postgres_spec.rb   # or whichever file you're on
+```
+
+`bundle exec parallel_rspec spec` (12+ workers on a typical dev
+machine, ~40s for the whole non-`io`/`fuzzing` suite) is your "did I
+break anything nearby" check before a push — not something to run on
+every edit.
+
 ## Verification beyond the suite
 
 A green suite only proves the paths someone thought to write. Before a
