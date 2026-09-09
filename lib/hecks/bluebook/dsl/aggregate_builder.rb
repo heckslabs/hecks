@@ -88,13 +88,18 @@ module Hecks
         end
 
         # `optional:` — matching `CommandBuilder#reference_to`'s own
-        # signature, which already had it; this one never forwarded it
-        # to `attribute_impl()` even though `attribute_impl()` itself
-        # already accepts it. A real gap: an aggregate that can point at
-        # ONE OF several targets (Item's own `personal_list_id`/
+        # signature, which already had it; this one used to never
+        # forward it to `attribute_impl()`/`relationship_attribute`
+        # even though those already accept it — closed in the same
+        # commit that added this comment (`optional: optional`, below).
+        # It was a real gap because an aggregate that can point at ONE
+        # OF several targets (Item's own `personal_list_id`/
         # `camping_list_id`, never both) needs each reference optional
         # on the aggregate's own persisted schema, not just as a
-        # command's input.
+        # command's input — real corpus use:
+        # `spec/fixtures/hop_chain.bluebook`'s own `Proposal` aggregate
+        # declares `reference_to Engagement, optional: true` at the
+        # aggregate head.
         # RENAMED FROM `reference_to` — item #13's full metaprogrammed
         # dispatch (slice 4b). Bootstrap-reachable (every core/attached
         # grammar chapter uses reference_to to describe itself), so also
