@@ -2,19 +2,29 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # A CHAPTER, PROJECTED AS ITS UBIQUITOUS LANGUAGE — one alphabetized
-    # glossary entry per term the business actually uses: every Aggregate,
-    # Entity, Value Object, Command (a verb), Query (a question), Read
-    # Model, Event, Role, and Saga a bluebook declares.
+    # A CHAPTER, PROJECTED AS ITS UBIQUITOUS LANGUAGE — one glossary
+    # entry per term the business actually uses: the Domain itself, and
+    # every Aggregate, Entity, Value Object, Command (a verb), Query (a
+    # question), Read Model, Event, Role, Lifecycle, Saga, and Policy it
+    # declares — every BUSINESS-domain construct the language's own §30
+    # reference distinguishes. Deliberately not the deployment/wiring
+    # half (World, Hecksagon, Port, Adapter, Translation): Evans'
+    # Ubiquitous Language is the business model, not the plumbing that
+    # runs it.
     #
-    # THE POINT OF THIS PROJECTION, and why it is not just `DocsProjector`
-    # re-sorted. Evans' Ubiquitous Language is a glossary the DOMAIN
-    # EXPERT reads and corrects — one alphabetical list, one sentence per
-    # term, no aggregate structure to navigate first. `DocsProjector`
-    # answers "how do I call this domain" (walked aggregate by aggregate,
-    # verbs and refusals and wire shapes); this answers "what does this
-    # domain mean" (walked term by term, in the order a dictionary is).
-    # Same source, two different readers.
+    # GROUPED UNDER THE AGGREGATE EACH TERM BELONGS TO — a reader thinks
+    # "what does Account mean" before they think "what starts with A",
+    # so a term's home is the aggregate that declares it (an Entity's
+    # own Commands/Queries/Lifecycle nest under ITS aggregate, not
+    # listed as their own peer); an Event or a Policy that reacts to one
+    # nests under the aggregate whose command actually raises it — the
+    # same "who does this" a reader would ask by hand. Only what
+    # genuinely belongs to no single aggregate (a Role, issued across
+    # several; a Read Model, joined across several) gets its own
+    # trailing section. Within a section, still one short sentence per
+    # term, dictionary-plain — this is not `DocsProjector` re-sorted
+    # (verbs, refusals, wire shapes, walked for a caller); it is what
+    # each term MEANS, walked for a domain expert.
     #
     # WHAT IT DELIBERATELY DOES NOT DO: invent, same discipline as
     # `DocsProjector`. A term with no declared prose (most value objects;
@@ -30,7 +40,18 @@ module Hecks
 
       projects_as :glossary
 
-      Entry = Struct.new(:term, :kind, :definition, :within, keyword_init: true)
+      Entry = Struct.new(:term, :kind, :definition, :within, :section, keyword_init: true)
+
+      # DISPLAY ORDER WITHIN A SECTION — the aggregate's own row first
+      # (what it IS), then the shapes it can be in and hold, then what
+      # you can ask of it, then what happens on its own.
+      KIND_RANK = {
+        "Aggregate" => 0, "Lifecycle" => 1, "Entity" => 2, "Value Object" => 3,
+        "Command" => 4, "Query" => 5, "Event" => 6, "Policy" => 7, "Saga" => 8
+      }.freeze
+
+      ROLES_SECTION       = "Roles".freeze
+      READ_MODELS_SECTION = "Read Models".freeze
 
       module_function
 
@@ -46,31 +67,76 @@ module Hecks
         bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
       end
 
+      # EVERY HOLDER'S OWN AGGREGATE, ONE HOP OR ZERO — an aggregate
+      # maps to itself, an entity to whichever aggregate declared it.
+      # This is the single fact the whole grouping is built on: a
+      # Command/Query/Lifecycle's `within` already names its holder, so
+      # looking that name up here is enough to find its SECTION even
+      # when the holder is an entity two levels down from the chapter.
+      def holder_aggregate(bluebook)
+        bluebook.aggregates.each_with_object({}) do |aggregate, map|
+          map[aggregate.hecks_name] = aggregate.hecks_name
+          aggregate.entities.each { |entity| map[entity.hecks_name] = aggregate.hecks_name }
+        end
+      end
+
+      # EVERY EVENT'S OWN AGGREGATE — an event is never declared, only
+      # emitted, so its home is whichever aggregate the FIRST command
+      # that raises it belongs to. A policy or saga reacting to that
+      # event inherits the same home, the same way a reader tracing the
+      # reaction by hand would: "what raises this, and whose is that."
+      def event_aggregate(bluebook, holder_aggregate)
+        map = {}
+        holders(bluebook).each do |holder|
+          home = holder_aggregate[holder.hecks_name]
+          holder.commands.each { |command| command.emits.each { |event| map[event] ||= home } }
+        end
+        map
+      end
+
       def entries(bluebook)
+        holder_agg = holder_aggregate(bluebook)
+        event_agg  = event_aggregate(bluebook, holder_agg)
+
         entries = []
+        entries += domain_entries(bluebook)
         entries += aggregate_entries(bluebook)
-        entries += entity_entries(bluebook)
-        entries += value_object_entries(bluebook)
-        entries += command_entries(bluebook)
-        entries += query_entries(bluebook)
+        entries += entity_entries(bluebook, holder_agg)
+        entries += value_object_entries(bluebook, holder_agg)
+        entries += command_entries(bluebook, holder_agg)
+        entries += query_entries(bluebook, holder_agg)
         entries += read_model_entries(bluebook)
-        entries += event_entries(bluebook)
+        entries += event_entries(bluebook, event_agg)
         entries += role_entries(bluebook)
-        entries += saga_entries(bluebook)
-        entries.sort_by { |entry| [entry.term.downcase, entry.kind] }
+        entries += lifecycle_entries(bluebook, holder_agg)
+        entries += saga_entries(bluebook, event_agg)
+        entries += policy_entries(bluebook, event_agg)
+        entries
+      end
+
+      # THE CHAPTER ITSELF, AS A TERM — the one construct every other
+      # entry here lives inside (`Hecks.bluebook "Banking" do ... end`),
+      # and the one place `vision` — the single sentence written for a
+      # reader who doesn't know the domain yet — actually lives. Given
+      # no `section` (rendered once, at the very top, above every
+      # aggregate) since it is the one term that belongs to no aggregate
+      # by being the thing that holds them all.
+      def domain_entries(bluebook)
+        [Entry.new(term: bluebook.name, kind: "Domain", definition: bluebook.vision)]
       end
 
       def aggregate_entries(bluebook)
         bluebook.aggregates.map do |aggregate|
-          Entry.new(term: aggregate.hecks_name, kind: "Aggregate", definition: aggregate.description)
+          Entry.new(term: aggregate.hecks_name, kind: "Aggregate", definition: aggregate.description,
+                    section: aggregate.hecks_name)
         end
       end
 
-      def entity_entries(bluebook)
+      def entity_entries(bluebook, holder_agg)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.entities.map do |entity|
             Entry.new(term: entity.hecks_name, kind: "Entity", within: aggregate.hecks_name,
-                      definition: entity.description)
+                      section: holder_agg[aggregate.hecks_name], definition: entity.description)
           end
         end
       end
@@ -87,13 +153,26 @@ module Hecks
       # deliberately does not answer `value_objects`; its argument types
       # live on the aggregate above it, same as `DocsProjector#value_object_for`
       # already has to account for).
-      def value_object_entries(bluebook)
+      def value_object_entries(bluebook, holder_agg)
         bluebook.aggregates.flat_map do |aggregate|
           aggregate.value_objects.map do |vo|
             Entry.new(term: vo.hecks_name, kind: "Value Object", within: aggregate.hecks_name,
-                      definition: value_object_shape(vo))
+                      section: holder_agg[aggregate.hecks_name], definition: value_object_definition(vo))
           end
         end
+      end
+
+      # THE SHAPE, THEN THE RULES — a value object's own `invariant`
+      # bodies are real authored prose ("a currency is a three-letter
+      # code"), not derived the way the shape above is, and were
+      # sitting unread by this projector until now: `to_h`'s own
+      # `invariants` field already carries them, one `description` per
+      # `Bluebook::Invariant`.
+      def value_object_definition(value_object)
+        sentence = value_object_shape(value_object)
+        rules = value_object.invariants.map(&:description)
+        sentence += " Must satisfy: #{rules.join('; ')}." unless rules.empty?
+        sentence
       end
 
       # A CLOSED SET'S ROWS, not just their first field — the same
@@ -116,27 +195,32 @@ module Hecks
         end
       end
 
-      def command_entries(bluebook)
+      def command_entries(bluebook, holder_agg)
         holders(bluebook).flat_map do |holder|
           holder.commands.map do |command|
             Entry.new(term: command.hecks_name, kind: "Command", within: holder.hecks_name,
-                      definition: command.goal)
+                      section: holder_agg[holder.hecks_name], definition: command.goal)
           end
         end
       end
 
-      def query_entries(bluebook)
+      def query_entries(bluebook, holder_agg)
         holders(bluebook).flat_map do |holder|
           holder.queries.map do |query|
             Entry.new(term: query.hecks_name, kind: "Query", within: holder.hecks_name,
-                      definition: query.description)
+                      section: holder_agg[holder.hecks_name], definition: query.description)
           end
         end
       end
 
+      # CROSS-AGGREGATE, ON PURPOSE — a read model joins heads from more
+      # than one aggregate (`ReadModel`'s own header: "an ask that
+      # gathers heads from more than one aggregate"), so it belongs to
+      # no single one and gets its own trailing section instead.
       def read_model_entries(bluebook)
         bluebook.read_models.map do |read_model|
-          Entry.new(term: read_model.name, kind: "Read Model", definition: read_model.description)
+          Entry.new(term: read_model.name, kind: "Read Model", section: READ_MODELS_SECTION,
+                    definition: read_model.description)
         end
       end
 
@@ -144,9 +228,11 @@ module Hecks
       # spells one as a bare string in a command's `emits:`. So it earns
       # a glossary entry by appearing there, and its "definition" is the
       # one fact the graph actually holds about it: which verb(s) raise
-      # it. That is derived, not invented — nobody wrote a sentence this
-      # restates.
-      def event_entries(bluebook)
+      # it, and — the other half nothing raises without a reader
+      # crossing over to check `bluebook.policies` by hand — which
+      # policy (if any) reacts to it. That is derived, not invented —
+      # nobody wrote a sentence this restates.
+      def event_entries(bluebook, event_agg)
         by_event = Hash.new { |h, k| h[k] = [] }
         holders(bluebook).each do |holder|
           holder.commands.each do |command|
@@ -154,48 +240,129 @@ module Hecks
           end
         end
         by_event.map do |event, commands|
-          Entry.new(term: event, kind: "Event",
-                    definition: "Raised by #{commands.uniq.map { |c| "`#{c}`" }.join(', ')}.")
+          sentence = "Raised by #{commands.uniq.map { |c| "`#{c}`" }.join(', ')}."
+          reactions = policies_on(bluebook, event)
+          sentence += " #{reactions.join(' ')}" unless reactions.empty?
+          Entry.new(term: event, kind: "Event", section: event_agg[event], definition: sentence)
+        end
+      end
+
+      # A POLICY NAMES ITS EVENT QUALIFIED (`"Account.AccountFrozen"`) —
+      # `bare` strips the aggregate a policy's own `on_event`/
+      # `trigger_command` always carries but an event's own glossary
+      # term (keyed off `emits:`, which is never qualified) never does.
+      def bare(qualified) = qualified.to_s.split(".").last
+
+      def policies_on(bluebook, event)
+        bluebook.policies.select { |policy| bare(policy.on_event) == event }.map do |policy|
+          domain = " in #{policy.target_domain}" if policy.target_domain
+          "Triggers policy `#{policy.name}` → `#{policy.trigger_command}`#{domain}."
         end
       end
 
       # A ROLE IS THE SAME SHAPE OF FACT AS AN EVENT — free text on a
       # command's `role:`, never declared on its own — so it gets the
-      # same treatment: who it is, told by what it does.
+      # same treatment: who it is, told by what it does. CROSS-CUTTING
+      # BY NATURE (`System`/`Customer` issue commands across half the
+      # aggregates in this corpus), so — like a Read Model — it belongs
+      # to no single aggregate.
       def role_entries(bluebook)
         by_role = Hash.new { |h, k| h[k] = [] }
         holders(bluebook).each do |holder|
           holder.commands.select(&:role).each { |command| by_role[command.role] << command.hecks_name }
         end
         by_role.map do |role, commands|
-          Entry.new(term: role, kind: "Role",
+          Entry.new(term: role, kind: "Role", section: ROLES_SECTION,
                     definition: "Issues #{commands.uniq.map { |c| "`#{c}`" }.join(', ')}.")
         end
       end
 
-      def saga_entries(bluebook)
+      # A LIFECYCLE HAS NO NAME OF ITS OWN — it is a body nested inside
+      # the aggregate or entity it governs (`lifecycle :status do ...
+      # end`), so it earns a glossary entry under ITS HOLDER's term,
+      # the same way `Command`/`Query` do — a reader who looks up
+      # `Account` and a reader who looks up what states an Account can
+      # hold are asking two different questions of the same name.
+      def lifecycle_entries(bluebook, holder_agg)
+        holders(bluebook).select(&:lifecycle).map do |holder|
+          lifecycle = holder.lifecycle
+          states = ([lifecycle.default] + lifecycle.transitions.map { |_name, transition| transition.target }).uniq
+          Entry.new(term: holder.hecks_name, kind: "Lifecycle", section: holder_agg[holder.hecks_name],
+                    definition: "Starts at `#{lifecycle.default}`. States: #{states.map { |s| "`#{s}`" }.join(', ')}.")
+        end
+      end
+
+      # A SAGA'S OWN HANDLERS/DISPATCHES ARE NAMELESS TOO — the same
+      # shape as a Lifecycle's transitions, one level up: a sequence of
+      # states no individual step is worth its own glossary row for.
+      # `states`, from the builder's own precomputed leg order
+      # (`Behaviour::ProcessManager#saga`, the same field
+      # `DocsProjector#closing` already reads), says what a Lifecycle
+      # entry says for an aggregate — the shape of the whole journey,
+      # not just where it starts and ends. HOMED ON ITS STARTING EVENT —
+      # a saga usually ends somewhere else entirely (that is most of
+      # what makes it a saga), so "where it begins" is the only single
+      # aggregate honestly its own.
+      def saga_entries(bluebook, event_agg)
         bluebook.process_managers.map do |saga|
           shape = saga.to_h
-          Entry.new(term: shape[:name], kind: "Saga",
-                    definition: "Starts on `#{shape[:starts_on]}`, ends on `#{shape[:ends_on]}`.")
+          sentence = "Starts on `#{shape[:starts_on]}`, ends on `#{shape[:ends_on]}`."
+          states = Array(shape[:states])
+          sentence += " States: #{states.map { |s| "`#{s}`" }.join(' → ')}." unless states.empty?
+          Entry.new(term: shape[:name], kind: "Saga", section: event_agg[bare(shape[:starts_on])],
+                    definition: sentence)
+        end
+      end
+
+      # A POLICY IS A NAMED CONSTRUCT TOO (`policy "ReviewOnFreeze" do
+      # ... end`), the same as a Saga — so it earns its own glossary
+      # entry rather than surfacing only as a parenthetical on the
+      # event that triggers it. HOMED ON THE EVENT IT REACTS TO, not
+      # what it dispatches — `on_event` is always local to this
+      # bluebook, `trigger_command` sometimes is not (a cross-domain
+      # policy's own `across`). `for_each`, when declared, fans the
+      # dispatch out over more than one record; stated here because a
+      # reader who only sees "dispatches X" would otherwise assume one.
+      def policy_entries(bluebook, event_agg)
+        bluebook.policies.map do |policy|
+          sentence = "On `#{bare(policy.on_event)}`, dispatches `#{policy.trigger_command}`"
+          sentence += " in #{policy.target_domain}" if policy.target_domain
+          sentence += ", once per `#{policy.for_each}` row" if policy.for_each
+          Entry.new(term: policy.name, kind: "Policy", section: event_agg[bare(policy.on_event)],
+                    definition: "#{sentence}.")
         end
       end
 
       # ── rendering ─────────────────────────────────────────────────────
 
       def render(bluebook)
-        rows   = entries(bluebook).map { |entry| entry_row(entry) }
-        vision = bluebook.vision ? "> #{bluebook.vision}\n\n" : ""
+        all = entries(bluebook)
+        grouped = all.reject { |entry| entry.kind == "Domain" }.group_by { |entry| entry.section || "Cross-Domain Reactions" }
 
-        <<~MARKDOWN
-          # #{bluebook.name} — Glossary
+        out = [chapter_header(bluebook)]
+        bluebook.aggregates.map(&:hecks_name).sort.each { |name| out << section(name, grouped[name]) if grouped[name] }
+        [ROLES_SECTION, READ_MODELS_SECTION, "Cross-Domain Reactions"].each do |name|
+          out << section(name, grouped[name]) if grouped[name]
+        end
 
-          #{vision}The ubiquitous language: every term #{bluebook.name} declares, alphabetized, in the domain's own words. Generated from `#{bluebook.name}`'s bluebook — a term missing here is a term the bluebook does not yet declare, and a definition missing here is a sentence nobody has written yet.
+        "#{out.compact.join("\n\n")}\n"
+      end
 
-          | Term | Kind | Definition |
-          |---|---|---|
-          #{rows.join("\n")}
-        MARKDOWN
+      def chapter_header(bluebook)
+        out = ["# #{bluebook.name} — Glossary", ""]
+        out += ["> #{bluebook.vision}", ""] if bluebook.vision
+        out << "The ubiquitous language: every term #{bluebook.name} declares, grouped under the aggregate " \
+               "it belongs to, in the domain's own words. Generated from `#{bluebook.name}`'s bluebook — a " \
+               "term missing here is a term the bluebook does not yet declare, and a definition missing here " \
+               "is a sentence nobody has written yet."
+        out.join("\n")
+      end
+
+      def section(title, rows)
+        return nil unless rows
+
+        sorted = rows.sort_by { |entry| [KIND_RANK[entry.kind] || 99, entry.term.downcase] }
+        "## #{title}\n\n| Term | Kind | Definition |\n|---|---|---|\n#{sorted.map { |entry| entry_row(entry) }.join("\n")}"
       end
 
       def entry_row(entry)

@@ -293,6 +293,7 @@ Hecks.bluebook "Banking" do
       # depend on Banking having one, by name, for a scope that must not
       # silently vanish rather than a nullable field left empty by
       # accident. Authorize stays that fixture.
+      goal "Put a hold on funds for a purchase"
       attribute :authorisation, AuthorisationCode
       attribute :tags, list_of(Tag), optional: true
       # OWN GIVENS, NOT SHARED (S12, ADR 0025) — `account` here is
@@ -314,6 +315,7 @@ Hecks.bluebook "Banking" do
     # duplicated what `admissible_transition` already gates.
     command "Capture", from: "authorized" do
       role "System"
+      goal "Turn an authorization into an actual charge"
 
       reference_to CardPayment
       given("customer is active")
@@ -323,6 +325,7 @@ Hecks.bluebook "Banking" do
 
     command "Void", from: "authorized" do
       role "System"
+      goal "Cancel an authorization before it settles"
 
       reference_to CardPayment
       given("customer is active")
@@ -332,6 +335,7 @@ Hecks.bluebook "Banking" do
 
     command "Refund", from: "captured" do
       role "System"
+      goal "Give the money back after a charge settled"
 
       reference_to CardPayment
       given("customer is active")
@@ -341,6 +345,7 @@ Hecks.bluebook "Banking" do
 
     command "Reverse", from: "captured" do
       role "System"
+      goal "Undo a captured charge with no customer dispute involved"
 
       reference_to CardPayment
       given("customer is active")
@@ -377,6 +382,7 @@ Hecks.bluebook "Banking" do
 
     command "Chargeback", from: "disputed" do
       role "Compliance officer"
+      goal "Uphold a customer's dispute and claw the charge back"
 
       reference_to CardPayment
       given("customer is active")
@@ -386,6 +392,7 @@ Hecks.bluebook "Banking" do
 
     command "RejectDispute", from: "disputed" do
       role "Compliance officer"
+      goal "Uphold the charge and close a customer's dispute"
 
       reference_to CardPayment
       given("customer is active")
@@ -394,10 +401,12 @@ Hecks.bluebook "Banking" do
     end
 
     query "Pending" do
+      description "Authorized charges not yet captured, voided, or otherwise resolved."
       where(status: "authorized")
     end
 
     query "Disputed" do
+      description "Charges currently under a customer's dispute, awaiting a compliance decision."
       where(status: "disputed")
     end
 

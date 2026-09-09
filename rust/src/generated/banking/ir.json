@@ -1539,7 +1539,7 @@
         {
           "name": "ApplyFee",
           "role": "System",
-          "goal": null,
+          "goal": "Charge the account a fee",
           "references": "Account",
           "attributes": [
             {
@@ -1645,7 +1645,7 @@
         {
           "name": "CorrectFee",
           "role": "Back office",
-          "goal": null,
+          "goal": "Reverse a fee that was applied in error",
           "references": "Account",
           "attributes": [
             {
@@ -1751,7 +1751,7 @@
         {
           "name": "AccrueInterest",
           "role": "System",
-          "goal": null,
+          "goal": "Credit the account with interest earned",
           "references": "Account",
           "attributes": [
             {
@@ -1821,7 +1821,7 @@
         {
           "name": "CorrectInterest",
           "role": "Back office",
-          "goal": null,
+          "goal": "Reverse interest that was accrued in error",
           "references": "Account",
           "attributes": [
             {
@@ -4346,7 +4346,7 @@
         {
           "name": "Authorize",
           "role": null,
-          "goal": null,
+          "goal": "Put a hold on funds for a purchase",
           "references": null,
           "attributes": [
             {
@@ -4508,7 +4508,7 @@
         {
           "name": "Capture",
           "role": "System",
-          "goal": null,
+          "goal": "Turn an authorization into an actual charge",
           "references": "CardPayment",
           "attributes": [
 
@@ -4574,7 +4574,7 @@
         {
           "name": "Void",
           "role": "System",
-          "goal": null,
+          "goal": "Cancel an authorization before it settles",
           "references": "CardPayment",
           "attributes": [
 
@@ -4640,7 +4640,7 @@
         {
           "name": "Refund",
           "role": "System",
-          "goal": null,
+          "goal": "Give the money back after a charge settled",
           "references": "CardPayment",
           "attributes": [
 
@@ -4706,7 +4706,7 @@
         {
           "name": "Reverse",
           "role": "System",
-          "goal": null,
+          "goal": "Undo a captured charge with no customer dispute involved",
           "references": "CardPayment",
           "attributes": [
 
@@ -4859,7 +4859,7 @@
         {
           "name": "Chargeback",
           "role": "Compliance officer",
-          "goal": null,
+          "goal": "Uphold a customer's dispute and claw the charge back",
           "references": "CardPayment",
           "attributes": [
 
@@ -4925,7 +4925,7 @@
         {
           "name": "RejectDispute",
           "role": "Compliance officer",
-          "goal": null,
+          "goal": "Uphold the charge and close a customer's dispute",
           "references": "CardPayment",
           "attributes": [
 
@@ -5168,7 +5168,7 @@
       "queries": [
         {
           "name": "Pending",
-          "description": null,
+          "description": "Authorized charges not yet captured, voided, or otherwise resolved.",
           "attributes": [
 
           ],
@@ -5184,7 +5184,7 @@
         },
         {
           "name": "Disputed",
-          "description": null,
+          "description": "Charges currently under a customer's dispute, awaiting a compliance decision.",
           "attributes": [
 
           ],
@@ -7901,7 +7901,7 @@
         {
           "name": "Request",
           "role": "Customer",
-          "goal": null,
+          "goal": "Send money to an account outside the bank",
           "references": null,
           "attributes": [
             {
@@ -8063,7 +8063,7 @@
         {
           "name": "SendTransfer",
           "role": "System",
-          "goal": null,
+          "goal": "Release the transfer to the external network",
           "references": "ExternalTransfer",
           "attributes": [
 
@@ -8129,7 +8129,7 @@
         {
           "name": "Recall",
           "role": "Customer",
-          "goal": null,
+          "goal": "Ask the external network to stop a transfer already sent",
           "references": "ExternalTransfer",
           "attributes": [
 
@@ -8195,7 +8195,7 @@
         {
           "name": "Return",
           "role": "System",
-          "goal": null,
+          "goal": "Record that the external network sent the money back",
           "references": "ExternalTransfer",
           "attributes": [
 
@@ -8391,7 +8391,7 @@
       "queries": [
         {
           "name": "Sent",
-          "description": null,
+          "description": "Transfers already released to the external network, awaiting its outcome.",
           "attributes": [
 
           ],
@@ -8717,7 +8717,7 @@
         {
           "name": "Schedule",
           "role": "Customer",
-          "goal": null,
+          "goal": "Set up a payment to collect on a future date",
           "references": null,
           "attributes": [
             {
@@ -8879,7 +8879,7 @@
         {
           "name": "Execute",
           "role": "System",
-          "goal": null,
+          "goal": "Collect a payment on its due date",
           "references": "ScheduledPayment",
           "attributes": [
 
@@ -8945,7 +8945,7 @@
         {
           "name": "Cancel",
           "role": "Customer",
-          "goal": null,
+          "goal": "Call off a payment before its due date",
           "references": "ScheduledPayment",
           "attributes": [
 
@@ -9444,7 +9444,7 @@
       "queries": [
         {
           "name": "Due",
-          "description": null,
+          "description": "Payments still scheduled, ordered by when they're due.",
           "attributes": [
 
           ],
