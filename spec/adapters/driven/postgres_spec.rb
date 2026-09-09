@@ -89,7 +89,10 @@ RSpec.describe Hecks::Adapters::Postgres, :io do
   it "round-trips a list of value objects through its jsonb column" do
     adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
 
-    expect(adapter.find("p1").toppings).to eq([{ name: "Basil", amount: 3 }])
+    # ADR 0047/0055 — real Value instances now, same as found.name/found.pizza above.
+    toppings = adapter.find("p1").toppings
+    expect(toppings).to all(be_a(Hecks::Runtime::Value))
+    expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
   end
 
   it "answers nil for an id it never stored" do
