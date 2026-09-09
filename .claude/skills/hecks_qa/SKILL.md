@@ -54,8 +54,17 @@ Instead:
      a known-good state.
 3. Wait for the subagent's report. Relay only its short summary here —
    don't pull its internal transcript into this conversation.
-4. If invoked via `/loop hecks_qa`: schedule the next wakeup per the
-   loop skill's own self-pacing guidance. If invoked directly (one-off),
+4. If invoked via `/loop hecks_qa`: **dispatch the next sweep
+   immediately** when this one's subagent reports back — the loop's job
+   is to keep the practice alive, not to pace it. `QualityControlDials
+   ::CADENCE_SECONDS` (top of `qa/bluebook/quality_control.bluebook`) is
+   read as a floor, not a target: `0` (the default) means start the next
+   sweep the moment this one concludes, with no artificial wait in
+   between. Use `ScheduleWakeup` only as a **liveness fallback** — in
+   case a subagent hangs and its task-notification never arrives — not
+   as the sweep-pacing mechanism; a long fallback (the loop skill's own
+   1200–1800s guidance) is appropriate precisely because it should
+   almost never be the thing that fires. If invoked directly (one-off),
    you're done — report the sweep's outcome and stop.
 
 ## Running one sweep
@@ -129,10 +138,14 @@ Then decide, honestly:
     already the local git config, don't override it.
   - **Never auto-merge.** Draft, always, regardless of CI status — green
     CI is necessary, not sufficient, for something that ran unattended.
-  - **Cap: 3 such PRs per day.** Check today's already-opened
-    `loop-parity/*` PRs (`gh pr list --search "head:loop-parity"
-    --search "created:>=$(date +%Y-%m-%d)"`) before opening a fourth —
-    stop and leave the rest as open Bugs instead.
+  - **The cap is `QualityControlDials::PR_CAP_PER_DAY`** — read it at the
+    top of `qa/bluebook/quality_control.bluebook`, not a number in this
+    sentence (see that file's own comment on why it lives there and not
+    here). `0` means uncapped. Only if it's a positive number: check
+    today's already-opened `loop-parity/*` PRs (`gh pr list --search
+    "head:loop-parity" --search "created:>=$(date +%Y-%m-%d)"`) before
+    opening one more than the cap allows — stop and leave the rest as
+    open Bugs instead.
   - Mark the Bug's own lifecycle through as work happens: `investigate`,
     `fix commit.value=<sha>`, `verify verification.value="<what was
     run>"`.
@@ -188,7 +201,10 @@ same two. The existing fuzz-bridge only does the latter.
 - Touch a branch with recent activity, or skip claiming before working
   a chapter — the collision guardrails `bin/qa_sweep` enforces aren't
   optional.
-- Open more than 3 draft PRs in one calendar day.
+- Open more draft PRs in one calendar day than
+  `QualityControlDials::PR_CAP_PER_DAY` allows (`0` means uncapped —
+  check the current value in `qa/bluebook/quality_control.bluebook`
+  before assuming a limit applies).
 - Run a sweep's own work inline in the orchestrating session, or hand a
   sweep subagent a fresh `isolation: "worktree"` — both defeat the
   reasons this file is split the way it is.
