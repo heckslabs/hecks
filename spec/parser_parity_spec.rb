@@ -118,10 +118,35 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     path.delete_prefix("#{PARITY_FIXTURES_ROOT}/").delete_suffix(".bluebook")
   end
 
+  # A FRAMEWORK MEMBER'S OWN STEM, disambiguated against a same-named
+  # EXAMPLE ROOT — `lib/hecks/framework/bluebook/compliance.bluebook`
+  # and `examples/compliance/` both bare-stem to "compliance" (the
+  # framework file is, byte for byte, what the example app's own
+  # `compliance.bluebook` loads — a real app demonstrating a framework
+  # chapter, the same relationship banking's `uses_framework
+  # "Governance"` has with `governance.bluebook`, except here the
+  # consuming app happens to declare the identical chapter body rather
+  # than an empty one). Left bare, this collided silently: two
+  # PARITY_CORPUS_MEMBERS entries shared the stem "compliance", and
+  # `Array#-`'s own multiplicity-blind subtraction (PENDING_MEMBERS,
+  # then the "accounts for every real corpus member" spec below) struck
+  # BOTH the moment `REAL_PARITY_MEMBERS` named "compliance" once for
+  # the example — so this framework file was never independently fed
+  # to `hecks-parse` by its own path at all, and nothing caught it: the
+  # accounting checks passed clean while quietly certifying zero
+  # coverage for one of the two files answering to that name. The three
+  # OTHER framework members (identity/governance/console_settings)
+  # collide with nothing and keep their bare stem — referenced by it
+  # elsewhere in this file's own `REAL_PARITY_MEMBERS` merge.
+  def self.framework_stem(member)
+    stem = File.basename(member, ".bluebook")
+    PARITY_EXAMPLE_ROOTS.any? { |path| File.basename(path) == stem } ? "#{stem}_framework" : stem
+  end
+
   PARITY_CORPUS_MEMBERS = (
     PARITY_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebooks_in(domain)] } +
     PARITY_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
-    PARITY_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] } +
+    PARITY_FRAMEWORK_MEMBERS.map { |member| [framework_stem(member), member] } +
     PARITY_FIXTURE_MEMBERS.map { |member| [fixture_stem(member), member] } +
     # STAGE 6 — one member, several concept files (see PARITY_LANGUAGE_GRAMMAR_FILES'
     # own comment). Stemmed "bluebook_language" rather than bare
@@ -227,8 +252,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # only globs `bluebook/*.bluebook`, one level, the same way
   # `spec/corpus_spec.rb`'s own `bluebook_in` does.)
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     %w[pizzas identity governance console_settings expression translation banking compliance roster
-                        chess directory bluebook_language] -
+                     %w[pizzas identity governance console_settings expression translation banking compliance
+                        compliance_framework roster chess directory bluebook_language] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -275,11 +300,24 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     # "interview" (Stage 4's own bonus member, PARITY_FRAMEWORK_MEMBERS)
     # was removed along with the whole Interview domain — dropped, not
     # kept in this repo.
-    %w[identity governance console_settings].to_h do |stem|
+    #
+    # "compliance" JOINS THE TRIO HERE TOO — same standalone shape (no
+    # `.hecksagon`, `lib/hecks/framework/bluebook/compliance.bluebook`
+    # has none), but keyed through `framework_stem` rather than its own
+    # bare basename: it collides with `examples/compliance`'s own
+    # "compliance" stem (see `framework_stem`'s own comment), so this
+    # entry answers to "compliance_framework" instead, verified
+    # byte-exact against Ruby's own `ir.json` standalone before being
+    # added — the file's own compliance.bluebook content is a literal
+    # copy of the framework one, but that had never actually been
+    # confirmed by feeding THIS path to `hecks-parse`, only inferred
+    # from the fact that `examples/compliance`'s OWN entry (below,
+    # which additionally feeds `compliance.hecksagon`) already passes.
+    %w[identity governance console_settings compliance].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
-      [stem, [chapter_name, [bluebook]]]
+      [framework_stem(bluebook), [chapter_name, [bluebook]]]
     end
   ).merge(
     # THE BONUS — "expression"/"translation", see PENDING_MEMBERS' own
@@ -408,6 +446,24 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   it "finds at least one real corpus member (the enumeration itself isn't silently empty)" do
     expect(PARITY_CORPUS_MEMBERS).not_to be_empty
+  end
+
+  # THE COMPLIANCE COLLISION, GUARDED AGAINST RECURRING — a duplicate
+  # stem doesn't just look untidy, it defeats the THREE checks right
+  # below: `Array#-` strips every occurrence of a matching element
+  # regardless of how many there are on either side, so PENDING_MEMBERS
+  # and "accounts for every real corpus member" both silently treat two
+  # same-stemmed members as fully accounted for the moment ONE of them
+  # gets a PENDING_MEMBERS or REAL_PARITY_MEMBERS entry — exactly how
+  # `lib/hecks/framework/bluebook/compliance.bluebook` went completely
+  # unfed to `hecks-parse` while every accounting check here passed
+  # clean. Caught here directly, by construction, rather than trusted
+  # to keep not recurring.
+  it "keeps every corpus member's own stem unique — a collision defeats the accounting checks below" do
+    duplicates = PARITY_CORPUS_MEMBERS.map(&:first).tally.select { |_, count| count > 1 }
+    expect(duplicates).to be_empty,
+                          "these stems name more than one corpus member, which Array#- silently " \
+                          "double-cancels in every check below: #{duplicates.keys.inspect}"
   end
 
   it "keeps PENDING_MEMBERS a strict subset of the real corpus — nothing pending that doesn't exist" do
