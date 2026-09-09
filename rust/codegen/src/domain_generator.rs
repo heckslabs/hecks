@@ -290,6 +290,7 @@ pub fn generate(
                         &value_objects_by_name,
                         Some(&empty_allowlist),
                         None,
+                        false,
                     ),
                 );
             }
@@ -578,6 +579,7 @@ pub fn generate(
                     &value_objects_by_name,
                     Some(&allowlist),
                     Some(command_name),
+                    true,
                 ),
             );
             puts_blank(&mut out);
@@ -767,6 +769,7 @@ pub fn generate(
             query_defs.push(queries::QueryDef {
                 verb: format!("{domain_name}::{agg_name}.{query_name}"),
                 aggregate: format!("{domain_name}::{agg_name}"),
+                arg_checks: queries::query_arg_checks(query, &format!("crate::generated::{mod_name}::{}", agg_name.to_lowercase()), &value_objects_by_name),
                 conditions: queries::query_conditions_with_authorization(query),
                 order_by: query.get("order_by").map(|ob| queries::emit_query_order_by(ob, query.get("null_semantics"))),
                 offset: query.get("offset").map(queries::emit_query_offset),
@@ -854,6 +857,8 @@ pub fn generate(
         &mut registry_rs,
         &queries::emit_query_table(exemplar, &query_defs),
     );
+    puts_blank(&mut registry_rs);
+    puts_str(&mut registry_rs, &queries::emit_query_arg_check_table(&query_defs));
     puts_blank(&mut registry_rs);
     for rmd in &read_model_defs {
         if let Some(body) = &rmd.group_by_fn_body {

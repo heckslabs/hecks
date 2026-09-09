@@ -58,11 +58,12 @@ RSpec.describe Hecks::Adapters::Sqlite do
   end
 
   it "saves and finds one back" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" },
+                          pizza: { price_cents: { cents: 1200 }, size: { value: "small" } }, status: "available"))
 
     found = adapter.find("p1")
     expect(found.name.to_h).to eq(value: "Margherita")
-    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 })
+    expect(found.pizza.to_h).to eq(price_cents: { cents: 1200 }, size: { value: "small" })
     expect(found.status).to eq("available")
   end
 

@@ -55,7 +55,7 @@ RSpec.describe Hecks::Freezer do
       runtime = boot_in_memory
       runtime.dispatch("Pizzas::Order.CreatePizza",
                        name:  { value: "Margherita" },
-                       pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
+                       pizza: { name: { value: "M" }, price_cents: { cents: 500 }, size: { value: "small" } })
     end
 
     # THE BUG THIS EXISTS FOR. `@fields.freeze` left the String inside a
@@ -92,7 +92,7 @@ RSpec.describe Hecks::Freezer do
     let(:event) do
       runtime.dispatch("Pizzas::Order.CreatePizza",
                        name:  { value: "Quattro" },
-                       pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
+                       pizza: { name: { value: "M" }, price_cents: { cents: 500 }, size: { value: "small" } })
       runtime.events.last
     end
 
@@ -122,7 +122,7 @@ RSpec.describe Hecks::Freezer do
       before = runtime.events.size
       runtime.dispatch("Pizzas::Order.CreatePizza",
                        name:  { value: "Capricciosa" },
-                       pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
+                       pizza: { name: { value: "M" }, price_cents: { cents: 500 }, size: { value: "small" } })
 
       expect(runtime.events.size).to eq(before + 1)
     end
@@ -136,7 +136,7 @@ RSpec.describe Hecks::Freezer do
       rt = boot_in_memory
       rt.dispatch("Pizzas::Order.CreatePizza",
                   name:  { value: "Frozen" },
-                  pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
+                  pizza: { name: { value: "M" }, price_cents: { cents: 500 }, size: { value: "small" } })
       rt
     end
     let(:aggregate)  { runtime.registry.bluebook("Pizzas").aggregate("Order") }
@@ -173,7 +173,7 @@ RSpec.describe Hecks::Freezer do
       runtime = boot_in_memory
       result = runtime.dispatch("Pizzas::Order.CreatePizza",
                                 name:  { value: "Marinara" },
-                                pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
+                                pizza: { name: { value: "M" }, price_cents: { cents: 500 }, size: { value: "small" } })
 
       expect(result.instance.to_h).not_to be_frozen
     end

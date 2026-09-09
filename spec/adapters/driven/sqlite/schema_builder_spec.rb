@@ -98,9 +98,12 @@ RSpec.describe "Hecks::Adapters::Sqlite automatic indexing" do
   end
 
   it "still returns correct results for the queries these indexes were derived from" do
-    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 } }, status: "available"))
-    adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 } }, status: "sold"))
-    adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 500 } }, status: "available"))
+    adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } },
+status: "available"))
+    adapter.save(instance("p2", name: { value: "Diavola" }, pizza: { price_cents: { cents: 1500 }, size: { value: "small" } },
+status: "sold"))
+    adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 500 }, size: { value: "small" } },
+status: "available"))
 
     available = Hecks::Bluebook::Query.new(
       name:     "Available",

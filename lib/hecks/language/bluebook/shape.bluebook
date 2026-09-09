@@ -34,7 +34,8 @@ Hecks.bluebook "Bluebook" do
       attribute :list,    String, pattern: '[^ \t\n\r]'
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
-      attribute :default, String
+      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      attribute :default, String, optional: true
       # The closed set this value must belong to — see Aggregate::Field.
       attribute :admits, String, optional: true
       attribute :relationship, String, optional: true

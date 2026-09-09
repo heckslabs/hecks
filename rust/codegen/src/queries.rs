@@ -453,6 +453,7 @@ pub fn emit_query_condition(condition: &Condition) -> String {
 pub struct QueryDef {
     pub verb: String,
     pub aggregate: String,
+    pub arg_checks: Vec<String>,
     pub conditions: Vec<Condition>,
     pub order_by: Option<String>,
     pub offset: Option<String>,
@@ -491,4 +492,43 @@ const QUERY_TABLE_ROW_PLACEHOLDER: &str = "crate::kernel::QueryDef {\n    verb: 
 pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String {
     let rows: Vec<String> = query_defs.iter().map(emit_query_def).collect();
     exemplar.render("query_table", &[(QUERY_TABLE_ROW_PLACEHOLDER, rows.join("\n"))])
+}
+
+/// Port of `queries.rb#query_arg_checks` — C3.7 for a named query's own
+/// value-object arguments (ADR 0037 finding 4): one `if let` per typed
+/// argument, built and invariant-checked, then dropped.
+pub fn query_arg_checks(query: &Json, mod_path: &str, value_objects_by_name: &HashMap<String, &Json>) -> Vec<String> {
+    query
+        .get("attributes")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .filter_map(|attr| {
+            if crate::attr::list(attr) || !matches!(attr.get("relationship"), None | Some(Json::Null)) {
+                return None;
+            }
+            let vo = value_objects_by_name.get(crate::attr::type_name(attr))?;
+            let key = naming::rust_field(crate::attr::name(attr));
+            let build = crate::json_codec::composite_from_json_expr(attr, value_objects_by_name, "x");
+            let check = if vo.get("closed_set").map(Json::as_bool).unwrap_or(false) { "" } else { ".check_invariants()?" };
+            Some(format!("if let Some(x) = args.get({}) {{ {mod_path}::{build}{check}; }}", naming::ruby_inspect_string(&key)))
+        })
+        .collect()
+}
+
+/// Port of `queries.rb#emit_query_arg_check_table` — the gate
+/// `kernel/cli.rs` runs before `named_query::run`.
+pub fn emit_query_arg_check_table(query_defs: &[QueryDef]) -> String {
+    let arms: Vec<String> = query_defs
+        .iter()
+        .filter(|q| !q.arg_checks.is_empty())
+        .map(|q| {
+            let lines = q.arg_checks.iter().map(|line| format!("            {line}")).collect::<Vec<_>>().join("\n");
+            format!("        {} => {{\n{lines}\n            Ok(())\n        }}", naming::ruby_inspect_string(&q.verb))
+        })
+        .collect();
+    format!(
+        "/// C3.7 for a named query's own arguments — `query_arg_checks`\n/// (rust/project/queries.rb) has the full story.\npub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {{\n    match verb {{\n{}\n        _ => Ok(()),\n    }}\n}}\n",
+        arms.join("\n")
+    )
 }

@@ -1,0 +1,117 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C3.7"
+  ],
+  "note": "A value object is a typed field product: a non-optional field offered as null, a field never mentioned, and a whole argument offered as null all refuse TypeMismatch with the same wording — the field the caller left empty. Nothing is stored.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": null
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": {
+          "value": "basil"
+        },
+        "amount": {
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "everything",
+        "topping": null,
+        "amount": {
+          "value": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName.value expects String, got nil",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingAmount.value expects Integer, got nil",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.AddTopping",
+        "error": "ToppingName.value expects String, got nil",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#everything": {
+        "name": {
+          "value": "everything"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 2400
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "everything",
+        "payload": {
+          "name": {
+            "value": "everything"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 2400
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

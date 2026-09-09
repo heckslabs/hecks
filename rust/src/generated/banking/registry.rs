@@ -1396,6 +1396,30 @@ crate::kernel::QueryDef {
 },
 ];
 
+/// C3.7 for a named query's own arguments — `query_arg_checks`
+/// (rust/project/queries.rb) has the full story.
+pub fn check_query_args(verb: &str, args: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+    match verb {
+        "Banking::Account.Overdrawn" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.HighBalance" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.StrictlyAbove" => {
+            if let Some(x) = args.get("floor") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        "Banking::Account.AtMost" => {
+            if let Some(x) = args.get("cap") { crate::generated::banking::account::Money::from_json(x)?.check_invariants()?; }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 pub fn group_by_accountsbykind(rows: Vec<(String, crate::kernel::Json)>) -> crate::kernel::Json {
     let unwrapped: Vec<crate::kernel::Json> = rows
         .into_iter()
