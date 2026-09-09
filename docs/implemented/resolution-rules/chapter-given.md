@@ -111,15 +111,15 @@ having to change.
   the SAME root cause as object identity not surviving a bluebook's own
   self-hosting build, one level wider, and is not fixable from the
   exported IR alone.
-- **`declared_by:` only disambiguates AGGREGATE-level chapter sharing** —
-  it does not reach into entity-level cross-aggregate sharing (two
-  DIFFERENT aggregates' own nested pieces independently declaring the
-  identical `parent.`-relative predicate — real, live, still open:
-  `Account.LedgerEntry` and `SafeDepositBox.Visit`'s own "customer is
-  active"). That would need its own, separate widening — the
-  cross-entity-given pool is scoped to ONE aggregate's entity tree, the
-  chapter pool doesn't reach into entities at all (step 2, above) — left
-  as a real, named follow-up, not built here.
+- ~~**`declared_by:` only disambiguates AGGREGATE-level chapter
+  sharing** — it does not reach into entity-level cross-aggregate
+  sharing (two DIFFERENT aggregates' own nested pieces independently
+  declaring the identical `parent.`-relative predicate — real, live,
+  still open: `Account.LedgerEntry` and `SafeDepositBox.Visit`'s own
+  "customer is active").~~ **Resolved** — closed by chapter-wide,
+  entity-scoped given sharing (#433), its own separate widening one
+  level down from this one. See
+  [`chapter-entity-given.md`](chapter-entity-given.md).
 
 ## Reference implementation
 

@@ -138,4 +138,18 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
 
 ## Reference mirror
 
-NOT YET MIRRORED.
+Mirrored, `rust/parser/src/parse/`:
+
+- `chapter.rs` — `parse_chapter` (the deferred-resolution pass over
+  `pending_chapter_entity_givens` against the now-complete
+  `chapter_entity_named_givens`, step 5, the direct mirror of
+  `resolve_pending_chapter_entity_givens!`), `parse_body_into` (threads
+  `chapter_entity_named_givens`/`pending_chapter_entity_givens` through
+  aggregate parsing, the mirror of `AggregateBuilder#drain_pending!`).
+- `aggregate.rs` — threads both further into entity parsing (the
+  mirror of `EntityBuilder#initialize` receiving them).
+- `entity.rs` — `try_reference_named_chapter_entity_given` (the
+  resolution algorithm, step 4), `PendingChapterEntityGiven` (the
+  deferral, step 5), both write-through on a piece's own `given` call
+  (block and bare-reference branches alike, mirroring
+  `EntityBuilder#given_impl`).
