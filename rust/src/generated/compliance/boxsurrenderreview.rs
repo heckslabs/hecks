@@ -64,6 +64,9 @@ impl BranchCode {
 
 impl BranchCode {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BranchCode expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -72,7 +75,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "BranchCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("BranchCode.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BranchCode.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("BranchCode.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()) })? },
         })
     }
 }
@@ -138,6 +141,9 @@ impl BoxNumber {
 
 impl BoxNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoxNumber expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -146,7 +152,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "BoxNumber")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("BoxNumber.value expects Integer, got {}", x.inspect())))? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BoxNumber.value expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("BoxNumber.value expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -195,6 +201,9 @@ impl BoxSurrenderReview {
 
 impl BoxSurrenderReview {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoxSurrenderReview expects an object, got {}", v.inspect())));
+}
         Ok(Self {
         branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(&x.coerce_single_field("value"))?), },
         box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(&x.coerce_single_field("value"))?), },
@@ -335,6 +344,9 @@ impl OpenArgs {
 
 impl OpenArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("OpenArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["branch_code", "box_number", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -342,9 +354,17 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["box_number", "branch_code"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Open"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "branch_code, box_number"),
+    ])));
+}
         Ok(Self {
-        branch_code: BranchCode::from_json(&v.require("branch_code", "OpenArgs")?.coerce_single_field("value"))?,
-        box_number: BoxNumber::from_json(&v.require("box_number", "OpenArgs")?.coerce_single_field("value"))?,
+        branch_code: BranchCode::from_json(&v.get("branch_code").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.branch_code expects BranchCode, got nil".to_string()))?.coerce_single_field("value"))?,
+        box_number: BoxNumber::from_json(&v.get("box_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.box_number expects BoxNumber, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -425,6 +445,9 @@ impl ClearArgs {
 
 impl ClearArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ClearArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "box_surrender_review", "branch_code", "box_number"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -514,6 +537,9 @@ impl EscalateArgs {
 
 impl EscalateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EscalateArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "box_surrender_review", "branch_code", "box_number"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(

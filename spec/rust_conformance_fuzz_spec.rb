@@ -28,14 +28,17 @@ require_relative "support/rust_conformance_helpers"
 # job is FINDING divergences an unbounded input space could still be
 # hiding — different intent, kept visually and organizationally separate.
 #
-# BOTH examples are `pending:` today — the very first real run already
-# found real, confirmed divergences too broad to filter honestly (ADR
-# 0037 has the full catalogue: which ones, why they're not fixed yet,
-# what fixing each needs, in priority order). This is a working,
-# proven bridge that found real bugs immediately, not a stalled or
-# half-built feature — un-pend an example locally after closing one of
-# ADR 0037's findings to confirm it, the same red-before/green-after
-# discipline every other fix in this plan used.
+# STAGE 10 (docs/semantics/bluebook-semantics.md) closed most of what
+# blocked this bridge: refusals compare by KIND, not prose (C8.2), and
+# ADR 0037's findings 3 and 4 are closed in both generators, along with
+# three more the un-pended run turned up (its status addendum has the
+# full list). One real, narrow finding remains and blocks gating —
+# Finding 7: an earlier-declared argument's invariant failure and a
+# later-declared argument's shape failure, on the same command, refuse
+# in different orders on the two runtimes (Ruby validates one argument
+# fully before moving to the next; the generated Rust checks every
+# argument's shape before any argument's invariant). `pending:`, not
+# `skip`, citing Finding 7 by number — un-pend locally once it closes.
 RSpec.describe "Rust conformance, over generated sequences (native binary)", :io do
   include RustConformanceHelpers
 
@@ -62,30 +65,28 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   DOMAINS.each do |domain|
     describe File.basename(domain) do
-      # PENDING, not skipped, not filtered — ADR 0037 has the full story.
-      # The very first real run of this bridge found real, confirmed,
-      # high-frequency divergences (missing-argument wording, §3; a real
-      # unenforced invariant on query arguments, §4; a narrow but genuine
-      # dangling-reference gap, §5) that don't fit this file's own
-      # per-entry filter conventions (`known_refusal_gap?`/
-      # `structural_refusal_gap?`) — they're too broad, and stacking
-      # broad-enough filters for all of them would mostly filter the
-      # comparison out of existence, the "silent cap" this whole plan's
-      # own verification section refuses to accept. Left `pending:` so
-      # this stays VISIBLE (not `skip`, which hides it from output
-      # entirely) until ADR 0037's findings are closed one at a time —
-      # un-pend locally to reproduce every one of them directly.
       # A real cargo-built binary compared field-by-field (instances,
       # events, refusals, queries, sagas, reactions) across every
       # generated seed, accumulating one combined divergence report —
       # splitting per field or per seed would re-pay the cargo build and
       # subprocess spawns, and would scatter one seed's related
       # divergences across separate failures instead of one readable report.
+      # Finding 7 is a property of the CONSTRUCT (an earlier argument
+      # whose value is shape-valid but invariant-invalid, followed by a
+      # later argument that is shape-invalid, on one command) — reachable
+      # in either domain in principle, but these ten FIXED seeds only
+      # reach it for banking (`Governance::RoleAssignment.Assign`, seed
+      # 5) today. `pending:` only where it currently fires, so pizzas
+      # keeps gating everything else this bridge already closed.
+      finding_7_pending = if File.basename(domain) == "banking"
+                            "ADR 0037 Finding 7 — shape-vs-invariant argument ordering diverges " \
+                              "across two runtimes"
+                          end
+
       # rubocop:disable-next RSpec/ExampleLength
       it "agrees with Ruby across #{SEEDS_PER_DOMAIN} generated sequences (instances, events, refusals, " \
          "reactions, sagas, queries)",
-         pending: "ADR 0037 — real, confirmed, not-yet-fixed divergences (missing-argument wording, " \
-                  "query-argument invariants, one narrow dangling-reference gap)" do
+         pending: finding_7_pending do
         feature = File.basename(domain).downcase
         binary = build_rust_for(feature)
         skip "rust/Cargo.toml has no #{feature} feature — run bin/project_rust for it first" unless binary
@@ -98,7 +99,14 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
           ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
           ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
-          ruby_refusals  = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }
+          # REFUSALS ARE COMPARED BY KIND, NOT WORDING (C8.2, docs/semantics/
+          # bluebook-semantics.md: prose is not the contract) — the same
+          # rule spec/semantics_corpus_spec.rb holds both kernels to. The
+          # message still rides along until the gap filters (which match
+          # on Rust's own structural wording) have run, then drops.
+          ruby_refusals  = ruby_result[:refusals].map do |r|
+            { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
+          end
           ruby_queries   = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| q.except(:instances_at) }))
           ruby_sagas     = JSON.parse(JSON.generate(ruby_result[:sagas]))
 
@@ -122,15 +130,23 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
                               ruby: ruby_events, rust: rust_output["events"] }
           end
 
+          by_kind = ->(r) { r.slice("verb", "kind") }
           rust_refusals = rust_output["refusals"].reject { |r| known_refusal_gap?(r) || structural_refusal_gap?(r) }
+                                                 .map(&by_kind)
           kept_ruby_refusals = ruby_refusals.reject { |r| known_refusal_gap?(r) || structural_refusal_gap?(r) }
+                                            .map(&by_kind)
           if rust_refusals != kept_ruby_refusals
             divergences << { seed: seed, field: "refusals",
                               ruby: kept_ruby_refusals, rust: rust_refusals }
           end
 
+          wordless = ->(q) { reduce_to_wire_precision(q.except("error", "reference_error")) }
+          not_generated = structurally_refused_verbs(rust_output)
           rust_queries = rust_output["queries"].reject { |q| known_refusal_gap?(q) || structural_refusal_gap?(q) }
-          kept_ruby_queries = ruby_queries.reject { |q| known_refusal_gap?(q) || structural_refusal_gap?(q) }
+                                               .map(&wordless)
+          kept_ruby_queries = ruby_queries.reject do |q|
+            known_refusal_gap?(q) || structural_refusal_gap?(q) || not_generated.include?(q["query"])
+          end.map(&wordless)
           if rust_queries != kept_ruby_queries
             divergences << { seed: seed, field: "queries",
                               ruby: kept_ruby_queries, rust: rust_queries }

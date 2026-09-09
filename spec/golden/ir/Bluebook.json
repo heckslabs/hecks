@@ -1397,7 +1397,7 @@
               "default": null,
               "list": false,
               "name": "default",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -1471,7 +1471,7 @@
               "default": null,
               "list": false,
               "name": "from_state",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -6719,7 +6719,7 @@
               "default": null,
               "list": false,
               "name": "default",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -10184,7 +10184,7 @@
               "default": null,
               "list": false,
               "name": "default",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -15755,7 +15755,7 @@
               "default": null,
               "list": false,
               "name": "at",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -17559,7 +17559,7 @@
               "default": null,
               "list": false,
               "name": "default",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -17631,7 +17631,7 @@
               "default": null,
               "list": false,
               "name": "at",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -19414,7 +19414,7 @@
               "default": null,
               "list": false,
               "name": "default",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"

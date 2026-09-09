@@ -83,7 +83,8 @@ Hecks.bluebook "Bluebook" do
       # Without this an aggregate attribute's default was simply dropped, and the
       # reconstruction hardcoded nil, which happened to match every corpus member
       # and would have lied about the first one that declared a default.
-      attribute :default, String
+      # optional: a declaration with no default has none (C3.7 — a value object's fields arrive or it refuses)
+      attribute :default, String, optional: true
       # THE CLOSED SET THIS VALUE MUST BELONG TO, named where it was already
       # declared — `Vocabulary::QueryComparator`. Qualified by the aggregate that
       # holds it, because a closed set is a value object INSIDE an aggregate and
@@ -103,7 +104,8 @@ Hecks.bluebook "Bluebook" do
 
     value_object "Transition" do
       attribute :command,    String
-      attribute :from_state, String
+      # optional: a transition declared with no `from:` matches any state (C3.7)
+      attribute :from_state, String, optional: true
       attribute :to_state,   String
     end
 

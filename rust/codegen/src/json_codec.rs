@@ -33,7 +33,18 @@ pub fn scalar_type_error(struct_name: &str, key: &str, scalar_type: &str, value_
         return proper;
     }
     let generic = json_type_error(struct_name, key, scalar_type);
-    format!("if matches!({value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) {{ {proper} }} else {{ {generic} }}")
+    // `Json::Null` words like a composite too — see json_codec.rb's own
+    // `scalar_type_error` comment (a present-but-null field refuses with
+    // exactly Ruby's `check_required_fields` wording, "got nil").
+    format!("if matches!({value_var}, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) {{ {proper} }} else {{ {generic} }}")
+}
+
+/// Port of `json_codec.rb#required_field_expr` — a non-optional field the
+/// caller's JSON never mentions refuses as "{type}.{field} expects
+/// {expected}, got nil", Ruby's own `check_required_fields` wording.
+pub fn required_field_expr(struct_name: &str, key: &str, expected: &str) -> String {
+    let message = format!("{struct_name}.{key} expects {expected}, got nil");
+    format!("v.get({}).ok_or_else(|| crate::kernel::Refusal::TypeMismatch({}.to_string()))?", naming::ruby_inspect_string(key), naming::ruby_inspect_string(&message))
 }
 
 pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
@@ -57,9 +68,8 @@ pub fn scalar_from_json_expr(struct_name: &str, key: &str, scalar_type: &str, de
         );
     }
     format!(
-        "{{ let x = v.require({}, {})?; x.{accessor}(){wrap}.ok_or_else(|| {})? }}",
-        naming::ruby_inspect_string(key),
-        naming::ruby_inspect_string(struct_name),
+        "{{ let x = {}; x.{accessor}(){wrap}.ok_or_else(|| {})? }}",
+        required_field_expr(struct_name, key, scalar_type),
         scalar_type_error(struct_name, key, scalar_type, "x")
     )
 }
@@ -150,6 +160,26 @@ pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_mana
 /// prelude-only scope (an aggregate command's own `unknown_argument_
 /// allowlist` is never passed there), so an earlier draft's guessed
 /// indentation was a real, confirmed mismatch.
+/// Port of `json_codec.rb#emit_absent_argument_check` — `ArgumentGate#
+/// refuse_absent_arguments`, generated: every declared non-optional name
+/// the caller's JSON never mentions, SORTED, refused as `AbsentArgument`
+/// through the same wording site, before any field is built.
+fn emit_absent_argument_check(command_name: &str, attributes: &[Json]) -> String {
+    let mut required: Vec<String> = attributes.iter().filter(|a| !crate::attr::optional(a)).map(|a| naming::rust_field(crate::attr::name(a))).collect();
+    required.sort();
+    if required.is_empty() {
+        return String::new();
+    }
+    let declared: Vec<String> = attributes.iter().map(|a| crate::attr::name(a).to_string()).collect();
+    let reading = if declared.is_empty() { "none".to_string() } else { declared.join(", ") };
+    format!(
+        "let absent: Vec<&str> = [{}].into_iter().filter(|key| v.get(key).is_none()).collect();\nif !absent.is_empty() {{\n    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[\n        (\"command\", {}),\n        (\"absent\", absent.join(\", \").as_str()),\n        (\"declared\", {}),\n    ])));\n}}\n",
+        required.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
+        naming::ruby_inspect_string(command_name),
+        naming::ruby_inspect_string(&reading),
+    )
+}
+
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
     format!(
         "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    return Err(crate::kernel::Refusal::UnknownArgument(format!(\n        \"{command_name} does not declare {{}} — it takes {}\",\n        unknown.join(\", \")\n    )));\n}}\n",
@@ -165,6 +195,7 @@ pub fn emit_from_json_flat(
     value_objects_by_name: &HashMap<String, &Json>,
     unknown_argument_allowlist: Option<&[String]>,
     command_name: Option<&str>,
+    absent_argument_check: bool,
 ) -> String {
     let command_name = command_name.unwrap_or(struct_name);
     let field_exprs: Vec<String> = attributes
@@ -180,7 +211,7 @@ pub fn emit_from_json_flat(
                 let elem_type = naming::rust_ident(crate::attr::type_name(attr));
                 let array_error = json_type_error(struct_name, &key, "an array");
                 format!(
-                    "match v.get({}) {{ Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, }}",
+                    "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
@@ -190,19 +221,21 @@ pub fn emit_from_json_flat(
                     naming::ruby_inspect_string(&key)
                 )
             } else if optional && scalar.is_some() {
-                format!("match v.get({}) {{ Some(x) => Some({}), None => None, }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x"))
+                // `Some(Json::Null) | None` — see json_codec.rb: an optional
+                // argument offered as null is the same absence as an omitted key.
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x"))
             } else if optional {
-                format!("match v.get({}) {{ Some(x) => Some({}), None => None, }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
             } else {
-                composite_from_json_expr(attr, value_objects_by_name, &format!("v.require({}, {})?", naming::ruby_inspect_string(&key), naming::ruby_inspect_string(struct_name)))
+                composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))
             };
             exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)])
         })
         .collect();
 
-    let unknown_check = match unknown_argument_allowlist {
+    let mut unknown_check = match unknown_argument_allowlist {
         Some(allowlist) => {
             let mut known_keys: Vec<String> = attributes.iter().map(|a| naming::rust_field(crate::attr::name(a))).collect();
             for k in allowlist {
@@ -215,19 +248,32 @@ pub fn emit_from_json_flat(
         }
         None => String::new(),
     };
+    // Ruby's own DISPATCH_ORDER: unknown first, absent second, then typing.
+    if absent_argument_check {
+        unknown_check.push_str(&emit_absent_argument_check(command_name, attributes));
+    }
 
     emit_from_json_skeleton(exemplar, struct_name, &field_exprs, &unknown_check)
 }
 
+/// Port of `json_codec.rb#emit_object_shape_check` — see that function's
+/// own comment for the full story (ADR 0037's fuzz bridge).
+fn emit_object_shape_check(struct_name: &str) -> String {
+    format!(
+        "if !matches!(v, crate::kernel::Json::Object(_)) {{\n    return Err(crate::kernel::Refusal::TypeMismatch(format!(\"{struct_name} expects an object, got {{}}\", v.inspect())));\n}}\n"
+    )
+}
+
 fn emit_from_json_skeleton(exemplar: &Exemplar, struct_name: &str, field_exprs: &[String], unknown_check: &str) -> String {
     let field_block = field_exprs.iter().map(|f| format!("        {f}")).collect::<Vec<_>>().join("\n");
+    let preamble = format!("{}{unknown_check}", emit_object_shape_check(struct_name));
     format!(
         "{}\n",
         exemplar.render(
             "from_json_flat",
             &[
                 ("TmplFlatType2", struct_name.to_string()),
-                ("let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {", format!("{unknown_check}        Ok(Self {{")),
+                ("let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {", format!("{preamble}        Ok(Self {{")),
                 ("tmpl_ident: tmpl_rhs_placeholder(),", field_block),
             ],
         )

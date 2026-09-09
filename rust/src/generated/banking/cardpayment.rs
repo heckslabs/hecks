@@ -50,6 +50,9 @@ impl AuthorisationCode {
 
 impl AuthorisationCode {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AuthorisationCode expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -58,7 +61,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "AuthorisationCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AuthorisationCode.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AuthorisationCode.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorisationCode.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AuthorisationCode.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AuthorisationCode.value: expected String".to_string()) })? },
         })
     }
 }
@@ -124,6 +127,9 @@ impl PaymentAmount {
 
 impl PaymentAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PaymentAmount expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["cents"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -132,7 +138,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        cents: { let x = v.require("cents", "PaymentAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("PaymentAmount.cents expects Integer, got {}", x.inspect())))? },
+        cents: { let x = v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentAmount.cents expects Integer, got nil".to_string()))?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("PaymentAmount.cents expects Integer, got {}", x.inspect())))? },
         })
     }
 }
@@ -169,6 +175,7 @@ impl crate::kernel::Fielded for MerchantName {
 
 impl MerchantName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "MerchantName.value must match [^ \\t\\n\\r], got ", self.value))); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -184,7 +191,6 @@ impl MerchantName {
         ])));
     }
 }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "MerchantName.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -199,6 +205,9 @@ impl MerchantName {
 
 impl MerchantName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MerchantName expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -207,7 +216,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "MerchantName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("MerchantName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MerchantName.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MerchantName.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("MerchantName.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("MerchantName.value: expected String".to_string()) })? },
         })
     }
 }
@@ -244,6 +253,7 @@ impl crate::kernel::Fielded for Tag {
 
 impl Tag {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Tag.value must match [^ \\t\\n\\r], got ", self.value))); }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
@@ -259,7 +269,6 @@ impl Tag {
         ])));
     }
 }
-        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Tag.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -274,6 +283,9 @@ impl Tag {
 
 impl Tag {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("Tag expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["value"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -282,7 +294,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        value: { let x = v.require("value", "Tag")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("Tag.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Tag.value: expected String".to_string()) })? },
+        value: { let x = v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Tag.value expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("Tag.value expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("Tag.value: expected String".to_string()) })? },
         })
     }
 }
@@ -349,15 +361,18 @@ impl CardPayment {
 
 impl CardPayment {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CardPayment expects an object, got {}", v.inspect())));
+}
         Ok(Self {
-        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account: expected String".to_string()) })?), },
-        disputed_by: match v.get("disputed_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.disputed_by expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.disputed_by: expected String".to_string()) })?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account: expected String".to_string()) })?), },
+        disputed_by: match v.get("disputed_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.disputed_by expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.disputed_by: expected String".to_string()) })?), },
         authorisation: match v.get("authorisation") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AuthorisationCode::from_json(&x.coerce_single_field("value"))?), },
         amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentAmount::from_json(&x.coerce_single_field("cents"))?), },
         merchant: match v.get("merchant") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MerchantName::from_json(&x.coerce_single_field("value"))?), },
         tags: match v.get("tags") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), },
-        account_status: match v.get("account_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account_status: expected String".to_string()) })?), },
-        account_customer_status: match v.get("account_customer_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account_customer_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account_customer_status: expected String".to_string()) })?), },
+        account_status: match v.get("account_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account_status: expected String".to_string()) })?), },
+        account_customer_status: match v.get("account_customer_status") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("CardPayment.account_customer_status expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("CardPayment.account_customer_status: expected String".to_string()) })?), },
         status: v.require("status", "CardPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -517,6 +532,9 @@ impl AuthorizeArgs {
 
 impl AuthorizeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AuthorizeArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["authorisation", "tags", "account", "amount", "merchant", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -524,12 +542,20 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["account", "amount", "authorisation", "merchant"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Authorize"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "authorisation, tags, account, amount, merchant"),
+    ])));
+}
         Ok(Self {
-        authorisation: AuthorisationCode::from_json(&v.require("authorisation", "AuthorizeArgs")?.coerce_single_field("value"))?,
-        tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
-        account: { let x = v.require("account", "AuthorizeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("AuthorizeArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()) })? },
-        amount: PaymentAmount::from_json(&v.require("amount", "AuthorizeArgs")?.coerce_single_field("cents"))?,
-        merchant: MerchantName::from_json(&v.require("merchant", "AuthorizeArgs")?.coerce_single_field("value"))?,
+        authorisation: AuthorisationCode::from_json(&v.get("authorisation").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.authorisation expects AuthorisationCode, got nil".to_string()))?.coerce_single_field("value"))?,
+        tags: match v.get("tags") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) },
+        account: { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AuthorizeArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()) })? },
+        amount: PaymentAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.amount expects PaymentAmount, got nil".to_string()))?.coerce_single_field("cents"))?,
+        merchant: MerchantName::from_json(&v.get("merchant").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.merchant expects MerchantName, got nil".to_string()))?.coerce_single_field("value"))?,
         })
     }
 }
@@ -611,6 +637,9 @@ impl CaptureArgs {
 
 impl CaptureArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CaptureArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -701,6 +730,9 @@ impl VoidArgs {
 
 impl VoidArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VoidArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -791,6 +823,9 @@ impl RefundArgs {
 
 impl RefundArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RefundArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -881,6 +916,9 @@ impl ReverseArgs {
 
 impl ReverseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReverseArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -973,6 +1011,9 @@ impl DisputeArgs {
 
 impl DisputeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DisputeArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["disputed_by", "id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -980,8 +1021,16 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+let absent: Vec<&str> = ["disputed_by"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Dispute"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "disputed_by"),
+    ])));
+}
         Ok(Self {
-        disputed_by: { let x = v.require("disputed_by", "DisputeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_)) { crate::kernel::Refusal::TypeMismatch(format!("DisputeArgs.disputed_by expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DisputeArgs.disputed_by: expected String".to_string()) })? },
+        disputed_by: { let x = v.get("disputed_by").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DisputeArgs.disputed_by expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("DisputeArgs.disputed_by expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("DisputeArgs.disputed_by: expected String".to_string()) })? },
         })
     }
 }
@@ -1063,6 +1112,9 @@ impl ChargebackArgs {
 
 impl ChargebackArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ChargebackArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
@@ -1153,6 +1205,9 @@ impl RejectDisputeArgs {
 
 impl RejectDisputeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RejectDisputeArgs expects an object, got {}", v.inspect())));
+}
 let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(

@@ -904,7 +904,8 @@ module RustProjection
         # deliberately left unwired to avoid diverging from
         # `hecks-codegen`'s own separate reimplementation.
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
-        emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
+                            command_name: command[:name].to_s, absent_argument_check: true),
         entity_dispatch_fn,
       ].join("\n\n")
     end
