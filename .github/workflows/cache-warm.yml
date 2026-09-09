@@ -1,0 +1,195 @@
+name: Cache warm (main)
+
+# WHY THIS FILE EXISTS — ci.yml deliberately has no `push: branches:
+# [main]` trigger (see its own header comment): re-running the whole
+# suite on every merge was found to buy nothing once the merge-queue
+# ruleset (`merge_group`) already tests everything before the merge
+# actually lands. That's the right call for the SUITE, but it has a
+# real side effect nobody had checked until now: main's own ref never
+# runs ci.yml at all, so none of its Rust build caches (rust/target,
+# rust/build/target, rust/parser/target, rust/codegen/target,
+# rust/host/target) ever get a refs/heads/main-scoped cache entry.
+#
+# Confirmed empirically (`gh api repos/heckslabs/hecks/actions/caches`,
+# 2026-09-09) — every existing cache entry for these crates is scoped
+# to either `refs/pull/<N>/merge` (warm only across pushes to THAT one
+# open PR) or a one-shot `refs/heads/gh-readonly-queue/main/pr-<N>-
+# <sha>` (embeds the SHA, never revisited again even by the very next
+# PR) — never `refs/heads/main`. GitHub's cross-branch cache fallback
+# only reaches a branch's own history or the DEFAULT branch's cache,
+# never a sibling PR's, so every brand-new PR's first CI run pays a
+# full cold build of every one of these crates, always — not an
+# artifact of any one session's branch history, a structural gap.
+#
+# This workflow's only job is to exist on main's own ref (the one place
+# ci.yml's own trigger set deliberately excludes) and populate that
+# missing refs/heads/main scope. BUILD ONLY — no rspec, no full suite,
+# so it stays cheap and doesn't reopen the "duplicate full CI run on
+# every merge" question ci.yml's own header already settled. Each
+# job's cache path/key/restore-keys below is copy-pasted VERBATIM from
+# ci.yml's own equivalent step — deliberately, so the exact-hash key
+# ci.yml computes matches this workflow's saved entry byte-for-byte,
+# and the restore-keys PREFIX fallback ci.yml already has configured
+# on every one of these steps picks this up automatically the moment a
+# PR's own exact-hash key misses (a Cargo.lock bump between here and
+# there is the only thing that would still force a cold build; that's
+# a real, tolerable gap the restore-keys prefix cannot close, only the
+# exact key can, once THIS workflow runs again after that bump lands).
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # Mirrors rspec_rust_io's own "Cache Rust build artifacts (main
+  # crate)" step. Builds all three domain features that spec/
+  # rust_conformance_spec.rb's shared RustConformanceHelpers cache
+  # actually exercises (banking/pizzas/roster) — a bare `cargo build`
+  # here would only warm ONE feature combo (whatever `default` in
+  # rust/Cargo.toml happens to be), leaving the other two still cold.
+  # Also warms the wasm32-wasip1 cross-compile artifacts (under the
+  # same rust/target path) that rspec_rust_io_build/rspec_rust_io_deploy
+  # need — bin/project_wasm handles the toolchain/target selection
+  # itself (see rspec_rust_io_deploy's own comment on why TWO
+  # toolchains need the target installed).
+  warm_main_crate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Cache Rust build artifacts (main crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-main-
+
+      - name: Warm native builds (banking, pizzas, roster)
+        run: |
+          cd rust
+          cargo build --no-default-features --features banking
+          cargo build --no-default-features --features pizzas
+          cargo build --no-default-features --features roster
+
+      - name: Install the wasm32-wasip1 target
+        run: |
+          rustup target add wasm32-wasip1 --toolchain stable
+          rustup target add wasm32-wasip1
+
+      - name: Install wasmtime
+        run: |
+          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
+            | tar xJ -C /tmp
+          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+
+      - name: Warm wasm cross-compile builds (banking, pizzas, roster)
+        run: |
+          ruby bin/project_wasm examples/banking
+          ruby bin/project_wasm examples/pizzas
+          ruby bin/project_wasm examples/roster
+
+  # Mirrors rspec_rust_io_build's own "Cache Rust build artifacts (build
+  # crate)" step exactly.
+  warm_build_crate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Rust build artifacts (build crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            rust/build/target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Warm rust/build (hecks-build)
+        run: cd rust/build && cargo build
+
+  # Mirrors rspec_rust_parser's own cache step. Bare `cargo build` —
+  # the exact command spec/parser_parity_spec.rb's own build_parser!
+  # (and every sibling spec's copy of it) runs.
+  warm_parser_crate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Rust build artifacts (parser crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/parser/target
+          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-parser-
+
+      - name: Warm rust/parser (hecks-parse)
+        run: cd rust/parser && cargo build
+
+  # Mirrors rspec_rust_codegen's own cache step. Bare `cargo build` —
+  # the exact command spec/codegen_parity_spec.rb's build_codegen! runs.
+  warm_codegen_crate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Rust build artifacts (codegen crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/codegen/target
+          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-codegen-
+
+      - name: Warm rust/codegen (hecks-codegen)
+        run: cd rust/codegen && cargo build
+
+  # Mirrors rspec_rust_host's own cache step. Builds both binaries
+  # spec/rust_host_lineage_conformance_spec.rb needs — the exact
+  # `cargo build --bin <name>` commands its own lineage_harness_binary/
+  # mint_harness_binary helpers run. No `rustup run 1.98.0` prefix
+  # needed here the way a local machine with an earlier Homebrew rustc
+  # on PATH sometimes does (see rust-toolchain.toml's own comment) —
+  # ubuntu-latest's ambient rustc already resolves through rustup's own
+  # proxy binaries, the same as every other job in ci.yml that builds
+  # under rust/host already relies on without an explicit override.
+  warm_host_crate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Rust build artifacts (host crate)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/host/target
+          key: ${{ runner.os }}-cargo-host-${{ hashFiles('rust/host/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-host-
+
+      - name: Warm rust/host (both harness binaries)
+        run: |
+          cd rust/host
+          cargo build --bin lineage_harness
+          cargo build --bin mint_harness
