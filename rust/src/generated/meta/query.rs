@@ -799,10 +799,17 @@ if !absent.is_empty() {
         ("declared", "field, op, value"),
     ])));
 }
+        let field = QueryText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.field expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        field.check_invariants()?;
+        let op = QueryText::from_json(&v.get("op").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.op expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", op.value))); }
+        op.check_invariants()?;
+        let value = QueryText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.value expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        value.check_invariants()?;
         Ok(Self {
-        field: QueryText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.field expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        op: QueryText::from_json(&v.get("op").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.op expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        value: QueryText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.value expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
+        field,
+        op,
+        value,
         })
     }
 }
@@ -914,11 +921,19 @@ if !absent.is_empty() {
         ("declared", "option, key, value, at"),
     ])));
 }
+        let option = QueryText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        option.check_invariants()?;
+        let key = QueryText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let value = match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &value { v.check_invariants()?; }
+        let at = match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &at { v.check_invariants()?; }
         Ok(Self {
-        option: QueryText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        key: QueryText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        value: match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
-        at: match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
+        option,
+        key,
+        value,
+        at,
         })
     }
 }
@@ -1046,15 +1061,31 @@ if !absent.is_empty() {
         ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
     ])));
 }
+        let name = QueryText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.name expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let r#type = QueryText::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.type expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        r#type.check_invariants()?;
+        let list = QueryText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.list expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        list.check_invariants()?;
+        let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &optional { v.check_invariants()?; }
+        let pattern = match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pattern { v.check_invariants()?; }
+        let default = match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &default { v.check_invariants()?; }
+        let admits = match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &admits { v.check_invariants()?; }
+        let relationship = match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &relationship { v.check_invariants()?; }
         Ok(Self {
-        name: QueryText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.name expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        r#type: QueryText::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.type expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        list: QueryText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.list expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?,
-        optional: match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
-        pattern: match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
-        default: match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
-        admits: match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
-        relationship: match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) },
+        name,
+        r#type,
+        list,
+        optional,
+        pattern,
+        default,
+        admits,
+        relationship,
         })
     }
 }

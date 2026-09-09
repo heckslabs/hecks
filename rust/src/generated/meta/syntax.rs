@@ -1585,9 +1585,13 @@ if !absent.is_empty() {
         ("declared", "bluebook, name"),
     ])));
 }
+        let bluebook = BluebookName::from_json(&v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects BluebookName, got nil".to_string()))?.coerce_single_field("value"))?;
+        bluebook.check_invariants()?;
+        let name = SyntaxName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects SyntaxName, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
         Ok(Self {
-        bluebook: BluebookName::from_json(&v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects BluebookName, got nil".to_string()))?.coerce_single_field("value"))?,
-        name: SyntaxName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects SyntaxName, got nil".to_string()))?.coerce_single_field("value"))?,
+        bluebook,
+        name,
         })
     }
 }
@@ -1731,18 +1735,44 @@ if !absent.is_empty() {
         ("declared", "position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls"),
     ])));
 }
+        let position = KeywordPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.position expects KeywordPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        position.check_invariants()?;
+        let word = KeywordSeedText::from_json(&v.get("word").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.word expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        word.check_invariants()?;
+        let context = KeywordSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.context expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", context.value))); }
+        context.check_invariants()?;
+        let body = KeywordSeedText::from_json(&v.get("body").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.body expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !["none", "keywords", "source", "rows"].contains(&body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "body admits Syntax::Body — \"none\", \"keywords\", \"source\", \"rows\" — got ", body.value))); }
+        body.check_invariants()?;
+        let inner = KeywordSeedText::from_json(&v.get("inner").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.inner expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        inner.check_invariants()?;
+        let opens = KeywordSeedText::from_json(&v.get("opens").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.opens expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        opens.check_invariants()?;
+        let fills = KeywordSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.fills expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        fills.check_invariants()?;
+        let was = match v.get("was") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &was { v.check_invariants()?; }
+        let resolves_via = match v.get("resolves_via") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(__optional_value) = &resolves_via { if !["hash_chain", "owner_keyed", "sibling_scan"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "resolves_via admits Syntax::ResolutionScope — \"hash_chain\", \"owner_keyed\", \"sibling_scan\" — got ", __optional_value.value))); } }
+        if let Some(v) = &resolves_via { v.check_invariants()?; }
+        let disambiguator = match v.get("disambiguator") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(__optional_value) = &disambiguator { if !["declared_by"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "disambiguator admits Syntax::Disambiguator — \"declared_by\" — got ", __optional_value.value))); } }
+        if let Some(v) = &disambiguator { v.check_invariants()?; }
+        let calls = match v.get("calls") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &calls { v.check_invariants()?; }
         Ok(Self {
-        position: KeywordPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.position expects KeywordPosition, got nil".to_string()))?.coerce_single_field("value"))?,
-        word: KeywordSeedText::from_json(&v.get("word").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.word expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        context: KeywordSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.context expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        body: KeywordSeedText::from_json(&v.get("body").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.body expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        inner: KeywordSeedText::from_json(&v.get("inner").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.inner expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        opens: KeywordSeedText::from_json(&v.get("opens").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.opens expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        fills: KeywordSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.fills expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        was: match v.get("was") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) },
-        resolves_via: match v.get("resolves_via") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) },
-        disambiguator: match v.get("disambiguator") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) },
-        calls: match v.get("calls") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) },
+        position,
+        word,
+        context,
+        body,
+        inner,
+        opens,
+        fills,
+        was,
+        resolves_via,
+        disambiguator,
+        calls,
         })
     }
 }
@@ -1904,23 +1934,57 @@ if !absent.is_empty() {
         ("declared", "position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message"),
     ])));
 }
+        let position = ArgumentPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.position expects ArgumentPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        position.check_invariants()?;
+        let keyword = ArgumentSeedText::from_json(&v.get("keyword").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.keyword expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        keyword.check_invariants()?;
+        let context = ArgumentSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.context expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", context.value))); }
+        context.check_invariants()?;
+        let at = match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &at { v.check_invariants()?; }
+        let named = match v.get("named") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &named { v.check_invariants()?; }
+        let kind = ArgumentSeedText::from_json(&v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.kind expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        if !["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"].contains(&kind.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "kind admits Syntax::ArgumentKind — \"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\" — got ", kind.value))); }
+        kind.check_invariants()?;
+        let required = ArgumentSeedText::from_json(&v.get("required").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.required expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        required.check_invariants()?;
+        let fills = ArgumentSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.fills expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        fills.check_invariants()?;
+        let selects = match v.get("selects") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &selects { v.check_invariants()?; }
+        let pair_key_fills = match v.get("pair_key_fills") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pair_key_fills { v.check_invariants()?; }
+        let pair_value_fills = match v.get("pair_value_fills") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pair_value_fills { v.check_invariants()?; }
+        let pairs_shape = match v.get("pairs_shape") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pairs_shape { v.check_invariants()?; }
+        let variadic = match v.get("variadic") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &variadic { v.check_invariants()?; }
+        let minimum = match v.get("minimum") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &minimum { v.check_invariants()?; }
+        let coerce = match v.get("coerce") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &coerce { v.check_invariants()?; }
+        let blank_message = match v.get("blank_message") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &blank_message { v.check_invariants()?; }
         Ok(Self {
-        position: ArgumentPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.position expects ArgumentPosition, got nil".to_string()))?.coerce_single_field("value"))?,
-        keyword: ArgumentSeedText::from_json(&v.get("keyword").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.keyword expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        context: ArgumentSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.context expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        at: match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        named: match v.get("named") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        kind: ArgumentSeedText::from_json(&v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.kind expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        required: ArgumentSeedText::from_json(&v.get("required").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.required expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        fills: ArgumentSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.fills expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?,
-        selects: match v.get("selects") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        pair_key_fills: match v.get("pair_key_fills") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        pair_value_fills: match v.get("pair_value_fills") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        pairs_shape: match v.get("pairs_shape") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        variadic: match v.get("variadic") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        minimum: match v.get("minimum") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        coerce: match v.get("coerce") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
-        blank_message: match v.get("blank_message") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) },
+        position,
+        keyword,
+        context,
+        at,
+        named,
+        kind,
+        required,
+        fills,
+        selects,
+        pair_key_fills,
+        pair_value_fills,
+        pairs_shape,
+        variadic,
+        minimum,
+        coerce,
+        blank_message,
         })
     }
 }
