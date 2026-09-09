@@ -139,6 +139,9 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     ["compliance", lambda {
       domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
     }],
+    ["roster", lambda {
+      domain_ir(File.join(InMemoryDomain::ROOT, "examples/roster/bluebook/roster.bluebook"), "Roster")
+    }],
     ["banking", -> { domain_ir(InMemoryDomain::BANKING_BLUEBOOK_DIR, "Banking") }],
     ["bluebook_language", -> { meta_ir }]
   ].freeze
@@ -160,13 +163,16 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   # These get the STRONGER check below instead of the prelude-only one;
   # every other `CODEGEN_CORPUS_MEMBERS` entry stays on prelude-only.
   #
-  # ALL SIX real corpus members reach it — including `banking` (entity
+  # ALL SEVEN real corpus members reach it — including `banking` (entity
   # commands on SafeDepositBox/ATMCard, arithmetic mutations, process
-  # managers, cross-domain policies) and `bluebook_language` (the
-  # self-hosted grammar's own nine-file chapter) — leaving only
+  # managers, cross-domain policies), `bluebook_language` (the
+  # self-hosted grammar's own nine-file chapter), and `roster` (added
+  # after ADR 0054's own Option-2 scoping pass found it had never been
+  # proven byte-identical at any level, despite CI's drift-check step
+  # regenerating and trusting it via the Ruby generator) — leaving only
   # `embryonaut` on `CODEGEN_PENDING_MEMBERS` (a structural gap: no local
   # `.bluebook` source to load, unrelated to anything ported this stage).
-  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language].freeze
+  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster].freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty
