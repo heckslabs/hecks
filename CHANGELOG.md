@@ -7,6 +7,132 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-09
+
+**Transactional outbox for domain events and external effects (ADR
+0053).** Every reaction a dispatch owes — a policy or process manager's
+own trigger, plus any outbound port operation — is now recorded as one
+row per (event, consumer) in the SAME adapter transaction as the
+aggregate's own save, not announced in-process and hoped for. The
+dispatcher drains it inline right after (`pending` → `claimed` →
+`delivered`/`failed`); anything still `pending` at the next boot is
+redriven automatically, and anything `claimed` is surfaced for a human
+rather than silently retried. New adapter contract
+(`transaction`/`outbox_enqueue`/`claim`/`settle`/`rows`) on Memory,
+Sqlite, Postgres and PostgresEra; Sqlite's own plain `save` is atomic
+now as a side effect of making its transactions re-entrant. Adapters
+with no outbox implementation (Heki, LocalStorage, D1 today) get a
+boot-time warning rather than a silent gap. See ADR 0053 for the full
+design and `runtime.outbox.rows`/`redrive!`/`log` for inspecting it
+live.
+
+**LocalStorage: a `persisted_by` adapter for browser-hosted domains.**
+Mechanically identical to Memory — Ruby has no way to reach a real
+browser's `window.localStorage`, so an honest Ruby-side implementation
+can only be an in-process stand-in — but it declares real intent:
+`persisted_by "LocalStorage"` says a domain expects durable,
+single-device, browser-side storage the moment it actually runs where
+it's meant to, the same distinction Heki already draws against Memory.
+The real browser half lives in `rust/web`'s existing `dispatch(json)`
+contract (ADR 0015): an optional `"seed"` (the same `"instances"` shape
+`dispatch` answers with) plus `"steps"` lets a host rehydrate from a
+prior snapshot and replay only new commands, instead of the whole
+history every call — a page bound to this adapter holds that snapshot
+in `window.localStorage` itself. `query:` falls back to
+`Ports::Query::InMemory` (same trade Heki and Memory both take);
+`lineage_capable?` is `false` (no era story — a shape change needs a
+hand migration, same as Heki); `tenant_capable?` is trivially `true` (a
+browser tab is exactly one origin, one user).
+
+**The Bluebook semantics document's remaining open clauses are all
+settled** — the last stretch of a long-running effort to make every
+place Ruby and the Rust kernel could quietly disagree either provably
+agree or name the gap explicitly (`docs/semantics/bluebook-semantics.md`;
+the corpus-owned fixtures under `spec/corpus/semantics/` pin each one
+on both runtimes where both apply). The ones most likely to actually
+change behavior in an existing domain:
+
+- **Integer is a signed 64-bit integer everywhere (C3.3).** A bare
+  argument past ±2^63−1 is now a clean `TypeMismatch` at the boundary,
+  and an expression sum or a `then_set` `increment`/`decrement`/
+  `multiply` whose result leaves that range is an evaluation `Fault` —
+  both runtimes now refuse where Ruby's own arbitrary-precision
+  `Integer` used to silently promote to Bignum and keep going. If a
+  domain relied on genuinely unbounded integer arithmetic anywhere
+  reachable from user input, this is worth checking against.
+- **Float is finite (C3.4).** `NaN` and the infinities are refused at
+  bare-argument boundaries too, and a non-finite sum is the same
+  `Fault` as C3.3's integer overflow.
+- **A command's effects are one update set over the PRE-dispatch state
+  (C4.2), and appended-entity identities mint highest-plus-one, never
+  size-plus-one (C4.5).** Every mutation source — argument, literal, or
+  `state(:field)` — reads the record as it was before the command, not
+  as an earlier mutation in the same command left it; declaration
+  order carries no meaning, and writing the same field twice in one
+  command now refuses at build instead of silently last-wins.
+- **The Rust kernel now enforces aggregate and entity invariants
+  (C6.2).** It previously had no invariant step at all — a deployed
+  Rust domain would accept states Ruby refuses. Value-object
+  validation itself only ever runs on construction from real input,
+  never on a trusted reload from storage (C6.3).
+- **A delegated leg's events are emitted with the parent's own commit,
+  never before it (C7.2).** Ruby used to emit a delegated entity's
+  event the moment that leg succeeded, before the parent's own
+  `ensures`/invariants/save — so a parent that went on to refuse had
+  already left the leg's event on the log and in the adapter. Rust was
+  already correct; Ruby now matches.
+- **An evaluation fault is its own outcome, never a refusal (C8.3), and
+  every declared command argument is type-checked at the boundary
+  regardless of shape (C3.8).** A bare primitive argument of the wrong
+  type — not just a malformed value object — is now a clean
+  `TypeMismatch` refusal instead of a chance to reach rule evaluation
+  and fault there instead.
+- **A saga leg is selected by (event, current state), not event name
+  alone (C10.3), and reactions for one dispatch's whole batch of
+  announced events run after every event in that batch commits, per
+  event, policies then sagas (C10.2).** Two legs answering the same
+  event from different `from:` states are refused as ambiguous at
+  build now, rather than one being permanently unreachable.
+- **A `corrects` target is judged against the aggregate's own durable
+  event history, not in-memory state (C9.2);** an `ensures` reads the
+  settled (post-mutation) state when a name is both an argument and a
+  field, the mirror image of how a `given` already reads the
+  pre-mutation state (C2.3); and the lifecycle field moves only by a
+  declared transition — a bare `sets` on it, or two transitions for
+  one command with overlapping `from:` states, now refuses at build
+  (C5.3).
+
+All of the above apply to existing domains without any DSL change —
+they tighten what was previously either silently wrong on one runtime
+or genuinely undefined, not new syntax to opt into.
+
+**Deploy tooling: `bin/project_wasm` now honors the `HECKS_PARSER=rust
+HECKS_CODEGEN=rust` opt-in `bin/project_rust` already did.** Previously
+it unconditionally shelled out to the Ruby generator regardless of that
+env pair, so the `.wasm` a deploy Makefile's `build-<LogicalId>` target
+ships to Lambda went through Ruby even when the rest of a toolchain was
+built Ruby-free. Opted in, it now delegates to `hecks-build --wasm`
+instead of running its own regenerate-then-`cargo build` sequence.
+
+**A `hecks-codegen` crash on a delegating command with a single
+mutation is fixed** — found closing an unrelated corpus-coverage gap
+(`examples/roster` had never actually been proven byte-identical
+between the two Rust generators despite being in CI's own trusted
+drift-check corpus). Only reachable through the opt-in all-Rust
+pipeline (`HECKS_PARSER=rust HECKS_CODEGEN=rust`); the default Ruby
+generator was never affected.
+
+**`IsolatedBoot` tolerates a transient file vanishing mid-copy** — a
+real race under the pre-push hook's own parallel test runner, where
+another worker's atomic Heki write can drop a `.tmp.<pid>` file between
+the directory glob and the copy. Development/CI-only; never affects a
+deployed domain.
+
+**A test fixture that embedded a real-looking production database
+endpoint and password (for a URI-reserved-character parsing test) now
+uses a synthetic value that preserves the same reserved characters.**
+No evidence it was ever a live credential; fixed as hygiene regardless.
+
 **Single-element value objects strictly answer `.value`.** A value object
 with exactly one declared attribute is a name for a scalar, and the
 language now treats that as a rule rather than a convention:
