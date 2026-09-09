@@ -51,7 +51,18 @@ require_relative "support/rust_conformance_helpers"
 RSpec.describe "Rust conformance (native binary)", :io do
   include RustConformanceHelpers
 
+  # Grouped by domain, not just alphabetical — `build_rust_for` below runs
+  # `cargo build --features <domain>` per fixture, and switching features
+  # invalidates cargo's incremental cache for anything gated by
+  # `cfg(feature = ...)` (a real partial rebuild, not a cheap no-op).
+  # Sorting by filename alone interleaves the pizzas/roster singletons
+  # (`port_operations.json`, `roster.json`) into the middle of the long
+  # banking run, paying a banking→other→banking round-trip rebuild twice
+  # for no reason — grouping by domain first means each domain's binary
+  # gets built once and every one of its fixtures runs back-to-back
+  # against it.
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json"))
+                                 .sort_by { |path| [JSON.parse(File.read(path)).fetch("domain"), path] }
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
   # `RustConformanceHelpers#build_rust_for` now takes `rust_dir` explicitly
