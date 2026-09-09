@@ -354,9 +354,18 @@ RSpec.describe "bin/lint_deploy_recipes", :io do
       Open3.capture3("ruby", self.class.script)
       after_entries = Dir.children(File.join(self.class.root, "deploy")).sort
 
+      # Named, not just "they differ" — a bare eq failure here gives no
+      # way to tell "left something behind" from "something else in the
+      # SAME shared deploy/ directory disappeared or appeared out from
+      # under this example" apart (both are real possibilities under
+      # parallel_rspec: this directory isn't scoped per-worker). Whoever
+      # sees this next gets an actual lead instead of having to
+      # reproduce it blind.
+      added = after_entries - before_entries
+      removed = before_entries - after_entries
       expect(after_entries).to eq(before_entries),
                                "bin/lint_deploy_recipes must not leave its own generated fixture domains behind " \
-                               "under deploy/ after it finishes"
+                               "under deploy/ after it finishes -- added: #{added.inspect}, removed: #{removed.inspect}"
     end
   end
 end
