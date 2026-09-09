@@ -70,7 +70,14 @@ RSpec.describe Hecks::Adapters::Sqlite do
   it "round-trips a list of value objects through its JSON column" do
     adapter.save(instance("p1", toppings: [{ name: "Basil", amount: 3 }]))
 
-    expect(adapter.find("p1").toppings).to eq([{ name: "Basil", amount: 3 }])
+    # ADR 0047/0055 — toppings elements are real Hecks::Runtime::Value
+    # instances now (Value::Coercion#hydrate_entity_list was fixed to
+    # hydrate value-object lists, not just entity ones), same as
+    # `found.name`/`found.pizza` above already are for a scalar
+    # composite attribute — compared via `.to_h`, matching those.
+    toppings = adapter.find("p1").toppings
+    expect(toppings).to all(be_a(Hecks::Runtime::Value))
+    expect(toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
   end
 
   it "answers nil for an id it never stored" do
