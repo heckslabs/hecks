@@ -45,7 +45,15 @@ module Hecks
 
       attr_reader :aggregate
 
-      def persistence_capabilities = [:atomic_put]
+      # `:cross_process_lock` tells `Interpreting#run_dispatch_order_with_isolation`
+      # (runtime/interpreting.rb) this repository can hold a REAL
+      # cross-process lock for the whole dispatch order itself, via
+      # `with_write_lock` below — so it should use that instead of the
+      # in-process `AggregateLock` `Mutex` every other non-CAS repository
+      # falls back to. See ADR 0036: that in-process Mutex is invisible
+      # to `rust/host` dispatching against the same PostgresEra-bound
+      # tables from a separate OS process.
+      def persistence_capabilities = %i[atomic_put cross_process_lock]
 
       # The capability idiom: only PostgresEra answers true, and only
       # PostgresEra carries an era_check! for the boot gate to delegate to.
@@ -297,6 +305,18 @@ module Hecks
         head_phase(declared, uncached, ids, args)
       end
 
+      # ADR 0036's actual fix — see `persistence_capabilities` above.
+      # Wraps the WHOLE dispatch order (hydrate through save), not just
+      # `append`'s own transaction below: `lock_writes!` has to be held
+      # before hydrate even starts, or two cross-process writers can
+      # both hydrate unlocked and race for the write, each blind to the
+      # other. `transaction` (via `include Adapters::PostgresOutbox`) is
+      # already re-entrant — `append`/`atomic_put`'s own inner
+      # `transaction do ... end`, deep inside the block below, joins
+      # this SAME transaction instead of opening/committing its own, so
+      # the advisory lock stays held until this whole block returns.
+      def with_write_lock(&block) = transaction { lock_writes!; block.call } # rubocop:disable Style/Semicolon
+
       # HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
       # ordinal is assigned by the column's own `nextval()` default, inside
       # this same statement, so the lock has to already be held before that
@@ -313,7 +333,10 @@ module Hecks
       # still runs, cheaply, during AppendOnly#recover!'s full replay on
       # every boot (see `project` below), and a second write there would
       # make that replay pay real DB cost for a snapshot that's already
-      # correct.
+      # correct. When `with_write_lock` above already drove this whole
+      # dispatch, `lock_writes!` here is a harmless re-acquire of the
+      # same already-held (per-session-reentrant) advisory lock; a bare
+      # `repository.save` outside a full dispatch still takes it fresh.
       def append(entry)
         transaction do
           lock_writes!

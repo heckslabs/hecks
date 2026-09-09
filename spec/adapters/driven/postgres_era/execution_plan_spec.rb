@@ -67,7 +67,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
       state:     { identity: { sku: "sku-1" }, label: { value: "Second" } }
     )
 
-    expect(repository.capabilities).to eq([:atomic_put])
+    expect(repository.capabilities).to eq(%i[atomic_put cross_process_lock])
     expect(repository.atomic_put(first).status).to eq(:inserted)
     expect(repository.atomic_put(second).status).to eq(:replaced)
     expect(repository.entries.size).to eq(2)

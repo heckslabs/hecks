@@ -77,15 +77,24 @@ module Hecks
       # lost-update gap itself, via `step_save`'s CAS + `#call`'s own
       # `StaleWrite` retry loop — an extra in-process lock here would be
       # pointless overhead, not incorrect, so it's skipped for clarity.
-      # Every other repository (Heki, Memory — confirmed process-local
-      # data, never a second process writing the same store) gets a
-      # striped `Mutex` held for the WHOLE dispatch-order run, so a second
-      # thread's own hydrate can't start until the first thread's save has
-      # landed. `lock_key_id` is best-effort (`Identity.best_effort`) —
-      # `nil` still locks correctly, just coarser (by aggregate type).
+      # A repository that declares `:cross_process_lock` (PostgresEra —
+      # ADR 0036) holds a REAL Postgres advisory lock for the whole
+      # dispatch order instead: unlike Heki/Memory (confirmed
+      # process-local, never a second process writing the same store),
+      # PostgresEra's own tables can be dispatched against concurrently
+      # by `rust/host` from a separate OS process, and an in-process
+      # `Mutex` is invisible to that. Every OTHER repository gets the
+      # striped `Mutex` below, held for the WHOLE dispatch-order run, so
+      # a second thread's own hydrate can't start until the first
+      # thread's save has landed. `lock_key_id` is best-effort
+      # (`Identity.best_effort`) — `nil` still locks correctly, just
+      # coarser (by aggregate type).
       def run_dispatch_order_with_isolation(order, ctx, lock_key_id:)
-        if ctx.repository.capabilities.include?(:optimistic_concurrency)
+        capabilities = ctx.repository.capabilities
+        if capabilities.include?(:optimistic_concurrency)
           run_dispatch_order(order, ctx)
+        elsif capabilities.include?(:cross_process_lock)
+          ctx.repository.with_write_lock { run_dispatch_order(order, ctx) }
         else
           AggregateLock.for(ctx.domain, ctx.aggregate, lock_key_id).synchronize { run_dispatch_order(order, ctx) }
         end
