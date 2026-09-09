@@ -274,8 +274,10 @@ if !absent.is_empty() {
         ("declared", "number"),
     ])));
 }
+        let number = AccountNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.number expects AccountNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        number.check_invariants()?;
         Ok(Self {
-        number: AccountNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.number expects AccountNumber, got nil".to_string()))?.coerce_single_field("value"))?,
+        number,
         })
     }
 }

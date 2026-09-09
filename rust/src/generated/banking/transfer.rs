@@ -498,12 +498,20 @@ if !absent.is_empty() {
         ("declared", "reference, amount, narrative, source, destination"),
     ])));
 }
+        let reference = TransferReference::from_json(&v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.reference expects TransferReference, got nil".to_string()))?.coerce_single_field("value"))?;
+        reference.check_invariants()?;
+        let amount = TransferMoney::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.amount expects TransferMoney, got nil".to_string()))?.coerce_single_field("cents"))?;
+        amount.check_invariants()?;
+        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        narrative.check_invariants()?;
+        let source = { let x = v.get("source").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.source expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()) })? };
+        let destination = { let x = v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.destination expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()) })? };
         Ok(Self {
-        reference: TransferReference::from_json(&v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.reference expects TransferReference, got nil".to_string()))?.coerce_single_field("value"))?,
-        amount: TransferMoney::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.amount expects TransferMoney, got nil".to_string()))?.coerce_single_field("cents"))?,
-        narrative: Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?,
-        source: { let x = v.get("source").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.source expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()) })? },
-        destination: { let x = v.get("destination").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.destination expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()) })? },
+        reference,
+        amount,
+        narrative,
+        source,
+        destination,
         })
     }
 }

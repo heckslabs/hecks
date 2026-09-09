@@ -859,9 +859,13 @@ if !absent.is_empty() {
         ("declared", "command_name, position"),
     ])));
 }
+        let command_name = DispatchText::from_json(&v.get("command_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerDispatchEntityArgs.command_name expects DispatchText, got nil".to_string()))?.coerce_single_field("value"))?;
+        command_name.check_invariants()?;
+        let position = DispatchPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerDispatchEntityArgs.position expects DispatchPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        position.check_invariants()?;
         Ok(Self {
-        command_name: DispatchText::from_json(&v.get("command_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerDispatchEntityArgs.command_name expects DispatchText, got nil".to_string()))?.coerce_single_field("value"))?,
-        position: DispatchPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerDispatchEntityArgs.position expects DispatchPosition, got nil".to_string()))?.coerce_single_field("value"))?,
+        command_name,
+        position,
         })
     }
 }
@@ -1123,8 +1127,10 @@ if !absent.is_empty() {
         ("declared", "name"),
     ])));
 }
+        let name = ProcessManagerText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StateArgs.name expects ProcessManagerText, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
         Ok(Self {
-        name: ProcessManagerText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StateArgs.name expects ProcessManagerText, got nil".to_string()))?.coerce_single_field("value"))?,
+        name,
         })
     }
 }
@@ -1232,10 +1238,16 @@ if !absent.is_empty() {
         ("declared", "event_type, from_state, to_state"),
     ])));
 }
+        let event_type = HandlerText::from_json(&v.get("event_type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.event_type expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?;
+        event_type.check_invariants()?;
+        let from_state = HandlerText::from_json(&v.get("from_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.from_state expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?;
+        from_state.check_invariants()?;
+        let to_state = HandlerText::from_json(&v.get("to_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.to_state expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?;
+        to_state.check_invariants()?;
         Ok(Self {
-        event_type: HandlerText::from_json(&v.get("event_type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.event_type expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?,
-        from_state: HandlerText::from_json(&v.get("from_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.from_state expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?,
-        to_state: HandlerText::from_json(&v.get("to_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerArgs.to_state expects HandlerText, got nil".to_string()))?.coerce_single_field("value"))?,
+        event_type,
+        from_state,
+        to_state,
         })
     }
 }

@@ -864,10 +864,16 @@ if !absent.is_empty() {
         ("declared", "aggregate, as, many"),
     ])));
 }
+        let aggregate = ReadModelText::from_json(&v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.aggregate expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        aggregate.check_invariants()?;
+        let r#as = ReadModelText::from_json(&v.get("as").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.as expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        r#as.check_invariants()?;
+        let many = ReadModelText::from_json(&v.get("many").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.many expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        many.check_invariants()?;
         Ok(Self {
-        aggregate: ReadModelText::from_json(&v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.aggregate expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
-        r#as: ReadModelText::from_json(&v.get("as").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.as expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
-        many: ReadModelText::from_json(&v.get("many").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.many expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
+        aggregate,
+        r#as,
+        many,
         })
     }
 }
@@ -967,8 +973,10 @@ if !absent.is_empty() {
         ("declared", "field"),
     ])));
 }
+        let field = ReadModelText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByArgs.field expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        field.check_invariants()?;
         Ok(Self {
-        field: ReadModelText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByArgs.field expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
+        field,
         })
     }
 }
@@ -1060,8 +1068,10 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+        let count = match v.get("count") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &count { v.check_invariants()?; }
         Ok(Self {
-        count: match v.get("count") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) },
+        count,
         })
     }
 }
@@ -1153,8 +1163,10 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+        let median_field = match v.get("median_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &median_field { v.check_invariants()?; }
         Ok(Self {
-        median_field: match v.get("median_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) },
+        median_field,
         })
     }
 }
@@ -1266,11 +1278,19 @@ if !absent.is_empty() {
         ("declared", "option, key, value, at"),
     ])));
 }
+        let option = ReadModelText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        option.check_invariants()?;
+        let key = ReadModelText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let value = match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &value { v.check_invariants()?; }
+        let at = match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &at { v.check_invariants()?; }
         Ok(Self {
-        option: ReadModelText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
-        key: ReadModelText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?,
-        value: match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) },
-        at: match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) },
+        option,
+        key,
+        value,
+        at,
         })
     }
 }

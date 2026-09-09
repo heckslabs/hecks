@@ -101,7 +101,8 @@ module RustProjection
       [
         "#[derive(Debug, Clone)]\n#{struct_lines.join("\n")}",
         emit_to_json_flat(args_struct, fact_attrs, value_objects_by_name),
-        emit_from_json_flat(args_struct, fact_attrs, value_objects_by_name, command_name: "#{port_name}.#{operation[:name]}"),
+        emit_from_json_flat(args_struct, fact_attrs, value_objects_by_name, command_name: "#{port_name}.#{operation[:name]}",
+                            interleave_checks: true, aggregates_by_name: aggregates_by_name),
         dispatch_fn,
       ].join("\n\n")
     end

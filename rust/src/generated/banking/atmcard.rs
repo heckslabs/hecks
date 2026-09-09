@@ -599,8 +599,10 @@ if !absent.is_empty() {
         ("declared", "narrative"),
     ])));
 }
+        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawalDisputeEntityArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        narrative.check_invariants()?;
         Ok(Self {
-        narrative: Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawalDisputeEntityArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?,
+        narrative,
         })
     }
 }
@@ -886,10 +888,15 @@ if !absent.is_empty() {
         ("declared", "account, serial, daily_fee"),
     ])));
 }
+        let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("IssueArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()) })? };
+        let serial = CardSerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.serial expects CardSerial, got nil".to_string()))?.coerce_single_field("value"))?;
+        serial.check_invariants()?;
+        let daily_fee = DailyFee::from_json(&v.get("daily_fee").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.daily_fee expects DailyFee, got nil".to_string()))?.coerce_single_field("amount"))?;
+        daily_fee.check_invariants()?;
         Ok(Self {
-        account: { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("IssueArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()) })? },
-        serial: CardSerial::from_json(&v.get("serial").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.serial expects CardSerial, got nil".to_string()))?.coerce_single_field("value"))?,
-        daily_fee: DailyFee::from_json(&v.get("daily_fee").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.daily_fee expects DailyFee, got nil".to_string()))?.coerce_single_field("amount"))?,
+        account,
+        serial,
+        daily_fee,
         })
     }
 }
@@ -989,8 +996,10 @@ if !absent.is_empty() {
         ("declared", "nickname"),
     ])));
 }
+        let nickname = CardNickname::from_json(&v.get("nickname").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RenameArgs.nickname expects CardNickname, got nil".to_string()))?.coerce_single_field("value"))?;
+        nickname.check_invariants()?;
         Ok(Self {
-        nickname: CardNickname::from_json(&v.get("nickname").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RenameArgs.nickname expects CardNickname, got nil".to_string()))?.coerce_single_field("value"))?,
+        nickname,
         })
     }
 }
@@ -1095,9 +1104,13 @@ if !absent.is_empty() {
         ("declared", "cents, narrative"),
     ])));
 }
+        let cents = WithdrawalAmount::from_json(&v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawArgs.cents expects WithdrawalAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        cents.check_invariants()?;
+        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        narrative.check_invariants()?;
         Ok(Self {
-        cents: WithdrawalAmount::from_json(&v.get("cents").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawArgs.cents expects WithdrawalAmount, got nil".to_string()))?.coerce_single_field("cents"))?,
-        narrative: Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("WithdrawArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?,
+        cents,
+        narrative,
         })
     }
 }
