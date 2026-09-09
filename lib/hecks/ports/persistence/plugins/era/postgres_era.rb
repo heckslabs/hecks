@@ -2,6 +2,7 @@ require "json"
 
 require_relative "../../../../adapters/driven/sql_query_builder"
 require_relative "../../../../adapters/driven/postgres/outbox"
+require_relative "../../../../adapters/driven/postgres/reconnect"
 require_relative "postgres_era/lineage"
 require_relative "postgres_era/lineage_manager"
 require_relative "../../../../ports/persistence/append_only"
@@ -42,6 +43,7 @@ module Hecks
     class PostgresEra
       include SqlQueryBuilder
       include Adapters::PostgresOutbox
+      include Adapters::PostgresReconnect
 
       attr_reader :aggregate
 
@@ -156,6 +158,7 @@ module Hecks
 
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
+        @settings  = settings
         @db = self.class.connect_for(aggregate.name, settings)
         # The domain names the journal (one journal per lineage). The
         # factory injects it as the owning bluebook's own declared name

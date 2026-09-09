@@ -28,6 +28,25 @@ module Hecks
           # `persisted_fields` (Codec), so it never appears in `decode`'s
           # domain-state hash or `Instance#to_h`.
           @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS hecks_version bigint NOT NULL DEFAULT 1")
+          # SAME SELF-HEALING SHAPE, FOR DOMAIN ATTRIBUTES THEMSELVES —
+          # `hecks_version` above only heals the adapter's own bookkeeping
+          # column; a bluebook attribute added (or, via `translations/`,
+          # renamed) after this table already exists is not bookkeeping,
+          # but the identical gap applies: `CREATE TABLE IF NOT EXISTS`
+          # is a no-op against the existing table, so without this a new
+          # attribute boots clean and then dies `PG::UndefinedColumn` on
+          # the first `project` — discovered chaos-testing a live rename
+          # against this adapter (no era, no translation prompt; those
+          # live in `PostgresEra` — this is the plain adapter's own,
+          # simpler contract: "the table always has every column the
+          # bluebook currently declares"). No `NOT NULL`, no `DEFAULT` —
+          # existing rows get SQL NULL for a column they never had a
+          # value for, exactly what a fresh row would get for an unset
+          # optional attribute (`encode_field`'s own nil handling).
+          persisted_fields.each do |field|
+            @db.exec("ALTER TABLE #{quoted_table} ADD COLUMN IF NOT EXISTS " \
+                     "#{quote_ident(field[:name])} #{field[:sql_type]}")
+          end
           # RIGHT HERE, NOT A SEPARATE STEP IN `Postgres#initialize` —
           # same idiom Sqlite::SchemaBuilder's own `create_aggregate_table!`
           # uses: index creation runs unconditionally, right after the
