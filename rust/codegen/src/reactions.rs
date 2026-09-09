@@ -96,9 +96,13 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
         .collect()
 }
 
-/// ── THE CROSS-DOMAIN POLICY TABLE.
-pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
-    let rows: Vec<String> = policies
+/// Every policy `local_policy_rows` filters OUT, represented instead of
+/// dropped — extracted so `emit_merged_cross_domain_policy_table` (below)
+/// can reuse it per-source, exactly the way `rust/project/reactions.rb`'s
+/// own `cross_domain_policy_rows` is shared by `emit_cross_domain_policy_
+/// table` and `emit_merged_cross_domain_policy_table`.
+fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String> {
+    policies
         .iter()
         .filter_map(|policy| {
             let target_domain = policy.get("target_domain").map(Json::to_s).unwrap_or_else(|| domain_name.to_string());
@@ -125,7 +129,75 @@ pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, po
                 where_expr(policy)
             ))
         })
-        .collect();
+        .collect()
+}
+
+/// ── THE CROSS-DOMAIN POLICY TABLE.
+pub fn emit_cross_domain_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
+    let rows = cross_domain_policy_rows(domain_name, policies);
+
+    if !rows.is_empty() {
+        println!("cross-domain policy table: {} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched", rows.len());
+    }
+
+    exemplar.render(
+        "cross_domain_policy_table",
+        &[(
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
+            rows.join("\n"),
+        )],
+    )
+}
+
+/// ONE CHAPTER'S OWN POLICIES, for a merged-table call — the direct port
+/// of `rust/project/reactions.rb`'s own `{domain_name:, policies:,
+/// aggregates:}` source hash. `aggregates` rides along for
+/// `local_policy_rows`' own fan-out addressing key; unused by the
+/// cross-domain half (`cross_domain_policy_rows` needs no fan-out key —
+/// see that function's own shape), same as the Ruby side.
+pub struct PolicySource<'a> {
+    pub domain_name: &'a str,
+    pub policies: &'a [Json],
+    pub aggregates: &'a [Json],
+}
+
+/// ── THE MERGED POLICY TABLE — `bin/project_rust`'s own `merged.rs`,
+/// spanning the target domain AND every framework/vendored chapter it
+/// attaches, mirroring `rust/project/reactions.rb`'s own
+/// `emit_merged_policy_table` byte for byte. RECOVERS THE SAME
+/// DOCUMENTED, DELIBERATE GAP that function's own header names:
+/// `run_full` (`main.rs`) used to build `merged.rs`'s policy table from
+/// the TARGET domain's own policies alone — correct only because no
+/// attached framework chapter (Governance/Identity, today) declares any
+/// policies of its own; a vendored chapter that does would see its
+/// policies compiled into its own standalone `registry.rs` table but
+/// never folded into the ONE table `kernel::orchestrate` actually reads
+/// at runtime, the identical silent-drop bug the Ruby side found live
+/// against a real deployed second chapter. Each source runs through the
+/// IDENTICAL `local_policy_rows` a standalone chapter's own table already
+/// uses, so a policy's own `target_verb` is qualified against ITS OWN
+/// `domain_name`/`aggregates`, never the target's.
+pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
+    let rows: Vec<String> = sources.iter().flat_map(|source| local_policy_rows(source.domain_name, source.policies, source.aggregates)).collect();
+    let fns: Vec<String> = sources.iter().flat_map(|source| where_fns(source.policies)).collect();
+
+    let table = exemplar.render(
+        "policy_table",
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+    );
+    if fns.is_empty() {
+        table
+    } else {
+        format!("{table}\n\n{}", fns.join("\n\n"))
+    }
+}
+
+/// ── THE MERGED CROSS-DOMAIN POLICY TABLE — same recovery as
+/// `emit_merged_policy_table` above, same documented gap, same reason
+/// (Governance/Identity declare no cross-domain policies either, so this
+/// half was equally invisible until a vendored chapter needed it).
+pub fn emit_merged_cross_domain_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
+    let rows: Vec<String> = sources.iter().flat_map(|source| cross_domain_policy_rows(source.domain_name, source.policies)).collect();
 
     if !rows.is_empty() {
         println!("cross-domain policy table: {} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched", rows.len());
@@ -429,4 +501,78 @@ fn with_spec_expr(policy: &Json) -> String {
         })
         .collect();
     format!("&[{}]", rendered.join(", "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mirrors `spec/rust_project/reactions_merge_spec.rb`'s own
+    /// `TARGET_POLICY`/`VENDORED_POLICY`/`VENDORED_CROSS_DOMAIN_POLICY`
+    /// fixtures exactly, so a future edit here can be checked against
+    /// that spec's own expectations by eye. No real corpus domain
+    /// exercises this shape (Governance/Identity, the only framework
+    /// chapters attached today, declare no policies) — tested directly
+    /// here for the identical reason the Ruby spec's own header gives.
+    fn policy(name: &str, on_event: &str, trigger_command: &str, target_domain: Option<&str>) -> Json {
+        let target_domain_json = match target_domain {
+            Some(domain) => format!("\"{domain}\""),
+            None => "null".to_string(),
+        };
+        Json::parse(&format!(
+            "{{\"name\":\"{name}\",\"on_event\":\"{on_event}\",\"trigger_command\":\"{trigger_command}\",\
+             \"target_domain\":{target_domain_json},\"for_each\":null,\"with_spec\":[]}}"
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn merged_policy_table_carries_the_target_and_a_vendored_chapters_own_same_domain_policy() {
+        let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
+        let payments_policies = vec![
+            policy("OnPaymentConfirmedByProcessor", "PaymentConfirmedByProcessor", "Payment.Succeed", None),
+            policy("OnPaymentFailed", "PaymentFailed", "Ledger.Reverse", Some("Ledger")),
+        ];
+        let sources = vec![
+            PolicySource { domain_name: "Orders", policies: &orders_policies, aggregates: &[] },
+            PolicySource { domain_name: "Payments", policies: &payments_policies, aggregates: &[] },
+        ];
+
+        let table = emit_merged_policy_table(&Exemplar::load(), &sources);
+
+        // The target domain's own policy, qualified against its own domain.
+        assert!(table.contains("target_verb: \"Orders::Invoice.Open\""));
+        // ALSO a vendored chapter's own same-domain policy, qualified
+        // against ITS domain — the fixed gap.
+        assert!(table.contains("policy_name: \"OnPaymentConfirmedByProcessor\""));
+        assert!(table.contains("target_verb: \"Payments::Payment.Succeed\""));
+        // A vendored chapter's own CROSS-domain policy is excluded —
+        // that one belongs to the cross-domain table instead.
+        assert!(!table.contains("OnPaymentFailed"));
+    }
+
+    #[test]
+    fn merged_cross_domain_policy_table_carries_only_a_vendored_chapters_own_cross_domain_policy() {
+        let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
+        let payments_policies = vec![
+            policy("OnPaymentConfirmedByProcessor", "PaymentConfirmedByProcessor", "Payment.Succeed", None),
+            policy("OnPaymentFailed", "PaymentFailed", "Ledger.Reverse", Some("Ledger")),
+        ];
+        let sources = vec![
+            PolicySource { domain_name: "Orders", policies: &orders_policies, aggregates: &[] },
+            PolicySource { domain_name: "Payments", policies: &payments_policies, aggregates: &[] },
+        ];
+
+        let table = emit_merged_cross_domain_policy_table(&Exemplar::load(), &sources);
+
+        // A vendored chapter's own cross-domain policy, qualified
+        // against its own trigger domain.
+        assert!(table.contains("policy_name: \"OnPaymentFailed\""));
+        assert!(table.contains("target_domain: \"Ledger\""));
+        assert!(table.contains("target_verb: \"Ledger::Ledger.Reverse\""));
+        // A same-domain policy from either source is excluded — that
+        // one belongs to the local table instead.
+        assert!(!table.contains("OnOrderPlaced"));
+        assert!(!table.contains("OnPaymentConfirmedByProcessor"));
+    }
 }

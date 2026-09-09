@@ -236,6 +236,21 @@ fn run_full(args: &[String]) -> Result<(), String> {
     let mut merged_aggregates = target_gen.registry_aggregates;
     let mut merged_queries = target_gen.query_defs;
     let mut merged_read_models = target_gen.read_model_defs;
+    let mut merged_process_managers: Vec<Json> = target_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec();
+
+    // POLICIES/PROCESS MANAGERS MERGE ACROSS CHAPTERS TOO — RECOVERED, not
+    // new (see `reactions::emit_merged_policy_table`'s own header for the
+    // full story: this used to compile in the target domain's own
+    // policies alone, invisible only because no attached framework
+    // chapter — Governance/Identity, today — declares any, the identical
+    // gap `rust/project/reactions.rb`'s own `emit_merged_policy_table`
+    // recovered on the Ruby side after a real vendored chapter
+    // (embryonaut_bluebooks/payments) needed it). `chapter_irs` keeps
+    // each attached chapter's own parsed IR alive long enough for
+    // `policy_sources`, below, to borrow its `policies`/`aggregates`
+    // arrays without cloning them.
+    let mut chapter_irs: Vec<Json> = Vec::new();
+    let mut chapter_domain_names: Vec<String> = Vec::new();
 
     let mut i = 4;
     while i < args.len() {
@@ -251,32 +266,44 @@ fn run_full(args: &[String]) -> Result<(), String> {
         let chapter_out_dir = format!("{out_root}/{chapter_mod_name}");
         let chapter_gen = write_domain(&ex, &chapter_ir, chapter_source_label, chapter_mod_name, &chapter_out_dir)?;
 
-        reference_key_pairs.push((chapter_domain_name, chapter_gen.registry_aggregates.iter().map(|a| a.name.clone()).collect()));
+        reference_key_pairs.push((chapter_domain_name.clone(), chapter_gen.registry_aggregates.iter().map(|a| a.name.clone()).collect()));
         merged_aggregates.extend(chapter_gen.registry_aggregates);
         merged_queries.extend(chapter_gen.query_defs);
         merged_read_models.extend(chapter_gen.read_model_defs);
+        merged_process_managers.extend(chapter_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec());
+
+        chapter_domain_names.push(chapter_domain_name);
+        chapter_irs.push(chapter_ir);
     }
 
-    // POLICIES/PROCESS MANAGERS COME FROM THE TARGET ALONE, never
-    // unioned across chapters — matches `bin/project_rust`'s own
-    // `emit_policy_table(target_domain_name, target_ir[:policies])`
-    // exactly (that script's own comment: Governance/Identity declare
-    // none today, and real cross-chapter policy routing is a separate,
-    // still-open gap, not attempted here either).
+    // ONE ENTRY PER CHAPTER (target first), each carrying exactly what
+    // `emit_merged_policy_table`/`emit_merged_cross_domain_policy_table`
+    // need to qualify THAT chapter's own policies against ITS OWN
+    // domain_name/aggregates, never the target's — the direct port of
+    // `bin/project_rust`'s own `policy_sources` array.
     let policies: Vec<Json> = target_ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
     let policy_aggregates: Vec<Json> = target_ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
-    let process_managers: Vec<Json> = target_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec();
+
+    let mut policy_sources: Vec<reactions::PolicySource> =
+        vec![reactions::PolicySource { domain_name: &target_domain_name, policies: &policies, aggregates: &policy_aggregates }];
+    for (name, ir) in chapter_domain_names.iter().zip(chapter_irs.iter()) {
+        policy_sources.push(reactions::PolicySource {
+            domain_name: name,
+            policies: ir.get("policies").map(Json::each).unwrap_or(&[]),
+            aggregates: ir.get("aggregates").map(Json::each).unwrap_or(&[]),
+        });
+    }
 
     let mut merged_rs = String::new();
     puts_str(&mut merged_rs, &crate::registry::emit_registry(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &crate::registry::emit_reference_lookup(&merged_aggregates));
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_policy_table(&ex, &target_domain_name, &policies, &policy_aggregates));
+    puts_str(&mut merged_rs, &reactions::emit_merged_policy_table(&ex, &policy_sources));
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_cross_domain_policy_table(&ex, &target_domain_name, &policies));
+    puts_str(&mut merged_rs, &reactions::emit_merged_cross_domain_policy_table(&ex, &policy_sources));
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_process_manager_table(&ex, &process_managers));
+    puts_str(&mut merged_rs, &reactions::emit_process_manager_table(&ex, &merged_process_managers));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_reference_key_table(&ex, &reference_key_pairs));
     puts_blank(&mut merged_rs);
