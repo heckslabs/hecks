@@ -150,23 +150,9 @@ module Hecks
         @aggregate = aggregate
         @db = self.class.connect_for(aggregate.name, settings)
         # The domain names the journal (one journal per lineage). The
-        # factory injects it as the owning bluebook's own declared name
-        # (`RepositoryFactory.build`'s own `domain` positional arg —
-        # `bluebook.name`, confirmed at `outbox.rb`'s own call site —
-        # never this default in real dispatch). This default exists only
-        # for a directly-instantiated adapter (specs, consoles) that
-        # skips the factory. It used to read `aggregate.storage_name` —
-        # the AGGREGATE's own snake_case name — which silently disagreed
-        # with `rust/host`'s own `pg_advisory_xact_lock` key (the
-        # CHAPTER's declared PascalCase name, from `HECKS_DOMAIN`) for
-        # anything constructed this way: `hashtext` is byte-sensitive, so
-        # `"chess"` and `"Chess"` never collide (ADR 0036, Blocker 1).
-        # `aggregate.hecks_owner.name` is the same one-hop walk
-        # `RepositoryFactory.build`'s own real callers already resolve by
-        # hand — matching it here means a directly-instantiated adapter
-        # locks (and journals) under the identical key the factory path
-        # already does.
-        @domain = self.class.setting(settings, :domain, default: aggregate.hecks_owner.name).to_s
+        # factory injects it; a directly-instantiated adapter (specs,
+        # consoles) journals under the aggregate's own name.
+        @domain = self.class.setting(settings, :domain, default: aggregate.storage_name).to_s
         @lineage = Lineage.new(@db, @domain)
         @lineage.ensure_base!
         # The era gate resolves which era this boot IS (an old checkout
