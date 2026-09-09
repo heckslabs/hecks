@@ -40,6 +40,12 @@ pub fn apply(
         // (a number for `offset`, a symbol for `cursor` per
         // syntax.bluebook's own rows) — `ruby_value::read`/`render`
         // round-trips either one correctly without needing to know which.
+        // `offset` has a fixed argument schema (like `order_by`/`limit`),
+        // so an undeclared `on:` is already refused upstream by the
+        // argument gate before `apply` ever runs — confirmed live
+        // ("'offset' takes no 'on:' argument"). No defensive check
+        // needed here, unlike `where`'s own open-ended `pairs` shape
+        // (`query_derive::refuse_on_target`'s own header explains why).
         "offset" => options.offset = Some(rendered_positional(args, 1)),
         "cursor" => options.cursor = Some(rendered_positional(args, 1)),
         // `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never

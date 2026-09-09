@@ -124,8 +124,19 @@ pub fn parse_body(
                     1,
                 )?)
             }
-            "where" => wheres.extend(query_derive::where_clauses(&gated.args.named)),
+            "where" => {
+                query_derive::refuse_on_target(file, last_line, "where", &gated.args.named)?;
+                wheres.extend(query_derive::where_clauses(&gated.args.named))
+            }
             "order_by" => {
+                // NOT `refuse_on_target` here — unlike `where` (below),
+                // `order_by` has a fixed, declared argument schema, so
+                // the argument gate itself already refuses an
+                // undeclared `on:` upstream, before this arm ever runs
+                // (confirmed live: "'order_by' takes no 'on:'
+                // argument"). Only `where`'s own open-ended `pairs`
+                // shape needs a defensive check — there is no fixed
+                // schema for it to be caught against.
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
                     Some((_, text)) => text.trim().trim_start_matches(':').to_string(),
