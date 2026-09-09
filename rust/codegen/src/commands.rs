@@ -455,9 +455,26 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     };
 
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    // Same exclusion `rust/project/commands.rb`'s own generic mutation-line
+    // loop needs, for the same reason "corrects" is already excluded here —
+    // a "delegate" mutation's real rendering is `delegation_of`'s `d.apply`
+    // below, which OVERWRITES `mutation_lines` wholesale when a delegation
+    // exists; this loop's own output for it is thrown away regardless. Ruby
+    // gets away with feeding it through anyway (`emit_mutation_line_body`'s
+    // `case` has no "delegate" arm and no `else`, so it silently returns
+    // `nil` — an empty line, harmless only because it's discarded next).
+    // `mutations::emit_mutation_line`'s own dispatch panics on an op it
+    // doesn't recognize rather than silently doing nothing (deliberately —
+    // see that panic's own message), so reaching it with "delegate" here
+    // crashed for real on the first domain whose only mutation was one
+    // (`examples/roster`'s `Retire`, `delegates_to "Member.Retire"` with no
+    // other mutation on the command at all).
     let mut mutation_lines: Vec<String> = mutations_list
         .iter()
-        .filter(|m| m.get("op").map(Json::to_s).unwrap_or_default() != "corrects")
+        .filter(|m| {
+            let op = m.get("op").map(Json::to_s).unwrap_or_default();
+            op != "corrects" && op != "delegate"
+        })
         .map(|m| mutations::emit_mutation_line(exemplar, m, aggregate, command, value_objects_by_name, true))
         .collect();
     if mutations::reads_pre_state(mutations_list) {
