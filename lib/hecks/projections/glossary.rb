@@ -21,8 +21,11 @@ module Hecks
     # same "who does this" a reader would ask by hand. Only what
     # genuinely belongs to no single aggregate (a Role, issued across
     # several; a Read Model, joined across several) gets its own
-    # trailing section. Within a section, still one short sentence per
-    # term, dictionary-plain — this is not `DocsProjector` re-sorted
+    # trailing section. WITHIN A SECTION, PLAIN A-TO-Z — a glossary is
+    # a dictionary, not a data model diagram; a reader who already
+    # knows to look under "Account" then reads it the way a dictionary
+    # reads, not sorted by what kind of word each entry is. Still one
+    # short sentence per term — this is not `DocsProjector` re-sorted
     # (verbs, refusals, wire shapes, walked for a caller); it is what
     # each term MEANS, walked for a domain expert.
     #
@@ -41,14 +44,6 @@ module Hecks
       projects_as :glossary
 
       Entry = Struct.new(:term, :kind, :definition, :within, :section, keyword_init: true)
-
-      # DISPLAY ORDER WITHIN A SECTION — the aggregate's own row first
-      # (what it IS), then the shapes it can be in and hold, then what
-      # you can ask of it, then what happens on its own.
-      KIND_RANK = {
-        "Aggregate" => 0, "Lifecycle" => 1, "Entity" => 2, "Value Object" => 3,
-        "Command" => 4, "Query" => 5, "Event" => 6, "Policy" => 7, "Saga" => 8
-      }.freeze
 
       ROLES_SECTION       = "Roles".freeze
       READ_MODELS_SECTION = "Read Models".freeze
@@ -361,7 +356,7 @@ module Hecks
       def section(title, rows)
         return nil unless rows
 
-        sorted = rows.sort_by { |entry| [KIND_RANK[entry.kind] || 99, entry.term.downcase] }
+        sorted = rows.sort_by { |entry| entry.term.downcase }
         "## #{title}\n\n| Term | Kind | Definition |\n|---|---|---|\n#{sorted.map { |entry| entry_row(entry) }.join("\n")}"
       end
 
