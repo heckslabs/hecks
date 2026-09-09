@@ -188,6 +188,20 @@ fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declar
     )
 }
 
+/// `interleave_checks`/`aggregates_by_name` — port of `json_codec.rb#
+/// emit_from_json_flat`'s own ADR 0037 Finding 7 fix: `false` (every
+/// value-object `from_json`) keeps the ORIGINAL one-shot struct-literal
+/// shape, invariants checked entirely separately afterward
+/// (`commands.rs#invariant_checks_for`). `true` — every command/entity-
+/// command/port-operation Args struct — builds each field into its own
+/// `let` binding, runs THAT field's own admits-plus-invariant pair
+/// (`commands::argument_check_lines`) immediately after, then moves to
+/// the next declared attribute, matching Ruby's own `coerce_declared_
+/// arguments` (interpreting.rb): one argument's shape AND invariant
+/// together before the next argument's shape is even attempted.
+/// `aggregates_by_name` is required whenever `interleave_checks` is
+/// true.
+#[allow(clippy::too_many_arguments)]
 pub fn emit_from_json_flat(
     exemplar: &Exemplar,
     struct_name: &str,
@@ -196,12 +210,15 @@ pub fn emit_from_json_flat(
     unknown_argument_allowlist: Option<&[String]>,
     command_name: Option<&str>,
     absent_argument_check: bool,
+    interleave_checks: bool,
+    aggregates_by_name: Option<&HashMap<String, &Json>>,
 ) -> String {
     let command_name = command_name.unwrap_or(struct_name);
+    let idents: Vec<String> = attributes.iter().map(|attr| naming::rust_ident_field(crate::attr::name(attr))).collect();
     let field_exprs: Vec<String> = attributes
         .iter()
-        .map(|attr| {
-            let ident = naming::rust_ident_field(crate::attr::name(attr));
+        .zip(idents.iter())
+        .map(|(attr, ident)| {
             let key = naming::rust_field(crate::attr::name(attr));
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
@@ -231,7 +248,24 @@ pub fn emit_from_json_flat(
             } else {
                 composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))
             };
-            exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)])
+
+            if interleave_checks {
+                let checks = crate::commands::argument_check_lines(
+                    exemplar,
+                    attr,
+                    ident,
+                    aggregates_by_name.expect("aggregates_by_name required when interleave_checks is true"),
+                    value_objects_by_name,
+                );
+                let mut block = format!("        let {ident} = {rhs};");
+                for check in checks {
+                    block.push('\n');
+                    block.push_str(&check);
+                }
+                block
+            } else {
+                exemplar.render("field_assignment", &[("tmpl_ident", ident.clone()), ("tmpl_rhs_placeholder()", rhs)])
+            }
         })
         .collect();
 
@@ -253,7 +287,8 @@ pub fn emit_from_json_flat(
         unknown_check.push_str(&emit_absent_argument_check(command_name, attributes));
     }
 
-    emit_from_json_skeleton(exemplar, struct_name, &field_exprs, &unknown_check)
+    let shorthand_fields = if interleave_checks { Some(idents.as_slice()) } else { None };
+    emit_from_json_skeleton(exemplar, struct_name, &field_exprs, &unknown_check, shorthand_fields)
 }
 
 /// Port of `json_codec.rb#emit_object_shape_check` — see that function's
@@ -264,9 +299,26 @@ fn emit_object_shape_check(struct_name: &str) -> String {
     )
 }
 
-fn emit_from_json_skeleton(exemplar: &Exemplar, struct_name: &str, field_exprs: &[String], unknown_check: &str) -> String {
-    let field_block = field_exprs.iter().map(|f| format!("        {f}")).collect::<Vec<_>>().join("\n");
-    let preamble = format!("{}{unknown_check}", emit_object_shape_check(struct_name));
+/// `shorthand_fields` — port of `json_codec.rb#emit_from_json_skeleton`'s
+/// own ADR 0037 Finding 7 fix. `None` (the default) keeps the ORIGINAL
+/// shape: `field_exprs` are already-complete `ident: rhs,` lines, folded
+/// straight into the struct literal. `Some(idents)` (interleaved callers
+/// only) means `field_exprs` are instead already-indented, already-
+/// terminated multi-line `let`+check blocks — folded into the PREAMBLE
+/// (ahead of `Ok(Self {`, not inside it), with the struct literal itself
+/// closing over the shorthand field-init form.
+fn emit_from_json_skeleton(exemplar: &Exemplar, struct_name: &str, field_exprs: &[String], unknown_check: &str, shorthand_fields: Option<&[String]>) -> String {
+    let mut preamble = format!("{}{unknown_check}", emit_object_shape_check(struct_name));
+    let field_block = match shorthand_fields {
+        Some(idents) => {
+            for f in field_exprs {
+                preamble.push_str(f);
+                preamble.push('\n');
+            }
+            idents.iter().map(|f| format!("        {f},")).collect::<Vec<_>>().join("\n")
+        }
+        None => field_exprs.iter().map(|f| format!("        {f}")).collect::<Vec<_>>().join("\n"),
+    };
     format!(
         "{}\n",
         exemplar.render(
@@ -422,7 +474,7 @@ pub fn emit_from_json_state(
         }
     }
 
-    emit_from_json_skeleton(exemplar, struct_name, &field_exprs, "")
+    emit_from_json_skeleton(exemplar, struct_name, &field_exprs, "", None)
 }
 
 pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {

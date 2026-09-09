@@ -85,7 +85,7 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
             let name = crate::naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
             puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &name, attrs, &value_objects_by_name, false, &[], None));
             puts_blank(&mut out);
-            puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, &value_objects_by_name, None, None, false));
+            puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, &value_objects_by_name, None, None, false, false, None));
         }
         puts_blank(&mut out);
     }

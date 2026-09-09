@@ -291,6 +291,8 @@ pub fn generate(
                         Some(&empty_allowlist),
                         None,
                         false,
+                        false,
+                        None,
                     ),
                 );
             }
@@ -580,6 +582,8 @@ pub fn generate(
                     Some(&allowlist),
                     Some(command_name),
                     true,
+                    true,
+                    Some(&aggregates_by_name),
                 ),
             );
             puts_blank(&mut out);

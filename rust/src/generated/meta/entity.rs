@@ -874,8 +874,10 @@ if !absent.is_empty() {
         ("declared", "path"),
     ])));
 }
+        let path = IdentityPath::from_json(&v.get("path").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentifyArgs.path expects IdentityPath, got nil".to_string()))?.coerce_single_field("value"))?;
+        path.check_invariants()?;
         Ok(Self {
-        path: IdentityPath::from_json(&v.get("path").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentifyArgs.path expects IdentityPath, got nil".to_string()))?.coerce_single_field("value"))?,
+        path,
         })
     }
 }
@@ -1094,15 +1096,30 @@ if !absent.is_empty() {
         ("declared", "type, name, list, optional, pattern, default, admits, relationship"),
     ])));
 }
+        let r#type = { let x = v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.type expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AttributeArgs.type expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AttributeArgs.type: expected String".to_string()) })? };
+        let name = EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let list = EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        list.check_invariants()?;
+        let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &optional { v.check_invariants()?; }
+        let pattern = match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pattern { v.check_invariants()?; }
+        let default = match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &default { v.check_invariants()?; }
+        let admits = match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &admits { v.check_invariants()?; }
+        let relationship = match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &relationship { v.check_invariants()?; }
         Ok(Self {
-        r#type: { let x = v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.type expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AttributeArgs.type expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AttributeArgs.type: expected String".to_string()) })? },
-        name: EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        list: EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        optional: match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        pattern: match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        default: match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        admits: match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        relationship: match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
+        r#type,
+        name,
+        list,
+        optional,
+        pattern,
+        default,
+        admits,
+        relationship,
         })
     }
 }
@@ -1229,15 +1246,30 @@ if !absent.is_empty() {
         ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
     ])));
 }
+        let points_at = { let x = v.get("points_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs.points_at expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()) })? };
+        let name = EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let list = EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        list.check_invariants()?;
+        let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &optional { v.check_invariants()?; }
+        let pattern = match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pattern { v.check_invariants()?; }
+        let default = match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &default { v.check_invariants()?; }
+        let admits = match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &admits { v.check_invariants()?; }
+        let relationship = match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &relationship { v.check_invariants()?; }
         Ok(Self {
-        points_at: { let x = v.get("points_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs.points_at expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()) })? },
-        name: EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        list: EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        optional: match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        pattern: match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        default: match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        admits: match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        relationship: match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
+        points_at,
+        name,
+        list,
+        optional,
+        pattern,
+        default,
+        admits,
+        relationship,
         })
     }
 }
@@ -1364,15 +1396,30 @@ if !absent.is_empty() {
         ("declared", "holds, name, list, optional, pattern, default, admits, relationship"),
     ])));
 }
+        let holds = { let x = v.get("holds").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("HoldsArgs.holds expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds: expected String".to_string()) })? };
+        let name = EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        name.check_invariants()?;
+        let list = EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        list.check_invariants()?;
+        let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &optional { v.check_invariants()?; }
+        let pattern = match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &pattern { v.check_invariants()?; }
+        let default = match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &default { v.check_invariants()?; }
+        let admits = match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &admits { v.check_invariants()?; }
+        let relationship = match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &relationship { v.check_invariants()?; }
         Ok(Self {
-        holds: { let x = v.get("holds").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("HoldsArgs.holds expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds: expected String".to_string()) })? },
-        name: EntityText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.name expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        list: EntityText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.list expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        optional: match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        pattern: match v.get("pattern") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        default: match v.get("default") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        admits: match v.get("admits") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        relationship: match v.get("relationship") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
+        holds,
+        name,
+        list,
+        optional,
+        pattern,
+        default,
+        admits,
+        relationship,
         })
     }
 }
@@ -1477,9 +1524,13 @@ if !absent.is_empty() {
         ("declared", "description, canonical"),
     ])));
 }
+        let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &description { v.check_invariants()?; }
+        let canonical = EntityText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PreconditionArgs.canonical expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        canonical.check_invariants()?;
         Ok(Self {
-        description: match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        canonical: EntityText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PreconditionArgs.canonical expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
+        description,
+        canonical,
         })
     }
 }
@@ -1584,9 +1635,13 @@ if !absent.is_empty() {
         ("declared", "description, canonical"),
     ])));
 }
+        let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &description { v.check_invariants()?; }
+        let canonical = EntityText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InvariantArgs.canonical expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        canonical.check_invariants()?;
         Ok(Self {
-        description: match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        canonical: EntityText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InvariantArgs.canonical expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
+        description,
+        canonical,
         })
     }
 }
@@ -1683,9 +1738,13 @@ if !unknown.is_empty() {
         unknown.join(", ")
     )));
 }
+        let state_field = match v.get("state_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &state_field { v.check_invariants()?; }
+        let state_start = match v.get("state_start") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &state_start { v.check_invariants()?; }
         Ok(Self {
-        state_field: match v.get("state_field") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        state_start: match v.get("state_start") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
+        state_field,
+        state_start,
         })
     }
 }
@@ -1793,10 +1852,16 @@ if !absent.is_empty() {
         ("declared", "command, from_state, to_state"),
     ])));
 }
+        let command = EntityText::from_json(&v.get("command").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransitionArgs.command expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        command.check_invariants()?;
+        let from_state = match v.get("from_state") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) };
+        if let Some(v) = &from_state { v.check_invariants()?; }
+        let to_state = EntityText::from_json(&v.get("to_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransitionArgs.to_state expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?;
+        to_state.check_invariants()?;
         Ok(Self {
-        command: EntityText::from_json(&v.get("command").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransitionArgs.command expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
-        from_state: match v.get("from_state") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?) },
-        to_state: EntityText::from_json(&v.get("to_state").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TransitionArgs.to_state expects EntityText, got nil".to_string()))?.coerce_single_field("value"))?,
+        command,
+        from_state,
+        to_state,
         })
     }
 }
