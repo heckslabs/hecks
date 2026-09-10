@@ -292,6 +292,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <li><a href="#angle">Angle</a></li>
 <li><a href="#bug">Bug</a></li>
 <li><a href="#clearance">Clearance</a></li>
+<li><a href="#improvement">Improvement</a></li>
 <li><a href="#patch">Patch</a></li>
 <li><a href="#sweep">Sweep</a></li>
 <li><a href="#target">Target</a></li>
@@ -316,11 +317,13 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     n_angle[&quot;Angle&quot;]
     n_ticket[&quot;Ticket&quot;]
     n_patch[&quot;Patch&quot;]
+    n_improvement[&quot;Improvement&quot;]
     n_clearance[&quot;Clearance&quot;]
     n_sweep --&gt;|&quot;target&quot;| n_target
     n_bug --&gt;|&quot;sweep&quot;| n_sweep
     n_ticket --&gt;|&quot;bug&quot;| n_bug
-    n_patch --&gt;|&quot;bug&quot;| n_bug</pre>
+    n_patch --&gt;|&quot;bug&quot;| n_bug
+    n_improvement --&gt;|&quot;angle&quot;| n_angle</pre>
 </figure>
 </header>
 <section id="angle">
@@ -331,6 +334,8 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <figcaption>How it fits</figcaption>
 <pre class="mermaid">flowchart LR
     n_angle[&quot;Angle&quot;]:::focus
+    n_improvement[&quot;Improvement&quot;]
+    n_improvement --&gt;|&quot;angle&quot;| n_angle
     classDef focus stroke-width:3px</pre>
 </figure>
 <figure>
@@ -776,6 +781,123 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>Put a commit through CI. Done by the qa engineer.</p>
 </article></div>
 </section>
+<section id="improvement">
+<h2>Improvement</h2>
+<p class="about">One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug&#39;s own fix.</p>
+<p>Starts out opened. Can be opened, landed, needs fix, merged, or closed.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_improvement[&quot;Improvement&quot;]:::focus
+    n_angle[&quot;Angle&quot;]
+    n_improvement --&gt;|&quot;angle&quot;| n_angle
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    state &quot;needs fix&quot; as needs_fix
+    [*] --&gt; opened
+    opened --&gt; landed: Land
+    needs_fix --&gt; landed: Land
+    landed --&gt; needs_fix: Regress
+    landed --&gt; merged: Merge
+    needs_fix --&gt; merged: Merge
+    landed --&gt; closed: Close
+    needs_fix --&gt; closed: Close</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>An Improvement references an Angle.</li><li>An improvement is numbered.</li><li>An improvement says where it lives.</li><li>An improvement says which branch it is on.</li><li>An improvement is titled.</li></ul>
+<div class="terms">
+<article class="term" id="all-3">
+<h3>All</h3>
+<p>Every improvement ever landed — what a runner reads back to reconcile against GitHub&#39;s own list.</p>
+</article>
+<article class="term" id="angle-ref">
+<h3>Angle ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="close">
+<h3>Close</h3>
+<p>Record that GitHub closed it without merging. Done by the qa engineer.</p>
+</article>
+<article class="term" id="commit-ref-2">
+<h3>Commit ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="for-angle">
+<h3>For angle</h3>
+<p>Every improvement ever landed against one angle — the duplicate check, the same shape Patch.ForBug already gives for a bug.</p>
+</article>
+<article class="term" id="improvement-branch">
+<h3>Improvement branch</h3>
+<p>Text.</p>
+<p class="rule">Always true: an improvement says which branch it is on.</p>
+</article>
+<article class="term" id="improvement-ci-watch">
+<h3>Improvement ci watch</h3>
+<p>Begins when <a href="#improvement-landed">Improvement landed</a> happens and ends when <a href="#clearance-given">Clearance given</a> happens. Along the way it can be watching or regressed.</p>
+</article>
+<article class="term" id="improvement-closed">
+<h3>Improvement closed</h3>
+<p>Recorded after <a href="#close">Close</a>.</p>
+</article>
+<article class="term" id="improvement-landed">
+<h3>Improvement landed</h3>
+<p>Recorded after <a href="#land">Land</a>.</p>
+</article>
+<article class="term" id="improvement-merged">
+<h3>Improvement merged</h3>
+<p>Recorded after <a href="#merge">Merge</a>.</p>
+</article>
+<article class="term" id="improvement-number">
+<h3>Improvement number</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an improvement is numbered.</p>
+</article>
+<article class="term" id="improvement-opened">
+<h3>Improvement opened</h3>
+<p>Recorded after <a href="#open-1">Open</a>.</p>
+</article>
+<article class="term" id="improvement-regressed">
+<h3>Improvement regressed</h3>
+<p>Recorded after <a href="#regress-1">Regress</a>.</p>
+</article>
+<article class="term" id="improvement-title">
+<h3>Improvement title</h3>
+<p>Text.</p>
+<p class="rule">Always true: an improvement is titled.</p>
+</article>
+<article class="term" id="improvement-url">
+<h3>Improvement url</h3>
+<p>Text.</p>
+<p class="rule">Always true: an improvement says where it lives.</p>
+</article>
+<article class="term" id="land">
+<h3>Land</h3>
+<p>Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.</p>
+</article>
+<article class="term" id="merge">
+<h3>Merge</h3>
+<p>Record that GitHub merged it. Done by the qa engineer.</p>
+</article>
+<article class="term" id="needs-fix">
+<h3>Needs fix</h3>
+<p>Landed work whose own commit came back red — what ImprovementCiWatch put back in front of somebody, and the list a human or agent clears with a fresh Land.</p>
+</article>
+<article class="term" id="open-1">
+<h3>Open</h3>
+<p>Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching. Done by the qa engineer.</p>
+</article>
+<article class="term" id="open-the-list">
+<h3>Open (the list)</h3>
+<p>Every PR we&#39;ve landed for deliberate, non-bugfix work that&#39;s still open, by number — bin/qa_pr_check&#39;s own second worklist, the same shape Patch.Open already gives for a bug&#39;s own fix. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+</article>
+<article class="term" id="regress-1">
+<h3>Regress</h3>
+<p>Put landed work back in front of somebody when its own commit stops holding. Done by the qa engineer.</p>
+</article></div>
+</section>
 <section id="patch">
 <h2>Patch</h2>
 <p class="about">One pull request opened for a Bug&#39;s own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.</p>
@@ -798,7 +920,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p class="caption"></p>
 <ul class="rules"><li>A Patch references a Bug.</li><li>A patch is numbered.</li><li>A patch says where it lives.</li><li>A patch says which branch it is on.</li><li>A patch is titled.</li></ul>
 <div class="terms">
-<article class="term" id="all-3">
+<article class="term" id="all-4">
 <h3>All</h3>
 <p>Every patch ever opened — what a runner reads back to reconcile against GitHub&#39;s own list.</p>
 </article>
@@ -806,11 +928,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Bug ref</h3>
 <p>Text.</p>
 </article>
-<article class="term" id="close">
+<article class="term" id="close-1">
 <h3>Close</h3>
 <p>Record that GitHub closed it without merging. Done by the qa engineer.</p>
 </article>
-<article class="term" id="commit-ref-2">
+<article class="term" id="commit-ref-3">
 <h3>Commit ref</h3>
 <p>Text.</p>
 </article>
@@ -818,15 +940,15 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>For bug</h3>
 <p>Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue.</p>
 </article>
-<article class="term" id="merge">
+<article class="term" id="merge-1">
 <h3>Merge</h3>
 <p>Record that GitHub merged it. Done by the qa engineer.</p>
 </article>
-<article class="term" id="open-1">
+<article class="term" id="open-2">
 <h3>Open</h3>
 <p>Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known. Done by the qa engineer.</p>
 </article>
-<article class="term" id="open-the-list">
+<article class="term" id="open-the-list-1">
 <h3>Open (the list)</h3>
 <p>Every PR we&#39;ve opened that&#39;s still open, by number — bin/qa_pr_check&#39;s own worklist. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
 </article>
@@ -837,11 +959,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="patch-closed">
 <h3>Patch closed</h3>
-<p>Recorded after <a href="#close">Close</a>.</p>
+<p>Recorded after <a href="#close-1">Close</a>.</p>
 </article>
 <article class="term" id="patch-merged">
 <h3>Patch merged</h3>
-<p>Recorded after <a href="#merge">Merge</a>.</p>
+<p>Recorded after <a href="#merge-1">Merge</a>.</p>
 </article>
 <article class="term" id="patch-number">
 <h3>Patch number</h3>
@@ -850,7 +972,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="patch-opened">
 <h3>Patch opened</h3>
-<p>Recorded after <a href="#open-1">Open</a>.</p>
+<p>Recorded after <a href="#open-2">Open</a>.</p>
 </article>
 <article class="term" id="patch-title">
 <h3>Patch title</h3>
@@ -895,7 +1017,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Abandon</h3>
 <p>End a pass whose output should not be trusted. Done by the qa engineer.</p>
 </article>
-<article class="term" id="all-4">
+<article class="term" id="all-5">
 <h3>All</h3>
 <p>Every pass ever made — what a runner mints the next reference from.</p>
 </article>
@@ -972,7 +1094,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Observation</h3>
 <p>Text.</p>
 </article>
-<article class="term" id="open-2">
+<article class="term" id="open-3">
 <h3>Open</h3>
 <p>Begin a pass over one chapter. Done by the qa engineer.</p>
 </article>
@@ -1008,7 +1130,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="sweep-opened">
 <h3>Sweep opened</h3>
-<p>Recorded after <a href="#open-2">Open</a>.</p>
+<p>Recorded after <a href="#open-3">Open</a>.</p>
 </article>
 <article class="term" id="sweep-reference">
 <h3>Sweep reference</h3>
@@ -1072,7 +1194,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p class="caption"></p>
 <ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>Shelving a target says why.</li><li>A staleness window is positive.</li></ul>
 <div class="terms">
-<article class="term" id="all-5">
+<article class="term" id="all-6">
 <h3>All</h3>
 <p>Every chapter ever written down — the inventory a runner walking the repository checks its findings against.</p>
 </article>
@@ -1202,7 +1324,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Abandoned</h3>
 <p>Asked three times, refused three times. Every row belongs in the report, because nothing automatic will touch it again.</p>
 </article>
-<article class="term" id="all-6">
+<article class="term" id="all-7">
 <h3>All</h3>
 <p>Every ticket ever raised.</p>
 </article>
@@ -1223,7 +1345,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Bug ref</h3>
 <p>Text.</p>
 </article>
-<article class="term" id="close-1">
+<article class="term" id="close-2">
 <h3>Close</h3>
 <p>Record that the issue is done with. Done by the qa engineer.</p>
 </article>
@@ -1312,7 +1434,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="ticket-closed">
 <h3>Ticket closed</h3>
-<p>Recorded after <a href="#close-1">Close</a>.</p>
+<p>Recorded after <a href="#close-2">Close</a>.</p>
 </article>
 <article class="term" id="ticket-filed">
 <h3>Ticket filed</h3>
@@ -1359,7 +1481,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <div class="terms">
 <article class="term" id="qa-engineer">
 <h3>QA engineer</h3>
-<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#open-2">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-1">Close (ticket)</a>, <a href="#open-1">Open (patch)</a>, <a href="#merge">Merge</a>, <a href="#close">Close (patch)</a>, and <a href="#start">Start</a>.</p>
+<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#open-3">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress (bug)</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-2">Close (ticket)</a>, <a href="#open-2">Open (patch)</a>, <a href="#merge-1">Merge (patch)</a>, <a href="#close-1">Close (patch)</a>, <a href="#open-1">Open (improvement)</a>, <a href="#land">Land</a>, <a href="#regress-1">Regress (improvement)</a>, <a href="#merge">Merge (improvement)</a>, <a href="#close">Close (improvement)</a>, and <a href="#start">Start</a>.</p>
 </article>
 <article class="term" id="system">
 <h3>System</h3>
@@ -1378,6 +1500,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Bugs by submitter</h3>
 <p>Every bug sorted by who reported it, then by its own reference — what each agent has actually found.</p>
 </article>
+<article class="term" id="improvements-by-status">
+<h3>Improvements by status</h3>
+<p>Every improvement sorted into what became of it — landed, needing a fix, merged, or closed, at a glance.</p>
+</article>
 <article class="term" id="tickets-by-status">
 <h3>Tickets by status</h3>
 <p>Every ticket sorted by where it got to — stuck filings and abandoned ones are only visible as a count.</p>
@@ -1393,7 +1519,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="close-when-closed-upstream">
 <h3>Close when closed upstream</h3>
-<p>When Issue closed upstream happens, <a href="#ticket">Ticket</a> is asked to <a href="#close-1">Close</a>.</p>
+<p>When Issue closed upstream happens, <a href="#ticket">Ticket</a> is asked to <a href="#close-2">Close</a>.</p>
 </article>
 <article class="term" id="record-the-issue">
 <h3>Record the issue</h3>
