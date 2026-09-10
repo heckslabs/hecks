@@ -1662,9 +1662,9 @@ if !absent.is_empty() {
         ("declared", "bluebook, name"),
     ])));
 }
-        let bluebook = BluebookName::from_json(&v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects BluebookName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let bluebook = BluebookName::from_json(&(match v.get("bluebook").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook expects BluebookName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         bluebook.check_invariants()?;
-        let name = SyntaxName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects SyntaxName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let name = SyntaxName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.name expects SyntaxName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
         Ok(Self {
         bluebook,
@@ -1812,21 +1812,21 @@ if !absent.is_empty() {
         ("declared", "position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls"),
     ])));
 }
-        let position = KeywordPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.position expects KeywordPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        let position = KeywordPosition::from_json(&(match v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.position expects KeywordPosition, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         position.check_invariants()?;
-        let word = KeywordSeedText::from_json(&v.get("word").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.word expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let word = KeywordSeedText::from_json(&(match v.get("word").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.word expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         word.check_invariants()?;
-        let context = KeywordSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.context expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let context = KeywordSeedText::from_json(&(match v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.context expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", context.value))); }
         context.check_invariants()?;
-        let body = KeywordSeedText::from_json(&v.get("body").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.body expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let body = KeywordSeedText::from_json(&(match v.get("body").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.body expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["none", "keywords", "source", "rows"].contains(&body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "body admits Syntax::Body — \"none\", \"keywords\", \"source\", \"rows\" — got ", body.value))); }
         body.check_invariants()?;
-        let inner = KeywordSeedText::from_json(&v.get("inner").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.inner expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let inner = KeywordSeedText::from_json(&(match v.get("inner").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.inner expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         inner.check_invariants()?;
-        let opens = KeywordSeedText::from_json(&v.get("opens").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.opens expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let opens = KeywordSeedText::from_json(&(match v.get("opens").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.opens expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         opens.check_invariants()?;
-        let fills = KeywordSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.fills expects KeywordSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let fills = KeywordSeedText::from_json(&(match v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeywordArgs.fills expects KeywordSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         fills.check_invariants()?;
         let was = match v.get("was") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &was { v.check_invariants()?; }
@@ -2011,23 +2011,23 @@ if !absent.is_empty() {
         ("declared", "position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message"),
     ])));
 }
-        let position = ArgumentPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.position expects ArgumentPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        let position = ArgumentPosition::from_json(&(match v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.position expects ArgumentPosition, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         position.check_invariants()?;
-        let keyword = ArgumentSeedText::from_json(&v.get("keyword").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.keyword expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let keyword = ArgumentSeedText::from_json(&(match v.get("keyword").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.keyword expects ArgumentSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         keyword.check_invariants()?;
-        let context = ArgumentSeedText::from_json(&v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.context expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let context = ArgumentSeedText::from_json(&(match v.get("context").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.context expects ArgumentSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"Dispatch\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", context.value))); }
         context.check_invariants()?;
         let at = match v.get("at") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &at { v.check_invariants()?; }
         let named = match v.get("named") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &named { v.check_invariants()?; }
-        let kind = ArgumentSeedText::from_json(&v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.kind expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let kind = ArgumentSeedText::from_json(&(match v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.kind expects ArgumentSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"].contains(&kind.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "kind admits Syntax::ArgumentKind — \"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\" — got ", kind.value))); }
         kind.check_invariants()?;
-        let required = ArgumentSeedText::from_json(&v.get("required").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.required expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let required = ArgumentSeedText::from_json(&(match v.get("required").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.required expects ArgumentSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         required.check_invariants()?;
-        let fills = ArgumentSeedText::from_json(&v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.fills expects ArgumentSeedText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let fills = ArgumentSeedText::from_json(&(match v.get("fills").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.fills expects ArgumentSeedText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         fills.check_invariants()?;
         let selects = match v.get("selects") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &selects { v.check_invariants()?; }

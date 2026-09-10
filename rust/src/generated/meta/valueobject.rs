@@ -970,9 +970,9 @@ if !absent.is_empty() {
         ("declared", "key, value"),
     ])));
 }
-        let key = MemberText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.key expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let key = MemberText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.key expects MemberText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
-        let value = MemberText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.value expects MemberText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let value = MemberText::from_json(&(match v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberPairEntityArgs.value expects MemberText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         value.check_invariants()?;
         Ok(Self {
         key,
@@ -1263,11 +1263,11 @@ if !absent.is_empty() {
         ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
     ])));
 }
-        let name = ValueObjectName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.name expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let name = ValueObjectName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.name expects ValueObjectName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
-        let r#type = ValueObjectName::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.type expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let r#type = ValueObjectName::from_json(&(match v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.type expects ValueObjectName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         r#type.check_invariants()?;
-        let list = ValueObjectName::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.list expects ValueObjectName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let list = ValueObjectName::from_json(&(match v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldArgs.list expects ValueObjectName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         list.check_invariants()?;
         let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &optional { v.check_invariants()?; }
@@ -1489,7 +1489,7 @@ if !absent.is_empty() {
 }
         let description = match v.get("description") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &description { v.check_invariants()?; }
-        let canonical = ValueObjectText::from_json(&v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssertArgs.canonical expects ValueObjectText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let canonical = ValueObjectText::from_json(&(match v.get("canonical").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssertArgs.canonical expects ValueObjectText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         canonical.check_invariants()?;
         Ok(Self {
         description,
@@ -1593,7 +1593,7 @@ if !absent.is_empty() {
         ("declared", "position"),
     ])));
 }
-        let position = MemberPosition::from_json(&v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberArgs.position expects MemberPosition, got nil".to_string()))?.coerce_single_field("value"))?;
+        let position = MemberPosition::from_json(&(match v.get("position").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberArgs.position expects MemberPosition, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         position.check_invariants()?;
         Ok(Self {
         position,

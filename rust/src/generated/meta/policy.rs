@@ -606,9 +606,9 @@ if !absent.is_empty() {
         ("declared", "key, value"),
     ])));
 }
-        let key = PolicyText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BindArgs.key expects PolicyText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let key = PolicyText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BindArgs.key expects PolicyText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
-        let value = PolicyText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BindArgs.value expects PolicyText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let value = PolicyText::from_json(&(match v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BindArgs.value expects PolicyText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         value.check_invariants()?;
         Ok(Self {
         key,

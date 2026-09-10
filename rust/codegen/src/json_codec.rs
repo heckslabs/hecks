@@ -117,6 +117,41 @@ pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<Str
     }
 }
 
+/// Port of `json_codec.rb#required_composite_argument_expr` — BUG#4
+/// (loop-parity). See that method's own header for the full trace:
+/// `Value::Coercion#nil_argument` (coercion.rb) builds a REQUIRED
+/// command/entity-command argument's own value-object type from NO
+/// FIELDS AT ALL when the caller's JSON offers a bare `null`, exactly as
+/// if the key had been omitted — never a per-field null the way a
+/// nested/state-assembly field's own `null` genuinely is. Substituting
+/// an empty object for a bare `null` before `coerce_single_field` ever
+/// runs lets the nested type's own declared defaults (`scalar_from_json_
+/// expr`'s `default:` branch, untouched) fill exactly what an omitted
+/// key would, and still refuses whatever field has none — same as
+/// Ruby's own `build`/`validate!`/`check_required_fields`. Only ever
+/// called from this method's own two `absent_argument_check: true`
+/// call sites (the ARGUMENT door) — a plain value object's own nested
+/// from_json keeps calling `composite_from_json_expr` directly.
+/// BOTH match arms are OWNED `Json` (the `Null` arm a fresh empty
+/// object, the fallback a `.clone()` of the real value) — not
+/// `composite_from_json_expr`'s ordinary REFERENCE-shaped `value_expr`
+/// contract, so this builds its own final expression rather than
+/// delegating to it: mixing an owned, ARM-LOCAL `&Json::Object(...)`
+/// temporary with the fallback arm's own differently-scoped `&Json`
+/// does not borrow-check (E0716, "temporary value dropped while
+/// borrowed") — the match's overall temporary has to be ONE unified
+/// owned value, referenced ONCE at the top of the whole expression.
+pub fn required_composite_argument_expr(struct_name: &str, key: &str, attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+    let fetch = required_field_expr(struct_name, key, crate::attr::type_name(attr));
+    let nested_type = naming::rust_ident(crate::attr::type_name(attr));
+    let guarded = format!("match {fetch} {{ crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }}");
+    let source = match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
+        Some(sole) => format!("({guarded}).coerce_single_field({})", naming::ruby_inspect_string(&sole)),
+        None => guarded,
+    };
+    format!("{nested_type}::from_json(&{source})?")
+}
+
 /// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
 /// allowlist — declared attributes plus every OTHER name a caller is
 /// legitimately allowed to address a command by or smuggle a saga's
@@ -245,6 +280,10 @@ pub fn emit_from_json_flat(
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
+            } else if absent_argument_check {
+                // BUG#4 — the ARGUMENT door only; see
+                // `required_composite_argument_expr`'s own header.
+                required_composite_argument_expr(struct_name, &key, attr, value_objects_by_name)
             } else {
                 composite_from_json_expr(attr, value_objects_by_name, &required_field_expr(struct_name, &key, crate::attr::type_name(attr)))
             };

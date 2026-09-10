@@ -1,0 +1,7 @@
+{
+  "domain": "examples/banking",
+  "note": "BUG#4 (loop-parity) — existence wins over a malformed argument's own type coercion, matching Ruby's own DISPATCH_ORDER (`hydrate` precedes `apply_mutations`, the step a `sets` mutation's source is actually coerced at) and the same precedent BUG#3 already established (an addressing/identity value's own invariant is not checked until AFTER confirming something could even match). Verified genuinely broken before this fixture existed: unmodified Rust's generated `SuspendArgs::from_json` parsed and type-checked `standing: null` — a REQUIRED, value-object-typed argument declared with a default (`CustomerStanding.value, default: \"good\"\") — as a real per-field null, raising TypeMismatch unconditionally, before `dispatch_suspend`'s own existence check ever ran. Ruby leniently builds `CustomerStanding` from NO fields at all for a bare-null required argument (`Value::Coercion#nil_argument`, the same leniency `normalize_args` gives every command argument, well before `hydrate`), so `standing: null` never fails Ruby's own coercion at all — the ONLY reason Ruby refuses here is that `gen-missing-001` was never registered: NotFound, on both engines, once `required_composite_argument_expr` (rust/project/json_codec.rb) taught the generated `from_json` the same leniency.",
+  "steps": [
+    {"verb": "Banking::Customer.Suspend", "args": {"standing": null, "reference": {"value": "gen-missing-001"}}}
+  ]
+}

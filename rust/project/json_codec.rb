@@ -111,6 +111,63 @@ module RustProjection
       "#{nested_type}::from_json(#{source})?"
     end
 
+    # BUG#4 (loop-parity) — `Value::Coercion#nil_argument` (coercion.rb),
+    # read directly: a REQUIRED command/entity-command ARGUMENT (this
+    # method's only two callers pass `absent_argument_check: true`, this
+    # file's own "argument door" flag — see `emit_from_json_flat`'s own
+    # header) that names a value-object type and arrives as a bare JSON
+    # `null` is NOT read as "one field literally holding null" the way a
+    # STATE-ASSEMBLY/nested field's own null would be — it is built from
+    # NO FIELDS AT ALL, `build(value_object, {}, aggregate)`, exactly as
+    # if the caller had omitted the key entirely: `Banking::Customer
+    # .Suspend`'s own `standing: nil` against a `CustomerStanding` whose
+    # one field defaults to `"good"` succeeds with the default, in Ruby,
+    # every time — never a `TypeMismatch`, whether or not the addressed
+    # Customer even exists. Confirmed live: fixing this by instead
+    # DEFERRING existence-checking's own `TypeMismatch` past hydrate
+    # (the more obvious-looking fix, tried first) made `AbsentArgument`/
+    # `UnknownArgument`/`InvariantViolation` refusals against a missing
+    # record wrongly read `NotFound` too, across unrelated commands
+    # (`spec/rust_conformance_fuzz_spec.rb`, widened seeds) — Ruby's own
+    # `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_absent_
+    # arguments`/`normalize_args` (which is where `nil_argument` itself
+    # lives) UNCONDITIONALLY BEFORE `hydrate`, not after, so the real gap
+    # was never about ordering at all — only about this one specific
+    # leniency `from_json` never replicated. `coerce_single_field`
+    # (kernel/json.rs) treats an `Object` as itself and anything else as
+    # `{sole_field: that_value}` — a bare `null` would otherwise become
+    # `{"value": null}`, which still fails the SAME way a caller
+    # literally sending `{"value": null}` would (correctly — that IS a
+    # real per-field null, not an absent argument). Substituting an
+    # EMPTY object for a bare `null` BEFORE `coerce_single_field` ever
+    # runs sidesteps that entirely: `CustomerStanding::from_json({})`
+    # already fills every defaulted field exactly like an omitted key
+    # would (`scalar_from_json_expr`'s own `default:` branch, untouched),
+    # and still refuses whatever a field with NO default leaves missing
+    # — same as Ruby's own `build`/`validate!`/`check_required_fields`.
+    #
+    # BOTH match arms are OWNED `Json` (the `Null` arm a fresh empty
+    # object, the fallback a `.clone()` of the real value) — not
+    # `composite_from_json_expr`'s ordinary REFERENCE-shaped `value_expr`
+    # contract, so this builds its own final expression rather than
+    # delegating to it: mixing an owned, ARM-LOCAL `&Json::Object(...)`
+    # temporary with the fallback arm's own differently-scoped `&Json`
+    # (tried first) does not borrow-check (E0716, "temporary value
+    # dropped while borrowed") — the match's overall temporary has to be
+    # ONE unified owned value, referenced ONCE at the top of the whole
+    # expression, for the same "lives to the end of this statement"
+    # default every other generated `from_json` field expression already
+    # relies on (`required_field_expr`'s own `?`, `coerce_single_field`'s
+    # own owned return, ...).
+    def required_composite_argument_expr(struct_name, key, attr, value_objects_by_name)
+      fetch = required_field_expr(struct_name, key, attr[:type])
+      nested_type = rust_ident(attr[:type])
+      sole = sole_field_of(attr[:type], value_objects_by_name)
+      guarded = "match #{fetch} { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }"
+      source = sole ? "(#{guarded}).coerce_single_field(#{sole.inspect})" : guarded
+      "#{nested_type}::from_json(&#{source})?"
+    end
+
     # `default:` — `Value.build`'s own fallback (bridging.rb's
     # `creation_default_rhs` comment, the same rule applied here instead of
     # only at creation time): a scalar field the caller's JSON doesn't
@@ -270,40 +327,58 @@ module RustProjection
     # by_name:` is required whenever `interleave_checks` is true — the
     # SAME full-IR lookup `argument_check_lines`'s own `admits:` door
     # needs to resolve a closed set declared elsewhere in the chapter.
+    #
+    # ONE FIELD's own RHS — pulled out of `emit_from_json_flat` itself
+    # (pure extraction, no behavior change) so that method's own
+    # complexity metrics stay under this repo's `.rubocop.yml` caps once
+    # BUG#4's own extra branch (`absent_argument_check`, below) joined
+    # the five shapes already here: list-optional, list-required,
+    # scalar-optional, composite-optional, scalar-required. `absent_
+    # argument_check` — the ARGUMENT door only; see `required_composite_
+    # argument_expr`'s own header. `emit_from_json_state`/a plain value
+    # object's own nested from_json (`emit_from_json_flat`'s OTHER
+    # caller, `absent_argument_check: false`) keeps the unchanged
+    # `composite_from_json_expr` call — a nested field's own bare `null`
+    # stays a real per-field null there, not an absent argument.
+    def flat_field_rhs(struct_name, attr, key, value_objects_by_name, absent_argument_check)
+      scalar = effective_scalar_type(attr[:type])
+      if attr[:list] && attr[:optional]
+        # `Option<Vec<T>>` — `None` when the caller never supplied
+        # the key at all (`CardPayment.Authorize`'s own `tags:`),
+        # not defaulted to an empty Vec the way a REQUIRED list
+        # argument's own absent-key case still is, below.
+        elem_type = rust_ident(attr[:type])
+        array_error = json_type_error(struct_name, key, "an array")
+        "match v.get(#{key.inspect}) { " \
+          "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
+          "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
+      elsif attr[:list]
+        elem_type = rust_ident(attr[:type])
+        "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
+          "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
+          "None => Vec::new(), }"
+      elsif attr[:optional] && scalar
+        # `Some(Json::Null) | None` — an optional argument offered as
+        # null is the same absence as an omitted key (`for_attribute`'s
+        # own nil passthrough for an `optional:` attribute, coercion.rb).
+        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}) }"
+      elsif attr[:optional]
+        "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}) }"
+      elsif scalar
+        scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
+      elsif absent_argument_check
+        required_composite_argument_expr(struct_name, key, attr, value_objects_by_name)
+      else
+        composite_from_json_expr(attr, value_objects_by_name, required_field_expr(struct_name, key, attr[:type]))
+      end
+    end
+
     def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name,
                             absent_argument_check: false, interleave_checks: false, aggregates_by_name: nil)
       idents = attributes.map { |attr| rust_ident_field(attr[:name]) }
       field_exprs = attributes.zip(idents).map do |attr, ident|
         key = rust_field(attr[:name])
-        scalar = effective_scalar_type(attr[:type])
-        rhs =
-          if attr[:list] && attr[:optional]
-            # `Option<Vec<T>>` — `None` when the caller never supplied
-            # the key at all (`CardPayment.Authorize`'s own `tags:`),
-            # not defaulted to an empty Vec the way a REQUIRED list
-            # argument's own absent-key case still is, below.
-            elem_type = rust_ident(attr[:type])
-            array_error = json_type_error(struct_name, key, "an array")
-            "match v.get(#{key.inspect}) { " \
-              "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
-              "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
-          elsif attr[:list]
-            elem_type = rust_ident(attr[:type])
-            "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
-              "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
-              "None => Vec::new(), }"
-          elsif attr[:optional] && scalar
-            # `Some(Json::Null) | None` — an optional argument offered as
-            # null is the same absence as an omitted key (`for_attribute`'s
-            # own nil passthrough for an `optional:` attribute, coercion.rb).
-            "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}) }"
-          elsif attr[:optional]
-            "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}) }"
-          elsif scalar
-            scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
-          else
-            composite_from_json_expr(attr, value_objects_by_name, required_field_expr(struct_name, key, attr[:type]))
-          end
+        rhs = flat_field_rhs(struct_name, attr, key, value_objects_by_name, absent_argument_check)
 
         if interleave_checks
           checks = argument_check_lines(attr, ident, aggregates_by_name, value_objects_by_name)

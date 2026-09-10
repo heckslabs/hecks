@@ -539,11 +539,11 @@ if !absent.is_empty() {
         ("declared", "reference, name, email"),
     ])));
 }
-        let reference = CustomerNumber::from_json(&v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.reference expects CustomerNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let reference = CustomerNumber::from_json(&(match v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.reference expects CustomerNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         reference.check_invariants()?;
-        let name = PersonName::from_json(v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.name expects PersonName, got nil".to_string()))?)?;
+        let name = PersonName::from_json(&match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.name expects PersonName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         name.check_invariants()?;
-        let email = EmailAddress::from_json(&v.get("email").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.email expects EmailAddress, got nil".to_string()))?.coerce_single_field("address"))?;
+        let email = EmailAddress::from_json(&(match v.get("email").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.email expects EmailAddress, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("address"))?;
         email.check_invariants()?;
         Ok(Self {
         reference,
@@ -649,7 +649,7 @@ if !absent.is_empty() {
         ("declared", "standing"),
     ])));
 }
-        let standing = CustomerStanding::from_json(&v.get("standing").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SuspendArgs.standing expects CustomerStanding, got nil".to_string()))?.coerce_single_field("value"))?;
+        let standing = CustomerStanding::from_json(&(match v.get("standing").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SuspendArgs.standing expects CustomerStanding, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         standing.check_invariants()?;
         Ok(Self {
         standing,

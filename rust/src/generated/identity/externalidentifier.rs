@@ -450,11 +450,11 @@ if !absent.is_empty() {
     ])));
 }
         let identity = { let x = v.get("identity").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.identity expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("LinkArgs.identity expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("LinkArgs.identity: expected String".to_string()) })? };
-        let key = ExternalIdentifierKey::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.key expects ExternalIdentifierKey, got nil".to_string()))?.coerce_single_field("value"))?;
+        let key = ExternalIdentifierKey::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.key expects ExternalIdentifierKey, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
-        let issuer = Issuer::from_json(&v.get("issuer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.issuer expects Issuer, got nil".to_string()))?.coerce_single_field("value"))?;
+        let issuer = Issuer::from_json(&(match v.get("issuer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.issuer expects Issuer, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         issuer.check_invariants()?;
-        let subject = Subject::from_json(&v.get("subject").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.subject expects Subject, got nil".to_string()))?.coerce_single_field("value"))?;
+        let subject = Subject::from_json(&(match v.get("subject").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.subject expects Subject, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         subject.check_invariants()?;
         Ok(Self {
         identity,

@@ -378,9 +378,9 @@ if !absent.is_empty() {
     ])));
 }
         let customer = { let x = v.get("customer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("OpenArgs.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()) })? };
-        let reference = OnboardingReference::from_json(&v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.reference expects OnboardingReference, got nil".to_string()))?.coerce_single_field("value"))?;
+        let reference = OnboardingReference::from_json(&(match v.get("reference").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.reference expects OnboardingReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         reference.check_invariants()?;
-        let account_number = AccountNumber::from_json(&v.get("account_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.account_number expects AccountNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let account_number = AccountNumber::from_json(&(match v.get("account_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.account_number expects AccountNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         account_number.check_invariants()?;
         Ok(Self {
         customer,

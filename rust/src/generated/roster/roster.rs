@@ -1089,7 +1089,7 @@ if !absent.is_empty() {
         ("declared", "name"),
     ])));
 }
-        let name = RosterName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.name expects RosterName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let name = RosterName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.name expects RosterName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
         Ok(Self {
         name,
@@ -1192,7 +1192,7 @@ if !absent.is_empty() {
         ("declared", "to"),
     ])));
 }
-        let to = SeatNumber::from_json(&v.get("to").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.to expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let to = SeatNumber::from_json(&(match v.get("to").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MarkArgs.to expects SeatNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         to.check_invariants()?;
         Ok(Self {
         to,
@@ -1390,7 +1390,7 @@ if !absent.is_empty() {
         ("declared", "rank"),
     ])));
 }
-        let rank = Rank::from_json(&v.get("rank").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HonorArgs.rank expects Rank, got nil".to_string()))?.coerce_single_field("value"))?;
+        let rank = Rank::from_json(&(match v.get("rank").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HonorArgs.rank expects Rank, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         Ok(Self {
         rank,
         })
@@ -1495,9 +1495,9 @@ if !absent.is_empty() {
         ("declared", "number, row"),
     ])));
 }
-        let number = SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let number = SeatNumber::from_json(&(match v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.number expects SeatNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         number.check_invariants()?;
-        let row = Row::from_json(&v.get("row").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.row expects Row, got nil".to_string()))?.coerce_single_field("value"))?;
+        let row = Row::from_json(&(match v.get("row").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddSeatArgs.row expects Row, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         Ok(Self {
         number,
         row,
@@ -1605,9 +1605,9 @@ if !absent.is_empty() {
         ("declared", "id, age"),
     ])));
 }
-        let id = MemberId::from_json(&v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.id expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?;
+        let id = MemberId::from_json(&(match v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.id expects MemberId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         id.check_invariants()?;
-        let age = Age::from_json(&v.get("age").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.age expects Age, got nil".to_string()))?.coerce_single_field("value"))?;
+        let age = Age::from_json(&(match v.get("age").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EnlistArgs.age expects Age, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         age.check_invariants()?;
         Ok(Self {
         id,
@@ -1720,9 +1720,9 @@ if !absent.is_empty() {
         ("declared", "member, number"),
     ])));
 }
-        let member = MemberId::from_json(&v.get("member").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.member expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?;
+        let member = MemberId::from_json(&(match v.get("member").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.member expects MemberId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         member.check_invariants()?;
-        let number = SeatNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.number expects SeatNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let number = SeatNumber::from_json(&(match v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.number expects SeatNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         number.check_invariants()?;
         Ok(Self {
         member,
@@ -1854,7 +1854,7 @@ if !absent.is_empty() {
         ("declared", "id"),
     ])));
 }
-        let id = MemberId::from_json(&v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetireArgs.id expects MemberId, got nil".to_string()))?.coerce_single_field("value"))?;
+        let id = MemberId::from_json(&(match v.get("id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RetireArgs.id expects MemberId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         id.check_invariants()?;
         Ok(Self {
         id,

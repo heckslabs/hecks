@@ -269,7 +269,7 @@ if !absent.is_empty() {
         ("declared", "identity_id"),
     ])));
 }
-        let identity_id = IdentityId::from_json(&v.get("identity_id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.identity_id expects IdentityId, got nil".to_string()))?.coerce_single_field("value"))?;
+        let identity_id = IdentityId::from_json(&(match v.get("identity_id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RegisterArgs.identity_id expects IdentityId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         identity_id.check_invariants()?;
         Ok(Self {
         identity_id,
