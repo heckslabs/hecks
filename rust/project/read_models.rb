@@ -608,23 +608,37 @@ module RustProjection
     #
     # Three real jobs, in order: (1) `repository::row_json`-equivalent —
     # add `id` back (Rust's own generated `to_json()` never carries it,
-    # unlike a live Ruby record's `to_h`); (2) keep ONLY this aggregate's
-    # own real declared attributes (+ lifecycle, + id) — EXCLUDING any
-    # synthetic field a DIFFERENT Phase 10 capability may have added to
-    # the record's own JSON shape (`corrects`'s own `emitted_*` flags,
-    # ADR 0049 — real Rust-only bookkeeping with no Ruby analog, which
-    # `Instance#to_h` never carries either); (3) recursively unwrap every
-    # single-attribute value object along the way (`unwrap_json_expr`),
-    # matching `Value.materialize_unwrapped` exactly. `kernel::read_model
-    # ::nest` (hand-written once, purely structural — no type knowledge
-    # needed for grouping/stripping itself) does the actual nesting.
+    # unlike a live Ruby record's `to_h`); (2) keep this aggregate's own
+    # real declared attributes PLUS any `projects` field it declares
+    # (`Projector.projected_field_pseudo_attributes` — the same
+    # attributes-plus-projections composition `domain_generator.rb`'s own
+    # `record_attributes` and `commands.rb`'s own `record_fields` already
+    # use for this exact aggregate's record shape; a projected field is a
+    # REAL, always-current, stored field on the live record — QA sweep
+    # SW-banking-1788994980 found it silently dropped from every
+    # `group_by` read model's own output, the one place this generator
+    # had reached for `aggregate[:attributes]` alone) — while still
+    # EXCLUDING any synthetic field a DIFFERENT Phase 10 capability may
+    # have added to the record's own JSON shape (`corrects`'s own
+    # `emitted_*` flags, ADR 0049 — real Rust-only bookkeeping with no
+    # Ruby analog, which `Instance#to_h` never carries either); (3)
+    # recursively unwrap every single-attribute value object along the
+    # way (`unwrap_json_expr`), matching `Value.materialize_unwrapped`
+    # exactly — a projected field is always a plain scalar by
+    # construction (`validate_projected_field!`'s own `projectable_
+    # scalar?` check), so it needs no unwrap arm of its own and falls
+    # through to the `_ => v` pass-through already below. `kernel::
+    # read_model::nest` (hand-written once, purely structural — no type
+    # knowledge needed for grouping/stripping itself) does the actual
+    # nesting.
     def emit_group_by_transform(fn_name, aggregate, group_by_fields)
       value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name].to_s, vo] }
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
-      kept_keys = aggregate[:attributes].map { |a| a[:name].to_s } + ["id"] + (lifecycle_field ? [lifecycle_field] : [])
+      fields = aggregate[:attributes] + Projector.projected_field_pseudo_attributes(aggregate)
+      kept_keys = fields.map { |a| a[:name].to_s } + ["id"] + (lifecycle_field ? [lifecycle_field] : [])
       keep_cond = kept_keys.map { |k| "k == #{k.inspect}" }.join(" || ")
 
-      arms = aggregate[:attributes].map do |a|
+      arms = fields.map do |a|
         unwrapped = unwrap_json_expr("v", a[:type].to_s, a[:list], aggregate, value_objects_by_name)
         "#{a[:name].to_s.inspect} => #{unwrapped},"
       end.join("\n                    ")
