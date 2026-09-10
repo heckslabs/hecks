@@ -1101,6 +1101,215 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # ── where to look next ───────────────────────────────────────────────
+
+  # THE PRACTICE'S OWN MEMORY OF WHERE TO LOOK, KEPT AS DATA — the
+  # "stored-prompt-corpus" idea, given a real shape. Every sweep so far has
+  # found its bugs by an agent's own judgement, re-derived from scratch each
+  # session: read the recent commits, read the open PRs, guess at what
+  # hasn't been tried yet. That works, but it does not ACCUMULATE — the
+  # angle a session considered and set aside lives in that session's own
+  # transcript, which the next session cannot query and usually never even
+  # sees. This aggregate is what lets "which construct combination hasn't
+  # been fuzzed yet" survive the session that first thought of it.
+  #
+  # AN AGGREGATE, NOT A THIRD BARE CONSTANT NEXT TO `QualityControlDials`.
+  # The dials comment at the top of this file explains why a live,
+  # dispatchable record was tried and taken BACK for those two numbers — but
+  # that reasoning is specific to them, not a blanket rule against
+  # aggregates for practice-level bookkeeping. `CADENCE_SECONDS` and
+  # `PR_CAP_PER_DAY` are each ONE fact, fixed until a human edits the file,
+  # with nothing that happens during a sweep ever changing either. An angle
+  # is the opposite of that on every count that matters: there are MANY of
+  # them, each with its own real state that moves on its own — proposed,
+  # picked up, built or set aside — and that movement is exactly the
+  # history a future sweep needs to read before inventing its own from
+  # scratch. A bare constant cannot hold a growing list of records each
+  # with their own lifecycle at all; this is precisely the shape `Bug`
+  # already is, aimed one step earlier, at what to go looking for rather
+  # than what was already found.
+  #
+  # A "LEAD," NOT A TASK. `Angle` deliberately does not say what to BUILD —
+  # `citation` says what already-known fact makes it worth chasing, and
+  # `resolution` (once one exists) says what actually got built from it.
+  # The gap between the two is real work an agent still has to do; this
+  # record only refuses to let that work start from nothing.
+  aggregate "Angle" do
+    description "One concrete, citable reason to suspect an uninvestigated corner exists — proposed, chased down, and either built into something real or set aside with a reason. The practice's own backlog of what to try next, so a future sweep mines its own history instead of guessing."
+
+    identified_by :reference
+
+    attribute :reference,   AngleReference
+    attribute :premise,     AnglePremise
+    attribute :citation,    AngleCitation
+    attribute :proposer,    Proposer
+    attribute :proposed_at, Instant
+    attribute :resolution,  AngleResolution
+    attribute :reason,      AngleReason
+
+    value_object "AngleReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle is referenced") { !value.to_s.empty? }
+    end
+
+    # SUBSTANCE, ENFORCED THE WAY `SweepNotes` ALREADY ENFORCES IT — a
+    # number in the invariant's own sentence, because the sentence IS the
+    # refusal. "look at sagas more" is a mood, not a lead: it gives a
+    # future reader nothing to act on that they could not have guessed
+    # themselves. Sixty is not a magic number so much as a tripwire against
+    # exactly that one-line stub — long enough that a genuine restating of
+    # what was checked and what remains cannot fit under it by accident.
+    value_object "AnglePremise" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle says enough to be acted on without its proposer in the room, in at least 60 characters") { value.to_s.size >= 60 }
+    end
+
+    # WHAT MAKES THIS A LEAD AND NOT A HUNCH. A Bug reference, an ADR
+    # number, or a named construct-combination gap — something another
+    # reader can go and look at themselves, the same distinction
+    # `Demonstration` already draws for a bug: a claim nobody can
+    # independently check is not evidence, it is an opinion with a period
+    # after it.
+    value_object "AngleCitation" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle cites something concrete, not a mood") { !value.to_s.empty? }
+    end
+
+    # NOT `Engineer` — the exact reasoning `Bug`'s own `Submitter` already
+    # gives for the identical split: `held_by`-shaped types default to
+    # "nobody" because an unclaimed record legitimately IS held by nobody,
+    # and reusing that default here would let an angle's own authorship go
+    # unrecorded the same quiet way a bug's once did, until `--help` said
+    # so out loud.
+    value_object "Proposer" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an angle is proposed by somebody") { value != "nobody" }
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # WHAT ACTUALLY CAME OF IT — a Target reference, a PR number, a stress
+    # domain's own path, whatever a later reader would need to go confirm
+    # the lead was real, not merely closed. Set once, at `Build`, and only
+    # then: an angle cannot claim a resolution it does not yet have, the
+    # same way a `Bug` cannot be `Fix`ed before it is `Investigate`d.
+    value_object "AngleResolution" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a built angle says what actually got built") { !value.to_s.empty? }
+    end
+
+    # THE SAME PATTERN `Target::Shelve` ALREADY ESTABLISHED, restated here
+    # rather than shared across aggregates: deciding NOT to chase a lead is
+    # a real decision with its own reasoning, and a discarded angle with no
+    # reason recorded is indistinguishable from one nobody ever looked at.
+    value_object "AngleReason" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("discarding an angle says why") { !value.to_s.empty? }
+    end
+
+    # PROPOSED, THEN INVESTIGATING, THEN ONE OF TWO ENDINGS — the exact
+    # shape `Bug` already uses for logged/investigating/fixed, deliberately:
+    # `Build` is only reachable FROM `investigating`, so a lead cannot be
+    # marked built without ever having been picked up first, the same
+    # discipline that keeps a bug from being `Fix`ed before it is
+    # `Investigate`d. `Discard` reads from both live states — like
+    # `Target::Shelve`'s own `from: ["waiting", "held"]` — because a lead
+    # can turn out not worth the time either before anyone starts (a
+    # citation that turns out to already be covered) or partway through
+    # (real investigation finds the angle is a dead end after all).
+    lifecycle :status, default: "proposed" do
+      transition "Investigate" => "investigating", from: "proposed"
+      transition "Build"       => "built",         from: "investigating"
+      transition "Discard"     => "discarded",     from: ["proposed", "investigating"]
+    end
+
+    command "Propose" do
+      role "QA engineer"
+      goal "Write down a concrete, citable reason to suspect an uninvestigated corner exists, before it is lost to a conversation"
+
+      attribute :reference, AngleReference
+      attribute :premise,   AnglePremise
+      attribute :citation,  AngleCitation
+      attribute :proposer,  Proposer
+      # OMITTED ARGUMENT, FILLED FROM THE CLOCK — `now:` reaches here
+      # exactly the way `Target.Claim`'s own comment already explains: a
+      # predicate cannot ask the time, but a plain assignment does not need
+      # to, and the same `clock` port that already answers `target.claim`
+      # answers this the identical way, including believing an explicit
+      # value over the clock when a caller supplies one.
+      attribute :now,       Instant
+
+      sets :proposed_at, to: :now
+
+      emits "AngleProposed"
+    end
+
+    command "Investigate" do
+      role "QA engineer"
+      goal "Pick a lead up for a real look, rather than leaving it to look picked-up by default"
+
+      reference_to Angle
+      emits "AngleInvestigated"
+    end
+
+    command "Build" do
+      role "QA engineer"
+      goal "Say what actually came of chasing this lead"
+
+      reference_to Angle
+      attribute :resolution, AngleResolution
+
+      sets :resolution
+
+      emits "AngleBuilt"
+    end
+
+    command "Discard" do
+      role "QA engineer"
+      goal "Decide a lead is not worth the practice's time, and say why"
+
+      reference_to Angle
+      attribute :reason, AngleReason
+
+      sets :reason
+
+      emits "AngleDiscarded"
+    end
+
+    # THE BACKLOG — the way `Bug.Queue` is the backlog an agent not
+    # sweeping picks from, this is the backlog an agent not sure WHAT to
+    # sweep reads first. Oldest first: `order_by :"proposed_at.value"`
+    # rather than `order_by :proposed_at`, for the exact reason `Bug.Queue`'s
+    # own comment already gives about `BugOrder` — ordering by the whole
+    # value object sorts by however two of them happen to compare, not by
+    # the number a reader actually means.
+    query "Backlog" do
+      description "Leads nobody has finished chasing yet, oldest first — read this before inventing a new angle from scratch."
+      where(status: { in: "proposed,investigating" })
+      order_by :"proposed_at.value"
+    end
+
+    # THE OTHER HALF OF THE SAME LIST — what became of every earlier lead,
+    # so a reader sees history rather than only the live backlog. Built and
+    # discarded sit in one query on purpose: a discarded angle is not a
+    # failure to hide, it is evidence a citation was already covered, and
+    # burying it in a separate, less-read query would make the practice
+    # look more decisive than it actually was.
+    query "Resolved" do
+      description "Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice's own hit rate."
+      where(status: { in: "built,discarded" })
+      order_by :reference
+    end
+
+    query "All" do
+      description "Every angle ever proposed — what a runner mints the next reference from."
+      order_by :reference
+    end
+  end
+
   # ── the outside world ────────────────────────────────────────────────
 
   # RAISE AN ISSUE ONLY FOR A BUG YOU COULD NOT FIX YOURSELF.
