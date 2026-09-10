@@ -46,4 +46,65 @@ Hecks.world "QualityControl" do
   persisted_by("PostgresEra") do
     database "hecks_quality_control"
   end
+
+  # THE REAL, LIVE DEPLOY — the GitHub webhook driving adapter
+  # (lib/hecks/adapters/driving/github_webhook.rb's own generic base,
+  # qa/adapters/github_ci_webhook.rb's own QualityControl-specific
+  # subclass) made reachable from GitHub for real, through the SAME
+  # `bin/project_deploy` projection every other AwsLambda deploy in this
+  # repo already goes through — never a hand-rolled one-off script; see
+  # that generator's own header for the mechanism this extends.
+  #
+  # `dispatch "None"` — this domain has no `.bluebook`-shaped command
+  # surface dispatched through rust/host's wasmtime host at all (no
+  # `#{domain}.hecksagon`, no compiled `.wasm`); every real command this
+  # webhook ever issues (`QualityControl::Clearance.start!`/`.passed!`/
+  # `.failed!`) goes straight through Ruby, the same way `bin/qa_pr_check`
+  # already does locally. So there is nothing for a rust/host dispatch
+  # Lambda to ever serve — `dispatch "None"` skips generating one
+  # entirely, and `qa/lambda_handler.rb` (this domain's own hand-written
+  # driving-adapter wrapper, the SAME "opt-in by file presence"
+  # convention Embryonaut's own `lambda_handler.rb` already established)
+  # becomes this stack's ONLY Lambda.
+  #
+  # `handler_module "QaWebhookLambdaHandler"` — names the module
+  # `qa/lambda_handler.rb` actually defines, so `bin/project_deploy`
+  # never has to guess it.
+  #
+  # `secret_env "GITHUB_WEBHOOK_SECRET"` — a real, auto-generated (never
+  # typed, never committed) Secrets Manager secret gets minted for this
+  # deploy target and wired into the Lambda's own environment as
+  # `GITHUB_WEBHOOK_SECRET_ARN`; `qa/lambda_handler.rb` fetches it at
+  # cold start, over the SDK, and exposes the plaintext under
+  # `ENV["GITHUB_WEBHOOK_SECRET"]` — never resolved into CloudFormation
+  # or Lambda's own configuration, matching every other secret this
+  # generator already handles this way (DATABASE_URL, SESSION_SECRET,
+  # GOOGLE_CLIENT_ID/SECRET).
+  #
+  # "Postgres" (bin/project_deploy's own default) — a small, dedicated,
+  # self-contained RDS instance for this domain alone; QualityControl's
+  # own real, live ledger has no reason to borrow another domain's
+  # instance ("Shared") or pay for Aurora Serverless.
+  deployed_to("AwsLambda") do
+    # NAMED EXPLICITLY, not left to default to "qa" (this domain's own
+    # directory basename) — `hecks-quality-control-webhook`, clearly
+    # identifiable and safely removable as its own stack, matching this
+    # domain's own PascalCase-snake_cased database name convention
+    # (this file's own header comment) rather than its shorter directory
+    # name.
+    stack_name "quality-control-webhook"
+    region "us-east-1"
+    # 512MB/15s -- WebFunction's own fixed defaults (bin/project_deploy
+    # never reads these two for a `dispatch "None"` deploy target; they
+    # exist here only because `Deploy::LambdaTarget.Declare` validates
+    # all four unconditionally — see that command's own header for why
+    # it stays that way rather than growing a conditional it would need
+    # the expression grammar's own narrow admits to express).
+    memory 512
+    timeout 15
+    database "Postgres"
+    dispatch "None"
+    handler_module "QaWebhookLambdaHandler"
+    secret_env "GITHUB_WEBHOOK_SECRET"
+  end
 end

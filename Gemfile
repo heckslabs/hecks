@@ -19,6 +19,12 @@ gem "google-id-token", "~> 1.4"
 # should never need this installed.
 gem "aws-sdk-lambda", "~> 1.0"
 
+# For qa/lambda_handler.rb — lazily required there, same reasoning as
+# aws-sdk-lambda above: fetching a Secrets Manager value at Lambda cold
+# start (DATABASE_URL/GITHUB_WEBHOOK_SECRET) is only ever a deployed
+# WebFunction's own concern, never a plain `bundle exec rspec` run.
+gem "aws-sdk-secretsmanager", "~> 1.0"
+
 # For lib/hecks/forms/app.rb — lazily required there, same
 # reasoning as the adapters above: a domain that never boots the
 # forms surface should never need a Rack implementation

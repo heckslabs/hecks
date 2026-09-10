@@ -30,6 +30,15 @@
 *.heki.tmp.*
 tmp/
 vendor/bundle/
+# `sam build`'s own local build output, under every deploy/<stack>/ —
+# never committed, matching how deploy/banking's own tracked tree
+# already holds only the 4 files bin/project_deploy itself generates
+# (template.yaml, Makefile, samconfig.toml, bastion.yaml), never a
+# local build's own artifacts. Found live: qa's own dispatch "None"
+# deploy is the first domain in THIS repo ever `sam build`-ed for
+# real from a checkout that also runs `git status`, so nothing had
+# needed this entry before.
+.aws-sam/
 coverage/
 .claude/*
 # Skills are project knowledge, not session scratch — tracked so any

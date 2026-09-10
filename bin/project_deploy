@@ -64,7 +64,36 @@ root = File.expand_path("..", __dir__)
 domain_name = File.basename(domain)
 world_file = File.join(domain, "bluebook", "#{domain_name}.world")
 
+# FALLBACK, ONLY WHEN THE FAST PATH MISSES — every domain this generator
+# has ever pointed at until now names its own `.world` file after its
+# own DIRECTORY basename (examples/banking/bluebook/banking.world, e.g.),
+# so `domain_name` (`File.basename(domain)`) already finds it directly.
+# QualityControl breaks that convention on purpose (qa/bluebook/
+# quality_control.world's own header: PascalCase domain, snake_cased in
+# full, deliberately NOT the shorter "qa" its directory might suggest) —
+# a real, live "does not exist" abort the first time this ran against
+# `bin/project_deploy qa` caught it. Falls back to the sole `*.world`
+# file under `<domain>/bluebook/`, same file this domain's own `bin/run
+# qa/bluebook` already finds through a different mechanism (Loading's
+# own glob, not this basename convention) — never picked when there's
+# more than one candidate, since which one is "the" domain would then be
+# a guess this generator refuses to make silently.
+unless File.exist?(world_file)
+  candidates = Dir.glob(File.join(domain, "bluebook", "*.world"))
+  world_file = candidates.first if candidates.size == 1
+end
+
 File.exist?(world_file) or abort "#{world_file} does not exist — a domain needs a .world file to declare deployed_to(\"AwsLambda\")"
+
+# THE FILE'S OWN ACTUAL BASENAME, not `domain_name` — the SAME fallback
+# above exists for. QualityControl's own `.bluebook`/`.hecksagon` sit
+# beside `quality_control.world`, sharing ITS basename, not "qa"'s (this
+# domain's own directory) — every domain this generator has pointed at
+# before now had the two coincide, so nothing downstream ever needed to
+# draw the distinction. `domain_name` itself stays exactly what it was
+# (a directory-derived AWS-naming default — infra_name, the .wasm
+# filename — unrelated to which files actually exist on disk).
+bluebook_basename = File.basename(world_file, ".world")
 
 registry = Hecks::Runtime::Registry.new
 Hecks.with_registry(registry) { Kernel.load(world_file) }
@@ -118,6 +147,26 @@ end
 # to the domain's own declared identity.
 infra_name = deploy_settings[:stack_name] || domain_name
 
+# THE ACTUAL POSTGRES/RDS IDENTIFIER — every domain before this one
+# ever picked a single-word `stack_name` (or none at all, falling back
+# to a single-word directory `domain_name`), so `infra_name` itself was
+# already a valid database name and nothing ever needed a second
+# variable. `stack_name "quality-control-webhook"` (a real, live,
+# multi-word choice — the FIRST one) broke that assumption for real:
+# RDS's own DBName/DatabaseName parameter refuses it outright
+# ("DBName must begin with a letter and contain only alphanumeric
+# characters" — confirmed live, a genuine CREATE_FAILED before this
+# existed), and `infra_name` unsanitized is ALSO what every downstream
+# consumer (WebFunction/#{logical_id}'s own DB_NAME Environment
+# variable, every Makefile shell command that connects `-d
+# #{infra_name}`) reads as the database to actually connect to — so
+# every one of those has to agree on the SAME sanitized spelling, not
+# just the one CloudFormation property that happened to refuse loudly.
+# Stack names, logical ids, and S3 prefixes are UNCHANGED (still read
+# `infra_name` directly) — CloudFormation/S3 both allow hyphens fine;
+# only the actual database identifier needed this at all.
+db_name = infra_name.gsub(/[^a-zA-Z0-9]/, "")
+
 deploy_settings[:adapter] == "AwsLambda" or
   abort <<~MSG
     #{world_file} declares no deployed_to("AwsLambda") block. Add one, e.g.:
@@ -165,7 +214,57 @@ rescue *Hecks::Runtime::DOMAIN_REFUSALS => e
   abort "#{world_file}'s deployed_to(\"AwsLambda\") is invalid: #{e.message}"
 end
 
-# CROSS-DOMAIN LAMBDA-INVOKE TARGETS — a SEPARATE registry from `world`'s
+# `dispatch "None"` / `secret_env "..."` — DEPLOY-TIME WIRING FACTS, not
+# business invariants `Deploy::LambdaTarget.Declare` itself needs to
+# hold, read straight off `deploy_settings` the same way `owner`/
+# `owner_stack`/`schema`/`stack_name` already are (this file's own
+# comment on `infra_name`, above, has the full reasoning for why those
+# stay Ruby-level rather than validated attributes).
+#
+# `dispatch "None"` decides whether the primary rust/host dispatch
+# Lambda (`#{logical_id}`, computed further below) gets generated at
+# all. DEFAULT (unset, every domain declared
+# before this setting existed) keeps generating the rust/host wasmtime
+# dispatch Lambda exactly as always — "None" is the new, opt-in case: NO
+# rust/host dispatch Lambda for this domain at all, because a domain
+# with no `.bluebook`-shaped command surface of its own to dispatch
+# through (QualityControl's own real first user: a driving GitHub
+# webhook adapter, `lib/hecks/adapters/driving/github_webhook.rb`,
+# calling straight into `QualityControl::Clearance` through Ruby, never
+# through rust/host's wasmtime dispatch at all) has nothing for that
+# Lambda to ever serve. REUSES the EXISTING `lambda_handler.rb`-file-
+# presence WebFunction mechanism wholesale (Runtime: ruby3.2, Function
+# URL AuthType NONE, container build + patch-pg-native for `pg`'s native
+# extension) rather than inventing a second Ruby-Lambda shape — the
+# WebFunction path already proved itself for real (Embryonaut's own live
+# stack) before this ever needed a second consumer; deploy.bluebook's
+# own generator, "one generator reads what a domain declares," extends
+# rather than forks.
+dispatch_none = deploy_settings[:dispatch].to_s == "None"
+
+# `secret_env "GITHUB_WEBHOOK_SECRET"` — names the ENV VAR
+# WebFunction's own `lambda_handler.rb` should find the fetched secret's
+# real plaintext under, once it resolves `#{secret_env}_ARN` (below,
+# WebFunction's own Environment) via the AWS SDK the SAME cold-start
+# pattern DATABASE_URL/SESSION_SECRET/GOOGLE_CLIENT_ID already use
+# (WebFunction's own header comment: "fetch at runtime, over the SDK,
+# never let CloudFormation/Lambda configuration see it at all"). Wired
+# generically — any WebFunction-shaped domain declaring one gets its own
+# auto-generated, never-typed-or-seen SecretsManager secret + least-
+# privilege grant, not something specific to GitHub webhooks; this
+# domain's own `qa/lambda_handler.rb` is simply the first real consumer.
+webhook_secret_env = deploy_settings[:secret_env]
+
+# `handler_module "QaWebhookLambdaHandler"` — the SAME name
+# `lambda_handler.rb`'s own module actually defines, named here rather
+# than assumed, since `dispatch "None"` is a GENERIC mechanism (any
+# future domain could adopt it, each with its own wrapper module name)
+# — "WebLambdaHandler" stays the fixed, historical default for every
+# domain that has never set this (Embryonaut's own, unchanged).
+webhook_handler_module = deploy_settings.fetch(:handler_module, "WebLambdaHandler")
+if dispatch_none && !deploy_settings.key?(:handler_module)
+  abort "#{world_file}'s deployed_to(\"AwsLambda\") declares dispatch \"None\" but no handler_module — add handler_module \"YourModuleName\" naming the module #{domain}/lambda_handler.rb defines."
+end
 # own above (that one only ever loads the bare `.world` file; a policy's
 # own `across:` lives in the BLUEBOOK, which `.world` alone never pulls
 # in). Real, not aspirational: rust/host's own `lambda_client.rs`
@@ -193,8 +292,8 @@ Hecks.with_registry(cross_domain_registry) do
   Kernel.load(File.expand_path("../lib/hecks/ports/extraction.port", __dir__))
   Kernel.load(File.expand_path("../lib/hecks/adapters/driven/memory.adapter", __dir__))
   Kernel.load(File.expand_path("../lib/hecks/adapters/driven/prism.adapter", __dir__))
-  Kernel.load(File.join(domain, "bluebook", "#{domain_name}.bluebook"))
-  hecksagon_file = File.join(domain, "bluebook", "#{domain_name}.hecksagon")
+  Kernel.load(File.join(domain, "bluebook", "#{bluebook_basename}.bluebook"))
+  hecksagon_file = File.join(domain, "bluebook", "#{bluebook_basename}.hecksagon")
   Kernel.load(hecksagon_file) if File.exist?(hecksagon_file)
 end
 
@@ -423,9 +522,32 @@ end
 # its own opt-in machinery.
 pg_version = nil
 if web_handler_present
-  pg_version = File.read(File.join(domain, "Gemfile.lock"))[/^\s+pg \(([\d.]+)\)/, 1]
+  # `dispatch "None"` reads THIS project's OWN root Gemfile.lock, not
+  # #{domain}'s — WebFunction's own CodeUri is `root` in that case
+  # (`web_code_uri`, below), not #{domain} itself, precisely because
+  # #{domain} (a bluebook directory inside this very repo, e.g. "qa")
+  # has no Gemfile of its own to bundle at all; it needs `lib/hecks`
+  # and this project's own Gemfile.lock, sitting one level up. Every
+  # OTHER WebFunction (Embryonaut's own self-contained app checkout,
+  # vendoring its own copy of hecks) keeps reading its own, unchanged.
+  pg_version_path = File.join(dispatch_none ? root : domain, "Gemfile.lock")
+  pg_version = File.read(pg_version_path)[/^\s+pg \(([\d.]+)\)/, 1]
 end
 web_logical_id = "WebFunction"
+
+# `dispatch "None"` — SAME REASON `pg_version_path` reaches one
+# directory further up, above: #{domain} alone has no Gemfile/lib/hecks
+# of its own to zip, so WebFunction's CodeUri has to be THIS whole
+# project's own root instead (the identical absolute-path shape
+# Embryonaut's own real, live deploy already uses for a checkout that
+# isn't colocated with `deploy/<stack>/` either — bin/project_deploy's
+# own header: "Self-contained... no hand-authored deployment config").
+# `web_handler_relpath` follows the SAME split: #{domain}/lambda_handler
+# is only the right relative path once CodeUri stops being #{domain}
+# itself — every existing WebFunction (CodeUri: #{domain}) still finds
+# its own lambda_handler.rb at that directory's own root, unchanged.
+web_code_uri = dispatch_none ? root : domain
+web_handler_relpath = dispatch_none ? "#{domain}/lambda_handler" : "lambda_handler"
 
 # OPT-IN, BY FILE PRESENCE + CONTENT — the same convention
 # `web_handler_present` itself uses. `.env.local` is #{domain}'s own
@@ -451,6 +573,17 @@ google_oauth_present = (web_handler_present || rust_web) &&
 # aborts first when both are true.
 if shared && web_handler_present
   abort "#{domain} declares both database \"Shared\" and a lambda_handler.rb — a shared-instance Ruby WebFunction isn't supported yet."
+end
+
+# `dispatch "None"` MEANS WebFunction becomes the domain's ONLY Lambda —
+# there is nothing left to reach through a Function URL at all without a
+# `lambda_handler.rb` to serve it, and (below) no rust_web dispatch
+# Lambda whose OWN Function URL that role could fall back to either.
+if dispatch_none && !web_handler_present
+  abort "#{domain} declares dispatch \"None\" but has no lambda_handler.rb — dispatch \"None\" means no rust/host dispatch Lambda at all, so a WebFunction (lambda_handler.rb) has to exist to be the domain's only Lambda."
+end
+if dispatch_none && rust_web
+  abort "#{domain} declares both dispatch \"None\" and web \"Rust\" — dispatch \"None\" already means there is no rust/host Lambda for rust_web's own in-process web UI to run inside."
 end
 
 # THE RUST CASE IS NOT REFUSED — rust_web's own OAuth wiring (the main
@@ -930,7 +1063,7 @@ template_yaml = <<~YAML
             # first guess here ("16.6" -- a real, live "Cannot find
             # version 16.6 for aurora-postgresql" caught this).
             EngineVersion: "16.14"
-            DatabaseName: #{infra_name}
+            DatabaseName: #{db_name}
             MasterUsername: postgres
             MasterUserPassword: !Sub "{{resolve:secretsmanager:${#{db_id}Secret}:SecretString:password}}"
             StorageEncrypted: true
@@ -962,7 +1095,7 @@ template_yaml = <<~YAML
             DBInstanceClass: db.t4g.micro
             AllocatedStorage: "20"
             StorageEncrypted: true
-            DBName: #{infra_name}
+            DBName: #{db_name}
             MasterUsername: postgres
             ManageMasterUserPassword: true
             PubliclyAccessible: false
@@ -1075,7 +1208,7 @@ template_yaml = <<~YAML
                 "          DB_SECRET_ARN: !Sub \"${OwningDatabaseSecretArn}\""
               else
                 "DB_HOST: !GetAtt #{db_ref_id}.Endpoint.Address\n" \
-                "          DB_NAME: #{infra_name}\n" \
+                "          DB_NAME: #{db_name}\n" \
                 "          DB_SECRET_ARN: !Sub \"${#{secret_sub}}\""
               end}
             # `domain_name`, NOT `infra_name` — this names the actual
@@ -1221,6 +1354,28 @@ template_yaml = <<~YAML
         PasswordLength: 64
         ExcludePunctuation: true
 
+  #{webhook_secret_env ? <<-WEBHOOKSECRET : ""}
+# Auto-generated, never typed or seen — the SAME
+# ManageMasterUserPassword/SessionSecret pattern above, applied to
+# `secret_env`'s own webhook secret instead (deploy_settings' own
+# `secret_env`, read far above). #{web_logical_id}'s own
+# `lambda_handler.rb` fetches this by ARN at cold start (the
+# `#{webhook_secret_env}_ARN` Environment variable below) and exposes
+# its plaintext under `ENV["#{webhook_secret_env}"]` itself — the
+# SAME two-step indirection DB_SECRET_ARN/SESSION_SECRET_ARN already
+# use, and for the identical reason (this Environment block's own
+# header comment on why a resolved plaintext must never land in
+# Lambda's own configuration).
+#{web_logical_id}WebhookSecret:
+  Type: AWS::SecretsManager::Secret
+  Properties:
+    GenerateSecretString:
+      SecretStringTemplate: '{}'
+      GenerateStringKey: value
+      PasswordLength: 64
+      ExcludePunctuation: true
+
+  WEBHOOKSECRET
   #{web_logical_id}:
     Type: AWS::Serverless::Function
     # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
@@ -1229,19 +1384,32 @@ template_yaml = <<~YAML
     # bundler workflow automatically. #{logical_id}'s own `BuildMethod:
     # makefile` above is different: rust/host isn't a runtime SAM
     # knows how to build at all, so it needs an explicit custom
-    # workflow — this function doesn't.
+    # workflow — this function doesn't. STAYS `ruby3.2` deliberately,
+    # even though `sam validate --lint` now flags it deprecated
+    # (2026-03-31, creation disabled 2027-02-01, still comfortably
+    # ahead of today) — `patch-pg-native`'s own build-ruby3.2 container
+    # image and `lib/3.2/pg_ext.so` path glob (this Makefile, below)
+    # are BOTH hardcoded to this exact runtime; bumping Runtime alone
+    # without reworking that whole from-source pg build for a newer
+    # image is a real, separate undertaking (untested container image
+    # availability, a different vendor/bundle native-extension path)
+    # out of scope here. Matches Embryonaut's own live, currently-
+    # deployed choice exactly, so both consumers of this one shared
+    # WebFunction code path stay on the same, PROVEN runtime.
     Properties:
       FunctionName: #{stack_name}-web
       Runtime: ruby3.2
       Architectures: [arm64]
       # THREE parts (file.Class.method), not two — aws-lambda-ric's own
       # 2-part form calls a plain TOP-LEVEL function via __send__, not
-      # a module method; #{domain}/lambda_handler.rb's own comment on
-      # why its module is WebLambdaHandler (not LambdaHandler) explains
-      # the rest — a real, live "LambdaHandler is not a module" caught
-      # both halves of this the hard way.
-      Handler: lambda_handler.WebLambdaHandler.lambda_handler
-      CodeUri: #{domain}
+      # a module method; #{web_handler_relpath}.rb's own comment on
+      # why its module is named the way it is explains the rest — a
+      # real, live "LambdaHandler is not a module" caught both halves
+      # of this the hard way. `web_handler_relpath` (not a bare
+      # "lambda_handler") whenever `dispatch "None"` moved CodeUri off
+      # #{domain} itself — see that variable's own comment, above.
+      Handler: #{web_handler_relpath}.#{webhook_handler_module}.lambda_handler
+      CodeUri: #{web_code_uri}
       MemorySize: 512
       Timeout: 15
       Environment:
@@ -1323,9 +1491,9 @@ template_yaml = <<~YAML
           # `ENV["GOOGLE_CLIENT_ID"]`/`ENV["GOOGLE_CLIENT_SECRET"]`
           # already resolved, and none of those keys exist below anymore.
           DB_HOST: !GetAtt #{db_ref_id}.Endpoint.Address
-          DB_NAME: #{infra_name}
+          DB_NAME: #{db_name}
           DB_SECRET_ARN: !Sub "${#{secret_sub}}"
-          SESSION_SECRET_ARN: !Sub "${#{web_logical_id}SessionSecret}"
+          SESSION_SECRET_ARN: !Sub "${#{web_logical_id}SessionSecret}"#{webhook_secret_env ? %(\n        #{webhook_secret_env}_ARN: !Sub "${#{web_logical_id}WebhookSecret}") : ""}
           #{google_oauth_present ? <<~GOOGLE.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip : <<~NOOAUTH.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip}
           # BY NAME, not `!Ref`/`!GetAtt` -- #{web_logical_id}GoogleOauth
           # is deliberately NOT declared as a CloudFormation resource
@@ -1376,7 +1544,7 @@ template_yaml = <<~YAML
         - Statement:
             - Effect: Allow
               Action: secretsmanager:GetSecretValue
-              Resource: !Sub "${#{web_logical_id}SessionSecret}"
+              Resource: !Sub "${#{web_logical_id}SessionSecret}"#{webhook_secret_env ? %(\n      - Statement:\n          - Effect: Allow\n            Action: secretsmanager:GetSecretValue\n            Resource: !Sub "${#{web_logical_id}WebhookSecret}") : ""}
         #{google_oauth_present ? <<~WEBOAUTHPOLICY.each_line.with_index.map { |l, i| i.zero? ? l : "      " + l }.join.rstrip : ""}
           - Statement:
               - Effect: Allow
@@ -1425,6 +1593,53 @@ YAML
 # A plain, unconditional `String#sub` after the fact has no such
 # interaction with the text it's replacing INTO.
 template_yaml = template_yaml.sub(/^([ \t]*)# TMPL:cross_domain_lambda_policies\n/) { cross_domain_lambda_policies_yaml(cross_domain_lambda_targets, $1) }
+
+# `dispatch "None"` — SURGICAL REMOVAL, POST-RENDER, rather than a
+# FOURTH reindentation layer threaded through the heredoc above.
+# Tried that first: wrapping `#{logical_id}`'s own resource block in a
+# conditional nested heredoc (matching RUSTSECRET/WEB/OWNDB's own
+# established `<<~TAG.each_line.with_index.map { ... }` convention)
+# looked right, but broke several PRE-EXISTING embedded multi-line
+# `#{shared ? "a\nb" : "c"}`-shaped strings already living INSIDE that
+# block (the DB_HOST/DB_NAME/DB_SECRET_ARN Environment lines among
+# them) — those assume they sit at exactly ONE reindentation layer deep
+# (the outer template heredoc's own margin), and adding a SECOND layer
+# on top shifted every line their own hardcoded embedded-newline
+# indentation didn't already account for. Confirmed live, diffing a
+# real regenerated examples/banking (`dispatch` unset — the ordinary,
+# far more common path) against its own git-tracked output: real
+# indentation corruption, not a false alarm. Operating on the ALREADY-
+# fully-rendered, already-correctly-indented string instead sidesteps
+# that whole class of interaction — no new heredoc layer, so nothing
+# already living inside the old one has to change its own assumptions.
+if dispatch_none
+  # THE #{logical_id} RESOURCE ITSELF — non-greedy through its own
+  # `FunctionUrlConfig`/`AuthType` closing pair (the ACTUAL last
+  # property this resource ever renders, confirmed above), so a SECOND
+  # occurrence of "AuthType:" later in the document (WebFunction's own,
+  # always AuthType: NONE) can never be matched instead.
+  template_yaml = template_yaml.sub(
+    /^  #{Regexp.escape(logical_id)}:\n.*?\n        AuthType: (?:NONE|AWS_IAM)\n/m, ""
+  )
+  # WebFunction's OWN Policies — `LambdaInvokePolicy: FunctionName: !Ref
+  # #{logical_id}` grants invoking a function that, above, was just
+  # removed from this template entirely; SAM refuses a `!Ref` to an
+  # undeclared resource at package time, not silently.
+  template_yaml = template_yaml.sub(
+    /^        - LambdaInvokePolicy:\n            FunctionName: !Ref #{Regexp.escape(logical_id)}\n/, ""
+  )
+  # OUTPUTS — no `#{logical_id}Url` exists any more for `FunctionUrl` to
+  # `!GetAtt`; WebFunction's own URL becomes the stack's ONE and ONLY
+  # "FunctionUrl" (never "WebFunctionUrl" — that name is reserved for
+  # the two-URL case, a domain that also has a #{logical_id} of its
+  # own to disambiguate from, which this one, by construction, never
+  # does).
+  template_yaml = template_yaml.sub(
+    /^  FunctionUrl:\n    Value: !GetAtt #{Regexp.escape(logical_id)}Url\.FunctionUrl\n  WebFunctionUrl:\n    Value: !GetAtt #{Regexp.escape(web_logical_id)}Url\.FunctionUrl\n/,
+    "  FunctionUrl:\n    Value: !GetAtt #{web_logical_id}Url.FunctionUrl\n"
+  )
+end
+
 File.write(File.join(out_dir, "template.yaml"), template_yaml)
 
 # THE EPHEMERAL ERA-MINTING BASTION — a SEPARATE, sibling stack
@@ -1761,7 +1976,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1861,7 +2076,7 @@ translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", r
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{infra_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
+    \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
     \t\tRUN_STATUS=$$?; \\
     \t\techo "#{verb} attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1991,12 +2206,12 @@ rename_schema_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tPGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1" >/dev/null 2>&1 && { TUNNEL_READY=0; break; }; \\
+    \t\tPGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{db_name} -tAc "SELECT 1" >/dev/null 2>&1 && { TUNNEL_READY=0; break; }; \\
     \t\techo "tunnel not carrying real traffic yet (attempt $$attempt/5) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
     \tdone; \\
-    \tEXISTS_OLD=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(OLD)'"); \\
-    \tEXISTS_NEW=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(NEW)'"); \\
+    \tEXISTS_OLD=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{db_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(OLD)'"); \\
+    \tEXISTS_NEW=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{db_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(NEW)'"); \\
     \tif [ "$$TUNNEL_READY" != "0" ]; then \\
     \t\techo "tunnel never carried a real connection -- aborting without touching either schema"; \\
     \t\tBOOT_STATUS=1; \\
@@ -2004,11 +2219,11 @@ rename_schema_recipe =
     \t\techo "schema $(NEW) already exists -- already renamed, no-op"; \\
     \t\tBOOT_STATUS=0; \\
     \telif [ "$$EXISTS_OLD" = "1" ]; then \\
-    \t\tPGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -v ON_ERROR_STOP=1 -c "ALTER SCHEMA \\"$(OLD)\\" RENAME TO \\"$(NEW)\\""; \\
+    \t\tPGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{db_name} -v ON_ERROR_STOP=1 -c "ALTER SCHEMA \\"$(OLD)\\" RENAME TO \\"$(NEW)\\""; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "renamed schema $(OLD) to $(NEW) (exit $$BOOT_STATUS)"; \\
     \telse \\
-    \t\techo "neither schema $(OLD) nor $(NEW) exists on #{infra_name} -- nothing to rename"; \\
+    \t\techo "neither schema $(OLD) nor $(NEW) exists on #{db_name} -- nothing to rename"; \\
     \t\tBOOT_STATUS=1; \\
     \tfi; \\
     \tkill $$TUNNEL_PID 2>/dev/null; \\
@@ -2461,7 +2676,9 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   SHAREDNOTE
   .PHONY: deploy mint-era
   deploy:
-  #{if pg_version
+  #{if dispatch_none
+      "\t# ONE build only -- dispatch \"None\" means there is no\n\t# #{logical_id} of any kind (no cargo-lambda, no rust artifact, no\n\t# verify-parity: nothing rust/host-shaped for this domain at all),\n\t# so unlike every other WebFunction-carrying domain there is no\n\t# second build to protect from `sam build <resource>`'s own\n\t# WIPES-.aws-sam/build/-first behavior (build-#{logical_id}'s own\n\t# sibling comment on why that matters for domains that DO have one)\n\t# and nothing to restore afterward.\n\tsam build --use-container #{web_logical_id}\n\t$(MAKE) patch-pg-native"
+    elsif pg_version
       "\t# TWO SEPARATE builds, not one `--use-container` run -- that flag is\n\t# global to `sam build`, but #{logical_id} deliberately builds on\n\t# THIS machine's own toolchain (cargo-lambda already cross-compiles\n\t# to arm64 without a container -- build-#{logical_id}'s own comment\n\t# on why), which a generic provided.al2023 container doesn't have\n\t# at all (a real, live \"Make Failed\" caught this). Only #{web_logical_id}\n\t# needs the container, to cross-compile pg's native extension for\n\t# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before\n\t# building just the one named, so #{logical_id}'s own build gets\n\t# restored below (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build --use-container #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) patch-pg-native\n\t$(MAKE) verify-parity-#{logical_id}"
     elsif web_handler_present
       "\t# TWO SEPARATE builds -- #{web_logical_id} has no native extension to\n\t# cross-compile (no `pg` in #{domain}/Gemfile.lock), so a plain `sam\n\t# build` targets it fine; #{logical_id} still gets its own `sam build\n\t# <resource>` first, then restored below -- `sam build <resource>`\n\t# WIPES .aws-sam/build/ before building just the one named, so the\n\t# second call here would otherwise erase #{logical_id}'s own build\n\t# (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) verify-parity-#{logical_id}"
