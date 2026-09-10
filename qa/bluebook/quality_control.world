@@ -1,0 +1,49 @@
+# THE LEDGER'S OWN CONNECTION — sibling to `quality_control.hecksagon`
+# (which names only the adapter, `PostgresEra`) the same way `examples/
+# pizzas/bluebook/pizzas.world` sits beside `pizzas.hecksagon`. `database`
+# is read once, by `RepositoryFactory.build`, and merged into every
+# QualityControl aggregate's own adapter settings — see `postgres_era.rb`'s
+# own `connect_for` for why a bare dbname resolves through the local
+# Postgres socket exactly the way `psql hecks_quality_control` already
+# would, no URI required.
+#
+# `hecks_quality_control`, not the shorter `hecks_qa` the five template
+# domains' own `hecks_<name>` naming might suggest — QualityControl is
+# this repo's own PascalCase domain name, snake_cased in full, the same
+# derivation `postgres_era.rb`'s own `@domain` default already uses
+# (`aggregate.hecks_owner&.name`) for the journal/lock namespace this
+# database holds. Matching it in the database name too means a `psql -l`
+# reader can find this domain's own data by the same name the runtime
+# itself already calls it internally.
+#
+# CHECK THIS NAME IS ACTUALLY FREE BEFORE YOUR FIRST REAL BOOT. A local
+# Postgres on this same machine may already hold a database by this exact
+# name from an earlier, unrelated experiment (`psql -l` to check) — found,
+# live, during this binding's own migration work: `hecks_quality_control`
+# already existed with `hecks_era_texts` rows old enough that shadow-
+# parsing them against TODAY's grammar fails outright — confirmed live,
+# 2026-09-10: five stale eras held from this binding's own earlier manual
+# testing, all still spelling a hop query the PRE-ADR-0025 way
+# (`where(:"bug.status" => ...)`, a dot — the reference-crossing operator
+# is `/` now) which is not one of the "genuinely removed spellings"
+# shadow-parsing exists to keep readable (`identified_by { }`/
+# `belongs_to`/`has_one`/`has_many`, and `reference_to`'s default-naming
+# fork — see `Runtime::EraGuard.shadow_parse`'s own comment), so it
+# refuses loudly under the shadow/legacy fallback too, exactly like a
+# live boot. Not a shape PostgresEra's own translation machinery can
+# reconcile, because the DSL itself moved on, not just the domain. `bin/
+# run qa/bluebook --help` refuses to boot at all against a database in
+# that state. If `psql -l` shows this name already taken and boot refuses
+# the same way, the fix is `dropdb hecks_quality_control` (empty of
+# anything you want kept — confirm what it actually holds first), THEN
+# `createdb hecks_quality_control` (PostgresEra provisions every TABLE it
+# needs on first connect, idempotently, but never the database itself —
+# `PG.connect(dbname: ...)` fails outright against a name with no
+# database behind it at all), then reboot; renaming this setting to a
+# still-free name works too.
+Hecks.world "QualityControl" do
+  realm "QA"
+  persisted_by("PostgresEra") do
+    database "hecks_quality_control"
+  end
+end
