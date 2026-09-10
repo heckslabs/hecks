@@ -140,8 +140,12 @@ module Hecks
             command = command_for_verb(bluebooks, entry[:verb])
             next [] unless command
 
+            aggregate = aggregate_for_verb(bluebooks, entry[:verb])
+            next [] unless aggregate
+
             command.mutations.select { |m| RECOMPUTABLE_MUTATION_OPS.include?(m.op) }.filter_map do |mutation|
-              expected = recompute_mutation(mutation, entry[:before][mutation.target], entry[:args], entry[:before])
+              expected = recompute_mutation(mutation, entry[:before][mutation.target], entry[:args], entry[:before],
+                                            aggregate, command)
               next if expected == :unrecomputable
 
               actual = entry[:after][mutation.target]
@@ -155,9 +159,26 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        def recompute_mutation(mutation, current, args, before_scope)
+        # `command_for_verb`'s own root-aggregate half (Guards) —
+        # re-derived independently rather than read off `entry[:domain]`/
+        # `entry[:aggregate]` (present on a REAL `build_mutation_trace`
+        # entry, but not on every hand-built fixture this property is
+        # tested against) so this works from `entry[:verb]` alone, the
+        # one field every entry always carries. BUG#5's fix needs the
+        # ROOT aggregate specifically — `Value.for_attribute` resolves a
+        # value-object TYPE against the root's own namespace only, the
+        # same reason `EntityElement#locate_chain` threads `root_aggregate`
+        # through every hop separately from each hop's own `owner`.
+        def aggregate_for_verb(bluebooks, verb)
+          domain_name, aggregate_name, = Naming.split_verb(verb)
+          return nil unless domain_name
+
+          bluebooks[domain_name]&.aggregate(aggregate_name)
+        end
+
+        def recompute_mutation(mutation, current, args, before_scope, aggregate, command)
           case mutation.op
-          when :append   then recompute_append(current, mutation.source, before_scope, args)
+          when :append   then recompute_append(current, mutation.source, before_scope, args, aggregate, command)
           when :remove   then recompute_remove(current, mutation.source, args)
           when :multiply then recompute_multiply(current, resolve_mutation_source(mutation.source, args))
           when :clamp    then recompute_clamp(current, mutation.source)
@@ -170,16 +191,58 @@ module Hecks
         # it), reproduced: the field map resolved the SAME two-tier way
         # (`MutationApplier#resolve_append_source` — a caller-supplied
         # arg, or the entity's own current field), then appended.
-        def recompute_append(current, source_map, before_scope, args)
-          fields = source_map.transform_values { |source| resolve_mutation_append_field(source, before_scope, args) }
+        #
+        # BUG#5 — an entity-owned `:append` whose target field is itself
+        # value-object-typed (`Board.AddCard`'s own `sets :cards, append:
+        # { sequence: :sequence }`, `CardSequence`-typed). A caller-
+        # supplied arg reaches the REAL applier (`EntityElement#
+        # appended_to_element`) already coerced: `Interpreting#
+        # coerce_declared_arguments` runs `Value.for_attribute` over
+        # EVERY arg the acting command itself declares, BEFORE dispatch
+        # ever reaches a mutation applier at all — independent of, and
+        # earlier than, anything `appended_to_element`'s own value_object
+        # check does. `before_scope[source]` (the entity's OWN current
+        # field) needs no such re-coercion here: it's already the
+        # MATERIALIZED shape `build_mutation_trace` snapshotted it in
+        # (`Value.materialize`, same as `entry[:after]`), not a raw value
+        # sitting behind a live `Value`.
+        def recompute_append(current, source_map, before_scope, args, aggregate, command)
+          fields = source_map.transform_values do |source|
+            resolve_mutation_append_field(source, before_scope, args, aggregate, command)
+          end
           Array(current) + [symbolize_deep(fields)]
         end
 
-        def resolve_mutation_append_field(source, before_scope, args)
+        def resolve_mutation_append_field(source, before_scope, args, aggregate, command)
           return source unless source.is_a?(Symbol)
-          return args[source] if args.key?(source)
+          return before_scope[source] unless args.key?(source)
 
-          before_scope[source]
+          coerce_recompute_append_arg(aggregate, command, source, args[source])
+        end
+
+        # `Interpreting#coerce_declared_arguments`'s own coercion,
+        # reproduced independently (never calling it again, the same
+        # "never agree with itself" rule this whole module's header
+        # comment gives) — a raw arg is coerced ONLY when its own name
+        # (`source`) is one of the ACTING COMMAND's own declared
+        # attributes, exactly the condition that method checks before a
+        # real dispatch ever coerces it either. `command.attribute(source)`
+        # answering `nil` (a source that names no declared attribute —
+        # never possible for `coerce_declared_arguments` to have touched
+        # it in the real dispatch either) leaves `raw` exactly as it
+        # arrived, the same as every bare-scalar append this already
+        # handled correctly before BUG#5's fix.
+        #
+        # `Value.materialize`d immediately after coercing — matching the
+        # plain-data shape `entry[:before]`/`entry[:after]` already carry
+        # throughout this whole property, so the eventual `symbolize_deep`
+        # comparison is always materialized-against-materialized, never a
+        # live `Value` against a Hash.
+        def coerce_recompute_append_arg(aggregate, command, source, raw)
+          attribute = command.attribute(source)
+          return raw unless attribute
+
+          Runtime::Value.materialize(Runtime::Value.for_attribute(aggregate, attribute, raw, argument: true))
         end
 
         # `MutationApplier#removed`'s own value-equality match, reproduced.
