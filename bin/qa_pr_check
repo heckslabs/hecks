@@ -69,10 +69,42 @@
 # therefore a new, still-unminted `Clearance` to check next run), never
 # what an already-recorded commit's own run said.
 #
+# DISCOVERY IS BY TITLE OR BY BRANCH, AND INCLUDES DRAFTS — fixed after a
+# real miss: PR #534 (title "qa: fix quality_control.world's dropdb
+# guidance; pin dotted-hop shadow-parse behavior", genuinely open, red
+# CI) was invisible to an earlier version of this script that searched
+# only `head:loop-parity`. Confirmed live (not assumed) with the actual
+# `gh` calls this script makes: `gh pr list --search "head:loop-parity"
+# --state open` was empty for a real repo state where `gh pr list --state
+# open` showed exactly one PR — #534 — whose branch is
+# `worktree-agent-<hash>` (opened from an agent worktree, never renamed
+# to `loop-parity/<slug>` per .claude/skills/hecks_qa/SKILL.md's own
+# convention). The branch-only search could never have found it, title
+# or no title, draft or no draft. Separately confirmed live: `gh pr list`
+# does NOT exclude drafts by default, with or without `--search` — #534
+# (isDraft: true) showed up in a bare `gh pr list --state open`, in
+# `--search "qa:"`, and even in `--search "is:draft"`. Every
+# `hecks_qa`-originated PR is deliberately kept a draft forever (SKILL.md:
+# "Never auto-merge. Draft, always") — a real draft-exclusion bug here
+# would have hidden 100% of what this script exists to watch, so it was
+# worth checking for real rather than assuming gh's default behavior; it
+# turned out not to be the actual defect, but IS the reason this script
+# fetches every open PR with no `--search` filter at all now (best not to
+# lean on undocumented gh search-query behavior either way) and filters
+# client-side in Ruby, in `Hecks::QA::PrDiscovery` (qa/lib/pr_discovery.rb)
+# — a real module, not a top-level method this script defines itself; see
+# that file's own header for why — on the one property that
+# is actually durable across how a PR got opened: does its TITLE start
+# with `qa:` (this repository's own convention for every `hecks_qa`
+# commit and PR — see this script's own PR, and CLAUDE.md) — with a
+# match on the `loop-parity/*` branch convention kept too, since nothing
+# stops a future PR from following it.
+#
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
-#   0  nothing to act on — no open loop-parity/* PRs at all, or every
-#      one of them already has a recorded Clearance (or its checks are
-#      still pending, not yet a verdict) and nothing new was dispatched.
+#   0  nothing to act on — no open, hecks_qa-originated PRs at all
+#      (title `qa:` or branch `loop-parity/*`), or every one of them
+#      already has a recorded Clearance (or its checks are still
+#      pending, not yet a verdict) and nothing new was dispatched.
 #   1  an operational error — `gh` was not reachable at all, a Bug's own
 #      recorded commit does not look like a sha, or the ledger itself
 #      would not boot. Fix the actual problem; there is nothing here for
@@ -108,6 +140,14 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "json"
 require "open3"
+# THE DISCOVERY FILTER — a real `Hecks::QA::PrDiscovery` module, not a
+# top-level method this script defines itself. See that file's own
+# header for why: an earlier version of this script defined
+# `candidate_pr?` (and `field`, `q`, `gh`, `ROOT`...) as bare top-level
+# `def`s/constants, which is exactly what a `load` from a spec turns
+# into PRIVATE METHODS AND CONSTANTS ON `Object` ITSELF — confirmed live
+# to make the full suite's own example count go flaky, run to run.
+require_relative "../qa/lib/pr_discovery"
 
 ROOT       = File.expand_path("..", __dir__)
 DOMAIN_DIR = File.join(ROOT, "qa/bluebook")
@@ -119,14 +159,6 @@ EXIT_NEWLY_RED = 2
 USAGE = "usage: bin/qa_pr_check".freeze
 
 SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
-
-unless ARGV.empty?
-  if %w[-h --help].include?(ARGV.first)
-    puts USAGE
-    exit EXIT_OK
-  end
-  abort "#{USAGE}\nthis script takes no arguments — it checks every open loop-parity/* PR, every time"
-end
 
 # ── talk to gh, once per call, never guessing at its own exit codes ────
 #
@@ -141,43 +173,7 @@ def gh(*)
   Open3.capture3("gh", *)
 end
 
-# ── boot the ledger for real ───────────────────────────────────────────
-#
-# THE REAL `CI` PORT COMES BOUND — `qa/adapters/github_checks.{adapter,
-# rb}` is what `Folder#load_project` picks up during this boot (see that
-# file's own header for why no line here has to name it), binding
-# `GithubChecks` to the port `quality_control.hecksagon` declares. Boot
-# this domain any other way (`spec/quality_control_spec.rb`'s own inline
-# hecksagon, `bin/model_check`'s static-only load) and the port stays
-# exactly as dormant as `IssueTracker`'s still is — real binding is a
-# property of THIS boot, not of the chapter.
-
-runtime = begin
-  Hecks.boot(DOMAIN_DIR)
-rescue StandardError => e
-  abort "the QualityControl ledger did not boot — fix the ledger itself before checking PRs against it " \
-        "(#{e.class}: #{e.message})"
-end
-
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
-
-# ── every open loop-parity/* PR, from gh's own mouth ────────────────────
-
-list_out, list_err, list_status = gh("pr", "list", "--search", "head:loop-parity", "--state", "open",
-                                     "--json", "number,headRefName,headRefOid,url")
-
-unless list_status.success?
-  abort "gh pr list could not reach GitHub — #{list_err.strip.empty? ? list_out.strip : list_err.strip}"
-end
-
-prs = JSON.parse(list_out, symbolize_names: true)
-
-if prs.empty?
-  puts "no open loop-parity/* PRs — nothing to check"
-  exit EXIT_OK
-end
-
-bugs = q(runtime, "Bug.All")
 
 # `sha.start_with?(commit) || commit.start_with?(sha)` — A BUG'S OWN
 # `commit` MAY BE SHORT. Nothing in this ledger requires a full 40-char
@@ -288,40 +284,99 @@ def ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
   newly_red << { pr: number, bug: bug_ref, commit: sha, refusal: summary }
 end
 
-newly_red = []
-operational_errors = []
-
-prs.each { |pull_request| check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors) }
-
-# ── report and exit ─────────────────────────────────────────────────
-
-unless operational_errors.empty?
-  puts
-  puts "operational error(s):"
-  operational_errors.each { |message| puts "  #{message}" }
-end
-
-if newly_red.any?
-  puts
-  puts "=" * 72
-  puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch already dispatched Bug.Regress for each."
-  puts "An agent picks up the investigation from here: the same judgment"
-  puts "SKILL.md's own \"on a surprising check\" section describes for a sweep's"
-  puts "own find — self-contained fix with a regression test and a draft PR,"
-  puts "or leave the bug for something bigger. Never re-verify from this script."
-  puts "=" * 72
-  newly_red.each do |finding|
-    puts
-    puts "bug:     #{finding[:bug]}"
-    puts "pr:      ##{finding[:pr]}"
-    puts "commit:  #{finding[:commit]}"
-    puts "refusal: #{finding[:refusal]}"
+# ── everything below has real side effects (gh, the ledger boot, exit) —
+# guarded so this file is safe to `require_relative`/`load` (nothing in
+# this script needs that any more; `Hecks::QA::PrDiscovery` above is
+# already `require_relative`-able on its own for exactly that reason —
+# but the guard costs nothing and matches the idiom `bin/console` already
+# uses). Only runs when this file is the actual program being executed.
+if __FILE__ == $PROGRAM_NAME
+  unless ARGV.empty?
+    if %w[-h --help].include?(ARGV.first)
+      puts USAGE
+      exit EXIT_OK
+    end
+    abort "#{USAGE}\nthis script takes no arguments — it checks every open, hecks_qa-originated PR, every time"
   end
-  exit EXIT_NEWLY_RED
+
+  # ── boot the ledger for real ───────────────────────────────────────────
+  #
+  # THE REAL `CI` PORT COMES BOUND — `qa/adapters/github_checks.{adapter,
+  # rb}` is what `Folder#load_project` picks up during this boot (see that
+  # file's own header for why no line here has to name it), binding
+  # `GithubChecks` to the port `quality_control.hecksagon` declares. Boot
+  # this domain any other way (`spec/quality_control_spec.rb`'s own inline
+  # hecksagon, `bin/model_check`'s static-only load) and the port stays
+  # exactly as dormant as `IssueTracker`'s still is — real binding is a
+  # property of THIS boot, not of the chapter.
+  runtime = begin
+    Hecks.boot(DOMAIN_DIR)
+  rescue StandardError => e
+    abort "the QualityControl ledger did not boot — fix the ledger itself before checking PRs against it " \
+          "(#{e.class}: #{e.message})"
+  end
+
+  # ── every open, hecks_qa-originated PR, from gh's own mouth ───────────
+  #
+  # NO `--search` FILTER — fetch every open PR (drafts included; gh does
+  # not exclude them by default, confirmed live, see this file's own
+  # header) and filter client-side with `Hecks::QA::PrDiscovery.candidate?`
+  # instead of leaning on gh's own search-query text matching, which does
+  # not support a true "starts with" and was the reason an earlier
+  # version of this script could only ever match by branch. `--limit` set
+  # well above this repository's own open-PR count so pagination is never
+  # the reason something goes missing.
+  list_out, list_err, list_status = gh("pr", "list", "--state", "open", "--limit", "500",
+                                       "--json", "number,headRefName,headRefOid,url,title,isDraft")
+
+  unless list_status.success?
+    abort "gh pr list could not reach GitHub — #{list_err.strip.empty? ? list_out.strip : list_err.strip}"
+  end
+
+  prs = JSON.parse(list_out, symbolize_names: true).select { |pr| Hecks::QA::PrDiscovery.candidate?(pr) }
+
+  if prs.empty?
+    puts "no open, hecks_qa-originated PRs (title `qa:` or branch `loop-parity/*`) — nothing to check"
+    exit EXIT_OK
+  end
+
+  bugs = q(runtime, "Bug.All")
+
+  newly_red = []
+  operational_errors = []
+
+  prs.each { |pull_request| check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors) }
+
+  # ── report and exit ─────────────────────────────────────────────────
+
+  unless operational_errors.empty?
+    puts
+    puts "operational error(s):"
+    operational_errors.each { |message| puts "  #{message}" }
+  end
+
+  if newly_red.any?
+    puts
+    puts "=" * 72
+    puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch already dispatched Bug.Regress for each."
+    puts "An agent picks up the investigation from here: the same judgment"
+    puts "SKILL.md's own \"on a surprising check\" section describes for a sweep's"
+    puts "own find — self-contained fix with a regression test and a draft PR,"
+    puts "or leave the bug for something bigger. Never re-verify from this script."
+    puts "=" * 72
+    newly_red.each do |finding|
+      puts
+      puts "bug:     #{finding[:bug]}"
+      puts "pr:      ##{finding[:pr]}"
+      puts "commit:  #{finding[:commit]}"
+      puts "refusal: #{finding[:refusal]}"
+    end
+    exit EXIT_NEWLY_RED
+  end
+
+  exit EXIT_ERROR if operational_errors.any?
+
+  puts
+  puts "clean — every open, hecks_qa-originated PR is either already cleared, still running, or unmatched to a Bug."
+  exit EXIT_OK
 end
-
-exit EXIT_ERROR if operational_errors.any?
-
-puts
-puts "clean — every open loop-parity/* PR is either already cleared, still running, or unmatched to a Bug."
-exit EXIT_OK
