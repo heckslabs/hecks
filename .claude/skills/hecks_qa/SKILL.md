@@ -89,13 +89,18 @@ sweep" — see the orchestrator step above.)*
 A `loop-parity/*` PR is a fix this loop judged self-contained and
 verified LOCALLY before opening it — which is not the same fact as "CI's
 own fresh build still agrees", and nothing used to check whether those
-two ever drifted apart. `bin/qa_pr_check` is that check: it asks `gh`
-what every currently-open `loop-parity/*` PR's own CI actually said, and
-for any commit a `Bug` in the ledger claims to have fixed, records the
-answer as a real `QualityControl::Clearance` — which is what lets
-`BugCiWatch` (a process manager in `qa/bluebook/quality_control.bluebook`
-now, read its own comment there) notice a red run on its own and put the
-bug back (`Bug.Regress`) without anyone watching for it by hand.
+two ever drifted apart. `bin/qa_pr_check` is that check: for any commit a
+`Bug` in the ledger claims to have fixed, once its checks have settled
+(not pending), it asks the ledger's own `Clearance.CI.Run` — the `CI`
+port `quality_control.hecksagon` declares, bound for real to
+`GithubChecks` (`qa/adapters/github_checks.rb`), which is what actually
+shells to `gh` from there, by commit. `ClearOnPass`/`RefuseOnFail`
+(`quality_control.bluebook`'s own foot) turn its answer or refusal into a
+real `QualityControl::Clearance` — which is what lets `BugCiWatch` (a
+process manager in the same bluebook, read its own comment there) notice
+a red run on its own and put the bug back (`Bug.Regress`) without anyone
+watching for it by hand. The script itself never decides pass or fail any
+more; it only decides which commit is worth asking about.
 
 ```
 bundle exec ruby bin/qa_pr_check
@@ -108,10 +113,12 @@ bundle exec ruby bin/qa_pr_check
   own recorded commit does not look like a sha, or the ledger would not
   boot. Read the message; fix the actual problem (or report it) rather
   than retrying blind — same as a sweep's own exit 1.
-- **Exit 2 — FOUND A NEWLY-RED PR.** The script itself already dispatched
-  `Clearance.Failed` for the commit, which means `BugCiWatch` already
-  fired `Bug.Regress` — the bug is back in `investigating`, on the
-  record, before this loop does anything else. What's left is exactly
+- **Exit 2 — FOUND A NEWLY-RED PR.** The ledger itself already recorded
+  `Clearance.Failed` for the commit (via the `CI` port, not a direct
+  dispatch — see this section's own opening paragraph), which means
+  `BugCiWatch` already fired `Bug.Regress` — the bug is back in
+  `investigating`, on the record, before this loop does anything else.
+  What's left is exactly
   the same judgment "On a surprising check", below, already describes
   for a sweep's own find: **follow that section now**, against the
   re-opened Bug instead of a freshly-logged one, before moving on to a

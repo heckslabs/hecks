@@ -12,16 +12,30 @@
 # ever checked whether they still matched. A PR could go red days later —
 # a fix that happened to work on one machine's cache, a flake that wasn't,
 # a merge with `main` that broke it — and the only thing that noticed was
-# a human scrolling GitHub's own PR list. `QualityControl::Clearance`
-# already had two commands built for exactly this (`Start`/`Passed`/
-# `Failed`) and nothing had ever dispatched them for a loop-parity PR;
-# `QualityControl::Bug::Regress` already said the right word ("put a bug
-# back when its fix stopped holding") and nothing had ever dispatched
-# THAT either. `BugCiWatch` (qa/bluebook/quality_control.bluebook) is the
-# process manager that turns a `Clearance::Failed` into a `Bug::Regress`
-# on its own, automatically, the moment this script records one — this
-# script's own job is only the one fact nothing in the ledger can know by
-# itself: what `gh` actually says about a PR's own head commit.
+# a human scrolling GitHub's own PR list. `QualityControl::Bug::Regress`
+# already said the right word ("put a bug back when its fix stopped
+# holding") and nothing had ever dispatched it — `BugCiWatch`
+# (qa/bluebook/quality_control.bluebook) is the process manager that
+# turns a `Clearance::Failed` into a `Bug::Regress` on its own,
+# automatically, the moment a clearance is recorded for the commit a Bug
+# named as its fix.
+#
+# THE DOMAIN DOES THE CHECKING — this script does not. It used to
+# dispatch `Clearance::Start`/`Passed`/`Failed` directly, which was a
+# shortcut around two policies the chapter had ALREADY declared for
+# exactly this (`ClearOnPass`/`RefuseOnFail`, `quality_control.bluebook`'s
+# own foot), leaving them dead code forever. What this script does now:
+# `Clearance.Start`, to put the commit on the record — still a direct
+# dispatch, because starting a run is this script's own decision, not an
+# external fact — and then `Clearance.CI.Run`, the ASK the chapter's own
+# `CI` port declares (`quality_control.hecksagon`). `GithubChecks`
+# (`qa/adapters/github_checks.rb`) is what actually shells to `gh` from
+# there and answers or refuses; `ClearOnPass`/`RefuseOnFail` are what turn
+# that into `Clearance::Passed`/`Failed`, for real, the same way
+# `Ticket.Raise` already lets `FileWhenSubmitted` drive `IssueTracker`
+# rather than filing anything by hand. This script's own remaining job:
+# decide WHICH commits are worth asking about at all, and read back what
+# the ledger recorded once it has answered.
 #
 #   bin/qa_pr_check
 #
@@ -29,9 +43,20 @@
 # repository's own way of talking to GitHub (`.claude/skills/hecks_qa/
 # SKILL.md`'s own `gh pr list`/`gh pr view` examples) — nothing here opens
 # a second HTTP client or re-derives a token. `gh pr checks <n> --json`
-# is the one call that answers the actual question ("did CI pass") in a
-# form this script can read without guessing at exit-code semantics gh
-# reserves for its own interactive/watch modes.
+# is still what THIS script uses to decide whether a PR is even worth
+# asking the ledger about yet (see "PENDING STAYS OUTSIDE THE PORT"
+# below); `GithubChecks` reaches `gh` on its own, by commit, for the
+# verdict itself.
+#
+# PENDING STAYS OUTSIDE THE PORT, ON PURPOSE. `Clearance`'s own two
+# endings are `Passed`/`Failed` — final, and minted once per commit
+# forever (see `Clearance`'s own header). There is no "ask me again
+# later" a `refuses` could mean without lying: refusing "checks are still
+# running" would read exactly like refusing "checks failed," and
+# `BugCiWatch` cannot tell those apart. So this script still checks
+# whether a PR's checks have finished BEFORE it ever starts a `Clearance`
+# for that commit — the one decision that has to happen out here, because
+# the port's own vocabulary has nowhere to put it.
 #
 # ONE CLEARANCE PER COMMIT, MINTED ONCE — the same reading `Clearance`'s
 # own header comment gives: "a commit's CI result doesn't change once
@@ -66,11 +91,13 @@
 #
 # WHAT THIS SCRIPT DELIBERATELY DOES NOT DO: decide whether a red run
 # means the fix was wrong, judge which failing check matters, write a new
-# regression test, or open a second PR. It records what `gh` said and
-# stops — the process manager already turned that into a `Bug.Regress`
-# by the time this script's own exit code says so; anything past that is
-# the same investigation `bin/qa_sweep`'s own "on a surprising check"
-# judgment already covers, reused rather than restated here.
+# regression test, open a second PR, or compute a pass/fail verdict of
+# its own — that last one used to happen here and now happens behind the
+# port instead. It records what the ledger says once asked and stops —
+# the process manager already turned a red answer into a `Bug.Regress` by
+# the time this script's own exit code says so; anything past that is the
+# same investigation `bin/qa_sweep`'s own "on a surprising check" judgment
+# already covers, reused rather than restated here.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -115,6 +142,15 @@ def gh(*)
 end
 
 # ── boot the ledger for real ───────────────────────────────────────────
+#
+# THE REAL `CI` PORT COMES BOUND — `qa/adapters/github_checks.{adapter,
+# rb}` is what `Folder#load_project` picks up during this boot (see that
+# file's own header for why no line here has to name it), binding
+# `GithubChecks` to the port `quality_control.hecksagon` declares. Boot
+# this domain any other way (`spec/quality_control_spec.rb`'s own inline
+# hecksagon, `bin/model_check`'s static-only load) and the port stays
+# exactly as dormant as `IssueTracker`'s still is — real binding is a
+# property of THIS boot, not of the chapter.
 
 runtime = begin
   Hecks.boot(DOMAIN_DIR)
@@ -201,6 +237,9 @@ def check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors)
     return
   end
 
+  # THE ONE PLACE THIS SCRIPT STILL LOOKS AT `gh` ITSELF — deciding
+  # whether it is even worth asking the ledger yet. See this file's own
+  # header, "PENDING STAYS OUTSIDE THE PORT."
   checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
                                              "--json", "name,state,bucket,workflow")
   unless checks_status.success?
@@ -219,30 +258,34 @@ def check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors)
     return
   end
 
-  record_clearance(sha, label, bug_ref, checks, number, newly_red)
+  ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
 end
 
-# THE VERDICT, RECORDED — split out purely so `check_one_pr` above reads
-# as gathering facts and this reads as acting on them; no shared state
-# beyond the arguments passed in.
-def record_clearance(sha, label, bug_ref, checks, number, newly_red)
-  failing = checks.select { |c| c[:bucket] == "fail" }
-
+# THE ASK, AND THE VERDICT READ BACK — this is the whole replacement for
+# the old `record_clearance`, which used to compute pass/fail itself and
+# dispatch `Clearance::Passed`/`Failed` by hand. `Clearance.Start` still
+# happens here (starting a run is this script's own decision); everything
+# past it is `Clearance.CI.Run` — the `CI` port's own `asks "Run"` — and
+# the two policies the chapter already declared. `GithubChecks` answers
+# or refuses from what `gh` says about THIS commit; `ClearOnPass`/
+# `RefuseOnFail` are what turn that into `Clearance::Passed`/`Failed`,
+# synchronously, before `runtime.dispatch` returns — so `Clearance.find`
+# right after already sees the settled record, same as `record_clearance`
+# used to leave one.
+def ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
   QualityControl::Clearance.start!(commit: { value: sha })
+  runtime.dispatch("QualityControl::Clearance.CI.Run", commit: sha)
 
-  if failing.empty?
-    QualityControl::Clearance.find(sha).passed!(
-      summary: { value: "#{checks.length} checks, all green (#{label})" }
-    )
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: CLEARED — #{checks.length} checks, all green"
+  cleared = QualityControl::Clearance.find(sha)
+  summary = cleared.summary.to_h[:value]
+
+  if cleared.status == "green"
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: CLEARED — #{summary}"
     return
   end
 
-  refusal = "#{failing.length} of #{checks.length} checks failed: " \
-            "#{failing.map { |c| "#{c[:workflow]}/#{c[:name]}" }.join(', ')} (#{label})"
-  QualityControl::Clearance.find(sha).failed!(refusal: { value: refusal })
-  puts "#{label}, #{bug_ref}, #{sha[0, 7]}: RED — #{refusal}"
-  newly_red << { pr: number, bug: bug_ref, commit: sha, refusal: refusal }
+  puts "#{label}, #{bug_ref}, #{sha[0, 7]}: RED — #{summary}"
+  newly_red << { pr: number, bug: bug_ref, commit: sha, refusal: summary }
 end
 
 newly_red = []

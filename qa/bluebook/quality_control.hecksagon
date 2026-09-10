@@ -31,6 +31,19 @@ Hecks.hecksagon "QualityControl" do
     end
   end
 
+  # BOUND, FOR REAL — `GithubChecks` (`qa/adapters/github_checks.{rb,
+  # adapter}`) shells to `gh api repos/{owner}/{repo}/commits/<sha>/
+  # check-runs` and answers or refuses accordingly. `Folder#load_project`
+  # discovers it on its own: `qa/` is the nearest ancestor of this file
+  # carrying an `adapters/` directory, so any real `Hecks.boot` under here
+  # picks it up without a line in this file naming it — the same "an
+  # adapter is bound by declaring `port "X"`, nothing wired here" shape
+  # `IssueTracker`'s own comment above describes, except this one actually
+  # is bound. `bin/qa_pr_check` is what dispatches `Clearance.CI.Run`; the
+  # two policies at the foot of `quality_control.bluebook` (`ClearOnPass`,
+  # `RefuseOnFail`) are what turn its answer or refusal into
+  # `Clearance::Passed`/`Failed` — no direct dispatch of either left
+  # anywhere in this ledger's own tooling.
   QualityControl::Clearance.port "CI" do
     asks "Run", to: Clearance do
       answers "SuitePassed"
