@@ -31,6 +31,51 @@
 # other rule here is a gate: it refuses, it can be waived with a reason, and
 # the waiver is counted so "how often do we go round ourselves" is a number
 # rather than a feeling.
+
+# THE PRACTICE'S OWN DIALS — HARDCODED HERE, NOT IN PROSE AN LLM READS.
+#
+# `.claude/skills/hecks_qa/SKILL.md` used to say "cap: 3 draft PRs per day"
+# in a sentence, which meant changing it meant editing instructions written
+# for an agent to follow rather than editing data — nobody could grep for
+# the number, and nothing enforced that the sentence and the practice ever
+# agreed. Here, it is a fact about the file, the same way `StaleAfter`'s 900
+# or `BugOrder`'s 1_000 already are: a human changes it by editing this file
+# and reviewing the diff, not by asking a running agent to remember
+# something different.
+#
+# NO AGGREGATE, ON PURPOSE. A live, dispatchable "Policy" record was the
+# first shape tried here and taken back — these two numbers are a human's
+# call, not a fact the loop should ever mutate about itself mid-run, and a
+# bare Ruby constant is the plainest way to write "this is fixed until a
+# person changes it" in a language that also has commands for the things
+# that are NOT fixed. (Also: `Policy` collides with this very file's own
+# reaction-policy keyword a few hundred lines down — see the `BugTitle`
+# comment on prefix collisions for why that is not hypothetical here.)
+#
+# GUARDED AGAINST RELOAD, NOT JUST DEFINED. This file is `load`ed once per
+# `Hecks.boot` — and `spec/quality_control_spec.rb` boots a fresh runtime
+# per example, dozens of times in one process. A bare `CONST = value` at
+# top level is reassigned every single time that happens, and Ruby warns
+# on every one of those forty-some reassignments. `defined?` makes the
+# second-and-later load a no-op instead of a warning generator.
+unless defined?(QualityControlDials)
+  module QualityControlDials
+    # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A SWEEP CONCLUDES BEFORE
+    # STARTING THE NEXT ONE. Zero means immediately: the loop restarts the
+    # moment the previous sweep's report comes back, rather than waiting
+    # out a fixed interval. This number is read as a CEILING, not a pace —
+    # the longest the orchestrator will EVER go without hearing back
+    # before it assumes a subagent stalled and starts again anyway.
+    CADENCE_SECONDS = 0
+
+    # HOW MANY draft PRs `hecks_qa` may open in one calendar day. Zero
+    # means uncapped. A positive number here is a fence for when nobody is
+    # watching the loop closely; a human who IS watching it can say so, in
+    # this file, rather than the loop inventing a limit nobody chose.
+    PR_CAP_PER_DAY = 0
+  end
+end
+
 Hecks.bluebook "QualityControl" do
   vision "A user should never be made to feel stupid by something that took what they said and quietly did otherwise. Every check writes down what it expected before it looks, every bug carries the test that proves it, and nothing reaches the outside world that nobody first tried to fix."
 
