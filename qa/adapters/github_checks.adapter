@@ -1,0 +1,20 @@
+# THE REAL BINDING — loaded by any real `Hecks.boot` under `qa/` (`Folder#
+# load_project`'s own `<root>/adapters/*.adapter` glob; `qa/` is where that
+# walk first finds an `adapters/` directory, so `qa/bluebook/quality_control.
+# hecksagon`'s own boot picks this up without naming it). `spec/quality_
+# control_spec.rb` never reaches this file at all — it boots by hand,
+# `Kernel.load`ing the bluebook directly and binding `GreenCi`/`RedCi`
+# stubs of its own, which is deliberate (see that spec's own header on why
+# a durable-store chapter is never exercised against the real store).
+#
+# `require_relative`, NOT the `load_library`/`load_project` glob, is what
+# makes `Hecks::Adapters::GithubChecks` exist before the line below runs —
+# a project-scoped `.adapter` file is `Kernel.load`ed, never its sibling
+# `.rb` (the glob only ever matches `*.adapter`; see `mock_stripe_adapter.
+# rb`'s own pairing for the library-shipped precedent, required instead
+# from `adapters/driven.rb` because THAT class ships with the gem).
+require_relative "github_checks"
+
+Hecks.adapter "GithubChecks" do
+  port "CI"
+end

@@ -69,9 +69,9 @@ module Hecks
         # `asks`/`tells` PORT OPERATION from a `policy` — every other
         # `asks`/`tells` user (there is exactly one: this ledger's own
         # IssueTracker/CI ports) only ever gets dispatched directly, never
-        # through a policy's own `on`/`trigger`. Two real, narrow gaps in
+        # through a policy's own `on`/`trigger`. One real, narrow gap in
         # that combination, confirmed by reading the checker itself, not
-        # domain defects:
+        # a domain defect:
         #   - `unknown_trigger` (FileWhenSubmitted, AskOnceMore): a
         #     policy's `trigger Ticket::IssueTracker::File` — three
         #     segments (aggregate, port, operation) — is not a shape
@@ -79,22 +79,21 @@ module Hecks
         #     (`Account::Debit`, two segments); it rewrites to
         #     "Ticket::IssueTracker.File", which parses as a totally
         #     different aggregate.
-        #   - `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
-        #     RecordTheRefusal): `ModelCheck.emitted_events` calls
-        #     `.emits` on every port operation, which is empty for an
-        #     `asks` — its two endings live in `.answers`/`.refuses`
-        #     instead (`PortOperationBuilder#refuse_wrong_words!`), so an
-        #     outbound operation's own events never enter the known-emits
-        #     set at all.
-        # Both belong to Naming/PolicyBuilder and ModelCheck.emitted_events
-        # respectively — real follow-ups, not something to force-fix here.
+        # Belongs to Naming/PolicyBuilder — a real follow-up, not something
+        # to force-fix here.
+        #
+        # `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
+        # RecordTheRefusal) USED TO LIVE HERE TOO, and is GONE, not just
+        # quieted: `emitted_events` below now reads an outbound operation's
+        # `.answers`/`.refuses` the same way it already read a command's
+        # `.emits`, so `Clearance.SuitePassed`/`SuiteFailed` and
+        # `Ticket.IssueFiled`/`IssueFilingRefused` enter the known-emits set
+        # for real — the same fix `bin/qa_pr_check`'s own move to dispatching
+        # through the CI port (rather than `Clearance::Passed`/`Failed`
+        # directly) needed to make these two policies actually fire.
         "quality_control" => [
           [:unknown_trigger, "FileWhenSubmitted"],
-          [:unknown_trigger, "AskOnceMore"],
-          [:deaf_policy, "ClearOnPass"],
-          [:deaf_policy, "RefuseOnFail"],
-          [:deaf_policy, "RecordTheIssue"],
-          [:deaf_policy, "RecordTheRefusal"]
+          [:unknown_trigger, "AskOnceMore"]
         ]
       }.freeze
 
@@ -495,15 +494,38 @@ module Hecks
       # the fixtures under spec/fixtures/model_check/ do, having no
       # hecksagon at all) simply finds none, which is correct : nothing
       # can be deaf to an event that isn't even wired up yet.
+      #
+      # AN OUTBOUND OPERATION (`asks`) EMITS THROUGH A DIFFERENT DOOR — it
+      # declares no `.emits` at all (`PortOperationBuilder#refuse_wrong_
+      # words!` refuses one that tries), naming its two real endings
+      # `.answers`/`.refuses` instead (`PortOperation#initialize`). Reading
+      # only `.emits` left every `asks`'s own two events invisible to this
+      # method — real, live events a policy genuinely reacts to
+      # (`Clearance.SuitePassed`/`SuiteFailed`, `Ticket.IssueFiled`/
+      # `IssueFilingRefused`), reported as `deaf_policy` findings until this
+      # read both. `.compact` because an INBOUND operation's `.answers`/
+      # `.refuses` are always nil (there is no channel back to tell), which
+      # would otherwise seed every emitted-events set with a stray nil.
       def emitted_events(bluebook)
         aggregate_emits = bluebook.aggregates.flat_map do |aggregate|
           aggregate.commands.map(&:emits) +
             aggregate.entities.flat_map { |entity| entity.commands.map(&:emits) } +
-            aggregate.ports.flat_map { |port| port.operations.map(&:emits) }
+            port_operation_events(aggregate.ports)
         end
-        chapter_emits = bluebook.ports.flat_map { |port| port.operations.map(&:emits) }
+        chapter_emits = port_operation_events(bluebook.ports)
 
-        (aggregate_emits + chapter_emits).flatten.uniq
+        (aggregate_emits + chapter_emits).flatten.compact.uniq
+      end
+
+      # ONE OPERATION, EITHER OF ITS OWN SOURCES OF EVENTS — an inbound
+      # `tells` names its own via `.emits`; an outbound `asks` has none
+      # (`PortOperationBuilder#refuse_wrong_words!` refuses one that
+      # tries) and names its two real endings `.answers`/`.refuses`
+      # instead. Pulled out of `emitted_events` above purely to keep that
+      # method's own branching low enough to read at a glance — every
+      # port, aggregate-owned or chapter-level, asks this the same way.
+      def port_operation_events(ports)
+        ports.flat_map { |port| port.operations.flat_map { |op| [*op.emits, op.answers, op.refuses] } }
       end
 
       # Fully-qualified, the same spelling DispatchSpec#command_name
