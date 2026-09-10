@@ -2,18 +2,25 @@
 # inline `Hecks.hecksagon` block, which re-declares this same shape bound to
 # Memory for fast, isolated tests (see that spec's own header on why). This
 # file is what a real boot (`bin/model_check`, and eventually a running QA
-# loop) reads: `Heki`, so a Target's claim, a Sweep's checks, and a Bug's
-# whole history survive between runs — the one thing this ledger cannot do
-# on `Memory` and still be a ledger.
+# loop) reads.
+#
+# `PostgresEra`, NOT `Heki` — moved by `bin/qa_postgres_migrate` (see that
+# script's own header) so the ledger's own history (a Sweep's checks, a
+# Bug's tags, an Angle's backlog) survives in a real database rather than
+# one worktree's own untracked `qa/data/*.heki` files. `quality_control.
+# world` (sibling file) names the actual database — this file, like every
+# other real domain's own `.hecksagon` (`examples/pizzas`, `examples/
+# chess`, `examples/roster`, `examples/directory`), names only the
+# adapter, never the connection.
 Hecks.hecksagon "QualityControl" do
   uses_framework "Governance"
 
-  QualityControl::Target.persisted_by("Heki")
-  QualityControl::Sweep.persisted_by("Heki")
-  QualityControl::Bug.persisted_by("Heki")
-  QualityControl::Angle.persisted_by("Heki")
-  QualityControl::Ticket.persisted_by("Heki")
-  QualityControl::Clearance.persisted_by("Heki")
+  QualityControl::Target.persisted_by("PostgresEra")
+  QualityControl::Sweep.persisted_by("PostgresEra")
+  QualityControl::Bug.persisted_by("PostgresEra")
+  QualityControl::Angle.persisted_by("PostgresEra")
+  QualityControl::Ticket.persisted_by("PostgresEra")
+  QualityControl::Clearance.persisted_by("PostgresEra")
 
   # THE OUTSIDE WORLD, THROUGH A SWAPPABLE ADAPTER — no adapter is bound
   # here (deliberately dormant; see the loop's own design notes on why:
