@@ -416,24 +416,30 @@ pub fn emit_read_model_def(rmd: &ReadModelDef) -> String {
 
 /// Port of `rust/project/read_models.rb`'s own `emit_group_by_transform`
 /// — see that function's own header for the full reasoning (three jobs:
-/// `row_json`-equivalent id insertion, keep only real declared
-/// attributes + id + lifecycle — excluding any OTHER Phase 10
-/// capability's own synthetic fields, like `corrects`'s `emitted_*`
-/// flags — and recursively unwrap single-attribute value objects).
+/// `row_json`-equivalent id insertion, keep this aggregate's own real
+/// declared attributes PLUS any `projects` field it declares
+/// (`crate::types::projected_field_pseudo_attributes` — the same
+/// attributes-plus-projections composition `domain_generator.rs`'s own
+/// `record_attributes` and `commands.rs`'s own `record_fields` already
+/// use for this exact aggregate's record shape) plus id + lifecycle —
+/// excluding any OTHER Phase 10 capability's own synthetic fields, like
+/// `corrects`'s `emitted_*` flags — and recursively unwrap
+/// single-attribute value objects).
 fn emit_group_by_transform(fn_name: &str, aggregate: &Json, group_by_fields: &[String]) -> String {
     let value_objects: Vec<&Json> = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().collect();
     let value_objects_by_name: HashMap<String, &Json> = value_objects.iter().map(|vo| (vo.get("name").map(Json::to_s).unwrap_or_default(), *vo)).collect();
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
-    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let mut fields: Vec<Json> = aggregate.get("attributes").map(Json::each).unwrap_or(&[]).to_vec();
+    fields.extend(crate::types::projected_field_pseudo_attributes(aggregate));
 
-    let mut kept_keys: Vec<String> = attrs.iter().map(|a| crate::attr::name(a).to_string()).collect();
+    let mut kept_keys: Vec<String> = fields.iter().map(|a| crate::attr::name(a).to_string()).collect();
     kept_keys.push("id".to_string());
     if let Some(lf) = &lifecycle_field {
         kept_keys.push(lf.clone());
     }
     let keep_cond = kept_keys.iter().map(|k| format!("k == {k:?}")).collect::<Vec<_>>().join(" || ");
 
-    let arms: Vec<String> = attrs
+    let arms: Vec<String> = fields
         .iter()
         .map(|a| {
             let unwrapped = unwrap_json_expr("v", crate::attr::type_name(a), crate::attr::list(a), aggregate, &value_objects_by_name);

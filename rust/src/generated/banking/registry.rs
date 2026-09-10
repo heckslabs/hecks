@@ -1430,7 +1430,7 @@ pub fn group_by_accountsbykind(rows: Vec<(String, crate::kernel::Json)>) -> crat
                 crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(
                     fields
                         .into_iter()
-                        .filter(|(k, _)| k == "customer" || k == "number" || k == "balance" || k == "kind" || k == "daily_limit" || k == "ledger" || k == "fees_cents" || k == "interest_cents" || k == "id" || k == "status")
+                        .filter(|(k, _)| k == "customer" || k == "number" || k == "balance" || k == "kind" || k == "daily_limit" || k == "ledger" || k == "fees_cents" || k == "interest_cents" || k == "customer_status" || k == "id" || k == "status")
                         .map(|(k, v)| {
                             let new_v = match k.as_str() {
             "customer" => v,
@@ -1441,6 +1441,7 @@ pub fn group_by_accountsbykind(rows: Vec<(String, crate::kernel::Json)>) -> crat
                     "ledger" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "sequence" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, "amount" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other }, "narrative" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "text").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, "direction" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map(|(_, field_value)| field_value).unwrap_or(crate::kernel::Json::Null), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other },
                     "fees_cents" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other },
                     "interest_cents" => match v { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "cents" => v, "currency" => v, _ => v }; (k, new_v) }).collect()), other => other },
+                    "customer_status" => v,
                                 _ => v,
                             };
                             (k, new_v)
