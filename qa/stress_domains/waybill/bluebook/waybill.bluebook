@@ -17,65 +17,58 @@
 # banking/bluebook/*.bluebook qa/bluebook/quality_control.bluebook`)
 # before this domain was authored.
 #
-# WHAT THIS DOMAIN FOUND, FIRST TRY: the combination does not work.
-# `SagaInterpreter#qualified` (`lib/hecks/runtime/saga_interpreter.rb`)
-# decides whether a dispatch's own `command_name` already carries an
-# explicit domain qualifier with one heuristic: `command_name.include?
-# ("::")`. That heuristic is correct for a plain aggregate command
-# (`dispatch Account::Debit` -> `Naming.command_ref` rewrites its ONE
-# `::` to `.`, leaving NONE — correctly triggers domain-prefixing) and
-# for a genuinely cross-domain one (`dispatch Banking::Account::Debit`
-# -> ONE `::` survives the rewrite, correctly read as already-qualified)
-# — but a bare, SAME-DOMAIN entity command reference
-# (`dispatch Manifest::Slot::Fill`) ALSO has exactly one `::` left after
-# the identical rewrite (`Naming.command_ref` only ever strips the LAST
-# `::`), for a completely different reason: entity nesting, not a
-# domain qualifier. `qualified` cannot tell the two apart from the
-# string alone, and picks the cross-domain reading — so the actual
-# runtime dispatch call gets `"Manifest::Slot.Fill"`, never prefixed
-# with this chapter's own name at all, and `Naming.split_verb` then
-# reads "Manifest" as the DOMAIN and "Slot" as the AGGREGATE — a domain
-# that (almost always) does not exist. `ReactionInvocation.resolve_
-# target` raises `UnknownVerb` ("does not resolve to an aggregate"),
-# which `SagaInterpreter#deliver_saga_dispatch` — correctly, by its own
-# lights — treats as an ordinary DOMAIN REFUSAL (`errors.rb`'s own
-# comment: "UnknownVerb IS one of these, and deliberately"), so the leg
-# just silently "refuses" every single time, structurally, regardless
-# of any value ever generated for it. `PolicyInterpreter#deliver` does
-# NOT share this bug — a policy's own cross-domain qualifier is a
-# SEPARATE `target_domain:` field, never inferred from the command
-# reference string at all, so a policy triggering the identical entity
-# command works correctly today. This is a `SagaInterpreter`-specific
-# gap, confirmed by direct comparison against `PolicyInterpreter#
-# deliver`'s own unconditional `"#{policy.target_domain || domain}::
-# #{policy.trigger_command}"` — no heuristic, no ambiguity.
+# WHAT THIS DOMAIN FOUND, FIRST TRY — BUG#6, NOW FIXED: the combination
+# did not work, in two compounding ways, both in shared runtime dispatch
+# code this domain's own bluebook never needed to change:
 #
-# NOT FIXED HERE, ON PURPOSE — same restraint `nested_pieces/NOTES.md`
-# already exercised for BUG#4: this domain was authored from an isolated
-# worktree with no access to `qa/bluebook/quality_control.bluebook`'s own
-# persisted ledger, so the actual `Bug.log`/judgment/fix lifecycle
-# belongs to the session that DOES hold that ledger, not to this PR. See
-# this domain's own NOTES.md for the exact reproduction and the fix this
-# comment's own reasoning points toward.
+#   1. `SagaInterpreter#qualified` (`lib/hecks/runtime/saga_interpreter.
+#      rb`) used to decide whether a dispatch's own `command_name`
+#      already carried an explicit domain qualifier with one heuristic:
+#      `command_name.include?("::")`. That heuristic could not tell a
+#      genuinely cross-domain reference (`Banking::Account::Debit` — one
+#      `::` survives `Naming.command_ref`'s own rewrite) apart from a
+#      bare, SAME-DOMAIN entity command reference (`Manifest::Slot::
+#      Fill` — ALSO one `::` survives, for an unrelated reason: entity
+#      nesting, not a domain qualifier), and picked the cross-domain
+#      reading unconditionally — so `Manifest::Slot::Fill` dispatched
+#      unprefixed, and `Naming.split_verb` read "Manifest" as a domain
+#      name instead of this chapter's own aggregate. Fixed by dropping
+#      the guess entirely: confirmed against the whole corpus, no saga
+#      anywhere ever dispatches genuinely cross-domain, so a saga
+#      dispatch is now always qualified against its own home domain,
+#      unconditionally — the same default `PolicyInterpreter#deliver`
+#      already applied via its own explicit (never string-inferred)
+#      `target_domain` field.
+#
+#   2. Once (1) resolved the verb correctly, `ReactionInvocation.build`
+#      (`lib/hecks/runtime/reaction_invocation.rb`) still could not
+#      resolve the manifest's own receiver identity: `source_receiver_
+#      for` refused outright whenever a target carried any entities, and
+#      separately misread `target.command.creates?` — true for EVERY
+#      entity command by construction, not only a genuinely creating one
+#      — as a reason to refuse inheriting the aggregate's own identity
+#      from the triggering event. Both were dead code paths (no policy
+#      or saga anywhere had ever targeted an entity command while
+#      relying on an inherited receiver) until this domain exercised
+#      them for the first time. Fixed to match `build`'s own already-
+#      correct `target.entities.empty? && target.command.creates?` guard
+#      one caller below.
+#
+# See `saga_interpreter.rb`'s `qualified` and `reaction_invocation.rb`'s
+# `source_receiver_for` for the full fix and reasoning; `NOTES.md` still
+# carries the original reproduction write-up for the historical record.
 #
 # THE DOMAIN ITSELF models a small warehouse consignment: a `Consignment`
 # request starts a `Packing` saga, which opens a `Manifest`, reserves a
-# numbered `Slot` on it (an aggregate-level dispatch — WORKS today), then
-# tries to fill that slot (`Manifest::Slot::Fill`, an ENTITY-level
-# dispatch — the broken leg above) with a `compensates Manifest::Slot::
-# Clear` alongside it (per-dispatch saga compensation, `compensates`,
-# targeting an entity command for the first time anywhere in this
-# corpus too — currently unreachable in practice, since the dispatch it
-# would compensate never actually delivers, but declared for when the
-# underlying gap closes). The saga's own `:refused` leg cancels the
-# consignment — which is, structurally, ALWAYS how this saga currently
-# ends: `Manifest::Slot::Fill` refuses every time, so `ConsignmentShipped`
-# (this process manager's own `ends_on`) is, right now, an UNREACHABLE
-# happy path. That is not a mistake in this domain's own design — it is
-# the honest shape of what currently happens, and once `qualified`'s own
-# gap closes, the SAME domain becomes a real end-to-end regression pin
-# for both the fix and ordinary saga/entity dispatch correctness going
-# forward, with no further authoring needed.
+# numbered `Slot` on it (an aggregate-level dispatch), then fills that
+# slot (`Manifest::Slot::Fill`, an ENTITY-level dispatch — the leg BUG#6
+# broke) with a `compensates Manifest::Slot::Clear` alongside it
+# (per-dispatch saga compensation targeting an entity command for the
+# first time anywhere in this corpus too). The saga's own `:refused` leg
+# cancels the consignment — now reachable only on a genuine refusal, not
+# structurally on every run: `ConsignmentShipped` (this process
+# manager's own `ends_on`) is the ordinary happy path, and `spec/
+# waybill_spec.rb` pins exactly that end-to-end.
 Hecks.bluebook "Waybill" do
   vision "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's."
 
@@ -224,15 +217,14 @@ Hecks.bluebook "Waybill" do
         emits SlotFilled
       end
 
-      # THE COMPENSATING HALF OF `Fill` — declared for when the saga's
-      # own dispatch into `Fill` actually delivers (see this file's own
-      # header comment: it does not, today). `compensates` targeting an
-      # ENTITY command is, itself, a second combination absent from the
-      # rest of the corpus (banking's own `Settlement` compensates
-      # `Account::Credit`, a plain aggregate command) — declared here so
-      # this domain also becomes the regression pin for THAT combination
-      # the moment the dispatch gap above closes, with no further
-      # authoring needed.
+      # THE COMPENSATING HALF OF `Fill` — armed for the saga's own leg 3
+      # (`Manifest::Slot::Fill`), which now delivers (see this file's own
+      # header comment: BUG#6, fixed). `compensates` targeting an ENTITY
+      # command is, itself, a second combination absent from the rest of
+      # the corpus (banking's own `Settlement` compensates
+      # `Account::Credit`, a plain aggregate command) — this domain is
+      # its regression pin too, exercised whenever leg 3 genuinely
+      # refuses.
       command "Clear" do
         role "Loader"
         goal "Clear a slot's item back out — the compensating half of Fill"
@@ -270,26 +262,23 @@ Hecks.bluebook "Waybill" do
     end
 
     # LEG 3 — THE ENTITY-LEVEL DISPATCH THIS DOMAIN EXISTS TO EXERCISE.
-    # See this file's own header comment: `Manifest::Slot::Fill` refuses
-    # every time today, structurally, regardless of what `number`/
-    # `item` a fuzzed sequence ever generates — `qualified`'s own gap,
-    # not a data-dependent one.
+    # See this file's own header comment: this used to refuse every
+    # time, structurally (BUG#6, now fixed) — `Manifest::Slot::Fill`
+    # delivers correctly today.
     transition Manifest::SlotAdded => "filling", from: "packing" do
       dispatch Manifest::Slot::Fill, with: { number: :number, item: :item } do
         compensates Manifest::Slot::Clear, with: { number: :number, item: :item }
       end
     end
 
-    # THE HAPPY-PATH LEG — currently unreachable (see header comment),
-    # kept declared so this domain is a real end-to-end saga the moment
-    # leg 3 above actually delivers, not a domain rewritten around its
-    # own bug.
+    # THE HAPPY-PATH LEG — reachable now that leg 3 above delivers;
+    # `spec/waybill_spec.rb` pins this exact end-to-end run.
     transition Manifest::SlotFilled => "filled", from: "filling" do
       dispatch Consignment::Ship, with: { reference: :reference }
     end
 
-    # THE ONLY LEG THIS SAGA CAN ACTUALLY REACH TODAY — every dispatch
-    # into leg 3 refuses, so `unwind` fires this every single time.
+    # THE COMPENSATING LEG — fires on a genuine refusal of leg 3, not
+    # structurally on every run (see header comment: that was BUG#6).
     transition :refused => "cancelled", from: "filling" do
       dispatch Consignment::Cancel, with: { reference: :reference }
     end

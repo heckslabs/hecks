@@ -506,8 +506,45 @@ module Hecks
         )
       end
 
+      # BUG#6 — UNCONDITIONALLY THE SAGA'S OWN HOME DOMAIN, never inferred
+      # from `command_name`'s own shape. This used to guess: a leftover
+      # `::` after `Naming.command_ref`'s own rewrite was read as "already
+      # domain-qualified" and left alone. That heuristic cannot actually
+      # tell a genuinely cross-domain reference (`Banking::Account::
+      # Debit` -> one `::` survives) apart from a SAME-DOMAIN entity
+      # command reference (`Manifest::Slot::Fill` -> one `::` survives
+      # too, for an unrelated reason — entity nesting, not a domain
+      # qualifier) — both collapse to the identical "one `::` left" shape,
+      # and the string alone carries no further signal to split them
+      # (confirmed against `Naming.command_ref`'s own rewrite: it only
+      # ever strips the LAST `::`, so the count of what remains is blind
+      # to why it's there). Picking the cross-domain reading unconditionally
+      # left `qa/stress_domains/waybill`'s own `Packing` saga dispatching
+      # `Manifest::Slot::Fill` — an entity command in its OWN domain —
+      # unprefixed, so `Naming.split_verb` read "Manifest" as a domain
+      # name instead of this chapter's own aggregate, and the dispatch
+      # failed with `UnknownVerb`, silently recorded as an ordinary
+      # domain refusal rather than surfacing as the real bug it is.
+      #
+      # THE FIX MIRRORS `PolicyInterpreter#deliver`'s OWN MECHANISM,
+      # which never had this bug: a policy's cross-domain target is a
+      # SEPARATE, EXPLICIT field (`Policy#target_domain`, set only by the
+      # `across` keyword) — `deliver` unconditionally builds
+      # `"#{policy.target_domain || domain}::#{policy.trigger_command}"`,
+      # never asking whether `trigger_command` LOOKS already-qualified.
+      # A saga's own `dispatch`/`compensates` has no such explicit field
+      # and no keyword to set one — and, confirmed against the ENTIRE
+      # corpus (banking's Onboarding/Settlement/ExternalSettlement,
+      # quality_control's BugCiWatch, and this domain's own Packing),
+      # no saga anywhere ever dispatches genuinely cross-domain: "every
+      # command a saga fires lands inside its own bluebook chapter"
+      # (`Projections::Diagrams#saga_diagram`'s own comment, written
+      # independently of this fix and still true). So the home domain IS
+      # the only explicit context a saga dispatch ever has — this applies
+      # it the same way `deliver` applies its own default (no `across`)
+      # case, without inventing a keyword nothing in the corpus needs.
       def qualified(command_name, domain)
-        command_name.include?("::") ? command_name : "#{domain}::#{command_name}"
+        "#{domain}::#{command_name}"
       end
 
       def end_saga(process_manager, event, domain)

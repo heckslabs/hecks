@@ -245,7 +245,12 @@ module Hecks
 
       def saga_findings(bluebook, process_manager)
         emitted = emitted_events(bluebook)
-        verbs   = verbs_of(bluebook)
+        # (domain, aggregate, command) TRIPLES, not raw strings — see
+        # `handler_findings`'s own comment on the dispatch side for why:
+        # `Naming.split_verb` is what makes an entity verb's two legitimate
+        # spellings (`Naming.command_ref`'s own `::`-then-`.` rewrite vs.
+        # `verbs_of`'s own all-`.` one) compare equal.
+        verbs   = verbs_of(bluebook).map { |verb| Naming.split_verb(verb) }
         reached = pm_reachable_states(process_manager, emitted)
 
         findings = []
@@ -296,16 +301,38 @@ module Hecks
         end
 
         handler.dispatches.each do |dispatch|
-          # SAME-DOMAIN, same as `SagaInterpreter#qualified` — a dispatch
-          # naming no domain at all (the ordinary shape a bare command
-          # constant now produces, S6) means THIS one, and is compared
-          # against `verbs_of`'s own fully-qualified spelling qualified
-          # the identical way, not left bare to miss it on a technicality.
-          qualified = if dispatch.command_name.include?("::")
-                        dispatch.command_name
-                      else
-                        "#{bluebook.name}::#{dispatch.command_name}"
-                      end
+          # ALWAYS THIS DOMAIN — same fix, same reason, as `SagaInterpreter
+          # #qualified` (BUG#6). This used to guess: a dispatch whose own
+          # `command_name` still carried a leftover `::` after `Naming.
+          # command_ref`'s own rewrite was read as "already qualified" and
+          # left alone — the exact same string-shape ambiguity that
+          # `SagaInterpreter#qualified`'s own comment explains at length
+          # (a same-domain entity command reference and a genuinely
+          # cross-domain one are textually indistinguishable after that
+          # rewrite). Confirmed against the entire corpus, same as that
+          # fix: no saga anywhere ever dispatches genuinely cross-domain,
+          # so this checker now qualifies exactly the way the runtime
+          # actually dispatches — unconditionally against `bluebook.name`
+          # — instead of maintaining its own, independently-wrong copy of
+          # the same guess.
+          #
+          # COMPARED AS A TRIPLE, NOT A STRING — `Naming.command_ref`'s
+          # own rewrite of an entity reference (`Manifest::Slot::Fill`)
+          # collapses to "Manifest::Slot.Fill" (`::` between aggregate and
+          # entity, `.` before the command); `verbs_of`'s own entity
+          # spelling, below, joins aggregate/entity/command all with `.`
+          # instead (matching `fuzzing/sequence_generator/catalog.rb`'s own
+          # independent convention, its comment's own "the same spelling"
+          # claim). Both are legitimate, and `Naming.split_verb` already
+          # parses either to the identical (domain, aggregate, command)
+          # triple (its own comment: "past the already-resolved domain
+          # boundary, any leftover `::` is unambiguous... folding it into
+          # the dot-joined tail") — the same reading `ReactionInvocation.
+          # resolve_target` relies on at runtime. A bare string `include?`
+          # would falsely flag every entity dispatch as unknown_dispatch
+          # even once correctly domain-qualified, comparing two spellings
+          # of the same verb as though they were different ones.
+          qualified = Naming.split_verb("#{bluebook.name}::#{dispatch.command_name}")
           next if verbs.include?(qualified)
 
           findings << Finding.new(kind: :unknown_dispatch, severity: :error, subject: process_manager.name,
