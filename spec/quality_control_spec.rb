@@ -71,12 +71,10 @@ RSpec.describe "QualityControl" do
       Hecks.hecksagon "QualityControl" do
         uses_framework "Governance"
 
-        QualityControl::Target.persisted_by("Memory")
-        QualityControl::Sweep.persisted_by("Memory")
-        QualityControl::Bug.persisted_by("Memory")
-        QualityControl::Angle.persisted_by("Memory")
-        QualityControl::Ticket.persisted_by("Memory")
-        QualityControl::Clearance.persisted_by("Memory")
+        [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
+         QualityControl::Ticket, QualityControl::Patch, QualityControl::Clearance].each do |aggregate|
+          aggregate.persisted_by("Memory")
+        end
 
         QualityControl::Ticket.port "IssueTracker" do
           asks "File", to: Ticket do
@@ -675,6 +673,100 @@ RSpec.describe "QualityControl" do
       names = runtime.events.map(&:name)
       expect(names).to include("IssueFilingRefused", "TicketFilingRefused", "TicketRetried")
       expect(runtime.query("QualityControl::Ticket.All").first[:refusal][:value]).to include("token expired")
+    end
+  end
+
+  # ── which pull requests are ours ──────────────────────────────────────
+
+  # THE WORKLIST `bin/qa_pr_check` NOW READS INSTEAD OF SEARCHING. A patch
+  # is recorded the moment its number, branch and commit are already known
+  # — at `gh pr create` — not rediscovered afterward by guessing at a
+  # branch prefix or a title convention.
+  describe "tracking a pull request" do
+    def a_bug_needing_a_patch
+      a_bug(a_sweep)
+    end
+
+    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c")
+      QualityControl::Patch.open!(
+        bug: bug.id, number: { value: number },
+        url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
+        branch: { value: branch }, commit: { value: commit },
+        title: { value: "loop-parity: #{branch}" }
+      )
+    end
+
+    def open_numbers = rows("Patch.Open").map { |row| row[:number][:value] }
+
+    it "cannot be opened for a bug that does not exist" do
+      a_sweep
+
+      expect do
+        QualityControl::Patch.open!(
+          bug: "BUG#nope", number: { value: 1 },
+          url: { value: "https://example.com/pull/1" },
+          branch: { value: "x" }, commit: { value: "4f2a19c" },
+          title: { value: "x" }
+        )
+      end.to raise_error(Hecks::Runtime::NotFound)
+    end
+
+    it "is born opened, and shows up in the worklist by number" do
+      patch = open_patch(a_bug_needing_a_patch)
+
+      expect(patch.status).to eq("opened")
+      expect(open_numbers).to eq([538])
+    end
+
+    it "drops out of the worklist once GitHub merges it" do
+      patch = open_patch(a_bug_needing_a_patch)
+      patch.merge!
+
+      expect(patch.status).to eq("merged")
+      expect(open_numbers).to be_empty
+    end
+
+    it "drops out of the worklist once GitHub closes it without merging" do
+      patch = open_patch(a_bug_needing_a_patch)
+      patch.close!
+
+      expect(patch.status).to eq("closed")
+      expect(open_numbers).to be_empty
+    end
+
+    # THE DUPLICATE CHECK — the same shape `Ticket.ForBug` already gives
+    # for an issue, restated here rather than shared (this file's own
+    # habit for a per-aggregate query).
+    it "finds every patch ever opened for one bug" do
+      bug = a_bug_needing_a_patch
+      open_patch(bug, number: 538, branch: "loop-parity/first")
+      open_patch(bug, number: 540, branch: "loop-parity/second")
+
+      numbers = rows("Patch.ForBug", bug_id: { value: bug.id }).map { |row| row[:number][:value] }
+      expect(numbers).to contain_exactly(538, 540)
+    end
+
+    # THE WHOLE POINT: the worklist carries the commit already, so nothing
+    # downstream has to ask GitHub to find it, or guess which Bug a commit
+    # belongs to.
+    it "carries the commit that makes checking it a lookup, not a guess" do
+      bug = a_bug_needing_a_patch
+      open_patch(bug, number: 538, commit: "4f2a19c")
+
+      open = rows("Patch.Open").first
+      expect(open[:number][:value]).to eq(538)
+      expect(open[:commit][:value]).to eq("4f2a19c")
+      expect(open[:bug]).to eq(bug.id)
+    end
+
+    it "lists every patch ever opened, whatever became of it" do
+      bug = a_bug_needing_a_patch
+      merged = open_patch(bug, number: 538, branch: "loop-parity/first")
+      merged.merge!
+      open_patch(bug, number: 540, branch: "loop-parity/second")
+
+      numbers = rows("Patch.All").map { |row| row[:number][:value] }
+      expect(numbers).to contain_exactly(538, 540)
     end
   end
 
