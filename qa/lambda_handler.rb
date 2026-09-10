@@ -32,6 +32,22 @@
 # relative to CodeUri (this project's root, at runtime `/var/task`).
 ENV["BUNDLE_GEMFILE"] ||= File.expand_path("Gemfile", "#{__dir__}/..")
 
+# `-Ilib`'S OWN JOB, DONE BY HAND — every OTHER real entry point into
+# this codebase (every `bin/*` script's own shebang-adjacent `ruby
+# -Ilib`, RSpec's own `.rspec`) puts `lib/` on `$LOAD_PATH` before
+# `require "hecks"` ever runs, so hecks.rb's own INTERNAL bare
+# `require "hecks/..."` calls (registry/verification.rb's own
+# `adapter_class`, resolving a persistence plugin's adapter file by
+# name — NOT this file's own `require_relative "../lib/hecks"`, which
+# needs no $LOAD_PATH entry at all) always found `lib/` already there.
+# aws-lambda-ric's own runtime never adds it — confirmed live: a real,
+# deployed cold start failed cold with `cannot load such file --
+# hecks/ports/persistence/plugins/era`, from deep inside `Hecks.boot`'s
+# own boot-gate verification, the first and only entry point in this
+# whole codebase that has ever needed `lib/` on the load path without
+# a human-controlled `-Ilib` already having put it there.
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+
 require "rack"
 require "stringio"
 require "base64"
@@ -61,6 +77,32 @@ end
 
 require_relative "../lib/hecks"
 require_relative "adapters/github_ci_webhook"
+
+# THE REAL BOOT — `bin/qa_pr_check`'s own header explains why THIS is
+# what actually binds `QualityControl::Clearance` etc. as real,
+# dispatchable constants (`Hecks.boot(qa/bluebook)`, not just
+# `require "hecks"` above, which only loads the FRAMEWORK, never any
+# domain's own bluebook): without it, `ClearanceRecorder.ensure_started`
+# (below, at request time) fails cold with `uninitialized constant
+# Hecks::QA::ClearanceRecorder::QualityControl` — confirmed live, this
+# session, a real `check_suite` webhook delivery against the freshly
+# deployed Lambda. ONCE, at cold start (module load), not per-request —
+# a booted registry is reused across every invocation this execution
+# environment ever serves, the same "boot once, dispatch many" a
+# long-lived process already gets for free and a fresh Lambda
+# container gets from EITHER a real cold start (this line) or Lambda's
+# own execution-environment reuse (no re-run at all).
+# `environment: "production"` — picks up
+# `bluebook/environments/production.world` (Adapters::Folder#load_domain's
+# own mechanism), which overrides `quality_control.world`'s own
+# LOCAL-socket `persisted_by("PostgresEra") { database
+# "hecks_quality_control" }` with the real RDS `DATABASE_URL` just
+# composed above. Confirmed live: without this, `Hecks.boot` inside a
+# real deployed Lambda tries the bare dbname as a local socket
+# connection and fails cold (`PG::ConnectionBad` from deep inside boot
+# gate verification) — there is no local Postgres socket in a Lambda
+# execution environment at all.
+Hecks.boot(File.expand_path("bluebook", __dir__), environment: "production")
 
 # WebLambdaHandler's own header explains the "not just LambdaHandler"
 # naming gotcha (aws-lambda-ric's own internal class of that exact bare

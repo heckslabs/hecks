@@ -5,6 +5,21 @@ source "https://rubygems.org"
 gem "pg", "~> 1.5"
 gem "sqlite3", "~> 2.0"
 
+# A REAL, GENUINELY-EAGER dependency, not a rubocop-ast one along for
+# the ride — lib/hecks/adapters/driven/prism.rb (`Adapters::Prism`,
+# hecks.rb's own eager `adapters/driven` load) requires "prism"
+# directly, unconditionally, for every process that ever `require
+# "hecks"`s at all. Ruby 3.3+ bundles prism as a DEFAULT gem, so every
+# local dev machine on a current Ruby already has it and never
+# noticed this Gemfile never actually named it — until a REAL `sam
+# build`'s production-mode `bundle install --deployment` (which
+# excludes the :development, :test group prism used to ride in on,
+# via rubocop-ast, below) vendored a Lambda package for Ruby 3.2 (no
+# prism bundled at all) and it failed cold start outright: `Init
+# error when loading handler ... cannot load such file -- prism` —
+# confirmed live, QualityControl's own first real WebFunction deploy.
+gem "prism", "~> 1.7"
+
 # For testing GoogleAuthentication, lib/hecks/adapters/driven/
 # google_authentication.rb — lazily required there, same reasoning
 # `pg` above already holds itself to: a domain that never binds

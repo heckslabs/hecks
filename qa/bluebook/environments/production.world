@@ -1,0 +1,30 @@
+# THE REAL, DEPLOYED LAMBDA'S OWN PERSISTENCE OVERLAY —
+# `Adapters::Folder#load_domain`'s own `environment:` mechanism
+# (Runtime::Loader.boot's own comment has the full provenance): loaded
+# LAST, merged into `quality_control.world`'s own `persisted_by`
+# binding rather than replacing the whole world file, exactly so this
+# file needs to know nothing about anything ELSE that base file
+# declares (`realm`, `deployed_to("AwsLambda")`, ...).
+#
+# WHY THIS EXISTS AT ALL: `quality_control.world`'s own `database
+# "hecks_quality_control"` is a BARE dbname — deliberately, per that
+# file's own header, resolving through the LOCAL Postgres socket the
+# same way `psql hecks_quality_control` already would. That is exactly
+# right for local dev and CI, and exactly wrong for a real, deployed
+# Lambda: there is no local socket inside a Lambda execution
+# environment, only the real RDS endpoint `qa/lambda_handler.rb`
+# already composed into `ENV["DATABASE_URL"]` at cold start (fetched
+# from Secrets Manager, never typed or committed — see that file's own
+# header). `Hecks.boot(path, environment: "production")` is what picks
+# this file up; `qa/lambda_handler.rb`'s own boot call passes that.
+#
+# `ENV.fetch("DATABASE_URL")`, not a hardcoded string — evaluated as
+# ordinary Ruby the moment this file loads, the identical mechanism
+# `bin/project_deploy`'s own mint-era boot check already uses to pass
+# a real Postgres URL into `Hecks::Adapters::PostgresEra.connect_for`
+# directly, proven working there first.
+Hecks.world "QualityControl" do
+  persisted_by("PostgresEra") do
+    database ENV.fetch("DATABASE_URL")
+  end
+end

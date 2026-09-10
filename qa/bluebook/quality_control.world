@@ -94,14 +94,20 @@ Hecks.world "QualityControl" do
     # name.
     stack_name "quality-control-webhook"
     region "us-east-1"
-    # 512MB/15s -- WebFunction's own fixed defaults (bin/project_deploy
-    # never reads these two for a `dispatch "None"` deploy target; they
-    # exist here only because `Deploy::LambdaTarget.Declare` validates
-    # all four unconditionally — see that command's own header for why
-    # it stays that way rather than growing a conditional it would need
-    # the expression grammar's own narrow admits to express).
-    memory 512
-    timeout 15
+    # 1769MB/30s -- `dispatch "None"` makes bin/project_deploy read
+    # THESE two directly for WebFunction's own MemorySize/Timeout
+    # (every OTHER WebFunction still hardcodes 512/15; that pair only
+    # means something real once WebFunction is a domain's SOLE Lambda —
+    # see bin/project_deploy's own comment on the WebFunction Properties
+    # block for the full reasoning). 1769MB (Lambda's own documented
+    # "a full vCPU" threshold), not 512 -- `Hecks.boot`'s own real
+    # cold-start cost (every bluebook parsed fresh — this domain's own
+    # PLUS the whole framework's) is genuinely CPU-bound, and AWS
+    # Lambda allocates CPU proportional to memory; 512MB (a small
+    # fraction of one vCPU) still hadn't finished after 30s, confirmed
+    # live via `aws logs tail` (`Init ... Status: timeout`, twice).
+    memory 1769
+    timeout 30
     database "Postgres"
     dispatch "None"
     handler_module "QaWebhookLambdaHandler"

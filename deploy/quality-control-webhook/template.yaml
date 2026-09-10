@@ -84,6 +84,67 @@ Resources:
       ToPort: 5432
       DestinationSecurityGroupId: !Ref QualityControlWebhookDbSecurityGroup
   
+  # A REAL, LIVE GAP FOUND AND CLOSED HERE — QualityControlWebhookFunctionEgressToDb's
+  # own comment (below) already explains why a standalone
+  # SecurityGroupEgress resource REPLACES QualityControlWebhookFunctionSecurityGroup's
+  # default allow-all-outbound with ONLY what's declared: before this,
+  # that was ONLY port 5432 to QualityControlWebhookDbSecurityGroup (plus, only when
+  # `google_oauth_present`, a broad 443-to-internet rule) — meaning
+  # EVERY domain's own QualityControlWebhookFunction (rust/host's main.rs) and
+  # WebFunction (sharing the SAME security group) fetching their own
+  # DB_SECRET_ARN/SESSION_SECRET_ARN/webhook-secret over the AWS SDK
+  # at cold start (this Environment block's own comment, below: "main.rs
+  # itself fetches the actual password from Secrets Manager... over
+  # the AWS SDK") had NO EGRESS PATH TO REACH IT AT ALL, for any
+  # domain without google_oauth's own NAT Gateway — confirmed live,
+  # this session: QualityControl's own WebFunction cold start hung the
+  # full 15s function timeout trying to reach Secrets Manager, a real
+  # `Init Duration: ... Status: timeout` caught via `aws logs tail`.
+  # Embryonaut's own real, live deploy never surfaced this because it
+  # ALSO has google_oauth_present (hence a NAT Gateway, hence a real,
+  # if incidental, internet route) — the very first non-OAuth
+  # `dispatch "None"` deploy is what exposed it. THE FIX, below: a VPC
+  # Interface Endpoint for Secrets Manager, the SAME targeted-not-NAT-
+  # Gateway shape QualityControlWebhookDbLambdaEndpoint (further below) already uses
+  # for the identical class of problem (`lambda:InvokeFunction`) —
+  # unconditional whenever this domain owns its own VPC at all
+  # (`!shared` — a Shared-mode domain has no security group of its own
+  # to grant this on, and inherits whatever route the OWNER already
+  # provides).
+  QualityControlWebhookFunctionEgressToSecretsManager:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref QualityControlWebhookFunctionSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      DestinationSecurityGroupId: !Ref QualityControlWebhookDbSecretsManagerEndpointSecurityGroup
+  
+  QualityControlWebhookDbSecretsManagerEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref QualityControlWebhookDbVpc
+      GroupDescription: QualityControlWebhookDbSecretsManagerEndpoint - HTTPS from this stacks own Lambdas only
+  
+  QualityControlWebhookDbSecretsManagerEndpointIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref QualityControlWebhookDbSecretsManagerEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref QualityControlWebhookFunctionSecurityGroup
+  
+  QualityControlWebhookDbSecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref QualityControlWebhookDbVpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref QualityControlWebhookDbSubnetA, !Ref QualityControlWebhookDbSubnetB]
+      SecurityGroupIds: [!Ref QualityControlWebhookDbSecretsManagerEndpointSecurityGroup]
+  
   
   QualityControlWebhookDbIngressFromFunction:
     Type: AWS::EC2::SecurityGroupIngress
@@ -219,8 +280,21 @@ Resources:
       # qa itself — see that variable's own comment, above.
       Handler: qa/lambda_handler.QaWebhookLambdaHandler.lambda_handler
       CodeUri: /Users/christopheryoung/Projects/hecks/.claude/worktrees/agent-a7ac753ca2c223e76
-      MemorySize: 512
-      Timeout: 15
+      # `dispatch "None"` READS THE DOMAIN'S OWN DECLARED memory/timeout
+      # (deployed_to("AwsLambda")'s own settings, otherwise only ever
+      # applied to QualityControlWebhookFunction) rather than the fixed 512/15 every
+      # OTHER WebFunction still hardcodes — WebFunction only means
+      # anything by ITS OWN memory/timeout budget once it's the
+      # domain's sole Lambda; before `dispatch "None"` existed, a
+      # WebFunction was always a Sinatra/Rack app running ALONGSIDE a
+      # real QualityControlWebhookFunction, whose own declared memory/timeout already
+      # meant "the domain's real compute budget." Found live: `Hecks.
+      # boot`'s own real cold-start cost (parsing every bluebook fresh,
+      # real Postgres round trips) genuinely exceeded the fixed 15s on
+      # a cold WebFunction invocation — a real `Init ... Status: timeout`
+      # caught via `aws logs tail`, not a guess.
+      MemorySize: 1769
+      Timeout: 30
       Environment:
         Variables:
           DOMAIN_ROOT: /var/task

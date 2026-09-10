@@ -163,6 +163,7 @@ DEPENDENCIES
   oauth2 (~> 2.0)
   parallel_tests (~> 4.7)
   pg (~> 1.5)
+  prism (~> 1.7)
   rack (~> 3.0)
   rack-test (~> 2.0)
   rackup (~> 2.0)

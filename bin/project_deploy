@@ -962,6 +962,67 @@ template_yaml = <<~YAML
         ToPort: 5432
         DestinationSecurityGroupId: !Ref #{db_id}SecurityGroup
 
+    # A REAL, LIVE GAP FOUND AND CLOSED HERE — #{logical_id}EgressToDb's
+    # own comment (below) already explains why a standalone
+    # SecurityGroupEgress resource REPLACES #{logical_id}SecurityGroup's
+    # default allow-all-outbound with ONLY what's declared: before this,
+    # that was ONLY port 5432 to #{db_id}SecurityGroup (plus, only when
+    # `google_oauth_present`, a broad 443-to-internet rule) — meaning
+    # EVERY domain's own #{logical_id} (rust/host's main.rs) and
+    # WebFunction (sharing the SAME security group) fetching their own
+    # DB_SECRET_ARN/SESSION_SECRET_ARN/webhook-secret over the AWS SDK
+    # at cold start (this Environment block's own comment, below: "main.rs
+    # itself fetches the actual password from Secrets Manager... over
+    # the AWS SDK") had NO EGRESS PATH TO REACH IT AT ALL, for any
+    # domain without google_oauth's own NAT Gateway — confirmed live,
+    # this session: QualityControl's own WebFunction cold start hung the
+    # full 15s function timeout trying to reach Secrets Manager, a real
+    # `Init Duration: ... Status: timeout` caught via `aws logs tail`.
+    # Embryonaut's own real, live deploy never surfaced this because it
+    # ALSO has google_oauth_present (hence a NAT Gateway, hence a real,
+    # if incidental, internet route) — the very first non-OAuth
+    # `dispatch "None"` deploy is what exposed it. THE FIX, below: a VPC
+    # Interface Endpoint for Secrets Manager, the SAME targeted-not-NAT-
+    # Gateway shape #{db_id}LambdaEndpoint (further below) already uses
+    # for the identical class of problem (`lambda:InvokeFunction`) —
+    # unconditional whenever this domain owns its own VPC at all
+    # (`!shared` — a Shared-mode domain has no security group of its own
+    # to grant this on, and inherits whatever route the OWNER already
+    # provides).
+    #{logical_id}EgressToSecretsManager:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        GroupId: !Ref #{logical_id}SecurityGroup
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        DestinationSecurityGroupId: !Ref #{db_id}SecretsManagerEndpointSecurityGroup
+
+    #{db_id}SecretsManagerEndpointSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        GroupDescription: #{db_id}SecretsManagerEndpoint - HTTPS from this stacks own Lambdas only
+
+    #{db_id}SecretsManagerEndpointIngress:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        GroupId: !Ref #{db_id}SecretsManagerEndpointSecurityGroup
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        SourceSecurityGroupId: !Ref #{logical_id}SecurityGroup
+
+    #{db_id}SecretsManagerEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
+        SecurityGroupIds: [!Ref #{db_id}SecretsManagerEndpointSecurityGroup]
+
     #{google_oauth_present ? <<~OAUTHEGRESS.rstrip : ""}
     # A standalone AWS::EC2::SecurityGroupEgress resource for a group
     # REPLACES that group's own default allow-all-outbound rule with
@@ -1410,8 +1471,21 @@ template_yaml = <<~YAML
       # #{domain} itself — see that variable's own comment, above.
       Handler: #{web_handler_relpath}.#{webhook_handler_module}.lambda_handler
       CodeUri: #{web_code_uri}
-      MemorySize: 512
-      Timeout: 15
+      # `dispatch "None"` READS THE DOMAIN'S OWN DECLARED memory/timeout
+      # (deployed_to("AwsLambda")'s own settings, otherwise only ever
+      # applied to #{logical_id}) rather than the fixed 512/15 every
+      # OTHER WebFunction still hardcodes — WebFunction only means
+      # anything by ITS OWN memory/timeout budget once it's the
+      # domain's sole Lambda; before `dispatch "None"` existed, a
+      # WebFunction was always a Sinatra/Rack app running ALONGSIDE a
+      # real #{logical_id}, whose own declared memory/timeout already
+      # meant "the domain's real compute budget." Found live: `Hecks.
+      # boot`'s own real cold-start cost (parsing every bluebook fresh,
+      # real Postgres round trips) genuinely exceeded the fixed 15s on
+      # a cold WebFunction invocation — a real `Init ... Status: timeout`
+      # caught via `aws logs tail`, not a guess.
+      MemorySize: #{dispatch_none ? memory : 512}
+      Timeout: #{dispatch_none ? timeout : 15}
       Environment:
         Variables:
           DOMAIN_ROOT: /var/task
@@ -1976,7 +2050,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" ruby -Ilib -e 'require "hecks"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS_URLENC@localhost:15432/#{db_name}" ruby -Ilib -e 'require "hecks"; require "hecks/ports/persistence/plugins/era/era_check"; loading = Hecks::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecks::Runtime::Registry.new(root: File.dirname(directory)); Hecks.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecks::Runtime::EraCheck.source_text_for(bluebook, directory); Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
