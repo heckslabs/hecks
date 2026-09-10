@@ -929,12 +929,37 @@ Hecks.bluebook "QualityControl" do
       emits "BugInvestigated"
     end
 
+    # `reference` IS DECLARED HERE, RESTATED — the one attribute on this
+    # command that names something the caller already said by addressing
+    # the bug at all. Redundant on its face; load-bearing underneath.
+    #
+    # A mutating command's emitted event carries exactly the arguments it
+    # was dispatched WITH — never the record's own identity, which travels
+    # as routing (`to:`/`id:`), not as a fact (`CommandRules::Emission#emit`:
+    # `payload: args`, nothing merged in from the hydrated instance). So
+    # `BugFixed` said `commit` and nothing else, and `BugCiWatch` below —
+    # the process manager that starts on this exact event — had no way to
+    # remember WHICH bug it was watching for: a saga's own memory is a copy
+    # of the starting event's payload and nothing more (`SagaInterpreter
+    # #begin_saga`), so an absent field here is an absent field for the
+    # rest of that saga's life, silently, which is the one failure mode
+    # this whole chapter exists to hunt.
+    #
+    # The fix is the same shape banking's own `Settlement` already leans
+    # on for `Account::Debit`'s `reference:` — a scalar restated purely so
+    # it rides the event forward — except EXPLICIT here rather than
+    # smuggled through the argument gate's own domain-wide `correlation_
+    # keys` widening (that mechanism's own comment calls itself "the
+    # weakest part of the gate"): a caller who forgets `reference:` is
+    # refused outright (`AbsentArgument`), not silently short a field three
+    # steps downstream.
     command "Fix" do
       role "QA engineer"
       goal "Record the commit that makes it stop happening"
 
       reference_to Bug
-      attribute :commit, CommitRef
+      attribute :reference, BugReference
+      attribute :commit,    CommitRef
 
       sets :commit
 
@@ -1471,6 +1496,61 @@ Hecks.bluebook "QualityControl" do
     query "All" do
       description "Every CI run ever recorded, one per commit."
       order_by :commit
+    end
+  end
+
+  # ── noticing when a fix stops holding ───────────────────────────────
+
+  # A HUMAN USED TO BE THE ONLY THING WATCHING FOR THIS. `Bug.Fix` records
+  # a commit; CI runs against it, eventually, somewhere else; and until
+  # this procedure existed, nothing in the ledger ever put those two facts
+  # back together on its own. A fix that looked right locally and broke on
+  # CI's own fresh build sat `fixed` — or worse, `verified` — indefinitely,
+  # and the only way anyone found out was a person noticing a PR had gone
+  # red and saying so out loud. That is exactly the shape this whole
+  # chapter exists to hunt: the ledger PROMISED a fix, the world quietly
+  # disagreed, and nobody but a human happened to be looking.
+  #
+  # `Regress` ALREADY SAID THE RIGHT WORD — "put a bug back when its fix
+  # stopped holding" — and nothing had ever dispatched it. This procedure
+  # is the thing that finally does, every time, driven by the one fact
+  # that actually settles the question: what `Clearance` says about the
+  # exact commit `Fix` recorded.
+  #
+  # CORRELATES BY THE COMMIT, NOT THE BUG'S OWN REFERENCE — commit is the
+  # one scalar both sides of this conversation can name. `Bug.Fix` sets it
+  # directly, so `BugFixed` carries it in payload; `Clearance` is
+  # IDENTIFIED by it, so `ClearanceGiven`/`ClearanceRefused` correlate with
+  # no field of their own to dig at all — `SagaInterpreter::Correlation`'s
+  # own third tier reads a mutating aggregate's `event.id` exactly when the
+  # correlated field IS that aggregate's own identity, and `commit` is
+  # `Clearance`'s. The bug's own reference travels a different way: it
+  # rides along in `BugFixed`'s payload too (see `Bug.Fix`'s own comment on
+  # why `reference` is declared there, restated), captured once into this
+  # saga's own memory at the start and read back out the one time it is
+  # needed — addressing the SAME bug when its commit comes back red.
+  #
+  # `ClearanceGiven` ENDS IT. CI passed; there is nothing left to watch
+  # for; `ends_on` deletes the instance the moment that event arrives for
+  # this commit. `ClearanceRefused` does the one thing this procedure
+  # exists to do and stops there — no `ends_on` names it, the same way
+  # `ExternalSettlement`'s own `:refused` branch leaves `"returned"`
+  # un-ended (examples/banking's own precedent, not an oversight here): the
+  # regression is on the record the moment `Bug.Regress` lands, and an
+  # instance sitting in `"regressed"` forever costs nothing — its commit
+  # already has its answer.
+  process_manager "BugCiWatch" do
+    correlates_by :"commit.value"
+    starts_on Bug::BugFixed
+    ends_on   Clearance::ClearanceGiven
+
+    # `bug:` — Bug's OWN reference key (`Naming.reference_key("Bug")`),
+    # the same alias Settlement's own `transfer:`/`wire:` legs already
+    # address a record by, never the bare `reference:` field name. The
+    # VALUE stays `:reference` — the one field `BugFixed` was made to
+    # carry, sitting in this saga's own memory since the moment it began.
+    transition Clearance::ClearanceRefused => "regressed", from: "watching" do
+      dispatch Bug::Regress, with: { bug: :reference }
     end
   end
 
