@@ -864,11 +864,11 @@ if !absent.is_empty() {
         ("declared", "aggregate, as, many"),
     ])));
 }
-        let aggregate = ReadModelText::from_json(&v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.aggregate expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let aggregate = ReadModelText::from_json(&(match v.get("aggregate").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.aggregate expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         aggregate.check_invariants()?;
-        let r#as = ReadModelText::from_json(&v.get("as").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.as expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let r#as = ReadModelText::from_json(&(match v.get("as").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.as expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         r#as.check_invariants()?;
-        let many = ReadModelText::from_json(&v.get("many").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.many expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let many = ReadModelText::from_json(&(match v.get("many").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GatherArgs.many expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         many.check_invariants()?;
         Ok(Self {
         aggregate,
@@ -973,7 +973,7 @@ if !absent.is_empty() {
         ("declared", "field"),
     ])));
 }
-        let field = ReadModelText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByArgs.field expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let field = ReadModelText::from_json(&(match v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByArgs.field expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         field.check_invariants()?;
         Ok(Self {
         field,
@@ -1278,9 +1278,9 @@ if !absent.is_empty() {
         ("declared", "option, key, value, at"),
     ])));
 }
-        let option = ReadModelText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let option = ReadModelText::from_json(&(match v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         option.check_invariants()?;
-        let key = ReadModelText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects ReadModelText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let key = ReadModelText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects ReadModelText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
         let value = match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &value { v.check_invariants()?; }

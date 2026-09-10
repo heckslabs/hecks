@@ -709,14 +709,14 @@ if !absent.is_empty() {
         ("declared", "instruction, account, amount, recipient, due_on"),
     ])));
 }
-        let instruction = InstructionReference::from_json(&v.get("instruction").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.instruction expects InstructionReference, got nil".to_string()))?.coerce_single_field("value"))?;
+        let instruction = InstructionReference::from_json(&(match v.get("instruction").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.instruction expects InstructionReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         instruction.check_invariants()?;
         let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("ScheduleArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account: expected String".to_string()) })? };
-        let amount = ScheduledAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.amount expects ScheduledAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let amount = ScheduledAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.amount expects ScheduledAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         amount.check_invariants()?;
-        let recipient = PaymentRecipient::from_json(&v.get("recipient").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.recipient expects PaymentRecipient, got nil".to_string()))?.coerce_single_field("value"))?;
+        let recipient = PaymentRecipient::from_json(&(match v.get("recipient").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.recipient expects PaymentRecipient, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         recipient.check_invariants()?;
-        let due_on = PaymentDueDate::from_json(&v.get("due_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.due_on expects PaymentDueDate, got nil".to_string()))?.coerce_single_field("value"))?;
+        let due_on = PaymentDueDate::from_json(&(match v.get("due_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.due_on expects PaymentDueDate, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         due_on.check_invariants()?;
         Ok(Self {
         instruction,

@@ -793,9 +793,9 @@ if !absent.is_empty() {
         ("declared", "name, pizza"),
     ])));
 }
-        let name = PizzaName::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.name expects PizzaName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let name = PizzaName::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.name expects PizzaName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
-        let pizza = Pizza::from_json(v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))?)?;
+        let pizza = Pizza::from_json(&match v.get("pizza").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreatePizzaArgs.pizza expects Pizza, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         pizza.check_invariants()?;
         Ok(Self {
         name,
@@ -903,9 +903,9 @@ if !absent.is_empty() {
         ("declared", "topping, amount"),
     ])));
 }
-        let topping = ToppingName::from_json(&v.get("topping").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.topping expects ToppingName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let topping = ToppingName::from_json(&(match v.get("topping").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.topping expects ToppingName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         topping.check_invariants()?;
-        let amount = ToppingAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.amount expects ToppingAmount, got nil".to_string()))?.coerce_single_field("value"))?;
+        let amount = ToppingAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AddToppingArgs.amount expects ToppingAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         amount.check_invariants()?;
         Ok(Self {
         topping,
@@ -1016,7 +1016,7 @@ if !absent.is_empty() {
         ("declared", "amount, customer_name"),
     ])));
 }
-        let amount = Price::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PurchaseArgs.amount expects Price, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let amount = Price::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PurchaseArgs.amount expects Price, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         amount.check_invariants()?;
         let customer_name = match v.get("customer_name") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &customer_name { v.check_invariants()?; }

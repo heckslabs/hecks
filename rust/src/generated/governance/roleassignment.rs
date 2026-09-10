@@ -534,13 +534,13 @@ if !absent.is_empty() {
         ("declared", "actor_id, role_name, scope, starts_at"),
     ])));
 }
-        let actor_id = IdentityId::from_json(&v.get("actor_id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.actor_id expects IdentityId, got nil".to_string()))?.coerce_single_field("value"))?;
+        let actor_id = IdentityId::from_json(&(match v.get("actor_id").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.actor_id expects IdentityId, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         actor_id.check_invariants()?;
-        let role_name = RoleName::from_json(&v.get("role_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.role_name expects RoleName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let role_name = RoleName::from_json(&(match v.get("role_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.role_name expects RoleName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         role_name.check_invariants()?;
-        let scope = Scope::from_json(&v.get("scope").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.scope expects Scope, got nil".to_string()))?.coerce_single_field("value"))?;
+        let scope = Scope::from_json(&(match v.get("scope").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.scope expects Scope, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         scope.check_invariants()?;
-        let starts_at = Timestamp::from_json(&v.get("starts_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.starts_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?;
+        let starts_at = Timestamp::from_json(&(match v.get("starts_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AssignArgs.starts_at expects Timestamp, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         starts_at.check_invariants()?;
         Ok(Self {
         actor_id,
@@ -646,7 +646,7 @@ if !absent.is_empty() {
         ("declared", "ends_at"),
     ])));
 }
-        let ends_at = Timestamp::from_json(&v.get("ends_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RevokeArgs.ends_at expects Timestamp, got nil".to_string()))?.coerce_single_field("value"))?;
+        let ends_at = Timestamp::from_json(&(match v.get("ends_at").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RevokeArgs.ends_at expects Timestamp, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         ends_at.check_invariants()?;
         Ok(Self {
         ends_at,

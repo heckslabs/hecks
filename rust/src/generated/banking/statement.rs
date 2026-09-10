@@ -491,15 +491,15 @@ if !absent.is_empty() {
         ("declared", "period, opening_balance, closing_balance, generated_on, frequency, account"),
     ])));
 }
-        let period = StatementPeriod::from_json(&v.get("period").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.period expects StatementPeriod, got nil".to_string()))?.coerce_single_field("value"))?;
+        let period = StatementPeriod::from_json(&(match v.get("period").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.period expects StatementPeriod, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         period.check_invariants()?;
-        let opening_balance = StatementAmount::from_json(&v.get("opening_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.opening_balance expects StatementAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let opening_balance = StatementAmount::from_json(&(match v.get("opening_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.opening_balance expects StatementAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         opening_balance.check_invariants()?;
-        let closing_balance = StatementAmount::from_json(&v.get("closing_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.closing_balance expects StatementAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let closing_balance = StatementAmount::from_json(&(match v.get("closing_balance").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.closing_balance expects StatementAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         closing_balance.check_invariants()?;
-        let generated_on = StatementDate::from_json(&v.get("generated_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.generated_on expects StatementDate, got nil".to_string()))?.coerce_single_field("value"))?;
+        let generated_on = StatementDate::from_json(&(match v.get("generated_on").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.generated_on expects StatementDate, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         generated_on.check_invariants()?;
-        let frequency = StatementFrequency::from_json(v.get("frequency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.frequency expects StatementFrequency, got nil".to_string()))?)?;
+        let frequency = StatementFrequency::from_json(&match v.get("frequency").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.frequency expects StatementFrequency, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("GenerateArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()) })? };
         Ok(Self {
         period,
