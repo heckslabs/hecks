@@ -72,7 +72,8 @@ RSpec.describe "QualityControl" do
         uses_framework "Governance"
 
         [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
-         QualityControl::Ticket, QualityControl::Patch, QualityControl::Clearance].each do |aggregate|
+         QualityControl::Ticket, QualityControl::Patch, QualityControl::Improvement,
+         QualityControl::Clearance].each do |aggregate|
           aggregate.persisted_by("Memory")
         end
 
@@ -770,6 +771,94 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # ── deliberate work, landed ───────────────────────────────────────────
+
+  # `Patch`'S SIBLING, NOT A SECOND DOOR INTO IT — a real PR that names no
+  # `Bug` because nothing was proven wrong: a domain-modeling addition, a
+  # tool, this very aggregate. `Open` records the PR is real; `Land` is
+  # what puts a commit on the record worth watching, and it is a SEPARATE
+  # command on purpose (see the aggregate's own header comment) — a fresh
+  # `Land` is also how a `needs_fix` row gets a second chance.
+  describe "tracking deliberate work" do
+    def open_improvement(number: 9001, branch: "qa/some-slug", angle: nil)
+      runtime
+      QualityControl::Improvement.open!(
+        **(angle ? { angle: angle.id } : {}),
+        number: { value: number },
+        url:    { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
+        branch: { value: branch },
+        title:  { value: "qa: #{branch}" }
+      )
+    end
+
+    def open_numbers = rows("Improvement.Open").map { |row| row[:number][:value] }
+
+    it "refuses an angle that does not exist, when one is cited" do
+      runtime
+
+      expect do
+        QualityControl::Improvement.open!(
+          angle: "ANGLE-nope", number: { value: 1 },
+          url: { value: "https://example.com/pull/1" },
+          branch: { value: "x" }, title: { value: "x" }
+        )
+      end.to raise_error(Hecks::Runtime::NotFound)
+    end
+
+    it "is born opened, with no commit on the record yet" do
+      improvement = open_improvement
+
+      expect(improvement.status).to eq("opened")
+      expect(improvement.commit.to_h[:value]).to be_nil
+      expect(open_numbers).to eq([9001])
+    end
+
+    it "records the commit once landed, and stays on the worklist" do
+      improvement = open_improvement.land!(number: { value: 9001 }, commit: { value: "4f2a19c" })
+
+      expect(improvement.status).to eq("landed")
+      expect(improvement.commit.to_h[:value]).to eq("4f2a19c")
+      expect(open_numbers).to eq([9001])
+    end
+
+    it "drops out of the worklist once GitHub merges it" do
+      improvement = open_improvement.land!(number: { value: 9001 }, commit: { value: "4f2a19c" })
+      improvement.merge!
+
+      expect(improvement.status).to eq("merged")
+      expect(open_numbers).to be_empty
+    end
+
+    it "drops out of the worklist once GitHub closes it without merging" do
+      improvement = open_improvement.land!(number: { value: 9001 }, commit: { value: "4f2a19c" })
+      improvement.close!
+
+      expect(improvement.status).to eq("closed")
+      expect(open_numbers).to be_empty
+    end
+
+    # A DELIBERATE CITATION IS REAL, NOT REQUIRED — `Angle.Build` already
+    # marks a lead resolved-by-building-something; this is the other half
+    # of that same loop, readable from the improvement's own side.
+    it "can cite the angle it fulfills, and be found by it" do
+      angle = an_angle(reference: "ANGLE-1")
+      angle.investigate!
+      improvement = open_improvement(angle: angle)
+
+      numbers = rows("Improvement.ForAngle", angle_id: { value: angle.id }).map { |row| row[:number][:value] }
+      expect(numbers).to eq([improvement.number.to_h[:value]])
+    end
+
+    it "lists every improvement ever landed, whatever became of it" do
+      merged = open_improvement(number: 9001, branch: "qa/first").land!(number: { value: 9001 }, commit: { value: "4f2a19c" })
+      merged.merge!
+      open_improvement(number: 9002, branch: "qa/second")
+
+      numbers = rows("Improvement.All").map { |row| row[:number][:value] }
+      expect(numbers).to contain_exactly(9001, 9002)
+    end
+  end
+
   # ── is it safe to ship ───────────────────────────────────────────────
 
   # NOT A QUESTION ABOUT NOW — a record about a commit. CI went green at two
@@ -872,6 +961,82 @@ RSpec.describe "QualityControl" do
                                .failed!(refusal: { value: "unrelated failure" })
 
       expect(QualityControl::Bug.find("BUG#1").status).to eq("fixed")
+    end
+  end
+
+  # ── noticing when landed work stops holding ─────────────────────────
+
+  # `ImprovementCiWatch` — the same mechanism as `BugCiWatch` above,
+  # aimed at deliberate work instead of a proven-wrong finding. Nothing
+  # dispatches `Improvement.Regress` by hand here either.
+  describe "the CI watch for landed work" do
+    def landed_improvement(commit, number: 9001)
+      runtime
+      improvement = QualityControl::Improvement.open!(
+        number: { value: number },
+        url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
+        branch: { value: "qa/smoke" }, title: { value: "smoke" }
+      )
+      improvement.land!(number: { value: number }, commit: { value: commit })
+    end
+
+    it "puts landed work back in needs_fix when its own commit comes back red" do
+      landed_improvement("4f2a19c")
+
+      QualityControl::Clearance.start!(commit: { value: "4f2a19c" })
+                               .failed!(refusal: { value: "1335 examples, 3 failures, seed 999" })
+
+      expect(QualityControl::Improvement.find(9001).status).to eq("needs_fix")
+      expect(runtime.sagas).to include(hash_including(process_manager: "ImprovementCiWatch",
+                                                      dispatch: "Improvement.Regress", delivered: true))
+    end
+
+    # GREEN NEEDS NOBODY — same reading `BugCiWatch`'s own spec already
+    # gives: the instance just ends, `ends_on` deletes it the moment
+    # `ClearanceGiven` arrives for this commit.
+    it "just ends when the commit comes back green — nothing left to watch for" do
+      landed_improvement("9a8b7c6")
+
+      QualityControl::Clearance.start!(commit: { value: "9a8b7c6" })
+                               .passed!(summary: { value: "1335 examples, 0 failures" })
+
+      expect(QualityControl::Improvement.find(9001).status).to eq("landed")
+      expect(runtime.registry.saga_instances["ImprovementCiWatch"]).to be_empty
+    end
+
+    # THE WHOLE REASON THIS CORRELATES BY COMMIT, NOT BY THE IMPROVEMENT'S
+    # OWN REFERENCE: a red run against somebody ELSE's commit must never
+    # touch this record.
+    it "ignores a clearance against an unrelated commit" do
+      landed_improvement("4f2a19c")
+
+      QualityControl::Clearance.start!(commit: { value: "deadbee" })
+                               .failed!(refusal: { value: "unrelated failure" })
+
+      expect(QualityControl::Improvement.find(9001).status).to eq("landed")
+    end
+
+    # THE WHOLE REASON `Open` AND `Land` ARE TWO COMMANDS: a fresh `Land`
+    # after `needs_fix` fires `ImprovementLanded` again, the SAME event
+    # `starts_on` names, so the watch picks the new commit back up on its
+    # own — proven here against a real, synthetic `Clearance` for the new
+    # sha, not merely asserted.
+    it "watches the fresh commit again once re-landed after a NeedsFix" do
+      landed_improvement("4f2a19c")
+
+      QualityControl::Clearance.start!(commit: { value: "4f2a19c" })
+                               .failed!(refusal: { value: "1335 examples, 1 failure" })
+      expect(QualityControl::Improvement.find(9001).status).to eq("needs_fix")
+
+      QualityControl::Improvement.find(9001).land!(number: { value: 9001 }, commit: { value: "bbbbbbb" })
+      expect(QualityControl::Improvement.find(9001).status).to eq("landed")
+
+      QualityControl::Clearance.start!(commit: { value: "bbbbbbb" })
+                               .failed!(refusal: { value: "1335 examples, 1 failure, still failing" })
+
+      expect(QualityControl::Improvement.find(9001).status).to eq("needs_fix")
+      expect(runtime.sagas.count { |s| s[:process_manager] == "ImprovementCiWatch" && s[:dispatch] == "Improvement.Regress" })
+        .to eq(2)
     end
   end
 

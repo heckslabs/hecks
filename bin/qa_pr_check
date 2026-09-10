@@ -43,6 +43,21 @@
 # about is not ours to check — see `.claude/skills/hecks_qa/SKILL.md`'s
 # own new orchestrator step for where that knowledge comes from.
 #
+# TWO WORKLISTS, THE SAME CHECK — `QualityControl::Improvement`
+# (`quality_control.bluebook`, "── deliberate work, landed ──") is
+# `Patch`'s own sibling for a real PR that names no `Bug`, because
+# nothing was proven wrong: a domain-modeling addition, a tool, this
+# ledger's own machinery. `WORKLISTS` below is what this script reads
+# instead of `Patch.Open` alone — `Improvement.Open` is checked exactly
+# the same way, by number, and a red run against it fires
+# `ImprovementCiWatch` the identical way a red run against a `Patch`
+# fires `BugCiWatch` (`quality_control.bluebook`'s own two process
+# managers, mirrored). The only real difference between the two rows is
+# what each carries as its own duplicate-check citation — a `Bug`
+# reference for a `Patch`, an `Angle` reference (or none, since citing
+# one is optional) for an `Improvement` — and that is exactly the one
+# thing `WORKLISTS` parameterises per entry.
+#
 # THE DOMAIN DOES THE CHECKING — this script does not. It used to
 # dispatch `Clearance::Start`/`Passed`/`Failed` directly, which was a
 # shortcut around two policies the chapter had ALREADY declared for
@@ -106,24 +121,27 @@
 # worklist itself — from growing without bound.
 #
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
-#   0  nothing to act on — no PRs tracked as open at all, or every one
-#      already has a recorded Clearance (or its checks are still pending,
-#      not yet a verdict) and nothing new was dispatched.
+#   0  nothing to act on — no PRs tracked as open at all (in EITHER
+#      worklist), or every one already has a recorded Clearance (or its
+#      checks are still pending, not yet a verdict) and nothing new was
+#      dispatched.
 #   1  an operational error — `gh` was not reachable at all, a tracked
 #      PR's own head does not look like a sha, or the ledger itself
 #      would not boot. Fix the actual problem; there is nothing here for
 #      an agent to pick up as QA work.
-#   2  FOUND A NEWLY-RED PR — a `Clearance::Failed` was dispatched this
-#      run for a commit a `Bug` in this ledger claims to have fixed,
-#      which means `BugCiWatch` just fired `Bug.Regress` for real. Full
-#      detail (which Bug, which PR, which commit, which checks failed) is
-#      on stdout above the exit. An agent picks up the investigation from
-#      there — same judgment SKILL.md's own "on a surprising check"
-#      section already describes for a sweep's own find: self-contained
-#      fix with a regression test and a draft PR, or leave the (now
-#      re-opened) Bug for something bigger. Never re-verify or re-close
-#      this script's own way; that is exactly the judgment step it does
-#      not have.
+#   2  FOUND A NEWLY-RED PR, in either worklist — a `Clearance::Failed`
+#      was dispatched this run for a commit a `Bug` in this ledger claims
+#      to have fixed (`BugCiWatch` fires `Bug.Regress`) or for a commit
+#      an `Improvement` claims to have landed (`ImprovementCiWatch` fires
+#      `Improvement.Regress`) — the process manager already did the
+#      correct one for real. Full detail (which record, which PR, which
+#      commit, which checks failed) is on stdout above the exit. An agent
+#      picks up the investigation from there — same judgment SKILL.md's
+#      own "on a surprising check" section already describes for a
+#      sweep's own find: self-contained fix with a regression test and a
+#      draft PR, or leave the (now re-opened) record for something
+#      bigger. Never re-verify or re-close this script's own way; that is
+#      exactly the judgment step it does not have.
 #
 # WHAT THIS SCRIPT DELIBERATELY DOES NOT DO: decide whether a red run
 # means the fix was wrong, judge which failing check matters, write a new
@@ -164,7 +182,8 @@ unless ARGV.empty?
     puts USAGE
     exit EXIT_OK
   end
-  abort "#{USAGE}\nthis script takes no arguments — it checks every PR QualityControl::Patch tracks as open, every time"
+  abort "#{USAGE}\nthis script takes no arguments — it checks every PR QualityControl::Patch or " \
+        "QualityControl::Improvement tracks as open, every time"
 end
 
 # ── talk to gh, once per call, never guessing at its own exit codes ────
@@ -215,27 +234,40 @@ def clearance_for_commit(runtime, sha)
 end
 
 # ── every PR the ledger itself tracks as open — no search, anywhere ────
+#
+# ONE ENTRY PER WORKLIST — see this file's own header, "TWO WORKLISTS,
+# THE SAME CHECK". `citation_field`/`citation_label` are the one real
+# difference between the two: what a row cites as its own duplicate-check
+# reference (`Patch` always cites a `Bug`; `Improvement` cites an `Angle`
+# only when one exists, since a citation there is optional — see that
+# aggregate's own header comment on why).
+WORKLISTS = [
+  { aggregate: "Patch",       citation_field: :bug,   citation_label: "bug" },
+  { aggregate: "Improvement", citation_field: :angle, citation_label: "angle" }
+].freeze
 
-patches = q(runtime, "Patch.Open")
+worklists = WORKLISTS.to_h { |w| [w, q(runtime, "#{w[:aggregate]}.Open")] }
 
-if patches.empty?
-  puts "no PRs tracked as open by QualityControl::Patch — nothing to check"
+if worklists.values.all?(&:empty?)
+  puts "no PRs tracked as open by QualityControl::Patch or QualityControl::Improvement — nothing to check"
   exit EXIT_OK
 end
 
-# THE LOOP CLOSES FROM THIS END. `Patch`'s own lifecycle only moves off
-# `opened` when something tells it to — nothing in this repository is
-# notified the moment GitHub merges or closes a PR, so this is the one
-# place that asks and records what it hears, before spending another `gh`
-# call on a PR that is already done. Returns whether it retired one.
-def retire_if_settled?(view, number, label, runtime)
+# THE LOOP CLOSES FROM THIS END. Neither `Patch` nor `Improvement` moves
+# off its own open states when something tells it to — nothing in this
+# repository is notified the moment GitHub merges or closes a PR, so this
+# is the one place that asks and records what it hears, before spending
+# another `gh` call on a PR that is already done. `aggregate` is which of
+# the two worklists this row came from, so the same dispatch works for
+# either. Returns whether it retired one.
+def retire_if_settled?(view, number, label, runtime, aggregate)
   case view[:state]
   when "MERGED"
-    runtime.dispatch("QualityControl::Patch.Merge", id: number)
+    runtime.dispatch("QualityControl::#{aggregate}.Merge", id: number)
     puts "#{label}: merged — retired from the worklist"
     true
   when "CLOSED"
-    runtime.dispatch("QualityControl::Patch.Close", id: number)
+    runtime.dispatch("QualityControl::#{aggregate}.Close", id: number)
     puts "#{label}: closed without merging — retired from the worklist"
     true
   else
@@ -249,7 +281,7 @@ end
 # have settled (a verdict is worth asking `Clearance.CI.Run` for);
 # `false` means this run has nothing left to do for this PR, and why is
 # already on stdout/`operational_errors`.
-def checks_settled?(number, label, bug_ref, sha, operational_errors)
+def checks_settled?(number, label, citation, sha, operational_errors)
   checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
                                              "--json", "name,state,bucket,workflow")
   unless checks_status.success?
@@ -259,28 +291,32 @@ def checks_settled?(number, label, bug_ref, sha, operational_errors)
 
   checks = JSON.parse(checks_out, symbolize_names: true)
   if checks.empty?
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
+    puts "#{label}, #{citation}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
     return false
   end
 
   if checks.any? { |c| c[:bucket] == "pending" }
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: checks still running — skipping this run"
+    puts "#{label}, #{citation}, #{sha[0, 7]}: checks still running — skipping this run"
     return false
   end
 
   true
 end
 
-# ONE PATCH, START TO FINISH — pulled out of the loop below so the loop
+# ONE PR, START TO FINISH — pulled out of the loop below so the loop
 # itself reads as "for every tracked-open PR, check it" rather than
 # burying that shape under every early-exit this one PR's own checking
 # needs. Appends to `newly_red`/`operational_errors` in place rather than
 # returning a verdict to fold in, the same reporting shape `bin/qa_sweep`'s
-# own per-seed loop uses.
-def check_one_patch(patch_row, runtime, newly_red, operational_errors)
-  number  = field(patch_row, :number, :value)
-  bug_ref = field(patch_row, :bug)
-  label   = "PR ##{number} (#{field(patch_row, :branch, :value)})"
+# own per-seed loop uses. `aggregate`/`citation_field`/`citation_label`
+# are one `WORKLISTS` entry — the one real difference between checking a
+# `Patch` row and an `Improvement` row, threaded through rather than
+# duplicating this whole function per worklist.
+def check_one_pr(row, runtime, newly_red, operational_errors, aggregate:, citation_field:, citation_label:)
+  number   = field(row, :number, :value)
+  cited    = field(row, citation_field)
+  citation = cited ? "#{citation_label} #{cited}" : "no #{citation_label} cited"
+  label    = "#{aggregate} PR ##{number} (#{field(row, :branch, :value)})"
 
   view_out, view_err, view_status = gh("pr", "view", number.to_s,
                                        "--json", "state,headRefOid,url")
@@ -290,7 +326,7 @@ def check_one_patch(patch_row, runtime, newly_red, operational_errors)
   end
 
   view = JSON.parse(view_out, symbolize_names: true)
-  return if retire_if_settled?(view, number, label, runtime)
+  return if retire_if_settled?(view, number, label, runtime, aggregate)
 
   sha = view[:headRefOid].to_s
   unless sha.match?(SHA_PATTERN)
@@ -299,13 +335,13 @@ def check_one_patch(patch_row, runtime, newly_red, operational_errors)
   end
 
   if (existing = clearance_for_commit(runtime, sha))
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: already cleared (#{existing[:status]}) — settled once, not re-checked"
+    puts "#{label}, #{citation}, #{sha[0, 7]}: already cleared (#{existing[:status]}) — settled once, not re-checked"
     return
   end
 
-  return unless checks_settled?(number, label, bug_ref, sha, operational_errors)
+  return unless checks_settled?(number, label, citation, sha, operational_errors)
 
-  ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
+  ask_the_ledger(sha, label, citation, number, runtime, newly_red, aggregate: aggregate)
 end
 
 # THE ASK, AND THE VERDICT READ BACK — this is the whole replacement for
@@ -318,8 +354,12 @@ end
 # `RefuseOnFail` are what turn that into `Clearance::Passed`/`Failed`,
 # synchronously, before `runtime.dispatch` returns — so `Clearance.find`
 # right after already sees the settled record, same as `record_clearance`
-# used to leave one.
-def ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
+# used to leave one. ONE `Clearance` PER COMMIT, whichever worklist it
+# came from — `BugCiWatch`/`ImprovementCiWatch` both correlate by that
+# same commit, so this script never needs to know which of the two will
+# react; the process manager that started on this exact commit is the
+# only one that fires.
+def ask_the_ledger(sha, label, citation, number, runtime, newly_red, aggregate:)
   QualityControl::Clearance.start!(commit: { value: sha })
   runtime.dispatch("QualityControl::Clearance.CI.Run", commit: sha)
 
@@ -327,18 +367,20 @@ def ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
   summary = cleared.summary.to_h[:value]
 
   if cleared.status == "green"
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: CLEARED — #{summary}"
+    puts "#{label}, #{citation}, #{sha[0, 7]}: CLEARED — #{summary}"
     return
   end
 
-  puts "#{label}, #{bug_ref}, #{sha[0, 7]}: RED — #{summary}"
-  newly_red << { pr: number, bug: bug_ref, commit: sha, refusal: summary }
+  puts "#{label}, #{citation}, #{sha[0, 7]}: RED — #{summary}"
+  newly_red << { aggregate: aggregate, pr: number, citation: citation, commit: sha, refusal: summary }
 end
 
 newly_red = []
 operational_errors = []
 
-patches.each { |patch_row| check_one_patch(patch_row, runtime, newly_red, operational_errors) }
+worklists.each do |worklist, rows|
+  rows.each { |row| check_one_pr(row, runtime, newly_red, operational_errors, **worklist) }
+end
 
 # ── report and exit ─────────────────────────────────────────────────
 
@@ -351,18 +393,20 @@ end
 if newly_red.any?
   puts
   puts "=" * 72
-  puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch already dispatched Bug.Regress for each."
+  puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch/ImprovementCiWatch already dispatched " \
+       "the matching Regress for each, by aggregate."
   puts "An agent picks up the investigation from here: the same judgment"
   puts "SKILL.md's own \"on a surprising check\" section describes for a sweep's"
   puts "own find — self-contained fix with a regression test and a draft PR,"
-  puts "or leave the bug for something bigger. Never re-verify from this script."
+  puts "or leave the record for something bigger. Never re-verify from this script."
   puts "=" * 72
   newly_red.each do |finding|
     puts
-    puts "bug:     #{finding[:bug]}"
-    puts "pr:      ##{finding[:pr]}"
-    puts "commit:  #{finding[:commit]}"
-    puts "refusal: #{finding[:refusal]}"
+    puts "aggregate: #{finding[:aggregate]}"
+    puts "citation:  #{finding[:citation]}"
+    puts "pr:        ##{finding[:pr]}"
+    puts "commit:    #{finding[:commit]}"
+    puts "refusal:   #{finding[:refusal]}"
   end
   exit EXIT_NEWLY_RED
 end
@@ -370,5 +414,6 @@ end
 exit EXIT_ERROR if operational_errors.any?
 
 puts
-puts "clean — every PR QualityControl::Patch tracks as open is either already cleared, still running, or was retired this run."
+puts "clean — every PR QualityControl::Patch or QualityControl::Improvement tracks as open is either " \
+     "already cleared, still running, or was retired this run."
 exit EXIT_OK

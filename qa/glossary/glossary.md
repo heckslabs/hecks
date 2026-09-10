@@ -12,11 +12,13 @@ flowchart LR
     n_angle["Angle"]
     n_ticket["Ticket"]
     n_patch["Patch"]
+    n_improvement["Improvement"]
     n_clearance["Clearance"]
     n_sweep -->|"target"| n_target
     n_bug -->|"sweep"| n_sweep
     n_ticket -->|"bug"| n_bug
     n_patch -->|"bug"| n_bug
+    n_improvement -->|"angle"| n_angle
 ```
 
 ## Angle
@@ -30,6 +32,8 @@ Starts out proposed. Can be proposed, investigating, built, or discarded.
 ```mermaid
 flowchart LR
     n_angle["Angle"]:::focus
+    n_improvement["Improvement"]
+    n_improvement -->|"angle"| n_angle
     classDef focus stroke-width:3px
 ```
 
@@ -541,6 +545,137 @@ Always true: a run says what it ran and what came back.
 
 Put a commit through CI. Done by the qa engineer.
 
+## Improvement
+
+> One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix.
+
+Starts out opened. Can be opened, landed, needs fix, merged, or closed.
+
+**How it fits**
+
+```mermaid
+flowchart LR
+    n_improvement["Improvement"]:::focus
+    n_angle["Angle"]
+    n_improvement -->|"angle"| n_angle
+    classDef focus stroke-width:3px
+```
+
+**How it moves**
+
+```mermaid
+stateDiagram-v2
+    state "needs fix" as needs_fix
+    [*] --> opened
+    opened --> landed: Land
+    needs_fix --> landed: Land
+    landed --> needs_fix: Regress
+    landed --> merged: Merge
+    needs_fix --> merged: Merge
+    landed --> closed: Close
+    needs_fix --> closed: Close
+```
+
+**Always true**
+
+- An Improvement references an Angle.
+- An improvement is numbered.
+- An improvement says where it lives.
+- An improvement says which branch it is on.
+- An improvement is titled.
+
+### All
+
+Every improvement ever landed — what a runner reads back to reconcile against GitHub's own list.
+
+### Angle ref
+
+Text.
+
+### Close
+
+Record that GitHub closed it without merging. Done by the qa engineer.
+
+### Commit ref
+
+Text.
+
+### For angle
+
+Every improvement ever landed against one angle — the duplicate check, the same shape Patch.ForBug already gives for a bug.
+
+### Improvement branch
+
+Text.
+
+Always true: an improvement says which branch it is on.
+
+### Improvement ci watch
+
+Begins when [Improvement landed](#improvement-landed) happens and ends when [Clearance given](#clearance-given) happens. Along the way it can be watching or regressed.
+
+### Improvement closed
+
+Recorded after [Close](#close).
+
+### Improvement landed
+
+Recorded after [Land](#land).
+
+### Improvement merged
+
+Recorded after [Merge](#merge).
+
+### Improvement number
+
+A whole number.
+
+Always true: an improvement is numbered.
+
+### Improvement opened
+
+Recorded after [Open](#open-1).
+
+### Improvement regressed
+
+Recorded after [Regress](#regress-1).
+
+### Improvement title
+
+Text.
+
+Always true: an improvement is titled.
+
+### Improvement url
+
+Text.
+
+Always true: an improvement says where it lives.
+
+### Land
+
+Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.
+
+### Merge
+
+Record that GitHub merged it. Done by the qa engineer.
+
+### Needs fix
+
+Landed work whose own commit came back red — what ImprovementCiWatch put back in front of somebody, and the list a human or agent clears with a fresh Land.
+
+### Open
+
+Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching. Done by the qa engineer.
+
+### Open (the list)
+
+Every PR we've landed for deliberate, non-bugfix work that's still open, by number — bin/qa_pr_check's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+
+### Regress
+
+Put landed work back in front of somebody when its own commit stops holding. Done by the qa engineer.
+
 ## Patch
 
 > One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.
@@ -614,11 +749,11 @@ Always true: a patch says which branch it is on.
 
 ### Patch closed
 
-Recorded after [Close](#close).
+Recorded after [Close](#close-1).
 
 ### Patch merged
 
-Recorded after [Merge](#merge).
+Recorded after [Merge](#merge-1).
 
 ### Patch number
 
@@ -628,7 +763,7 @@ Always true: a patch is numbered.
 
 ### Patch opened
 
-Recorded after [Open](#open-1).
+Recorded after [Open](#open-2).
 
 ### Patch title
 
@@ -811,7 +946,7 @@ Always true: a sweep says what it learned, in at least 40 characters.
 
 ### Sweep opened
 
-Recorded after [Open](#open-2).
+Recorded after [Open](#open-3).
 
 ### Sweep reference
 
@@ -1151,7 +1286,7 @@ Always true: a ticket says something.
 
 ### Ticket closed
 
-Recorded after [Close](#close-1).
+Recorded after [Close](#close-2).
 
 ### Ticket filed
 
@@ -1199,7 +1334,7 @@ Always true: a ticket is titled.
 
 ### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-2), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-1), [Open (patch)](#open-1), [Merge](#merge), [Close (patch)](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
 
 ### System
 
@@ -1217,6 +1352,10 @@ Every bug sorted into what became of it — the tally. The share that is withdra
 
 Every bug sorted by who reported it, then by its own reference — what each agent has actually found.
 
+### Improvements by status
+
+Every improvement sorted into what became of it — landed, needing a fix, merged, or closed, at a glance.
+
 ### Tickets by status
 
 Every ticket sorted by where it got to — stuck filings and abandoned ones are only visible as a count.
@@ -1231,7 +1370,7 @@ When Suite passed happens, [Clearance](#clearance) is asked to [Passed](#passed)
 
 ### Close when closed upstream
 
-When Issue closed upstream happens, [Ticket](#ticket) is asked to [Close](#close-1).
+When Issue closed upstream happens, [Ticket](#ticket) is asked to [Close](#close-2).
 
 ### Record the issue
 
