@@ -26,7 +26,14 @@ RSpec.describe "GitHub CI webhook, end to end" do
 
   SECRET = "test-webhook-secret-do-not-use-in-real-life".freeze
 
-  QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
+  # NOT `QC_ROOT` — that name already belongs to spec/quality_control_spec.rb,
+  # and a spec-file top-level constant lands on Object regardless of
+  # nesting depth (spec/load_hygiene_spec.rb's own "lets no two spec files
+  # disagree about a top-level constant" catches exactly this). Same
+  # value, different name, rather than adding this one to that spec's
+  # `shared_values` allowlist — this webhook spec has no other reason to
+  # be coupled to quality_control_spec.rb's own naming.
+  WEBHOOK_QC_ROOT = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
 
   module FixedClock
     module_function
@@ -62,7 +69,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(QC_ROOT, "quality_control.bluebook"))
+      Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.bluebook"))
       bind_stub_adapters!
 
       Hecks.hecksagon "QualityControl" do

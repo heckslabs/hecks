@@ -1,32 +1,44 @@
 # frozen_string_literal: true
 
-# THE ONE STEP BOTH TRIGGERS SHARE — "record what CI said for this
-# commit." `bin/qa_pr_check` (the PULL trigger: it polls, then asks the
-# `CI` port, and the chapter's own `ClearOnPass`/`RefuseOnFail` policies
-# turn the port's answer or refusal into `Clearance::Passed`/`Failed`
-# automatically) and `qa/adapters/github_ci_webhook.rb` (the PUSH
-# trigger: GitHub already tells it pass or fail, verified, no polling
-# needed) used to each mint a `Clearance` their own way — this is the one
-# place that logic lives now, so neither has to restate "start it, then
-# settle it, and do not blow up if it is already settled."
+# "RECORD WHAT CI SAID FOR THIS COMMIT" — currently the PUSH trigger's
+# own step (`qa/adapters/github_ci_webhook.rb`: GitHub already tells it
+# pass or fail, verified, no polling needed), kept as its own module
+# rather than inlined so the idempotency this route genuinely needs
+# (below) isn't buried inside a Rack handler.
 #
-# `Start` (NOT `Passed`/`Failed`) IS THE PART BOTH ROUTES ACTUALLY NEED
-# SHARED. The pull route still turns its verdict into `Passed`/`Failed`
-# through the real `CI` port + policies — see `bin/qa_pr_check`'s own
+# NOT SHARED WITH `bin/qa_pr_check` ANY MORE. The PULL trigger used to
+# call `ensure_started` too, before `bin/qa_pr_check` was rewritten
+# (`qa: track opened PRs as a first-class Patch aggregate...`, #539) to
+# settle through the real `CI` port instead: `Clearance.start!` directly,
+# then `Clearance.CI.Run` — the chapter's own `ClearOnPass`/`RefuseOnFail`
+# policies turn that port's answer or refusal into
+# `Clearance::Passed`/`Failed` automatically (see that script's own
 # header on why that indirection has to stay live rather than being
-# shortcut around a second time (`ClearOnPass`/`RefuseOnFail` going dead
-# is the exact regression that script's own header already warns about).
-# The push route has no port to ask — GitHub already handed it a
-# verified verdict, so re-asking `gh` would just throw away the whole
-# point of a webhook — so it settles directly, through the same
-# `Clearance::Passed`/`Clearance::Failed` commands the policies dispatch
-# on the pull route's behalf. Either way, the record that lands in the
+# shortcut around). That rewrite landed independently of this file and
+# never mentions it — see `Patch`'s own comment in
+# `qa/bluebook/quality_control.bluebook` for what #539 actually changed.
+# `bin/qa_pr_check`'s own `ask_the_ledger` only reaches `Clearance.start!`
+# once it has already confirmed (via `Patch.Open` + `Clearance.All`) that
+# no `Clearance` exists yet for that commit, so it doesn't need this
+# module's `AlreadyExists`-swallowing guard the same way the push route
+# does — though a poll racing a webhook redelivery for the same
+# still-unsettled commit is a real, un-guarded corner case this file does
+# not close.
+#
+# `Start` (NOT `Passed`/`Failed`) IS STILL THE PART EITHER ROUTE WOULD
+# SHARE, if `bin/qa_pr_check` used this module again. The push route has
+# no port to ask — GitHub already handed it a verified verdict, so
+# re-asking `gh` would just throw away the whole point of a webhook — so
+# it settles directly, through the same `Clearance::Passed`/
+# `Clearance::Failed` commands `ClearOnPass`/`RefuseOnFail` dispatch on
+# the pull route's behalf. Either way, the record that lands in the
 # ledger is identical; only how each route LEARNS the verdict differs.
 
 module Hecks
   module QA
-    # Records what CI said about one commit, shared by the pull and push
-    # triggers alike — see this file's own header for the full reasoning.
+    # Records what CI said about one commit — currently the PUSH
+    # trigger's own step; see this file's own header for why the PULL
+    # trigger (`bin/qa_pr_check`) does not call this module any more.
     module ClearanceRecorder
       module_function
 

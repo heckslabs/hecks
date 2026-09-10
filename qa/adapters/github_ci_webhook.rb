@@ -77,12 +77,13 @@ module Hecks
 
         def ignored(reason) = [200, { ok: true, ignored: reason }]
 
-        # THE ACTUAL RECORD — `ClearanceRecorder.record` is the exact
-        # same "start it, then settle it" step `bin/qa_pr_check` now
-        # calls too (`ensure_started`), so this file never re-derives
-        # what counts as green or re-implements how a `Clearance` gets
-        # minted. All this method does that is genuinely its own: read
-        # GitHub's own verdict out of an already-verified payload.
+        # THE ACTUAL RECORD — `ClearanceRecorder.record` is "start it,
+        # then settle it," idempotent against GitHub's own webhook
+        # redelivery — see `clearance_recorder.rb`'s own header for why
+        # `bin/qa_pr_check` (the pull trigger) settles through the real
+        # `CI` port instead of this same module. All this method does
+        # that is genuinely its own: read GitHub's own verdict out of an
+        # already-verified payload.
         def settle(sha, suite)
           conclusion = suite["conclusion"].to_s
           passed     = Hecks::QA::ClearanceRecorder::PASSING.include?(conclusion)

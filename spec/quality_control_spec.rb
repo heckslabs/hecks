@@ -71,12 +71,10 @@ RSpec.describe "QualityControl" do
       Hecks.hecksagon "QualityControl" do
         uses_framework "Governance"
 
-        QualityControl::Target.persisted_by("Memory")
-        QualityControl::Sweep.persisted_by("Memory")
-        QualityControl::Bug.persisted_by("Memory")
-        QualityControl::Angle.persisted_by("Memory")
-        QualityControl::Ticket.persisted_by("Memory")
-        QualityControl::Clearance.persisted_by("Memory")
+        [QualityControl::Target, QualityControl::Sweep, QualityControl::Bug, QualityControl::Angle,
+         QualityControl::Ticket, QualityControl::Patch, QualityControl::Clearance].each do |aggregate|
+          aggregate.persisted_by("Memory")
+        end
 
         QualityControl::Ticket.port "IssueTracker" do
           asks "File", to: Ticket do
@@ -493,74 +491,6 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # ── the domain's own opinion on what CI still owes an answer ─────────
-
-  # WHAT `bin/qa_pr_check` ASKS INSTEAD OF RE-DERIVING "has this already
-  # been checked" ITSELF — a real regression test for
-  # `Comparison#none_in_state?`, not only a feature test for
-  # `Bug.AwaitingClearance`. `Clearance` is `lifecycle :status`, not a
-  # plain `attribute :state`, which is exactly the shape every existing
-  # `none_in_state` fixture (spec/query_none_in_state_*_spec.rb) does NOT
-  # cover — those all declare a bare `attribute :state` sidestepping the
-  # real lifecycle-field lookup this comparator has to do for any aggregate
-  # in this repository that actually uses one. Before the fix, every case
-  # below answered exactly the same (every bug always "awaiting"), because
-  # `record.state[:state]` read `nil` off a `lifecycle :status` record no
-  # matter what it actually held.
-  describe "awaiting clearance" do
-    # ONE SWEEP FOR THE WHOLE EXAMPLE, DELIBERATELY — `a_sweep`'s own
-    # default target reference ("banking") is fixed, so a second call
-    # within the same example refuses with `AlreadyExists` rather than
-    # minting a second target. Every example below that logs more than
-    # one bug shares a single sweep for exactly that reason.
-    def fixed_bug(sweep, reference, sequence, commit)
-      bug = a_bug(sweep, reference: reference, sequence: sequence)
-      bug.investigate!(site: { value: "x.rb:1" }, cause: { value: "y" })
-      bug.fix!(reference: { value: reference }, commit: { value: commit })
-    end
-
-    it "leaves out a bug with no commit at all — nothing to clear yet" do
-      a_bug(a_sweep, reference: "BUG#1", sequence: 1)
-
-      expect(references("Bug.AwaitingClearance")).to be_empty
-    end
-
-    it "offers a fixed bug whose commit nobody has asked CI about" do
-      bug = fixed_bug(a_sweep, "BUG#1", 1, "1111111")
-
-      expect(references("Bug.AwaitingClearance")).to eq([bug.id])
-    end
-
-    it "drops a bug once its commit is cleared green" do
-      bug = fixed_bug(a_sweep, "BUG#1", 1, "2222222")
-      QualityControl::Clearance.start!(commit: { value: "2222222" }).passed!(summary: { value: "ok" })
-
-      expect(rows("Bug.AwaitingClearance")).to be_empty
-      expect(bug.status).to eq("fixed")
-    end
-
-    # RED SETTLES THE COMMIT'S OWN QUESTION TOO — a verdict was recorded,
-    # even though `BugCiWatch` reacted by putting the bug itself back in
-    # `investigating`. Asking CI about the exact same commit again would
-    # ask a question `Clearance` already answered.
-    it "drops a bug once its commit is cleared red, even though the bug itself regressed" do
-      fixed_bug(a_sweep, "BUG#1", 1, "3333333")
-      QualityControl::Clearance.start!(commit: { value: "3333333" }).failed!(refusal: { value: "2 failures" })
-
-      expect(rows("Bug.AwaitingClearance")).to be_empty
-      expect(QualityControl::Bug.find("BUG#1").status).to eq("investigating")
-    end
-
-    it "never confuses one commit's clearance for another's" do
-      sweep    = a_sweep
-      awaiting = fixed_bug(sweep, "BUG#1", 1, "4444444")
-      fixed_bug(sweep, "BUG#2", 2, "5555555")
-      QualityControl::Clearance.start!(commit: { value: "5555555" }).passed!(summary: { value: "ok" })
-
-      expect(references("Bug.AwaitingClearance")).to eq([awaiting.id])
-    end
-  end
-
   # ── where to look next ───────────────────────────────────────────────
 
   def an_angle(reference: "ANGLE-1", proposer: "Claude QA",
@@ -743,6 +673,100 @@ RSpec.describe "QualityControl" do
       names = runtime.events.map(&:name)
       expect(names).to include("IssueFilingRefused", "TicketFilingRefused", "TicketRetried")
       expect(runtime.query("QualityControl::Ticket.All").first[:refusal][:value]).to include("token expired")
+    end
+  end
+
+  # ── which pull requests are ours ──────────────────────────────────────
+
+  # THE WORKLIST `bin/qa_pr_check` NOW READS INSTEAD OF SEARCHING. A patch
+  # is recorded the moment its number, branch and commit are already known
+  # — at `gh pr create` — not rediscovered afterward by guessing at a
+  # branch prefix or a title convention.
+  describe "tracking a pull request" do
+    def a_bug_needing_a_patch
+      a_bug(a_sweep)
+    end
+
+    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c")
+      QualityControl::Patch.open!(
+        bug: bug.id, number: { value: number },
+        url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
+        branch: { value: branch }, commit: { value: commit },
+        title: { value: "loop-parity: #{branch}" }
+      )
+    end
+
+    def open_numbers = rows("Patch.Open").map { |row| row[:number][:value] }
+
+    it "cannot be opened for a bug that does not exist" do
+      a_sweep
+
+      expect do
+        QualityControl::Patch.open!(
+          bug: "BUG#nope", number: { value: 1 },
+          url: { value: "https://example.com/pull/1" },
+          branch: { value: "x" }, commit: { value: "4f2a19c" },
+          title: { value: "x" }
+        )
+      end.to raise_error(Hecks::Runtime::NotFound)
+    end
+
+    it "is born opened, and shows up in the worklist by number" do
+      patch = open_patch(a_bug_needing_a_patch)
+
+      expect(patch.status).to eq("opened")
+      expect(open_numbers).to eq([538])
+    end
+
+    it "drops out of the worklist once GitHub merges it" do
+      patch = open_patch(a_bug_needing_a_patch)
+      patch.merge!
+
+      expect(patch.status).to eq("merged")
+      expect(open_numbers).to be_empty
+    end
+
+    it "drops out of the worklist once GitHub closes it without merging" do
+      patch = open_patch(a_bug_needing_a_patch)
+      patch.close!
+
+      expect(patch.status).to eq("closed")
+      expect(open_numbers).to be_empty
+    end
+
+    # THE DUPLICATE CHECK — the same shape `Ticket.ForBug` already gives
+    # for an issue, restated here rather than shared (this file's own
+    # habit for a per-aggregate query).
+    it "finds every patch ever opened for one bug" do
+      bug = a_bug_needing_a_patch
+      open_patch(bug, number: 538, branch: "loop-parity/first")
+      open_patch(bug, number: 540, branch: "loop-parity/second")
+
+      numbers = rows("Patch.ForBug", bug_id: { value: bug.id }).map { |row| row[:number][:value] }
+      expect(numbers).to contain_exactly(538, 540)
+    end
+
+    # THE WHOLE POINT: the worklist carries the commit already, so nothing
+    # downstream has to ask GitHub to find it, or guess which Bug a commit
+    # belongs to.
+    it "carries the commit that makes checking it a lookup, not a guess" do
+      bug = a_bug_needing_a_patch
+      open_patch(bug, number: 538, commit: "4f2a19c")
+
+      open = rows("Patch.Open").first
+      expect(open[:number][:value]).to eq(538)
+      expect(open[:commit][:value]).to eq("4f2a19c")
+      expect(open[:bug]).to eq(bug.id)
+    end
+
+    it "lists every patch ever opened, whatever became of it" do
+      bug = a_bug_needing_a_patch
+      merged = open_patch(bug, number: 538, branch: "loop-parity/first")
+      merged.merge!
+      open_patch(bug, number: 540, branch: "loop-parity/second")
+
+      numbers = rows("Patch.All").map { |row| row[:number][:value] }
+      expect(numbers).to contain_exactly(538, 540)
     end
   end
 
