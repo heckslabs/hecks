@@ -1,0 +1,190 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/hecks_qa/SKILL.md's "Authoring a
+# new stress domain" section).
+#
+# TWO THINGS THIS DOMAIN IS FOR, BOTH NEW TO THE CORPUS:
+#
+# 1. A GENUINELY NESTED PIECE — "a piece nested inside a piece" (ADR 0026's
+#    own words), i.e. `entity "Card"` declared INSIDE `entity "Board"`
+#    declared inside `aggregate "Workspace"`. `EntityBuilder#entity_impl`
+#    has supported this since ADR 0026 landed, and the ONLY place it is
+#    actually exercised anywhere in this repository is the language's own
+#    self-describing meta-bluebook, `lib/hecks/language/bluebook/
+#    process_manager.bluebook` (`entity "Handler"` containing `entity
+#    "Dispatch"`) — used for grammar/glossary tooling, never fuzzed, never
+#    dispatched through a real running domain. Not one example
+#    (pizzas/banking/chess/roster/...) or existing qa/stress_domains
+#    entry (ledger_ordering) declares two levels of entity nesting. This
+#    domain does, on purpose, to find out whether `bin/project_rust`'s
+#    codegen and the differential fuzz harness even handle a SECOND hop
+#    correctly — a construct-combination genuinely absent from every
+#    fuzzed domain until now.
+#
+# 2. A NEW-DEPTH CONFIRMATION OF BUG#3's FIX (PR #526, merged) — before
+#    the fix, `EntityElement#element_of` coerced an offered addressing
+#    identity through its OWN declared type, invariant included, BEFORE
+#    ever checking whether any stored element matches it. An identity
+#    that failed its own invariant (e.g. `LedgerSequence`'s "a ledger
+#    sequence is positive", offered as `0`) raised `InvariantViolation`
+#    in Ruby where Rust's own generated `extract_wants` (a raw scalar
+#    read, never a typed rebuild) always answered `NotFound` — a genuine
+#    Ruby/Rust divergence. PR #526 fixed it generically, in `element_of`
+#    itself, which `locate_chain` calls once per hop — meaning the fix
+#    SHOULD be hop-depth-agnostic by construction, but nothing had ever
+#    actually exercised a second hop to confirm that rather than assume
+#    it. `Card.identified_by :sequence` is `CardSequence`, positive-only,
+#    deliberately the same shape as the original finding — `Card.Annotate`
+#    addressed by a nonexistent, invariant-failing sequence is the SAME
+#    bug, at hop TWO (`Workspace` -> `Board` -> `Card`) instead of hop
+#    one. `Board.Label`, addressed by a non-blank but invariant-failing
+#    `BoardNumber` (`0`, never positive — `to:`'s own routing envelope
+#    already refuses a BLANK entity identity before coercion is ever
+#    reached, so the addressing type has to be able to fail its
+#    invariant on something non-empty; a String "referenced" invariant
+#    like `LedgerOrdering`'s own can't), is the identical shape one hop
+#    shallower, so both depths are exercised, not just the new one — see
+#    this domain's own NOTES.md for what each dispatch confirms and what
+#    does not.
+Hecks.bluebook "NestedPieces" do
+  vision "A workspace holding boards, each holding cards — two real levels of entity nesting, stressing whether the addressing-identity-vs-existence ordering question (BUG#3) recurs at a hop this corpus has never actually reached before."
+
+  core
+
+  aggregate "Workspace" do
+    description "A workspace holding boards; each board holds cards."
+
+    identified_by :reference
+
+    attribute :reference, WorkspaceReference
+    attribute :boards,    list_of(Board)
+
+    value_object "WorkspaceReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a workspace is referenced") { !value.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Owner"
+      goal "Start a workspace"
+
+      attribute :reference, WorkspaceReference
+
+      emits "WorkspaceOpened"
+    end
+
+    command "AddBoard" do
+      role "Owner"
+      goal "Add a board to the workspace"
+
+      reference_to Workspace
+      attribute :number, BoardNumber
+
+      sets :boards, append: { number: :number }
+
+      emits "BoardAdded"
+    end
+
+    # THE HOP-ONE ADDRESSING TYPE — positive only, same shape as
+    # `CardSequence` below, deliberately: a STRING "is referenced"
+    # invariant (like `LedgerOrdering`'s own `SlipReference`) can only
+    # ever fail on an EMPTY value, and `Routing#envelope` already refuses
+    # a blank entity identity before any typed coercion runs at all
+    # (`to: contains a blank entity identity`) — so a string identity
+    # type can never reach `EntityElement#element_of`'s own coercion step
+    # while failing its invariant. A positive-only integer can: `"0"` is
+    # non-blank (passes routing) and still fails `BoardNumber`'s own
+    # invariant once `element_of` tries to build it.
+    value_object "BoardNumber" do
+      attribute :value, Integer
+      invariant("a board number is positive") { value.positive? }
+    end
+
+    value_object "BoardLabel" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a board label is not blank") { !value.to_s.empty? }
+    end
+
+    # THE HOP-TWO ADDRESSING TYPE — positive only, so `sequence.value=0`
+    # (or negative) is guaranteed to fail its own invariant, exactly the
+    # shape `LedgerSequence` (BUG#3's original finding) already is.
+    value_object "CardSequence" do
+      attribute :value, Integer
+      invariant("a card sequence is positive") { value.positive? }
+    end
+
+    value_object "CardNote" do
+      attribute :text, String
+    end
+
+    entity "Board" do
+      description "One board in the workspace, holding cards."
+
+      identified_by :number
+
+      attribute :number, BoardNumber
+      attribute :label,  BoardLabel, optional: true
+      attribute :cards,  list_of(Card)
+
+      command "AddCard" do
+        role "Owner"
+        goal "Add a card to the board"
+
+        attribute :sequence, CardSequence
+
+        sets :cards, append: { sequence: :sequence }
+
+        emits "CardAdded"
+      end
+
+      # THE HOP-ONE CONFIRMATION COMMAND. Dispatch this against a
+      # `board.number` that does not exist AND fails `BoardNumber`'s own
+      # invariant (`0`, never positive) — answers `NotFound` post-fix
+      # (`spec/nested_pieces_spec.rb`), the same single-hop shape BUG#3
+      # was originally found on `Banking::Account.LedgerEntry.Amend`,
+      # confirmed here in a new business shape.
+      command "Label" do
+        role "Owner"
+        goal "Label the board"
+
+        attribute :label, BoardLabel
+
+        sets :label
+
+        emits "BoardLabeled"
+      end
+
+      # S17, ADR 0026 — A PIECE NESTED INSIDE A PIECE. `Card` lives entirely
+      # inside `Board`, never addressable except through it — the second
+      # hop `locate_chain` walks (`EntityElement#element_of`, called once
+      # per hop, `owner` becoming `Board` and `container` becoming the
+      # just-located `Board` element by the time THIS entity's own command
+      # is reached).
+      entity "Card" do
+        description "One card on the board, with a sequence that must be positive."
+
+        identified_by :sequence
+
+        attribute :sequence, CardSequence
+        attribute :note,     CardNote, optional: true
+
+        # THE HOP-TWO CONFIRMATION COMMAND — THE WHOLE REASON THIS DOMAIN
+        # EXISTS. Dispatch this against a `card.sequence` that does not
+        # exist AND fails `CardSequence`'s own invariant (`0` or negative)
+        # — answers `NotFound` post-fix (`spec/nested_pieces_spec.rb`),
+        # confirming BUG#3's fix generalizes one hop deeper than anywhere
+        # it had actually been exercised before this domain existed.
+        command "Annotate" do
+          role "Owner"
+          goal "Add a note to the card"
+
+          attribute :note, CardNote
+
+          sets :note
+
+          emits "CardAnnotated"
+        end
+      end
+    end
+  end
+end
