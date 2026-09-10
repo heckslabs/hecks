@@ -20,6 +20,7 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Bug.persisted_by("PostgresEra")
   QualityControl::Angle.persisted_by("PostgresEra")
   QualityControl::Ticket.persisted_by("PostgresEra")
+  QualityControl::Patch.persisted_by("PostgresEra")
   QualityControl::Clearance.persisted_by("PostgresEra")
 
   # THE OUTSIDE WORLD, THROUGH A SWAPPABLE ADAPTER — no adapter is bound

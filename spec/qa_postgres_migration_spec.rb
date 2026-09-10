@@ -30,10 +30,12 @@ require "open3"
 # read BEFORE any `--force` call anywhere in this file, so it is captured
 # once, in `before(:all)`, before generation even finishes.
 RSpec.describe "bin/qa_postgres_migrate", :io do
-  ROOT             = InMemoryDomain::ROOT
-  BLUEBOOK_SOURCE  = File.join(ROOT, "qa/bluebook/quality_control.bluebook")
-  HECKSAGON_SOURCE = File.join(ROOT, "qa/bluebook/quality_control.hecksagon")
-  MIGRATE_SCRIPT   = File.join(ROOT, "bin/qa_postgres_migrate")
+  # `InMemoryDomain::ROOT` spelled out, not aliased to a bare `ROOT` — a
+  # constant assigned inside a describe block lands at top level, and
+  # spec/oidc_manifest_spec.rb already owns that name (load_hygiene_spec).
+  BLUEBOOK_SOURCE  = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook")
+  HECKSAGON_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.hecksagon")
+  MIGRATE_SCRIPT   = File.join(InMemoryDomain::ROOT, "bin/qa_postgres_migrate")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze
 
   # THE LEDGER'S OWN FORMER WIRING, restated here rather than read off a
@@ -42,7 +44,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
   # for, and it needs to keep meaning that regardless of what the real
   # file goes on to say next. Structurally identical to the real,
   # PostgresEra-bound file this spec ALSO loads (same ports, same
-  # dormant/discovered-adapter shape) — only the six `persisted_by` lines
+  # dormant/discovered-adapter shape) — only the seven `persisted_by` lines
   # differ.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "QualityControl" do
@@ -53,6 +55,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       QualityControl::Bug.persisted_by("Heki")
       QualityControl::Angle.persisted_by("Heki")
       QualityControl::Ticket.persisted_by("Heki")
+      QualityControl::Patch.persisted_by("Heki")
       QualityControl::Clearance.persisted_by("Heki")
 
       QualityControl::Ticket.port "IssueTracker" do

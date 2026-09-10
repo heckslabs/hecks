@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QualityControl — Glossary</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Instrument+Sans:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<style>
+/* The glossary page. Ledger paper: faint blue horizontal rules between
+   entries, one red vertical margin rule down the navigation. The rules
+   carry information — the red marks the section in view, the blue
+   separates entries — and nothing else on the page is decoration. */
+
+:root {
+  --paper: #f3f5f8;
+  --panel: #ffffff;
+  --ink: #1a2b4a;
+  --ink-soft: #4a5873;
+  --ink-faint: #8592a8;
+  --rule: #c9d3e3;
+  --red: #b0413e;
+  --red-wash: rgba(176, 65, 62, 0.09);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1726;
+    --panel: #141e33;
+    --ink: #e3e7ee;
+    --ink-soft: #b4bdd0;
+    --ink-faint: #7f8ba6;
+    --rule: #2a3854;
+    --red: #d9635f;
+    --red-wash: rgba(217, 99, 95, 0.14);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1726;
+  --panel: #141e33;
+  --ink: #e3e7ee;
+  --ink-soft: #b4bdd0;
+  --ink-faint: #7f8ba6;
+  --rule: #2a3854;
+  --red: #d9635f;
+  --red-wash: rgba(217, 99, 95, 0.14);
+}
+
+html { color-scheme: light dark; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.55;
+  font-variant-numeric: oldstyle-nums;
+}
+
+a { color: var(--red); }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+.page {
+  display: grid;
+  grid-template-columns: 15.5rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* ── the rail ───────────────────────────────────────────────────── */
+
+.rail {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 2.4rem 1.3rem 2rem 1.6rem;
+  border-right: 1px solid var(--rule);
+  font-family: "Instrument Sans", system-ui, -apple-system, sans-serif;
+  font-size: 0.92rem;
+}
+
+.rail .domain {
+  font-family: "Newsreader", Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.rail .sub { color: var(--ink-faint); margin: 0.15rem 0 1.4rem; font-size: 0.82rem; }
+
+.rail input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.rail input::placeholder { color: var(--ink-faint); }
+
+.rail .count { color: var(--ink-faint); font-size: 0.78rem; margin: 0.45rem 0 1.2rem; }
+
+.rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--red);
+}
+
+.rail li a {
+  display: block;
+  padding: 0.28rem 0.85rem;
+  margin-left: -2px;
+  border-left: 2px solid transparent;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.rail li a:hover { color: var(--ink); }
+
+.rail li a[aria-current="true"] {
+  color: var(--ink);
+  font-weight: 600;
+  border-left-color: var(--ink);
+}
+
+/* ── the text column ────────────────────────────────────────────── */
+
+main {
+  padding: 3.2rem 4rem 7rem 3.6rem;
+  max-width: 47rem;
+}
+
+header h1 {
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.012em;
+  margin: 0 0 1.1rem;
+}
+
+.vision {
+  font-size: 1.28rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 1.2rem;
+}
+
+.lede { color: var(--ink-soft); margin: 0 0 1.6rem; max-width: 62ch; }
+
+figure { margin: 1.2rem 0 1.8rem; }
+
+figcaption, .caption {
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  margin: 0 0 0.4rem;
+}
+
+.caption { margin-top: 1.6rem; }
+
+pre.mermaid {
+  margin: 0;
+  padding: 1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: "Instrument Sans", system-ui, sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+pre.mermaid svg { display: block; max-width: 100%; height: auto; }
+
+section { margin-top: 4.5rem; scroll-margin-top: 1.5rem; }
+
+section h2 {
+  display: inline-block;
+  font-size: 2.1rem;
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 2px solid var(--red);
+}
+
+.about {
+  font-size: 1.18rem;
+  color: var(--ink-soft);
+  margin: 0.5rem 0 0.7rem;
+  max-width: 60ch;
+}
+
+section > p:not(.about):not(.caption) { margin: 0 0 0.8rem; max-width: 62ch; }
+
+.rules {
+  list-style: none;
+  margin: 0 0 1.2rem;
+  padding: 0;
+  max-width: 62ch;
+}
+
+.rules li {
+  padding: 0.38rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.terms { margin-top: 1.8rem; border-top: 1px solid var(--rule); }
+
+.term {
+  display: grid;
+  grid-template-columns: 12.5rem minmax(0, 1fr);
+  column-gap: 1.6rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+  scroll-margin-top: 1.5rem;
+}
+
+.term h3 {
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.05rem 0 0;
+}
+
+.term p { margin: 0 0 0.4rem; }
+.term p:last-child { margin-bottom: 0; }
+
+.term p.rule { color: var(--ink-soft); font-size: 0.95rem; }
+
+.term a, .rules a {
+  color: var(--red);
+  font-style: italic;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* A search narrows the page to the terms that match. */
+section.searching figure,
+section.searching .rules,
+section.searching .caption,
+section.searching .about,
+section.searching > p { display: none; }
+
+section.searching .terms { border-top: 0; margin-top: 0.8rem; }
+
+/* Landing on a term from a link. */
+.landed { animation: land 1.4s ease-out; }
+
+@keyframes land {
+  from { background: var(--red-wash); }
+  to { background: transparent; }
+}
+
+@media (max-width: 760px) {
+  .page { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .rail ol { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; border-left: 0; }
+  .rail li a { padding: 0.2rem 0.4rem; border-left: 0; }
+  .rail li a[aria-current="true"] { border-bottom: 2px solid var(--red); }
+  main { padding: 1.8rem 1.2rem 4rem; }
+  header h1 { font-size: 2.3rem; }
+  .term { grid-template-columns: 1fr; row-gap: 0.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .landed { animation: none; }
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+<nav class="rail" aria-label="Sections">
+<p class="domain">QualityControl</p>
+<p class="sub">Glossary</p>
+<input type="search" placeholder="Find a term" aria-label="Find a term" autocomplete="off">
+<p class="count"></p>
+<ol>
+<li><a href="#angle">Angle</a></li>
+<li><a href="#bug">Bug</a></li>
+<li><a href="#clearance">Clearance</a></li>
+<li><a href="#patch">Patch</a></li>
+<li><a href="#sweep">Sweep</a></li>
+<li><a href="#target">Target</a></li>
+<li><a href="#ticket">Ticket</a></li>
+<li><a href="#roles">Roles</a></li>
+<li><a href="#read-models">Read models</a></li>
+<li><a href="#reactions">Reactions</a></li>
+</ol>
+</nav>
+
+<main>
+<header>
+<h1>QualityControl</h1>
+<p class="vision">A user should never be made to feel stupid by something that took what they said and quietly did otherwise. Every check writes down what it expected before it looks, every bug carries the test that proves it, and nothing reaches the outside world that nobody first tried to fix.</p>
+<p class="lede">Every term QualityControl uses, in the words of the people who work in it — grouped under the thing each belongs to, and listed A to Z within it. This page is generated from the working specification, so it says what the system does today, not what anyone hoped it would do. If a sentence here reads wrong to you, the specification is wrong: say so.</p>
+<figure>
+<figcaption>How it all fits together</figcaption>
+<pre class="mermaid">flowchart LR
+    n_target[&quot;Target&quot;]
+    n_sweep[&quot;Sweep&quot;]
+    n_bug[&quot;Bug&quot;]
+    n_angle[&quot;Angle&quot;]
+    n_ticket[&quot;Ticket&quot;]
+    n_patch[&quot;Patch&quot;]
+    n_clearance[&quot;Clearance&quot;]
+    n_sweep --&gt;|&quot;target&quot;| n_target
+    n_bug --&gt;|&quot;sweep&quot;| n_sweep
+    n_ticket --&gt;|&quot;bug&quot;| n_bug
+    n_patch --&gt;|&quot;bug&quot;| n_bug</pre>
+</figure>
+</header>
+<section id="angle">
+<h2>Angle</h2>
+<p class="about">One concrete, citable reason to suspect an uninvestigated corner exists — proposed, chased down, and either built into something real or set aside with a reason. The practice&#39;s own backlog of what to try next, so a future sweep mines its own history instead of guessing.</p>
+<p>Starts out proposed. Can be proposed, investigating, built, or discarded.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_angle[&quot;Angle&quot;]:::focus
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; proposed
+    proposed --&gt; investigating: Investigate
+    investigating --&gt; built: Build
+    proposed --&gt; discarded: Discard
+    investigating --&gt; discarded: Discard</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>An angle is referenced.</li><li>An angle says enough to be acted on without its proposer in the room, in at least 60 characters.</li><li>An angle cites something concrete, not a mood.</li><li>An angle is proposed by somebody.</li><li>An instant is not before the epoch.</li><li>A built angle says what actually got built.</li><li>Discarding an angle says why.</li></ul>
+<div class="terms">
+<article class="term" id="all">
+<h3>All</h3>
+<p>Every angle ever proposed — what a runner mints the next reference from.</p>
+</article>
+<article class="term" id="angle-built">
+<h3>Angle built</h3>
+<p>Recorded after <a href="#build">Build</a>.</p>
+</article>
+<article class="term" id="angle-citation">
+<h3>Angle citation</h3>
+<p>Text.</p>
+<p class="rule">Always true: an angle cites something concrete, not a mood.</p>
+</article>
+<article class="term" id="angle-discarded">
+<h3>Angle discarded</h3>
+<p>Recorded after <a href="#discard">Discard</a>.</p>
+</article>
+<article class="term" id="angle-investigated">
+<h3>Angle investigated</h3>
+<p>Recorded after <a href="#investigate">Investigate</a>.</p>
+</article>
+<article class="term" id="angle-premise">
+<h3>Angle premise</h3>
+<p>Text.</p>
+<p class="rule">Always true: an angle says enough to be acted on without its proposer in the room, in at least 60 characters.</p>
+</article>
+<article class="term" id="angle-proposed">
+<h3>Angle proposed</h3>
+<p>Recorded after <a href="#propose">Propose</a>.</p>
+</article>
+<article class="term" id="angle-reason">
+<h3>Angle reason</h3>
+<p>Text.</p>
+<p class="rule">Always true: discarding an angle says why.</p>
+</article>
+<article class="term" id="angle-reference">
+<h3>Angle reference</h3>
+<p>Text.</p>
+<p class="rule">Always true: an angle is referenced.</p>
+</article>
+<article class="term" id="angle-resolution">
+<h3>Angle resolution</h3>
+<p>Text.</p>
+<p class="rule">Always true: a built angle says what actually got built.</p>
+</article>
+<article class="term" id="backlog">
+<h3>Backlog</h3>
+<p>Leads nobody has finished chasing yet, oldest first — read this before inventing a new angle from scratch.</p>
+</article>
+<article class="term" id="build">
+<h3>Build</h3>
+<p>Say what actually came of chasing this lead. Done by the qa engineer.</p>
+</article>
+<article class="term" id="discard">
+<h3>Discard</h3>
+<p>Decide a lead is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
+</article>
+<article class="term" id="instant">
+<h3>Instant</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an instant is not before the epoch.</p>
+</article>
+<article class="term" id="investigate">
+<h3>Investigate</h3>
+<p>Pick a lead up for a real look, rather than leaving it to look picked-up by default. Done by the qa engineer.</p>
+</article>
+<article class="term" id="propose">
+<h3>Propose</h3>
+<p>Write down a concrete, citable reason to suspect an uninvestigated corner exists, before it is lost to a conversation. Done by the qa engineer.</p>
+</article>
+<article class="term" id="proposer">
+<h3>Proposer</h3>
+<p>Text.</p>
+<p class="rule">Always true: an angle is proposed by somebody.</p>
+</article>
+<article class="term" id="resolved">
+<h3>Resolved</h3>
+<p>Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice&#39;s own hit rate.</p>
+</article></div>
+</section>
+<section id="bug">
+<h2>Bug</h2>
+<p class="about">One thing now known to be wrong, the test that proves it, and how far the fix got.</p>
+<p>Starts out logged. Can be logged, investigating, fixed, verified, paused, or withdrawn.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_bug[&quot;Bug&quot;]:::focus
+    n_sweep[&quot;Sweep&quot;]
+    n_bug --&gt;|&quot;sweep&quot;| n_sweep
+    n_ticket[&quot;Ticket&quot;]
+    n_ticket --&gt;|&quot;bug&quot;| n_bug
+    n_patch[&quot;Patch&quot;]
+    n_patch --&gt;|&quot;bug&quot;| n_bug
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; logged
+    logged --&gt; investigating: Investigate
+    investigating --&gt; fixed: Fix
+    fixed --&gt; verified: Verify
+    logged --&gt; paused: Pause
+    investigating --&gt; paused: Pause
+    logged --&gt; withdrawn: Withdraw
+    investigating --&gt; withdrawn: Withdraw
+    fixed --&gt; investigating: Regress
+    verified --&gt; investigating: Regress
+    paused --&gt; investigating: Revisit</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A Bug references a Sweep.</li><li>A Bug has many tags.</li><li>A bug is referenced.</li><li>A bug sequence is positive.</li><li>A bug is titled.</li><li>A bug is proven by a test somebody can re-run.</li><li>A bug says what actually happened.</li><li>A bug says what should have happened.</li><li>An investigation names where the bug lives.</li><li>An investigation says why the code is wrong.</li><li>A verification says what was actually run.</li><li>Stopping on a bug says why.</li><li>Stopping on a bug says what would move it.</li><li>A waiver count is not negative.</li><li>A waived gate says why.</li><li>An instant is not before the epoch.</li><li>A staleness window is positive.</li><li>A bug is reported by somebody.</li><li>An order is a position, not a direction.</li><li>A tag is a word, not a sentence.</li></ul>
+<div class="terms">
+<article class="term" id="all-1">
+<h3>All</h3>
+<p>Every bug ever logged — what a runner mints the next reference from.</p>
+</article>
+<article class="term" id="bug-cause">
+<h3>Bug cause</h3>
+<p>Text.</p>
+<p class="rule">Always true: an investigation says why the code is wrong.</p>
+</article>
+<article class="term" id="bug-ci-watch">
+<h3>Bug ci watch</h3>
+<p>Begins when <a href="#bug-fixed">Bug fixed</a> happens and ends when <a href="#clearance-given">Clearance given</a> happens. Along the way it can be watching or regressed.</p>
+</article>
+<article class="term" id="bug-claimed">
+<h3>Bug claimed</h3>
+<p>Recorded after <a href="#claim">Claim</a>.</p>
+</article>
+<article class="term" id="bug-dropped">
+<h3>Bug dropped</h3>
+<p>Recorded after <a href="#drop">Drop</a>.</p>
+</article>
+<article class="term" id="bug-fixed">
+<h3>Bug fixed</h3>
+<p>Recorded after <a href="#fix">Fix</a>.</p>
+</article>
+<article class="term" id="bug-investigated">
+<h3>Bug investigated</h3>
+<p>Recorded after <a href="#investigate-1">Investigate</a>.</p>
+</article>
+<article class="term" id="bug-logged">
+<h3>Bug logged</h3>
+<p>Recorded after <a href="#log">Log</a>.</p>
+</article>
+<article class="term" id="bug-order">
+<h3>Bug order</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an order is a position, not a direction.</p>
+</article>
+<article class="term" id="bug-paused">
+<h3>Bug paused</h3>
+<p>Recorded after <a href="#pause">Pause</a>.</p>
+</article>
+<article class="term" id="bug-ranked">
+<h3>Bug ranked</h3>
+<p>Recorded after <a href="#rank">Rank</a>.</p>
+</article>
+<article class="term" id="bug-reason">
+<h3>Bug reason</h3>
+<p>Text.</p>
+<p class="rule">Always true: stopping on a bug says why.</p>
+</article>
+<article class="term" id="bug-reference">
+<h3>Bug reference</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug is referenced.</p>
+</article>
+<article class="term" id="bug-regressed">
+<h3>Bug regressed</h3>
+<p>Recorded after <a href="#regress">Regress</a>.</p>
+</article>
+<article class="term" id="bug-revisited">
+<h3>Bug revisited</h3>
+<p>Recorded after <a href="#revisit">Revisit</a>.</p>
+</article>
+<article class="term" id="bug-sequence">
+<h3>Bug sequence</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a bug sequence is positive.</p>
+</article>
+<article class="term" id="bug-site">
+<h3>Bug site</h3>
+<p>Text.</p>
+<p class="rule">Always true: an investigation names where the bug lives.</p>
+</article>
+<article class="term" id="bug-tagged">
+<h3>Bug tagged</h3>
+<p>Recorded after <a href="#tag">Tag</a>.</p>
+</article>
+<article class="term" id="bug-title">
+<h3>Bug title</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug is titled.</p>
+</article>
+<article class="term" id="bug-verified">
+<h3>Bug verified</h3>
+<p>Recorded after <a href="#verify">Verify</a>.</p>
+</article>
+<article class="term" id="bug-withdrawn">
+<h3>Bug withdrawn</h3>
+<p>Recorded after <a href="#withdraw">Withdraw</a>.</p>
+</article>
+<article class="term" id="claim">
+<h3>Claim</h3>
+<p>Take the next bug off the queue, or one whose holder has gone quiet. Done by the qa engineer.</p>
+</article>
+<article class="term" id="commit-ref">
+<h3>Commit ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="demonstration">
+<h3>Demonstration</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug is proven by a test somebody can re-run.</p>
+</article>
+<article class="term" id="drop">
+<h3>Drop</h3>
+<p>Put a bug back on the queue without finishing it. Done by the qa engineer.</p>
+</article>
+<article class="term" id="engineer">
+<h3>Engineer</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="expectation">
+<h3>Expectation</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug says what should have happened.</p>
+</article>
+<article class="term" id="fix">
+<h3>Fix</h3>
+<p>Record the commit that makes it stop happening. Done by the qa engineer.</p>
+</article>
+<article class="term" id="found-in">
+<h3>Found in</h3>
+<p>Everything one sweep turned up, in the order it was found.</p>
+</article>
+<article class="term" id="from">
+<h3>From</h3>
+<p>Every bug one submitter has ever logged, in whatever state — what an agent found, as against what it is holding.</p>
+</article>
+<article class="term" id="in-hand">
+<h3>In hand</h3>
+<p>Open bugs somebody is holding, and since when. A claim older than the window is free for the taking — read claimed_at before assuming somebody is on it.</p>
+</article>
+<article class="term" id="instant-1">
+<h3>Instant</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an instant is not before the epoch.</p>
+</article>
+<article class="term" id="investigate-1">
+<h3>Investigate</h3>
+<p>Name the code that is wrong and say why. Done by the qa engineer.</p>
+</article>
+<article class="term" id="log">
+<h3>Log</h3>
+<p>Write down something that is wrong, with the test that proves it. Done by the qa engineer.</p>
+</article>
+<article class="term" id="next-step">
+<h3>Next step</h3>
+<p>Text.</p>
+<p class="rule">Always true: stopping on a bug says what would move it.</p>
+</article>
+<article class="term" id="open">
+<h3>Open</h3>
+<p>Every bug still owed work — the open ledger, derived rather than maintained.</p>
+</article>
+<article class="term" id="pause">
+<h3>Pause</h3>
+<p>Stop on a bug that is real and too large to fix here — why, and what would move it. Done by the qa engineer.</p>
+</article>
+<article class="term" id="paused">
+<h3>Paused</h3>
+<p>Real, unfixed, stopped on, each with what would move it. The only queue a ticket is ever raised from.</p>
+</article>
+<article class="term" id="queue">
+<h3>Queue</h3>
+<p>Open bugs nobody is holding, most important first, then oldest. The queue an agent takes from when it is fixing rather than sweeping.</p>
+</article>
+<article class="term" id="rank">
+<h3>Rank</h3>
+<p>Say what should be dealt with first. Done by the qa engineer.</p>
+</article>
+<article class="term" id="ready-to-verify">
+<h3>Ready to verify</h3>
+<p>Fixed and not yet re-run — the queue a full CI pass empties.</p>
+</article>
+<article class="term" id="regress">
+<h3>Regress</h3>
+<p>Put a bug back when its fix stopped holding. Done by the qa engineer.</p>
+</article>
+<article class="term" id="revisit">
+<h3>Revisit</h3>
+<p>Pick a paused bug back up, investigation intact. Done by the qa engineer.</p>
+</article>
+<article class="term" id="stale-after">
+<h3>Stale after</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a staleness window is positive.</p>
+</article>
+<article class="term" id="submitter">
+<h3>Submitter</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug is reported by somebody.</p>
+</article>
+<article class="term" id="sweep-ref">
+<h3>Sweep ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="symptom">
+<h3>Symptom</h3>
+<p>Text.</p>
+<p class="rule">Always true: a bug says what actually happened.</p>
+</article>
+<article class="term" id="tag">
+<h3>Tag</h3>
+<p>Say what kind of thing this bug is, so it can be found with its kind later. Done by the qa engineer.</p>
+</article>
+<article class="term" id="tag-1">
+<h3>Tag</h3>
+<p>Text.</p>
+<p class="rule">Always true: a tag is a word, not a sentence.</p>
+</article>
+<article class="term" id="tagged">
+<h3>Tagged</h3>
+<p>Every bug carrying one tag, whatever state it is in — the way to find all the flaky ones, or everything about the projector.</p>
+</article>
+<article class="term" id="verification">
+<h3>Verification</h3>
+<p>Text.</p>
+<p class="rule">Always true: a verification says what was actually run.</p>
+</article>
+<article class="term" id="verify">
+<h3>Verify</h3>
+<p>Record that the fix was actually verified, and exactly how. Done by the qa engineer.</p>
+</article>
+<article class="term" id="waive">
+<h3>Waive</h3>
+<p>Go round a gate on this bug, on the record. Done by the qa engineer.</p>
+</article>
+<article class="term" id="waived">
+<h3>Waived</h3>
+<p>Bugs that went round one of their own gates — the honesty check on any claim about following the protocol.</p>
+</article>
+<article class="term" id="waiver-count">
+<h3>Waiver count</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a waiver count is not negative.</p>
+</article>
+<article class="term" id="waiver-reason">
+<h3>Waiver reason</h3>
+<p>Text.</p>
+<p class="rule">Always true: a waived gate says why.</p>
+</article>
+<article class="term" id="withdraw">
+<h3>Withdraw</h3>
+<p>Take back a report whose test turned out to prove something else. Done by the qa engineer.</p>
+</article>
+<article class="term" id="withdrawn">
+<h3>Withdrawn</h3>
+<p>Reports whose test proved something other than what was claimed. Read the reasons: a run of these is a practice testing the wrong thing, not a runtime behaving.</p>
+</article></div>
+</section>
+<section id="clearance">
+<h2>Clearance</h2>
+<p class="about">One CI run against one commit, and therefore the only answer to whether that commit is safe to ship.</p>
+<p>Starts out running. Can be running, green, or red.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_clearance[&quot;Clearance&quot;]:::focus
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; running
+    running --&gt; green: Passed
+    running --&gt; red: Failed</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A run says what it ran and what came back.</li></ul>
+<div class="terms">
+<article class="term" id="all-2">
+<h3>All</h3>
+<p>Every CI run ever recorded, one per commit.</p>
+</article>
+<article class="term" id="clearance-given">
+<h3>Clearance given</h3>
+<p>Recorded after <a href="#passed">Passed</a>.</p>
+</article>
+<article class="term" id="clearance-refused">
+<h3>Clearance refused</h3>
+<p>Recorded after <a href="#failed">Failed</a>.</p>
+</article>
+<article class="term" id="clearance-started">
+<h3>Clearance started</h3>
+<p>Recorded after <a href="#start">Start</a>.</p>
+</article>
+<article class="term" id="commit-ref-1">
+<h3>Commit ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="failed">
+<h3>Failed</h3>
+<p>Record that the suite went red against this commit. Done by the system.</p>
+</article>
+<article class="term" id="for">
+<h3>For</h3>
+<p>Is this exact commit cleared? Ask with the sha you are about to deploy; an empty answer is a no, including when nobody has run CI on it at all.</p>
+</article>
+<article class="term" id="passed">
+<h3>Passed</h3>
+<p>Record that the suite went green against this commit. Done by the system.</p>
+</article>
+<article class="term" id="red">
+<h3>Red</h3>
+<p>Commits CI refused, with what it said.</p>
+</article>
+<article class="term" id="run-summary">
+<h3>Run summary</h3>
+<p>Text.</p>
+<p class="rule">Always true: a run says what it ran and what came back.</p>
+</article>
+<article class="term" id="start">
+<h3>Start</h3>
+<p>Put a commit through CI. Done by the qa engineer.</p>
+</article></div>
+</section>
+<section id="patch">
+<h2>Patch</h2>
+<p class="about">One pull request opened for a Bug&#39;s own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.</p>
+<p>Starts out opened. Can be opened, merged, or closed.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_patch[&quot;Patch&quot;]:::focus
+    n_bug[&quot;Bug&quot;]
+    n_patch --&gt;|&quot;bug&quot;| n_bug
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; opened
+    opened --&gt; merged: Merge
+    opened --&gt; closed: Close</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A Patch references a Bug.</li><li>A patch is numbered.</li><li>A patch says where it lives.</li><li>A patch says which branch it is on.</li><li>A patch is titled.</li></ul>
+<div class="terms">
+<article class="term" id="all-3">
+<h3>All</h3>
+<p>Every patch ever opened — what a runner reads back to reconcile against GitHub&#39;s own list.</p>
+</article>
+<article class="term" id="bug-ref">
+<h3>Bug ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="close">
+<h3>Close</h3>
+<p>Record that GitHub closed it without merging. Done by the qa engineer.</p>
+</article>
+<article class="term" id="commit-ref-2">
+<h3>Commit ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="for-bug">
+<h3>For bug</h3>
+<p>Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue.</p>
+</article>
+<article class="term" id="merge">
+<h3>Merge</h3>
+<p>Record that GitHub merged it. Done by the qa engineer.</p>
+</article>
+<article class="term" id="open-1">
+<h3>Open</h3>
+<p>Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known. Done by the qa engineer.</p>
+</article>
+<article class="term" id="open-the-list">
+<h3>Open (the list)</h3>
+<p>Every PR we&#39;ve opened that&#39;s still open, by number — bin/qa_pr_check&#39;s own worklist. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+</article>
+<article class="term" id="patch-branch">
+<h3>Patch branch</h3>
+<p>Text.</p>
+<p class="rule">Always true: a patch says which branch it is on.</p>
+</article>
+<article class="term" id="patch-closed">
+<h3>Patch closed</h3>
+<p>Recorded after <a href="#close">Close</a>.</p>
+</article>
+<article class="term" id="patch-merged">
+<h3>Patch merged</h3>
+<p>Recorded after <a href="#merge">Merge</a>.</p>
+</article>
+<article class="term" id="patch-number">
+<h3>Patch number</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a patch is numbered.</p>
+</article>
+<article class="term" id="patch-opened">
+<h3>Patch opened</h3>
+<p>Recorded after <a href="#open-1">Open</a>.</p>
+</article>
+<article class="term" id="patch-title">
+<h3>Patch title</h3>
+<p>Text.</p>
+<p class="rule">Always true: a patch is titled.</p>
+</article>
+<article class="term" id="patch-url">
+<h3>Patch url</h3>
+<p>Text.</p>
+<p class="rule">Always true: a patch says where it lives.</p>
+</article></div>
+</section>
+<section id="sweep">
+<h2>Sweep</h2>
+<p class="about">One agent&#39;s pass over one chapter — every check it made, what each expected, and what actually came back.</p>
+<p>Starts out sweeping. Can be sweeping, concluded, or abandoned.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_sweep[&quot;Sweep&quot;]:::focus
+    n_check[&quot;Check&quot;]
+    n_sweep --&gt;|&quot;checks&quot;| n_check
+    n_target[&quot;Target&quot;]
+    n_sweep --&gt;|&quot;target&quot;| n_target
+    n_bug[&quot;Bug&quot;]
+    n_bug --&gt;|&quot;sweep&quot;| n_sweep
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; sweeping
+    sweeping --&gt; sweeping: Check
+    sweeping --&gt; sweeping: Waive
+    sweeping --&gt; concluded: Conclude
+    sweeping --&gt; abandoned: Abandon</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A Sweep references a Target.</li><li>A Sweep has many checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li></ul>
+<div class="terms">
+<article class="term" id="abandon">
+<h3>Abandon</h3>
+<p>End a pass whose output should not be trusted. Done by the qa engineer.</p>
+</article>
+<article class="term" id="all-4">
+<h3>All</h3>
+<p>Every pass ever made — what a runner mints the next reference from.</p>
+</article>
+<article class="term" id="check">
+<h3>Check</h3>
+<p>Put one thing to the system, saying what it should do before looking. Done by the qa engineer.</p>
+</article>
+<article class="term" id="check-1">
+<h3>Check</h3>
+<p>One dispatch made against a written-down expectation, and what actually came back.</p>
+<p>Starts out made. Can be made, held, surprising, or unsettled.</p>
+</article>
+<article class="term" id="check-count">
+<h3>Check count</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a check count is not negative.</p>
+</article>
+<article class="term" id="check-held">
+<h3>Check held</h3>
+<p>Recorded after <a href="#held">Held</a>.</p>
+</article>
+<article class="term" id="check-made">
+<h3>Check made</h3>
+<p>Recorded after <a href="#check">Check</a>.</p>
+</article>
+<article class="term" id="check-remade">
+<h3>Check remade</h3>
+<p>Recorded after <a href="#remake">Remake</a>.</p>
+</article>
+<article class="term" id="check-sequence">
+<h3>Check sequence</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a check sequence is positive.</p>
+</article>
+<article class="term" id="check-surprised">
+<h3>Check surprised</h3>
+<p>Recorded after <a href="#surprised">Surprised</a>.</p>
+</article>
+<article class="term" id="check-unsettled">
+<h3>Check unsettled</h3>
+<p>Recorded after <a href="#unsettled-check">Unsettled (check)</a>.</p>
+</article>
+<article class="term" id="conclude">
+<h3>Conclude</h3>
+<p>End a pass and say what it taught. Done by the qa engineer.</p>
+</article>
+<article class="term" id="engineer-1">
+<h3>Engineer</h3>
+<p>Text.</p>
+<p class="rule">Always true: a sweep says who ran it.</p>
+</article>
+<article class="term" id="expectation-1">
+<h3>Expectation</h3>
+<p>Text.</p>
+<p class="rule">Always true: a check says what it expected.</p>
+</article>
+<article class="term" id="for-subject">
+<h3>For subject</h3>
+<p>Everything ever put to one verb, across every sweep. Count the rows and that is its coverage.</p>
+</article>
+<article class="term" id="gate-waived">
+<h3>Gate waived</h3>
+<p>Recorded after <a href="#waive-1">Waive (sweep)</a> or <a href="#waive">Waive (bug)</a>.</p>
+</article>
+<article class="term" id="held">
+<h3>Held</h3>
+<p>Record that the system did what the chapter promised. Done by the qa engineer.</p>
+</article>
+<article class="term" id="listing">
+<h3>Listing</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="observation">
+<h3>Observation</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="open-2">
+<h3>Open</h3>
+<p>Begin a pass over one chapter. Done by the qa engineer.</p>
+</article>
+<article class="term" id="remake">
+<h3>Remake</h3>
+<p>Put a settled check back, against a system that has since changed. Done by the qa engineer.</p>
+</article>
+<article class="term" id="subject">
+<h3>Subject</h3>
+<p>Text.</p>
+<p class="rule">Always true: a check names what it put to the system.</p>
+</article>
+<article class="term" id="surprised">
+<h3>Surprised</h3>
+<p>Record that the system did something other than what was written down. Done by the qa engineer.</p>
+</article>
+<article class="term" id="surprising">
+<h3>Surprising</h3>
+<p>Every check the system surprised, across every sweep — the raw material a bug is written from, and the only list here that is supposed to be interesting.</p>
+</article>
+<article class="term" id="sweep-abandoned">
+<h3>Sweep abandoned</h3>
+<p>Recorded after <a href="#abandon">Abandon</a>.</p>
+</article>
+<article class="term" id="sweep-concluded">
+<h3>Sweep concluded</h3>
+<p>Recorded after <a href="#conclude">Conclude</a>.</p>
+</article>
+<article class="term" id="sweep-notes">
+<h3>Sweep notes</h3>
+<p>Text.</p>
+<p class="rule">Always true: a sweep says what it learned, in at least 40 characters.</p>
+</article>
+<article class="term" id="sweep-opened">
+<h3>Sweep opened</h3>
+<p>Recorded after <a href="#open-2">Open</a>.</p>
+</article>
+<article class="term" id="sweep-reference">
+<h3>Sweep reference</h3>
+<p>Text.</p>
+<p class="rule">Always true: a sweep is referenced.</p>
+</article>
+<article class="term" id="sweeping">
+<h3>Sweeping</h3>
+<p>Passes live right now — one per agent, and the reason a target shows as held.</p>
+</article>
+<article class="term" id="unsettled-check">
+<h3>Unsettled (check)</h3>
+<p>Record a check that ran and settled nothing. Done by the qa engineer.</p>
+</article>
+<article class="term" id="unsettled-the-list">
+<h3>Unsettled (the list)</h3>
+<p>Made and never ruled on, plus the runs that settled nothing. A sweep concluded with rows here concluded early.</p>
+</article>
+<article class="term" id="waive-1">
+<h3>Waive</h3>
+<p>Go round a gate, on the record. Done by the qa engineer.</p>
+</article>
+<article class="term" id="waived-1">
+<h3>Waived</h3>
+<p>Sweeps that went round a gate. Read as a fraction of all of them: a practice whose waiver rate is climbing is not moving faster, it is agreeing with itself less.</p>
+</article>
+<article class="term" id="waiver-count-1">
+<h3>Waiver count</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a waiver count is not negative.</p>
+</article>
+<article class="term" id="waiver-reason-1">
+<h3>Waiver reason</h3>
+<p>Text.</p>
+<p class="rule">Always true: a waived gate says why.</p>
+</article></div>
+</section>
+<section id="target">
+<h2>Target</h2>
+<p class="about">A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.</p>
+<p>Starts out waiting. Can be waiting, held, or shelved.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_target[&quot;Target&quot;]:::focus
+    n_sweep[&quot;Sweep&quot;]
+    n_sweep --&gt;|&quot;target&quot;| n_target
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; waiting
+    waiting --&gt; held: Claim
+    held --&gt; held: Claim
+    held --&gt; waiting: Release
+    waiting --&gt; shelved: Shelve
+    held --&gt; shelved: Shelve
+    shelved --&gt; waiting: Restore</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>Shelving a target says why.</li><li>A staleness window is positive.</li></ul>
+<div class="terms">
+<article class="term" id="all-5">
+<h3>All</h3>
+<p>Every chapter ever written down — the inventory a runner walking the repository checks its findings against.</p>
+</article>
+<article class="term" id="claim-1">
+<h3>Claim</h3>
+<p>Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.</p>
+</article>
+<article class="term" id="engineer-2">
+<h3>Engineer</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="held-1">
+<h3>Held</h3>
+<p>Claimed right now, and by whom. Read it before wondering why the rotation looks short — a claim older than the window is free for the taking.</p>
+</article>
+<article class="term" id="identify">
+<h3>Identify</h3>
+<p>Write down that a chapter exists which nobody has swept. Done by the qa engineer.</p>
+</article>
+<article class="term" id="instant-2">
+<h3>Instant</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an instant is not before the epoch.</p>
+</article>
+<article class="term" id="release">
+<h3>Release</h3>
+<p>Hand a chapter back to the rotation, stamped with when. Done by the qa engineer.</p>
+</article>
+<article class="term" id="restore">
+<h3>Restore</h3>
+<p>Put a shelved chapter back in the rotation. Done by the qa engineer.</p>
+</article>
+<article class="term" id="rotation">
+<h3>Rotation</h3>
+<p>Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists.</p>
+</article>
+<article class="term" id="shelve">
+<h3>Shelve</h3>
+<p>Decide a chapter is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
+</article>
+<article class="term" id="shelved">
+<h3>Shelved</h3>
+<p>Deliberately not swept, each with its reason. Re-read before anybody claims a coverage number.</p>
+</article>
+<article class="term" id="stale-after-1">
+<h3>Stale after</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a staleness window is positive.</p>
+</article>
+<article class="term" id="swept-in">
+<h3>Swept in</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a sweep time is not before the epoch.</p>
+</article>
+<article class="term" id="target-claimed">
+<h3>Target claimed</h3>
+<p>Recorded after <a href="#claim-1">Claim</a>.</p>
+</article>
+<article class="term" id="target-identified">
+<h3>Target identified</h3>
+<p>Recorded after <a href="#identify">Identify</a>.</p>
+</article>
+<article class="term" id="target-path">
+<h3>Target path</h3>
+<p>Text.</p>
+<p class="rule">Always true: a target says where it is.</p>
+</article>
+<article class="term" id="target-reason">
+<h3>Target reason</h3>
+<p>Text.</p>
+<p class="rule">Always true: shelving a target says why.</p>
+</article>
+<article class="term" id="target-reference">
+<h3>Target reference</h3>
+<p>Text.</p>
+<p class="rule">Always true: a target is referenced.</p>
+</article>
+<article class="term" id="target-released">
+<h3>Target released</h3>
+<p>Recorded after <a href="#release">Release</a>.</p>
+</article>
+<article class="term" id="target-restored">
+<h3>Target restored</h3>
+<p>Recorded after <a href="#restore">Restore</a>.</p>
+</article>
+<article class="term" id="target-shelved">
+<h3>Target shelved</h3>
+<p>Recorded after <a href="#shelve">Shelve</a>.</p>
+</article>
+<article class="term" id="untouched">
+<h3>Untouched</h3>
+<p>Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.</p>
+</article></div>
+</section>
+<section id="ticket">
+<h2>Ticket</h2>
+<p class="about">One issue raised in a tracker outside this repository — what it says, whether the tracker took it, and how many times we have asked.</p>
+<p>Starts out raised. Can be raised, submitting, filed, refused, abandoned, or closed.</p>
+<figure>
+<figcaption>How it fits</figcaption>
+<pre class="mermaid">flowchart LR
+    n_ticket[&quot;Ticket&quot;]:::focus
+    n_bug[&quot;Bug&quot;]
+    n_ticket --&gt;|&quot;bug&quot;| n_bug
+    classDef focus stroke-width:3px</pre>
+</figure>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; raised
+    raised --&gt; submitting: Submit
+    refused --&gt; submitting: Submit
+    submitting --&gt; filed: Filed
+    submitting --&gt; refused: Refused
+    refused --&gt; submitting: Retry
+    refused --&gt; abandoned: Abandon
+    filed --&gt; closed: Close</pre>
+</figure>
+<p class="caption"></p>
+<ul class="rules"><li>A Ticket references a Bug.</li><li>A ticket is referenced.</li><li>A ticket is titled.</li><li>A ticket says something.</li><li>An issue number is not negative.</li><li>An attempt count is not negative.</li><li>A filing is attempted at least once.</li></ul>
+<div class="terms">
+<article class="term" id="abandon-1">
+<h3>Abandon</h3>
+<p>Stop asking, and put it in front of a person. Done by the qa engineer.</p>
+</article>
+<article class="term" id="abandoned">
+<h3>Abandoned</h3>
+<p>Asked three times, refused three times. Every row belongs in the report, because nothing automatic will touch it again.</p>
+</article>
+<article class="term" id="all-6">
+<h3>All</h3>
+<p>Every ticket ever raised.</p>
+</article>
+<article class="term" id="ask-again">
+<h3>Ask again</h3>
+<p>When <a href="#ticket-filing-refused">Ticket filing refused</a> happens, <a href="#ticket">Ticket</a> is asked to <a href="#retry">Retry</a>.</p>
+</article>
+<article class="term" id="ask-once-more">
+<h3>Ask once more</h3>
+<p>When <a href="#ticket-retried">Ticket retried</a> happens, Ticket::issue tracker is asked to File.</p>
+</article>
+<article class="term" id="attempt-count">
+<h3>Attempt count</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an attempt count is not negative.</p>
+</article>
+<article class="term" id="bug-ref-1">
+<h3>Bug ref</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="close-1">
+<h3>Close</h3>
+<p>Record that the issue is done with. Done by the qa engineer.</p>
+</article>
+<article class="term" id="file-when-submitted">
+<h3>File when submitted</h3>
+<p>When <a href="#ticket-submitted">Ticket submitted</a> happens, Ticket::issue tracker is asked to File.</p>
+</article>
+<article class="term" id="filed">
+<h3>Filed</h3>
+<p>Record that the tracker took it, and where it landed. Done by the system.</p>
+</article>
+<article class="term" id="filed-the-list">
+<h3>Filed (the list)</h3>
+<p>Open issues this practice is responsible for, out in the world.</p>
+</article>
+<article class="term" id="for-bug-1">
+<h3>For bug</h3>
+<p>Every ticket ever raised about one bug — the duplicate check, before a second is raised.</p>
+</article>
+<article class="term" id="issue-number">
+<h3>Issue number</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an issue number is not negative.</p>
+</article>
+<article class="term" id="issue-url">
+<h3>Issue url</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="max-attempts">
+<h3>Max attempts</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a filing is attempted at least once.</p>
+</article>
+<article class="term" id="proposed">
+<h3>Proposed</h3>
+<p>Tickets that already carry a pull request — a fix exists, so more work filed against them is duplicated effort.</p>
+</article>
+<article class="term" id="pull-request">
+<h3>Pull request</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="raise">
+<h3>Raise</h3>
+<p>Say the outside world needs to know about a bug we could not fix. Done by the qa engineer.</p>
+</article>
+<article class="term" id="raised">
+<h3>Raised</h3>
+<p>Composed and not sent. Nothing will happen to these until somebody submits one.</p>
+</article>
+<article class="term" id="refusal-text">
+<h3>Refusal text</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="refused">
+<h3>Refused</h3>
+<p>Record that the tracker would not take it, and what it said. Done by the system.</p>
+</article>
+<article class="term" id="refused-the-list">
+<h3>Refused (the list)</h3>
+<p>The tracker said no, and what it said. Retried automatically until the cap.</p>
+</article>
+<article class="term" id="resting-on-fixed">
+<h3>Resting on fixed</h3>
+<p>Tickets about a bug this repository went on to fix itself. Each one owes the outside world a Close.</p>
+</article>
+<article class="term" id="resting-on-unpaused">
+<h3>Resting on unpaused</h3>
+<p>Tickets about a bug nobody has stopped on. Raise an issue only for something you could not fix yourself — this is the list where that gets skipped.</p>
+</article>
+<article class="term" id="retry">
+<h3>Retry</h3>
+<p>Ask again, up to the limit, carrying what was refused. Done by the system.</p>
+</article>
+<article class="term" id="submit">
+<h3>Submit</h3>
+<p>Send it — the last reversible moment. Done by the qa engineer.</p>
+</article>
+<article class="term" id="submitting">
+<h3>Submitting</h3>
+<p>Sent and not yet answered. A row that sticks here is a call whose outcome nobody recorded — look at the tracker before asking again, or a retry files a duplicate.</p>
+</article>
+<article class="term" id="ticket-body">
+<h3>Ticket body</h3>
+<p>Text.</p>
+<p class="rule">Always true: a ticket says something.</p>
+</article>
+<article class="term" id="ticket-closed">
+<h3>Ticket closed</h3>
+<p>Recorded after <a href="#close-1">Close</a>.</p>
+</article>
+<article class="term" id="ticket-filed">
+<h3>Ticket filed</h3>
+<p>Recorded after <a href="#filed">Filed</a>.</p>
+</article>
+<article class="term" id="ticket-filing-abandoned">
+<h3>Ticket filing abandoned</h3>
+<p>Recorded after <a href="#abandon-1">Abandon</a>.</p>
+</article>
+<article class="term" id="ticket-filing-refused">
+<h3>Ticket filing refused</h3>
+<p>Recorded after <a href="#refused">Refused</a>. Prompts <a href="#ask-again">Ask again</a>.</p>
+</article>
+<article class="term" id="ticket-raised">
+<h3>Ticket raised</h3>
+<p>Recorded after <a href="#raise">Raise</a>.</p>
+</article>
+<article class="term" id="ticket-reference">
+<h3>Ticket reference</h3>
+<p>Text.</p>
+<p class="rule">Always true: a ticket is referenced.</p>
+</article>
+<article class="term" id="ticket-repository">
+<h3>Ticket repository</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="ticket-retried">
+<h3>Ticket retried</h3>
+<p>Recorded after <a href="#retry">Retry</a>. Prompts <a href="#ask-once-more">Ask once more</a>.</p>
+</article>
+<article class="term" id="ticket-submitted">
+<h3>Ticket submitted</h3>
+<p>Recorded after <a href="#submit">Submit</a>. Prompts <a href="#file-when-submitted">File when submitted</a>.</p>
+</article>
+<article class="term" id="ticket-title">
+<h3>Ticket title</h3>
+<p>Text.</p>
+<p class="rule">Always true: a ticket is titled.</p>
+</article></div>
+</section>
+<section id="roles">
+<h2>Roles</h2>
+<p class="about">Who does what. A role is named once here rather than under every term it touches.</p>
+<div class="terms">
+<article class="term" id="qa-engineer">
+<h3>QA engineer</h3>
+<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#open-2">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-1">Close (ticket)</a>, <a href="#open-1">Open (patch)</a>, <a href="#merge">Merge</a>, <a href="#close">Close (patch)</a>, and <a href="#start">Start</a>.</p>
+</article>
+<article class="term" id="system">
+<h3>System</h3>
+<p>Responsible for <a href="#filed">Filed</a>, <a href="#refused">Refused</a>, <a href="#retry">Retry</a>, <a href="#passed">Passed</a>, and <a href="#failed">Failed</a>.</p>
+</article></div>
+</section>
+<section id="read-models">
+<h2>Read models</h2>
+<p class="about">Questions answered across more than one of the things above.</p>
+<div class="terms">
+<article class="term" id="bugs-by-status">
+<h3>Bugs by status</h3>
+<p>Every bug sorted into what became of it — the tally. The share that is withdrawn, beside the share verified, is the honesty check on the whole practice.</p>
+</article>
+<article class="term" id="bugs-by-submitter">
+<h3>Bugs by submitter</h3>
+<p>Every bug sorted by who reported it, then by its own reference — what each agent has actually found.</p>
+</article>
+<article class="term" id="tickets-by-status">
+<h3>Tickets by status</h3>
+<p>Every ticket sorted by where it got to — stuck filings and abandoned ones are only visible as a count.</p>
+</article></div>
+</section>
+<section id="reactions">
+<h2>Reactions</h2>
+<p class="about">What happens on its own, in response to something this specification does not itself raise.</p>
+<div class="terms">
+<article class="term" id="clear-on-pass">
+<h3>Clear on pass</h3>
+<p>When Suite passed happens, <a href="#clearance">Clearance</a> is asked to <a href="#passed">Passed</a>.</p>
+</article>
+<article class="term" id="close-when-closed-upstream">
+<h3>Close when closed upstream</h3>
+<p>When Issue closed upstream happens, <a href="#ticket">Ticket</a> is asked to <a href="#close-1">Close</a>.</p>
+</article>
+<article class="term" id="record-the-issue">
+<h3>Record the issue</h3>
+<p>When Issue filed happens, <a href="#ticket">Ticket</a> is asked to <a href="#filed">Filed</a>.</p>
+</article>
+<article class="term" id="record-the-refusal">
+<h3>Record the refusal</h3>
+<p>When Issue filing refused happens, <a href="#ticket">Ticket</a> is asked to <a href="#refused">Refused</a>.</p>
+</article>
+<article class="term" id="refuse-on-fail">
+<h3>Refuse on fail</h3>
+<p>When Suite failed happens, <a href="#clearance">Clearance</a> is asked to <a href="#failed">Failed</a>.</p>
+</article></div>
+</section>
+</main>
+</div>
+<script>
+// The page's three behaviours: draw the diagrams, find a term, and
+// keep the rail pointing at the section in view. Nothing here changes
+// what the page says — that is all in the Markdown it was rendered from.
+(function () {
+  var root = document.documentElement;
+  var dark = root.dataset.theme === "dark" ||
+    (root.dataset.theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: dark ? "dark" : "neutral",
+      fontFamily: "\"Instrument Sans\", system-ui, sans-serif",
+      flowchart: { curve: "basis", padding: 12 }
+    });
+  }
+
+  var input = document.querySelector(".rail input");
+  var count = document.querySelector(".rail .count");
+  var terms = Array.prototype.slice.call(document.querySelectorAll(".term"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll("main section"));
+  var links = {};
+  Array.prototype.forEach.call(document.querySelectorAll(".rail a"), function (a) {
+    links[a.getAttribute("href").slice(1)] = a;
+  });
+
+  function filter() {
+    var query = input.value.trim().toLowerCase();
+    var shown = 0;
+    terms.forEach(function (term) {
+      var hit = !query || term.textContent.toLowerCase().indexOf(query) !== -1;
+      term.hidden = !hit;
+      if (hit) shown += 1;
+    });
+    sections.forEach(function (section) {
+      var any = Array.prototype.some.call(section.querySelectorAll(".term"), function (t) { return !t.hidden; });
+      section.hidden = !!query && !any;
+      section.classList.toggle("searching", !!query);
+      var link = links[section.id];
+      if (link) link.parentNode.hidden = section.hidden;
+    });
+    count.textContent = query ? shown + " of " + terms.length + " terms" : terms.length + " terms";
+  }
+
+  input.addEventListener("input", filter);
+  filter();
+
+  if ("IntersectionObserver" in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        Object.keys(links).forEach(function (id) { links[id].removeAttribute("aria-current"); });
+        var link = links[entry.target.id];
+        if (link) link.setAttribute("aria-current", "true");
+      });
+    }, { rootMargin: "-8% 0px -82% 0px" });
+    sections.forEach(function (section) { observer.observe(section); });
+  }
+
+  // A link inside a definition lands on a term; a search in progress
+  // would hide it, so the search is cleared first.
+  document.addEventListener("click", function (event) {
+    var a = event.target.closest && event.target.closest("a[href^='#']");
+    if (!a) return;
+    var target = document.getElementById(a.getAttribute("href").slice(1));
+    if (!target) return;
+    if (input.value) { input.value = ""; filter(); }
+    target.classList.remove("landed");
+    void target.offsetWidth;
+    target.classList.add("landed");
+  });
+})();
+
+</script>
+</body>
+</html>

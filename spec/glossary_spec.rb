@@ -1,13 +1,19 @@
 require "spec_helper"
 
-# THE GLOSSARY EVERY DOMAIN CARRIES WITH IT — `examples/<domain>/glossary/`
-# is a projection of the bluebook beside it, and this refuses a diff the
+# THE GLOSSARY EVERY DOMAIN CARRIES WITH IT — `<domain>/glossary/` (the two
+# examples, and the QA ledger under qa/) is a projection of the bluebook
+# beside it, and this refuses a diff the
 # same way spec/diagrams_spec.rb refuses one for the diagrams: regenerate
 # in memory, compare byte for byte, refuse an orphan. The page is then
 # checked for the three promises Projections::Glossary makes to a reader
 # outside engineering — no identifiers, no type labels, every link lands.
 RSpec.describe "the glossary a domain carries with it" do
-  GLOSSARY_DOMAINS = { "pizzas" => "Pizzas", "banking" => "Banking" }.freeze
+  # DOMAIN FOLDER (relative to the repo root) => THE CHAPTER IT DECLARES.
+  GLOSSARY_DOMAINS = {
+    "examples/pizzas"  => "Pizzas",
+    "examples/banking" => "Banking",
+    "qa"               => "QualityControl"
+  }.freeze
 
   def chapter_of(domain, name)
     registry = Hecks::Runtime::Registry.new
@@ -16,19 +22,19 @@ RSpec.describe "the glossary a domain carries with it" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      InMemoryDomain.load_bluebook_files(File.join(InMemoryDomain::ROOT, "examples", domain, "bluebook"))
+      InMemoryDomain.load_bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook"))
     end
     registry.bluebook(name)
   end
 
-  def committed_dir(domain) = File.join(InMemoryDomain::ROOT, "examples", domain, "glossary")
+  def committed_dir(domain) = File.join(InMemoryDomain::ROOT, domain, "glossary")
 
   def committed_files(domain)
     Dir.glob("**/*", base: committed_dir(domain)).select { |path| File.file?(File.join(committed_dir(domain), path)) }
   end
 
   GLOSSARY_DOMAINS.each do |domain, name|
-    describe domain do
+    describe File.basename(domain) do
       let(:chapter) { chapter_of(domain, name) }
       let(:tree)    { Hecks::Projector.call(:glossary, bluebook: chapter) }
       let(:html)    { File.read(File.join(committed_dir(domain), "html/index.html")) }
@@ -80,8 +86,8 @@ RSpec.describe "the glossary a domain carries with it" do
   end
 
   describe "banking, read closely" do
-    let(:markdown) { File.read(File.join(committed_dir("banking"), "glossary.md")) }
-    let(:html)     { File.read(File.join(committed_dir("banking"), "html/index.html")) }
+    let(:markdown) { File.read(File.join(committed_dir("examples/banking"), "glossary.md")) }
+    let(:html)     { File.read(File.join(committed_dir("examples/banking"), "html/index.html")) }
 
     it "tells Open the action from Open the list by qualifying the headword, not numbering it" do
       expect(markdown).to include("### Open\n", "### Open (the list)\n")
@@ -110,7 +116,7 @@ RSpec.describe "the glossary a domain carries with it" do
 
   describe "pizzas, whose one reaction is raised by a port" do
     it "keeps that reaction visible in its own section rather than dropping it" do
-      markdown = File.read(File.join(committed_dir("pizzas"), "glossary.md"))
+      markdown = File.read(File.join(committed_dir("examples/pizzas"), "glossary.md"))
       expect(markdown).to include("## Reactions", "### On pizza payment received")
     end
   end
