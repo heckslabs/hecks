@@ -34,7 +34,8 @@ module Hecks
     # ```mermaid fences, lists, in-page links). `html/index.html` is that
     # exact Markdown string rendered into a page with a navigation rail;
     # it is built FROM the Markdown, not beside it, so the two cannot
-    # drift. `bin/project_glossary` writes both to `examples/<domain>/glossary/`.
+    # drift. `bin/project_glossary` writes both to `<domain>/glossary/` beside
+    # the bluebook (examples/banking, examples/pizzas, and the QA ledger in qa/).
     #
     #   Projector.call(:glossary, bluebook: <the Bluebook chapter>)
     #   # => { "glossary.md" => "...", "html/index.html" => "..." }
