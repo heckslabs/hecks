@@ -11,6 +11,7 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Target.persisted_by("Heki")
   QualityControl::Sweep.persisted_by("Heki")
   QualityControl::Bug.persisted_by("Heki")
+  QualityControl::Angle.persisted_by("Heki")
   QualityControl::Ticket.persisted_by("Heki")
   QualityControl::Clearance.persisted_by("Heki")
 

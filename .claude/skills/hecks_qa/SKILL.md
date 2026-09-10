@@ -233,6 +233,25 @@ Once `pizzas`/`banking` have had real passes, "being clever" means
 authoring a **new domain shape**, not just varying sequences against the
 same two. The existing fuzz-bridge only does the latter.
 
+**Check `Angle.Backlog` first — before inventing an angle from scratch.**
+`QualityControl::Angle` (`qa/bluebook/quality_control.bluebook`, "── where
+to look next ──") is the practice's own durable memory of investigation
+directions a past session already identified and cited, so this step
+doesn't repeat from zero every time an agent gets here:
+
+```
+bundle exec ruby bin/run qa/bluebook ask backlog
+```
+
+(`bin/qa_seed_angles` bootstraps it once, the same way `bin/qa_sweep`'s
+own `seed_default_targets!` bootstraps `pizzas`/`banking` — idempotent,
+safe to run again.) Each row already names what it cites — a Bug
+reference, an ADR, a construct-combination gap — so read `Angle.Resolved`
+too before starting: an entry already `built` or `discarded` says what
+came of chasing it, which is exactly the history that keeps a second
+session from re-proposing the same thing a first already settled one way
+or the other.
+
 - Live under `qa/stress_domains/`, never `examples/` — clearly
   synthetic, never mistaken for a usage sample. Use the
   `<name>/bluebook/<name>.bluebook` nested shape (see
@@ -241,7 +260,8 @@ same two. The existing fuzz-bridge only does the latter.
 - Bias hard toward RE-TRIGGERING, in a new context, a class of bug
   hecks has already found — cite the specific memory/ADR/PR you're
   aiming at. Highest hit-rate; broader/untargeted generation only once
-  that vein's exhausted.
+  that vein's exhausted. An open row in `Angle.Backlog` is very often
+  exactly this citation, already written down.
 - **Discard it** unless it exercises a DSL construct-combination the
   current `Target` set doesn't already cover — check what
   pizzas/banking (and the stress domains already in
@@ -253,6 +273,20 @@ same two. The existing fuzz-bridge only does the latter.
   until (and unless) `bin/project_rust` ever gives it a compiled Rust
   binary too, differentially against that binary from then on — nothing
   about the sweep itself needs to know which.
+- **Close the loop on the angle that led here.** If the domain grew out
+  of a row in `Angle.Backlog`, mark it: `angle.investigate` when you pick
+  it up, then `build resolution.value="<what actually got built>"` (the
+  `Target` reference, the PR, the domain's own path) once it lands, or
+  `discard reason.value="<why not>"` if it turns out not to hold up.
+  **If the domain came from a genuinely new angle nobody had written down
+  yet — not from `Angle.Backlog` — propose it before or alongside the
+  domain itself**: `propose premise.value="…" citation.value="…"
+  proposer.value="…"`, citing the specific memory/ADR/PR/construct-gap the
+  same way the bullet above already asks the domain itself to. This is
+  the actual mechanism that lets the practice mine its own history
+  instead of an agent reinventing judgment every session — it only works
+  if a genuinely new angle gets written down here, not just chased
+  straight into a domain and forgotten the moment the PR merges.
 
 ## What this will never do
 

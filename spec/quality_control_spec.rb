@@ -74,6 +74,7 @@ RSpec.describe "QualityControl" do
         QualityControl::Target.persisted_by("Memory")
         QualityControl::Sweep.persisted_by("Memory")
         QualityControl::Bug.persisted_by("Memory")
+        QualityControl::Angle.persisted_by("Memory")
         QualityControl::Ticket.persisted_by("Memory")
         QualityControl::Clearance.persisted_by("Memory")
 
@@ -489,6 +490,106 @@ RSpec.describe "QualityControl" do
       bug.pause!(reason:    { value: "affects the whole type system" },
                  next_step: { value: "architecture review — should coercion recurse into nested value objects?" })
       expect(references("Bug.Paused")).to eq([bug.id])
+    end
+  end
+
+  # ── where to look next ───────────────────────────────────────────────
+
+  def an_angle(reference: "ANGLE-1", proposer: "Claude QA",
+               premise: "Nobody has fuzzed this construct combination before, and two existing bugs suggest it's ripe.",
+               citation: "BUG#1", now: 1_000)
+    runtime
+    QualityControl::Angle.propose!(
+      reference: { value: reference },
+      premise:   { value: premise },
+      citation:  { value: citation },
+      proposer:  { value: proposer },
+      now:       { value: now }
+    )
+  end
+
+  describe "the backlog of where to look next" do
+    # SAME FRICTION `Target.Claim` ALREADY REMOVED, for the same reason — see
+    # "the clock" describe block above. Only the CLI door fills an omitted
+    # argument from the clock port; the facade's own Ruby method (used
+    # everywhere else in this file) always wants it named, the same way
+    # `target.claim!`'s own direct calls do.
+    it "fills proposed_at from the clock when the caller leaves it out" do
+      runtime
+      text, code = Hecks::Facade::CliRunner.call(
+        runtime: runtime, program: "bin/qc",
+        argv: ["propose", "reference.value=ANGLE-1", "premise.value=#{'a' * 60}",
+               "citation.value=BUG#1", "proposer.value=Claude QA"]
+      )
+
+      expect(code).to eq(0)
+      expect(JSON.parse(text).dig("state", "proposed_at", "value")).to eq(1_000)
+    end
+
+    it "refuses a premise too short to act on without the proposer in the room" do
+      expect { an_angle(premise: "too short") }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /at least 60 characters/)
+    end
+
+    it "refuses an angle nobody will own" do
+      expect { an_angle(proposer: "nobody") }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /proposed by somebody/)
+    end
+
+    it "sits in the backlog until it is investigated" do
+      angle = an_angle(reference: "ANGLE-1")
+
+      expect(references("Angle.Backlog")).to eq(["ANGLE-1"])
+      expect(rows("Angle.Resolved")).to be_empty
+
+      angle.investigate!
+      expect(angle.status).to eq("investigating")
+      expect(references("Angle.Backlog")).to eq(["ANGLE-1"])
+    end
+
+    it "offers the backlog oldest-first, by the scalar inside proposed_at, not the value object" do
+      first  = an_angle(reference: "ANGLE-1") # takes the clock's fixed 1_000
+      second = an_angle(reference: "ANGLE-2", citation: "BUG#2", now: 500)
+
+      expect(references("Angle.Backlog")).to eq(["ANGLE-2", "ANGLE-1"])
+      expect(second.proposed_at.to_h[:value]).to be < first.proposed_at.to_h[:value]
+    end
+
+    it "cannot be built before anybody has looked at it" do
+      expect { an_angle.build!(resolution: { value: "PR #999" }) }
+        .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "investigating"/)
+    end
+
+    it "moves a chased lead into what actually got built" do
+      angle = an_angle
+      angle.investigate!
+
+      built = angle.build!(resolution: { value: "BUG#6, PR #530, qa/stress_domains/waybill" })
+
+      expect(built.status).to eq("built")
+      expect(references("Angle.Resolved")).to eq([angle.id])
+      expect(rows("Angle.Backlog")).to be_empty
+    end
+
+    it "discards a lead — before or after investigating — with a reason" do
+      never_started = an_angle(reference: "ANGLE-1")
+      expect { never_started.discard! }
+        .to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
+      never_started.discard!(reason: { value: "already covered by nested_pieces — not a distinct angle after all" })
+
+      investigated = an_angle(reference: "ANGLE-2")
+      investigated.investigate!
+      investigated.discard!(reason: { value: "real investigation found no reachable divergence" })
+
+      expect(references("Angle.Resolved")).to contain_exactly("ANGLE-1", "ANGLE-2")
+      expect(rows("Angle.Backlog")).to be_empty
+    end
+
+    it "lists every angle ever proposed" do
+      an_angle(reference: "ANGLE-1")
+      an_angle(reference: "ANGLE-2", citation: "ADR 0037")
+
+      expect(references("Angle.All")).to eq(["ANGLE-1", "ANGLE-2"])
     end
   end
 
