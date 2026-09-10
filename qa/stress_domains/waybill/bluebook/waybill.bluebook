@@ -1,0 +1,297 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/hecks_qa/SKILL.md's "Authoring a
+# new stress domain" section).
+#
+# THE CONSTRUCT-COMBINATION THIS DOMAIN IS FOR, ABSENT FROM THE ENTIRE
+# CORPUS UNTIL NOW: a `process_manager` (saga) whose own `dispatch` leg
+# targets a command owned by a NESTED ENTITY, not a plain aggregate.
+# Every `process_manager` in this repository — banking's own
+# `Onboarding`/`Settlement`/`ExternalSettlement`, quality_control's own
+# `BugCiWatch` — dispatches exclusively into AGGREGATE-level commands.
+# `qa/stress_domains/nested_pieces` proved a two-level nested entity
+# fuzzes and dispatches correctly through ORDINARY (non-saga) addressing.
+# Neither combination — saga leg targeting an entity command — had ever
+# been declared anywhere, checked directly against every existing
+# `process_manager` in the corpus (`grep -rn 'dispatch ' examples/
+# banking/bluebook/*.bluebook qa/bluebook/quality_control.bluebook`)
+# before this domain was authored.
+#
+# WHAT THIS DOMAIN FOUND, FIRST TRY: the combination does not work.
+# `SagaInterpreter#qualified` (`lib/hecks/runtime/saga_interpreter.rb`)
+# decides whether a dispatch's own `command_name` already carries an
+# explicit domain qualifier with one heuristic: `command_name.include?
+# ("::")`. That heuristic is correct for a plain aggregate command
+# (`dispatch Account::Debit` -> `Naming.command_ref` rewrites its ONE
+# `::` to `.`, leaving NONE — correctly triggers domain-prefixing) and
+# for a genuinely cross-domain one (`dispatch Banking::Account::Debit`
+# -> ONE `::` survives the rewrite, correctly read as already-qualified)
+# — but a bare, SAME-DOMAIN entity command reference
+# (`dispatch Manifest::Slot::Fill`) ALSO has exactly one `::` left after
+# the identical rewrite (`Naming.command_ref` only ever strips the LAST
+# `::`), for a completely different reason: entity nesting, not a
+# domain qualifier. `qualified` cannot tell the two apart from the
+# string alone, and picks the cross-domain reading — so the actual
+# runtime dispatch call gets `"Manifest::Slot.Fill"`, never prefixed
+# with this chapter's own name at all, and `Naming.split_verb` then
+# reads "Manifest" as the DOMAIN and "Slot" as the AGGREGATE — a domain
+# that (almost always) does not exist. `ReactionInvocation.resolve_
+# target` raises `UnknownVerb` ("does not resolve to an aggregate"),
+# which `SagaInterpreter#deliver_saga_dispatch` — correctly, by its own
+# lights — treats as an ordinary DOMAIN REFUSAL (`errors.rb`'s own
+# comment: "UnknownVerb IS one of these, and deliberately"), so the leg
+# just silently "refuses" every single time, structurally, regardless
+# of any value ever generated for it. `PolicyInterpreter#deliver` does
+# NOT share this bug — a policy's own cross-domain qualifier is a
+# SEPARATE `target_domain:` field, never inferred from the command
+# reference string at all, so a policy triggering the identical entity
+# command works correctly today. This is a `SagaInterpreter`-specific
+# gap, confirmed by direct comparison against `PolicyInterpreter#
+# deliver`'s own unconditional `"#{policy.target_domain || domain}::
+# #{policy.trigger_command}"` — no heuristic, no ambiguity.
+#
+# NOT FIXED HERE, ON PURPOSE — same restraint `nested_pieces/NOTES.md`
+# already exercised for BUG#4: this domain was authored from an isolated
+# worktree with no access to `qa/bluebook/quality_control.bluebook`'s own
+# persisted ledger, so the actual `Bug.log`/judgment/fix lifecycle
+# belongs to the session that DOES hold that ledger, not to this PR. See
+# this domain's own NOTES.md for the exact reproduction and the fix this
+# comment's own reasoning points toward.
+#
+# THE DOMAIN ITSELF models a small warehouse consignment: a `Consignment`
+# request starts a `Packing` saga, which opens a `Manifest`, reserves a
+# numbered `Slot` on it (an aggregate-level dispatch — WORKS today), then
+# tries to fill that slot (`Manifest::Slot::Fill`, an ENTITY-level
+# dispatch — the broken leg above) with a `compensates Manifest::Slot::
+# Clear` alongside it (per-dispatch saga compensation, `compensates`,
+# targeting an entity command for the first time anywhere in this
+# corpus too — currently unreachable in practice, since the dispatch it
+# would compensate never actually delivers, but declared for when the
+# underlying gap closes). The saga's own `:refused` leg cancels the
+# consignment — which is, structurally, ALWAYS how this saga currently
+# ends: `Manifest::Slot::Fill` refuses every time, so `ConsignmentShipped`
+# (this process manager's own `ends_on`) is, right now, an UNREACHABLE
+# happy path. That is not a mistake in this domain's own design — it is
+# the honest shape of what currently happens, and once `qualified`'s own
+# gap closes, the SAME domain becomes a real end-to-end regression pin
+# for both the fix and ordinary saga/entity dispatch correctness going
+# forward, with no further authoring needed.
+Hecks.bluebook "Waybill" do
+  vision "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's."
+
+  core
+
+  aggregate "Consignment" do
+    description "A request to pack and ship one item, driving the Packing saga end to end."
+
+    attribute :reference, ConsignmentReference
+    identified_by :reference
+
+    attribute :number, SlotNumber
+    attribute :item,   ItemLabel
+
+    value_object "ConsignmentReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a consignment is referenced") { !value.to_s.empty? }
+    end
+
+    # SAME SHAPE AS `nested_pieces`' OWN `BoardNumber`/`CardSequence` —
+    # positive-only, so `0` is non-blank (survives routing) and still
+    # fails the invariant once a typed rebuild is attempted. Declared
+    # again here (Manifest declares its own copy too, below) rather than
+    # shared — this corpus's own convention (`Transfer`'s aliased
+    # `reference_to Account, as: :source`/`:destination` aside, no
+    # existing chapter shares one value object BY NAME across two
+    # aggregates without redeclaring it locally; `bluebook_builder/
+    # validation.rb`'s own `correlates_by` check reads each owning
+    # aggregate's OWN `value_object` table, never a cross-aggregate one).
+    value_object "SlotNumber" do
+      attribute :value, Integer
+      invariant("a slot number is positive") { value.positive? }
+    end
+
+    value_object "ItemLabel" do
+      attribute :text, String, pattern: '[^ \t\n\r]'
+      invariant("an item is labeled") { !text.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Ship"   => "shipped",   from: "requested"
+      transition "Cancel" => "cancelled", from: "requested"
+    end
+
+    command "Request" do
+      role "Customer"
+      goal "Request one item be packed onto a numbered slot and shipped"
+
+      attribute :reference, ConsignmentReference
+      attribute :number,    SlotNumber
+      attribute :item,      ItemLabel
+
+      emits ConsignmentRequested
+    end
+
+    command "Ship", from: "requested" do
+      role "System"
+      goal "Mark the consignment shipped once its slot is filled"
+
+      reference_to Consignment
+
+      emits ConsignmentShipped
+    end
+
+    command "Cancel", from: "requested" do
+      role "System"
+      goal "Cancel a consignment whose slot could not be filled"
+
+      reference_to Consignment
+
+      emits ConsignmentCancelled
+    end
+
+    query "Requested" do
+      description "Consignments still awaiting a packed, shipped slot."
+      where(status: "requested")
+      order_by :reference
+    end
+  end
+
+  aggregate "Manifest" do
+    description "One manifest, holding numbered slots the Packing saga fills one at a time."
+
+    identified_by :reference
+
+    attribute :reference, ManifestReference
+    attribute :slots,     list_of(Slot)
+
+    value_object "ManifestReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a manifest is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "SlotNumber" do
+      attribute :value, Integer
+      invariant("a slot number is positive") { value.positive? }
+    end
+
+    value_object "ItemLabel" do
+      attribute :text, String, pattern: '[^ \t\n\r]'
+      invariant("an item is labeled") { !text.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Loader"
+      goal "Open a manifest for a consignment"
+
+      attribute :reference, ManifestReference
+
+      emits ManifestOpened
+    end
+
+    command "AddSlot" do
+      role "Loader"
+      goal "Reserve a numbered slot on the manifest"
+
+      reference_to Manifest
+      attribute :number, SlotNumber
+
+      sets :slots, append: { number: :number }
+
+      emits SlotAdded
+    end
+
+    # S17, ADR 0026 — a piece nested inside a piece, one level (see
+    # `qa/stress_domains/nested_pieces` for two). THE WHOLE REASON THIS
+    # DOMAIN EXISTS: a `process_manager`'s own `dispatch` targeting
+    # `Fill`, below, is the untested combination — see this file's own
+    # header comment for the exact gap it surfaces.
+    entity "Slot" do
+      description "One numbered slot on the manifest, filled with one item."
+
+      identified_by :number
+
+      attribute :number, SlotNumber
+      attribute :item,   ItemLabel, optional: true
+
+      command "Fill" do
+        role "Loader"
+        goal "Load an item into the slot"
+
+        attribute :item, ItemLabel
+
+        sets :item
+
+        emits SlotFilled
+      end
+
+      # THE COMPENSATING HALF OF `Fill` — declared for when the saga's
+      # own dispatch into `Fill` actually delivers (see this file's own
+      # header comment: it does not, today). `compensates` targeting an
+      # ENTITY command is, itself, a second combination absent from the
+      # rest of the corpus (banking's own `Settlement` compensates
+      # `Account::Credit`, a plain aggregate command) — declared here so
+      # this domain also becomes the regression pin for THAT combination
+      # the moment the dispatch gap above closes, with no further
+      # authoring needed.
+      command "Clear" do
+        role "Loader"
+        goal "Clear a slot's item back out — the compensating half of Fill"
+
+        attribute :item, ItemLabel
+
+        sets :item
+
+        emits SlotCleared
+      end
+    end
+  end
+
+  # THE SAGA ITSELF. `correlates_by :"reference.value"` — the SAME
+  # dotted field name on both `Consignment` (the starting aggregate) and
+  # every dispatch target below, matching every existing corpus saga's
+  # own convention (Onboarding/Settlement/ExternalSettlement/BugCiWatch
+  # all correlate on one dotted scalar shared across every aggregate a
+  # leg touches).
+  process_manager "Packing" do
+    correlates_by :"reference.value"
+    starts_on Consignment::ConsignmentRequested
+    ends_on   Consignment::ConsignmentShipped
+
+    # LEG 1 — AGGREGATE-LEVEL, WORKS TODAY. Fires on the saga's own
+    # starting event, the same self-transition-on-starts_on shape
+    # `Settlement`'s own first leg and `BugCiWatch` both already use.
+    transition Consignment::ConsignmentRequested => "packing", from: "packing" do
+      dispatch Manifest::Open, with: { reference: :reference }
+    end
+
+    # LEG 2 — AGGREGATE-LEVEL, WORKS TODAY.
+    transition Manifest::ManifestOpened => "packing", from: "packing" do
+      dispatch Manifest::AddSlot, with: { reference: :reference, number: :number }
+    end
+
+    # LEG 3 — THE ENTITY-LEVEL DISPATCH THIS DOMAIN EXISTS TO EXERCISE.
+    # See this file's own header comment: `Manifest::Slot::Fill` refuses
+    # every time today, structurally, regardless of what `number`/
+    # `item` a fuzzed sequence ever generates — `qualified`'s own gap,
+    # not a data-dependent one.
+    transition Manifest::SlotAdded => "filling", from: "packing" do
+      dispatch Manifest::Slot::Fill, with: { number: :number, item: :item } do
+        compensates Manifest::Slot::Clear, with: { number: :number, item: :item }
+      end
+    end
+
+    # THE HAPPY-PATH LEG — currently unreachable (see header comment),
+    # kept declared so this domain is a real end-to-end saga the moment
+    # leg 3 above actually delivers, not a domain rewritten around its
+    # own bug.
+    transition Manifest::SlotFilled => "filled", from: "filling" do
+      dispatch Consignment::Ship, with: { reference: :reference }
+    end
+
+    # THE ONLY LEG THIS SAGA CAN ACTUALLY REACH TODAY — every dispatch
+    # into leg 3 refuses, so `unwind` fires this every single time.
+    transition :refused => "cancelled", from: "filling" do
+      dispatch Consignment::Cancel, with: { reference: :reference }
+    end
+  end
+end
