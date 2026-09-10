@@ -68,6 +68,31 @@ Instead:
      a known-good state.
 4. Wait for the subagent's report. Relay only its short summary here —
    don't pull its internal transcript into this conversation.
+
+   **If the report says a draft PR was opened, record it in the ledger
+   before moving on — this is YOUR job, not the subagent's.**
+   `QualityControl::Patch` (`qa/bluebook/quality_control.bluebook`, "──
+   which pull requests are ours ──") is what `bin/qa_pr_check` now reads
+   *instead of* `gh pr list --search` — a PR this aggregate does not know
+   about is invisible to it, the same way #534 was once invisible to the
+   old branch/title search. The subagent's own report already carries
+   everything `Patch.Open` needs — its number, url, branch, head commit
+   and title are `gh pr create`'s own return value, read straight back by
+   the subagent right after opening (`gh pr view --json
+   number,url,headRefName,headRefOid,title`) and put in its report
+   verbatim, not re-derived by you. Dispatch, against the persistent
+   worktree's own ledger:
+   ```
+   bundle exec ruby bin/run qa/bluebook patch.open bug=<bug-reference> \
+     number.value=<n> url.value="<url>" branch.value="<branch>" \
+     commit.value=<head-commit-sha> title.value="<title>"
+   ```
+   Recording it is *this* action, deliberately kept out of "On a
+   surprising check" below — that section is the subagent's own prompt,
+   and a fact this durable only becomes true once `gh pr create` has
+   actually returned, which is exactly the moment a report reaches you,
+   not a moment a subagent's own dispatch can be trusted to land twice
+   for free if a report is ever retried.
 5. If invoked via `/loop hecks_qa`: **dispatch the next sweep
    immediately** when this one's subagent reports back — the loop's job
    is to keep the practice alive, not to pace it. `QualityControlDials
@@ -86,13 +111,29 @@ Instead:
 *(This is part of the subagent's own prompt too, run BEFORE "Running one
 sweep" — see the orchestrator step above.)*
 
-A `loop-parity/*` PR is a fix this loop judged self-contained and
-verified LOCALLY before opening it — which is not the same fact as "CI's
-own fresh build still agrees", and nothing used to check whether those
-two ever drifted apart. `bin/qa_pr_check` is that check: for any commit a
-`Bug` in the ledger claims to have fixed, once its checks have settled
-(not pending), it asks the ledger's own `Clearance.CI.Run` — the `CI`
-port `quality_control.hecksagon` declares, bound for real to
+A draft PR this loop opened is a fix judged self-contained and verified
+LOCALLY — which is not the same fact as "CI's own fresh build still
+agrees", and nothing used to check whether those two ever drifted apart.
+`bin/qa_pr_check` is that check, and it asks by reading the ledger, not
+by searching GitHub for us: `QualityControl::Patch.Open`
+(`quality_control.bluebook`, "── which pull requests are ours ──") is
+every PR this practice has recorded opening and not yet seen merged or
+closed — recorded once, at the moment it was opened (see the
+orchestrator step's own new instruction above), never rediscovered by a
+branch-prefix or title guess. `gh pr list --search "head:loop-parity"`
+used to be how this script found its own PRs, and it was never reliable:
+checked against this practice's own real history, #533/#532/#529/#526
+are real PRs on `loop-parity/*` branches titled `"heki: ..."`/
+`"BUG#N: ..."`/`"rust: ..."` rather than `"qa: ..."`, invisible to a
+title search; #534 was titled `"qa: ..."` on a branch that never got the
+`loop-parity/` prefix, invisible to a branch search — and a draft PR sits
+outside a plain `gh pr list` on top of either gap. It sat open and
+genuinely red for a day before anything noticed. There is no `--search`
+left in this script at all: for each row in `Patch.Open`, it asks `gh`
+about that PR's own number directly — `gh pr view <n>` first (is it
+still open at all, and what commit is its head at right now), then, once
+its checks have settled (not pending), the ledger's own `Clearance.CI.Run`
+— the `CI` port `quality_control.hecksagon` declares, bound for real to
 `GithubChecks` (`qa/adapters/github_checks.rb`), which is what actually
 shells to `gh` from there, by commit. `ClearOnPass`/`RefuseOnFail`
 (`quality_control.bluebook`'s own foot) turn its answer or refusal into a
@@ -100,17 +141,20 @@ real `QualityControl::Clearance` — which is what lets `BugCiWatch` (a
 process manager in the same bluebook, read its own comment there) notice
 a red run on its own and put the bug back (`Bug.Regress`) without anyone
 watching for it by hand. The script itself never decides pass or fail any
-more; it only decides which commit is worth asking about.
+more, and it never decides which PRs are ours either — it only decides,
+among the PRs the ledger already says are ours, which commit is worth
+asking about.
 
 ```
 bundle exec ruby bin/qa_pr_check
 ```
 
-- **Exit 0 — nothing to act on.** No open `loop-parity/*` PRs at all, or
-  every one already has a recorded `Clearance` (or is still running).
-  Relay the script's own printed summary and move on to the sweep below.
-- **Exit 1 — an operational error.** `gh` was not reachable, a `Bug`'s
-  own recorded commit does not look like a sha, or the ledger would not
+- **Exit 0 — nothing to act on.** `Patch.Open` is empty, or every row on
+  it is already merged/closed (retired this run), already has a recorded
+  `Clearance`, or is still running. Relay the script's own printed
+  summary and move on to the sweep below.
+- **Exit 1 — an operational error.** `gh` was not reachable, a tracked
+  PR's own head commit does not look like a sha, or the ledger would not
   boot. Read the message; fix the actual problem (or report it) rather
   than retrying blind — same as a sweep's own exit 1.
 - **Exit 2 — FOUND A NEWLY-RED PR.** The ledger itself already recorded
@@ -199,6 +243,16 @@ Then decide, honestly:
     already the local git config, don't override it.
   - **Never auto-merge.** Draft, always, regardless of CI status — green
     CI is necessary, not sufficient, for something that ran unattended.
+  - **Report the PR's own number, url, branch and head commit back —
+    don't record it in the ledger yourself.** Right after `gh pr create`,
+    run `gh pr view --json number,url,headRefName,headRefOid,title` and
+    put those five values (plus the Bug's own reference) verbatim in your
+    final report. `QualityControl::Patch.Open` (`quality_control
+    .bluebook`, "── which pull requests are ours ──") is what
+    `bin/qa_pr_check` now reads instead of searching GitHub for PRs that
+    might be ours, and recording a PR into it is the orchestrator's own
+    job, done once your report comes back — see the orchestrator step's
+    own instruction above. Don't dispatch `patch.open` from in here.
   - **The cap is `QualityControlDials::PR_CAP_PER_DAY`** — read it at the
     top of `qa/bluebook/quality_control.bluebook`, not a number in this
     sentence (see that file's own comment on why it lives there and not
@@ -309,3 +363,8 @@ or the other.
 - Skip `bin/qa_pr_check` before a fresh sweep. Every tick, not just the
   ones where somebody remembers a PR might have gone red — see the
   orchestrator step's own "MANDATORY, NO EXCEPTIONS" line.
+- Dispatch `patch.open` from inside a sweep subagent's own prompt.
+  Recording an opened PR into `QualityControl::Patch` is the
+  orchestrator's own job, done once a report naming the PR comes back —
+  see the orchestrator step's own instruction and "On a surprising
+  check"'s own reporting bullet, above.
