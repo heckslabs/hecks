@@ -1,0 +1,104 @@
+#!/usr/bin/env ruby
+
+# Compacts a Heki-backed aggregate's own journal file down to empty,
+# after re-confirming its snapshot is fully caught up — an EXPLICIT,
+# opt-in maintenance operation. Never run automatically, and never as
+# a side effect of an ordinary save/delete.
+#
+# Heki's journal is not a disposable write-ahead log: it is this
+# adapter's own answer to `entries`, and `entries` is a real port
+# contract (`Ports::Persistence::AppendOnly`) read in full, forever,
+# by `Ports::Projection::Worker#catch_up!` and `Registry#
+# projection_current?` to catch a projection up to its authoritative
+# source, and by `bin/history` to show "every journal entry a
+# domain's append-only adapters hold" — the same contract Postgres/
+# Sqlite/D1 uphold by way of a journal TABLE that is never pruned. A
+# real example (`examples/banking`, `persisted_by("Heki")` +
+# `projected_by("SqliteProjection")`) depends on this today.
+#
+# Compacting throws that full operation history away for whatever
+# happened before the call — only the aggregate's current state
+# survives, exactly what its own `.heki` snapshot already held. Safe
+# ONLY for an aggregate nothing ever projects from. This script
+# refuses outright, with no override, for any aggregate a
+# `projected_by` binding targets — see `binds_for` below — and
+# otherwise still requires `--force` after a dry run shows exactly
+# what will be discarded.
+#
+#   bin/heki_compact <domain> [aggregate_name ...]           # dry run
+#   bin/heki_compact <domain> [aggregate_name ...] --force   # apply
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+
+force = ARGV.delete("--force")
+domain = ARGV.shift
+if domain.nil? || !Dir.exist?(domain)
+  warn "bin/heki_compact: no such domain #{domain.inspect}"
+  warn "usage: bin/heki_compact <domain> [aggregate_name ...] [--force]"
+  exit 1
+end
+wanted = ARGV.dup
+
+runtime  = Hecks.boot(domain)
+registry = runtime.registry
+
+candidates = registry.bluebooks.each_with_object([]) do |(domain_name, bluebook), all|
+  bluebook.aggregates.each do |aggregate|
+    next unless wanted.empty? || wanted.include?(aggregate.hecks_name) || wanted.include?(aggregate.storage_name)
+
+    repository = registry.repository(domain_name, aggregate)
+    next unless repository.is_a?(Hecks::Ports::Persistence::AppendOnly)
+
+    adapter = repository.adapter
+    next unless adapter.respond_to?(:compact!)
+
+    all << { domain_name: domain_name, aggregate: aggregate, repository: repository, adapter: adapter }
+  end
+end
+
+if candidates.empty?
+  puts "bin/heki_compact: no Heki-backed aggregate matched #{wanted.empty? ? '(any)' : wanted.inspect} in #{domain}"
+  exit 0
+end
+
+# Returns true when the candidate was refused (a real projection binds
+# to it) so the caller can turn that into a non-zero exit status.
+def refused_candidate?(registry, candidate, force:)
+  aggregate = candidate[:aggregate]
+  adapter   = candidate[:adapter]
+  bound     = Hecks::Ports::Projection.binds_for(registry, candidate[:domain_name], aggregate)
+
+  if bound.any?
+    warn "REFUSED #{aggregate.storage_name}: a projected_by binding reads its full journal " \
+         "(#{bound.map(&:adapter).join(', ')}) — compacting would silently break " \
+         "Projection::Worker#catch_up!/Registry#projection_current?. Not compacted."
+    return true
+  end
+
+  journal_path = "#{adapter.path}.journal"
+  entry_count  = adapter.entries.length
+  byte_size    = File.exist?(journal_path) ? File.size(journal_path) : 0
+
+  if entry_count.zero?
+    puts "SKIP #{aggregate.storage_name}: journal already empty"
+    return false
+  end
+
+  unless force
+    puts "DRY RUN #{aggregate.storage_name}: would discard #{entry_count} journal " \
+         "entries (#{byte_size} bytes) at #{journal_path}; current state (#{adapter.count} " \
+         "records) is unaffected. Re-run with --force to apply."
+    return false
+  end
+
+  adapter.compact!
+  puts "COMPACTED #{aggregate.storage_name}: discarded #{entry_count} journal entries " \
+       "(#{byte_size} bytes freed); #{adapter.count} records preserved at #{adapter.path}"
+  false
+end
+
+refused = candidates.map { |candidate| refused_candidate?(registry, candidate, force: force) }
+
+exit(refused.any? ? 1 : 0)

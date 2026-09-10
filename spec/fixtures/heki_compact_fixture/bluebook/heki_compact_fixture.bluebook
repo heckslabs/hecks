@@ -1,0 +1,46 @@
+# A DEDICATED FIXTURE for bin/heki_compact's own spec — one tiny
+# aggregate, Heki-persisted, with no `projected_by` binding at all, so
+# compaction is genuinely safe against it (contrast examples/banking,
+# used by the SAME spec to prove the refusal path against a real
+# `persisted_by("Heki")` + `projected_by("SqliteProjection")` pairing).
+Hecks.bluebook "HekiCompactFixture" do
+  vision "One small aggregate worth compacting a journal over."
+  core
+
+  aggregate "Gadget" do
+    description "Something with a name and a label, nothing more."
+
+    identified_by :name
+
+    attribute :name,  GadgetName
+    attribute :label, GadgetLabel
+
+    value_object "GadgetName" do
+      attribute :value, String
+    end
+
+    value_object "GadgetLabel" do
+      attribute :value, String
+    end
+
+    command "MakeGadget" do
+      goal "Create a gadget"
+
+      attribute :name,  GadgetName
+      attribute :label, GadgetLabel
+
+      emits "GadgetMade"
+    end
+
+    command "RelabelGadget" do
+      goal "Change a gadget's own label"
+
+      reference_to Gadget
+      attribute :label, GadgetLabel
+
+      sets :label
+
+      emits "GadgetRelabeled"
+    end
+  end
+end

@@ -140,6 +140,93 @@ RSpec.describe Hecks::Adapters::Heki do
     end
   end
 
+  describe "#compact! — explicit, opt-in journal compaction" do
+    it "discards the journal without losing any current state, across many writes and ids" do
+      ids = (1..5).to_a
+      ids.each do |i|
+        3.times { |version| adapter.save(instance("p#{i}", name: { value: "v#{i}.#{version}" })) }
+      end
+      adapter.delete("p3")
+
+      journal_path = "#{adapter.path}.journal"
+      expect(File.size(journal_path)).to be > 0
+      expect(adapter.entries.length).to eq((ids.length * 3) + 1) # 3 saves per id + 1 delete
+
+      expected = adapter.all.map { |record| [record.id, record[:name].to_h] }
+
+      adapter.compact!
+
+      expect(adapter.entries).to eq([])
+      expect(File.size(journal_path)).to eq(0)
+      expect(adapter.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
+
+      # A FRESH BOOT — not just the same in-memory adapter — replaying
+      # only the now-empty journal over the freshly-written snapshot
+      # must land on the exact same state as before compaction.
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.all.map { |record| [record.id, record[:name].to_h] }).to eq(expected)
+      expect(reopened.find("p3")).to be_nil
+    end
+
+    it "writes the snapshot through the same atomic temp-file-plus-rename `write` already uses" do
+      adapter.save(instance("p1", name: { value: "First" }))
+      adapter.save(instance("p1", name: { value: "Second" }))
+
+      allow(File).to receive(:rename).and_raise("boom")
+      expect { adapter.compact! }.to raise_error("boom")
+
+      # The rename never happened, so compact! never reached the
+      # truncate step either — the journal is untouched, and a fresh
+      # boot still recovers the correct (pre-compaction) state from
+      # the OLD snapshot plus the still-full journal, exactly like an
+      # ordinary save's own crash-safety test above.
+      expect(File.read("#{adapter.path}.journal")).not_to be_empty
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+    end
+
+    it "recovers correctly from a crash simulated between the snapshot write succeeding and the journal truncate running" do
+      adapter.save(instance("p1", name: { value: "First" }))
+      adapter.save(instance("p1", name: { value: "Second" }))
+
+      # The snapshot write (`write`, via `File.rename`) is allowed to
+      # succeed for real; only the truncate step that follows it is
+      # made to "crash" — the exact window the task calls out as the
+      # real risk. Since `write` already durably persisted the fresh
+      # snapshot before this raises, the old (now fully redundant)
+      # journal lines are simply replayed again on next boot —
+      # idempotent, not wrong, just unnecessary work once.
+      allow(adapter).to receive(:truncate_journal!).and_raise("simulated crash mid-truncate")
+      expect { adapter.compact! }.to raise_error("simulated crash mid-truncate")
+
+      expect(File.read("#{adapter.path}.journal")).not_to be_empty
+
+      reopened = described_class.new(aggregate: aggregate, settings: { dir: "." }, root: @dir)
+      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+      expect(reopened.count).to eq(1)
+
+      # And the journal is still perfectly compactable afterward — the
+      # half-crashed attempt above left nothing broken behind it.
+      reopened.compact!
+      expect(reopened.entries).to eq([])
+      expect(reopened.find("p1")[:name].to_h).to eq(value: "Second")
+    end
+
+    it "is a no-op-safe call on a store that was never written to" do
+      expect { adapter.compact! }.not_to raise_error
+      expect(adapter.count).to eq(0)
+      expect(adapter.entries).to eq([])
+    end
+
+    it "reuses save/delete's own with_lock, not a separate, unsynchronized path" do
+      adapter.save(instance("p1", name: { value: "First" }))
+
+      expect(adapter).to receive(:with_lock).once.and_call_original
+
+      adapter.compact!
+    end
+  end
+
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
