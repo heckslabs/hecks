@@ -1077,6 +1077,54 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
+    # THE DOMAIN'S OWN OPINION ON "IS THIS COMMIT WORTH ASKING CI ABOUT" —
+    # what `bin/qa_pr_check` used to compute itself, in raw Ruby, by
+    # loading every `Clearance` and checking by hand whether one already
+    # named the commit. That was "has this already been checked" logic
+    # living OUTSIDE the one ledger that already answers exactly that
+    # question for everything else here — the script's job should be
+    # finding candidate commits and asking the chapter what to do with
+    # them, not re-deriving the chapter's own rules about what a
+    # `Clearance` means.
+    #
+    # TWO `none_in_state` CLAUSES, ANDED, BECAUSE A COMMIT HAS TWO WAYS TO
+    # ALREADY BE SETTLED. `Clearance`'s own lifecycle ends in exactly one
+    # of "green" or "red" — never both, never neither, once it has
+    # settled at all (see `Clearance`'s own header: "a clearance is
+    # minted per commit... nothing has to make it stale"). So "nobody has
+    # recorded a verdict for this commit yet" is "no Clearance row for it
+    # is green" AND "no Clearance row for it is red" — each clause true
+    # whether the row is simply absent or merely sitting in the OTHER
+    # settled state, exactly the "not excluded" reading `none_in_state?`'s
+    # own comment already documents for a target it cannot find at all. A
+    # commit whose Clearance is still `"running"` (a crash between `Start`
+    # and the ask ever settling) reads as awaiting too, which is the
+    # honest answer: nobody has said pass or fail about it yet.
+    #
+    # `commit.value`, NOT `commit` — the bare SCALAR the target aggregate
+    # is keyed by, the same reason `Bug.Queue`'s own comment gives for
+    # `order.value` over `order`. `none_in_state?` looks the target row up
+    # by the held value directly (`registry.repository(...).find(held)`),
+    # and `Clearance` is `identified_by :commit` down to that same bare
+    # scalar (a single-field value object's identity unwraps to its own
+    # `.value`, the same rule `Identity#from`'s own comment states) —
+    # handing it the whole `{value: "..."}` hash would look nothing up at
+    # all and every row would read as "not excluded", the exact silent
+    # over-inclusion this ledger exists to refuse rather than commit.
+    #
+    # `commit.value != ""` FIRST, because an unfixed bug's `commit` is
+    # its type's own default — an empty string, never a real sha — and an
+    # empty commit is not "awaiting clearance", it is "nothing to clear
+    # yet". Without this clause every never-fixed bug in the ledger would
+    # show up here, which answers a question nobody asked.
+    query "AwaitingClearance" do
+      description "Bugs with a commit recorded that CI has not yet given a verdict on — no green Clearance for it, no red one either. What bin/qa_pr_check asks instead of re-deriving 'has this already been checked' in raw Ruby."
+      where(:"commit.value" => { ne: "" })
+      where(:"commit.value" => { none_in_state: "Clearance:green" })
+      where(:"commit.value" => { none_in_state: "Clearance:red" })
+      order_by :sequence
+    end
+
     query "Paused" do
       description "Real, unfixed, stopped on, each with what would move it. The only queue a ticket is ever raised from."
       where(status: "paused")

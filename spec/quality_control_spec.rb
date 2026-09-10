@@ -493,6 +493,74 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # ── the domain's own opinion on what CI still owes an answer ─────────
+
+  # WHAT `bin/qa_pr_check` ASKS INSTEAD OF RE-DERIVING "has this already
+  # been checked" ITSELF — a real regression test for
+  # `Comparison#none_in_state?`, not only a feature test for
+  # `Bug.AwaitingClearance`. `Clearance` is `lifecycle :status`, not a
+  # plain `attribute :state`, which is exactly the shape every existing
+  # `none_in_state` fixture (spec/query_none_in_state_*_spec.rb) does NOT
+  # cover — those all declare a bare `attribute :state` sidestepping the
+  # real lifecycle-field lookup this comparator has to do for any aggregate
+  # in this repository that actually uses one. Before the fix, every case
+  # below answered exactly the same (every bug always "awaiting"), because
+  # `record.state[:state]` read `nil` off a `lifecycle :status` record no
+  # matter what it actually held.
+  describe "awaiting clearance" do
+    # ONE SWEEP FOR THE WHOLE EXAMPLE, DELIBERATELY — `a_sweep`'s own
+    # default target reference ("banking") is fixed, so a second call
+    # within the same example refuses with `AlreadyExists` rather than
+    # minting a second target. Every example below that logs more than
+    # one bug shares a single sweep for exactly that reason.
+    def fixed_bug(sweep, reference, sequence, commit)
+      bug = a_bug(sweep, reference: reference, sequence: sequence)
+      bug.investigate!(site: { value: "x.rb:1" }, cause: { value: "y" })
+      bug.fix!(reference: { value: reference }, commit: { value: commit })
+    end
+
+    it "leaves out a bug with no commit at all — nothing to clear yet" do
+      a_bug(a_sweep, reference: "BUG#1", sequence: 1)
+
+      expect(references("Bug.AwaitingClearance")).to be_empty
+    end
+
+    it "offers a fixed bug whose commit nobody has asked CI about" do
+      bug = fixed_bug(a_sweep, "BUG#1", 1, "1111111")
+
+      expect(references("Bug.AwaitingClearance")).to eq([bug.id])
+    end
+
+    it "drops a bug once its commit is cleared green" do
+      bug = fixed_bug(a_sweep, "BUG#1", 1, "2222222")
+      QualityControl::Clearance.start!(commit: { value: "2222222" }).passed!(summary: { value: "ok" })
+
+      expect(rows("Bug.AwaitingClearance")).to be_empty
+      expect(bug.status).to eq("fixed")
+    end
+
+    # RED SETTLES THE COMMIT'S OWN QUESTION TOO — a verdict was recorded,
+    # even though `BugCiWatch` reacted by putting the bug itself back in
+    # `investigating`. Asking CI about the exact same commit again would
+    # ask a question `Clearance` already answered.
+    it "drops a bug once its commit is cleared red, even though the bug itself regressed" do
+      fixed_bug(a_sweep, "BUG#1", 1, "3333333")
+      QualityControl::Clearance.start!(commit: { value: "3333333" }).failed!(refusal: { value: "2 failures" })
+
+      expect(rows("Bug.AwaitingClearance")).to be_empty
+      expect(QualityControl::Bug.find("BUG#1").status).to eq("investigating")
+    end
+
+    it "never confuses one commit's clearance for another's" do
+      sweep    = a_sweep
+      awaiting = fixed_bug(sweep, "BUG#1", 1, "4444444")
+      fixed_bug(sweep, "BUG#2", 2, "5555555")
+      QualityControl::Clearance.start!(commit: { value: "5555555" }).passed!(summary: { value: "ok" })
+
+      expect(references("Bug.AwaitingClearance")).to eq([awaiting.id])
+    end
+  end
+
   # ── where to look next ───────────────────────────────────────────────
 
   def an_angle(reference: "ANGLE-1", proposer: "Claude QA",
