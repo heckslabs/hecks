@@ -1,0 +1,179 @@
+#!/usr/bin/env ruby
+
+# Moves an aggregate's CURRENT state from a Heki-backed data directory
+# into whatever `persisted_by` binding a domain's own `.hecksagon`/
+# `.world` files declare TODAY — built for QualityControl's own move to
+# `PostgresEra` (qa/bluebook/quality_control.hecksagon), but domain-
+# agnostic the same way `bin/heki_compact` is: nothing here names
+# "QualityControl", only what the two directories on the command line
+# actually hold.
+#
+# ONE RECORD, ONE `save` — not a journal replay. Every aggregate here is
+# read via `Heki#all` (the fully-reduced current state each id holds,
+# exactly what a live `Target.All`/`Bug.All`/... query already returns
+# today) and written with exactly one `save` per id into the destination
+# repository. This is a DELIBERATE, disclosed choice, not an oversight:
+# it preserves every FIELD, every entity list, every value-object list,
+# every lifecycle status byte-for-byte (the whole reason this script
+# exists), but it does not replay the Heki journal's own append-by-
+# append operation history into the destination's own journal — the
+# destination ends up with one journal entry per migrated id, the same
+# shape `bin/heki_compact --force` already reduces a Heki-backed
+# aggregate's OWN journal down to for any aggregate nothing projects
+# from (QualityControl's aggregates are not `projected_by` anything
+# today — verified against the same `Ports::Projection.binds_for` check
+# `bin/heki_compact` itself refuses on). A ledger's CURRENT state is what
+# every declared query reads and what this tool proves byte-for-byte
+# equivalent (see `spec/qa_postgres_migration_spec.rb`); the per-append
+# operation trail is not read by anything this domain runs.
+#
+# DRY RUN BY DEFAULT, matching `bin/heki_compact`'s own convention. Never
+# writes to the source Heki files (`all` only — no `compact!`, no
+# `delete`, nothing under `--force` ever touches the Heki side). Refuses
+# — always, `--force` or not — to overwrite an id the destination
+# already holds under a DIFFERENT state; only an id the destination has
+# never seen, or already holds under the IDENTICAL (canonicalized)
+# state, is ever written, which is what makes a second run of this same
+# command idempotent.
+#
+#   bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...]           # dry run
+#   bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] --force    # apply
+#
+# <domain_dir> is booted for real (`Hecks.boot`) — every aggregate's
+# DESTINATION repository is exactly what that boot's own `.hecksagon`/
+# `.world` files declare, never a name typed here. For QualityControl
+# that is `qa/bluebook` once `quality_control.hecksagon` is bound to
+# `PostgresEra` and `quality_control.world` names the database.
+#
+# <heki_data_dir> is read directly with a bare `Heki` adapter, bypassing
+# the registry's own binding for these aggregates entirely (which, once
+# <domain_dir> is rewired, is no longer Heki) — so it can be ANY Heki
+# data directory: the domain's own historical `data/`, or (for testing)
+# a throwaway fixture. Only aggregates with an actual `<storage_name>
+# .heki` file present in this directory are considered — the same
+# presence-driven discovery `bin/heki_compact` already uses via
+# `File.exist?(journal_path)`, so an aggregate this domain never bound to
+# Heki (a framework aggregate pulled in by `uses_framework`, say) is
+# silently skipped rather than needing to be named on the command line.
+#
+# `[aggregate_name ...]` narrows to specific aggregates (by their
+# `hecks_name` or `storage_name`), the same optional trailing list
+# `bin/heki_compact` already takes — omit it to migrate everything
+# present.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+# ADR 0033 — a domain wired to PostgresEra needs this plugin loaded
+# explicitly; the era/lineage subsystem no longer loads with core. See
+# bin/run's own identical require for why.
+require "hecks/ports/persistence/plugins/era"
+require_relative "../lib/hecks/adapters/driven/heki"
+
+def usage_and_exit(message = nil)
+  warn "bin/qa_postgres_migrate: #{message}" if message
+  warn "usage: bin/qa_postgres_migrate <domain_dir> <heki_data_dir> [aggregate_name ...] [--force]"
+  exit 1
+end
+
+force = ARGV.delete("--force")
+
+domain_dir = ARGV.shift
+usage_and_exit("no domain directory given") if domain_dir.nil?
+usage_and_exit("no such domain directory #{domain_dir.inspect}") unless Dir.exist?(domain_dir)
+
+heki_dir = ARGV.shift
+usage_and_exit("no Heki data directory given") if heki_dir.nil?
+usage_and_exit("no such Heki data directory #{heki_dir.inspect}") unless Dir.exist?(heki_dir)
+heki_dir = File.expand_path(heki_dir)
+
+wanted = ARGV.dup
+
+runtime  = Hecks.boot(domain_dir)
+registry = runtime.registry
+
+# PRESENCE-DRIVEN, LIKE `bin/heki_compact`'s OWN `journal_path` CHECK —
+# an aggregate is a candidate iff its own `.heki` file actually exists in
+# the given directory, never because of what it is bound to NOW (which,
+# post-rewire, is the destination, not Heki).
+candidates = registry.bluebooks.each_with_object([]) do |(domain_name, bluebook), all|
+  bluebook.aggregates.each do |aggregate|
+    next unless wanted.empty? || wanted.include?(aggregate.hecks_name) || wanted.include?(aggregate.storage_name)
+
+    heki_path = File.join(heki_dir, "#{aggregate.storage_name}.heki")
+    next unless File.exist?(heki_path)
+
+    all << { domain_name: domain_name, aggregate: aggregate, heki_path: heki_path }
+  end
+end
+
+if candidates.empty?
+  puts "bin/qa_postgres_migrate: no aggregate matched #{wanted.empty? ? '(any)' : wanted.inspect} with a " \
+       "corresponding .heki file under #{heki_dir}"
+  exit 0
+end
+
+# DEEP, KEY-TYPE-AND-ORDER-INDEPENDENT COMPARISON — Heki's own state
+# hashes are only symbolized at the TOP LEVEL (`Heki#instance`'s
+# `record.transform_keys(&:to_sym)`; nested value-object members and
+# list elements stay however the snapshot file itself stored them, which
+# for Heki is string-keyed), while a `PostgresEra`-backed read comes back
+# fully, deeply symbolized (`JSON.parse(..., symbolize_names: true)`) —
+# a real, already-known divergence between the two adapters' own shapes
+# (see the project's own notes on "Heki list key shape"), not a bug this
+# migration should trip over. Two states that mean the same thing must
+# compare equal regardless of which side's key type or hash-insertion
+# order they happen to carry; only ARRAY ORDER is preserved as
+# meaningful (an entity list's `sequence` IS its order, and two Sweeps
+# whose checks arrived in a different order are NOT the same sweep).
+def canonical(value)
+  case value
+  when Hash
+    value.each_with_object({}) { |(k, v), h| h[k.to_s] = canonical(v) }.sort.to_h
+  when Array
+    value.map { |v| canonical(v) }
+  else
+    value
+  end
+end
+
+migrated = []
+skipped  = []
+conflicts = []
+
+candidates.each do |candidate|
+  domain_name = candidate[:domain_name]
+  aggregate   = candidate[:aggregate]
+
+  source = Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
+  dest   = registry.repository(domain_name, aggregate)
+
+  source.all.each do |instance|
+    existing = dest.find(instance.id)
+
+    if existing.nil?
+      dest.save(instance) if force
+      migrated << "#{aggregate.storage_name}/#{instance.id}"
+    elsif canonical(existing.state) == canonical(instance.state)
+      skipped << "#{aggregate.storage_name}/#{instance.id}"
+    else
+      conflicts << "#{aggregate.storage_name}/#{instance.id}"
+    end
+  end
+end
+
+label = force ? "MIGRATED" : "WOULD MIGRATE"
+migrated.each { |id| puts "#{label} #{id}" }
+skipped.each { |id| puts "SKIP #{id}: destination already holds the identical state" }
+conflicts.each do |id|
+  warn "REFUSED #{id}: the destination already holds a DIFFERENT state for this id — " \
+       "not overwritten, --force or not. Resolve by hand (compare the two states, decide " \
+       "which is authoritative) before migrating this id again."
+end
+
+puts "" unless migrated.empty? && skipped.empty? && conflicts.empty?
+puts "#{force ? 'migrated' : 'would migrate'} #{migrated.size}, skipped #{skipped.size} " \
+     "(already caught up), refused #{conflicts.size} (conflicting data)"
+puts "re-run with --force to apply" unless force || migrated.empty?
+
+exit(conflicts.empty? ? 0 : 1)

@@ -32,6 +32,17 @@ lives inside whatever checkout the sweep runs from. A generic
 time — which means a brand-new, EMPTY `qa/data/`, and the ledger would
 silently forget every claim and every bug between sweeps. Don't do that.
 
+*(Once `qa/bluebook/quality_control.hecksagon` is actually bound to
+`PostgresEra` AND `bin/qa_postgres_migrate` has actually been run against
+the real `qa/data/*.heki` files — see that script's own header — this
+specific reason goes away: a real Postgres database is shared state, not
+worktree-local, so a brand-new worktree sees the exact same ledger a
+persistent one would. This note is written from the OLD, still-Heki-bound
+side of that migration; don't delete the persistent-worktree convention
+above on the strength of this note alone until the real migration has
+actually run — check `qa/bluebook/quality_control.hecksagon` itself for
+which adapter it currently names.)*
+
 Instead:
 
 1. **One time, not per sweep**: make sure a dedicated, persistent

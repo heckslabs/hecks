@@ -89,6 +89,106 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
     end
   end
 
+  # A DOTTED-HOP (`/`) WHERE CLAUSE THROUGH THE ERA/SHADOW-PARSE PATH —
+  # found live while moving QualityControl's own ledger onto PostgresEra
+  # (qa/bluebook/quality_control.bluebook's `Ticket.RestingOnUnpaused`,
+  # `where(:"bug/status" => ...)`). The failure that surfaced there was
+  # NOT a bug in this machinery: a stale LOCAL Postgres database, left
+  # over from earlier manual testing of this same binding, held era text
+  # written under the PRE-ADR-0025 spelling (`where(:"bug.status" =>
+  # ...)`, a dot) — a spelling `seal_query_field` correctly refuses under
+  # BOTH the live grammar and the shadow-parse fallback, because a dotted
+  # hop was never one of the "genuinely removed spellings" shadow-parsing
+  # exists to keep readable (see this file's own header, and era_guard.rb's
+  # `shadow_parse` comment) — only `identified_by { }`/`belongs_to`/
+  # `has_one`/`has_many`, and `reference_to`'s default-naming fork, are.
+  # These two examples pin both halves: the CURRENT `/` spelling parses
+  # clean through `shadow_parse` needing no legacy fallback at all, and
+  # the OLD `.` spelling refuses loudly rather than silently
+  # misinterpreting the hop as a local dotted field — the same honest
+  # refusal a live boot already gives, not a special case shadow-parsing
+  # quietly forgives.
+  describe "a dotted-hop (`/`) where clause" do
+    HOP_CHAIN_SOURCE = File.read(File.join(__dir__, "fixtures/hop_chain.bluebook")).freeze
+
+    it "parses cleanly through shadow_parse, on the normal-parse branch, with no legacy fallback needed" do
+      Dir.mktmpdir do |dir|
+        path = fixture_path(dir, "hop_chain")
+        File.write(path, HOP_CHAIN_SOURCE)
+
+        bluebook = Hecks::Runtime::EraGuard.shadow_parse(HOP_CHAIN_SOURCE, path)
+
+        expect(bluebook.hecks_name).to eq("HopChain")
+        query = bluebook.aggregate("Proposal").query("AwaitingReplyFromActiveClients")
+        expect(query.wheres.map(&:field)).to include("engagement/client/status")
+      end
+    end
+
+    # A MINIMAL, SELF-CONTAINED fixture (not hop_chain.bluebook) —
+    # deliberately ONE aggregate, ONE reference, ONE query, so the only
+    # thing this proves is dot-vs-slash. `MetaValidator.while_shadow_
+    # parsing` also reverts `reference_to`'s default-naming convention
+    # (era_guard.rb's own `shadow_parse` comment), which would give a
+    # SECOND, unrelated reason for a busier fixture's own default-named
+    # hop queries to refuse under the shadow branch — a real interaction,
+    # but a different question than the one this example asks.
+    DOTTED_HOP_SOURCE = <<~BLUEBOOK.freeze
+      Hecks.bluebook "DottedHopFixture" do
+        generic
+
+        aggregate "Client" do
+          identified_by :name
+          attribute :name, Name
+          value_object("Name") { attribute :value, String }
+
+          lifecycle :status, default: "active" do
+            transition "Churn" => "churned", from: "active"
+          end
+
+          command "Register" do
+            attribute :name, Name
+            sets :name
+            emits "Registered"
+          end
+        end
+
+        aggregate "Engagement" do
+          identified_by :reference
+          reference_to Client
+          attribute :reference, Reference
+          value_object("Reference") { attribute :value, String }
+
+          command "Start" do
+            reference_to Client
+            attribute :reference, Reference
+            sets :reference
+            emits "Started"
+          end
+
+          query "WithActiveClient" do
+            where :"client.status" => "active"
+          end
+        end
+      end
+    BLUEBOOK
+
+    it "still refuses the pre-ADR-0025 dot spelling of the same hop, under both live and shadow parse" do
+      Dir.mktmpdir do |dir|
+        live_path = fixture_path(dir, "dotted_hop_live")
+        File.write(live_path, DOTTED_HOP_SOURCE)
+
+        expect { eval_live(DOTTED_HOP_SOURCE, live_path) }
+          .to raise_error(Hecks::Bluebook::DSL::Malformed, /client\.status.*never declares/m)
+
+        shadow_path = fixture_path(dir, "dotted_hop_shadow")
+        File.write(shadow_path, DOTTED_HOP_SOURCE)
+
+        expect { Hecks::Runtime::EraGuard.shadow_parse(DOTTED_HOP_SOURCE, shadow_path) }
+          .to raise_error(Hecks::Bluebook::DSL::Malformed, /client\.status.*never declares/m)
+      end
+    end
+  end
+
   describe "MetaValidator.while_shadow_parsing" do
     it "is off by default, and restores itself even when the block raises" do
       expect(Hecks::Bluebook::MetaValidator).not_to be_shadow_parsing
