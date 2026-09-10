@@ -89,76 +89,20 @@ RSpec.describe "bin/fuzz" do
     end
   end
 
-  # KNOWN_FUZZ_FINDINGS/#known_finding? — the same "names nothing the
-  # checker no longer finds" discipline `spec/model_check_spec.rb` already
-  # holds `Bluebook::ModelCheck::ALLOWED_FINDINGS` to, applied to this
-  # file's own allowlist: an entry here is honest only while the finding
-  # it excuses is STILL a real, currently-reproducing one — the moment
-  # `mutations_match_recompute`'s own underlying bug (hecks_qa BUG#4) is
-  # actually fixed, seed 2 below stops producing this violation and this
-  # spec starts failing, which is the signal to delete the entry.
-  describe "KNOWN_FUZZ_FINDINGS" do
-    NESTED_PIECES_DOMAIN = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces").freeze
-
-    # bin/fuzz's own defaults (seeds 20, steps 30) — seed 2 is one of the
-    # two (2 and 16) the real CI run on PR #527 actually hit; steps must
-    # match bin/fuzz's own default because SequenceGenerator's draw is
-    # seed-AND-length-sensitive.
-    def nested_pieces_mutation_violation
-      steps = Hecks::Fuzzing::SequenceGenerator.generate(NESTED_PIECES_DOMAIN, seed: 2, steps: 30, adapter: :memory)
-      history = Hecks::Fuzzing::Replay.call(NESTED_PIECES_DOMAIN, steps, adapter: :memory)
-      violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
-      violations[:mutations_match_recompute]
-    end
-
-    it "still reproduces the exact BUG#4 shape the nested_pieces allowlist entry excuses" do
-      message = nested_pieces_mutation_violation
-      expect(message).not_to be_nil, "seed 2 no longer trips mutations_match_recompute at all — " \
-                                     "if BUG#4 was fixed, delete the nested_pieces entry from KNOWN_FUZZ_FINDINGS"
-
-      fuzz = bin_fuzz_methods
-      failure = { signature: "property_violation: mutations_match_recompute",
-                  message:   "mutations_match_recompute: #{message}" }
-      still_known = fuzz.known_finding?("nested_pieces", failure)
-
-      expect(still_known).to be(true), "seed 2's own violation no longer matches KNOWN_FUZZ_FINDINGS' exact " \
-                                       "shape (#{message.inspect}) — either BUG#4 changed shape or was fixed " \
-                                       "differently; update or delete the nested_pieces entry"
-    end
-
-    it "does not excuse a different construct hitting the same property" do
-      fuzz = bin_fuzz_methods
-      different_construct = {
-        signature: "property_violation: mutations_match_recompute",
-        message:   "mutations_match_recompute: NestedPieces::Workspace.AddBoard — append on boards — " \
-                   "recomputing independently gives [{:number=>3}], but the real dispatch left " \
-                   "[{:number=>{:value=>3}}]"
-      }
-
-      expect(fuzz.known_finding?("nested_pieces", different_construct)).to be(false)
-    end
-
-    it "does not excuse the known shape riding alongside a second, unrelated offender" do
-      fuzz = bin_fuzz_methods
-      known_message = "mutations_match_recompute: NestedPieces::Workspace.Board.AddCard — append on cards — " \
-                      "recomputing independently gives [{:sequence=>821}], but the real dispatch left " \
-                      "[{:sequence=>{:value=>821}}]"
-      unrelated = "mutations_match_recompute: NestedPieces::Workspace.Board.Label — set on label — " \
-                  "recomputing independently gives \"x\", but the real dispatch left \"y\""
-      compound = { signature: "property_violation: mutations_match_recompute",
-                   message:   "#{known_message}; #{unrelated}" }
-
-      expect(fuzz.known_finding?("nested_pieces", compound)).to be(false)
-    end
-
-    it "does not excuse any other domain" do
-      fuzz = bin_fuzz_methods
-      elsewhere = { signature: "property_violation: mutations_match_recompute",
-                    message:   "mutations_match_recompute: NestedPieces::Workspace.Board.AddCard — append on " \
-                               "cards — recomputing independently gives [{:sequence=>821}], but the real " \
-                               "dispatch left [{:sequence=>{:value=>821}}]" }
-
-      expect(fuzz.known_finding?("some_other_domain", elsewhere)).to be(false)
-    end
-  end
+  # `KNOWN_FUZZ_FINDINGS`/`#known_finding?` used to live here — the
+  # narrowest possible allowlist (`bin/fuzz`'s own equivalent of
+  # `Bluebook::ModelCheck::ALLOWED_FINDINGS`), added in PR #527 to excuse
+  # exactly one already-diagnosed finding (hecks_qa BUG#4/BUG#5:
+  # `mutations_match_recompute` false-positiving on `NestedPieces::
+  # Workspace.Board.AddCard`'s own entity-owned `:append` of a VO-typed
+  # field) from failing the sweep while the real fix was still pending.
+  # That PR's own commit message pinned the exact self-destructing
+  # condition: "this spec fails the moment BUG#4 is actually fixed, which
+  # is the signal to delete the entry" — `recompute_append`'s own fix
+  # (`lib/hecks/fuzzing/properties/dispatch_and_mutations.rb`) is that
+  # fix, seed 2 no longer trips the property at all
+  # (`spec/fuzzing/properties_spec.rb`'s own BUG#5 regression pins the
+  # exact case), and the mechanism had no other entry and no other
+  # purpose — removed whole, mechanism included, rather than left behind
+  # empty with nothing real left to test.
 end

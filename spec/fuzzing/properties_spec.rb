@@ -18,6 +18,12 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
   # fixture it was — the only real corpus site anywhere using entity-
   # owned append/remove/multiply/clamp, item 9's own real target.
   PROPERTIES_ENTITY_MUTATIONS = File.join(ROOT_DIR, "spec/fixtures/entity_list_mutations")
+  # BUG#5's own real target: the only corpus site combining an entity-
+  # owned `:append` (`Board.AddCard`) with a VO-typed appended field
+  # (`sequence`, `CardSequence`-typed) — `PROPERTIES_ENTITY_MUTATIONS`'
+  # own `TaggedList.AddTag` append target fields are bare Strings, so it
+  # never exercised `recompute_append`'s own type-aware coercion at all.
+  PROPERTIES_NESTED_PIECES = File.join(ROOT_DIR, "qa/stress_domains/nested_pieces")
   # The self-hosted META-domain — Expression + Translation, in that load
   # order — used ONLY to pin the multi-bluebook regression below. A real
   # `bin/fuzz` run against this domain (Expression loads first) is what
@@ -37,7 +43,8 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
   end
 
   describe "the standard battery, over real generated sequences" do
-    [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5], [PROPERTIES_ENTITY_MUTATIONS, 10]].each do |domain, seed_count|
+    [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5], [PROPERTIES_ENTITY_MUTATIONS, 10],
+     [PROPERTIES_NESTED_PIECES, 40]].each do |domain, seed_count|
       it "holds for #{File.basename(domain)} across #{seed_count} seeds" do
         (1..seed_count).each do |seed|
           history = generated_history(domain, seed)
@@ -435,6 +442,61 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   ] }
 
       expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
+    end
+
+    # BUG#5 — `qa/stress_domains/nested_pieces` (`NOTES.md`'s own item 3),
+    # found live by `bin/fuzz qa/stress_domains/nested_pieces --seeds 40
+    # --steps 30` (seed 2 shrinks to 3 steps). `Board.AddCard`'s own
+    # `sets :cards, append: { sequence: :sequence }` targets `sequence`,
+    # a `CardSequence`-typed (value-object) field — unlike
+    # `PROPERTIES_ENTITY_MUTATIONS`' own `TaggedList.AddTag` (bare-String
+    # target fields throughout), the first corpus site to combine
+    # entity-owned `:append` with a VO-typed appended field. `821`, a
+    # BARE scalar arg — `ValueGenerator#object_for`'s own
+    # `BARE_SCALAR_PROBABILITY` branch, the exact shape seed 2 generated
+    # — is what the real dispatch's own `Interpreting#
+    # coerce_declared_arguments` coerces to `CardSequence`'s sole
+    # attribute (`{ value: 821 }`) before `EntityElement#
+    # appended_to_element` ever runs; this pins that recomputing
+    # independently lands on the SAME coerced, materialized shape,
+    # rather than comparing the raw `821` against it.
+    it "mutations_match_recompute passes an entity-owned append whose target field is itself " \
+       "value-object-typed (BUG#5)" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.AddCard",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: nil, cards: [{ sequence: { value: 821 } }] },
+                      args:   { number: { value: 1 }, sequence: 821 } }
+                  ] }
+
+      expect(Hecks::Fuzzing::Properties.mutations_match_recompute(history)).to be(true)
+    end
+
+    # The single most important check on BUG#5's own fix (see the PR
+    # description this test rides in on): a fix broad enough to stop
+    # false-positiving on a CORRECT VO-typed append must not ALSO go
+    # blind to a genuinely WRONG one. Same shape as the passing example
+    # right above — same `before`, same `args`, the identical `821`
+    # BUG#5's own fix now coerces to `{ value: 821 }` — except the real
+    # dispatch's own `after` claims `{ value: 999 }` landed instead, a
+    # real append mismatch unrelated to VO-wrapping. Recomputing
+    # independently still has to coerce `821`, still land on
+    # `{ value: 821 }`, and still disagree with the stored `{ value: 999
+    # }` — proving the fix is comparing coerced-against-coerced, not
+    # simply skipping the field (which would go blind to exactly this).
+    it "mutations_match_recompute still names a genuinely wrong VO-typed append, not merely a coercion artifact" do
+      history = { bluebooks:       bluebooks_for(PROPERTIES_NESTED_PIECES),
+                  mutation_traces: [
+                    { verb:   "NestedPieces::Workspace.Board.AddCard",
+                      before: { number: { value: 1 }, label: nil, cards: [] },
+                      after:  { number: { value: 1 }, label: nil, cards: [{ sequence: { value: 999 } }] },
+                      args:   { number: { value: 1 }, sequence: 821 } }
+                  ] }
+
+      result = Hecks::Fuzzing::Properties.mutations_match_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("AddCard").and include("append")
     end
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
