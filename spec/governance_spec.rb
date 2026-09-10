@@ -67,6 +67,38 @@ RSpec.describe "Governance" do
     expect(rows.map { |row| row[:id] }).to eq(["u-1:Teller:2026-01-01"])
   end
 
+  # QualityControl BUG#2 — the pizzas fuzz sweep (seed 20) found the
+  # compiled Rust conformance binary refusing this exact query
+  # TypeMismatch while Ruby answered with an empty row set: `actor_id`
+  # is a declared, non-optional value-object attribute (IdentityId), and
+  # C3.7 (docs/semantics/bluebook-semantics.md) says a named query's
+  # declared value-object arguments are built — nil-checked — the same
+  # way a command argument's own is. QueryInterpreter#normalize_args
+  # never passed `argument: true` through to Value.for_attribute, so
+  # the nil never reached Value::Coercion#nil_argument's own raise.
+  it "refuses AssignmentsForActor's actor_id offered as nil, exactly as a command argument would" do
+    expect { runtime.query("Governance::RoleAssignment.AssignmentsForActor", actor_id: nil) }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /IdentityId\.value expects String, got nil/)
+  end
+
+  # The C3.8 carve-out this fix must NOT touch: a bare-scalar query
+  # argument (Allowed's `from_role`/`to_role` are value objects too, so
+  # this only distinguishes via `checked_vo?`'s own guard — asserted
+  # directly since no bare-scalar-typed query argument exists in this
+  # bluebook to exercise end to end) stays untyped at the query door.
+  # Asserted structurally rather than behaviorally: `checked_vo?` is
+  # private on QueryInterpreter, called here through `send` purely to
+  # pin the guard's own boolean, not to reach for a private method as
+  # an ordinary public assertion.
+  it "checked_vo? only ever fires for a nil, non-optional, value-object-typed query attribute" do
+    interpreter = Hecks::Runtime::QueryInterpreter.new(runtime.registry)
+    aggregate = runtime.registry.bluebook("Governance").aggregate("RoleAssignment")
+    actor_id_attribute = aggregate.query("AssignmentsForActor").attributes.find { |a| a.name == :actor_id }
+
+    expect(interpreter.send(:checked_vo?, aggregate, actor_id_attribute, nil)).to be(true)
+    expect(interpreter.send(:checked_vo?, aggregate, actor_id_attribute, { value: "u-1" })).to be(false)
+  end
+
   def grant(from: "Customer administrator", to: "Customer registrar", starts_at: "2026-01-01")
     runtime.dispatch(
       "Governance::RoleTransition.Grant",
