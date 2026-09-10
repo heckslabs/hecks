@@ -362,9 +362,9 @@ if !absent.is_empty() {
         ("declared", "branch_code, box_number"),
     ])));
 }
-        let branch_code = BranchCode::from_json(&v.get("branch_code").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.branch_code expects BranchCode, got nil".to_string()))?.coerce_single_field("value"))?;
+        let branch_code = BranchCode::from_json(&(match v.get("branch_code").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.branch_code expects BranchCode, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         branch_code.check_invariants()?;
-        let box_number = BoxNumber::from_json(&v.get("box_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.box_number expects BoxNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let box_number = BoxNumber::from_json(&(match v.get("box_number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.box_number expects BoxNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         box_number.check_invariants()?;
         Ok(Self {
         branch_code,

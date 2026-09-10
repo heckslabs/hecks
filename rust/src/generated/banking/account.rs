@@ -754,9 +754,9 @@ if !absent.is_empty() {
         ("declared", "adjustment, narrative"),
     ])));
 }
-        let adjustment = Money::from_json(v.get("adjustment").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryAmendEntityArgs.adjustment expects Money, got nil".to_string()))?)?;
+        let adjustment = Money::from_json(&match v.get("adjustment").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryAmendEntityArgs.adjustment expects Money, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         adjustment.check_invariants()?;
-        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryAmendEntityArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        let narrative = Narrative::from_json(&(match v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryAmendEntityArgs.narrative expects Narrative, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
         narrative.check_invariants()?;
         Ok(Self {
         adjustment,
@@ -868,7 +868,7 @@ if !absent.is_empty() {
         ("declared", "narrative"),
     ])));
 }
-        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryReverseEntityArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        let narrative = Narrative::from_json(&(match v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntryReverseEntityArgs.narrative expects Narrative, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
         narrative.check_invariants()?;
         Ok(Self {
         narrative,
@@ -1176,10 +1176,10 @@ if !absent.is_empty() {
     ])));
 }
         let customer = { let x = v.get("customer").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("OpenArgs.customer expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()) })? };
-        let number = AccountNumber::from_json(&v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.number expects AccountNumber, got nil".to_string()))?.coerce_single_field("value"))?;
+        let number = AccountNumber::from_json(&(match v.get("number").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.number expects AccountNumber, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         number.check_invariants()?;
-        let kind = AccountKind::from_json(&v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.kind expects AccountKind, got nil".to_string()))?.coerce_single_field("name"))?;
-        let daily_limit = DailyLimit::from_json(&v.get("daily_limit").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.daily_limit expects DailyLimit, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let kind = AccountKind::from_json(&(match v.get("kind").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.kind expects AccountKind, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("name"))?;
+        let daily_limit = DailyLimit::from_json(&(match v.get("daily_limit").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.daily_limit expects DailyLimit, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         daily_limit.check_invariants()?;
         Ok(Self {
         customer,
@@ -1290,9 +1290,9 @@ if !absent.is_empty() {
         ("declared", "amount, narrative"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreditArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreditArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
-        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreditArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        let narrative = Narrative::from_json(&(match v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CreditArgs.narrative expects Narrative, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
         narrative.check_invariants()?;
         Ok(Self {
         amount,
@@ -1404,9 +1404,9 @@ if !absent.is_empty() {
         ("declared", "amount, narrative"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DebitArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DebitArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
-        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DebitArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        let narrative = Narrative::from_json(&(match v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DebitArgs.narrative expects Narrative, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
         narrative.check_invariants()?;
         Ok(Self {
         amount,
@@ -1794,9 +1794,9 @@ if !absent.is_empty() {
         ("declared", "amount, narrative"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ApplyFeeArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ApplyFeeArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
-        let narrative = Narrative::from_json(&v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ApplyFeeArgs.narrative expects Narrative, got nil".to_string()))?.coerce_single_field("text"))?;
+        let narrative = Narrative::from_json(&(match v.get("narrative").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ApplyFeeArgs.narrative expects Narrative, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("text"))?;
         narrative.check_invariants()?;
         Ok(Self {
         amount,
@@ -1903,7 +1903,7 @@ if !absent.is_empty() {
         ("declared", "amount"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CorrectFeeArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CorrectFeeArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
         Ok(Self {
         amount,
@@ -2007,7 +2007,7 @@ if !absent.is_empty() {
         ("declared", "amount"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccrueInterestArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccrueInterestArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
         Ok(Self {
         amount,
@@ -2113,7 +2113,7 @@ if !absent.is_empty() {
         ("declared", "amount"),
     ])));
 }
-        let amount = PositiveMoney::from_json(v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CorrectInterestArgs.amount expects PositiveMoney, got nil".to_string()))?)?;
+        let amount = PositiveMoney::from_json(&match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CorrectInterestArgs.amount expects PositiveMoney, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() })?;
         amount.check_invariants()?;
         Ok(Self {
         amount,

@@ -799,12 +799,12 @@ if !absent.is_empty() {
         ("declared", "field, op, value"),
     ])));
 }
-        let field = QueryText::from_json(&v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.field expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let field = QueryText::from_json(&(match v.get("field").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.field expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         field.check_invariants()?;
-        let op = QueryText::from_json(&v.get("op").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.op expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let op = QueryText::from_json(&(match v.get("op").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.op expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", op.value))); }
         op.check_invariants()?;
-        let value = QueryText::from_json(&v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.value expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let value = QueryText::from_json(&(match v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FilterArgs.value expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         value.check_invariants()?;
         Ok(Self {
         field,
@@ -921,9 +921,9 @@ if !absent.is_empty() {
         ("declared", "option, key, value, at"),
     ])));
 }
-        let option = QueryText::from_json(&v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let option = QueryText::from_json(&(match v.get("option").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.option expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         option.check_invariants()?;
-        let key = QueryText::from_json(&v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let key = QueryText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OptionArgs.key expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         key.check_invariants()?;
         let value = match v.get("value") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &value { v.check_invariants()?; }
@@ -1061,11 +1061,11 @@ if !absent.is_empty() {
         ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
     ])));
 }
-        let name = QueryText::from_json(&v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.name expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let name = QueryText::from_json(&(match v.get("name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.name expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         name.check_invariants()?;
-        let r#type = QueryText::from_json(&v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.type expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let r#type = QueryText::from_json(&(match v.get("type").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.type expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         r#type.check_invariants()?;
-        let list = QueryText::from_json(&v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.list expects QueryText, got nil".to_string()))?.coerce_single_field("value"))?;
+        let list = QueryText::from_json(&(match v.get("list").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentArgs.list expects QueryText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         list.check_invariants()?;
         let optional = match v.get("optional") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &optional { v.check_invariants()?; }

@@ -531,14 +531,14 @@ if !absent.is_empty() {
         ("declared", "end_to_end, account, amount, beneficiary, direction"),
     ])));
 }
-        let end_to_end = EndToEndReference::from_json(&v.get("end_to_end").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.end_to_end expects EndToEndReference, got nil".to_string()))?.coerce_single_field("value"))?;
+        let end_to_end = EndToEndReference::from_json(&(match v.get("end_to_end").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.end_to_end expects EndToEndReference, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         end_to_end.check_invariants()?;
         let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("RequestArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("RequestArgs.account: expected String".to_string()) })? };
-        let amount = ExternalAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.amount expects ExternalAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let amount = ExternalAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.amount expects ExternalAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         amount.check_invariants()?;
-        let beneficiary = BeneficiaryName::from_json(&v.get("beneficiary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.beneficiary expects BeneficiaryName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let beneficiary = BeneficiaryName::from_json(&(match v.get("beneficiary").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.beneficiary expects BeneficiaryName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         beneficiary.check_invariants()?;
-        let direction = MovementDirection::from_json(&v.get("direction").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.direction expects MovementDirection, got nil".to_string()))?.coerce_single_field("value"))?;
+        let direction = MovementDirection::from_json(&(match v.get("direction").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.direction expects MovementDirection, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         if !["credit", "debit"].contains(&direction.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "direction admits Account::LedgerDirection — \"credit\", \"debit\" — got ", direction.value))); }
         direction.check_invariants()?;
         Ok(Self {

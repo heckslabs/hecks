@@ -550,14 +550,14 @@ if !absent.is_empty() {
         ("declared", "authorisation, tags, account, amount, merchant"),
     ])));
 }
-        let authorisation = AuthorisationCode::from_json(&v.get("authorisation").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.authorisation expects AuthorisationCode, got nil".to_string()))?.coerce_single_field("value"))?;
+        let authorisation = AuthorisationCode::from_json(&(match v.get("authorisation").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.authorisation expects AuthorisationCode, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         authorisation.check_invariants()?;
         let tags = match v.get("tags") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) };
         if let Some(items) = &tags { for item in items { item.check_invariants()?; } }
         let account = { let x = v.get("account").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account expects String, got nil".to_string()))?; x.as_str().map(|s| s.to_string()).ok_or_else(|| if matches!(x, crate::kernel::Json::Array(_) | crate::kernel::Json::Object(_) | crate::kernel::Json::Null) { crate::kernel::Refusal::TypeMismatch(format!("AuthorizeArgs.account expects String, got {}", x.inspect())) } else { crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()) })? };
-        let amount = PaymentAmount::from_json(&v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.amount expects PaymentAmount, got nil".to_string()))?.coerce_single_field("cents"))?;
+        let amount = PaymentAmount::from_json(&(match v.get("amount").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.amount expects PaymentAmount, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("cents"))?;
         amount.check_invariants()?;
-        let merchant = MerchantName::from_json(&v.get("merchant").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.merchant expects MerchantName, got nil".to_string()))?.coerce_single_field("value"))?;
+        let merchant = MerchantName::from_json(&(match v.get("merchant").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.merchant expects MerchantName, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
         merchant.check_invariants()?;
         Ok(Self {
         authorisation,
