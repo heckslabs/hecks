@@ -13,6 +13,7 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Bug.persisted_by("Heki")
   QualityControl::Angle.persisted_by("Heki")
   QualityControl::Ticket.persisted_by("Heki")
+  QualityControl::Patch.persisted_by("Heki")
   QualityControl::Clearance.persisted_by("Heki")
 
   # THE OUTSIDE WORLD, THROUGH A SWAPPABLE ADAPTER — no adapter is bound

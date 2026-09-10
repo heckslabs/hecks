@@ -20,6 +20,29 @@
 # automatically, the moment a clearance is recorded for the commit a Bug
 # named as its fix.
 #
+# THE SECOND GAP THIS CLOSES, LATER — DISCOVERY ITSELF. This script used
+# to ask GitHub to GUESS which PRs were ours: `gh pr list --search
+# "head:loop-parity"`, a branch-prefix convention. Checked against this
+# practice's own real history, not assumed: that convention was never a
+# reliable filter. #533/#532/#529/#526 are real `loop-parity/*` branches
+# titled `"heki: ..."`/`"BUG#N: ..."`/`"rust: ..."` rather than `"qa: ..."`
+# — a title search misses them. #534 is titled `"qa: ..."` on a branch
+# that never got the `loop-parity/` prefix at all — a branch search misses
+# it. It sat open and genuinely red, unseen by either, for a day. Widening
+# to the union of both patterns is still a guess about every naming habit
+# an agent will ever have; it only has to be wrong once more, and a draft
+# PR sits outside a plain `gh pr list` by default on top of that.
+#
+# `QualityControl::Patch` (qa/bluebook/quality_control.bluebook, "──
+# which pull requests are ours ──") is what ends the guessing for good: a
+# PR is recorded, once, the moment its number/branch/commit are already
+# known — `gh pr create`'s own return value, not a search result. This
+# script now asks `Patch.Open` for the worklist and `gh` about each row
+# BY ITS OWN NUMBER. There is no `--search` anywhere in this file any
+# more, and there does not need to be: a PR this ledger does not know
+# about is not ours to check — see `.claude/skills/hecks_qa/SKILL.md`'s
+# own new orchestrator step for where that knowledge comes from.
+#
 # THE DOMAIN DOES THE CHECKING — this script does not. It used to
 # dispatch `Clearance::Start`/`Passed`/`Failed` directly, which was a
 # shortcut around two policies the chapter had ALREADY declared for
@@ -41,12 +64,13 @@
 #
 # WHAT THIS REUSES RATHER THAN REINVENTS: the `gh` CLI, already this
 # repository's own way of talking to GitHub (`.claude/skills/hecks_qa/
-# SKILL.md`'s own `gh pr list`/`gh pr view` examples) — nothing here opens
-# a second HTTP client or re-derives a token. `gh pr checks <n> --json`
-# is still what THIS script uses to decide whether a PR is even worth
-# asking the ledger about yet (see "PENDING STAYS OUTSIDE THE PORT"
-# below); `GithubChecks` reaches `gh` on its own, by commit, for the
-# verdict itself.
+# SKILL.md`'s own `gh pr view`/`gh pr checks` examples) — nothing here
+# opens a second HTTP client or re-derives a token. `gh pr view <n>
+# --json` is how this script reads a tracked PR's own current state and
+# head commit, by number; `gh pr checks <n> --json` is still what decides
+# whether a PR is even worth asking the ledger about yet (see "PENDING
+# STAYS OUTSIDE THE PORT" below); `GithubChecks` reaches `gh` on its own,
+# by commit, for the verdict itself.
 #
 # PENDING STAYS OUTSIDE THE PORT, ON PURPOSE. `Clearance`'s own two
 # endings are `Passed`/`Failed` — final, and minted once per commit
@@ -67,14 +91,26 @@
 # and a `Clearance` already answers it. The thing that changes over time
 # is which COMMIT a PR's branch points at (a push mints a new sha,
 # therefore a new, still-unminted `Clearance` to check next run), never
-# what an already-recorded commit's own run said.
+# what an already-recorded commit's own run said — which is exactly why
+# this script reads the LIVE head commit from `gh pr view` every run
+# rather than trusting `Patch.commit` (frozen at `Open`, useful as
+# provenance, not as this run's own question).
+#
+# THE LOOP CLOSES FROM THIS END TOO. `Patch`'s own lifecycle is
+# `opened` → `merged`/`closed`, however GitHub reports it — the same
+# `raised` → `filed`/`closed` shape `Ticket` already keeps for an issue.
+# Nothing in this repository is told the moment a PR merges or closes, so
+# this script is what asks: a `Patch` GitHub already settled is retired
+# here (`Patch.Merge`/`Patch.Close`) before this run ever spends a `gh
+# pr checks` call on it, which is also what keeps `Patch.Open` — the
+# worklist itself — from growing without bound.
 #
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
-#   0  nothing to act on — no open loop-parity/* PRs at all, or every
-#      one of them already has a recorded Clearance (or its checks are
-#      still pending, not yet a verdict) and nothing new was dispatched.
-#   1  an operational error — `gh` was not reachable at all, a Bug's own
-#      recorded commit does not look like a sha, or the ledger itself
+#   0  nothing to act on — no PRs tracked as open at all, or every one
+#      already has a recorded Clearance (or its checks are still pending,
+#      not yet a verdict) and nothing new was dispatched.
+#   1  an operational error — `gh` was not reachable at all, a tracked
+#      PR's own head does not look like a sha, or the ledger itself
 #      would not boot. Fix the actual problem; there is nothing here for
 #      an agent to pick up as QA work.
 #   2  FOUND A NEWLY-RED PR — a `Clearance::Failed` was dispatched this
@@ -91,13 +127,16 @@
 #
 # WHAT THIS SCRIPT DELIBERATELY DOES NOT DO: decide whether a red run
 # means the fix was wrong, judge which failing check matters, write a new
-# regression test, open a second PR, or compute a pass/fail verdict of
-# its own — that last one used to happen here and now happens behind the
-# port instead. It records what the ledger says once asked and stops —
-# the process manager already turned a red answer into a `Bug.Regress` by
-# the time this script's own exit code says so; anything past that is the
-# same investigation `bin/qa_sweep`'s own "on a surprising check" judgment
-# already covers, reused rather than restated here.
+# regression test, open a second PR, record a NEW `Patch` for one it does
+# not already know about (that is the orchestrator's own job, at the
+# moment a PR is opened — see `Patch.Open`'s own comment), or compute a
+# pass/fail verdict of its own — that last one used to happen here and
+# now happens behind the port instead. It records what the ledger says
+# once asked and stops — the process manager already turned a red answer
+# into a `Bug.Regress` by the time this script's own exit code says so;
+# anything past that is the same investigation `bin/qa_sweep`'s own "on a
+# surprising check" judgment already covers, reused rather than restated
+# here.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -125,7 +164,7 @@ unless ARGV.empty?
     puts USAGE
     exit EXIT_OK
   end
-  abort "#{USAGE}\nthis script takes no arguments — it checks every open loop-parity/* PR, every time"
+  abort "#{USAGE}\nthis script takes no arguments — it checks every PR QualityControl::Patch tracks as open, every time"
 end
 
 # ── talk to gh, once per call, never guessing at its own exit codes ────
@@ -161,30 +200,6 @@ end
 
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# ── every open loop-parity/* PR, from gh's own mouth ────────────────────
-
-list_out, list_err, list_status = gh("pr", "list", "--search", "head:loop-parity", "--state", "open",
-                                     "--json", "number,headRefName,headRefOid,url")
-
-unless list_status.success?
-  abort "gh pr list could not reach GitHub — #{list_err.strip.empty? ? list_out.strip : list_err.strip}"
-end
-
-prs = JSON.parse(list_out, symbolize_names: true)
-
-if prs.empty?
-  puts "no open loop-parity/* PRs — nothing to check"
-  exit EXIT_OK
-end
-
-bugs = q(runtime, "Bug.All")
-
-# `sha.start_with?(commit) || commit.start_with?(sha)` — A BUG'S OWN
-# `commit` MAY BE SHORT. Nothing in this ledger requires a full 40-char
-# sha (`CommitRef`'s own pattern accepts 7-40), and `gh`'s own
-# `headRefOid` is always full, so an exact `==` would silently miss every
-# bug fixed with a short sha — the common case, since that is what `git
-# rev-parse --short HEAD` and most people typing a sha by hand both give.
 # `field(row, :commit, :value)`, NOT `row.dig(:commit, :value)` — a query
 # row's own field values are `Hecks::Runtime::Value` objects, which answer
 # `[]` (the same reader the facade and every spec in this repository
@@ -195,68 +210,100 @@ def field(row, *path)
   path.reduce(row) { |held, key| held.nil? ? nil : held[key] }
 end
 
-def bug_for_commit(bugs, sha)
-  bugs.find do |bug|
-    commit = field(bug, :commit, :value)
-    next false if commit.to_s.empty?
-
-    sha.start_with?(commit) || commit.start_with?(sha)
-  end
-end
-
 def clearance_for_commit(runtime, sha)
   q(runtime, "Clearance.All").find { |row| field(row, :commit, :value) == sha }
 end
 
-# ONE PR, START TO FINISH — pulled out of the loop below so the loop
-# itself reads as "for every open PR, check it" rather than burying that
-# shape under every early-exit this one PR's own checking needs. Appends
-# to `newly_red`/`operational_errors` in place rather than returning a
-# verdict to fold in, the same reporting shape `bin/qa_sweep`'s own
-# per-seed loop uses.
-def check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors)
-  number = pull_request[:number]
-  sha    = pull_request[:headRefOid].to_s
-  label  = "PR ##{number} (#{pull_request[:headRefName]})"
+# ── every PR the ledger itself tracks as open — no search, anywhere ────
 
+patches = q(runtime, "Patch.Open")
+
+if patches.empty?
+  puts "no PRs tracked as open by QualityControl::Patch — nothing to check"
+  exit EXIT_OK
+end
+
+# THE LOOP CLOSES FROM THIS END. `Patch`'s own lifecycle only moves off
+# `opened` when something tells it to — nothing in this repository is
+# notified the moment GitHub merges or closes a PR, so this is the one
+# place that asks and records what it hears, before spending another `gh`
+# call on a PR that is already done. Returns whether it retired one.
+def retire_if_settled?(view, number, label, runtime)
+  case view[:state]
+  when "MERGED"
+    runtime.dispatch("QualityControl::Patch.Merge", id: number)
+    puts "#{label}: merged — retired from the worklist"
+    true
+  when "CLOSED"
+    runtime.dispatch("QualityControl::Patch.Close", id: number)
+    puts "#{label}: closed without merging — retired from the worklist"
+    true
+  else
+    false
+  end
+end
+
+# THE ONE PLACE THIS SCRIPT STILL LOOKS AT `gh` ITSELF — deciding whether
+# a commit is even worth asking the ledger about yet. See this file's own
+# header, "PENDING STAYS OUTSIDE THE PORT." Returns whether the checks
+# have settled (a verdict is worth asking `Clearance.CI.Run` for);
+# `false` means this run has nothing left to do for this PR, and why is
+# already on stdout/`operational_errors`.
+def checks_settled?(number, label, bug_ref, sha, operational_errors)
+  checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
+                                             "--json", "name,state,bucket,workflow")
+  unless checks_status.success?
+    operational_errors << "#{label}: gh pr checks failed — #{checks_err.strip.empty? ? checks_out.strip : checks_err.strip}"
+    return false
+  end
+
+  checks = JSON.parse(checks_out, symbolize_names: true)
+  if checks.empty?
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
+    return false
+  end
+
+  if checks.any? { |c| c[:bucket] == "pending" }
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: checks still running — skipping this run"
+    return false
+  end
+
+  true
+end
+
+# ONE PATCH, START TO FINISH — pulled out of the loop below so the loop
+# itself reads as "for every tracked-open PR, check it" rather than
+# burying that shape under every early-exit this one PR's own checking
+# needs. Appends to `newly_red`/`operational_errors` in place rather than
+# returning a verdict to fold in, the same reporting shape `bin/qa_sweep`'s
+# own per-seed loop uses.
+def check_one_patch(patch_row, runtime, newly_red, operational_errors)
+  number  = field(patch_row, :number, :value)
+  bug_ref = field(patch_row, :bug)
+  label   = "PR ##{number} (#{field(patch_row, :branch, :value)})"
+
+  view_out, view_err, view_status = gh("pr", "view", number.to_s,
+                                       "--json", "state,headRefOid,url")
+  unless view_status.success?
+    operational_errors << "#{label}: gh pr view failed — #{view_err.strip.empty? ? view_out.strip : view_err.strip}"
+    return
+  end
+
+  view = JSON.parse(view_out, symbolize_names: true)
+  return if retire_if_settled?(view, number, label, runtime)
+
+  sha = view[:headRefOid].to_s
   unless sha.match?(SHA_PATTERN)
     operational_errors << "#{label}: head commit #{sha.inspect} does not look like a sha — skipping"
     return
   end
-
-  bug = bug_for_commit(bugs, sha)
-  unless bug
-    puts "#{label}, #{sha[0, 7]}: no Bug in the ledger names this commit as its fix — skipping"
-    return
-  end
-
-  bug_ref = field(bug, :reference, :value)
 
   if (existing = clearance_for_commit(runtime, sha))
     puts "#{label}, #{bug_ref}, #{sha[0, 7]}: already cleared (#{existing[:status]}) — settled once, not re-checked"
     return
   end
 
-  # THE ONE PLACE THIS SCRIPT STILL LOOKS AT `gh` ITSELF — deciding
-  # whether it is even worth asking the ledger yet. See this file's own
-  # header, "PENDING STAYS OUTSIDE THE PORT."
-  checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
-                                             "--json", "name,state,bucket,workflow")
-  unless checks_status.success?
-    operational_errors << "#{label}: gh pr checks failed — #{checks_err.strip.empty? ? checks_out.strip : checks_err.strip}"
-    return
-  end
-
-  checks = JSON.parse(checks_out, symbolize_names: true)
-  if checks.empty?
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
-    return
-  end
-
-  if checks.any? { |c| c[:bucket] == "pending" }
-    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: checks still running — skipping this run"
-    return
-  end
+  return unless checks_settled?(number, label, bug_ref, sha, operational_errors)
 
   ask_the_ledger(sha, label, bug_ref, number, runtime, newly_red)
 end
@@ -291,7 +338,7 @@ end
 newly_red = []
 operational_errors = []
 
-prs.each { |pull_request| check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors) }
+patches.each { |patch_row| check_one_patch(patch_row, runtime, newly_red, operational_errors) }
 
 # ── report and exit ─────────────────────────────────────────────────
 
@@ -323,5 +370,5 @@ end
 exit EXIT_ERROR if operational_errors.any?
 
 puts
-puts "clean — every open loop-parity/* PR is either already cleared, still running, or unmatched to a Bug."
+puts "clean — every PR QualityControl::Patch tracks as open is either already cleared, still running, or was retired this run."
 exit EXIT_OK

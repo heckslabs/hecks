@@ -1614,6 +1614,165 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # ── which pull requests are ours ─────────────────────────────────────
+
+  # THE THING THIS WHOLE AGGREGATE EXISTS TO END: `bin/qa_pr_check` used to
+  # ask GitHub to GUESS which PRs were ours — `gh pr list --search`,
+  # matching a branch prefix (`loop-parity/*`) or a title convention
+  # (`"qa: ..."`). Checked against this practice's own real history, not
+  # assumed: neither is a superset of the other. #533/#532/#529/#526 are
+  # real `loop-parity/*` branches titled `"heki: ..."`/`"BUG#N: ..."`/
+  # `"rust: ..."` — invisible to a title search. #534 is titled `"qa: ..."`
+  # on a branch that never got the `loop-parity/` prefix at all — invisible
+  # to a branch search. It sat open and genuinely red, unseen by both, for
+  # a day. Widening the search to the union of both patterns is still a
+  # GUESS about every naming habit an agent will ever have — it only has to
+  # be wrong once more.
+  #
+  # THE FIX IS THE ONE THIS CHAPTER ALREADY MAKES EVERYWHERE ELSE: STOP
+  # RE-DERIVING A FACT THAT WAS ALREADY KNOWN, AND WRITE IT DOWN AT THE
+  # MOMENT IT WAS. `hecks_qa` knows a PR's number, url, branch and head
+  # commit the instant it opens one — that is `gh pr create`'s own return
+  # value, not a guess about it afterward. `Open` below records exactly
+  # that, once, and `bin/qa_pr_check` from here on reads `Patch.Open` for
+  # the worklist and asks `gh` about each one BY ITS OWN NUMBER — the same
+  # move `Bug.commit` already made for the identical reason (`BugCiWatch`'s
+  # own header explains why that commit has to be exact rather than
+  # re-derived), aimed one layer up: not just which commit is ours, but
+  # which PR is ours in the first place.
+  #
+  # NOT NAMED `PullRequest` — `Ticket`, forty lines up, already owns that
+  # word. `Ticket::PullRequest` is a value object (the URL a ticket carries
+  # once a fix exists for the issue it filed), and `Facade::Surface
+  # .install` puts every AGGREGATE name on Object as a top-level constant
+  # the identical way `Bug::BugTitle`'s own comment already warns about for
+  # the mirror case — a value object sharing a word with an aggregate
+  # resolves to whichever one booted last. An aggregate named `PullRequest`
+  # here would collide with `Ticket`'s own value object of that name the
+  # moment both are loaded, which within this one file they always are.
+  # `Patch` says the same thing — a change offered against a Bug's own fix
+  # — without reusing a word this chapter already spoke for something else.
+  aggregate "Patch" do
+    description "One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess."
+
+    reference_to Bug
+
+    identified_by :number
+
+    attribute :number, PatchNumber
+    attribute :url,    PatchUrl
+    attribute :branch, PatchBranch
+    attribute :commit, CommitRef
+    attribute :title,  PatchTitle
+
+    value_object "PatchNumber" do
+      attribute :value, Integer
+      invariant("a patch is numbered") { value.positive? }
+    end
+
+    value_object "PatchUrl" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch says where it lives") { !value.to_s.empty? }
+    end
+
+    value_object "PatchBranch" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch says which branch it is on") { !value.to_s.empty? }
+    end
+
+    # THE FIELD THAT RETIRES THE OLD SEARCH. `bin/qa_pr_check` used to have
+    # to ask GitHub to find the commit for a PR it only had a guess about;
+    # recording it here at `Open` means the commit is in hand the moment a
+    # PR needs checking at all — the same "written down before it's
+    # needed" discipline `Bug.commit` already keeps for the reason
+    # `BugCiWatch`'s own header gives.
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-fA-F]{7,40}$'
+    end
+
+    value_object "PatchTitle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a patch is titled") { !value.to_s.empty? }
+    end
+
+    value_object "BugRef" do
+      attribute :value, String
+    end
+
+    # OPENED, THEN ONE OF TWO ENDINGS GITHUB ITSELF REPORTS — the same
+    # `raised` → `filed`/`closed` shape `Ticket`'s own lifecycle already
+    # gives an outside-world record, restated here rather than shared
+    # (this file's own established habit — `Engineer`, `Instant`,
+    # `CommitRef` are each redeclared per aggregate too). Both endings are
+    # terminal on purpose: a merged PR does not reopen, and this ledger's
+    # memory of a closed one does not either. GitHub's own history is where
+    # to look if somehow either did.
+    lifecycle :status, default: "opened" do
+      transition "Merge" => "merged", from: "opened"
+      transition "Close" => "closed", from: "opened"
+    end
+
+    # DISPATCHED BY WHOEVER OPENS THE PR — which, per `.claude/skills/
+    # hecks_qa/SKILL.md`'s own wiring, is the ORCHESTRATOR, once a sweep
+    # subagent's report comes back naming the number, url, branch, commit
+    # and title it already has from its own `gh pr create`. Not the
+    # subagent itself: see that file's own new step for why this piece of
+    # bookkeeping is kept an orchestrator action rather than something
+    # handed to a subagent to dispatch on its own.
+    command "Open" do
+      role "QA engineer"
+      goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
+
+      reference_to Bug
+      attribute :number, PatchNumber
+      attribute :url,    PatchUrl
+      attribute :branch, PatchBranch
+      attribute :commit, CommitRef
+      attribute :title,  PatchTitle
+
+      emits "PatchOpened"
+    end
+
+    command "Merge" do
+      role "QA engineer"
+      goal "Record that GitHub merged it"
+
+      reference_to Patch
+      emits "PatchMerged"
+    end
+
+    command "Close" do
+      role "QA engineer"
+      goal "Record that GitHub closed it without merging"
+
+      reference_to Patch
+      emits "PatchClosed"
+    end
+
+    # THE NEW SOURCE OF TRUTH FOR `bin/qa_pr_check` — every PR this ledger
+    # believes is still open, to check by ITS OWN number rather than by
+    # asking GitHub to search for one that might be ours. Read this
+    # instead of `gh pr list --search`, full stop: for each row, ask `gh`
+    # about that exact number and nothing else.
+    query "Open" do
+      description "Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess."
+      where(status: "opened")
+      order_by :number
+    end
+
+    query "ForBug" do
+      description "Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue."
+      attribute :bug_id, BugRef
+      where(bug: :bug_id)
+      order_by :number
+    end
+
+    query "All" do
+      description "Every patch ever opened — what a runner reads back to reconcile against GitHub's own list."
+      order_by :number
+    end
+  end
+
   # ── is it safe to ship ───────────────────────────────────────────────
 
   # A GREEN CI RUN, AGAINST THE EXACT COMMIT.

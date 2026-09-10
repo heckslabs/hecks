@@ -11,10 +11,12 @@ flowchart LR
     n_bug["Bug"]
     n_angle["Angle"]
     n_ticket["Ticket"]
+    n_patch["Patch"]
     n_clearance["Clearance"]
     n_sweep -->|"target"| n_target
     n_bug -->|"sweep"| n_sweep
     n_ticket -->|"bug"| n_bug
+    n_patch -->|"bug"| n_bug
 ```
 
 ## Angle
@@ -153,6 +155,8 @@ flowchart LR
     n_bug -->|"sweep"| n_sweep
     n_ticket["Ticket"]
     n_ticket -->|"bug"| n_bug
+    n_patch["Patch"]
+    n_patch -->|"bug"| n_bug
     classDef focus stroke-width:3px
 ```
 
@@ -537,6 +541,107 @@ Always true: a run says what it ran and what came back.
 
 Put a commit through CI. Done by the qa engineer.
 
+## Patch
+
+> One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.
+
+Starts out opened. Can be opened, merged, or closed.
+
+**How it fits**
+
+```mermaid
+flowchart LR
+    n_patch["Patch"]:::focus
+    n_bug["Bug"]
+    n_patch -->|"bug"| n_bug
+    classDef focus stroke-width:3px
+```
+
+**How it moves**
+
+```mermaid
+stateDiagram-v2
+    [*] --> opened
+    opened --> merged: Merge
+    opened --> closed: Close
+```
+
+**Always true**
+
+- A Patch references a Bug.
+- A patch is numbered.
+- A patch says where it lives.
+- A patch says which branch it is on.
+- A patch is titled.
+
+### All
+
+Every patch ever opened — what a runner reads back to reconcile against GitHub's own list.
+
+### Bug ref
+
+Text.
+
+### Close
+
+Record that GitHub closed it without merging. Done by the qa engineer.
+
+### Commit ref
+
+Text.
+
+### For bug
+
+Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue.
+
+### Merge
+
+Record that GitHub merged it. Done by the qa engineer.
+
+### Open
+
+Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known. Done by the qa engineer.
+
+### Open (the list)
+
+Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+
+### Patch branch
+
+Text.
+
+Always true: a patch says which branch it is on.
+
+### Patch closed
+
+Recorded after [Close](#close).
+
+### Patch merged
+
+Recorded after [Merge](#merge).
+
+### Patch number
+
+A whole number.
+
+Always true: a patch is numbered.
+
+### Patch opened
+
+Recorded after [Open](#open-1).
+
+### Patch title
+
+Text.
+
+Always true: a patch is titled.
+
+### Patch url
+
+Text.
+
+Always true: a patch says where it lives.
+
 ## Sweep
 
 > One agent's pass over one chapter — every check it made, what each expected, and what actually came back.
@@ -706,7 +811,7 @@ Always true: a sweep says what it learned, in at least 40 characters.
 
 ### Sweep opened
 
-Recorded after [Open](#open-1).
+Recorded after [Open](#open-2).
 
 ### Sweep reference
 
@@ -1046,7 +1151,7 @@ Always true: a ticket says something.
 
 ### Ticket closed
 
-Recorded after [Close](#close).
+Recorded after [Close](#close-1).
 
 ### Ticket filed
 
@@ -1094,7 +1199,7 @@ Always true: a ticket is titled.
 
 ### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open](#open-1), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-2), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-1), [Open (patch)](#open-1), [Merge](#merge), [Close (patch)](#close), and [Start](#start).
 
 ### System
 
@@ -1126,7 +1231,7 @@ When Suite passed happens, [Clearance](#clearance) is asked to [Passed](#passed)
 
 ### Close when closed upstream
 
-When Issue closed upstream happens, [Ticket](#ticket) is asked to [Close](#close).
+When Issue closed upstream happens, [Ticket](#ticket) is asked to [Close](#close-1).
 
 ### Record the issue
 
