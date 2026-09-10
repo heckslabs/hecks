@@ -39,22 +39,36 @@ Instead:
    once (`EnterWorktree` with a fixed `name`, or `git worktree add`
    directly) and never tear it down between sweeps. This is where
    `qa/data/` actually lives, permanently.
-2. **Every sweep**: dispatch a subagent (the `Agent` tool, default
-   isolation — i.e. *no* `isolation: "worktree"`) whose prompt is:
+2. **Every tick — MANDATORY, NO EXCEPTIONS, before any fresh sweep
+   starts**: `bin/qa_pr_check` runs, inside the SAME subagent dispatch
+   described below, in the SAME persistent worktree. This is not left to
+   an agent's own judgment to remember any more than bug-logging is (see
+   that rule's own wording below) — a loop that keeps finding new bugs
+   but never notices one of its own already-opened PRs went red on CI is
+   exactly the gap this whole mechanism exists to close, and "the agent
+   forgot to check" is not an acceptable reason for it to reopen. Put the
+   instruction to run it FIRST in the subagent's own prompt, ahead of
+   "Running one sweep" — see "Checking on open PRs" below for its own
+   exit-code contract and what happens on exit 2.
+3. **Every sweep** (after the PR check above, same subagent, same
+   dispatch): the subagent's prompt is:
    - the exact working directory to `cd` into (the persistent worktree
      from step 1, as an absolute path),
    - an instruction to `git fetch && git rebase origin/main` first, so
      it starts from current main (matters both because `bin/qa_sweep`
      itself may have changed, and because a prior sweep may have opened
      a PR that's since merged),
+   - "Checking on open PRs" below, verbatim, run BEFORE "Running one
+     sweep" — if it exits 2, its own judgment section is followed to a
+     fix (or a left-open Bug) BEFORE picking a fresh sweep target,
    - the full "Running one sweep" section below, verbatim,
    - an instruction to leave the worktree clean (on `main`, no
      uncommitted changes, no lingering branch checked out) before
      finishing — so the *next* sweep, in the same worktree, starts from
      a known-good state.
-3. Wait for the subagent's report. Relay only its short summary here —
+4. Wait for the subagent's report. Relay only its short summary here —
    don't pull its internal transcript into this conversation.
-4. If invoked via `/loop hecks_qa`: **dispatch the next sweep
+5. If invoked via `/loop hecks_qa`: **dispatch the next sweep
    immediately** when this one's subagent reports back — the loop's job
    is to keep the practice alive, not to pace it. `QualityControlDials
    ::CADENCE_SECONDS` (top of `qa/bluebook/quality_control.bluebook`) is
@@ -65,7 +79,47 @@ Instead:
    as the sweep-pacing mechanism; a long fallback (the loop skill's own
    1200–1800s guidance) is appropriate precisely because it should
    almost never be the thing that fires. If invoked directly (one-off),
-   you're done — report the sweep's outcome and stop.
+   you're done — report the outcome (PR check AND sweep) and stop.
+
+## Checking on open PRs
+
+*(This is part of the subagent's own prompt too, run BEFORE "Running one
+sweep" — see the orchestrator step above.)*
+
+A `loop-parity/*` PR is a fix this loop judged self-contained and
+verified LOCALLY before opening it — which is not the same fact as "CI's
+own fresh build still agrees", and nothing used to check whether those
+two ever drifted apart. `bin/qa_pr_check` is that check: it asks `gh`
+what every currently-open `loop-parity/*` PR's own CI actually said, and
+for any commit a `Bug` in the ledger claims to have fixed, records the
+answer as a real `QualityControl::Clearance` — which is what lets
+`BugCiWatch` (a process manager in `qa/bluebook/quality_control.bluebook`
+now, read its own comment there) notice a red run on its own and put the
+bug back (`Bug.Regress`) without anyone watching for it by hand.
+
+```
+bundle exec ruby bin/qa_pr_check
+```
+
+- **Exit 0 — nothing to act on.** No open `loop-parity/*` PRs at all, or
+  every one already has a recorded `Clearance` (or is still running).
+  Relay the script's own printed summary and move on to the sweep below.
+- **Exit 1 — an operational error.** `gh` was not reachable, a `Bug`'s
+  own recorded commit does not look like a sha, or the ledger would not
+  boot. Read the message; fix the actual problem (or report it) rather
+  than retrying blind — same as a sweep's own exit 1.
+- **Exit 2 — FOUND A NEWLY-RED PR.** The script itself already dispatched
+  `Clearance.Failed` for the commit, which means `BugCiWatch` already
+  fired `Bug.Regress` — the bug is back in `investigating`, on the
+  record, before this loop does anything else. What's left is exactly
+  the same judgment "On a surprising check", below, already describes
+  for a sweep's own find: **follow that section now**, against the
+  re-opened Bug instead of a freshly-logged one, before moving on to a
+  fresh sweep target. The one difference: `Log` was already satisfied
+  when this bug was first found — don't re-log it; `investigate`/`fix`/
+  `verify` through the SAME Bug record, and (if self-contained) open a
+  fresh `loop-parity/*` PR the ordinary way, subject to the same daily
+  cap as any other.
 
 ## Running one sweep
 
@@ -211,3 +265,6 @@ same two. The existing fuzz-bridge only does the latter.
 - Log a `Bug`, conclude a sweep, or release a target on a surprising
   check — `bin/qa_sweep` stops and hands off instead; only an agent
   following the judgment above does any of those three.
+- Skip `bin/qa_pr_check` before a fresh sweep. Every tick, not just the
+  ones where somebody remembers a PR might have gone red — see the
+  orchestrator step's own "MANDATORY, NO EXCEPTIONS" line.

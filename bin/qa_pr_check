@@ -1,0 +1,284 @@
+#!/usr/bin/env ruby
+
+# THE OTHER HALF OF "NOTICE IT AND ACT" — `bin/qa_sweep` finds a bug by
+# fuzzing; this finds one by asking GitHub what it already knows. Same
+# contract shape, same reason: deterministic, mechanical, an exit code an
+# agent (or a loop) reads instead of a transcript it has to parse.
+#
+# THE GAP THIS CLOSES. A `loop-parity/*` PR is a fix `bin/qa_sweep`'s own
+# agent judged self-contained and verified LOCALLY before opening it —
+# but "verified locally" and "CI's own fresh build agrees" are two
+# different facts, and until this script existed nothing in the ledger
+# ever checked whether they still matched. A PR could go red days later —
+# a fix that happened to work on one machine's cache, a flake that wasn't,
+# a merge with `main` that broke it — and the only thing that noticed was
+# a human scrolling GitHub's own PR list. `QualityControl::Clearance`
+# already had two commands built for exactly this (`Start`/`Passed`/
+# `Failed`) and nothing had ever dispatched them for a loop-parity PR;
+# `QualityControl::Bug::Regress` already said the right word ("put a bug
+# back when its fix stopped holding") and nothing had ever dispatched
+# THAT either. `BugCiWatch` (qa/bluebook/quality_control.bluebook) is the
+# process manager that turns a `Clearance::Failed` into a `Bug::Regress`
+# on its own, automatically, the moment this script records one — this
+# script's own job is only the one fact nothing in the ledger can know by
+# itself: what `gh` actually says about a PR's own head commit.
+#
+#   bin/qa_pr_check
+#
+# WHAT THIS REUSES RATHER THAN REINVENTS: the `gh` CLI, already this
+# repository's own way of talking to GitHub (`.claude/skills/hecks_qa/
+# SKILL.md`'s own `gh pr list`/`gh pr view` examples) — nothing here opens
+# a second HTTP client or re-derives a token. `gh pr checks <n> --json`
+# is the one call that answers the actual question ("did CI pass") in a
+# form this script can read without guessing at exit-code semantics gh
+# reserves for its own interactive/watch modes.
+#
+# ONE CLEARANCE PER COMMIT, MINTED ONCE — the same reading `Clearance`'s
+# own header comment gives: "a commit's CI result doesn't change once
+# settled... a later commit simply has none of its own." So a commit that
+# already has a `Clearance` (green OR red) is never re-asked — this is
+# NOT a staleness check with a window, on purpose: CI re-running against
+# the exact same sha would answer the exact same question a second time,
+# and a `Clearance` already answers it. The thing that changes over time
+# is which COMMIT a PR's branch points at (a push mints a new sha,
+# therefore a new, still-unminted `Clearance` to check next run), never
+# what an already-recorded commit's own run said.
+#
+# EXIT CODES — the only contract an agent (or a loop) needs to read:
+#   0  nothing to act on — no open loop-parity/* PRs at all, or every
+#      one of them already has a recorded Clearance (or its checks are
+#      still pending, not yet a verdict) and nothing new was dispatched.
+#   1  an operational error — `gh` was not reachable at all, a Bug's own
+#      recorded commit does not look like a sha, or the ledger itself
+#      would not boot. Fix the actual problem; there is nothing here for
+#      an agent to pick up as QA work.
+#   2  FOUND A NEWLY-RED PR — a `Clearance::Failed` was dispatched this
+#      run for a commit a `Bug` in this ledger claims to have fixed,
+#      which means `BugCiWatch` just fired `Bug.Regress` for real. Full
+#      detail (which Bug, which PR, which commit, which checks failed) is
+#      on stdout above the exit. An agent picks up the investigation from
+#      there — same judgment SKILL.md's own "on a surprising check"
+#      section already describes for a sweep's own find: self-contained
+#      fix with a regression test and a draft PR, or leave the (now
+#      re-opened) Bug for something bigger. Never re-verify or re-close
+#      this script's own way; that is exactly the judgment step it does
+#      not have.
+#
+# WHAT THIS SCRIPT DELIBERATELY DOES NOT DO: decide whether a red run
+# means the fix was wrong, judge which failing check matters, write a new
+# regression test, or open a second PR. It records what `gh` said and
+# stops — the process manager already turned that into a `Bug.Regress`
+# by the time this script's own exit code says so; anything past that is
+# the same investigation `bin/qa_sweep`'s own "on a surprising check"
+# judgment already covers, reused rather than restated here.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+# ADR 0033 — see bin/run's own identical require: the era/lineage
+# subsystem no longer loads with core, and this ledger's `persisted_by
+# "Heki"` binding needs it explicitly.
+require "hecks/ports/persistence/plugins/era"
+require "json"
+require "open3"
+
+ROOT       = File.expand_path("..", __dir__)
+DOMAIN_DIR = File.join(ROOT, "qa/bluebook")
+
+EXIT_OK        = 0
+EXIT_ERROR     = 1
+EXIT_NEWLY_RED = 2
+
+USAGE = "usage: bin/qa_pr_check".freeze
+
+SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
+
+unless ARGV.empty?
+  if %w[-h --help].include?(ARGV.first)
+    puts USAGE
+    exit EXIT_OK
+  end
+  abort "#{USAGE}\nthis script takes no arguments — it checks every open loop-parity/* PR, every time"
+end
+
+# ── talk to gh, once per call, never guessing at its own exit codes ────
+#
+# `--json` ALREADY MEANS "I am reading this programmatically" — gh's own
+# special exit codes (8 for "checks pending", among others) are reserved
+# for its interactive/watch modes and do not fire once `--json` is given;
+# confirmed live rather than assumed (`gh pr checks <n> --json ...` exits
+# 0 whether every check passed or several failed). So this reads the
+# `bucket` field itself for the real verdict and treats gh's own exit
+# code as answering only one question: did the CALL succeed at all.
+def gh(*)
+  Open3.capture3("gh", *)
+end
+
+# ── boot the ledger for real ───────────────────────────────────────────
+
+runtime = begin
+  Hecks.boot(DOMAIN_DIR)
+rescue StandardError => e
+  abort "the QualityControl ledger did not boot — fix the ledger itself before checking PRs against it " \
+        "(#{e.class}: #{e.message})"
+end
+
+def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
+
+# ── every open loop-parity/* PR, from gh's own mouth ────────────────────
+
+list_out, list_err, list_status = gh("pr", "list", "--search", "head:loop-parity", "--state", "open",
+                                     "--json", "number,headRefName,headRefOid,url")
+
+unless list_status.success?
+  abort "gh pr list could not reach GitHub — #{list_err.strip.empty? ? list_out.strip : list_err.strip}"
+end
+
+prs = JSON.parse(list_out, symbolize_names: true)
+
+if prs.empty?
+  puts "no open loop-parity/* PRs — nothing to check"
+  exit EXIT_OK
+end
+
+bugs = q(runtime, "Bug.All")
+
+# `sha.start_with?(commit) || commit.start_with?(sha)` — A BUG'S OWN
+# `commit` MAY BE SHORT. Nothing in this ledger requires a full 40-char
+# sha (`CommitRef`'s own pattern accepts 7-40), and `gh`'s own
+# `headRefOid` is always full, so an exact `==` would silently miss every
+# bug fixed with a short sha — the common case, since that is what `git
+# rev-parse --short HEAD` and most people typing a sha by hand both give.
+# `field(row, :commit, :value)`, NOT `row.dig(:commit, :value)` — a query
+# row's own field values are `Hecks::Runtime::Value` objects, which answer
+# `[]` (the same reader the facade and every spec in this repository
+# already use) but not `Hash#dig`. Confirmed live, not assumed: `.dig`
+# raises `TypeError: Hecks::Runtime::Value does not have #dig method` the
+# first time this script ever ran against a real boot.
+def field(row, *path)
+  path.reduce(row) { |held, key| held.nil? ? nil : held[key] }
+end
+
+def bug_for_commit(bugs, sha)
+  bugs.find do |bug|
+    commit = field(bug, :commit, :value)
+    next false if commit.to_s.empty?
+
+    sha.start_with?(commit) || commit.start_with?(sha)
+  end
+end
+
+def clearance_for_commit(runtime, sha)
+  q(runtime, "Clearance.All").find { |row| field(row, :commit, :value) == sha }
+end
+
+# ONE PR, START TO FINISH — pulled out of the loop below so the loop
+# itself reads as "for every open PR, check it" rather than burying that
+# shape under every early-exit this one PR's own checking needs. Appends
+# to `newly_red`/`operational_errors` in place rather than returning a
+# verdict to fold in, the same reporting shape `bin/qa_sweep`'s own
+# per-seed loop uses.
+def check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors)
+  number = pull_request[:number]
+  sha    = pull_request[:headRefOid].to_s
+  label  = "PR ##{number} (#{pull_request[:headRefName]})"
+
+  unless sha.match?(SHA_PATTERN)
+    operational_errors << "#{label}: head commit #{sha.inspect} does not look like a sha — skipping"
+    return
+  end
+
+  bug = bug_for_commit(bugs, sha)
+  unless bug
+    puts "#{label}, #{sha[0, 7]}: no Bug in the ledger names this commit as its fix — skipping"
+    return
+  end
+
+  bug_ref = field(bug, :reference, :value)
+
+  if (existing = clearance_for_commit(runtime, sha))
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: already cleared (#{existing[:status]}) — settled once, not re-checked"
+    return
+  end
+
+  checks_out, checks_err, checks_status = gh("pr", "checks", number.to_s,
+                                             "--json", "name,state,bucket,workflow")
+  unless checks_status.success?
+    operational_errors << "#{label}: gh pr checks failed — #{checks_err.strip.empty? ? checks_out.strip : checks_err.strip}"
+    return
+  end
+
+  checks = JSON.parse(checks_out, symbolize_names: true)
+  if checks.empty?
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: gh reports no checks at all yet — skipping this run"
+    return
+  end
+
+  if checks.any? { |c| c[:bucket] == "pending" }
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: checks still running — skipping this run"
+    return
+  end
+
+  record_clearance(sha, label, bug_ref, checks, number, newly_red)
+end
+
+# THE VERDICT, RECORDED — split out purely so `check_one_pr` above reads
+# as gathering facts and this reads as acting on them; no shared state
+# beyond the arguments passed in.
+def record_clearance(sha, label, bug_ref, checks, number, newly_red)
+  failing = checks.select { |c| c[:bucket] == "fail" }
+
+  QualityControl::Clearance.start!(commit: { value: sha })
+
+  if failing.empty?
+    QualityControl::Clearance.find(sha).passed!(
+      summary: { value: "#{checks.length} checks, all green (#{label})" }
+    )
+    puts "#{label}, #{bug_ref}, #{sha[0, 7]}: CLEARED — #{checks.length} checks, all green"
+    return
+  end
+
+  refusal = "#{failing.length} of #{checks.length} checks failed: " \
+            "#{failing.map { |c| "#{c[:workflow]}/#{c[:name]}" }.join(', ')} (#{label})"
+  QualityControl::Clearance.find(sha).failed!(refusal: { value: refusal })
+  puts "#{label}, #{bug_ref}, #{sha[0, 7]}: RED — #{refusal}"
+  newly_red << { pr: number, bug: bug_ref, commit: sha, refusal: refusal }
+end
+
+newly_red = []
+operational_errors = []
+
+prs.each { |pull_request| check_one_pr(pull_request, runtime, bugs, newly_red, operational_errors) }
+
+# ── report and exit ─────────────────────────────────────────────────
+
+unless operational_errors.empty?
+  puts
+  puts "operational error(s):"
+  operational_errors.each { |message| puts "  #{message}" }
+end
+
+if newly_red.any?
+  puts
+  puts "=" * 72
+  puts "FOUND #{newly_red.length} NEWLY-RED PR(S) — BugCiWatch already dispatched Bug.Regress for each."
+  puts "An agent picks up the investigation from here: the same judgment"
+  puts "SKILL.md's own \"on a surprising check\" section describes for a sweep's"
+  puts "own find — self-contained fix with a regression test and a draft PR,"
+  puts "or leave the bug for something bigger. Never re-verify from this script."
+  puts "=" * 72
+  newly_red.each do |finding|
+    puts
+    puts "bug:     #{finding[:bug]}"
+    puts "pr:      ##{finding[:pr]}"
+    puts "commit:  #{finding[:commit]}"
+    puts "refusal: #{finding[:refusal]}"
+  end
+  exit EXIT_NEWLY_RED
+end
+
+exit EXIT_ERROR if operational_errors.any?
+
+puts
+puts "clean — every open loop-parity/* PR is either already cleared, still running, or unmatched to a Bug."
+exit EXIT_OK
