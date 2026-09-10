@@ -104,6 +104,35 @@ Instead:
    actually returned, which is exactly the moment a report reaches you,
    not a moment a subagent's own dispatch can be trusted to land twice
    for free if a report is ever retried.
+
+   **If the report says a draft PR was opened for something that is NOT
+   a bug fix — infra/domain-modeling work with no `Bug` behind it —
+   record it in the ledger the same way, before moving on, via
+   `QualityControl::Improvement` instead.** `Improvement`
+   (`qa/bluebook/quality_control.bluebook`, "── deliberate work, landed
+   ──") is `Patch`'s own sibling for exactly this: a real PR — a backlog
+   aggregate, a compaction tool, a driving adapter — that proves nothing
+   was wrong, so it names no `Bug`. `bin/qa_pr_check` reads its own
+   `Improvement.Open` worklist the identical way it reads `Patch.Open`.
+   The subagent's report carries the same five `gh pr create` facts
+   (number, url, branch, head commit, title), plus — only when this PR
+   grew out of a row in `Angle.Backlog` — that angle's own reference.
+   Dispatch, against the persistent worktree's own ledger:
+   ```
+   bundle exec ruby bin/run qa/bluebook improvement.open \
+     number.value=<n> url.value="<url>" branch.value="<branch>" title.value="<title>"
+   ```
+   or, citing the angle it fulfills:
+   ```
+   bundle exec ruby bin/run qa/bluebook improvement.open angle=<angle-reference> \
+     number.value=<n> url.value="<url>" branch.value="<branch>" title.value="<title>"
+   ```
+   Once landed, record the commit (this is what starts `ImprovementCiWatch`'s
+   own watch — see "Checking on open PRs" below):
+   ```
+   bundle exec ruby bin/run qa/bluebook improvement.land id=<n> \
+     number.value=<n> commit.value=<head-commit-sha>
+   ```
 5. If invoked via `/loop hecks_qa`: **dispatch the next sweep
    immediately** when this one's subagent reports back — the loop's job
    is to keep the practice alive, not to pace it. `QualityControlDials
@@ -140,17 +169,22 @@ title search; #534 was titled `"qa: ..."` on a branch that never got the
 `loop-parity/` prefix, invisible to a branch search — and a draft PR sits
 outside a plain `gh pr list` on top of either gap. It sat open and
 genuinely red for a day before anything noticed. There is no `--search`
-left in this script at all: for each row in `Patch.Open`, it asks `gh`
-about that PR's own number directly — `gh pr view <n>` first (is it
-still open at all, and what commit is its head at right now), then, once
-its checks have settled (not pending), the ledger's own `Clearance.CI.Run`
-— the `CI` port `quality_control.hecksagon` declares, bound for real to
-`GithubChecks` (`qa/adapters/github_checks.rb`), which is what actually
-shells to `gh` from there, by commit. `ClearOnPass`/`RefuseOnFail`
+left in this script at all: for each row in `Patch.Open` **and**
+`Improvement.Open` — `QualityControl::Improvement`'s own worklist for a
+deliberate, non-bugfix PR, checked exactly the same way (see the
+orchestrator step's own new bullet above on when a draft PR goes here
+instead of `Patch`) — it asks `gh` about that PR's own number directly —
+`gh pr view <n>` first (is it still open at all, and what commit is its
+head at right now), then, once its checks have settled (not pending),
+the ledger's own `Clearance.CI.Run` — the `CI` port
+`quality_control.hecksagon` declares, bound for real to `GithubChecks`
+(`qa/adapters/github_checks.rb`), which is what actually shells to `gh`
+from there, by commit. `ClearOnPass`/`RefuseOnFail`
 (`quality_control.bluebook`'s own foot) turn its answer or refusal into a
-real `QualityControl::Clearance` — which is what lets `BugCiWatch` (a
-process manager in the same bluebook, read its own comment there) notice
-a red run on its own and put the bug back (`Bug.Regress`) without anyone
+real `QualityControl::Clearance` — which is what lets `BugCiWatch`/
+`ImprovementCiWatch` (the two process managers in the same bluebook, read
+their own comments there) notice a red run on its own and put the
+record back (`Bug.Regress`/`Improvement.Regress`) without anyone
 watching for it by hand. The script itself never decides pass or fail any
 more, and it never decides which PRs are ours either — it only decides,
 among the PRs the ledger already says are ours, which commit is worth
@@ -160,28 +194,34 @@ asking about.
 bundle exec ruby bin/qa_pr_check
 ```
 
-- **Exit 0 — nothing to act on.** `Patch.Open` is empty, or every row on
-  it is already merged/closed (retired this run), already has a recorded
-  `Clearance`, or is still running. Relay the script's own printed
-  summary and move on to the sweep below.
+- **Exit 0 — nothing to act on.** Both `Patch.Open` and `Improvement.Open`
+  are empty, or every row across either is already merged/closed (retired
+  this run), already has a recorded `Clearance`, or is still running.
+  Relay the script's own printed summary and move on to the sweep below.
 - **Exit 1 — an operational error.** `gh` was not reachable, a tracked
   PR's own head commit does not look like a sha, or the ledger would not
   boot. Read the message; fix the actual problem (or report it) rather
   than retrying blind — same as a sweep's own exit 1.
 - **Exit 2 — FOUND A NEWLY-RED PR.** The ledger itself already recorded
   `Clearance.Failed` for the commit (via the `CI` port, not a direct
-  dispatch — see this section's own opening paragraph), which means
-  `BugCiWatch` already fired `Bug.Regress` — the bug is back in
-  `investigating`, on the record, before this loop does anything else.
-  What's left is exactly
-  the same judgment "On a surprising check", below, already describes
-  for a sweep's own find: **follow that section now**, against the
+  dispatch — see this section's own opening paragraph). For a `Patch`
+  row, that means `BugCiWatch` already fired `Bug.Regress` — the bug is
+  back in `investigating`, on the record, before this loop does anything
+  else. **Follow "On a surprising check", below, now**, against the
   re-opened Bug instead of a freshly-logged one, before moving on to a
   fresh sweep target. The one difference: `Log` was already satisfied
   when this bug was first found — don't re-log it; `investigate`/`fix`/
   `verify` through the SAME Bug record, and (if self-contained) open a
   fresh `loop-parity/*` PR the ordinary way, subject to the same daily
   cap as any other.
+
+  For an `Improvement` row, `ImprovementCiWatch` already fired
+  `Improvement.Regress` — the record is in `needs_fix`, on the record.
+  There is no Bug-shaped judgment to follow here: fix whatever broke and
+  dispatch a fresh `improvement.land id=<n> number.value=<n>
+  commit.value=<new-sha>` (see the orchestrator step's own bullet above)
+  — the same event `ImprovementCiWatch` started on, so the watch picks
+  the new commit back up on its own.
 
 ## Running one sweep
 
@@ -374,8 +414,9 @@ or the other.
 - Skip `bin/qa_pr_check` before a fresh sweep. Every tick, not just the
   ones where somebody remembers a PR might have gone red — see the
   orchestrator step's own "MANDATORY, NO EXCEPTIONS" line.
-- Dispatch `patch.open` from inside a sweep subagent's own prompt.
-  Recording an opened PR into `QualityControl::Patch` is the
+- Dispatch `patch.open` or `improvement.open` from inside a sweep
+  subagent's own prompt. Recording an opened PR into
+  `QualityControl::Patch` or `QualityControl::Improvement` is the
   orchestrator's own job, done once a report naming the PR comes back —
-  see the orchestrator step's own instruction and "On a surprising
+  see the orchestrator step's own instructions and "On a surprising
   check"'s own reporting bullet, above.
