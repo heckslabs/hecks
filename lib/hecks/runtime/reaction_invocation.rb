@@ -85,7 +85,7 @@ module Hecks
       # source_receiver_for, command_facts, refuse_unconsumed!) for every
       # piece that IS self-contained; what remains is the sequencing
       # itself, which further splitting would only relocate, not remove.
-      # rubocop:disable-next Metrics/MethodLength
+      # rubocop:disable-next Metrics/MethodLength, Metrics/PerceivedComplexity
       def build(registry:, verb:, projected:, explicit:, passthrough: [], source_receiver: nil)
         args = projected.transform_keys(&:to_sym)
         unless explicit
@@ -99,6 +99,18 @@ module Hecks
           rescue UnknownVerb
             return args
           end
+          # AN ENTITY TARGET HAS NO SHAPE THIS BRANCH CAN BUILD — an
+          # implicit (unprojected) `to:` is always a bare scalar, the
+          # aggregate's own identity alone; an entity command's receiver is
+          # `{aggregate:, entities:}`, which needs the entity's own
+          # identity too, and nothing here resolves one (the same "cannot
+          # invent an entity identity" limit `source_receiver_for`'s own
+          # comment already states). So this stays exactly the pre-BUG#6
+          # behavior for an entity target: no receiver is lifted, and the
+          # payload forwards wholesale, unchanged, same as when there is
+          # no `source_receiver` at all.
+          return args unless target.entities.empty?
+
           inherited_receiver = source_receiver_for(target, source_receiver)
           return inherited_receiver ? args.merge(to: inherited_receiver) : args
         end
@@ -207,10 +219,45 @@ module Hecks
       # it cannot address another aggregate, invent an entity identity, or turn
       # a creation into a mutation. An explicit projected receiver is resolved
       # first and remains authoritative.
+      #
+      # ANSWERS REGARDLESS OF `target.entities` — the value this method hands
+      # back is ONLY EVER the ROOT AGGREGATE'S OWN identity (`source_receiver`
+      # carries nothing else: `event.aggregate`/`event.id` name the emitting
+      # AGGREGATE, never one of its entities). An entity target's own identity
+      # is resolved entirely separately, from `args` (`build`'s own `entity_
+      # identities` loop) — this method is never consulted for it, so
+      # answering for an entity target does not "invent an entity identity"
+      # any more than answering for a plain one invents THAT identity; it was
+      # already the one thing this method has ever supplied. `build`'s own
+      # EXPLICIT branch (below) already applies this correctly either way
+      # (`aggregate_identity ||= inherited_receiver`, entity identities read
+      # from `args` regardless) — the caller that actually needed a guard
+      # here is the IMPLICIT one, above, which has no shape to build a
+      # `{aggregate:, entities:}` receiver from an inherited scalar alone,
+      # and now guards itself for exactly that reason instead of this method
+      # doing it on that caller's behalf and, as a side effect, also refusing
+      # the EXPLICIT caller's own legitimate case — confirmed missing until
+      # `qa/stress_domains/waybill` (BUG#6) exercised it for the first time
+      # anywhere in the corpus: a saga dispatching into a nested entity's own
+      # command, inheriting its aggregate receiver from the event that
+      # triggered it.
       def source_receiver_for(target, source_receiver)
         return nil unless source_receiver
-        return nil unless target.entities.empty?
-        return nil if target.command.creates?
+        # `target.command.creates?` ALONE MISREADS EVERY ENTITY COMMAND —
+        # `Behaviour::Command#creates?`'s own comment: "a verb declared on
+        # an ENTITY always acts on that piece... which means `creates?`
+        # answers true for every one of them" (it never sets `@references`
+        # the way an aggregate-level command's own `reference_to` does,
+        # not because it brings anything new into being). `build`'s own
+        # `if target.entities.empty? && target.command.creates?` guard,
+        # 20-odd lines below, already reads `creates?` correctly for
+        # exactly this reason — an entity command is never a genuine
+        # creation, whatever `creates?` alone answers — so this checks the
+        # SAME compound condition instead of the bare, misleading half of
+        # it. Left unfixed, an entity target's own receiver was refused
+        # here even after this method stopped refusing on `target.entities`
+        # alone — the second half of BUG#6's own fix.
+        return nil if target.entities.empty? && target.command.creates?
 
         source = source_receiver.transform_keys(&:to_sym)
         source_aggregate = source[:aggregate].to_s
