@@ -24,6 +24,14 @@ module Hecks
     module EntityElement
       module_function
 
+      # BUG#3 — an addressing value that can never match a stored element,
+      # returned from `element_of`'s own `wants` coercion in place of a real
+      # `Value` (below). A unique object, never `nil`: a stored, OPTIONAL
+      # element field really can hold `nil`, and comparing THAT against a
+      # bare `nil` sentinel would accidentally "match" it.
+      UNMATCHABLE = Object.new.freeze
+      private_constant :UNMATCHABLE
+
       # ONE HOP PER CHAIN ENTRY. `container` starts as `instance` (the root
       # aggregate record) and becomes each just-located element in turn —
       # Dispatch's own element is found INSIDE the Handler element
@@ -71,6 +79,7 @@ module Hecks
       # rubocop:disable-next Metrics/AbcSize
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/PerceivedComplexity
+      # rubocop:disable-next Metrics/MethodLength
       def element_of(root_aggregate, owner, entity, command_name, container, args, routed_identity = nil)
         entity_name = entity.hecks_name
         list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
@@ -85,7 +94,35 @@ module Hecks
                                                                  command: command_name, entity: entity_name,
                                                                  identity: Identity.reading(entity)))
 
-                    [head, path, Value.for_attribute(root_aggregate, entity.attribute(head), raw)]
+                    # AN IDENTITY OFFERED FOR ADDRESSING, NOT FOR STORAGE
+                    # (BUG#3, found live by `bin/qa_sweep` — banking fuzz seed
+                    # 23, `LedgerEntry.Amend sequence: { value: 0 }` against an
+                    # entry-less ledger). Coercing it all the way to a typed
+                    # `Value` here ran that type's own invariant BEFORE this
+                    # method ever checks whether any element matches — a
+                    # `sequence: 0` against `LedgerSequence`'s own "a ledger
+                    # sequence is positive" invariant raised InvariantViolation,
+                    # not NotFound, even when (as here) nothing was ever posted
+                    # at all. Every element actually IN the list already
+                    # satisfied its own type's invariant the moment it was
+                    # created, so a value that fails it can never equal one —
+                    # degrading to `UNMATCHABLE` here, instead of propagating,
+                    # is exactly as safe as the ordinary "no match found" case
+                    # below, and lines this addressing path up with the two
+                    # conventions it already disagreed with: Rust's own
+                    # `extract_id`/`extract_wants` (a raw scalar read, never a
+                    # typed rebuild — rust/src/generated/*/*.rs) and
+                    # `Identity.from`'s own raw-comparison convention for a
+                    # ROOT aggregate's identity (this file's sibling,
+                    # `identity.rb`). `raw` rides alongside `want` so the
+                    # eventual NotFound below can still quote what was offered.
+                    want = begin
+                      Value.for_attribute(root_aggregate, entity.attribute(head), raw)
+                    rescue InvariantViolation
+                      UNMATCHABLE
+                    end
+
+                    [head, path, want, raw]
                   end
                 end
 
@@ -93,13 +130,15 @@ module Hecks
         position = if routed_identity
                      original.find_index { |element| element_identity(entity, element).to_s == routed_identity.to_s }
                    else
-                     original.find_index { |el| wants.all? { |head, _path, want| el[head] == want } }
+                     original.find_index do |el|
+                       wants.all? { |head, _path, want, _raw| want != UNMATCHABLE && el[head] == want }
+                     end
                    end
         unless position
           raise NotFound, RefusalWording.render(
             "NotFound", "entity_element_missing",
             entity: entity_name, identity: Identity.reading(entity),
-            wants: wants&.map { |_h, path, want| Identity.scalar(path, want) }&.join(", "),
+            wants: wants&.map { |_h, path, _want, raw| Identity.scalar(path, raw) }&.join(", "),
             aggregate: owner.hecks_name,
             parent_id: container.respond_to?(:id) ? container.id.inspect : Rendering.describe(container)
           )

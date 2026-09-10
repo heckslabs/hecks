@@ -101,6 +101,27 @@ narrative: { text: "" })
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
   end
 
+  it "refuses an element by an identity that fails its own type's invariant as NotFound, not InvariantViolation" do
+    # BUG#3 (found live by `bin/qa_sweep`, banking fuzz seed 23) —
+    # `LedgerSequence`'s own "a ledger sequence is positive" invariant used
+    # to be checked WHILE locating the element, before this method ever
+    # asked whether one existed — so `sequence: 0` (which can never be a
+    # real, posted entry's sequence) raised InvariantViolation instead of
+    # the same NotFound `sequence: 99` (a valid-shaped but nonexistent
+    # sequence, the sibling case above) already gets. Rust's own
+    # `extract_wants` never rebuilds a typed value at all for this
+    # addressing path, so it always answered NotFound here — this is the
+    # divergence that closed.
+    runtime = boot_banking
+    funded_account(runtime)
+
+    expect do
+      runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
+                       number: { value: "a1" }, sequence: { value: 0 }, narrative: { text: "Ghost" })
+    end.to raise_error(Hecks::Runtime::NotFound,
+                       'no LedgerEntry with sequence.value 0 on Account "a1"')
+  end
+
   it "answers its query with the element AND whose boundary it is" do
     runtime = boot_banking
     funded_account(runtime)
