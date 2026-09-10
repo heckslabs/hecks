@@ -458,17 +458,17 @@ RSpec.describe "QualityControl" do
     end
 
     it "does not take a commit that is not a sha" do
-      expect { investigated.fix!(commit: { value: "later" }) }
+      expect { investigated.fix!(reference: { value: "BUG#1" }, commit: { value: "later" }) }
         .to raise_error(Hecks::Runtime::TypeMismatch, /must match/)
     end
 
     it "does not be verified with nothing behind it" do
-      expect { investigated.fix!(commit: { value: "4f2a19c" }).verify! }
+      expect { investigated.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }).verify! }
         .to raise_error(Hecks::Runtime::AbsentArgument, /evidence/)
     end
 
     it "keeps what was actually run, so the claim is checkable" do
-      bug = investigated.fix!(commit: { value: "4f2a19c" })
+      bug = investigated.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
       bug.verify!(evidence: { value: "rspec --order random: 1335 examples, 0 failures, seed 12345" })
 
       expect(bug.status).to eq("verified")
@@ -476,7 +476,7 @@ RSpec.describe "QualityControl" do
     end
 
     it "cannot be fixed before anybody has looked at it" do
-      expect { a_bug(a_sweep).fix!(commit: { value: "4f2a19c" }) }
+      expect { a_bug(a_sweep).fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
         .to raise_error(Hecks::Runtime::LifecycleRefused, /moves it only from "investigating"/)
     end
 
@@ -634,6 +634,54 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # ── noticing when a fix stops holding ───────────────────────────────
+
+  # `BugCiWatch` — nothing dispatches `Bug.Regress` by hand here. It
+  # starts the moment a bug is fixed, watches for the FIRST clearance
+  # answer against that exact commit, and acts (or doesn't) entirely on
+  # its own.
+  describe "the CI watch" do
+    def fixed_bug(commit)
+      bug = a_bug(a_sweep)
+      bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+      bug.fix!(reference: { value: "BUG#1" }, commit: { value: commit })
+    end
+
+    it "puts the bug back when its own commit comes back red" do
+      fixed_bug("4f2a19c")
+
+      QualityControl::Clearance.start!(commit: { value: "4f2a19c" })
+                               .failed!(refusal: { value: "1335 examples, 3 failures, seed 999" })
+
+      expect(QualityControl::Bug.find("BUG#1").status).to eq("investigating")
+      expect(runtime.sagas).to include(hash_including(process_manager: "BugCiWatch", dispatch: "Bug.Regress", delivered: true))
+    end
+
+    # GREEN NEEDS NOBODY. The instance just ends — `ends_on` deletes it the
+    # moment `ClearanceGiven` arrives for this commit, same as any other
+    # process manager's own terminal event.
+    it "just ends when the commit comes back green — nothing left to watch for" do
+      fixed_bug("9a8b7c6")
+
+      QualityControl::Clearance.start!(commit: { value: "9a8b7c6" })
+                               .passed!(summary: { value: "1335 examples, 0 failures" })
+
+      expect(QualityControl::Bug.find("BUG#1").status).to eq("fixed")
+      expect(runtime.registry.saga_instances["BugCiWatch"]).to be_empty
+    end
+
+    # THE WHOLE REASON THIS CORRELATES BY COMMIT AND NOT BY BUG: a red run
+    # against somebody ELSE's commit must never touch this bug.
+    it "ignores a clearance against an unrelated commit" do
+      fixed_bug("4f2a19c")
+
+      QualityControl::Clearance.start!(commit: { value: "deadbee" })
+                               .failed!(refusal: { value: "unrelated failure" })
+
+      expect(QualityControl::Bug.find("BUG#1").status).to eq("fixed")
+    end
+  end
+
   # TAGS — PUT ON, REPLACED, AND FOUND AGAIN.
   describe "tags" do
     let(:sweep) { a_sweep }
@@ -680,7 +728,7 @@ RSpec.describe "QualityControl" do
     it "can be tagged after it is verified — a tag is not a lifecycle move" do
       bug = a_bug_tagged("BUG#1")
       bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
-      bug.fix!(commit: { value: "abc1234" })
+      bug.fix!(reference: { value: "BUG#1" }, commit: { value: "abc1234" })
       bug.verify!(evidence: { value: "the failing spec now passes" })
       bug.tag!(tags: [{ value: "regression" }])
 
