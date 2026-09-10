@@ -165,7 +165,33 @@ module Hecks
           record = registry.repository(target_domain, target_ir).find(held)
           return true unless record
 
-          comparable(record.state[:state]) != state
+          # THE FIELD A STATE LIVES ON, READ FROM THE TARGET'S OWN
+          # DECLARATION — not assumed to be literally named `state`. Every
+          # `none_in_state` fixture this comparator originally shipped
+          # with (spec/query_none_in_state_*_spec.rb) happens to declare a
+          # plain `attribute :state, ...` rather than a real `lifecycle`,
+          # which is how the previous hardcoded `record.state[:state]`
+          # passed every one of them while being wrong for the shape this
+          # whole comparator exists to answer about: a real state MACHINE.
+          # `lifecycle :field, default: ... do ... end` stores its state
+          # under `field` (`Instance#assign_creation_attributes`'s own
+          # `state[aggregate.lifecycle.field.to_sym] = ...`), and this
+          # codebase's own convention overwhelmingly names that field
+          # `status`, not `state` (`QualityControl::Clearance`'s own
+          # `lifecycle :status` among many others) — so the hardcoded key
+          # silently read `nil` from every real lifecycle-backed target,
+          # comparable(nil) != state was true unconditionally, and
+          # `none_in_state` against ANY lifecycle aggregate answered
+          # "not excluded" for every row, always, no matter its actual
+          # state. Found chasing `QualityControl::Bug.AwaitingClearance`
+          # (qa/bluebook/quality_control.bluebook), which is exactly this
+          # shape: `Clearance:green`/`Clearance:red` against a `lifecycle
+          # :status` aggregate. Falls back to `:state` when the target
+          # declares no lifecycle at all, so every existing fixture (a
+          # plain attribute literally named `state`) keeps answering
+          # exactly as before.
+          field = target_ir.lifecycle&.field || :state
+          comparable(record.state[field]) != state
         end
 
         def find_aggregate_by_name(registry, name)
