@@ -17,7 +17,64 @@ module Hecks
           end
         end
 
+        # An EXPLICIT, opt-in maintenance operation — never run
+        # automatically after an ordinary save/delete. Heki's journal is
+        # not a disposable write-ahead log: it is this adapter's own
+        # answer to `entries`, and `entries` is a real port contract
+        # (`Ports::Persistence::AppendOnly`'s own required-methods list)
+        # read in full, forever, by `Ports::Projection::Worker#catch_up!`
+        # and `Registry#projection_current?` to catch a projection up to
+        # its authoritative source, and by `bin/history` to show "every
+        # journal entry a domain's append-only adapters hold" — the same
+        # contract Postgres/Sqlite/D1 uphold by way of a journal TABLE
+        # that is never pruned. A real example (`examples/banking`,
+        # `persisted_by("Heki")` + `projected_by("SqliteProjection")`)
+        # depends on this today. Compacting throws that full history away
+        # for whatever happened before the call — correct only for an
+        # aggregate nothing ever projects from; callers (`bin/
+        # heki_compact`) are responsible for confirming that first.
+        #
+        # Crash-safety ordering: `write` below is the exact same
+        # temp-file, fsync, atomic-rename sequence `save`/`delete`
+        # already use — the snapshot it produces is confirmed durably on
+        # disk before this method ever touches the journal. Only once
+        # that succeeds does `truncate_journal!` run. A crash between the
+        # two leaves old (now fully redundant) journal lines in place;
+        # replaying them again over the fresh snapshot on the next boot
+        # is idempotent — the same value gets set again, never a wrong
+        # one — so nothing is lost, just a little wasted replay work
+        # once. A crash before `write` completes leaves the journal
+        # fully intact and the prior snapshot untouched, exactly today's
+        # existing crash-recovery guarantee.
+        def compact!
+          with_lock do
+            current = replay_journal(read_snapshot)
+            write(current)
+            truncate_journal!
+            @store = current
+          end
+        end
+
         private
+
+        def truncate_journal!
+          return unless File.exist?(@journal_path)
+
+          # A single `truncate(0)` syscall on an already-open file
+          # descriptor — the file's length changes atomically at the
+          # filesystem level, so there is no "half truncated" state to
+          # observe even under a crash mid-call. `fsync` below makes
+          # that change durable before this method returns; without it
+          # a crash could still leave the old (harmless-to-replay)
+          # content on disk after a normal return, which is fine per
+          # the crash-safety note above, but the durable case is the
+          # one actually worth returning success for.
+          File.open(@journal_path, "r+b") do |file|
+            file.truncate(0)
+            file.flush
+            file.fsync
+          end
+        end
 
         def replay_journal(records)
           return records unless File.exist?(@journal_path)
