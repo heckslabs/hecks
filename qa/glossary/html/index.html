@@ -1071,6 +1071,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>Text.</p>
 <p class="rule">Always true: a sweep says who ran it.</p>
 </article>
+<article class="term" id="ever-surprised">
+<h3>Ever surprised</h3>
+<p>One of no or yes.</p>
+</article>
 <article class="term" id="expectation-1">
 <h3>Expectation</h3>
 <p>Text.</p>
@@ -1194,7 +1198,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     shelved --&gt; waiting: Restore</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>Shelving a target says why.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
+<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
 <div class="terms">
 <article class="term" id="all-6">
 <h3>All</h3>
@@ -1203,6 +1207,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="claim-1">
 <h3>Claim</h3>
 <p>Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.</p>
+</article>
+<article class="term" id="clean-streak">
+<h3>Clean streak</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a streak is not negative.</p>
 </article>
 <article class="term" id="engineer-2">
 <h3>Engineer</h3>
@@ -1223,7 +1232,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="release">
 <h3>Release</h3>
-<p>Hand a chapter back to the rotation, stamped with when and what this pass was worth. Done by the qa engineer.</p>
+<p>Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.</p>
 </article>
 <article class="term" id="restore">
 <h3>Restore</h3>

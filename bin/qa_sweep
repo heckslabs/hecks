@@ -23,6 +23,7 @@
 #   bin/qa_sweep                     # least-recently-swept waiting target
 #   bin/qa_sweep banking              # a named target, by its own reference
 #   bin/qa_sweep pizzas --seeds 25    # more seeded sequences per sweep
+#   bin/qa_sweep pizzas --steps 50    # longer sequences per sweep
 #   bin/qa_sweep --all                # every currently-waiting target, in parallel
 #   bin/qa_sweep --all --seeds 25     # same, more seeded sequences per target
 #   bin/qa_sweep pizzas --adversarial 0.5   # mutate half the generated command steps
@@ -99,6 +100,42 @@
 # way `IsolatedBoot`'s own `:postgres` mode uses for `bin/fuzz`; see
 # `rebind_to_postgres_era!`'s own header (isolated_boot.rb) for why that
 # distinction matters here specifically.
+#
+# CLEAN-STREAK DEPTH ESCALATION — WHY TWO SWEEPS OF THE SAME TARGET CAN
+# RUN A DIFFERENT NUMBER OF SEEDS. A fixed `--seeds 10 --steps 25` forever
+# tests a target identically on its first ever pass and its five-hundredth
+# clean pass in a row — and real bugs this practice found (BUG#14/#15/#16)
+# turned up at seeds 2-4 on targets whose own seed 1 held clean, which a
+# permanently shallow sweep would never reach. So `--seeds`/`--steps`, when
+# neither is given explicitly, are DERIVED from `Target.clean_streak`
+# (qa/bluebook/quality_control.bluebook) — how many consecutive clean
+# releases this target has racked up since anything last surprised it:
+#
+#   clean_streak    seeds   steps    (tier)
+#   0-4             10      25       fresh, or just surprised — the old default
+#   5-19            25      50       proven clean for a while — go wider
+#   20+             50      100      the ceiling — never wider than this
+#
+# See `WIDENING_TIERS` below for the exact table and the reasoning behind
+# its own three numbers (discrete tiers, not a continuous formula) and its
+# ceiling (an explicit cap — a target clean for 500 sweeps running still
+# only gets the widest tier, never an unboundedly larger one).
+#
+# `--seeds N` / `--steps N` ON THE COMMAND LINE ALWAYS WIN — exactly the
+# way `--seeds` already overrode the single old default, before this
+# feature existed. Given explicitly, either flag is used VERBATIM and the
+# streak is never consulted for that one; omitted, the streak decides.
+# `--all` passes an explicit override through to every child it spawns
+# uniformly (every target swept at the same forced depth); omitted, each
+# child derives its OWN depth from its OWN target's OWN streak, since two
+# targets in the same rotation rarely share one.
+#
+# THIS COMPOSES WITH ADVERSARIAL MODE, SELF-CONSISTENCY, AND PERSISTENCE-
+# PARITY, NOT AGAINST ANY OF THEM — every dial above answers a different
+# question (what shape of sequence to generate, whether an engine agrees
+# with itself, which adapter to compare against) than this one does (how
+# many sequences, how long each is). None of them reads another's own
+# constant, and none needed to change to thread this one through.
 #
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
 #   0  clean — every generated sequence held, the sweep concluded and the
@@ -240,17 +277,53 @@ DOMAIN_DIR         = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebo
 # hardcoded for that to reach all the way through.
 RUST_DIR           = ENV.fetch("QA_SWEEP_RUST_DIR", File.join(ROOT, "rust"))
 ENGINEER           = "qa_sweep".freeze
-STEPS_PER_SEQUENCE = 25
 DEFAULT_TARGETS    = { "pizzas" => "examples/pizzas", "banking" => "examples/banking" }.freeze
 
 EXIT_OK = 0
 EXIT_ERROR           = 1
 EXIT_FOUND_SOMETHING = 2
 
-USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--adversarial FRACTION] " \
+USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adversarial FRACTION] " \
         "[--self-consistency true|false]\n       " \
-        "bin/qa_sweep --all [--seeds N] [--adversarial FRACTION] [--self-consistency true|false]\n       " \
+        "bin/qa_sweep --all [--seeds N] [--steps N] [--adversarial FRACTION] " \
+        "[--self-consistency true|false]\n       " \
         "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]".freeze
+
+# THE WIDENING TABLE — see this file's own top-of-file comment
+# ("CLEAN-STREAK DEPTH ESCALATION") for the full reasoning; this is only
+# the data. Three discrete tiers, not a continuous `seeds = 10 + streak`
+# formula: BUG#14/#15/#16 (this session's own real finds) turned up at
+# seeds 2-4 on targets whose own seed 1 held clean, so a big first jump
+# (10 -> 25) matters more here than smooth growth does, and three numbers
+# are something a human tunes by editing a table, the same spirit as
+# `QualityControlDials` up in the chapter this reads from — a fact a
+# person changes by editing the file and reviewing the diff.
+#
+# THE LAST ROW IS THE CEILING, EXPLICITLY — `upto: Float::INFINITY` reads
+# oddly next to two finite numbers, and that is deliberate: every OTHER
+# row is a real upper bound on ITS OWN tier, and this one has to say, in
+# the same shape, "there is no tier past this — everything from here up
+# gets the SAME depth, forever." A target clean for 5 sweeps running and
+# one clean for 5,000 both land here and both get exactly 50 seeds x 100
+# steps, never more; leaving this open-ended (no last row, `else` in the
+# lookup below) would say the same thing with no number anybody could
+# grep for, which is the exact complaint `QualityControlDials`'s own
+# header comment already raises about a dial hidden in prose.
+WIDENING_TIERS = [
+  { upto: 4,               seeds: 10, steps: 25 },
+  { upto: 19,              seeds: 25, steps: 50 },
+  { upto: Float::INFINITY, seeds: 50, steps: 100 }
+].freeze
+
+# DETERMINISTIC, FROM THE LEDGER ALONE — the one argument in, the streak
+# `Target.claim!` already handed back, decides the whole answer; no clock,
+# no randomness, nothing else read. Same streak in, same [seeds, steps]
+# out, every time, which is what lets a human predict what a given sweep
+# is about to do before it runs one.
+def widen_for_streak(streak)
+  tier = WIDENING_TIERS.find { |row| streak <= row[:upto] }
+  [tier[:seeds], tier[:steps]]
+end
 
 # `PostgresEra`-BOUND ONLY — the one signal this script uses to decide a
 # target is worth the real `PG.connect`-per-dispatch cost
@@ -286,10 +359,19 @@ class Differ
 end
 
 # ── argument parsing ─────────────────────────────────────────────────
+#
+# `seeds_override`/`steps_override` START NIL, NOT AT A DEFAULT — nil is
+# what says "the caller named nothing, derive it from the streak instead"
+# (see `widen_for_streak` above); a plain `10`/`25` here, the way `seeds`
+# alone used to default, could never be told apart from a caller who
+# typed `--seeds 10` on purpose, and the override would silently stop
+# overriding anything once the streak-derived default ALSO happened to
+# land on 10.
 
-target_ref = nil
-seeds = 10
-all_mode = false
+target_ref     = nil
+seeds_override = nil
+steps_override = nil
+all_mode       = false
 # `nil` until resolved — the dial is read AFTER the ledger boots (the
 # bluebook file is what defines `QualityControlDials`), so an explicit
 # `--adversarial`/`--self-consistency` is remembered here and the dial
@@ -313,9 +395,18 @@ until ARGV.empty?
     abort "#{USAGE}\n--seeds needs a number" unless value
 
     begin
-      seeds = Integer(value)
+      seeds_override = Integer(value)
     rescue ArgumentError
       abort "#{USAGE}\n--seeds must be an integer, got #{value.inspect}"
+    end
+  when "--steps"
+    value = ARGV.shift
+    abort "#{USAGE}\n--steps needs a number" unless value
+
+    begin
+      steps_override = Integer(value)
+    rescue ArgumentError
+      abort "#{USAGE}\n--steps must be an integer, got #{value.inspect}"
     end
   when "--adversarial"
     value = ARGV.shift
@@ -343,7 +434,10 @@ until ARGV.empty?
   end
 end
 
-abort "#{USAGE}\n--seeds must be at least 1 — Sweep.Conclude refuses a sweep that checked nothing" if seeds < 1
+if seeds_override
+  abort "#{USAGE}\n--seeds must be at least 1 — Sweep.Conclude refuses a sweep that checked nothing" if seeds_override < 1
+end
+abort "#{USAGE}\n--steps must be at least 1" if steps_override && steps_override < 1
 
 if all_mode && target_ref
   abort "#{USAGE}\n--all sweeps every waiting target itself — it does not take a target-reference " \
@@ -391,17 +485,6 @@ if self_consistency.nil?
   self_consistency = defined?(QualityControlDials::SELF_CONSISTENCY_CHECKS) ? QualityControlDials::SELF_CONSISTENCY_CHECKS : true
 end
 
-# `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP` — SAME MODULE, ONE
-# MORE DIAL. Only meaningful for `--persistence-parity`; clamps DOWN,
-# never up, and only when the flag is actually set — an ordinary
-# `--seeds 3` differential sweep is unaffected.
-if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
-  puts "note: --seeds #{seeds} exceeds QualityControlDials::PERSISTENCE_PARITY_SEED_CAP " \
-       "(#{QualityControlDials::PERSISTENCE_PARITY_SEED_CAP}) — clamping down. Real PostgresEra I/O per " \
-       "dispatch is genuinely expensive; edit that dial in qa/bluebook/quality_control.bluebook to run more."
-  seeds = QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
-end
-
 # ── --all: every waiting target, genuinely in parallel ────────────────
 #
 # See this file's own top-of-file comment ("`--all` — WHY A SECOND MODE
@@ -419,7 +502,20 @@ end
 # `Process.spawn` returns immediately; nothing here blocks on the child,
 # which is what lets the caller spawn every target before waiting on
 # any of them (see `run_all_mode` below).
-def spawn_sweep_child(target_reference, seeds, adversarial, self_consistency)
+#
+# `seeds_override`/`steps_override` ARE FORWARDED ONLY WHEN THE TOP-LEVEL
+# CALLER ACTUALLY GAVE ONE — omitted (nil), each child derives its OWN
+# depth from its OWN target's OWN `clean_streak`, exactly as an ordinary
+# single-target `bin/qa_sweep <target>` already does with no `--all` in
+# sight. Forwarding a streak-derived NUMBER computed up here instead would
+# force every target in the rotation through whatever streak the FIRST
+# one happened to have — the opposite of the whole point, since two
+# targets in the same rotation essentially never share a streak.
+# `--adversarial`/`--self-consistency`, BY CONTRAST, ARE ALWAYS forwarded,
+# as the values THIS process resolved (flag or dial) — every child sweeps
+# under the same settings its parent reported, rather than each
+# re-reading the dials.
+def spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency)
   # Unlinked the instant it's open: the fd stays good for this
   # process's own later `rewind`/`read` (ordinary POSIX "delete while
   # open" semantics), but nothing survives on disk if this process
@@ -429,13 +525,13 @@ def spawn_sweep_child(target_reference, seeds, adversarial, self_consistency)
   log = Tempfile.new(["qa_sweep-#{target_reference}-", ".log"])
   log.unlink
 
-  # `--adversarial`/`--self-consistency` are ALWAYS forwarded, as the
-  # values THIS process resolved (flag or dial) — so every child sweeps
-  # under the same settings its parent reported, rather than each
-  # re-reading the dials.
+  args = [target_reference]
+  args += ["--seeds", seeds_override.to_s] if seeds_override
+  args += ["--steps", steps_override.to_s] if steps_override
+  args += ["--adversarial", adversarial.to_s, "--self-consistency", self_consistency.to_s]
+
   pid = Process.spawn(
-    "bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), target_reference, "--seeds", seeds.to_s,
-    "--adversarial", adversarial.to_s, "--self-consistency", self_consistency.to_s,
+    "bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), *args,
     out: log, err: log, chdir: ROOT
   )
 
@@ -469,25 +565,56 @@ end
 # detail — because a human or a follow-up subagent has to act on
 # exactly that, and a summary would be the one thing standing between
 # them and doing so correctly.
-def print_all_mode_report(results, elapsed, clean, found, errored)
-  puts "=" * 72
-  puts "CONSOLIDATED REPORT — #{results.size} target(s) swept, #{elapsed.round(1)}s wall-clock " \
-       "(genuinely parallel — not the sum of every target's own sweep time)"
-  puts "=" * 72
+#
+# THE ONE LINE EVERY CHILD PRINTS, PARSED BACK OUT — every ordinary
+# `bin/qa_sweep <target>` run (this method's own caller included, since
+# `--all`'s children ARE ordinary runs) prints exactly one line of this
+# shape (see `puts "resolved depth: ..."` below, in the single-target
+# path) the moment it has claimed a target and worked out how hard to
+# fuzz it. Scraping stdout instead of, say, a second IPC channel back to
+# the parent is deliberate: the child's own log is ALREADY the single
+# source of truth `print_all_mode_report` prints verbatim for a real
+# finding, so reading the SAME text back out here can never disagree with
+# what a human reading that report also sees.
+RESOLVED_DEPTH_LINE = /^resolved depth: seeds=(\d+) steps=(\d+) \(clean_streak=(\d+)\)$/
+
+def resolved_depth_for(output)
+  match = output.match(RESOLVED_DEPTH_LINE)
+  return "depth unknown (target errored before it could claim)" unless match
+
+  "#{match[1]} seeds x #{match[2]} steps (clean streak #{match[3]})"
+end
+
+# EVERY TARGET, ITS OWN RESOLVED DEPTH — so a human can tell a target
+# that just came off a 20-sweep clean streak (widest tier) from one
+# freshly added to the rotation (narrowest), without re-deriving either
+# by hand from `Target.clean_streak` itself. Pulled out of
+# `print_all_mode_report` on its own (rather than inlined there) purely
+# to keep that method's own branching count down — the report's other
+# three sections (clean/errored/found) were already each their own `if`
+# before this one existed.
+def print_resolved_depths(results)
+  return if results.empty?
+
   puts
-  puts "clean (#{clean.size}): #{clean.empty? ? 'none' : clean.map { |r| r[:target] }.join(', ')}"
+  puts "resolved depth (by target):"
+  results.each { |r| puts "  #{r[:target]}: #{resolved_depth_for(r[:output])}" }
+end
 
-  unless errored.empty?
+def print_operational_errors(errored)
+  return if errored.empty?
+
+  puts
+  puts "OPERATIONAL ERRORS (#{errored.size}) — read each message, fix the actual problem, don't retry blind:"
+  errored.each do |r|
+    label = r[:exit_status] ? "exit #{r[:exit_status]}" : "killed by signal #{r[:termsig]}"
     puts
-    puts "OPERATIONAL ERRORS (#{errored.size}) — read each message, fix the actual problem, don't retry blind:"
-    errored.each do |r|
-      label = r[:exit_status] ? "exit #{r[:exit_status]}" : "killed by signal #{r[:termsig]}"
-      puts
-      puts "-- #{r[:target]} (#{label}) --"
-      puts r[:output].strip
-    end
+    puts "-- #{r[:target]} (#{label}) --"
+    puts r[:output].strip
   end
+end
 
+def print_found_something(found)
   return if found.empty?
 
   puts
@@ -499,6 +626,19 @@ def print_all_mode_report(results, elapsed, clean, found, errored)
     puts "#" * 72
     puts r[:output]
   end
+end
+
+def print_all_mode_report(results, elapsed, clean, found, errored)
+  puts "=" * 72
+  puts "CONSOLIDATED REPORT — #{results.size} target(s) swept, #{elapsed.round(1)}s wall-clock " \
+       "(genuinely parallel — not the sum of every target's own sweep time)"
+  puts "=" * 72
+  puts
+  puts "clean (#{clean.size}): #{clean.empty? ? 'none' : clean.map { |r| r[:target] }.join(', ')}"
+
+  print_resolved_depths(results)
+  print_operational_errors(errored)
+  print_found_something(found)
 end
 
 # THE PRECEDENCE — a genuine finding always outranks an operational
@@ -517,7 +657,7 @@ def all_mode_exit_code(found, errored)
   EXIT_OK
 end
 
-def run_all_mode(runtime, seeds, adversarial, self_consistency)
+def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency)
   waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
 
   if waiting.empty?
@@ -530,7 +670,9 @@ def run_all_mode(runtime, seeds, adversarial, self_consistency)
   puts
 
   started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  children   = waiting.map { |target_reference| spawn_sweep_child(target_reference, seeds, adversarial, self_consistency) }
+  children   = waiting.map do |target_reference|
+    spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency)
+  end
   results    = children.map { |child| collect_sweep_child(child) }
   elapsed    = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
@@ -542,7 +684,7 @@ def run_all_mode(runtime, seeds, adversarial, self_consistency)
   exit all_mode_exit_code(found, errored)
 end
 
-run_all_mode(runtime, seeds, adversarial, self_consistency) if all_mode
+run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency) if all_mode
 
 # ── pick a target ───────────────────────────────────────────────────
 
@@ -619,6 +761,37 @@ begin
 rescue Hecks::Runtime::GivenNotMet => e
   abort "target #{target_reference.inspect} is already held and its claim has not gone stale yet (#{e.message})"
 end
+
+# ── size this pass ───────────────────────────────────────────────────
+#
+# READ ONCE, RIGHT AFTER CLAIMING, AND HELD — `current_streak` is used
+# TWICE more below (sizing this sweep now, via `widen_for_streak`;
+# computing `next_streak` for `Target::Release` once the sweep concludes
+# clean) and nothing between here and there ever changes `clean_streak`
+# out from under this process — only `Target::Release` itself would, and
+# that dispatch is the very last thing this script ever does.
+current_streak = target.clean_streak.value
+default_seeds, default_steps = widen_for_streak(current_streak)
+seeds              = seeds_override || default_seeds
+steps_per_sequence = steps_override || default_steps
+
+# `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP` — ONE MORE DIAL,
+# ONLY MEANINGFUL FOR `--persistence-parity`, and applied AFTER `seeds`
+# is finally resolved above (an explicit `--seeds`, or whatever the
+# streak just widened to) — clamps DOWN, never up, and only when the
+# flag is actually set: an ordinary differential sweep, streak-widened
+# or not, is unaffected. Real PostgresEra I/O per dispatch is genuinely
+# expensive, so a target that has earned the widest tier (50 seeds) on
+# its own clean streak still gets capped down the same way an explicit
+# `--seeds 50 --persistence-parity` would.
+if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
+  puts "note: --seeds #{seeds} exceeds QualityControlDials::PERSISTENCE_PARITY_SEED_CAP " \
+       "(#{QualityControlDials::PERSISTENCE_PARITY_SEED_CAP}) — clamping down. Real PostgresEra I/O per " \
+       "dispatch is genuinely expensive; edit that dial in qa/bluebook/quality_control.bluebook to run more."
+  seeds = QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
+end
+
+puts "resolved depth: seeds=#{seeds} steps=#{steps_per_sequence} (clean_streak=#{current_streak})"
 
 # ── open a sweep ─────────────────────────────────────────────────────
 #
@@ -847,7 +1020,7 @@ mode_label =
   end
 
 puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
-     "#{STEPS_PER_SEQUENCE} steps each, adversarial fraction #{adversarial}, self-consistency #{self_consistency}"
+     "#{steps_per_sequence} steps each, adversarial fraction #{adversarial}, self-consistency #{self_consistency}"
 
 # THE PERSISTENCE-PARITY OUTCOME — `Hecks::Fuzzing::PersistenceParity
 # .diff`, called once per seed against THIS SWEEP'S OWN disposable
@@ -888,11 +1061,17 @@ end
 # through three call sites for no real gain. `:persistence_parity` never
 # receives `self_consistency` at all (see this file's own top-of-file
 # comment on why that composition was left out on purpose).
+#
+# `steps_per_sequence` IS A PARAMETER, NOT A CONSTANT — it used to be
+# the fixed `STEPS_PER_SEQUENCE`; now it is resolved once above from
+# either `--steps` or `widen_for_streak` and threaded in here explicitly,
+# the same way `seed`/`binary`/`domain_path`/`adversarial` already are.
 # rubocop:disable-next Metrics/MethodLength
-def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, self_consistency, database: nil, schema: nil)
-  shape = "#{STEPS_PER_SEQUENCE} steps, adversarial #{adversarial}"
+def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial, self_consistency,
+                 database: nil, schema: nil)
+  shape = "#{steps_per_sequence} steps, adversarial #{adversarial}"
   begin
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: STEPS_PER_SEQUENCE,
+    steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: steps_per_sequence,
                                                                     adversarial: adversarial)
   rescue StandardError => e
     return { subject: "#{feature} fuzz seed #{seed} (#{shape}) — sequence generation",
@@ -906,36 +1085,36 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, 
   when :differential
     subject     = "#{feature} fuzz seed #{seed} (#{shape}) vs compiled Rust (#{feature})"
     expectation = "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
-                  "reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
+                  "reactions, sagas and queries across all #{steps_per_sequence} generated steps"
     expectation += ", and each engine agrees with itself on rehydration/idempotency/value-object round trip" \
       if self_consistency
     divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency: self_consistency)
     clean       = divergences.empty?
     observation = if clean
-                    "agreed across all #{STEPS_PER_SEQUENCE} steps"
+                    "agreed across all #{steps_per_sequence} steps"
                   else
                     "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
                   end
   when :persistence_parity
     subject     = "#{feature} fuzz seed #{seed} (#{shape}) — Memory vs real PostgresEra"
     expectation = "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
-                  "refusals, reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
+                  "refusals, reactions, sagas and queries across all #{steps_per_sequence} generated steps"
     _verdict, divergences = persistence_parity_outcome(domain_path, steps, database, schema)
     clean       = divergences.empty?
     observation = if clean
-                    "agreed across all #{STEPS_PER_SEQUENCE} steps"
+                    "agreed across all #{steps_per_sequence} steps"
                   else
                     "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
                   end
   else
     subject     = "#{feature} fuzz seed #{seed} (#{shape}), Ruby-only (no Rust binary)"
     expectation = "no declared property is violated and the interpreter does not crash across all " \
-                  "#{STEPS_PER_SEQUENCE} generated steps"
+                  "#{steps_per_sequence} generated steps"
     expectation += ", and Ruby agrees with itself on rehydration/idempotency/value-object round trip" \
       if self_consistency
     verdict, message, divergences = ruby_only_outcome(domain_path, steps, self_consistency: self_consistency)
     clean       = verdict == :clean
-    observation = clean ? "clean across all #{STEPS_PER_SEQUENCE} steps" : "#{verdict}: #{message}"
+    observation = clean ? "clean across all #{steps_per_sequence} steps" : "#{verdict}: #{message}"
   end
 
   { subject: subject, expectation: expectation, divergences: divergences, clean: clean, observation: observation,
@@ -946,8 +1125,8 @@ surprise = nil
 
 begin
   (1..seeds).each do |seed|
-    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, self_consistency,
-                          database: persistence_parity_database, schema: persistence_parity_schema)
+    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
+                          self_consistency, database: persistence_parity_database, schema: persistence_parity_schema)
 
     sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
     sequence = sweep.checks.last[:sequence][:value]
@@ -996,11 +1175,12 @@ if surprise
   puts "sweep:       #{sweep_reference} (id #{sweep.id})"
   puts "mode:        #{mode}"
   puts "seed:        #{surprise[:seed]}"
-  puts "steps:       #{STEPS_PER_SEQUENCE}"
+  puts "steps:       #{steps_per_sequence}"
   puts "adversarial: #{adversarial}"
   puts "self-consistency: #{self_consistency}"
+  puts "streak:      clean_streak was #{current_streak} going into this pass"
   puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
-       "seed: #{surprise[:seed]}, steps: #{STEPS_PER_SEQUENCE}, adversarial: #{adversarial})"
+       "seed: #{surprise[:seed]}, steps: #{steps_per_sequence}, adversarial: #{adversarial})"
   puts "subject:     #{surprise[:subject]}"
   puts "expectation: #{surprise[:expectation]}"
   puts "observation: #{surprise[:observation]}"
@@ -1051,7 +1231,7 @@ if surprise
 end
 
 notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} feature=#{feature} seeds=#{seeds} " \
-        "steps=#{STEPS_PER_SEQUENCE} adversarial=#{adversarial} self_consistency=#{self_consistency} — " \
+        "steps=#{steps_per_sequence} adversarial=#{adversarial} self_consistency=#{self_consistency} — " \
         "every seed held, no divergence or property violation found."
 sweep.conclude!(notes: { value: notes })
 
@@ -1066,9 +1246,28 @@ sweep.conclude!(notes: { value: notes })
 next_yield_score = Hecks::Fuzzing::RotationPriority.next_yield_score(
   old_score: target.yield_score.value, surprises_this_period: 0
 )
-target.release!(now: { value: Time.now.to_i }, yield_score: { value: next_yield_score })
+
+# `next_streak` — SEE `Target::Release`'s OWN COMMENT (qa/bluebook/
+# quality_control.bluebook) FOR WHY THIS SCRIPT, NOT THE LEDGER, DOES
+# THIS ARITHMETIC. `sweep_was_clean?` reads the STICKY per-check
+# `ever_surprised` bit rather than trusting the loop above's own
+# `surprise` local — belt and braces: this script's own loop always
+# breaks the instant ANY seed surprises (so `surprise` is always nil by
+# the time this line runs, and `sweep_was_clean?` always agrees), but
+# `Sweep::Conclude`/`Target::Release` are also reachable from `bin/run`
+# by hand, and a future call path that resolves a surprise (`Remake`
+# then `Held`) before concluding must never read as clean just because
+# the CURRENT outcome says "held" — that is exactly the case
+# `ever_surprised` exists to still catch.
+def sweep_was_clean?(sweep)
+  sweep.checks.none? { |c| c[:ever_surprised][:value] == "yes" }
+end
+
+next_streak = sweep_was_clean?(sweep) ? current_streak + 1 : 0
+target = target.release!(now: { value: Time.now.to_i }, yield_score: { value: next_yield_score },
+                         next_streak: { value: next_streak })
 
 puts
-puts "clean — #{target_reference} concluded and released."
+puts "clean — #{target_reference} concluded and released. clean_streak: #{current_streak} -> #{target.clean_streak.value}."
 puts notes
 exit EXIT_OK

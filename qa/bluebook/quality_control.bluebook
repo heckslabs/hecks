@@ -205,6 +205,21 @@ Hecks.bluebook "QualityControl" do
     # weight toward" — a fresh target and a long-clean one both start
     # here, which is exactly right: neither has EARNED priority yet.
     attribute :yield_score, YieldScore
+    # HOW MANY CONSECUTIVE `Release`s IN A ROW CAME BACK CLEAN — not a
+    # count of sweeps ever run, a count of sweeps run SINCE THE LAST TIME
+    # ANYTHING SURPRISED THIS TARGET. `bin/qa_sweep` reads it right after
+    # claiming, to decide how hard to fuzz THIS pass (see that file's own
+    # header on the widening formula): a target that has held clean fifty
+    # times running is under-tested by a fixed shallow sweep the same way
+    # a target just added to the rotation is — the streak is what tells
+    # the runner which of those two situations it is actually in.
+    #
+    # ZERO MEANS "NO STREAK YET" — a freshly `Identify`d target (never
+    # swept), and a target whose last sweep ever surprised, read
+    # identically here, on purpose: both deserve the narrowest, cheapest
+    # pass until they have proven themselves clean again. Same shape
+    # `SweptIn`'s own "zero sorts first for free" comment already gives.
+    attribute :clean_streak, CleanStreak
     attribute :reason,     TargetReason
 
     value_object "TargetReference" do
@@ -239,6 +254,18 @@ Hecks.bluebook "QualityControl" do
     value_object "SweptIn" do
       attribute :value, Integer, default: 0
       invariant("a sweep time is not before the epoch") { !value.negative? }
+    end
+
+    # A COUNT, NOT A CLOCK — unlike every other Integer VO in this
+    # aggregate (`Instant`, `SweptIn`), nothing here compares this against
+    # `now`. `default: 0` is what makes this field ADDITIVE to a live
+    # ledger: an existing `Target` row written before this field existed
+    # hydrates with `clean_streak.value == 0` rather than refusing to
+    # boot — the exact same "zero means never" shape `SweptIn` already
+    # established for a row from before ITS own field existed.
+    value_object "CleanStreak" do
+      attribute :value, Integer, default: 0
+      invariant("a streak is not negative") { !value.negative? }
     end
 
     value_object "TargetReason" do
@@ -324,7 +351,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Release" do
       role "QA engineer"
-      goal "Hand a chapter back to the rotation, stamped with when and what this pass was worth"
+      goal "Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
 
       # THE ARGUMENT IS `now`, AND THE FIELD IS `last_swept`, which is what
       # `sets` is for. It was `last_swept` on both sides and that made it
@@ -332,8 +359,35 @@ Hecks.bluebook "QualityControl" do
       # `now` and knows nothing about a field called `last_swept`. Naming the
       # ARGUMENT for where it comes from and the FIELD for what it means costs
       # one line and leaves no hand-typed clock anywhere in the chapter.
+      #
+      # `next_streak` IS THE SAME SHAPE, ONE FIELD OVER — and it is the
+      # CALLER'S to compute, not this record's, for the identical reason
+      # `now` is: whether the sweep just concluded was clean is a fact
+      # about `Sweep` (and, for any check ever marked `Surprised`, about
+      # that check's own sticky `ever_surprised` — see `Sweep::Check::
+      # Surprised`'s own comment — which survives even a later `Remake`
+      # that resolves it), and `Target` cannot read another aggregate's
+      # state to check that for itself. No policy could carry it either —
+      # see this file's OWN closing comment on why the rotation gets no
+      # automatic reaction at all: the payload a `SweepConcluded` event
+      # carries has no way to reach back into `Sweep.checks` for this, and
+      # a reaction that cannot carry what its target needs refuses at run
+      # time while reading, in the log, as though it had worked. So this
+      # is REQUIRED, not defaulted or left optional the way an absent fact
+      # quietly resolves to nil elsewhere in this language — an omitted
+      # streak would either silently blank a real counter or silently
+      # guess at continuing it, and neither is a guess this record should
+      # make about work it never watched happen.
+      #
+      # `bin/qa_sweep` already has to read THIS record's own `clean_streak`
+      # before it ever claims, to size the very sweep it is about to run —
+      # so computing `clean_streak.value + 1` (every check held, and none
+      # of them ever surprised) or `0` (anything did) costs it nothing
+      # extra, and keeps the arithmetic out of the one record that cannot
+      # check it for itself.
       reference_to Target
-      attribute :now, Instant
+      attribute :now,          Instant
+      attribute :next_streak,  CleanStreak
 
       # REQUIRED, NOT DEFAULTED TO ZERO — the same call `Submitter` already
       # makes over `Engineer`'s "nobody" default (see that value object's own
@@ -361,6 +415,7 @@ Hecks.bluebook "QualityControl" do
 
       sets :last_swept, to: :now
       sets :yield_score
+      sets :clean_streak, to: :next_streak
 
       emits "TargetReleased"
     end
@@ -543,6 +598,19 @@ Hecks.bluebook "QualityControl" do
       attribute :subject,     Subject
       attribute :expectation, Expectation
       attribute :observation, Observation, optional: true
+      # STICKY, ON PURPOSE — `outcome` (below) is the CURRENT verdict, and
+      # `Remake` deliberately puts it back to "made" so a check that was
+      # once surprising can be re-run against a system that has since
+      # changed. That is exactly right for the OUTCOME and exactly wrong
+      # for the QUESTION `Target::Release`'s own `next_streak` needs
+      # answered: "did anything in this sweep EVER surprise", which a
+      # `Remake`-then-`Held` cycle must never be able to erase. `default:
+      # "no"` rather than a `Boolean` type: this chapter has no precedent
+      # anywhere for a boolean-typed attribute, and `one_of` — already the
+      # established closed-set idiom here (`SafeDepositBox.size`'s own
+      # comment on the inline shorthand) — is one more construct nobody
+      # reading this file has to learn.
+      attribute :ever_surprised, one_of("no", "yes"), default: { value: "no" }
 
       # `surprising` IS NOT `failed`, AND THE DIFFERENCE IS THE POINT. A check
       # that refused when it should have refused is `held`. A check that did
@@ -576,6 +644,10 @@ Hecks.bluebook "QualityControl" do
         attribute :observation, Observation
 
         sets :observation
+        # `to: "yes"` — A LITERAL, NEVER `Remake`d BACK. `ever_surprised`'s
+        # own comment is the full reasoning; this is the one place it is
+        # ever set, and nothing else in this entity ever sets it again.
+        sets :ever_surprised, to: "yes"
 
         emits "CheckSurprised"
       end

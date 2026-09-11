@@ -884,6 +884,10 @@ Text.
 
 Always true: a sweep says who ran it.
 
+### Ever surprised
+
+One of no or yes.
+
 ### Expectation
 
 Text.
@@ -1023,6 +1027,7 @@ stateDiagram-v2
 - A target says where it is.
 - An instant is not before the epoch.
 - A sweep time is not before the epoch.
+- A streak is not negative.
 - Shelving a target says why.
 - A yield score is not negative.
 - A staleness window is positive.
@@ -1034,6 +1039,12 @@ Every chapter ever written down — the inventory a runner walking the repositor
 ### Claim
 
 Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.
+
+### Clean streak
+
+A whole number.
+
+Always true: a streak is not negative.
 
 ### Engineer
 
@@ -1055,7 +1066,7 @@ Always true: an instant is not before the epoch.
 
 ### Release
 
-Hand a chapter back to the rotation, stamped with when and what this pass was worth. Done by the qa engineer.
+Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.
 
 ### Restore
 
