@@ -756,5 +756,3 @@ the full checklist.
 ## License
 
 Apache License 2.0 — see [`LICENSE`](LICENSE).
-
-<!-- ci: rspec_postgres_io_parallel skip-gate verification — README.md is on that job's safe-to-skip list; this comment-only edit should not trigger it. -->
