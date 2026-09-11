@@ -570,8 +570,10 @@ stateDiagram-v2
     opened --> landed: Land
     needs_fix --> landed: Land
     landed --> needs_fix: Regress
+    opened --> merged: Merge
     landed --> merged: Merge
     needs_fix --> merged: Merge
+    opened --> closed: Close
     landed --> closed: Close
     needs_fix --> closed: Close
 ```
