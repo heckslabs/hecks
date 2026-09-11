@@ -1,0 +1,138 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Chess::Game",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Chess::Game.Piece",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Chess::Game.Piece.Move",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Chess::Game.Piece.Capture",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.Start",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.PlacePiece",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.MovePiece",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.CapturePiece",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.AdvanceTurn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.DeclareCheck",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.DeclareCheckmate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.DeclareStalemate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.Resign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.OfferDraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.AcceptDraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Chess::Game.DeclineDraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Chess::Game.InProgress",
+    "generated": true
+  },
+  {
+    "kind": "policy",
+    "id": "Chess::OnWhiteMovedAdvanceTurn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Chess::OnBlackMovedAdvanceTurn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Chess::OnCheckDeclaredAfterMove",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Chess::OnCheckmateDeclaredAfterMove",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Chess::OnStalemateDeclaredAfterMove",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Chess::Game",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"game\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  }
+]

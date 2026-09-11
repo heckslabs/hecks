@@ -1,0 +1,48 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "NestedPieces::Workspace",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "NestedPieces::Workspace.Board",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "NestedPieces::Workspace.Board.Card",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "NestedPieces::Workspace.Board.Card.Annotate",
+    "generated": false,
+    "gap_class": "structural",
+    "reason": "entity nested two levels deep (NestedPieces::Workspace.Board.Card) — kernel::cli.rs's JSON router and registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+  },
+  {
+    "kind": "entity_command",
+    "id": "NestedPieces::Workspace.Board.AddCard",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "NestedPieces::Workspace.Board.Label",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "NestedPieces::Workspace.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "NestedPieces::Workspace.AddBoard",
+    "generated": true,
+    "routed": true
+  }
+]
