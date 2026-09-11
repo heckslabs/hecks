@@ -14,4 +14,9 @@ Hecks.adapter "PostgresEra" do
   field :database
   field :role
   field :schema
+  # `allow_superuser true` — the explicit, on-the-record opt-in to boot
+  # over a connection whose role is a Postgres superuser or carries
+  # BYPASSRLS, which the era write-fence (row-level security) cannot
+  # bite. Refused by default; see `Lineage#check_fence_applies!` (BUG#24).
+  field :allow_superuser
 end

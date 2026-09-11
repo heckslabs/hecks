@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/fenced_owner"
 
 # `formerly_known_as` — a domain's own declared identity can change, and
 # this proves the storage layer bridges its real history under the new
@@ -84,6 +85,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RENAME_DB}")
     admin.close
+    # every check! below connects as a NON-superuser owner — the ambient
+    # dev/CI user is a superuser, which PostgresEra refuses to boot as
+    # (BUG#24; see support/fenced_owner.rb)
+    FencedOwner.own!(RENAME_DB)
   end
 
   after(:all) do
@@ -97,6 +102,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+    FencedOwner.own_public!(RENAME_DB)
   end
 
   def load_registry(source, translation_source: nil)
@@ -118,7 +124,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
   def check!(source, translation_source: nil, role: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    settings = { database: RENAME_DB }
+    settings = { database: FencedOwner.url(RENAME_DB) }
     settings[:role] = role if role
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
@@ -223,7 +229,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
   it "renames the domain column across hecks_eras, hecks_era_texts, hecks_approvals, and hecks_attestations" do
     check!(OLD_SOURCE)
-    db = PG.connect(dbname: RENAME_DB)
+    # as the OWNER, the way bin/reattest_era runs it — reattest! lazily
+    # CREATEs hecks_attestations, and a table this role does not own is
+    # one the rename below could not UPDATE
+    db = PG.connect(FencedOwner.url(RENAME_DB))
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName")
     lineage.reattest!(1) # forces hecks_attestations into existence under the OLD name
     db.close

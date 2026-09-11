@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require_relative "support/postgres_probe"
+require_relative "support/fenced_owner"
 
 # THE ARCHITECTURAL FINDING THIS SPEC PROVES, END TO END: hosting
 # multitenancy needs no ambient "current tenant" thread-local and no
@@ -231,6 +232,10 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")
     admin.close
+    # both tenants boot as a NON-superuser owner — the ambient dev/CI
+    # user is a superuser, which PostgresEra refuses to boot as (BUG#24;
+    # see support/fenced_owner.rb)
+    FencedOwner.own!(db)
 
     # NO CREATE SCHEMA HERE — deliberately. PostgresEra#connect_for
     # itself now creates a declared `schema:` idempotently on connect
@@ -243,8 +248,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         write_tenant_domain(
           dir, adapter:         "PostgresEra",
                tenant_settings: {
-                 "acme"  => { database: db, schema: "tenant_acme" },
-                 "bloom" => { database: db, schema: "tenant_bloom" }
+                 "acme"  => { database: FencedOwner.url(db), schema: "tenant_acme" },
+                 "bloom" => { database: FencedOwner.url(db), schema: "tenant_bloom" }
                }
         )
 

@@ -2,5 +2,16 @@ Hecks.world "Pizzas" do
   realm "Examples"
   persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_pizzas"
+    # A LOCAL EXAMPLE, RUN AGAINST WHATEVER POSTGRES USER YOUR SHELL
+    # DEFAULTS TO — on a self-hosted dev box, almost always a superuser.
+    # PostgresEra refuses to boot as one by default: its era write-fence
+    # is row-level security, which a superuser (or any BYPASSRLS role)
+    # walks straight through, so an old checkout could keep writing a
+    # superseded era and nothing would refuse (BUG#24). This opt-in
+    # boots anyway, on the record, and PostgresEra says so on stderr on
+    # every boot. A real deployment binds an ordinary role in the URL
+    # (`postgres://<role>@<host>/<db>`) and never needs this line —
+    # qa/bluebook/quality_control.world is the worked example.
+    allow_superuser true
   end
 end
