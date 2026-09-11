@@ -27,6 +27,7 @@
 #   bin/qa_sweep --all --seeds 25     # same, more seeded sequences per target
 #   bin/qa_sweep pizzas --adversarial 0.5   # mutate half the generated command steps
 #   bin/qa_sweep --all --adversarial 0      # turn adversarial generation OFF
+#   bin/qa_sweep pizzas --self-consistency false   # differential comparison only
 #   bin/qa_sweep directory --persistence-parity   # Memory vs real PostgresEra, one target only
 #
 # ADVERSARIAL BY DEFAULT. Every sequence this script generates goes
@@ -49,6 +50,36 @@
 # SOMETHING report carries the `adversarial:` fraction that was in
 # effect, and every step that was mutated is listed with what was done
 # to it, so the Bug can name the mechanism.
+#
+# A SECOND COMPARISON AXIS, ALSO ON BY DEFAULT. Every check described
+# above is DIFFERENTIAL — Ruby vs the compiled Rust conformance binary
+# (`diff_ruby_vs_rust`), or, with no binary, Ruby's own declared
+# properties (`ruby_only_outcome`). Differential comparison can never
+# catch a bug where both engines are wrong the SAME way, or where one
+# engine is self-inconsistent with nothing to differentially compare it
+# against. `Hecks::Fuzzing::SelfConsistency` (lib/hecks/fuzzing/
+# self_consistency.rb — read that file's own header for the full
+# mechanism) asks a DIFFERENT question of the SAME already-generated
+# sequence and its already-produced state — adversarially mutated or
+# not, the two layers compose for free: this pass reads whatever
+# `history` the dispatch of THAT sequence produced, with no idea whether
+# it was adversarial — does ONE engine agree with ITSELF? Cold
+# rehydration from its own durable journal, replay idempotency, and
+# every value object's own JSON round trip, on Ruby; the compiled
+# binary's own `"seed"`-based rehydration door, on Rust, whenever one
+# exists to ask. `QualityControlDials::SELF_CONSISTENCY_CHECKS` (qa/
+# bluebook/quality_control.bluebook, same file/same pattern
+# `ADVERSARIAL_FRACTION` lives in) is the dial; `--self-consistency
+# true`/`--self-consistency false` overrides it for one run. A
+# self-consistency finding is reported and exits exactly the way a
+# differential divergence already does (see `run_one_seed`'s own
+# `divergences` array, below) — this is not a second report format, it
+# is more entries in the same one. NOT wired into `--persistence-parity`
+# below — that mode already pays for real Postgres I/O per dispatch
+# (`PERSISTENCE_PARITY_SEED_CAP` exists specifically to bound that cost),
+# and self-consistency's own Heki-backed cold reads are real disk I/O of
+# their own; compounding both costs onto one already-expensive,
+# deliberately-capped mode was left out on purpose, not missed.
 #
 # `--persistence-parity` — A GENUINELY NEW AXIS, NOT A REPLACEMENT for the
 # Ruby-vs-Rust differential mode above: Memory vs a real, disposable
@@ -169,6 +200,7 @@ require "hecks"
 # "Heki"` binding needs it explicitly.
 require "hecks/ports/persistence/plugins/era"
 require "hecks/fuzzing"
+require "hecks/fuzzing/self_consistency"
 require "json"
 require "open3"
 require "tempfile"
@@ -215,8 +247,9 @@ EXIT_OK = 0
 EXIT_ERROR           = 1
 EXIT_FOUND_SOMETHING = 2
 
-USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--adversarial FRACTION]\n       " \
-        "bin/qa_sweep --all [--seeds N] [--adversarial FRACTION]\n       " \
+USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--adversarial FRACTION] " \
+        "[--self-consistency true|false]\n       " \
+        "bin/qa_sweep --all [--seeds N] [--adversarial FRACTION] [--self-consistency true|false]\n       " \
         "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]".freeze
 
 # `PostgresEra`-BOUND ONLY — the one signal this script uses to decide a
@@ -259,9 +292,10 @@ seeds = 10
 all_mode = false
 # `nil` until resolved — the dial is read AFTER the ledger boots (the
 # bluebook file is what defines `QualityControlDials`), so an explicit
-# `--adversarial` is remembered here and the dial only consulted when
-# none was given.
+# `--adversarial`/`--self-consistency` is remembered here and the dial
+# only consulted when none was given.
 adversarial = nil
+self_consistency = nil
 persistence_parity_mode = false
 
 until ARGV.empty?
@@ -293,6 +327,15 @@ until ARGV.empty?
       abort "#{USAGE}\n--adversarial must be a number, got #{value.inspect}"
     end
     abort "#{USAGE}\n--adversarial must be between 0 and 1, got #{value}" unless adversarial.between?(0, 1)
+  when "--self-consistency"
+    value = ARGV.shift
+    abort "#{USAGE}\n--self-consistency needs true or false" unless value
+
+    case value
+    when "true"  then self_consistency = true
+    when "false" then self_consistency = false
+    else abort "#{USAGE}\n--self-consistency must be true or false, got #{value.inspect}"
+    end
   else
     abort "#{USAGE}\nunexpected argument: #{arg.inspect} (target already given: #{target_ref.inspect})" if target_ref
 
@@ -335,12 +378,18 @@ end
 
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
-# THE DIAL, read once the boot above has loaded the bluebook that defines
-# it — `QualityControlDials` is a constant in qa/bluebook/quality_control.
-# bluebook itself, not something this script carries a copy of. A ledger
-# without the dial (an isolated spec's own fixture, say) runs the layer
-# OFF rather than inventing a number here.
+# THE DIALS, read once the boot above has loaded the bluebook that
+# defines them — `QualityControlDials` is a constant in qa/bluebook/
+# quality_control.bluebook itself, not something this script carries a
+# copy of. A ledger without a dial (an isolated spec's own fixture, say)
+# runs the adversarial layer OFF (0.0) but self-consistency checking ON
+# (`true`) — self-consistency checking needs no dial-declaring ledger to
+# be worth running, unlike the adversarial layer's own "off is the safe
+# default" stance.
 adversarial ||= defined?(QualityControlDials::ADVERSARIAL_FRACTION) ? QualityControlDials::ADVERSARIAL_FRACTION.to_f : 0.0
+if self_consistency.nil?
+  self_consistency = defined?(QualityControlDials::SELF_CONSISTENCY_CHECKS) ? QualityControlDials::SELF_CONSISTENCY_CHECKS : true
+end
 
 # `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP` — SAME MODULE, ONE
 # MORE DIAL. Only meaningful for `--persistence-parity`; clamps DOWN,
@@ -370,7 +419,7 @@ end
 # `Process.spawn` returns immediately; nothing here blocks on the child,
 # which is what lets the caller spawn every target before waiting on
 # any of them (see `run_all_mode` below).
-def spawn_sweep_child(target_reference, seeds, adversarial)
+def spawn_sweep_child(target_reference, seeds, adversarial, self_consistency)
   # Unlinked the instant it's open: the fd stays good for this
   # process's own later `rewind`/`read` (ordinary POSIX "delete while
   # open" semantics), but nothing survives on disk if this process
@@ -380,12 +429,13 @@ def spawn_sweep_child(target_reference, seeds, adversarial)
   log = Tempfile.new(["qa_sweep-#{target_reference}-", ".log"])
   log.unlink
 
-  # `--adversarial` is ALWAYS forwarded, as the value THIS process
-  # resolved (flag or dial) — so every child sweeps under the same
-  # fraction its parent reported, rather than each re-reading the dial.
+  # `--adversarial`/`--self-consistency` are ALWAYS forwarded, as the
+  # values THIS process resolved (flag or dial) — so every child sweeps
+  # under the same settings its parent reported, rather than each
+  # re-reading the dials.
   pid = Process.spawn(
     "bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), target_reference, "--seeds", seeds.to_s,
-    "--adversarial", adversarial.to_s,
+    "--adversarial", adversarial.to_s, "--self-consistency", self_consistency.to_s,
     out: log, err: log, chdir: ROOT
   )
 
@@ -467,7 +517,7 @@ def all_mode_exit_code(found, errored)
   EXIT_OK
 end
 
-def run_all_mode(runtime, seeds, adversarial)
+def run_all_mode(runtime, seeds, adversarial, self_consistency)
   waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
 
   if waiting.empty?
@@ -476,11 +526,11 @@ def run_all_mode(runtime, seeds, adversarial)
   end
 
   puts "sweeping #{waiting.size} waiting target(s) in parallel: #{waiting.join(', ')} " \
-       "(adversarial fraction #{adversarial})"
+       "(adversarial fraction #{adversarial}, self-consistency #{self_consistency})"
   puts
 
   started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  children   = waiting.map { |target_reference| spawn_sweep_child(target_reference, seeds, adversarial) }
+  children   = waiting.map { |target_reference| spawn_sweep_child(target_reference, seeds, adversarial, self_consistency) }
   results    = children.map { |child| collect_sweep_child(child) }
   elapsed    = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
@@ -492,7 +542,7 @@ def run_all_mode(runtime, seeds, adversarial)
   exit all_mode_exit_code(found, errored)
 end
 
-run_all_mode(runtime, seeds, adversarial) if all_mode
+run_all_mode(runtime, seeds, adversarial, self_consistency) if all_mode
 
 # ── pick a target ───────────────────────────────────────────────────
 
@@ -635,6 +685,20 @@ if persistence_parity_mode
   admin.close
 end
 
+# SHARED BY BOTH DIFFERENTIAL-FAMILY MODES — `ruby_result`/`history`
+# either way carries a `:self_consistency` key ONLY when `Replay.call`
+# was asked for one (`self_consistency: true`); flattened from
+# `{rehydration:, idempotency:, value_object_round_trip:}` into the SAME
+# flat `divergences` shape every other finding already uses, so the
+# existing report/exit-code path (`run_one_seed`'s own
+# `divergences.empty?`) needs no special case for where a finding came
+# from.
+def self_consistency_divergences(history)
+  return [] unless history[:self_consistency]
+
+  history[:self_consistency].values.flatten(1)
+end
+
 # THE ACTUAL RUBY-VS-RUST DIFF `spec/rust_conformance_fuzz_spec.rb` runs
 # per generated seed, factored out unchanged rather than re-derived —
 # same fields compared (instances, events, refusals, queries, sagas,
@@ -647,8 +711,9 @@ end
 # rubocop:disable-next Metrics/AbcSize
 # rubocop:disable-next Metrics/CyclomaticComplexity
 # rubocop:disable-next Metrics/PerceivedComplexity
-def diff_ruby_vs_rust(differ, domain_path, steps, binary)
-  ruby_result    = Hecks::Fuzzing::Replay.call(domain_path, steps)
+# rubocop:disable-next Metrics/MethodLength
+def diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency:)
+  ruby_result    = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
   ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
   ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
   ruby_refusals  = ruby_result[:refusals].map do |r|
@@ -661,6 +726,16 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary)
   return [{ field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }] unless status.success?
 
   rust_output = JSON.parse(stdout)
+  # A DEEP COPY, TAKEN BEFORE `strip_emitted_flags!` MUTATES IN PLACE —
+  # the self-consistency seed below needs the WIRE-REAL `"instances"`
+  # `Store::instances()` actually produced, `emitted_*` bookkeeping
+  # fields and all: `Store::from_seed` requires them (found live, while
+  # this integration was being written — feeding it the STRIPPED copy
+  # the differential comparison uses refused with "Account.emitted_fee_
+  # applied: missing from JSON args," which is this integration's own
+  # bug, not a real one — a real host round-tripping `Store::instances()`
+  # through `Store::from_seed` never strips anything at all).
+  rust_live_instances = JSON.parse(JSON.generate(rust_output["instances"])) if self_consistency
   differ.strip_emitted_flags!(rust_output["instances"])
   differ.strip_emitted_flags!(rust_output["queries"])
   differ.strip_occurred_at!(rust_output["events"])
@@ -695,6 +770,20 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary)
   divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
     unless rust_reactions == kept_ruby_reactions
 
+  # SELF-CONSISTENCY — A SECOND AXIS, NOT A SEPARATE REPORT. `ruby_result`
+  # already carries every self-consistency finding this SAME replay
+  # produced (`Replay.call`'s own `self_consistency:` kwarg, computed
+  # while its runtime was still live — see that file's own comment).
+  # `rust_live_instances` (captured above, BEFORE the stripping this
+  # method's own differential comparison needs) is the seed for the Rust
+  # binary's OWN rehydration door (`Hecks::Fuzzing::SelfConsistency`'s own
+  # header explains the mechanism) rather than re-derived or re-dispatched.
+  if self_consistency
+    divergences.concat(self_consistency_divergences(ruby_result))
+    divergences.concat(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances))
+    divergences.concat(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances))
+  end
+
   divergences
 end
 
@@ -707,14 +796,27 @@ end
 # exactly that (authored Ruby-only; `bin/project_rust` for it was never
 # run) — matching `bin/fuzz`'s own documented scope exactly rather than
 # inventing a narrower or wider one.
-def ruby_only_outcome(domain_path, steps)
-  history    = Hecks::Fuzzing::Replay.call(domain_path, steps)
-  violations = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
-  return [:clean, nil] if violations.empty?
+#
+# RETURNS `[verdict, message, divergences]` — `verdict`/`message` are the
+# original two-value contract (`:clean`/`nil`, `:property_violation`/a
+# joined "name: message" string, `:crash`/the exception's own message);
+# `divergences` is the SAME flat, `field:`-keyed shape `diff_ruby_vs_rust`
+# already returns, so `run_one_seed` can treat a Ruby-only self-
+# consistency finding exactly like a property violation, never a
+# separate case.
+def ruby_only_outcome(domain_path, steps, self_consistency:)
+  history     = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
+  violations  = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
+  divergences = violations.map { |name, message| { field: name.to_s, detail: message } }
+  divergences.concat(self_consistency_divergences(history)) if self_consistency
 
-  [:property_violation, violations.map { |name, message| "#{name}: #{message}" }.join("; ")]
+  return [:clean, nil, []] if divergences.empty?
+
+  message = violations.map { |name, msg| "#{name}: #{msg}" }.join("; ")
+  message = "self-consistency check(s) failed: #{divergences.map { |d| d[:field] }.join(', ')}" if message.empty?
+  [:property_violation, message, divergences]
 rescue StandardError => e
-  [:crash, "#{e.class}: #{e.message}"]
+  [:crash, "#{e.class}: #{e.message}", [{ field: "crash", detail: "#{e.class}: #{e.message}" }]]
 end
 
 def log_check!(sweep, subject:, expectation:)
@@ -745,7 +847,7 @@ mode_label =
   end
 
 puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
-     "#{STEPS_PER_SEQUENCE} steps each, adversarial fraction #{adversarial}"
+     "#{STEPS_PER_SEQUENCE} steps each, adversarial fraction #{adversarial}, self-consistency #{self_consistency}"
 
 # THE PERSISTENCE-PARITY OUTCOME — `Hecks::Fuzzing::PersistenceParity
 # .diff`, called once per seed against THIS SWEEP'S OWN disposable
@@ -783,9 +885,11 @@ end
 # stays one long method rather than three short ones: each `case` branch
 # shares `steps`/`subject`/`expectation`/`clean`/`observation` with the
 # other two, and splitting per mode would just re-thread those locals
-# through three call sites for no real gain.
+# through three call sites for no real gain. `:persistence_parity` never
+# receives `self_consistency` at all (see this file's own top-of-file
+# comment on why that composition was left out on purpose).
 # rubocop:disable-next Metrics/MethodLength
-def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, database: nil, schema: nil)
+def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, self_consistency, database: nil, schema: nil)
   shape = "#{STEPS_PER_SEQUENCE} steps, adversarial #{adversarial}"
   begin
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: STEPS_PER_SEQUENCE,
@@ -803,7 +907,9 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, 
     subject     = "#{feature} fuzz seed #{seed} (#{shape}) vs compiled Rust (#{feature})"
     expectation = "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
                   "reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
-    divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary)
+    expectation += ", and each engine agrees with itself on rehydration/idempotency/value-object round trip" \
+      if self_consistency
+    divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency: self_consistency)
     clean       = divergences.empty?
     observation = if clean
                     "agreed across all #{STEPS_PER_SEQUENCE} steps"
@@ -825,10 +931,11 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, 
     subject     = "#{feature} fuzz seed #{seed} (#{shape}), Ruby-only (no Rust binary)"
     expectation = "no declared property is violated and the interpreter does not crash across all " \
                   "#{STEPS_PER_SEQUENCE} generated steps"
-    verdict, message = ruby_only_outcome(domain_path, steps)
+    expectation += ", and Ruby agrees with itself on rehydration/idempotency/value-object round trip" \
+      if self_consistency
+    verdict, message, divergences = ruby_only_outcome(domain_path, steps, self_consistency: self_consistency)
     clean       = verdict == :clean
     observation = clean ? "clean across all #{STEPS_PER_SEQUENCE} steps" : "#{verdict}: #{message}"
-    divergences = clean ? [] : [{ field: verdict.to_s, detail: message }]
   end
 
   { subject: subject, expectation: expectation, divergences: divergences, clean: clean, observation: observation,
@@ -839,7 +946,7 @@ surprise = nil
 
 begin
   (1..seeds).each do |seed|
-    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial,
+    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, self_consistency,
                           database: persistence_parity_database, schema: persistence_parity_schema)
 
     sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
@@ -891,6 +998,7 @@ if surprise
   puts "seed:        #{surprise[:seed]}"
   puts "steps:       #{STEPS_PER_SEQUENCE}"
   puts "adversarial: #{adversarial}"
+  puts "self-consistency: #{self_consistency}"
   puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
        "seed: #{surprise[:seed]}, steps: #{STEPS_PER_SEQUENCE}, adversarial: #{adversarial})"
   puts "subject:     #{surprise[:subject]}"
@@ -898,22 +1006,27 @@ if surprise
   puts "observation: #{surprise[:observation]}"
   puts
 
-  # TWO KEY-PAIR SHAPES, ONE LOOP — `diff_ruby_vs_rust` divergences carry
-  # `ruby:`/`rust:`, `Hecks::Fuzzing::PersistenceParity.diff` divergences
-  # carry `memory:`/`postgres_era:` (that module's own header explains
-  # why: a genuinely different PAIRING, not a relabeling of the same
-  # one). `mode:`, printed just above, is what tells a reader which
-  # pairing a given report's own divergences use.
+  # ONE GENERIC PRINTER, NOT ONE SHAPE PER CHECK KIND. A differential
+  # divergence carries `:ruby`/`:rust`; a persistence-parity one carries
+  # `:memory`/`:postgres_era` (`Hecks::Fuzzing::PersistenceParity`'s own
+  # header explains why that's a genuinely different PAIRING, not a
+  # relabeling of the same one); a process-level failure carries
+  # `:detail`; `Hecks::Fuzzing::SelfConsistency`'s own findings carry YET
+  # different keys again (`:live`/`:rehydrated`, `:once`/`:twice`,
+  # `:original`/`:rehydrated`/`:error`) because "live state vs a cold
+  # read" and "ruby vs rust" are different claims and deserve different
+  # labels. Printing every key but `:field` (and the redundant
+  # `:domain`/`:aggregate`/`:type`, already named by the field line
+  # itself once folded in below) is what lets this stay ONE printer for
+  # every divergence shape this script has ever produced or ever will,
+  # rather than growing a new hardcoded branch per check kind — `mode:`,
+  # printed just above, is what tells a reader which pairing a given
+  # report's own divergences use.
   surprise[:divergences].each do |divergence|
-    puts "-- #{divergence[:field]} --"
-    if divergence[:detail]
-      puts divergence[:detail]
-    elsif divergence.key?(:memory)
-      puts "memory:       #{divergence[:memory].inspect}"
-      puts "postgres_era: #{divergence[:postgres_era].inspect}"
-    else
-      puts "ruby: #{divergence[:ruby].inspect}"
-      puts "rust: #{divergence[:rust].inspect}"
+    label = [divergence[:field], divergence[:domain], divergence[:aggregate], divergence[:type]].compact.join(" ")
+    puts "-- #{label} --"
+    divergence.except(:field, :domain, :aggregate, :type).each do |key, value|
+      puts "#{key}: #{value.inspect}"
     end
     puts
   end
@@ -938,8 +1051,8 @@ if surprise
 end
 
 notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} feature=#{feature} seeds=#{seeds} " \
-        "steps=#{STEPS_PER_SEQUENCE} adversarial=#{adversarial} — every seed held, no divergence or property " \
-        "violation found."
+        "steps=#{STEPS_PER_SEQUENCE} adversarial=#{adversarial} self_consistency=#{self_consistency} — " \
+        "every seed held, no divergence or property violation found."
 sweep.conclude!(notes: { value: notes })
 
 # ZERO SURPRISES, THIS PATH ONLY — this line is only ever reached when

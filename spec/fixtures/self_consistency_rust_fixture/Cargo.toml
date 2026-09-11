@@ -1,0 +1,29 @@
+# A STANDALONE FIXTURE CRATE, DELIBERATELY OUTSIDE `rust/`'s OWN
+# workspace/feature list — same reasoning as `spec/fixtures/qa_sweep_all_
+# found_fixture_rust/Cargo.toml` (that fixture's own header), aimed at
+# `spec/fuzzing/self_consistency_rust_spec.rb`'s own "the Rust-side
+# rehydration/idempotency check can actually fire" proof instead of
+# `qa_sweep --all`'s own "found something" example. `bin/qa_sweep`'s own
+# `QA_SWEEP_RUST_DIR`/`RustConformanceHelpers#build_rust_for` are what
+# point a build at THIS Cargo.toml instead of the real `rust/` crate;
+# nothing here is reachable from an ordinary `bin/qa_sweep` invocation.
+#
+# ONE FEATURE, matching the fixture directory's own basename exactly
+# (`RustConformanceHelpers#build_rust_for`'s own regex) — never touched
+# by `bin/project_rust`, which has no reason to ever look here.
+[features]
+self_consistency_rust_fixture = []
+
+[package]
+name = "self_consistency_rust_fixture"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# `name = "rust"` — NOT this package's own name; `RustConformanceHelpers
+# #build_and_pin` always looks for `target/debug/rust`, matching `rust/
+# src/main.rs`'s own `[[bin]]` name so the exact same generic build/pin
+# code works unchanged against this fixture crate too.
+[[bin]]
+name = "rust"
+path = "src/main.rs"
