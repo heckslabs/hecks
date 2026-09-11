@@ -167,7 +167,31 @@ module RustProjection
           # id` against `facts_json` for the legacy shape, matching
           # `CommandInterpreter#hydrate_existing`'s own `route ||
           # identity_of(...)` order exactly.
-          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json)?, };"
+          # BUG#20 (qa/bluebook/quality_control.bluebook) — `extract_id`'s
+          # own `no identity found at all` case (every one of its tried
+          # sources — the composite identity, `id`, and the command's own
+          # reference key — came back empty, including a caller-supplied
+          # `id: null`, which `to_id_component` refuses and this call
+          # site used to let propagate raw) always raised `TypeMismatch`.
+          # `CommandInterpreter#hydrate_existing`'s own identical fallback
+          # chain (`identity_of || identity_from(:id) ||
+          # identity_from(reference_key) || raise(...)`,
+          # command_interpreter.rb, read directly) raises
+          # `NotFound`/`acting_no_identity` instead — this IS `dispatch`
+          # (kernel/dispatch.rs)'s own `Hydrate::Act` NOT-FOUND site's
+          # upstream twin: an ACTING command's id is resolved HERE, at the
+          # router, before `dispatch` (and its already-correct
+          # `Hydrate::Act` repo.find-miss `NotFoundRecordMissing` check)
+          # is ever called at all, so `dispatch` itself never saw this
+          # case to refuse correctly. `extract_id` has no per-command
+          # context (command name, declared identity reading) of its own
+          # to render `RefusalSite::NotFoundActingNoIdentity` — its ONE
+          # possible `Err` is wrapped here, where both are already in
+          # scope, into the exact same wording
+          # `RefusalWording.render("NotFound", "acting_no_identity", ...)`
+          # produces on the Ruby side.
+          acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
+          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
