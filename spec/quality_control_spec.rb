@@ -248,7 +248,7 @@ RSpec.describe "QualityControl" do
     it "offers the least recently swept first" do
       swept = a_target("banking")
       swept.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      swept.release!(now: { value: 1_000 }, yield_score: { value: 0 })
+      swept.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 })
       a_target("pizzas", "examples/pizzas")
 
       # "never" sorts before any sweep reference, which is the ordering the
@@ -290,7 +290,7 @@ RSpec.describe "QualityControl" do
     it "puts a released chapter back at the end of the rotation" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      target.release!(now: { value: 1_000 }, yield_score: { value: 0 })
+      target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 })
 
       expect(target.status).to eq("waiting")
       expect(rows("Target.Untouched")).to be_empty
@@ -307,7 +307,7 @@ RSpec.describe "QualityControl" do
     it "stores whatever yield score a release is given" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      released = target.release!(now: { value: 1_000 }, yield_score: { value: 7 })
+      released = target.release!(now: { value: 1_000 }, yield_score: { value: 7 }, next_streak: { value: 1 })
 
       expect(released.yield_score.to_h).to eq(value: 7)
     end
@@ -328,11 +328,11 @@ RSpec.describe "QualityControl" do
     it "picks the higher-yield target over the merely-older one, below the floor" do
       exhausted = a_target("pizzas", "examples/pizzas")
       exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
-      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 })
 
       roster = a_target("roster", "examples/roster")
       roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
-      roster.release!(now: { value: 500 }, yield_score: { value: 6 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 })
 
       picked = Hecks::Fuzzing::RotationPriority.pick(
         rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 100_000
@@ -344,17 +344,102 @@ RSpec.describe "QualityControl" do
     it "still picks the exhausted target once it crosses the floor, regardless of yield" do
       exhausted = a_target("pizzas", "examples/pizzas")
       exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
-      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 })
 
       roster = a_target("roster", "examples/roster")
       roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
-      roster.release!(now: { value: 500 }, yield_score: { value: 6 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 })
 
       picked = Hecks::Fuzzing::RotationPriority.pick(
         rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 900
       )
 
       expect(picked[:reference][:value]).to eq("pizzas")
+    end
+  end
+
+  # ── the clean streak ─────────────────────────────────────────────────
+  #
+  # `bin/qa_sweep` is the real caller and does this arithmetic for real
+  # (read `clean_streak`, run a sweep sized by it, then compute
+  # `next_streak`) — these examples do it by hand, the same way
+  # `spec/quality_control_spec.rb`'s own header explains this whole file
+  # is written "through the facade... the two helpers at the top are the
+  # only places this file reaches past it": `Target::Release` trusts
+  # whatever `next_streak` it is given, exactly as it already trusts
+  # `now`, so what is actually under test here is that trust threading
+  # correctly — the FIELD landing where it should, and `Check::Surprised`'s
+  # own sticky bit surviving a `Remake` — not a reimplementation of
+  # `bin/qa_sweep`'s own widening formula (that lives in, and is tested
+  # against, `bin/qa_sweep` itself).
+  describe "the clean streak" do
+    it "starts at zero for a freshly identified target" do
+      target = a_target
+
+      expect(target.clean_streak.to_h).to eq(value: 0)
+    end
+
+    it "climbs by one on every clean release in a row" do
+      target = a_target
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
+      target = target.release!(now: { value: 1_000 }, yield_score: { value: 0 },
+                               next_streak: { value: target.clean_streak.value + 1 })
+      expect(target.clean_streak.to_h).to eq(value: 1)
+
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 2_000 })
+      target = target.release!(now: { value: 2_000 }, yield_score: { value: 0 },
+                               next_streak: { value: target.clean_streak.value + 1 })
+      expect(target.clean_streak.to_h).to eq(value: 2)
+
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 3_000 })
+      target = target.release!(now: { value: 3_000 }, yield_score: { value: 0 },
+                               next_streak: { value: target.clean_streak.value + 1 })
+      expect(target.clean_streak.to_h).to eq(value: 3)
+    end
+
+    it "resets to zero the moment a caller reports the pass was not clean" do
+      target = a_target
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
+      target = target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 4 })
+      expect(target.clean_streak.to_h).to eq(value: 4)
+
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 2_000 })
+      target = target.release!(now: { value: 2_000 }, yield_score: { value: 0 }, next_streak: { value: 0 })
+
+      expect(target.clean_streak.to_h).to eq(value: 0)
+    end
+
+    # THE STICKY BIT `next_streak`'s OWN COMMENT DESCRIBES — a check
+    # `Surprised` once and then resolved (`Remake` back to "made", then
+    # `Held`) still shows the sweep once surprised, which is what a real
+    # caller reads to decide `next_streak` is 0 rather than +1, EVEN
+    # THOUGH the check's own CURRENT `outcome` by the time anyone looks
+    # is "held" — indistinguishable from a check that was never anything
+    # else, if `ever_surprised` did not exist.
+    it "remembers a check was ever surprised, even after Remake resolves it clean" do
+      sweep = a_sweep
+      a_check(sweep)
+      check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "as: was silently accepted" })
+
+      sweep = QualityControl::Sweep.find(sweep.id)
+      expect(sweep.checks.first[:ever_surprised][:value]).to eq("yes")
+      expect(sweep.checks.first[:outcome]).to eq("surprising")
+
+      check(sweep, "Remake", sequence: { value: 1 })
+      check(sweep, "Held", sequence: { value: 1 }, observation: { value: "fixed, re-run, now agrees" })
+
+      sweep = QualityControl::Sweep.find(sweep.id)
+      expect(sweep.checks.first[:outcome]).to eq("held")
+      expect(sweep.checks.first[:ever_surprised][:value]).to eq("yes")
+    end
+
+    it "never marks a check that only ever held as having been surprised" do
+      sweep = a_sweep
+      a_check(sweep)
+      check(sweep, "Held", sequence: { value: 1 }, observation: { value: "agreed" })
+
+      sweep = QualityControl::Sweep.find(sweep.id)
+      expect(sweep.checks.first[:ever_surprised][:value]).to eq("no")
     end
   end
 
