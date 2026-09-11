@@ -97,7 +97,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Mark acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
                       args.to.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
@@ -109,7 +109,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Notice acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
                       if let Some(v) = &args.to { v.check_invariants()?; }
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
@@ -121,7 +121,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Honor acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::HonorArgs::from_json(facts_json)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -132,7 +132,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSeat acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::AddSeatArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
@@ -144,7 +144,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Enlist acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::EnlistArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.age.check_invariants()?;
@@ -157,7 +157,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assign acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::AssignArgs::from_json(facts_json)?;
                       args.member.check_invariants()?;
                       args.number.check_invariants()?;
@@ -170,7 +170,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::RetireArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);

@@ -1,0 +1,16 @@
+{
+  "domain": "examples/compliance",
+  "note": "BUG#20 (qa/bluebook/quality_control.bluebook) — an ACTING (non-creating) command whose only argument is a null `id:` disagreed on refusal kind. Ruby's CommandInterpreter#hydrate_existing (command_interpreter.rb, read directly) falls through `identity_of || identity_from(:id) || identity_from(reference_key) || raise(NotFound, acting_no_identity)`: a null `id:` makes `identity_from` return nil (Identity.from's own `raw = args[head]; return raw unless attribute` — nil is nil), and with no `branch_code`/`box_number` given either, every source comes back empty, so Ruby raises NotFound/acting_no_identity — \"Escalate acts on an existing BoxSurrenderReview — pass branch_code.value, box_number.value:\". The compiled Rust conformance binary's generated `extract_id` (registry.rs's own router, called BEFORE kernel::dispatch's already-correct Hydrate::Act NotFound-on-repo.find-miss check is ever reached) let its own `to_id_component` TypeMismatch on `Json::Null` propagate as its own final `.ok_or_else` fallback, always worded \"{Aggregate}: no identity found (tried ...)\", TypeMismatch kind — RefusalSite::NotFoundActingNoIdentity already existed in refusal_wording.rs (declared from the start) but nothing ever raised it, the identical shape BUG#15 found for NotFoundCreatingNoIdentity. Fixed by wrapping `extract_id(facts_json)` at its ONE acting-command call site (registry.rs's own router, both codegen pipelines) with a `.map_err` into the exact `RefusalWording.render(\"NotFound\", \"acting_no_identity\", ...)` wording — computed at codegen time, where the command's short name, aggregate name, and declared identity reading are all already in scope, since `extract_id` itself is a per-aggregate static function with no per-command context of its own to render that template. Confirmed genuinely broken before the fix (Rust refused TypeMismatch, \"BoxSurrenderReview: no identity found (tried branch_code.value, box_number.value, id, box_surrender_review)\"); confirmed fixed after (both engines refuse NotFound, byte-exact wording, `bin/rust_conformance examples/compliance ... native` reports \"matches.\").",
+  "steps": [
+    {
+      "verb": "Compliance::BoxSurrenderReview.Open",
+      "role": "System",
+      "args": {"branch_code": {"value": "BR1"}, "box_number": {"value": 42}}
+    },
+    {
+      "verb": "Compliance::BoxSurrenderReview.Escalate",
+      "role": "Compliance officer",
+      "args": {"id": null}
+    }
+  ]
+}
