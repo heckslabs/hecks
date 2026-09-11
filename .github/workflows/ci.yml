@@ -519,6 +519,12 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
+      # Single source of truth for both the file-discovery step and the
+      # actual `parallel_rspec` run below — see bin/rspec_io_parallel_files
+      # for why splitting this out from the whole `spec` directory is what
+      # actually makes runtime-based grouping work for this job (it didn't,
+      # under three different nominal grouping strategies, until this).
+      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$'
 
     steps:
       - uses: actions/checkout@v4
@@ -573,31 +579,20 @@ jobs:
           restore-keys: |
             postgres-io-parallel-runtime-
 
-      # `--exclude-pattern` HERE IS parallel_tests' OWN TOP-LEVEL FLAG,
-      # not RSpec's — deliberately NOT nested inside `-o`/`--test-options`.
-      # A first version of this job passed it nested inside `-o "...
-      # --exclude-pattern \"...\""`, relying on `-o`'s own
-      # `Shellwords.shellsplit` (parallel_tests/cli.rb) to hand each
-      # worker's underlying `rspec` invocation a clean comma-separated
-      # glob list, the same way `rspec_postgres_io`'s own direct
-      # `--exclude-pattern "..."` already works. It didn't survive the
-      # trip: GitHub Actions' own YAML/shell layer had already consumed
-      # one layer of the nested quoting before parallel_tests ever saw
-      # the string, and confirmed live (PR #488's first CI run) that
-      # NONE of the exclusions took effect — "4 processes for 285 specs"
-      # (the full, unfiltered file count), with dsl_spec.rb,
-      # domain_refusal_spec.rb, and every Rust-building spec all
-      # running in a job with no Rust toolchain and no `hecks_pizzas`
-      # database, both failing loud.
+      # `--exclude-pattern` USED TO BE parallel_tests' OWN TOP-LEVEL FLAG,
+      # passed straight to `parallel_rspec spec --exclude-pattern '...'`
+      # (a first version had it nested inside `-o` instead, which broke —
+      # GitHub Actions' own YAML/shell layer ate a layer of quoting before
+      # parallel_tests ever saw the string, confirmed live on PR #488's
+      # first CI run: "4 processes for 285 specs", the full unfiltered
+      # count, with Rust-building specs running in a job with no Rust
+      # toolchain). That top-level-flag form is now used one step earlier
+      # instead, by `bin/rspec_io_parallel_files` below, for the reason in
+      # the next comment — `IO_PARALLEL_EXCLUDE_PATTERN` above is the same
+      # regex, moved to a job `env:` var so this step and that one read
+      # exactly one copy.
       #
-      # parallel_tests' own top-level `--exclude-pattern` (a REGEX,
-      # unlike RSpec's own comma-glob flag of the same name — verified
-      # against the gem source, parallel_tests-4.10.1's cli.rb:210 and
-      # test/runner.rb:240-247, `files -= files.grep(exclude_pattern)`)
-      # applies at FILE DISCOVERY, before files are even assigned to
-      # workers — no `-o` nesting, no second layer of quoting to survive.
-      #
-      # `grammar_corpus_spec` IS IN THIS LIST because it `cargo build`s
+      # `grammar_corpus_spec` IS IN THAT PATTERN because it `cargo build`s
       # rust/parser (the "needs a real cargo build" rule above) — it
       # landed (#479) without being added, so it ran HERE: a job with no
       # Rust cache, where its cold parser build could overlap in time
@@ -612,71 +607,74 @@ jobs:
       # betting on which shared piece of a fresh runner's ~/.cargo or
       # ~/.rustup it was. `qa_sweep_all_spec` stays here — it needs this
       # job's Postgres, and is now the only cargo user left in it.
+      #
       # `--group-by filesize` (PR #568) turned out NOT to fix the load
       # imbalance it was meant to fix — measured across three real runs,
       # both before AND after that change landed, the 4 workers got the
       # IDENTICAL example split every single time: 33/59/74/82 examples.
-      # Wall-clock varied 4m37s-6m53s across those runs, but that's GitHub
-      # runner performance noise, not load balancing — the split itself
-      # never moved. A file's byte size just doesn't correlate with its
-      # actual Postgres-I/O execution cost: the handful of specs doing
-      # real subprocess/cargo work (`qa_sweep_all_spec` among them) don't
-      # scale with their own source size, so they kept landing on the same
-      # worker regardless.
+      # A first attempt at real-runtime grouping (leaving `--group-by`
+      # unset so `ParallelTests::Test::Runner.tests_with_size`'s `nil`
+      # branch uses the recorded log once it's warm — `--group-by
+      # default` is NOT a real option, it raises `ArgumentError`,
+      # confirmed against the vendored gem) did NOT fix it either, even
+      # with a genuinely warm, cache-hit runtime log: STILL the identical
+      # 33/59/74/82 split, a THIRD time. Root cause, confirmed by reading
+      # `tests_with_size` itself (parallel_tests-4.10.1's
+      # test/runner.rb): that `nil` branch only trusts the runtime log if
+      # `runtimes.size * 1.5 > tests.size` — i.e. the log has to already
+      # cover at least ~67% of the files `parallel_rspec` was handed — or
+      # it silently falls back to `sort_by_filesize`, no warning printed.
+      # `parallel_rspec spec` hands it EVERY `_spec.rb` file under
+      # `spec/` (288 of them, after the exclude pattern) regardless of
+      # whether that file has anything to do with `--tag io`, but
+      # `RuntimeLogger` only ever logs a file when one of ITS examples
+      # actually ran under this job's `--tag io --tag ~fuzzing` filter —
+      # measured via a real `--dry-run` (see `bin/rspec_io_parallel_files`),
+      # only 30 of those 288 files ever can. `30 * 1.5 = 45`, nowhere near
+      # `288` — the runtime-log branch was mathematically unreachable for
+      # this job's own file list, no matter how complete the cache was.
+      # That's why three different nominal grouping strategies in a row
+      # produced the exact same split: all three silently ran
+      # `sort_by_filesize` underneath the whole time.
       #
-      # REPLACED HERE with real measured runtime instead of guessing from
-      # a proxy. `parallel_tests`' own `RuntimeLogger` formatter (added to
-      # `-o` below) records real per-file example-group time to
-      # `tmp/parallel_runtime_rspec.log`, but ONLY when `TEST_ENV_NUMBER`
-      # is set — i.e. only under `parallel_rspec`, exactly this job — and
-      # the "Restore rspec runtime log cache" step above persists that log
-      # across CI runs so it isn't cold every time.
-      #
-      # Deliberately leaving `--group-by` UNSET here rather than writing
-      # `--group-by default`: that literal string is NOT a valid value.
-      # `parallel_tests-4.10.1`'s own `ParallelTests::Test::Runner.
-      # tests_with_size` `case options[:group_by]` only matches
-      # `:found`/`:filesize`/`:runtime`/`nil` and raises `ArgumentError,
-      # "Unsupported option default"` for anything else — confirmed live
-      # against the vendored gem. The "runtime when the log is filled,
-      # otherwise filesize" fallback the CLI's own `--help` text describes
-      # as "default" is what that `nil` branch does — i.e. it's what you
-      # get from omitting `--group-by` entirely, not from spelling out the
-      # word. `--runtime-log` below is already `ParallelTests::RSpec::
-      # Runner`'s own hardcoded default path (same one used above) but is
-      # named explicitly here for clarity.
-      #
-      # Cold cache (first run ever, or any run after an eviction) behaves
-      # exactly like today: the log doesn't exist, reading it raises, the
-      # `nil`-group-by branch rescues that and falls back to `filesize` —
-      # same 33/59/74/82 split as the baseline above. Once the log is
-      # warm this should measurably rebalance the split; see the PR
-      # description for the actual before/after numbers from two real CI
-      # runs.
+      # THE ACTUAL FIX: shrink the file list itself, in the step below,
+      # to the ~30 files that can ever contribute a matching example —
+      # then `tests.size` is ~30 instead of 288, and the 67%-coverage bar
+      # is realistic to clear after even one prior run. See
+      # `bin/rspec_io_parallel_files` for the full mechanism and why a
+      # real `--dry-run` was used instead of grepping for the tag
+      # (inherited tags from a surrounding `describe`/`context` and the
+      # `~fuzzing` exclusion aren't visible to a plain grep).
       #
       # `--format documentation` IS REPEATED HERE EXPLICITLY, even though
       # `.rspec` already sets it project-wide — found live (this job's own
-      # first real run under this change): with it left implicit, console
-      # output went completely silent, no example names, no final "N
-      # examples, N failures" summary, nothing but stderr noise (Postgres
-      # NOTICEs, Ruby warnings). Root cause, confirmed by reading
-      # rspec-core-3.13.6's configuration_options.rb and reproducing live:
-      # `--format` genuinely IS repeatable WITHIN one args source (each
-      # `-f`/`--format` in the SAME parse pushes onto that source's own
-      # `:formatters` array, confirmed against option_parser.rb) — but
-      # `ConfigurationOptions#organize_options` merges MULTIPLE sources
-      # (`.rspec`, then this command line) with plain `Hash#merge`, and
-      # `:formatters` isn't one of the two keys (`:libs`/`:requires`) that
-      # get concatenated across sources — so the command line's own
-      # `:formatters` array REPLACES `.rspec`'s wholesale rather than
-      # adding to it. Repeating `--format documentation` here, in the SAME
-      # `-o` string as the RuntimeLogger below, keeps both in the one
-      # source that actually wins.
+      # first real run under the runtime-log change): with it left
+      # implicit, console output went completely silent, no example
+      # names, no final "N examples, N failures" summary, nothing but
+      # stderr noise (Postgres NOTICEs, Ruby warnings). Root cause,
+      # confirmed by reading rspec-core-3.13.6's configuration_options.rb
+      # and reproducing live: `--format` genuinely IS repeatable WITHIN
+      # one args source (each `-f`/`--format` in the SAME parse pushes
+      # onto that source's own `:formatters` array, confirmed against
+      # option_parser.rb) — but `ConfigurationOptions#organize_options`
+      # merges MULTIPLE sources (`.rspec`, then this command line) with
+      # plain `Hash#merge`, and `:formatters` isn't one of the two keys
+      # (`:libs`/`:requires`) that get concatenated across sources — so
+      # the command line's own `:formatters` array REPLACES `.rspec`'s
+      # wholesale rather than adding to it. Repeating `--format
+      # documentation` here, in the SAME `-o` string as the RuntimeLogger
+      # below, keeps both in the one source that actually wins.
+      - name: Determine which spec files can ever match --tag io (real dry run, see bin/rspec_io_parallel_files)
+        run: |
+          mkdir -p tmp
+          bin/rspec_io_parallel_files "$IO_PARALLEL_EXCLUDE_PATTERN" -- --tag io --tag ~fuzzing > tmp/io_parallel_files.txt
+
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
-          bundle exec parallel_rspec spec \
+          IO_FILES=()
+          while IFS= read -r line; do IO_FILES+=("$line"); done < tmp/io_parallel_files.txt
+          bundle exec parallel_rspec "${IO_FILES[@]}" \
             --runtime-log tmp/parallel_runtime_rspec.log \
-            --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
             -o "--tag io --tag ~fuzzing --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.log"
 
       # Saves the log this run just wrote — real per-file timing data even
