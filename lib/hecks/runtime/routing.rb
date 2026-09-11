@@ -1,5 +1,6 @@
 require_relative "errors"
 require_relative "refusal_wording"
+require_relative "../rendering"
 
 module Hecks
   module Runtime
@@ -19,7 +20,7 @@ module Hecks
       def envelope(to, entity_depth: 0)
         return nil if to.nil?
 
-        aggregate, entities = to.is_a?(Hash) ? parse_envelope_hash(to) : [to, []]
+        aggregate, entities = to.is_a?(Hash) ? parse_envelope_hash(to) : scalar_envelope(to)
 
         raise TypeMismatch, "to: must name the receiving aggregate identity" if aggregate.nil? || aggregate.to_s.empty?
         if entities.size != entity_depth
@@ -33,6 +34,49 @@ module Hecks
 
         Envelope.new(aggregate: aggregate, entities: entities)
       end
+
+      # BUG#7 — the non-Hash half of `to:` used to accept ANY Ruby object
+      # (`[to, []]`, unconditionally) as though it were a ready-made
+      # aggregate identity scalar. That is looser than the JSON step
+      # boundary (`bin/run`/`Fuzzing::Replay`/`StepBuilder`) ever needs it
+      # to be — every legitimate caller already hands this a `String`
+      # (`Naming.identity` canonicalizes every identity to one before it
+      # ever reaches a `to:`/legacy-args door) — and looser than Rust's own
+      # hand-written mirror of this exact boundary
+      # (`rust/src/kernel/routing.rs#RoutingEnvelope::from_json`, its own
+      # header: "Generated routers accept this shape while retaining the
+      # legacy mixed-args object as a compatibility input during
+      # migration"), which refuses anything that is neither a JSON string
+      # nor object outright, TypeMismatch, before ever reaching a domain's
+      # own command payload.
+      #
+      # The gap surfaced live on `examples/roster` — the first domain in
+      # this corpus to declare a command attribute literally named `to`
+      # (`Roster::Roster.Mark`, deliberately, per that bluebook's own
+      # header comment). `bin/qa_sweep`'s legacy-args dispatch convention
+      # (`runtime.dispatch(verb, **symbolize(args))`, `step_builder.rb`)
+      # flattens a command's own declared fact and its routing target into
+      # ONE Ruby kwargs hash — completely ordinary for every other domain,
+      # since Ruby's keyword-argument binding only steals a key that
+      # collides with `dispatch`'s own `to:`/`with:`/`saga_correlation:`
+      # parameter names. `Mark`'s `to` does collide, so a fuzzer-corrupted
+      # scalar offered for it (an out-of-range Integer, from
+      # `InvalidValueGenerator.corrupt`) was routed here as the AGGREGATE
+      # IDENTITY instead of the domain's own required argument — accepted
+      # unconditionally, leaving `Mark`'s own `to` fact absent from the
+      # payload entirely. Ruby refused `AbsentArgument` ("Mark was not
+      # given to — it takes to"); Rust's stricter `RoutingEnvelope::
+      # from_json` refuses the malformed scalar itself, TypeMismatch,
+      # before the domain payload is ever examined — the observed
+      # divergence. Tightening this branch to Rust's own contract (a
+      # scalar `to:` must be a `String`) makes both refuse the same way,
+      # for the same reason, at the same step.
+      def scalar_envelope(to)
+        return [to, []] if to.is_a?(String)
+
+        raise TypeMismatch, "to: must be a string aggregate identity or an entity route, got #{Rendering.describe(to)}"
+      end
+      private_class_method :scalar_envelope
 
       # The Hash-shaped half of `to:` — pulled out of `envelope` because
       # it is a self-contained parse (raises on an unrecognized key, then
