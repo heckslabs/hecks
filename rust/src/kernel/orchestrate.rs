@@ -367,6 +367,36 @@ fn resolve_with(pm: &ProcessManagerDef, value: &WithValue, event: &Event, correl
     }
 }
 
+// `SagaInterpreter#qualified` (saga_interpreter.rb), read directly, as it
+// stands AFTER BUG#6 (PR #532): `"#{domain}::#{command_name}"` —
+// unconditional, no `command_name.include?("::")` guess any more. That
+// guess used to pick the cross-domain reading for ANY leftover `::`,
+// which cannot tell a genuinely cross-domain command (`Banking::Account.
+// Debit`) apart from a same-domain command owned by a NESTED ENTITY
+// (`Manifest::Slot.Fill` — `Naming.command_ref`'s own rewrite only ever
+// strips the LAST `::`, so entity nesting leaves one behind too); BUG#6
+// fixed Ruby by dropping the guess entirely; every real saga leg in the
+// corpus dispatches inside its own domain (that bug's own `cause`).
+//
+// This crate's own dispatch table is not Ruby's `Naming.split_verb`
+// (runtime string-splitting at lookup time) — `registry.rs`'s generated
+// match arms are compile-time LITERAL strings, already dot-joined past
+// the domain::aggregate boundary (`"Waybill::Manifest.Slot.Fill"`, never
+// `"Waybill::Manifest::Slot.Fill"`). So qualifying here needs the same
+// fold `split_verb` performs at lookup time, not just Ruby's own simpler
+// prefix: `command_name`'s OWN first `::` (the entity-nesting artifact,
+// when there is one) becomes `.` too, matching the literal arm a same-
+// domain nested-entity dispatch must resolve to. BUG#9 — this file had
+// carried the PRE-BUG#6 Ruby heuristic verbatim (see the comment this
+// replaced, still readable at PR history for `deliver_saga_dispatch`),
+// so a same-domain entity-command saga leg (`waybill`'s own `Packing`
+// dispatching `Manifest::Slot.Fill`) was never domain-qualified at all —
+// `"unknown command \"Manifest::Slot.Fill\""` on every delivery attempt,
+// the Rust-side counterpart of BUG#6 itself.
+fn qualify_saga_command_name(domain_name: &str, command_name: &str) -> String {
+    format!("{domain_name}::{}", command_name.replacen("::", ".", 1))
+}
+
 fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Event, correlation: &str, memory: &Json, domain_name: &str, tables: &Tables) -> Json {
     let projected = Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect());
     // A saga leg's own `dispatch ..., with: {...}` is ALWAYS an explicit
@@ -374,15 +404,12 @@ fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Even
     // policy's own `with_spec` does) — split_routed_args's own header.
     //
     // `spec.command_name` is BARE on the wire (`deliver_saga_dispatch`'s
-    // own comment on why, and the SAME qualification rule read directly
-    // from `SagaInterpreter#qualified`) — `command_creates_fn`/`identity_
-    // head_fn` are both keyed by the FULLY qualified verb, so this needs
-    // the identical qualification BEFORE the lookup, not after.
-    let qualified = if spec.command_name.contains("::") {
-        spec.command_name.to_string()
-    } else {
-        format!("{domain_name}::{}", spec.command_name)
-    };
+    // own comment on why) — `command_creates_fn`/`identity_head_fn` are
+    // both keyed by the FULLY qualified verb, so this needs the identical
+    // qualification BEFORE the lookup, not after. See
+    // `qualify_saga_command_name`'s own header (BUG#6/BUG#9) for why this
+    // is not a plain `contains("::")` guess.
+    let qualified = qualify_saga_command_name(domain_name, spec.command_name);
     split_routed_args(projected, &qualified, tables)
 }
 
@@ -1128,23 +1155,14 @@ fn deliver_saga_dispatch<S: AggregateScan>(
         return None;
     }
 
-    // `SagaInterpreter#qualified` (saga_interpreter.rb), read directly:
-    // `command_name.include?("::") ? command_name : "#{domain}::#{command_name}"`
-    // — `spec.command_name` is bare on the wire (confirmed via `bin/ir`
-    // against the real exported IR; the OLD comment above `emit_process_
-    // manager_table`/`domain_generator.rb`'s manifest loop claiming it was
+    // `spec.command_name` is bare on the wire (confirmed via `bin/ir`
+    // against the real exported IR; the OLD comment here claiming it was
     // "ALREADY fully domain-qualified on the wire" was simply wrong), so
     // `dispatch_by_name`'s own fully-qualified match arms
-    // (`"Banking::Account.Debit"`) could never route to it — a 100%
-    // failure rate for every process-manager dispatch this kernel has
-    // ever run, previously masked because no rust_conformance fixture
-    // ever reached a real same-domain saga dispatch. Item #3, whole-
-    // project table-unification survey.
-    let qualified = if spec.command_name.contains("::") {
-        spec.command_name.to_string()
-    } else {
-        format!("{domain_name}::{}", spec.command_name)
-    };
+    // (`"Banking::Account.Debit"`) could never route to it without
+    // qualifying first. See `qualify_saga_command_name`'s own header
+    // (BUG#6/BUG#9) for why this is not a plain `contains("::")` guess.
+    let qualified = qualify_saga_command_name(domain_name, spec.command_name);
 
     // THE SPECULATIVE RECORD — see this function's own header. Pushed
     // BEFORE the `orchestrate` call below, so a nested re-entry into
@@ -1251,11 +1269,11 @@ fn deliver_derived_compensation<S: AggregateScan>(
         return;
     }
 
-    let qualified = if entry.command_name.contains("::") {
-        entry.command_name.to_string()
-    } else {
-        format!("{domain_name}::{}", entry.command_name)
-    };
+    // See `qualify_saga_command_name`'s own header (BUG#6/BUG#9) for why
+    // this is not a plain `contains("::")` guess — a compensation's own
+    // `command_name` (`CompletedCompensation`) is bare on the wire the
+    // identical way a forward dispatch's `DispatchSpec.command_name` is.
+    let qualified = qualify_saga_command_name(domain_name, &entry.command_name);
 
     let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
 
@@ -1776,6 +1794,153 @@ mod tests {
              then B's and A's own forward dispatches to be logged delivered once their \
              downstream cascade returns — saga_log was: {saga_log:?}"
         );
+    }
+
+    // BUG#9 (the Rust-side counterpart of BUG#6, saga_interpreter.rb) —
+    // a SAME-DOMAIN entity command reference still carries one leftover
+    // `::` past `Naming.command_ref`'s own rewrite (`Manifest::Slot.
+    // Fill`, `qa/stress_domains/waybill`'s own `Packing` saga dispatching
+    // `Manifest::Slot::Fill`), textually indistinguishable from a
+    // genuinely cross-domain one. This file used to guess from that
+    // leftover `::` alone (`spec.command_name.contains("::")`) — the
+    // exact pre-BUG#6 Ruby heuristic — so a same-domain entity command
+    // was never domain-qualified before reaching `dispatch_fn`, and
+    // every such saga leg failed "unknown command" (`registry.rs`'s own
+    // generated match arms are always fully domain-qualified AND
+    // dot-joined past the aggregate boundary: `"Waybill::Manifest.Slot
+    // .Fill"`, never bare `"Manifest::Slot.Fill"`). This test's own fake
+    // `dispatch_fn` panics on anything else, so it fails under the old
+    // heuristic and passes only once `qualify_saga_command_name` always
+    // prefixes the domain AND folds the entity-nesting `::` to `.`.
+    fn entity_command_test_dispatch(
+        _store: &mut MultiLegTestStore,
+        verb: &str,
+        _args: &Json,
+        _caller_role: Option<&str>,
+        _caller_actor_id: Option<&str>,
+        _mutations: &mut Vec<MutationRecord>,
+    ) -> Result<Vec<Event>, Refusal> {
+        let plain_event = |name: &str| Event {
+            name: name.to_string(),
+            aggregate: "Test::Manifest".to_string(),
+            id: "m1".to_string(),
+            payload: Json::Object(vec![]),
+            occurred_at: None,
+            correlation: None,
+        };
+        match verb {
+            "Test::Kickoff" => Ok(vec![Event {
+                name: "Started".to_string(),
+                aggregate: "Test::Manifest".to_string(),
+                id: "m1".to_string(),
+                payload: Json::obj(vec![("id", Json::str("corr-1"))]),
+                occurred_at: None,
+                correlation: None,
+            }]),
+            // THE FULLY QUALIFIED, DOT-JOINED shape a real generated
+            // `registry.rs` match arm actually uses — never the bare,
+            // unqualified `"Manifest::Slot.Fill"` the pre-fix heuristic
+            // would have passed straight through unqualified.
+            "Test::Manifest.Slot.Fill" => Ok(vec![plain_event("SlotFilled")]),
+            other => panic!("unexpected verb in entity-command qualification test (BUG#9): {other}"),
+        }
+    }
+
+    #[test]
+    fn a_saga_leg_dispatching_a_same_domain_entity_command_is_domain_qualified_and_dot_folded() {
+        static HANDLERS: &[Handler] = &[
+            Handler {
+                event_type: "Started",
+                from_state: "start",
+                to_state: "filling",
+                // BARE on the wire, entity-nested — `Naming.command_ref`'s
+                // own rewrite artifact, read directly off `qa/stress_
+                // domains/waybill/bluebook/waybill.bluebook`'s own
+                // `Packing` saga.
+                dispatches: &[DispatchSpec { command_name: "Manifest::Slot.Fill", with: &[], compensates: None }],
+            },
+        ];
+
+        static PROCESS_MANAGERS: &[ProcessManagerDef] = &[ProcessManagerDef {
+            name: "TestPacking",
+            correlates_by: "id",
+            starts_on: "Started",
+            ends_on: "NeverHappens",
+            initial_state: "start",
+            handlers: HANDLERS,
+        }];
+        static POLICIES: &[PolicyRule] = &[];
+        static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
+        static QUERIES: &[crate::kernel::QueryDef] = &[];
+
+        let tables = Tables {
+            policies: POLICIES,
+            cross_domain_policies: CROSS_DOMAIN_POLICIES,
+            process_managers: PROCESS_MANAGERS,
+            reference_key_fn: multi_leg_no_reference_key,
+            queries: QUERIES,
+            command_creates_fn: multi_leg_always_creates,
+            identity_head_fn: multi_leg_no_identity_head,
+            command_attributes_fn: multi_leg_no_declared_attributes,
+        };
+
+        let mut store = MultiLegTestStore;
+        let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+        let mut all_events = Vec::new();
+        let mut mutations = Vec::new();
+        let mut cross_domain = Vec::new();
+        let mut reaction_log = Vec::new();
+        let mut saga_log: Vec<Json> = Vec::new();
+
+        let outcome = orchestrate(
+            &mut store,
+            entity_command_test_dispatch,
+            tables,
+            &mut sagas,
+            "Test::Kickoff",
+            &Json::Object(vec![]),
+            None,
+            None,
+            None,
+            None,
+            0,
+            &mut all_events,
+            &mut mutations,
+            &mut cross_domain,
+            &mut reaction_log,
+            &mut saga_log,
+        );
+        assert!(outcome.is_ok(), "top-level Kickoff should not itself refuse: {outcome:?}");
+
+        let dispatch_entries: Vec<(String, bool)> = saga_log
+            .iter()
+            .filter_map(|entry| {
+                let dispatch = entry.get("dispatch")?.as_str()?.to_string();
+                let delivered = matches!(entry.get("delivered"), Some(Json::Bool(true)));
+                Some((dispatch, delivered))
+            })
+            .collect();
+
+        assert_eq!(
+            dispatch_entries,
+            vec![("Manifest::Slot.Fill".to_string(), true)],
+            "the entity-owned command's own saga leg should have been correctly domain-qualified \
+             and delivered — not refused \"unknown command\" the way the pre-BUG#9 heuristic left \
+             it — saga_log was: {saga_log:?}"
+        );
+    }
+
+    #[test]
+    fn qualify_saga_command_name_folds_a_same_domain_entity_command_reference() {
+        // Direct unit coverage of the helper itself, alongside the
+        // end-to-end `orchestrate` test above.
+        assert_eq!(qualify_saga_command_name("Waybill", "Manifest::Slot.Fill"), "Waybill::Manifest.Slot.Fill");
+        assert_eq!(qualify_saga_command_name("Waybill", "Manifest::Slot.Clear"), "Waybill::Manifest.Slot.Clear");
+        // A plain (non-entity) aggregate command has no leftover `::` at
+        // all — unaffected, still just domain-prefixed, matching BUG#6's
+        // own fixed `SagaInterpreter#qualified`.
+        assert_eq!(qualify_saga_command_name("Waybill", "Manifest.Open"), "Waybill::Manifest.Open");
+        assert_eq!(qualify_saga_command_name("Waybill", "Manifest.AddSlot"), "Waybill::Manifest.AddSlot");
     }
 
     // C10.3 — the kernel half of spec/corpus/semantics/
