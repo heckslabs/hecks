@@ -395,6 +395,31 @@ pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntr
     exemplar.render("identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
 }
 
+/// Port of `rust/project/reactions.rb`'s own `emit_entity_identity_head_
+/// table` (BUG#10) — see that function's own header for the full
+/// argument: the SAME single-component restriction `emit_identity_head_
+/// table` (above) already carries, one level down, for an ENTITY's own
+/// declared identity rather than its owning aggregate's. Keyed by
+/// "Domain::Aggregate.Entity" — a TWO-level-deep entity command (BUG#11)
+/// never resolves through this table, deliberately.
+pub fn emit_entity_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+    let arms: Vec<String> = aggregates
+        .iter()
+        .flat_map(|a| {
+            a.entities.iter().filter_map(move |e| {
+                if e.identified_by.len() != 1 {
+                    return None;
+                }
+                let head = e.identified_by[0].split('.').next().unwrap_or(&e.identified_by[0]);
+                let qualified = format!("{}::{}.{}", a.domain_name, a.name, e.name);
+                Some(format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(head)))
+            })
+        })
+        .collect();
+
+    exemplar.render("entity_identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
+}
+
 /// Port of `rust/project/reactions.rb`'s own `emit_command_attributes_
 /// table` — see that function's own header for the full argument (R1,
 /// docs/audits/2026-08-11-bug-triage.md).
