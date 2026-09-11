@@ -394,6 +394,22 @@ deliberate `bin/run qa/bluebook conclude`/`release`) decides it's ready
 to be swept again, rather than being re-fuzzed in a known-broken state
 on the next wakeup.
 
+**When you do run that deliberate `release`, it now needs `yield_score`
+too** — `Target.Release` takes it as a required argument, the same way
+it already takes `now`. Query how many bugs this sweep actually turned
+up (`bin/run qa/bluebook ask bug.found_in sweep_id.value=<sweep-id>`, or
+count the rows yourself), then compute the next value the same way
+`bin/qa_sweep`'s own clean path does — decay the target's current
+`yield_score` by `QualityControlDials::YIELD_DECAY_PERCENT` and add that
+count (`Hecks::Fuzzing::RotationPriority.next_yield_score`, if you're
+doing this from Ruby rather than the CLI by hand). This is what lets
+`bin/qa_sweep`'s own least-recently-swept-with-no-name-given pick weight
+toward chapters that keep finding things without ever starving one that
+has gone quiet — see `qa/bluebook/quality_control.bluebook`'s own
+`Target.Release` and `RotationPriority`'s header for the full mechanics.
+`bin/qa_sweep`'s automatic clean-path release already does this for you;
+this only applies to a release you dispatch by hand.
+
 ---
 
 ## Authoring a new stress domain (occasional, not every sweep)
