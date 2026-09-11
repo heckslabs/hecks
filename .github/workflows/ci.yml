@@ -550,6 +550,29 @@ jobs:
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
+      # Restores the previous run's real per-file example-group timings so
+      # `parallel_rspec` below can group workers by measured cost instead
+      # of guessing from file size (see the run step's own comment for why
+      # `filesize` didn't actually work out). Keyed on `github.run_id`,
+      # unique to THIS run, so `key:` itself never matches — that's
+      # deliberate, it forces the `restore-keys` prefix match to resolve
+      # to the MOST RECENT previously-saved log every time instead of ever
+      # trying to reuse this run's own (nonexistent-yet) entry. First run
+      # ever, or any run after a cache eviction, restores nothing — the
+      # run step below still measures and writes real data even then, so
+      # the NEXT run's restore has something to pick up.
+      # `tmp/parallel_runtime_rspec.log` is also `ParallelTests::RSpec::
+      # Runner`'s own hardcoded default `--runtime-log` path
+      # (parallel_tests-4.10.1's rspec/runner.rb) — named explicitly below
+      # anyway so this keeps working even if that default ever changes.
+      - name: Restore rspec runtime log cache
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec.log
+          key: postgres-io-parallel-runtime-${{ github.run_id }}
+          restore-keys: |
+            postgres-io-parallel-runtime-
+
       # `--exclude-pattern` HERE IS parallel_tests' OWN TOP-LEVEL FLAG,
       # not RSpec's — deliberately NOT nested inside `-o`/`--test-options`.
       # A first version of this job passed it nested inside `-o "...
@@ -589,23 +612,86 @@ jobs:
       # betting on which shared piece of a fresh runner's ~/.cargo or
       # ~/.rustup it was. `qa_sweep_all_spec` stays here — it needs this
       # job's Postgres, and is now the only cargo user left in it.
-      # `--group-by filesize` — default `parallel_tests` behavior groups by
-      # FILE COUNT ("4 processes for 288 specs, ~72 specs per process"),
-      # not by expected work; confirmed live, one real run's own four
-      # worker times were 57s / 2m1s / 4m18s / 5m55s — file count balanced,
-      # wall-clock did not, because the handful of specs doing real
-      # subprocess/cargo work (`qa_sweep_all_spec` among them) happened to
-      # land on the same worker. `filesize` uses each file's own byte size
-      # as a free, no-setup proxy for how much work it represents — a
-      # cheap, real improvement over round-robin, though not as accurate
-      # as `--group-by runtime`, which needs a `--runtime-log` persisted
-      # across runs (a bigger, separate CI-caching change, not done here).
+      # `--group-by filesize` (PR #568) turned out NOT to fix the load
+      # imbalance it was meant to fix — measured across three real runs,
+      # both before AND after that change landed, the 4 workers got the
+      # IDENTICAL example split every single time: 33/59/74/82 examples.
+      # Wall-clock varied 4m37s-6m53s across those runs, but that's GitHub
+      # runner performance noise, not load balancing — the split itself
+      # never moved. A file's byte size just doesn't correlate with its
+      # actual Postgres-I/O execution cost: the handful of specs doing
+      # real subprocess/cargo work (`qa_sweep_all_spec` among them) don't
+      # scale with their own source size, so they kept landing on the same
+      # worker regardless.
+      #
+      # REPLACED HERE with real measured runtime instead of guessing from
+      # a proxy. `parallel_tests`' own `RuntimeLogger` formatter (added to
+      # `-o` below) records real per-file example-group time to
+      # `tmp/parallel_runtime_rspec.log`, but ONLY when `TEST_ENV_NUMBER`
+      # is set — i.e. only under `parallel_rspec`, exactly this job — and
+      # the "Restore rspec runtime log cache" step above persists that log
+      # across CI runs so it isn't cold every time.
+      #
+      # Deliberately leaving `--group-by` UNSET here rather than writing
+      # `--group-by default`: that literal string is NOT a valid value.
+      # `parallel_tests-4.10.1`'s own `ParallelTests::Test::Runner.
+      # tests_with_size` `case options[:group_by]` only matches
+      # `:found`/`:filesize`/`:runtime`/`nil` and raises `ArgumentError,
+      # "Unsupported option default"` for anything else — confirmed live
+      # against the vendored gem. The "runtime when the log is filled,
+      # otherwise filesize" fallback the CLI's own `--help` text describes
+      # as "default" is what that `nil` branch does — i.e. it's what you
+      # get from omitting `--group-by` entirely, not from spelling out the
+      # word. `--runtime-log` below is already `ParallelTests::RSpec::
+      # Runner`'s own hardcoded default path (same one used above) but is
+      # named explicitly here for clarity.
+      #
+      # Cold cache (first run ever, or any run after an eviction) behaves
+      # exactly like today: the log doesn't exist, reading it raises, the
+      # `nil`-group-by branch rescues that and falls back to `filesize` —
+      # same 33/59/74/82 split as the baseline above. Once the log is
+      # warm this should measurably rebalance the split; see the PR
+      # description for the actual before/after numbers from two real CI
+      # runs.
+      #
+      # `--format documentation` IS REPEATED HERE EXPLICITLY, even though
+      # `.rspec` already sets it project-wide — found live (this job's own
+      # first real run under this change): with it left implicit, console
+      # output went completely silent, no example names, no final "N
+      # examples, N failures" summary, nothing but stderr noise (Postgres
+      # NOTICEs, Ruby warnings). Root cause, confirmed by reading
+      # rspec-core-3.13.6's configuration_options.rb and reproducing live:
+      # `--format` genuinely IS repeatable WITHIN one args source (each
+      # `-f`/`--format` in the SAME parse pushes onto that source's own
+      # `:formatters` array, confirmed against option_parser.rb) — but
+      # `ConfigurationOptions#organize_options` merges MULTIPLE sources
+      # (`.rspec`, then this command line) with plain `Hash#merge`, and
+      # `:formatters` isn't one of the two keys (`:libs`/`:requires`) that
+      # get concatenated across sources — so the command line's own
+      # `:formatters` array REPLACES `.rspec`'s wholesale rather than
+      # adding to it. Repeating `--format documentation` here, in the SAME
+      # `-o` string as the RuntimeLogger below, keeps both in the one
+      # source that actually wins.
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
           bundle exec parallel_rspec spec \
-            --group-by filesize \
+            --runtime-log tmp/parallel_runtime_rspec.log \
             --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
-            -o "--tag io --tag ~fuzzing"
+            -o "--tag io --tag ~fuzzing --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.log"
+
+      # Saves the log this run just wrote — real per-file timing data even
+      # on a cold cache, see above — back under THIS run's own unique key,
+      # so the NEXT run's restore-keys prefix match picks it up. `if:
+      # always()`: a run that fails partway through still measured real
+      # times for whatever it got through before failing, worth keeping
+      # rather than discarding on the one outcome (a failure) where you'd
+      # most want the next run to still have good data to group by.
+      - name: Save rspec runtime log cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: tmp/parallel_runtime_rspec.log
+          key: postgres-io-parallel-runtime-${{ github.run_id }}
 
   # FOUR JOBS, NOT ONE — `rspec_rust_io` used to run all 12 `cargo`-
   # touching `io: true` specs serially in a single checkout. Digging into
