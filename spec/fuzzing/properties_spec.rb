@@ -466,7 +466,13 @@ RSpec.describe "Hecks::Fuzzing::Properties" do
                   mutation_traces: [
                     { verb:   "NestedPieces::Workspace.Board.AddCard",
                       before: { number: { value: 1 }, label: nil, cards: [] },
-                      after:  { number: { value: 1 }, label: nil, cards: [{ sequence: { value: 821 } }] },
+                      # `note: nil` — BUG#12's own fix: `Card.note`
+                      # (`optional: true`) isn't in `AddCard`'s own
+                      # append mapping, but a freshly appended `Card`
+                      # still carries its own key for it, `nil`-valued,
+                      # the same way a fresh aggregate's declared
+                      # attributes already do.
+                      after:  { number: { value: 1 }, label: nil, cards: [{ sequence: { value: 821 }, note: nil }] },
                       args:   { number: { value: 1 }, sequence: 821 } }
                   ] }
 

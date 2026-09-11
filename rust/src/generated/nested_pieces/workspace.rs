@@ -562,6 +562,13 @@ impl BoardAddCardEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardAddCardEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["sequence", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddCard does not declare {} — it takes sequence",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
@@ -666,6 +673,13 @@ impl BoardLabelEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardLabelEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["label", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Label does not declare {} — it takes label",
+        unknown.join(", ")
+    )));
 }
 let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {

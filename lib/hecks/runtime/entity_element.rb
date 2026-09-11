@@ -4,6 +4,7 @@ require_relative "value"
 require_relative "refusal_wording"
 require_relative "errors"
 require_relative "identity"
+require_relative "instance"
 
 module Hecks
   module Runtime
@@ -275,17 +276,26 @@ module Hecks
         element[source]
       end
 
-      # `MutationApplier#appended`'s own entity-scoped twin. VALUE-
-      # OBJECT elements only — an entity's own list, appended to by an
+      # `MutationApplier#appended`'s own entity-scoped twin. Usually a
+      # VALUE OBJECT element — an entity's own list, appended to by an
       # entity-owned command, holds a value object (`Member.pairs`'
       # own `Pair`, `Dispatch.with_spec`'s own `Binding`) the same way
-      # every real corpus append does; entity-in-entity nesting (a
-      # list of ANOTHER entity, owned by this one) is out of scope —
-      # `MutationApplier#entity_element`'s own fallback is deliberately
-      # not mirrored here, since nothing in this language's own
-      # `EntityBuilder` can declare a nested entity to need it (see
-      # S17's own scoping note on why Dispatch flattens under
-      # ProcessManager instead of nesting under Handler).
+      # most real corpus appends do — but entity-in-entity nesting (a
+      # list of ANOTHER entity, owned by this one) is real now too:
+      # `qa/stress_domains/nested_pieces` (`Board.AddCard`, appending a
+      # `Card` onto `Board`'s own `cards`) is the first corpus member to
+      # do it, the comment this replaces having been written before that
+      # domain existed. `element_type` naming an entity rather than a
+      # value object falls through to `fields` unchanged, same as
+      # before — `MutationApplier#entity_element`'s own identity-minting/
+      # collision-checking fallback still isn't mirrored here (nothing
+      # in this corpus needs auto-minting at THIS depth — Card supplies
+      # its own identity in the append mapping — and collision-checking
+      # a nested entity is its own separate, unfixed question) — but
+      # BUG#12's fix (below) is: every declared attribute the append
+      # mapping doesn't name gets its own default the same way a fresh
+      # aggregate's own attributes already do (`Instance.defaults`),
+      # whichever branch built `fields`.
       def appended_to_element(aggregate, entity, element, mutation, args)
         fields       = mutation.source.transform_values { |source| resolve_element_append_source(source, element, args) }
         element_type = entity.attribute(mutation.target)&.type
@@ -293,8 +303,50 @@ module Hecks
         value_object&.attributes&.each do |attribute|
           fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
         end
-        appended = value_object ? Value.build(value_object, fields, aggregate) : fields
+        appended =
+          if value_object
+            Value.build(value_object, fields, aggregate)
+          else
+            # `entity.entities`, NOT `aggregate.entities` — a piece
+            # nested inside a piece is a child of the OWNING entity
+            # (`Card` is `Board.entities`, never `Workspace.entities`;
+            # `Behaviour::Entity#entities` answers direct children only,
+            # by design — see its own comment), the same lexical-nesting
+            # rule `EntityBuilder#entity_impl` builds the tree with in
+            # the first place.
+            nested_entity = entity.entities.find { |piece| piece.hecks_name == element_type.to_s }
+            nested_entity ? fill_declared_defaults(aggregate, nested_entity, fields) : fields
+          end
         Freezer.deep(Array(element[mutation.target]) + [appended])
+      end
+
+      # BUG#12 — an entity created via `sets :list, append: {...}` used
+      # to leave any of its OWN declared attributes the append mapping
+      # simply didn't name (an optional field a LATER, separate command
+      # sets — `Board.label`, `Card.note`) absent from the stored hash
+      # entirely, not even a `nil` placeholder, until that later command
+      # actually ran. `rust/project/json_codec.rb#emit_to_json_flat`'s
+      # own header comment documents the opposite as the intended
+      # contract for a persisted record: every declared field present,
+      # `null` when unset, "because Ruby's own `JSON.generate(state)`
+      # round-trip this mirrors does the same" — true for a freshly
+      # created AGGREGATE (`Instance.defaults` already fills one key per
+      # declared attribute, `default_for` per attribute), never true for
+      # an entity minted by an append. This closes that gap the same
+      # way: `Instance.default_for` is the SAME per-attribute default
+      # rule (nil with no declared `default:`, a fully-defaulted value
+      # object when every one of ITS OWN fields has one), reused rather
+      # than reimplemented so the two creation paths can never drift on
+      # what "the default" means. Additive only — a key `fields` already
+      # holds (the append mapping, an auto-minted identity, a lifecycle
+      # default) is never overwritten.
+      def fill_declared_defaults(aggregate, entity, fields)
+        entity.attributes.each do |attribute|
+          next if fields.key?(attribute.name)
+
+          fields[attribute.name] = attribute.list? ? Freezer.deep([]) : Instance.default_for(aggregate, attribute)
+        end
+        fields
       end
 
       # `MutationApplier#removed`'s own entity-scoped twin — matches by

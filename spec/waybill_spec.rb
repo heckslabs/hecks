@@ -73,6 +73,25 @@ RSpec.describe "Waybill" do
   let(:runtime) { booted.first }
   let(:registry) { booted.last }
 
+  # BUG#12 — `Manifest.AddSlot`'s own append mapping (`{ number: :number
+  # }`) never names `Slot.item` (`optional: true`, only ever set later,
+  # by `Slot.Fill`). Before the fix, the freshly appended `Slot` had no
+  # `:item` key at all — this pins that it now does, `nil`-valued, the
+  # same way Rust's generated `to_json` already always would. Dispatched
+  # directly (`Manifest.open!`/`add_slot!`), never through the saga —
+  # the saga's own `Consignment.request!` runs `AddSlot` AND `Fill` in
+  # the same synchronous chain, which would already hide the gap this
+  # pins (`Fill` itself creates the `:item` key, the instant it runs).
+  it "gives a freshly appended Slot a key for its own optional item attribute, unset" do
+    runtime
+    Waybill::Manifest.open!(reference: { value: "M1" })
+    Waybill::Manifest.find("M1").add_slot!(number: { value: 1 })
+
+    slot = Waybill::Manifest.find("M1")[:slots].first
+    expect(slot.key?(:item)).to be(true)
+    expect(slot[:item]).to be_nil
+  end
+
   it "opens a manifest and reserves a slot through the saga's own aggregate-level dispatches — those work" do
     runtime
     Waybill::Consignment.request!(reference: { value: "C1" }, number: { value: 1 }, item: { text: "widget" })
