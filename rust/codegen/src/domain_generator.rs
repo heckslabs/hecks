@@ -360,18 +360,34 @@ pub fn generate(
             //
             // BUG#11 (loop-parity) — ITS OWN COMMANDS ARE NOW ROUTED
             // TOO, for the ROUTED (`to: { aggregate:, entities: [...] }`)
-            // addressing shape only. See `commands.rs::emit_nested_
-            // entity_command`'s own doc comment and `rust/project/
-            // domain_generator.rb`'s own header for the full argument —
-            // short version: `kernel::dispatch_entity`/`kernel::apply_
-            // entity_command` (dispatch.rs) were already generic enough
-            // to compose one hop deeper with no kernel change at all, so
+            // addressing shape. See `commands.rs::emit_nested_entity_
+            // command`'s own doc comment and `rust/project/domain_
+            // generator.rb`'s own header for the full argument — short
+            // version: `kernel::dispatch_entity`/`kernel::apply_entity_
+            // command` (dispatch.rs) were already generic enough to
+            // compose one hop deeper with no kernel change at all, so
             // this was a real, bounded codegen gap, not an architecture
-            // mismatch. Deliberately NOT generalized past two levels, and
-            // no legacy/flat-argument fallback at this depth — scoped to
-            // exactly the shape `qa/stress_domains/nested_pieces` and
-            // this language's own `ProcessManager.Handler.Dispatch`
-            // actually exercise.
+            // mismatch. Deliberately NOT generalized past two levels —
+            // still real, separate, still-open scope.
+            //
+            // BUG#19 (loop-parity) — BUG#11 deliberately shipped ROUTED
+            // ONLY, refusing every FLAT-args depth-2 dispatch (one
+            // identity head per hop, no `to:` at all — the same
+            // convention `entity_arms`'s own depth-1 `None =>` branch
+            // already resolves) with `TypeMismatch`, even though Ruby's
+            // `locate_chain` never distinguished the two addressing
+            // modes. `entity_can_route`, computed here (moved up from
+            // below — the nested loop needs it too now), gates whether
+            // `entity`'s own identity supports `extract_id`/`extract_
+            // wants` at all; `nested_can_route`, computed per `nested`
+            // below, is the same check one hop deeper. Both true is what
+            // `unrouted_supported` (each `NestedEntityCommandEntry`, read
+            // by `registry.rs`'s own `nested_entity_arms`) actually
+            // gates — extending the two-hop router with the identical
+            // `Some(route) => ... | None => ...` shape `entity_arms`
+            // already has, never a new mechanism.
+            let entity_can_route = json_codec::extract_id_supported(entity);
+
             for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
                 puts_str(
                     &mut out,
@@ -409,13 +425,30 @@ pub fn generate(
                     ),
                 );
                 puts_blank(&mut out);
-                // `identity()` — the ONLY thing a ROUTED dispatch needs
-                // off a doubly-nested element (`matches = |el| el.
-                // identity() == hop2_id`) — no `extract_id`/`extract_
-                // wants`, matching the Ruby generator's own identical
-                // scoping (no legacy fallback at this depth).
+                // `identity()` — what a ROUTED dispatch needs off a
+                // doubly-nested element (`matches = |el| el.identity()
+                // == hop2_id`), emitted unconditionally the way
+                // `entity`'s own always is.
                 puts_str(&mut out, &json_codec::emit_self_identity(exemplar, nested));
                 puts_blank(&mut out);
+
+                // BUG#19 — `extract_id`/`extract_wants`, back FLAT-args
+                // addressing at this depth exactly the way `entity_can_
+                // route` already backs it one hop shallower (below,
+                // `entity`'s own). Needs BOTH hops' identity shape to
+                // support it (a flat dispatch has to resolve `hop1_id`
+                // off `entity`'s own `extract_id` too — `registry.rs`'s
+                // own `nested_entity_arms`, `None =>` branch), so this is
+                // gated on `entity_can_route && nested_can_route`, not
+                // `nested_can_route` alone.
+                let nested_can_route = json_codec::extract_id_supported(nested);
+                let unrouted_supported = entity_can_route && nested_can_route;
+                if unrouted_supported {
+                    puts_str(&mut out, &json_codec::emit_extract_id(exemplar, nested));
+                    puts_blank(&mut out);
+                    puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, nested));
+                    puts_blank(&mut out);
+                }
 
                 let nested_identified_by = nested.get("identified_by").map(Json::each).unwrap_or(&[]);
                 for command in nested.get("commands").map(Json::each).unwrap_or(&[]) {
@@ -492,11 +525,14 @@ pub fn generate(
                             .map(Json::to_s)
                             .collect::<Vec<_>>()
                             .join(", "),
+                        unrouted_supported,
                     });
                 }
             }
 
-            let entity_can_route = json_codec::extract_id_supported(entity);
+            // `entity_can_route` — computed once, above, before this
+            // aggregate's own nested-entities loop (BUG#19 needs it
+            // there too).
             if entity_can_route {
                 puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
                 puts_blank(&mut out);

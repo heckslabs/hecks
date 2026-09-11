@@ -490,6 +490,31 @@ impl Card {
     }
 }
 
+impl Card {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("card").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Card: no identity found (tried sequence.value, id, card)".to_string())
+        })
+    }
+}
+
+impl Card {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })()
+        .unwrap_or_default()
+    }
+}
+
 impl crate::kernel::Fielded for CardAnnotateNestedEntityArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;

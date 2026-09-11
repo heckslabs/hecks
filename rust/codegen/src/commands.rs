@@ -1018,11 +1018,15 @@ pub fn emit_entity_command(
 /// belongs to the INNER hop, never the entity it's nested inside — see
 /// the Ruby generator's own header for why), and the inner hop is one
 /// more `apply_entity_command` call nested inside the outer's own
-/// `apply_mutations` closure. ROUTED ONLY (`to: { aggregate:, entities:
-/// [hop1, hop2] }`) — `nested` gets an `identity()` method (`emit_self_
-/// identity`) but no `extract_id`/`extract_wants`, so there is no
-/// legacy/flat-argument fallback at this depth, matching `domain_
-/// generator.rb`'s own scoping.
+/// `apply_mutations` closure. The generated function below is
+/// ADDRESSING-AGNOSTIC — `parent_id`/`hop1_id`/`hop1_wants`/`hop2_id`/
+/// `hop2_wants` are plain `&str` parameters, no `RoutingEnvelope` in
+/// sight. BUG#11 (this function's own original form) only ever called it
+/// from the ROUTED (`to: { aggregate:, entities: [hop1, hop2] }`) shape;
+/// BUG#19 taught `registry.rs`'s own `nested_entity_arms` a SECOND
+/// caller shape — flat args, one identity head per hop, resolved via
+/// `entity`'s/`nested`'s own `extract_id`/`extract_wants` (`domain_
+/// generator.rs`'s own header) — with no change needed here at all.
 pub fn emit_nested_entity_command(
     exemplar: &Exemplar,
     command: &Json,

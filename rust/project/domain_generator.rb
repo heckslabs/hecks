@@ -286,7 +286,7 @@ module RustProjection
             #
             # BUG#11 (loop-parity) — ITS OWN COMMANDS ARE NOW ROUTED TOO,
             # for the ROUTED (`to: { aggregate:, entities: [...] }`)
-            # addressing shape only. `rust/src/kernel/routing.rs`'s own
+            # addressing shape. `rust/src/kernel/routing.rs`'s own
             # `RoutingEnvelope` was already depth-agnostic (`entities:
             # Vec<String>`, `require_depth(N)` for any N — see that
             # file's own `preserves_ordered_entity_receiver_identities`
@@ -305,19 +305,32 @@ module RustProjection
             # mutations` closure for the inner hop — so no kernel/
             # dispatch.rs change was needed either.
             #
-            # DELIBERATELY NOT GENERALIZED to a third level, and not
-            # (yet) given a legacy/flat-argument fallback the way a
-            # one-level entity command's own `entity_can_route` branch
-            # has (registry.rb's own `nested_entity_arms`, below, refuses
-            # a nested entity command dispatched with no `to:` route at
-            # all) — this fix is scoped to exactly the shape BUG#11
-            # confirmed live and `spec/nested_pieces_spec.rb` actually
-            # exercises (`Workspace.Board.Card.Annotate` via `to: {
-            # entities: [...] }`), not extrapolated further than that
-            # evidence reaches. A THIRD level, or the unrouted legacy
-            # shape at depth 2, is real, separate, still-open scope —
-            # named here rather than silently assumed to work the same
-            # way.
+            # DELIBERATELY NOT GENERALIZED to a third level — still real,
+            # separate, still-open scope.
+            #
+            # BUG#19 (loop-parity) — BUG#11 deliberately shipped ROUTED
+            # ONLY (`to: { entities: [...] }`), refusing every FLAT-args
+            # depth-2 dispatch (one identity head per hop —
+            # `reference`/`number`/`sequence`, no `to:` at all, the SAME
+            # convention `entity_arms`' own depth-1 `None =>` branch
+            # already resolves via BUG#10's `extract_id`/`extract_wants`
+            # fallback) with `TypeMismatch`, EVEN THOUGH Ruby's own
+            # `locate_chain` never distinguished the two addressing
+            # modes in the first place — `element_of` reads `args[head]`
+            # per hop regardless of how many hops came before it. That
+            # asymmetry is what `bin/qa_sweep nested_pieces` found live.
+            # `entity_can_route` (moved up here from below, since the
+            # nested loop now needs it too) gates whether the identity
+            # shape supports `extract_id`/`extract_wants` at all —
+            # `nested_can_route`, computed per `nested` inside the loop
+            # below, is the SAME check one hop deeper. Both true is what
+            # `unrouted_supported:` (on each `nested_entity_commands`
+            # entry, read by `registry.rb`'s own `nested_entity_arms`)
+            # actually gates — extending the two-hop router with the
+            # identical `Some(route) => ... | None => ...` shape
+            # `entity_arms` already has, never a new mechanism.
+            entity_can_route = Projector.extract_id_supported?(entity)
+
             entity[:entities].each do |nested|
               nested_verb = "#{entity_verb}.#{nested[:name]}"
               manifest << manifest_entry(kind: "entity", id: nested_verb, generated: true)
@@ -328,16 +341,33 @@ module RustProjection
               f.puts
               f.puts Projector.emit_from_json_state(nested_rust_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
               f.puts
-              # `identity()` — the ONLY thing a ROUTED dispatch needs off
-              # a doubly-nested element (`matches = |el| el.identity() ==
-              # hop2_id`, commands.rb's own `emit_nested_entity_command`)
-              # — no `extract_id`/`extract_wants` needed the way a
-              # one-level entity's own `entity_can_route` branch needs
-              # them, since those back only the UNROUTED legacy fallback
-              # this fix deliberately doesn't attempt at this depth (see
-              # this loop's own header comment above).
+              # `identity()` — what a ROUTED dispatch needs off a doubly-
+              # nested element (`matches = |el| el.identity() == hop2_id`,
+              # commands.rb's own `emit_nested_entity_command`), emitted
+              # unconditionally the way `entity`'s own always is.
               f.puts Projector.emit_self_identity(nested)
               f.puts
+
+              # BUG#19 — `extract_id`/`extract_wants`, back FLAT-args
+              # addressing at this depth exactly the way `entity_can_
+              # route` already backs it one hop shallower (below,
+              # `entity`'s own). Needs BOTH hops' identity shape to
+              # support it — a flat dispatch has to resolve `hop1_id`
+              # off `entity`'s own `extract_id` too (registry.rb's own
+              # `nested_entity_arms`, `None =>` branch) — so this is
+              # gated on `entity_can_route && nested_can_route`, not
+              # `nested_can_route` alone.
+              nested_can_route = Projector.extract_id_supported?(nested)
+              unrouted_supported = entity_can_route && nested_can_route
+              if unrouted_supported
+                f.puts Projector.emit_extract_id(nested)
+                f.puts
+                f.puts Projector.emit_extract_wants(nested)
+                f.puts
+              else
+                reason = entity_can_route ? "identity #{nested[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)" : "entity #{entity[:name]}'s own identity isn't extract_id-supported either"
+                puts "skipping #{nested_verb}'s flat-args fallback: #{reason} — routed (`to:`) addressing still works"
+              end
 
               nested[:commands].each do |command|
                 nested_command_verb = "#{nested_verb}.#{command[:name]}"
@@ -354,7 +384,7 @@ module RustProjection
                 f.puts
 
                 manifest << manifest_entry(kind: "entity_command", id: nested_command_verb, generated: true, routed: true,
-                                            reason: "routed (`to: { entities: [...] }`) only — no legacy/flat-argument fallback at this depth (BUG#11)")
+                                            reason: unrouted_supported ? "routed (`to: { entities: [...] }`) and flat-args (one identity head per hop) both supported (BUG#19)" : "routed (`to: { entities: [...] }`) only — no legacy/flat-argument fallback at this depth (identity shape isn't extract_id-supported at one or both hops; BUG#19's own gate)")
 
                 nested_entity_commands << {
                   verb: nested_command_verb,
@@ -374,11 +404,19 @@ module RustProjection
                   entity_identity_reading: entity[:identified_by].join(", "),
                   nested_name: nested[:name],
                   nested_identity_reading: nested[:identified_by].join(", "),
+                  # BUG#19 — whether `registry.rb`'s own `nested_entity_
+                  # arms` gets a `None => ...` flat-args fallback branch
+                  # for THIS command, or stays the ROUTED-only shape
+                  # BUG#11 shipped (both hops' identity has to support
+                  # `extract_id`/`extract_wants` — see this loop's own
+                  # header comment above).
+                  unrouted_supported: unrouted_supported,
                 }
               end
             end
 
-            entity_can_route = Projector.extract_id_supported?(entity)
+            # `entity_can_route` — computed once, above, before the
+            # nested-entities loop (BUG#19 needs it there too).
             entity_router_reason = "identity #{entity[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
             if entity_can_route
               f.puts Projector.emit_extract_id(entity)

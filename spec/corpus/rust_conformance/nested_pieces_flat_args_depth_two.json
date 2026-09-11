@@ -1,0 +1,10 @@
+{
+  "domain": "qa/stress_domains/nested_pieces",
+  "note": "BUG#19 (loop-parity) — a depth-2 entity command (`Workspace.Board.Card.Annotate`) addressed via FLAT args: one identity head per hop (`reference`/`number`/`sequence`), no `to:` envelope anywhere in the step. This is the addressing mode BUG#11 (PR #552) deliberately left unrouted at this depth — its own comment named it a real, separate, still-open gap (\"no legacy/flat-argument fallback at this depth\"). Ruby's `EntityElement#locate_chain` never distinguished the two addressing modes in the first place (`element_of` reads `args[head]` once per hop, called once per chain entry, regardless of how many hops came before it), so Ruby always accepted this shape; pre-fix, Rust's generated `nested_entity_arms` REQUIRED an explicit `to: { entities: [...] }` route and refused every flat-args call with `TypeMismatch`, even after successfully creating the Board and Card the same way (`AddBoard`/`AddCard`, both flat, both already worked pre-fix — the gap was specific to the DEPTH-2 COMMAND arm, not entity creation). Fixed by extending `nested_entity_arms` with the same `Some(route) => ... | None => ...` fallback `entity_arms` (depth 1, BUG#10) already has, one hop deeper — `Board`'s and `Card`'s own generated `extract_id`/`extract_wants` (newly emitted for the doubly-nested entity too) resolve both hops' identity straight off the flat facts. Every step here is flat/legacy-shaped on purpose, including the setup steps, to prove the whole chain (not just the final command) works unrouted end to end.",
+  "steps": [
+    {"verb": "NestedPieces::Workspace.Open", "args": {"reference": {"value": "W1"}}},
+    {"verb": "NestedPieces::Workspace.AddBoard", "args": {"reference": {"value": "W1"}, "number": {"value": 1}}},
+    {"verb": "NestedPieces::Workspace.Board.AddCard", "args": {"reference": {"value": "W1"}, "number": {"value": 1}, "sequence": {"value": 1}}},
+    {"verb": "NestedPieces::Workspace.Board.Card.Annotate", "args": {"reference": {"value": "W1"}, "number": {"value": 1}, "sequence": {"value": 1}, "note": {"text": "done"}}}
+  ]
+}
