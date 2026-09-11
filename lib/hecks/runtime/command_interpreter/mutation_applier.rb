@@ -1,4 +1,5 @@
 require_relative "../value"
+require_relative "../entity_element"
 
 module Hecks
   module Runtime
@@ -246,7 +247,17 @@ module Hecks
             check_entity_collision(aggregate, entity, current, fields)
           end
           fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
-          fields
+          # BUG#12 — every one of THIS entity's own declared attributes
+          # the append mapping (and the identity/lifecycle filling just
+          # above) didn't already touch gets its own default, the same
+          # way a fresh aggregate's own attributes already do
+          # (`Instance.defaults`) — see `EntityElement#
+          # fill_declared_defaults`'s own comment for the full reasoning;
+          # shared rather than reimplemented so this aggregate-level
+          # entity creation and `EntityElement#appended_to_element`'s
+          # entity-nested-in-entity one can never drift on what "the
+          # default" means.
+          EntityElement.fill_declared_defaults(aggregate, entity, fields)
         end
 
         # THE MINTED IDENTITY IS ONE PAST THE HIGHEST HELD (C4.5) — not

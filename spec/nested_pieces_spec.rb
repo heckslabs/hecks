@@ -35,6 +35,35 @@ RSpec.describe "NestedPieces" do
 
   let(:runtime) { boot_nested_pieces }
 
+  # BUG#12 — an entity created via `sets :list, append: {...}` used to
+  # leave a declared attribute the append mapping doesn't name (`Board
+  # .label`, `Card.note`, both `optional: true`) absent from the stored
+  # hash entirely, at BOTH nesting depths this domain exercises: the
+  # aggregate-level append that creates `Board` (`Workspace.AddBoard`,
+  # `MutationApplier#entity_element`) and the entity-level append that
+  # creates `Card` (`Board.AddCard`, `EntityElement#appended_to_element`
+  # — nested two levels deep, the shape that comment used to call "out
+  # of scope"). Rust's generated `to_json` (`json_codec.rb#
+  # emit_to_json_flat`) always emits every declared field, `null` when
+  # unset — pinning that Ruby's own stored state now matches, key for
+  # key, not just value for value.
+  it "gives a freshly appended Board and Card a key for every declared attribute, unset ones included" do
+    runtime
+    NestedPieces::Workspace.open!(reference: { value: "W1" })
+    NestedPieces::Workspace.find("W1").add_board!(number: { value: 1 })
+    runtime.dispatch("NestedPieces::Workspace.Board.AddCard",
+                     to: { aggregate: "W1", entity: "1" }, sequence: { value: 1 })
+
+    workspace = NestedPieces::Workspace.find("W1")
+    board = workspace[:boards].find { |b| b[:number][:value] == 1 }
+    card  = board[:cards].first
+
+    expect(board.key?(:label)).to be(true)
+    expect(board[:label]).to be_nil
+    expect(card.key?(:note)).to be(true)
+    expect(card[:note]).to be_nil
+  end
+
   it "opens a workspace, adds a board, and adds a card two levels deep" do
     runtime
     NestedPieces::Workspace.open!(reference: { value: "W1" })
