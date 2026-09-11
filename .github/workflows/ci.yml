@@ -7,23 +7,61 @@ name: CI
 # check their own reachability and skip themselves silently otherwise,
 # which would mean this workflow "passing" without ever having run them.
 #
-# NO `push: branches: [main]` TRIGGER — removed 2026-08-28, once it
-# stopped catching anything the other two triggers didn't already cover.
-# main's ruleset (`merge-queue-main`) now requires every change to go
-# through a PR with no bypass (`current_user_can_bypass: "never"`,
-# checked live via `gh api repos/heckslabs/hecks/rulesets`) and land only
-# via the merge queue, whose `merge_group` trigger below re-runs `rspec`/
-# `checks` against the PR merged onto main's CURRENT tip immediately
-# before the merge happens — the exact "was this actually tested against
-# what it's landing on" guarantee a `push: branches: [main]` run used to
-# be the only thing providing (classic protection's own
-# `required_status_checks.strict` is ALSO now `true`, belt-and-suspenders
-# with the ruleset, not the thing doing the work). Before this ruleset
-# existed, direct pushes to main were possible with zero required
-# review — that's what the push trigger was really guarding against; now
-# that the ruleset closes that path structurally, testing the same
-# already-merged commit a third time on `push` bought nothing but a
-# duplicate full CI run on every merge.
+# NO `push: branches: [main]` TRIGGER FOR TESTING/GATING PURPOSES —
+# removed 2026-08-28, once it stopped catching anything the other two
+# triggers didn't already cover. main's ruleset (`merge-queue-main`) now
+# requires every change to go through a PR with no bypass
+# (`current_user_can_bypass: "never"`, checked live via `gh api
+# repos/heckslabs/hecks/rulesets`) and land only via the merge queue,
+# whose `merge_group` trigger below re-runs `rspec`/`checks` against the
+# PR merged onto main's CURRENT tip immediately before the merge happens
+# — the exact "was this actually tested against what it's landing on"
+# guarantee a `push: branches: [main]` run used to be the only thing
+# providing (classic protection's own `required_status_checks.strict` is
+# ALSO now `true`, belt-and-suspenders with the ruleset, not the thing
+# doing the work). Before this ruleset existed, direct pushes to main
+# were possible with zero required review — that's what the push
+# trigger was really guarding against; now that the ruleset closes that
+# path structurally, testing the same already-merged commit a third
+# time on `push` for GATING purposes bought nothing but a duplicate
+# full CI run on every merge. That reasoning is unchanged and is still
+# why every job below except `rspec_postgres_io_parallel` carries
+# `if: github.event_name != 'push'`.
+#
+# `push: branches: [main]` IS BACK BELOW, though — added 2026-09-11, for
+# a DIFFERENT reason than the one removed above: CACHE WARMTH, not
+# testing. `rspec_postgres_io_parallel`'s own runtime-log cache (see that
+# job's "Restore rspec runtime log cache" step) only ever gets restored
+# from the current ref, the PR's base branch, or the DEFAULT branch
+# (github.com/en/actions/how-tos/writing-workflows/choosing-what-your-
+# workflow-does/caching-dependencies-to-speed-up-workflows: "Workflow
+# runs can restore caches created in either the current branch or the
+# default branch (usually main). If a workflow run is triggered for a
+# pull request, it can also restore caches created in the base branch").
+# Since this workflow only ever ran on `pull_request`/`merge_group`, no
+# run was ever scoped to `main` itself — so no run ever produced a cache
+# entry AT default-branch scope, only ever at a PR branch's own scope or
+# a merge_group run's own ephemeral `refs/heads/gh-readonly-queue/...`
+# ref scope (which does NOT inherit the source PR branch's cache — that
+# ref is new to Actions' cache index every time, confirmed live via a
+# cache-miss log line on PR #570's own merge_group run, which fell back
+# to filesize grouping and ran up to 5m34s on one worker despite the PR
+# branch that authored it having a fully warm cache of its own). The
+# result: every merge_group run — the LAST CI run before every merge,
+# and the one whose wall-clock actually gates how fast a PR lands — cold
+# started this job's grouping, indefinitely, no matter how many PRs had
+# already warmed their own branch-scoped caches.
+#
+# The fix is scoped to just that one job, not a second full-suite run:
+# every job below EXCEPT `rspec_postgres_io_parallel` carries `if:
+# github.event_name != 'push'`, so a genuine push to `main` runs only
+# the one job whose cache actually needs default-branch scope to be
+# useful — not `rspec`/`checks`/`rspec_postgres_io`/the four
+# `rspec_rust_*` jobs/`rspec_fuzzing`/`runtime_changed` (whose own
+# `stress_concurrency` dependent then also skips, via `needs:`, with no
+# `if:` of its own needed). `rspec_postgres_io_parallel` itself needs no
+# `if:` — it already ran on `pull_request`/`merge_group` and should now
+# also run on `push`, so leaving it unconditional is correct.
 
 # EIGHT JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
 # GitHub Actions schedules all eight the moment the workflow starts).
@@ -120,10 +158,20 @@ name: CI
 on:
   pull_request:
   merge_group:
+  # Cache-warming only — see the top-of-file comment. Every job below
+  # except `rspec_postgres_io_parallel` skips this event via its own
+  # `if: github.event_name != 'push'`.
+  push:
+    branches: [main]
 
 jobs:
   rspec:
     runs-on: ubuntu-latest
+
+    # Cache-warming push (see top-of-file comment) needs only
+    # `rspec_postgres_io_parallel` below — this job still gets its real
+    # gating run from `pull_request`/`merge_group` alone.
+    if: github.event_name != 'push'
 
     # STILL NEEDED HERE, even though every `cargo build` and every
     # deliberately-real-I/O spec moved to `rspec_postgres_io`/
@@ -189,6 +237,10 @@ jobs:
 
   checks:
     runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -411,6 +463,10 @@ jobs:
 
   rspec_postgres_io:
     runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job (it keeps no runtime-log cache of its own).
+    if: github.event_name != 'push'
 
     services:
       postgres:
@@ -738,6 +794,10 @@ jobs:
   rspec_rust_io:
     runs-on: ubuntu-latest
 
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -890,6 +950,10 @@ jobs:
   rspec_rust_io_build:
     runs-on: ubuntu-latest
 
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -947,6 +1011,10 @@ jobs:
   rspec_rust_io_deploy:
     runs-on: ubuntu-latest
 
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -995,6 +1063,10 @@ jobs:
   rspec_rust_parser:
     runs-on: ubuntu-latest
 
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -1026,6 +1098,10 @@ jobs:
   # builds it via its own `before(:context) { self.class.build_codegen! }`.
   rspec_rust_codegen:
     runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -1060,6 +1136,10 @@ jobs:
   # pattern as parser/codegen above.
   rspec_rust_host:
     runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
 
     services:
       postgres:
@@ -1107,6 +1187,10 @@ jobs:
   rspec_fuzzing:
     runs-on: ubuntu-latest
 
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
     steps:
       - uses: actions/checkout@v4
 
@@ -1152,6 +1236,11 @@ jobs:
   # that ran (and finished) first.
   runtime_changed:
     runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment above — cache-warming push doesn't
+    # need this job (and `stress_concurrency` below then also skips,
+    # via its own `needs:`, with no `if:` of its own required for that).
+    if: github.event_name != 'push'
 
     outputs:
       touched: ${{ steps.diff.outputs.touched }}
