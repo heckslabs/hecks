@@ -72,6 +72,13 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
   ].freeze
   SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || 10)
   STEPS_PER_SEQUENCE = 25
+  # OPT-IN, OFF IN CI — `SequenceGenerator`'s adversarial layer
+  # (sequence_generator/adversary.rb) is what `bin/qa_sweep` runs by
+  # default; here it stays at 0 so this gate keeps pinning exactly the
+  # sequences it always has. `ADVERSARIAL=0.3 bundle exec rspec
+  # spec/rust_conformance_fuzz_spec.rb --tag io` turns it on locally
+  # when hunting, the same way `SEEDS=` already widens the pass.
+  ADVERSARIAL_FRACTION = Float(ENV["ADVERSARIAL"] || 0)
 
   def build_rust_for(domain_feature) = super(domain_feature, FUZZ_RUST_DIR)
 
@@ -96,7 +103,8 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         divergences = []
 
         (1..SEEDS_PER_DOMAIN).each do |seed|
-          steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: STEPS_PER_SEQUENCE)
+          steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: STEPS_PER_SEQUENCE,
+                                                                        adversarial: ADVERSARIAL_FRACTION)
 
           ruby_result = Hecks::Fuzzing::Replay.call(domain, steps)
           ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))

@@ -4,7 +4,13 @@
 # the same generator bin/fuzz drives, exposed standalone so a sequence
 # can be inspected or saved without running the property battery.
 #
-#   bin/generate <domain> [--seed N] [--steps N]
+#   bin/generate <domain> [--seed N] [--steps N] [--adversarial FRACTION]
+#
+# `--adversarial` — the same option `bin/qa_sweep` runs with by default
+# (sequence_generator/adversary.rb); pass the fraction a FOUND SOMETHING
+# report's own `reproduce:` line names to see that exact sequence,
+# mutations and all. Off (0) unless given, so a plain call still prints
+# what it always did.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -12,19 +18,23 @@ require "hecks"
 require "hecks/fuzzing"
 require "json"
 
-domain = ARGV.shift or abort "usage: bin/generate <domain> [--seed N] [--steps N]"
+USAGE = "usage: bin/generate <domain> [--seed N] [--steps N] [--adversarial FRACTION]".freeze
+
+domain = ARGV.shift or abort USAGE
 
 seed  = 1
 steps = 30
+adversarial = 0.0
 until ARGV.empty?
   case ARGV.shift
-  when "--seed"  then seed  = Integer(ARGV.shift)
-  when "--steps" then steps = Integer(ARGV.shift)
-  else abort "usage: bin/generate <domain> [--seed N] [--steps N]"
+  when "--seed"        then seed  = Integer(ARGV.shift)
+  when "--steps"       then steps = Integer(ARGV.shift)
+  when "--adversarial" then adversarial = Float(ARGV.shift)
+  else abort USAGE
   end
 end
 
-generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps)
+generated = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps, adversarial: adversarial)
 
 puts JSON.pretty_generate(
   name:  "#{File.basename(domain)}-generated",
