@@ -1,0 +1,14 @@
+{
+  "domain": "examples/roster",
+  "note": "BUG#15 (qa/bluebook/quality_control.bluebook) — a fuzz-generated Roster::Roster.Open carrying an empty-string `name` refused NotFound in Ruby (Identity.of, identity.rb: a blank identity part names nothing, the same as an absent one — CommandInterpreter#hydrate_complete_state then raises NotFound/creating_no_identity before repository.find ever runs) but the compiled Rust conformance binary had NO matching check at all: kernel::dispatch's own Hydrate::Create branch took whatever String codegen handed it — including \"\" for a single-component identity whose only part arrived blank — straight to repo.find/build(), silently minting a real Roster::Roster aggregate with id \"\" and emitting a RosterOpened event Ruby's own state never produces. RefusalSite::NotFoundCreatingNoIdentity already existed in refusal_wording.rs (declared from the start) but nothing ever raised it. Confirmed genuinely broken before the fix (Rust accepted Open with a blank name and produced an extra instance/event); fixed by checking `id.is_empty()` once, generically, in kernel::dispatch's Hydrate::Create branch — the one place both codegen pipelines' generated `id` expressions already converge through, so no codegen change was needed on either pipeline.",
+  "steps": [
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": {
+          "value": ""
+        }
+      }
+    }
+  ]
+}
