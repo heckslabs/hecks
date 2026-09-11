@@ -86,14 +86,17 @@
 # Ruby-vs-Rust differential mode above: Memory vs a real, disposable
 # `PostgresEra` database, both sides the SAME Ruby engine
 # (`Hecks::Fuzzing::PersistenceParity`, lib/hecks/fuzzing/persistence_
-# parity.rb — read its own header for the full design). Opt-in and
-# single-target only (never `--all`, see the abort just below argument
-# parsing) for two reasons: cost (a real `PG.connect` and real SQL per
-# dispatch — `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP`,
+# parity.rb — read its own header for the full design). Run by name
+# single-target, or by `--all` as its own SECOND WAVE over every
+# `postgres_era`-capable target that came back clean from the first
+# (`run_parity_wave`, below — `--no-parity` skips it), for two reasons:
+# cost (a real `PG.connect` and real SQL per dispatch —
+# `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP`,
 # qa/bluebook/quality_control.bluebook, clamps `--seeds` down for exactly
 # this reason) and relevance (only a domain that actually binds
-# `PostgresEra` gains anything from this comparison at all — see the
-# eligibility check right after target resolution, below). This script
+# `PostgresEra` gains anything from this comparison at all — see
+# `Hecks::Fuzzing::TargetCapabilities`, the one place eligibility for
+# ANY mode is decided, and the `resolved modes:` line below). This script
 # owns the disposable database's own lifecycle — created once, up front,
 # a throwaway schema unique to THIS sweep dropped again once it ends,
 # clean or surprised — never a shared, leaked-forever scratch database the
@@ -202,12 +205,15 @@
 #     and `spec/rust_conformance_fuzz_spec.rb` already use.
 #   `Hecks::Fuzzing::Properties.check` — the single-runtime property/
 #     exception battery `bin/fuzz` grades a generated sequence against,
-#     used here as the fallback when a domain has no compiled Rust
-#     binary to differential-fuzz against instead (not every domain
-#     does — `rust/Cargo.toml` declares a feature per domain that has
-#     one; `qa/stress_domains/ledger_ordering/NOTES.md` is the exact,
-#     already-documented case of a domain this repository shipped
-#     WITHOUT one).
+#     run here over the Ruby side of EVERY seed: as the whole check when
+#     a domain has no compiled Rust binary (`rust/Cargo.toml` declares a
+#     feature per domain that has one), and as its own
+#     `[properties_in_differential]` Check beside the Ruby-vs-Rust diff
+#     when it does (a differential agreement says nothing about a
+#     property BOTH engines violate the same way).
+#   `Hecks::Fuzzing::TargetCapabilities` / `StructuralSkips` — which
+#     modes this target can be checked for, and what a "not generated"
+#     structural refusal was hiding; see each file's own header.
 #   `RustConformanceHelpers` (spec/support/rust_conformance_helpers.rb)
 #     — the Ruby-vs-Rust build/diff/known-gap-filtering machinery
 #     `spec/rust_conformance_fuzz_spec.rb` itself is built on. Required
@@ -284,10 +290,57 @@ EXIT_ERROR           = 1
 EXIT_FOUND_SOMETHING = 2
 
 USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adversarial FRACTION] " \
-        "[--self-consistency true|false]\n       " \
-        "bin/qa_sweep --all [--seeds N] [--steps N] [--adversarial FRACTION] " \
-        "[--self-consistency true|false]\n       " \
+        "[--role-draw FRACTION] [--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c]\n       " \
+        "bin/qa_sweep --all [--seeds N] [--steps N] [--adversarial FRACTION] [--role-draw FRACTION] " \
+        "[--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c] [--no-parity]\n       " \
         "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]".freeze
+
+# MODES ARE DATA — `QualityControlDials::MODES` (qa/bluebook/quality_
+# control.bluebook) says which comparison modes are turned on;
+# `Hecks::Fuzzing::TargetCapabilities` (lib/hecks/fuzzing/target_
+# capabilities.rb — its own header is the design) infers what THIS
+# target can be checked for from its own directory, and the one rule
+# `resolve` joins them. This script no longer decides a mode inline
+# ("is there a Cargo feature?" / "is there a PostgresEra binding?") —
+# it asks, prints the answer on the `resolved modes:` line right after
+# `resolved depth:`, and logs one Check per active mode per seed with a
+# `[mode]` subject prefix, so the ledger records WHICH axis held or
+# surprised rather than one undifferentiated verdict.
+#
+# WHAT A LEDGER WITHOUT THE DIAL RUNS (an isolated spec's own fixture):
+# exactly the modes the practice runs by default today, so nothing a
+# spec proved before this existed proves less now.
+DEFAULT_MODES = %i[differential ruby_only self_consistency properties_in_differential structural_skip_report
+                   persistence_parity].freeze
+
+# `--modes a,b,c` — the one-run override of the dial's enabled set,
+# the same relationship `--adversarial` has to `ADVERSARIAL_FRACTION`.
+# Each name is checked against `MODE_REQUIREMENTS` up front so a typo is
+# an operational error (exit 1) before anything is claimed.
+def parse_modes(value)
+  names = value.to_s.split(",").map(&:strip).reject(&:empty?).map(&:to_sym)
+  abort "#{USAGE}\n--modes needs at least one mode name" if names.empty?
+
+  unknown = names - Hecks::Fuzzing::TargetCapabilities::MODE_REQUIREMENTS.keys
+  unless unknown.empty?
+    abort "#{USAGE}\n--modes names no such mode: #{unknown.join(', ')} (known: " \
+          "#{Hecks::Fuzzing::TargetCapabilities::MODE_REQUIREMENTS.keys.join(', ')})"
+  end
+
+  names
+end
+
+def parse_fraction(flag, value)
+  abort "#{USAGE}\n#{flag} needs a fraction between 0 and 1" unless value
+
+  fraction = begin
+    Float(value)
+  rescue ArgumentError
+    abort "#{USAGE}\n#{flag} must be a number, got #{value.inspect}"
+  end
+  abort "#{USAGE}\n#{flag} must be between 0 and 1, got #{value}" unless fraction.between?(0, 1)
+  fraction
+end
 
 # THE WIDENING TABLE — see this file's own top-of-file comment
 # ("CLEAN-STREAK DEPTH ESCALATION") for the full reasoning; this is only
@@ -325,37 +378,27 @@ def widen_for_streak(streak)
   [tier[:seeds], tier[:steps]]
 end
 
-# `PostgresEra`-BOUND ONLY — the one signal this script uses to decide a
-# target is worth the real `PG.connect`-per-dispatch cost
-# `--persistence-parity` pays (see this file's own top-of-file comment).
-# A domain with no `persisted_by("PostgresEra")` binding at all — every
-# domain in the DEFAULT rotation today (pizzas, banking) — would just
-# have `IsolatedBoot#rewrite_bindings!` force one onto it that its own
-# `.world` never declared, comparing Memory against an adapter the domain
-# was never meant to run under: trivial agreement at best (ordinary
-# aggregate command dispatch doesn't touch the adapter at all), a
-# meaningless "PostgresEra refuses this domain's own real binding"
-# confusion at worst. Matches BOTH spellings `IsolatedBoot#rewrite_
-# bindings!` itself already has to catch — aggregate-scoped
-# (`Directory::Member.persisted_by("PostgresEra")`) and the bare,
-# domain-level default (`persisted_by "PostgresEra"`, no parens, no
-# receiver).
-POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
-
-def postgres_era_bound?(domain_path)
-  Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
-    File.read(path).match?(POSTGRES_ERA_BINDING)
-  end
-end
-
 # A THIN WRAPPER, NOT A REWRITE — `RustConformanceHelpers` is a plain
 # module of instance methods meant to be `include`d into an RSpec example
 # group; this is the same `include`, on a class with no RSpec anywhere
 # near it, so the exact same build/diff/filter methods
 # `spec/rust_conformance_fuzz_spec.rb` calls on `self` are called here on
 # an instance instead.
+#
+# `structural_skips` — every verb the compiled binary answered "is not
+# generated for this domain" across THIS sweep's seeds, accumulated by
+# `diff_ruby_vs_rust` (the helpers drop those verbs from the comparison
+# silently; the `[structural_skip_report]` check after the seed loop is
+# where they finally get said out loud — see the detection plan's item 4
+# and `Hecks::Fuzzing::StructuralSkips`).
 class Differ
   include RustConformanceHelpers
+
+  attr_reader :structural_skips
+
+  def initialize
+    @structural_skips = Set.new
+  end
 end
 
 # ── argument parsing ─────────────────────────────────────────────────
@@ -379,6 +422,14 @@ all_mode       = false
 adversarial = nil
 self_consistency = nil
 persistence_parity_mode = false
+# `role_draw`/`dry_run` — the two newer generator fractions, resolved
+# from their own dials exactly the way `adversarial` is.
+role_draw = nil
+dry_run   = nil
+# `explicit_modes` — `--modes` (or its alias `--persistence-parity`)
+# given on the command line; nil means "the dial decides".
+explicit_modes = nil
+skip_parity_wave = false
 
 until ARGV.empty?
   arg = ARGV.shift
@@ -390,6 +441,16 @@ until ARGV.empty?
     all_mode = true
   when "--persistence-parity"
     persistence_parity_mode = true
+    explicit_modes = %i[persistence_parity]
+  when "--modes"
+    explicit_modes = parse_modes(ARGV.shift)
+    persistence_parity_mode = explicit_modes == %i[persistence_parity]
+  when "--no-parity"
+    skip_parity_wave = true
+  when "--role-draw"
+    role_draw = parse_fraction("--role-draw", ARGV.shift)
+  when "--dry-run"
+    dry_run = parse_fraction("--dry-run", ARGV.shift)
   when "--seeds"
     value = ARGV.shift
     abort "#{USAGE}\n--seeds needs a number" unless value
@@ -444,15 +505,19 @@ if all_mode && target_ref
         "(got #{target_ref.inspect})"
 end
 
-if all_mode && persistence_parity_mode
-  abort "#{USAGE}\n--persistence-parity is single-target only (a real Postgres connection per dispatch, " \
-        "genuinely expensive — see this file's own top-of-file comment) — it does not combine with --all"
-end
-
-if persistence_parity_mode && !target_ref
+# `--all --persistence-parity` USED TO ABORT ("single-target only"). Now
+# `--all` runs the persistence-parity pass ITSELF, as a second wave
+# over every `postgres_era`-capable target that came back clean from
+# the first (see `run_parity_wave` below) — so the flag under `--all`
+# just narrows every child to that one mode, the same thing `--modes
+# persistence_parity` says. Single-target, it still needs a name: the
+# rotation's own auto-pick weights by staleness and yield, not by who
+# binds PostgresEra, and a target that can't be compared this way is an
+# operational error, not a finding.
+if persistence_parity_mode && !all_mode && !target_ref
   abort "#{USAGE}\n--persistence-parity needs an explicit target-reference — it never auto-picks from the " \
         "rotation, since only a PostgresEra-bound domain gains anything from this comparison at all " \
-        "(see this file's own top-of-file comment)"
+        "(`resolved modes:` on any single-target run says whether a target qualifies)"
 end
 
 # ── boot the ledger for real ───────────────────────────────────────────
@@ -484,6 +549,22 @@ adversarial ||= defined?(QualityControlDials::ADVERSARIAL_FRACTION) ? QualityCon
 if self_consistency.nil?
   self_consistency = defined?(QualityControlDials::SELF_CONSISTENCY_CHECKS) ? QualityControlDials::SELF_CONSISTENCY_CHECKS : true
 end
+# The two newer generator draws — same "off without a dial" stance as
+# the adversarial layer: a fixture ledger runs exactly the sequences it
+# always did.
+role_draw ||= defined?(QualityControlDials::ROLE_DRAW_PROBABILITY) ? QualityControlDials::ROLE_DRAW_PROBABILITY.to_f : 0.0
+dry_run   ||= defined?(QualityControlDials::DRY_RUN_FRACTION) ? QualityControlDials::DRY_RUN_FRACTION.to_f : 0.0
+
+# THE ENABLED MODE SET — `--modes` wins outright; otherwise the dial's
+# `true` entries in the dial's own order; without a dial, the defaults
+# named by `DEFAULT_MODES`. `--self-consistency false` is an ALIAS for
+# "drop `self_consistency` from that set" (and `true` for adding it), so
+# a hand that types the older flag gets exactly what it always got.
+enabled_modes = explicit_modes ||
+                (defined?(QualityControlDials::MODES) ? QualityControlDials::MODES.select { |_, on| on }.keys : DEFAULT_MODES)
+enabled_modes = self_consistency ? (enabled_modes | [:self_consistency]) : (enabled_modes - [:self_consistency])
+structural_boundary =
+  defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
 
 # ── --all: every waiting target, genuinely in parallel ────────────────
 #
@@ -515,7 +596,15 @@ end
 # as the values THIS process resolved (flag or dial) — every child sweeps
 # under the same settings its parent reported, rather than each
 # re-reading the dials.
-def spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency)
+#
+# `modes:` IS FORWARDED THE SAME WAY — the enabled set THIS process
+# resolved (flag or dial), comma-joined into `--modes`, so every child
+# resolves eligibility against the same enabled set its parent printed;
+# `parity: true` narrows a WAVE-2 child to `--persistence-parity`
+# instead (see `run_parity_wave`). `role_draw`/`dry_run` ride along
+# exactly like `adversarial`.
+def spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency,
+                      modes:, role_draw: 0.0, dry_run: 0.0, parity: false)
   # Unlinked the instant it's open: the fd stays good for this
   # process's own later `rewind`/`read` (ordinary POSIX "delete while
   # open" semantics), but nothing survives on disk if this process
@@ -529,6 +618,8 @@ def spawn_sweep_child(target_reference, seeds_override, steps_override, adversar
   args += ["--seeds", seeds_override.to_s] if seeds_override
   args += ["--steps", steps_override.to_s] if steps_override
   args += ["--adversarial", adversarial.to_s, "--self-consistency", self_consistency.to_s]
+  args += ["--role-draw", role_draw.to_s, "--dry-run", dry_run.to_s]
+  args += parity ? ["--persistence-parity"] : ["--modes", modes.join(",")]
 
   pid = Process.spawn(
     "bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), *args,
@@ -585,6 +676,33 @@ def resolved_depth_for(output)
   "#{match[1]} seeds x #{match[2]} steps (clean streak #{match[3]})"
 end
 
+# THE SECOND LINE EVERY CHILD PRINTS, PARSED THE SAME WAY — `resolved
+# modes: <active> (capabilities=<inferred>; deferred=<expensive modes
+# that resolved but run only by name or as wave 2>)`, printed right
+# after `resolved depth:` in the single-target path. Read back here for
+# the consolidated report only; which targets get a wave-2 parity child
+# is decided from the parent's OWN inference (`run_parity_wave`), never
+# from scraping, so a child that errored before printing anything is
+# simply not a wave-2 candidate.
+RESOLVED_MODES_LINE = /^resolved modes: (\S*) \(capabilities=([^;)]*)(?:; deferred=([^)]*))?\)$/
+
+def resolved_modes_for(output)
+  match = output.match(RESOLVED_MODES_LINE)
+  return "modes unknown (target errored before it could resolve them)" unless match
+
+  line = "#{match[1].empty? ? 'none' : match[1]} (capabilities: #{match[2].empty? ? 'none' : match[2]}"
+  line += "; deferred: #{match[3]}" if match[3] && !match[3].empty?
+  "#{line})"
+end
+
+def print_resolved_modes(results)
+  return if results.empty?
+
+  puts
+  puts "resolved modes (by target):"
+  results.each { |r| puts "  #{r[:target]}: #{resolved_modes_for(r[:output])}" }
+end
+
 # EVERY TARGET, ITS OWN RESOLVED DEPTH — so a human can tell a target
 # that just came off a 20-sweep clean streak (widest tier) from one
 # freshly added to the rotation (narrowest), without re-deriving either
@@ -637,6 +755,7 @@ def print_all_mode_report(results, elapsed, clean, found, errored)
   puts "clean (#{clean.size}): #{clean.empty? ? 'none' : clean.map { |r| r[:target] }.join(', ')}"
 
   print_resolved_depths(results)
+  print_resolved_modes(results)
   print_operational_errors(errored)
   print_found_something(found)
 end
@@ -657,7 +776,53 @@ def all_mode_exit_code(found, errored)
   EXIT_OK
 end
 
-def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency)
+# THE SECOND WAVE — persistence parity, `--all`'s own. The mode used to
+# be single-target only, by abort; now `--all` runs it for every target
+# that (1) came back CLEAN from wave 1 — so it is waiting again and its
+# ledger row is exactly one clean release further along, never a target
+# wave 1 left held on a finding or errored on — and (2) THIS process
+# infers `postgres_era` for (the same `TargetCapabilities.infer` the
+# child will run; a stale inference here would only ever cost one
+# operational-error line in the report, never a false clean). Each
+# child is an ordinary `bin/qa_sweep <t> --persistence-parity`, logging
+# its own `[persistence_parity]` checks under its own sweep, and its
+# result rows join wave 1's under the same clean/found/errored
+# precedence. Skipped by `--no-parity`, when the enabled set excludes
+# the mode, or when `--modes` already named it explicitly (wave 1's
+# children then ran it themselves — a second pass would just re-pay
+# the Postgres I/O for nothing new).
+#
+# A SEPARATE FUNCTION CALLED AFTER WAVE 1, NOT A BRANCH INSIDE IT —
+# `run_all_mode`'s own spawn/collect shape is untouched; this reuses
+# `spawn_sweep_child`/`collect_sweep_child` with `parity: true`.
+def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_run)
+  clean_refs = wave1.select { |r| r[:exit_status] == EXIT_OK }.map { |r| r[:target] }
+  rows       = q(runtime, "Target.All").select { |row| clean_refs.include?(row[:reference][:value]) }
+  eligible   = rows.select do |row|
+    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, row[:path][:value]), rust_dir: RUST_DIR)
+    Hecks::Fuzzing::TargetCapabilities.eligible?(:persistence_parity, capabilities)
+  end
+  candidates = eligible.map { |row| row[:reference][:value] }
+
+  if candidates.empty?
+    puts "parity wave: no clean target binds PostgresEra — nothing to compare Memory against. Skipped."
+    return []
+  end
+
+  puts
+  puts "parity wave: Memory vs real PostgresEra for #{candidates.size} target(s): #{candidates.join(', ')}"
+  children = candidates.map do |target_reference|
+    spawn_sweep_child(target_reference, seeds_override, nil, adversarial, false,
+                      modes: [], role_draw: role_draw, dry_run: dry_run, parity: true)
+  end
+  # Labelled in the target column itself, so every section of the report
+  # (clean/errored/found, depths, modes) tells a wave-2 row from the same
+  # target's wave-1 row without a second code path per section.
+  children.map { |child| collect_sweep_child(child).then { |r| r.merge(wave: 2, target: "#{r[:target]} [parity wave]") } }
+end
+
+def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency, modes:, role_draw:, dry_run:,
+                 parity_wave: true)
   waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
 
   if waiting.empty?
@@ -666,14 +831,17 @@ def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_cons
   end
 
   puts "sweeping #{waiting.size} waiting target(s) in parallel: #{waiting.join(', ')} " \
-       "(adversarial fraction #{adversarial}, self-consistency #{self_consistency})"
+       "(adversarial fraction #{adversarial}, self-consistency #{self_consistency}, role draw #{role_draw}, " \
+       "dry-run fraction #{dry_run}, enabled modes #{modes.join(',')})"
   puts
 
   started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   children   = waiting.map do |target_reference|
-    spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency)
+    spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency,
+                      modes: modes, role_draw: role_draw, dry_run: dry_run)
   end
-  results    = children.map { |child| collect_sweep_child(child) }
+  results    = children.map { |child| collect_sweep_child(child).merge(wave: 1) }
+  results   += run_parity_wave(runtime, results, seeds_override, adversarial, role_draw, dry_run) if parity_wave
   elapsed    = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
   clean   = results.select { |r| r[:exit_status] == EXIT_OK }
@@ -684,7 +852,11 @@ def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_cons
   exit all_mode_exit_code(found, errored)
 end
 
-run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency) if all_mode
+if all_mode
+  run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency,
+               modes: enabled_modes, role_draw: role_draw, dry_run: dry_run,
+               parity_wave: !skip_parity_wave && explicit_modes.nil? && enabled_modes.include?(:persistence_parity))
+end
 
 # ── pick a target ───────────────────────────────────────────────────
 
@@ -743,12 +915,33 @@ abort "target #{target_reference.inspect} names a path that does not exist on di
 
 # BEFORE THE CLAIM — an ineligible target here is an operational error
 # (exit 1), not a finding, and must never leave the target held or a
-# sweep open. See POSTGRES_ERA_BINDING's own comment above for why this
-# is the one signal used.
-if persistence_parity_mode && !postgres_era_bound?(domain_path)
+# sweep open. THE ONE RULE: `enabled ∩ eligible`. `deferred` are the
+# expensive, name-only modes (`TargetCapabilities::DEFERRED_MODES`) that
+# resolved for this target but run only when asked by name or as
+# `--all`'s second wave — printed so a human sees they qualify.
+#
+# A DEFERRED MODE RUNS ONLY WHEN IT IS THE WHOLE ASK — `--persistence-
+# parity`, or `--modes persistence_parity` on its own. A `--modes` list
+# that merely INCLUDES it (the exact list `--all` forwards to every
+# wave-1 child, since the dial enables it) still defers it to wave 2;
+# otherwise every PostgresEra-bound target in the rotation would pay
+# the parity pass inside its ordinary sweep, with no seat for the
+# differential comparison at all.
+capabilities   = Hecks::Fuzzing::TargetCapabilities.infer(domain_path, rust_dir: RUST_DIR)
+resolved_modes = Hecks::Fuzzing::TargetCapabilities.resolve(enabled_modes, capabilities)
+deferred_modes = persistence_parity_mode ? [] : resolved_modes & Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES
+active_modes   = resolved_modes - deferred_modes
+
+if persistence_parity_mode && !active_modes.include?(:persistence_parity)
   abort "target #{target_reference.inspect} (#{target_path}) declares no persisted_by(\"PostgresEra\") " \
-        "binding in its own .hecksagon — --persistence-parity has nothing to compare Memory against for " \
-        "this domain. examples/directory is the known example that qualifies."
+        "binding in its own .hecksagon (capabilities: #{capabilities.join(',')}) — --persistence-parity has " \
+        "nothing to compare Memory against for this domain. examples/directory is the known example that qualifies."
+end
+
+unless active_modes.intersect?(%i[differential ruby_only persistence_parity])
+  abort "target #{target_reference.inspect} (#{target_path}) resolves no comparison mode at all — enabled " \
+        "#{enabled_modes.join(',')}, capabilities #{capabilities.join(',')} (deferred: #{deferred_modes.join(',')}). " \
+        "Nothing here can be swept without at least one of differential/ruby_only/persistence_parity."
 end
 
 # ── claim it ─────────────────────────────────────────────────────────
@@ -792,6 +985,14 @@ if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SE
 end
 
 puts "resolved depth: seeds=#{seeds} steps=#{steps_per_sequence} (clean_streak=#{current_streak})"
+modes_line = "resolved modes: #{active_modes.join(',')} (capabilities=#{capabilities.join(',')}"
+modes_line += "; deferred=#{deferred_modes.join(',')}" unless deferred_modes.empty?
+puts "#{modes_line})"
+# TODO(PR-1 rebase): once `Target.Release` gains `capabilities:`
+# (the era-6 mint), pass `capabilities: { value: capabilities.join(",") }`
+# on the release below so `Target.EligibleFor(mode)` can audit the
+# rotation from the ledger alone. Not added here — that attribute is
+# PR-1's schema change, and this PR mints no era.
 
 # ── open a sweep ─────────────────────────────────────────────────────
 #
@@ -819,12 +1020,29 @@ feature = File.basename(domain_path).downcase
 # no `rust/Cargo.toml` feature at all) and a confusing false signal at
 # worst, for a mode this flag already opted OUT of the Rust comparison
 # for.
-if persistence_parity_mode
+#
+# THE PRIMARY SEAT — exactly one of `:persistence_parity`,
+# `:differential`, `:ruby_only`, in that order of precedence from the
+# ACTIVE set. `differential` resolved means a Cargo feature exists; the
+# build itself can still fail (a half-projected domain), and then the
+# seat degrades to `ruby_only` WITH A NOTE rather than silently — the
+# same fallback the script always had, now said out loud. The other
+# active modes (`self_consistency`, `properties_in_differential`,
+# `structural_skip_report`) are extra Checks folded into the primary
+# seat's own seed loop, never a seat of their own.
+if active_modes.include?(:persistence_parity)
   binary = nil
   mode   = :persistence_parity
+elsif active_modes.include?(:differential) && (binary = differ.build_rust_for(feature, RUST_DIR))
+  mode = :differential
 else
-  binary = differ.build_rust_for(feature, RUST_DIR)
-  mode   = binary ? :differential : :ruby_only
+  if active_modes.include?(:differential)
+    puts "note: rust/Cargo.toml declares a #{feature} feature but `cargo build --features #{feature}` produced no " \
+         "binary — degrading this sweep to ruby_only. Run bin/project_rust for it and re-sweep."
+    active_modes = (active_modes - %i[differential properties_in_differential structural_skip_report]) | [:ruby_only]
+  end
+  binary = nil
+  mode   = :ruby_only
 end
 
 # ── the persistence-parity axis's own disposable database ──────────────
@@ -881,22 +1099,43 @@ end
 # just re-thread those two locals through five smaller methods for no
 # real gain — the spec itself keeps this inline in one `it` block for
 # the identical reason.
+#
+# RETURNS ONE DIVERGENCE LIST PER ACTIVE MODE — `{ differential: [...],
+# self_consistency: [...], properties_in_differential: [...] }`, keys
+# present only for the modes in `modes:` (`differential` always) — so
+# `run_one_seed` can log one Check per mode with its own `[mode]`
+# subject, and the ledger records WHICH axis surprised. Item 1 of the
+# detection plan is the `properties_in_differential` key: the same
+# `Properties.check` battery `ruby_only_outcome` always ran now also
+# grades the Ruby side of every differential seed — seven differential
+# targets had never had it run over a single qa_sweep history.
+# Structural skips (item 4) are accumulated on `differ` for the
+# once-per-sweep report after the seed loop.
 # rubocop:disable-next Metrics/AbcSize
 # rubocop:disable-next Metrics/CyclomaticComplexity
 # rubocop:disable-next Metrics/PerceivedComplexity
 # rubocop:disable-next Metrics/MethodLength
-def diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency:)
+def diff_ruby_vs_rust(differ, domain_path, steps, binary, modes:)
+  self_consistency = modes.include?(:self_consistency)
   ruby_result    = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
   ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
   ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
   ruby_refusals  = ruby_result[:refusals].map do |r|
     { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
   end
-  ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| row.except(:instances_at) }))
-  ruby_sagas   = JSON.parse(JSON.generate(ruby_result[:sagas]))
+  ruby_queries  = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| row.except(:instances_at) }))
+  ruby_sagas    = JSON.parse(JSON.generate(ruby_result[:sagas]))
+  # `verb`/`ok` only — `error` is prose (C8.2: not the contract), and
+  # `before:`/`after:` are Ruby's own no-trace oracle data.
+  ruby_dry_runs = ruby_result[:dry_runs].map { |d| { "verb" => d[:verb].to_s, "ok" => d[:ok] } }
+
+  outcomes = {}
+  outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
 
   stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
-  return [{ field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }] unless status.success?
+  unless status.success?
+    return outcomes.merge(differential: [{ field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }])
+  end
 
   rust_output = JSON.parse(stdout)
   # A DEEP COPY, TAKEN BEFORE `strip_emitted_flags!` MUTATES IN PLACE —
@@ -928,6 +1167,7 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency:)
 
   wordless      = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
   not_generated = differ.structurally_refused_verbs(rust_output)
+  differ.structural_skips.merge(not_generated)
   rust_queries      = rust_output["queries"].reject(&gap).map(&wordless)
   kept_ruby_queries = ruby_queries.reject { |row| gap.call(row) || not_generated.include?(row["query"]) }.map(&wordless)
   divergences << { field: "queries", ruby: kept_ruby_queries, rust: rust_queries } \
@@ -943,7 +1183,16 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency:)
   divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
     unless rust_reactions == kept_ruby_reactions
 
-  # SELF-CONSISTENCY — A SECOND AXIS, NOT A SEPARATE REPORT. `ruby_result`
+  # `dry_runs` — item 5 of the detection plan: both engines always
+  # answered a `{"dry_run": …}` step (`kernel/cli.rs`'s own `dry_runs`
+  # output key), nothing ever generated one, so this surface had never
+  # been compared. `|| []` for an older fixture binary with no such key.
+  rust_dry_runs = Array(rust_output["dry_runs"]).map { |d| d.slice("verb", "ok") }
+  divergences << { field: "dry_runs", ruby: ruby_dry_runs, rust: rust_dry_runs } \
+    unless rust_dry_runs == ruby_dry_runs
+  outcomes[:differential] = divergences
+
+  # SELF-CONSISTENCY — A SECOND AXIS, ITS OWN CHECK. `ruby_result`
   # already carries every self-consistency finding this SAME replay
   # produced (`Replay.call`'s own `self_consistency:` kwarg, computed
   # while its runtime was still live — see that file's own comment).
@@ -952,12 +1201,21 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency:)
   # binary's OWN rehydration door (`Hecks::Fuzzing::SelfConsistency`'s own
   # header explains the mechanism) rather than re-derived or re-dispatched.
   if self_consistency
-    divergences.concat(self_consistency_divergences(ruby_result))
-    divergences.concat(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances))
-    divergences.concat(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances))
+    outcomes[:self_consistency] =
+      self_consistency_divergences(ruby_result) +
+      Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances) +
+      Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances)
   end
 
-  divergences
+  outcomes
+end
+
+# `Properties.check`'s battery over one replayed history, in the SAME
+# flat `field:`/`detail:` divergence shape every other finding uses —
+# the property's own name is the field, its message the detail.
+def property_divergences(history)
+  Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
+                            .map { |name, message| { field: name.to_s, detail: message } }
 end
 
 # THE SINGLE-RUNTIME FALLBACK — `bin/fuzz`'s own `outcome` function,
@@ -970,30 +1228,82 @@ end
 # run) — matching `bin/fuzz`'s own documented scope exactly rather than
 # inventing a narrower or wider one.
 #
-# RETURNS `[verdict, message, divergences]` — `verdict`/`message` are the
-# original two-value contract (`:clean`/`nil`, `:property_violation`/a
-# joined "name: message" string, `:crash`/the exception's own message);
-# `divergences` is the SAME flat, `field:`-keyed shape `diff_ruby_vs_rust`
-# already returns, so `run_one_seed` can treat a Ruby-only self-
-# consistency finding exactly like a property violation, never a
-# separate case.
-def ruby_only_outcome(domain_path, steps, self_consistency:)
-  history     = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
-  violations  = Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
-  divergences = violations.map { |name, message| { field: name.to_s, detail: message } }
-  divergences.concat(self_consistency_divergences(history)) if self_consistency
-
-  return [:clean, nil, []] if divergences.empty?
-
-  message = violations.map { |name, msg| "#{name}: #{msg}" }.join("; ")
-  message = "self-consistency check(s) failed: #{divergences.map { |d| d[:field] }.join(', ')}" if message.empty?
-  [:property_violation, message, divergences]
+# RETURNS THE SAME PER-MODE HASH `diff_ruby_vs_rust` DOES — `{ ruby_only:
+# [...], self_consistency: [...] }` — every entry the flat, `field:`-keyed
+# divergence shape, a property's own name as the field and its message
+# as the detail; a crash is one `crash` entry under `ruby_only`, so
+# `run_one_seed` treats every kind of Ruby-only finding one way.
+def ruby_only_outcome(domain_path, steps, modes:)
+  self_consistency = modes.include?(:self_consistency)
+  history  = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
+  outcomes = { ruby_only: property_divergences(history) }
+  outcomes[:self_consistency] = self_consistency_divergences(history) if self_consistency
+  outcomes
 rescue StandardError => e
-  [:crash, "#{e.class}: #{e.message}", [{ field: "crash", detail: "#{e.class}: #{e.message}" }]]
+  { ruby_only: [{ field: "crash", detail: "#{e.class}: #{e.message}" }] }
 end
 
 def log_check!(sweep, subject:, expectation:)
   sweep.check!(subject: { value: subject }, expectation: { value: expectation })
+end
+
+# ONE CHECK PER MODE PER SEED — the `[mode]` prefix is what lets the
+# ledger (and `ask sweep.all`'s reader) tell a differential surprise
+# from a property violation from a self-consistency finding on the SAME
+# seed, with no schema change: the subject already had to name what was
+# checked. `expectation` is written BEFORE looking (the chapter's own
+# rule), per mode, so each one says exactly what that axis promised.
+MODE_EXPECTATIONS = {
+  differential:               "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
+                              "reactions, sagas, queries and dry runs across every generated step",
+  properties_in_differential: "no declared property is violated over the Ruby side of the same replayed history",
+  self_consistency:           "each engine agrees with itself on rehydration/idempotency/value-object round trip",
+  ruby_only:                  "no declared property is violated and the interpreter does not crash across every " \
+                              "generated step",
+  persistence_parity:         "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
+                              "refusals, reactions, sagas and queries across every generated step"
+}.freeze
+
+def check_for(mode, feature, seed, shape, divergences)
+  { mode:        mode,
+    subject:     "[#{mode}] #{feature} fuzz seed #{seed} (#{shape})",
+    expectation: MODE_EXPECTATIONS.fetch(mode),
+    divergences: divergences,
+    clean:       divergences.empty?,
+    observation: divergences.empty? ? "held" : "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}" }
+end
+
+# ITEM 4 OF THE DETECTION PLAN — THE ONCE-PER-SWEEP STRUCTURAL-SKIP
+# CHECK. `differ.structural_skips` is every verb the binary refused as
+# "not generated" over this sweep's seeds; `Hecks::Fuzzing::StructuralSkips`
+# names what each one declares, and the dial says which construct
+# families are the documented codegen boundary. Held with the full list
+# on the record (so "agreed across all steps" can no longer hide how
+# much was never compared); Surprised if any skipped verb declares
+# nothing the boundary admits — a codegen regression, or a stale
+# generated tree, either way not a boundary anybody documented.
+def structural_skip_check(differ, domain_path, boundary)
+  skipped    = differ.structural_skips.to_a.sort
+  bluebooks  = skipped.empty? ? {} : Hecks::Fuzzing::Replay.call(domain_path, [])[:bluebooks]
+  attributed = Hecks::Fuzzing::StructuralSkips.attribute(bluebooks, skipped)
+  outside    = Hecks::Fuzzing::StructuralSkips.outside_boundary(attributed, boundary)
+  listing    = attributed.map { |e| "#{e[:verb]} [#{e[:constructs].join(',')}]" }.join("; ")
+  divergences = outside.map do |e|
+    declares = e[:constructs].empty? ? "nothing" : e[:constructs].join(",")
+    { field: "structural_skip", verb: e[:verb], constructs: e[:constructs],
+      detail: "Rust refused #{e[:verb]} as not generated, but it declares #{declares} outside " \
+              "STRUCTURAL_REFUSAL_BOUNDARY — a codegen regression or a stale generated tree, not a documented boundary" }
+  end
+  observation = if divergences.empty?
+                  "all #{skipped.size} inside the documented boundary"
+                else
+                  "#{divergences.size} outside the boundary"
+                end
+  { mode: :structural_skip_report,
+    subject: "[structural_skip_report] structurally skipped #{skipped.size} verb(s): [#{listing}]",
+    expectation: "every named query/read model the compiled binary refused as 'not generated for this domain' " \
+                 "declares a construct inside QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY",
+    divergences: divergences, clean: divergences.empty?, observation: observation }
 end
 
 # `id:` addresses the Sweep aggregate the Check entity lives under;
@@ -1020,7 +1330,8 @@ mode_label =
   end
 
 puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
-     "#{steps_per_sequence} steps each, adversarial fraction #{adversarial}, self-consistency #{self_consistency}"
+     "#{steps_per_sequence} steps each, adversarial fraction #{adversarial}, role draw #{role_draw}, " \
+     "dry-run fraction #{dry_run}, active modes #{active_modes.join(',')}"
 
 # THE PERSISTENCE-PARITY OUTCOME — `Hecks::Fuzzing::PersistenceParity
 # .diff`, called once per seed against THIS SWEEP'S OWN disposable
@@ -1039,12 +1350,14 @@ rescue StandardError => e
   [:crash, [{ field: "process", detail: "#{e.class}: #{e.message}" }]]
 end
 
-# ONE SEED, EVERY MODE — pulled out of the loop below so that loop reads
-# as "run a seed, log it, stop on a surprise" rather than burying that
-# shape under each mode's own detail. Returns everything the loop and
-# (on a surprise) the final report need; nothing here talks to the
-# ledger — that stays the loop's own job. `database:`/`schema:` are only
-# ever non-nil for `:persistence_parity` — every other mode ignores them.
+# ONE SEED, EVERY ACTIVE MODE — pulled out of the loop below so that
+# loop reads as "run a seed, log its checks, stop on a surprise" rather
+# than burying that shape under each mode's own detail. Returns `{
+# steps:, checks: [...] }` — ONE check per active mode (`check_for`),
+# each with its own `[mode]` subject, expectation, divergences and
+# verdict; nothing here talks to the ledger — that stays the loop's own
+# job. `database:`/`schema:` are only ever non-nil for
+# `:persistence_parity` — every other seat ignores them.
 #
 # A GENERATOR CRASH IS A FINDING TOO. `SequenceGenerator` dispatches
 # every candidate step against a live throwaway runtime as it builds
@@ -1054,71 +1367,43 @@ end
 # kind of surprise this script exists to stop on, not an operational
 # error to abort with.
 #
-# THREE MODES, ONE METHOD — the same reason `diff_ruby_vs_rust` above
-# stays one long method rather than three short ones: each `case` branch
-# shares `steps`/`subject`/`expectation`/`clean`/`observation` with the
-# other two, and splitting per mode would just re-thread those locals
-# through three call sites for no real gain. `:persistence_parity` never
-# receives `self_consistency` at all (see this file's own top-of-file
+# THREE SEATS, ONE METHOD — each `case` branch shares `steps`/`shape`
+# with the other two, and splitting per seat would just re-thread those
+# locals through three call sites for no real gain. `:persistence_parity`
+# never receives the extra modes at all (see this file's own top-of-file
 # comment on why that composition was left out on purpose).
 #
 # `steps_per_sequence` IS A PARAMETER, NOT A CONSTANT — it used to be
 # the fixed `STEPS_PER_SEQUENCE`; now it is resolved once above from
-# either `--steps` or `widen_for_streak` and threaded in here explicitly,
-# the same way `seed`/`binary`/`domain_path`/`adversarial` already are.
-# rubocop:disable-next Metrics/MethodLength
-def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial, self_consistency,
-                 database: nil, schema: nil)
-  shape = "#{steps_per_sequence} steps, adversarial #{adversarial}"
+# either `--steps` or the widening table and threaded in here
+# explicitly, the same way `seed`/`binary`/`domain_path` already are.
+# `role_draw:`/`dry_run:` reach the generator the same way `adversarial`
+# does (items 2 and 5 of the detection plan).
+def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial, modes,
+                 role_draw: 0.0, dry_run: 0.0, database: nil, schema: nil)
+  shape = "#{steps_per_sequence} steps, adversarial #{adversarial}, role_draw #{role_draw}, dry_run #{dry_run}"
   begin
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: steps_per_sequence,
-                                                                    adversarial: adversarial)
+                                                                    adversarial: adversarial, role_draw: role_draw,
+                                                                    dry_run: dry_run)
   rescue StandardError => e
-    return { subject: "#{feature} fuzz seed #{seed} (#{shape}) — sequence generation",
-             expectation: "SequenceGenerator builds every step without anything but a domain refusal escaping " \
-                          "its own inline dispatch",
-             divergences: [{ field: "generator_crash", detail: "#{e.class}: #{e.message}\n#{e.backtrace.first(6).join("\n")}" }],
-             clean: false, observation: "generator crashed: #{e.class}: #{e.message}", steps: [] }
+    return { steps: [], checks: [
+      { mode: :generator, subject: "[generator] #{feature} fuzz seed #{seed} (#{shape}) — sequence generation",
+        expectation: "SequenceGenerator builds every step without anything but a domain refusal escaping " \
+                     "its own inline dispatch",
+        divergences: [{ field: "generator_crash", detail: "#{e.class}: #{e.message}\n#{e.backtrace.first(6).join("\n")}" }],
+        clean: false, observation: "generator crashed: #{e.class}: #{e.message}" }
+    ] }
   end
 
-  case mode
-  when :differential
-    subject     = "#{feature} fuzz seed #{seed} (#{shape}) vs compiled Rust (#{feature})"
-    expectation = "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
-                  "reactions, sagas and queries across all #{steps_per_sequence} generated steps"
-    expectation += ", and each engine agrees with itself on rehydration/idempotency/value-object round trip" \
-      if self_consistency
-    divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary, self_consistency: self_consistency)
-    clean       = divergences.empty?
-    observation = if clean
-                    "agreed across all #{steps_per_sequence} steps"
-                  else
-                    "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
-                  end
-  when :persistence_parity
-    subject     = "#{feature} fuzz seed #{seed} (#{shape}) — Memory vs real PostgresEra"
-    expectation = "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
-                  "refusals, reactions, sagas and queries across all #{steps_per_sequence} generated steps"
-    _verdict, divergences = persistence_parity_outcome(domain_path, steps, database, schema)
-    clean       = divergences.empty?
-    observation = if clean
-                    "agreed across all #{steps_per_sequence} steps"
-                  else
-                    "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
-                  end
-  else
-    subject     = "#{feature} fuzz seed #{seed} (#{shape}), Ruby-only (no Rust binary)"
-    expectation = "no declared property is violated and the interpreter does not crash across all " \
-                  "#{steps_per_sequence} generated steps"
-    expectation += ", and Ruby agrees with itself on rehydration/idempotency/value-object round trip" \
-      if self_consistency
-    verdict, message, divergences = ruby_only_outcome(domain_path, steps, self_consistency: self_consistency)
-    clean       = verdict == :clean
-    observation = clean ? "clean across all #{steps_per_sequence} steps" : "#{verdict}: #{message}"
-  end
+  outcomes =
+    case mode
+    when :differential       then diff_ruby_vs_rust(differ, domain_path, steps, binary, modes: modes)
+    when :persistence_parity then { persistence_parity: persistence_parity_outcome(domain_path, steps, database, schema).last }
+    else                          ruby_only_outcome(domain_path, steps, modes: modes)
+    end
 
-  { subject: subject, expectation: expectation, divergences: divergences, clean: clean, observation: observation,
-    steps: steps }
+  { steps: steps, checks: outcomes.map { |mode_key, divergences| check_for(mode_key, feature, seed, shape, divergences) } }
 end
 
 surprise = nil
@@ -1126,21 +1411,49 @@ surprise = nil
 begin
   (1..seeds).each do |seed|
     result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
-                          self_consistency, database: persistence_parity_database, schema: persistence_parity_schema)
+                          active_modes, role_draw: role_draw, dry_run: dry_run,
+                          database: persistence_parity_database, schema: persistence_parity_schema)
 
-    sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
-    sequence = sweep.checks.last[:sequence][:value]
+    # EVERY MODE'S CHECK IS LOGGED, held or surprised, BEFORE the loop
+    # decides anything — a seed that surprised on properties but held
+    # differentially records BOTH facts, which is the whole point of one
+    # Check per mode.
+    surprised = result[:checks].reject do |check|
+      sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
+      sequence = sweep.checks.last[:sequence][:value]
+      if check[:clean]
+        mark_held!(runtime, sweep, sequence, check[:observation])
+      else
+        mark_surprised!(runtime, sweep, sequence, check[:observation])
+      end
+      check[:clean]
+    end
 
-    if result[:clean]
-      mark_held!(runtime, sweep, sequence, result[:observation])
-      puts "  seed #{seed}: held"
+    if surprised.empty?
+      puts "  seed #{seed}: held (#{result[:checks].map { |c| c[:mode] }.join(', ')})"
       next
     end
 
-    mark_surprised!(runtime, sweep, sequence, result[:observation])
-    puts "  seed #{seed}: SURPRISED"
-    surprise = result.merge(seed: seed)
+    puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(', ')})"
+    surprise = result.merge(seed: seed, checks: surprised)
     break
+  end
+
+  # THE ONCE-PER-SWEEP STRUCTURAL-SKIP CHECK — only after a differential
+  # loop that ran clean to the end (a sweep already stopped on a
+  # surprise has its finding; this one is about what "agreed" was hiding).
+  if surprise.nil? && mode == :differential && active_modes.include?(:structural_skip_report)
+    check    = structural_skip_check(differ, domain_path, structural_boundary)
+    sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
+    sequence = sweep.checks.last[:sequence][:value]
+    if check[:clean]
+      mark_held!(runtime, sweep, sequence, check[:observation])
+      puts "  structural skips: #{check[:observation]}"
+    else
+      mark_surprised!(runtime, sweep, sequence, check[:observation])
+      puts "  structural skips: SURPRISED — #{check[:observation]}"
+      surprise = { seed: nil, steps: [], checks: [check] }
+    end
   end
 ensure
   # THE DISPOSABLE SCHEMA'S OWN TEARDOWN — runs whether this sweep ends
@@ -1173,42 +1486,54 @@ if surprise
   puts "domain:      #{target_path} (#{domain_path})"
   puts "target:      #{target_reference}"
   puts "sweep:       #{sweep_reference} (id #{sweep.id})"
-  puts "mode:        #{mode}"
-  puts "seed:        #{surprise[:seed]}"
+  puts "mode:        #{mode} (active modes: #{active_modes.join(', ')}; capabilities: #{capabilities.join(', ')})"
+  puts "seed:        #{surprise[:seed] || 'n/a (once-per-sweep check)'}"
   puts "steps:       #{steps_per_sequence}"
   puts "adversarial: #{adversarial}"
-  puts "self-consistency: #{self_consistency}"
+  puts "role-draw:   #{role_draw}"
+  puts "dry-run:     #{dry_run}"
   puts "streak:      clean_streak was #{current_streak} going into this pass"
-  puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
-       "seed: #{surprise[:seed]}, steps: #{steps_per_sequence}, adversarial: #{adversarial})"
-  puts "subject:     #{surprise[:subject]}"
-  puts "expectation: #{surprise[:expectation]}"
-  puts "observation: #{surprise[:observation]}"
+  if surprise[:seed]
+    puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
+         "seed: #{surprise[:seed]}, steps: #{steps_per_sequence}, adversarial: #{adversarial}, " \
+         "role_draw: #{role_draw}, dry_run: #{dry_run})"
+  end
+  puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(', ')}"
   puts
 
-  # ONE GENERIC PRINTER, NOT ONE SHAPE PER CHECK KIND. A differential
-  # divergence carries `:ruby`/`:rust`; a persistence-parity one carries
-  # `:memory`/`:postgres_era` (`Hecks::Fuzzing::PersistenceParity`'s own
-  # header explains why that's a genuinely different PAIRING, not a
-  # relabeling of the same one); a process-level failure carries
-  # `:detail`; `Hecks::Fuzzing::SelfConsistency`'s own findings carry YET
-  # different keys again (`:live`/`:rehydrated`, `:once`/`:twice`,
-  # `:original`/`:rehydrated`/`:error`) because "live state vs a cold
-  # read" and "ruby vs rust" are different claims and deserve different
-  # labels. Printing every key but `:field` (and the redundant
-  # `:domain`/`:aggregate`/`:type`, already named by the field line
-  # itself once folded in below) is what lets this stay ONE printer for
-  # every divergence shape this script has ever produced or ever will,
-  # rather than growing a new hardcoded branch per check kind — `mode:`,
-  # printed just above, is what tells a reader which pairing a given
-  # report's own divergences use.
-  surprise[:divergences].each do |divergence|
-    label = [divergence[:field], divergence[:domain], divergence[:aggregate], divergence[:type]].compact.join(" ")
-    puts "-- #{label} --"
-    divergence.except(:field, :domain, :aggregate, :type).each do |key, value|
-      puts "#{key}: #{value.inspect}"
-    end
+  # ONE BLOCK PER SURPRISED CHECK — a seed that surprised on two axes
+  # at once prints both, each under its own `[mode]` subject, so whoever
+  # logs the Bug sees every claim that failed, not the first one.
+  surprise[:checks].each do |check|
+    puts "subject:     #{check[:subject]}"
+    puts "expectation: #{check[:expectation]}"
+    puts "observation: #{check[:observation]}"
     puts
+
+    # ONE GENERIC PRINTER, NOT ONE SHAPE PER CHECK KIND. A differential
+    # divergence carries `:ruby`/`:rust`; a persistence-parity one carries
+    # `:memory`/`:postgres_era` (`Hecks::Fuzzing::PersistenceParity`'s own
+    # header explains why that's a genuinely different PAIRING, not a
+    # relabeling of the same one); a process-level failure carries
+    # `:detail`; `Hecks::Fuzzing::SelfConsistency`'s own findings carry YET
+    # different keys again (`:live`/`:rehydrated`, `:once`/`:twice`,
+    # `:original`/`:rehydrated`/`:error`) because "live state vs a cold
+    # read" and "ruby vs rust" are different claims and deserve different
+    # labels. Printing every key but `:field` (and the redundant
+    # `:domain`/`:aggregate`/`:type`, already named by the field line
+    # itself once folded in below) is what lets this stay ONE printer for
+    # every divergence shape this script has ever produced or ever will,
+    # rather than growing a new hardcoded branch per check kind — `mode:`,
+    # printed just above, is what tells a reader which pairing a given
+    # report's own divergences use.
+    check[:divergences].each do |divergence|
+      label = [divergence[:field], divergence[:domain], divergence[:aggregate], divergence[:type]].compact.join(" ")
+      puts "-- #{label} --"
+      divergence.except(:field, :domain, :aggregate, :type).each do |key, value|
+        puts "#{key}: #{value.inspect}"
+      end
+      puts
+    end
   end
 
   # WHICH STEPS WERE MUTATED, AND HOW — the step's own `"adversarial"`
@@ -1230,9 +1555,10 @@ if surprise
   exit EXIT_FOUND_SOMETHING
 end
 
-notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} feature=#{feature} seeds=#{seeds} " \
-        "steps=#{steps_per_sequence} adversarial=#{adversarial} self_consistency=#{self_consistency} — " \
-        "every seed held, no divergence or property violation found."
+notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} modes=#{active_modes.join(',')} " \
+        "capabilities=#{capabilities.join(',')} feature=#{feature} seeds=#{seeds} steps=#{steps_per_sequence} " \
+        "adversarial=#{adversarial} role_draw=#{role_draw} dry_run=#{dry_run} — every seed held, no divergence " \
+        "or property violation found."
 sweep.conclude!(notes: { value: notes })
 
 # ZERO SURPRISES, THIS PATH ONLY — this line is only ever reached when
