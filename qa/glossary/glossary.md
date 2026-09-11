@@ -116,6 +116,10 @@ Leads nobody has finished chasing yet, oldest first — read this before inventi
 
 Say what actually came of chasing this lead. Done by the qa engineer.
 
+### Citing
+
+Every angle ever proposed on one exact citation, whatever became of it — the check before proposing another on the same fact.
+
 ### Discard
 
 Decide a lead is not worth the practice's time, and say why. Done by the qa engineer.
@@ -198,6 +202,8 @@ stateDiagram-v2
 - Stopping on a bug says what would move it.
 - A waiver count is not negative.
 - A waived gate says why.
+- A gate is waived by a person, never by the loop.
+- A waiver is signed.
 - An instant is not before the epoch.
 - A staleness window is positive.
 - A bug is reported by somebody.
@@ -294,6 +300,10 @@ Text.
 
 Always true: a bug is titled.
 
+### Bug triaged
+
+Recorded after [Triage](#triage).
+
 ### Bug verified
 
 Recorded after [Verify](#verify).
@@ -315,6 +325,10 @@ Text.
 Text.
 
 Always true: a bug is proven by a test somebody can re-run.
+
+### Disposition
+
+One of undecided, self_contained, or bigger.
 
 ### Drop
 
@@ -434,6 +448,14 @@ Always true: a tag is a word, not a sentence.
 
 Every bug carrying one tag, whatever state it is in — the way to find all the flaky ones, or everything about the projector.
 
+### Triage
+
+Write down whether this can be fixed on the spot or needs a bigger judgment. Done by the qa engineer.
+
+### Untriaged
+
+Live bugs (logged or investigating) nobody has triaged as self_contained or bigger yet — the judgment still owed on each.
+
 ### Verification
 
 Text.
@@ -446,11 +468,17 @@ Record that the fix was actually verified, and exactly how. Done by the qa engin
 
 ### Waive
 
-Go round a gate on this bug, on the record. Done by the qa engineer.
+Go round a gate on this bug, on the record, signed by a person. Done by the qa engineer.
 
 ### Waived
 
 Bugs that went round one of their own gates — the honesty check on any claim about following the protocol.
+
+### Waived by
+
+Text.
+
+Always true: a gate is waived by a person, never by the loop; a waiver is signed.
 
 ### Waiver count
 
@@ -581,6 +609,7 @@ stateDiagram-v2
 **Always true**
 
 - An Improvement references an Angle.
+- An instant is not before the epoch.
 - An improvement is numbered.
 - An improvement says where it lives.
 - An improvement says which branch it is on.
@@ -654,6 +683,12 @@ Text.
 
 Always true: an improvement says where it lives.
 
+### Instant
+
+A whole number.
+
+Always true: an instant is not before the epoch.
+
 ### Land
 
 Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.
@@ -673,6 +708,10 @@ Record that a deliberate, non-bugfix piece of work has been opened as a pull req
 ### Open (the list)
 
 Every PR we've landed for deliberate, non-bugfix work that's still open, by number — bin/qa_pr_check's own second worklist, the same shape Patch.Open already gives for a bug's own fix. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+
+### Opened since
+
+Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY.
 
 ### Regress
 
@@ -706,6 +745,7 @@ stateDiagram-v2
 **Always true**
 
 - A Patch references a Bug.
+- An instant is not before the epoch.
 - A patch is numbered.
 - A patch says where it lives.
 - A patch says which branch it is on.
@@ -731,6 +771,12 @@ Text.
 
 Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue.
 
+### Instant
+
+A whole number.
+
+Always true: an instant is not before the epoch.
+
 ### Merge
 
 Record that GitHub merged it. Done by the qa engineer.
@@ -742,6 +788,10 @@ Record that a fix has been opened as a pull request, the moment its number, bran
 ### Open (the list)
 
 Every PR we've opened that's still open, by number — bin/qa_pr_check's own worklist. For each of these, ask gh for exactly this number's CI status; nothing here is a guess.
+
+### Opened since
+
+Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from.
 
 ### Patch branch
 
@@ -820,6 +870,8 @@ stateDiagram-v2
 - A waiver count is not negative.
 - A sweep says what it learned, in at least 40 characters.
 - A waived gate says why.
+- A gate is waived by a person, never by the loop.
+- A waiver is signed.
 - A check sequence is positive.
 - A check names what it put to the system.
 - A check says what it expected.
@@ -868,7 +920,7 @@ Always true: a check sequence is positive.
 
 ### Check surprised
 
-Recorded after [Surprised](#surprised).
+Recorded after [Surprised](#surprised). Prompts [Suspend on surprise](#suspend-on-surprise).
 
 ### Check unsettled
 
@@ -936,6 +988,10 @@ Record that the system did something other than what was written down. Done by t
 
 Every check the system surprised, across every sweep — the raw material a bug is written from, and the only list here that is supposed to be interesting.
 
+### Suspend on surprise
+
+When [Check surprised](#check-surprised) happens, [Target](#target) is asked to [Suspend](#suspend).
+
 ### Sweep abandoned
 
 Recorded after [Abandon](#abandon).
@@ -964,6 +1020,10 @@ Always true: a sweep is referenced.
 
 Passes live right now — one per agent, and the reason a target shows as held.
 
+### Target ref
+
+Text.
+
 ### Unsettled (check)
 
 Record a check that ran and settled nothing. Done by the qa engineer.
@@ -974,11 +1034,17 @@ Made and never ruled on, plus the runs that settled nothing. A sweep concluded w
 
 ### Waive
 
-Go round a gate, on the record. Done by the qa engineer.
+Go round a gate, on the record, signed by a person. Done by the qa engineer.
 
 ### Waived
 
 Sweeps that went round a gate. Read as a fraction of all of them: a practice whose waiver rate is climbing is not moving faster, it is agreeing with itself less.
+
+### Waived by
+
+Text.
+
+Always true: a gate is waived by a person, never by the loop; a waiver is signed.
 
 ### Waiver count
 
@@ -996,7 +1062,7 @@ Always true: a waived gate says why.
 
 > A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.
 
-Starts out waiting. Can be waiting, held, or shelved.
+Starts out waiting. Can be waiting, held, suspended, or shelved.
 
 **How it fits**
 
@@ -1016,6 +1082,8 @@ stateDiagram-v2
     waiting --> held: Claim
     held --> held: Claim
     held --> waiting: Release
+    suspended --> waiting: Release
+    held --> suspended: Suspend
     waiting --> shelved: Shelve
     held --> shelved: Shelve
     shelved --> waiting: Restore
@@ -1029,12 +1097,23 @@ stateDiagram-v2
 - A sweep time is not before the epoch.
 - A streak is not negative.
 - Shelving a target says why.
+- A mode is named.
 - A yield score is not negative.
 - A staleness window is positive.
 
 ### All
 
 Every chapter ever written down — the inventory a runner walking the repository checks its findings against.
+
+### Capabilities
+
+Text.
+
+### Capability
+
+Text.
+
+Always true: a mode is named.
 
 ### Claim
 
@@ -1045,6 +1124,10 @@ Take the next chapter in the rotation, or one whose holder has gone quiet. Done 
 A whole number.
 
 Always true: a streak is not negative.
+
+### Eligible for
+
+Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides.
 
 ### Engineer
 
@@ -1070,7 +1153,7 @@ Hand a chapter back to the rotation, stamped with when, what this pass was worth
 
 ### Restore
 
-Put a shelved chapter back in the rotation. Done by the qa engineer.
+Put a shelved chapter back in the rotation, and say what changed. Done by the qa engineer.
 
 ### Rotation
 
@@ -1089,6 +1172,14 @@ Deliberately not swept, each with its reason. Re-read before anybody claims a co
 A whole number.
 
 Always true: a staleness window is positive.
+
+### Suspend
+
+Take a chapter out of the rotation because a check surprised, until a person releases it. Done by the system.
+
+### Suspended
+
+Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep <target> --release --notes is how one comes back.
 
 ### Swept in
 
@@ -1133,6 +1224,10 @@ Recorded after [Restore](#restore).
 ### Target shelved
 
 Recorded after [Shelve](#shelve).
+
+### Target suspended
+
+Recorded after [Suspend](#suspend).
 
 ### Untouched
 
@@ -1354,15 +1449,19 @@ Always true: a ticket is titled.
 
 ### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
 
 ### System
 
-Responsible for [Filed](#filed), [Refused](#refused), [Retry](#retry), [Passed](#passed), and [Failed](#failed).
+Responsible for [Suspend](#suspend), [Filed](#filed), [Refused](#refused), [Retry](#retry), [Passed](#passed), and [Failed](#failed).
 
 ## Read models
 
 > Questions answered across more than one of the things above.
+
+### Bugs by disposition
+
+Every bug sorted by the call its finder made — self-contained, bigger, or not yet decided — beside its reference. The fix-rate, and the judgment still owed, at a glance.
 
 ### Bugs by status
 
