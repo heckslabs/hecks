@@ -542,7 +542,10 @@ pub fn emit_from_json_state(
 pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
     let name = naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
     let attributes = vo.get("attributes").map(Json::each).unwrap_or(&[]);
-    let field_name = naming::rust_field(crate::attr::name(&attributes[0]));
+    let sole_attribute = &attributes[0];
+    let sole_attribute_name = crate::attr::name(sole_attribute);
+    let sole_attribute_type = sole_attribute.get("type").and_then(Json::as_str).unwrap_or("");
+    let field_name = naming::rust_field(sole_attribute_name);
     let members = vo.get("members").map(Json::each).unwrap_or(&[]);
 
     let rows: Vec<(String, String)> = members
@@ -562,6 +565,12 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
 
     let type_name = vo.get("name").and_then(Json::as_str).unwrap_or("").to_string();
     let admitted = rows.iter().map(|(_v, raw)| naming::ruby_inspect_string(raw)).collect::<Vec<_>>().join(", ");
+    // BUG#14 — the SAME "numeric_field" wording `required_field_expr`
+    // already gives every OTHER composite field's own missing-key case
+    // ("{type}.{field} expects {expected}, got nil"), resolved here at
+    // codegen time since the sole field's declared name/type are both
+    // already known statically, matching `admitted`/`type_name` just above.
+    let null_message = format!("{type_name}.{sole_attribute_name} expects {sole_attribute_type}, got nil");
 
     exemplar.assemble(
         "closed_set_codec",
@@ -570,6 +579,7 @@ pub fn emit_closed_set_codec(exemplar: &Exemplar, vo: &Json) -> String {
             ("\"tmpl_field_name\"", naming::ruby_inspect_string(&field_name)),
             ("\"tmpl_closed_set_type\"", naming::ruby_inspect_string(&type_name)),
             ("\"tmpl_closed_set_admitted\"", naming::ruby_inspect_string(&admitted)),
+            ("\"tmpl_null_field_message\"", naming::ruby_inspect_string(&null_message)),
         ],
         &[
             ("closed_set_codec:TO_JSON_ARM", exemplar.render_each("closed_set_codec:TO_JSON_ARM", &row_subs, "\n")),
