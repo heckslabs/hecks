@@ -185,6 +185,55 @@ impl CommandInvocation {
             return Err(routing_refusal("cannot combine to/with with legacy args"));
         }
 
+        // BUG#18's own `with:` half. `with:` chooses the EXPLICIT
+        // envelope — Ruby's own `Routing.payload` doc comment: "a caller
+        // choosing the explicit envelope cannot smuggle receiver
+        // identity back into the payload" — so a `with:` key sitting
+        // beside a genuine LEGACY FACT (the mixed-args convention the
+        // fuzzer's own nested `step["args"]` object otherwise carries
+        // wholesale, `command_input`'s own doc comment above — a domain
+        // fact happening to collide with the reserved name `with`,
+        // exactly the class BUG#7/#16 already fixed for `to`) is the
+        // same conflict Ruby's own `with && !legacy.empty?` check
+        // already refuses, TypeMismatch, before ever looking at what
+        // `with:` actually contains. Unchecked here, that sibling key
+        // was simply DISCARDED (facts became `with:`'s own value,
+        // whole) and whatever `with:` held next got judged on ITS OWN
+        // merits — an out-of-contract routing-shaped object landed as
+        // ordinary command facts and only then refused UnknownArgument,
+        // a different KIND for the identical malformed step.
+        //
+        // NOT every sibling key is a legacy fact, though — `command_
+        // input`'s own comment above documents TWO real wire shapes
+        // sharing this one parser: a "direct caller" whose STEP ITSELF
+        // carries top-level `to`/`with` beside `verb`/`role`/
+        // `actor_id`/`occurred_at`/`dry_run`/`query` (this kernel's own
+        // envelope, read directly off `step` — `top_level_with_selects_
+        // an_unrouted_compound_create_invocation`, below, pins this),
+        // and the fuzzer's own nested-`args` shape, where NONE of those
+        // step-level names ever appear (they live one level up, outside
+        // whatever object this function ever sees) — so a real domain
+        // fact and a step-envelope key are told apart by name here, the
+        // same way `args` already is (the check just above this one).
+        // A domain that names an actual FACT `role`/`verb`/etc. is the
+        // same open, pre-existing collision class `to`/`with` already
+        // are — not this bug's concern to close for every reserved name
+        // at once.
+        const STEP_ENVELOPE_KEYS: [&str; 6] =
+            ["verb", "role", "actor_id", "occurred_at", "dry_run", "query"];
+        if explicit_facts.is_some() {
+            if let Json::Object(fields) = value {
+                let extra = fields
+                    .iter()
+                    .any(|(key, _)| key != "to" && key != "with" && !STEP_ENVELOPE_KEYS.contains(&key.as_str()));
+                if extra {
+                    return Err(routing_refusal(
+                        "with: takes command facts, not both with: and loose keyword arguments",
+                    ));
+                }
+            }
+        }
+
         let route = target.map(RoutingEnvelope::from_json).transpose()?;
         let facts = explicit_facts
             .cloned()
@@ -628,5 +677,79 @@ mod tests {
             .split_aggregate_receiver(None, Some("reference"))
             .unwrap();
         assert_eq!(receiver, "pay2");
+    }
+
+    // BUG#18 — `entities: []` (present, explicitly empty — as distinct
+    // from `refuses_an_incomplete_entity_route`, above, which covers
+    // `entity`/`entities` absent altogether) must refuse exactly like
+    // absence does: Rust already did, unconditionally, regardless of
+    // the calling command's own entity depth; this pins that this stays
+    // true now that Ruby's `parse_envelope_hash` refuses it too.
+    #[test]
+    fn refuses_an_explicitly_empty_entities_array() {
+        let refusal = RoutingEnvelope::from_json(&Json::obj(vec![
+            ("aggregate", Json::str("DOWNTOWN:12")),
+            ("entities", Json::Array(Vec::new())),
+        ]))
+        .unwrap_err();
+        assert!(refusal
+            .to_string()
+            .contains("requires at least one entity identity"));
+    }
+
+    // BUG#18's own `with:` half — a `with:` key carrying ANY value
+    // (a route-shaped object among them) beside a genuine sibling
+    // command fact is the same "explicit envelope smuggling a payload
+    // fact" conflict Ruby's `Routing.payload` already refuses,
+    // TypeMismatch, before ever looking at what `with:` holds. This
+    // used to reach the domain's own generated args parser instead
+    // (`with:`'s value became `facts` whole, the sibling fact silently
+    // dropped), which then refused UnknownArgument for an entirely
+    // different reason — a different KIND for the identical malformed
+    // step. Now both refuse at the same point, for the same reason.
+    #[test]
+    fn refuses_with_beside_a_sibling_legacy_fact_the_same_as_ruby_does() {
+        let input = Json::obj(vec![
+            (
+                "with",
+                Json::obj(vec![
+                    ("aggregate", Json::str("F1")),
+                    ("entities", Json::Array(Vec::new())),
+                ]),
+            ),
+            ("amount", Json::int(-1)),
+        ]);
+
+        let err = CommandInvocation::from_json(&input).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("with: takes command facts, not both with: and loose keyword arguments"));
+    }
+
+    // The step-envelope keys a "direct caller" step legitimately carries
+    // beside a top-level `with:` (`command_input`'s own doc comment,
+    // cli.rs) are NOT legacy facts and must not trip the check above —
+    // `top_level_with_selects_an_unrouted_compound_create_invocation`
+    // (kernel::cli::routing_tests) already pins `verb`; this covers the
+    // rest of that same set directly against `CommandInvocation` itself.
+    #[test]
+    fn step_envelope_keys_beside_with_are_not_mistaken_for_legacy_facts() {
+        let input = Json::obj(vec![
+            ("verb", Json::str("Banking::SafeDepositBox.Rent")),
+            ("role", Json::str("Teller")),
+            ("actor_id", Json::str("u1")),
+            ("occurred_at", Json::str("2026-01-05T00:00:00Z")),
+            (
+                "with",
+                Json::obj(vec![("branch_code", Json::str("DOWNTOWN"))]),
+            ),
+        ]);
+
+        let invocation = CommandInvocation::from_json(&input).unwrap();
+        assert_eq!(invocation.route(), None);
+        assert_eq!(
+            invocation.facts(),
+            &Json::obj(vec![("branch_code", Json::str("DOWNTOWN"))])
+        );
     }
 }
