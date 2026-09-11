@@ -84,8 +84,12 @@ Instead:
    - "Checking on open PRs" below, verbatim, run BEFORE `bin/qa_sweep
      --all` — if it exits 2, its own judgment section is followed to a
      fix (or a left-open Bug) BEFORE sweeping,
-   - `bundle exec ruby bin/qa_sweep --all` (widen `--seeds` the same way
-     a single sweep already would), then an instruction to relay its
+   - `bundle exec ruby bin/qa_sweep --all` (each target widens its own
+     `--seeds`/`--steps` automatically from its own clean streak, exactly
+     as a single sweep already would — see "Running one sweep" below;
+     pass `--seeds`/`--steps` here only to force every target to the same
+     depth, overriding that per-target streak), then an instruction to
+     relay its
      ENTIRE printed consolidated report back VERBATIM — nothing
      summarized away, nothing acted on. This subagent's own job stops
      there: it makes NO judgment call of its own, the exact same
@@ -296,13 +300,21 @@ with the expectation written first, and concluding/releasing on a clean
 run — is `bin/qa_sweep`'s own job now, not yours. Run it:
 
 ```
-bundle exec ruby bin/qa_sweep [target-reference] [--seeds N]
+bundle exec ruby bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adversarial FRACTION]
 ```
 
 - **No target-reference**: the least-recently-swept waiting chapter.
-  `--seeds` defaults to 10 seeded sequences of 25 steps each; widen it
-  for a deeper pass (`--seeds 40`, matching `SEEDS=40` — the same
-  convention `spec/rust_conformance_fuzz_spec.rb` already uses locally).
+  `--seeds`/`--steps` no longer have one fixed default — `bin/qa_sweep`
+  reads the claimed target's own `clean_streak` (how many clean releases
+  it has racked up in a row since anything last surprised it) and widens
+  automatically: 10 seeds x 25 steps while the streak is under 5, 25x50
+  once it has held clean 5-19 sweeps running, 50x100 (the ceiling) at 20+
+  — see `bin/qa_sweep`'s own header comment ("CLEAN-STREAK DEPTH
+  ESCALATION") for the exact table and why. `--seeds N`/`--steps N`
+  still override this outright when given explicitly (`--seeds 40`,
+  matching `SEEDS=40` — the same convention `spec/rust_conformance_fuzz_
+  spec.rb` already uses locally); leave both off and let the streak
+  decide unless you have a specific reason to force a depth.
 - **Sweeps are adversarial by default.** A fraction of every generated
   sequence's command steps (`QualityControlDials::ADVERSARIAL_FRACTION`,
   top of `qa/bluebook/quality_control.bluebook`) is deliberately mutated
@@ -315,6 +327,8 @@ bundle exec ruby bin/qa_sweep [target-reference] [--seeds N]
   turns it up for one run. Same seed, same fraction, same sequence — the
   report's `reproduce:` line carries the fraction, and each mutated step
   is listed with what was done to it and which bug class that exercises.
+  This dial is orthogonal to the depth one above — one says what shape of
+  sequence to generate, the other says how many and how long.
 - **Exit 0 — clean.** Every generated sequence held; the sweep is
   concluded and the target released. You're done — relay the script's
   own printed summary, nothing else needed.
