@@ -303,6 +303,18 @@ bundle exec ruby bin/qa_sweep [target-reference] [--seeds N]
   `--seeds` defaults to 10 seeded sequences of 25 steps each; widen it
   for a deeper pass (`--seeds 40`, matching `SEEDS=40` — the same
   convention `spec/rust_conformance_fuzz_spec.rb` already uses locally).
+- **Sweeps are adversarial by default.** A fraction of every generated
+  sequence's command steps (`QualityControlDials::ADVERSARIAL_FRACTION`,
+  top of `qa/bluebook/quality_control.bluebook`) is deliberately mutated
+  into the argument shapes BUG#7–#16 were found through — an undeclared
+  `to:`/`with:`/`id:`, a blank creating identity, a single-field value
+  object as bare `null`/`{}`, a duplicate entity identity, a mapped
+  argument left out, unknown+mismatched+absent in one step, entity
+  commands two hops deep (`lib/hecks/fuzzing/sequence_generator/
+  adversary.rb`). `--adversarial 0` turns it off; `--adversarial 0.5`
+  turns it up for one run. Same seed, same fraction, same sequence — the
+  report's `reproduce:` line carries the fraction, and each mutated step
+  is listed with what was done to it and which bug class that exercises.
 - **Exit 0 — clean.** Every generated sequence held; the sweep is
   concluded and the target released. You're done — relay the script's
   own printed summary, nothing else needed.
