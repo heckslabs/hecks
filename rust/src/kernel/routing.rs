@@ -136,7 +136,7 @@ impl CommandInvocation {
     /// that same "JSON null reads as absent" contract on this side, for
     /// `to` and `with` alike (the two are otherwise symmetric here).
     ///
-    /// `strip_null_routing_keys` — the SAME fix's other half. Ruby's own
+    /// `strip_routing_keys` — the SAME fix's other half. Ruby's own
     /// `dispatch(verb, to: nil, with: nil, ..., **legacy_args)` captures a
     /// top-level `to`/`with` key into ITS OWN keyword parameters
     /// UNCONDITIONALLY — `legacy_args` (what actually reaches the domain,
@@ -149,13 +149,35 @@ impl CommandInvocation {
     /// the generated dispatch code's own `payload` local) even once the
     /// parse-level TypeMismatch above was fixed — an event-payload
     /// content divergence, confirmed live the same way.
+    ///
+    /// BUG#17 — Ruby's `Routing.payload(command, with:, legacy:)` decides
+    /// its facts source from `with:` ALONE: `return legacy unless with`.
+    /// Whether `to:` was also given, and whatever it carries, never enters
+    /// that decision — `Dispatcher#dispatch(verb, to: nil, with: nil,
+    /// **legacy_args)` captures `to:` into its own parameter the same way
+    /// regardless, and `Routing.envelope(to)` is computed entirely
+    /// separately. This method used to conflate the two: it only ever
+    /// fell through to legacy/flat facts when BOTH `to` and `with` were
+    /// absent-or-null (the old `target.is_none() && explicit_facts.
+    /// is_none()` guard) — once a caller sent a real, non-null `to:`
+    /// (scalar or routing-shaped object) ALONGSIDE flat command facts and
+    /// no `with:` key at all, this fell into the "explicit" branch below
+    /// and set `facts` to `with`'s default of an EMPTY object, silently
+    /// dropping every real fact the caller sent. The command's own
+    /// generated `*Args::from_json` then refused those facts as absent —
+    /// a refusal Ruby never produced, since Ruby's `legacy` still had them
+    /// — confirmed live on `pizzas`/`banking`/`chess`/`nested_pieces`.
+    /// The fix: gate the facts source on `explicit_facts` alone, exactly
+    /// like Ruby's `unless with`, independent of whatever `target`/`to:`
+    /// resolves to.
     pub fn from_json(value: &Json) -> Result<Self, Refusal> {
         let target = non_null(value.get("to"));
         let explicit_facts = non_null(value.get("with"));
-        if target.is_none() && explicit_facts.is_none() {
+        if explicit_facts.is_none() {
+            let route = target.map(RoutingEnvelope::from_json).transpose()?;
             return Ok(Self {
-                route: None,
-                facts: strip_null_routing_keys(value),
+                route,
+                facts: strip_routing_keys(value),
             });
         }
 
@@ -166,7 +188,7 @@ impl CommandInvocation {
         let route = target.map(RoutingEnvelope::from_json).transpose()?;
         let facts = explicit_facts
             .cloned()
-            .unwrap_or_else(|| Json::Object(Vec::new()));
+            .expect("explicit_facts checked Some above");
         if !matches!(facts, Json::Object(_)) {
             return Err(routing_refusal("with must be an object of command facts"));
         }
@@ -248,24 +270,33 @@ fn non_null(value: Option<&Json>) -> Option<&Json> {
     value.filter(|v| !matches!(v, Json::Null))
 }
 
-// The other half of BUG#16's fix — see `from_json`'s own doc comment.
-// Only ever called once `from_json` has already decided a payload is
-// legacy-shaped (no `to`/`with` present-and-non-null), so this only ever
-// drops a `to`/`with` key that carried an explicit JSON `null` — a
-// present-but-empty key, matching what Ruby's own `to:`/`with:` keyword
-// capture ALSO discards unconditionally before a domain ever sees it.
-// Never touches a non-null `to`/`with` (that shape never reaches this
-// function: `from_json` takes the OTHER branch for it), so a domain
-// legitimately declaring its own non-optional fact under either name —
-// `Roster::Roster.Mark`'s own `to`, offered as a real value — is
-// unaffected; BUG#7's own established, matching-refusal behavior for
-// that collision stays exactly as it was.
-fn strip_null_routing_keys(value: &Json) -> Json {
+// The other half of BUG#16's fix, generalized by BUG#17 — see
+// `from_json`'s own doc comment. Called whenever `from_json` has decided
+// `with:` is absent-or-null, so facts come from the flat/legacy args —
+// whether or not `to:` is ALSO present with a real, non-null routing
+// value (BUG#17: it used to be reachable only when `to` was
+// absent-or-null too, and only ever stripped a NULL-valued `to`/`with`
+// key for that reason). Ruby's own `Dispatcher#dispatch(verb, to: nil,
+// with: nil, **legacy_args)` keyword-argument binding captures a
+// top-level `to`/`with` key into its own named parameters
+// UNCONDITIONALLY — whether the caller offered `nil`, a real value, or
+// omitted the key entirely — so `legacy_args` never carries either key
+// once that binding has run, full stop. This helper matches that: it
+// drops `to`/`with` unconditionally, not only when they are `null`.
+//
+// A domain legitimately declaring its own non-optional fact literally
+// named `to` — `Roster::Roster.Mark` — is still unaffected by that
+// unconditional drop: whenever `to` is present and non-null, `from_json`
+// always reads it as an attempted route (computing `route` from it, not
+// leaving it in `value` for facts purposes) regardless of what this
+// helper does afterward — BUG#7's own established, matching-refusal
+// behavior for that collision stays exactly as it was, on both branches.
+fn strip_routing_keys(value: &Json) -> Json {
     match value {
         Json::Object(fields) => Json::Object(
             fields
                 .iter()
-                .filter(|(name, v)| !((name == "to" || name == "with") && matches!(v, Json::Null)))
+                .filter(|(name, _)| name != "to" && name != "with")
                 .cloned()
                 .collect(),
         ),
@@ -431,17 +462,88 @@ mod tests {
     }
 
     // A domain fact legitimately named `to`, offered NON-null in the
-    // legacy shape, is UNCHANGED by this fix — it never reaches
-    // `strip_null_routing_keys` at all (`from_json` takes the routed-
-    // envelope branch for it instead), so `Roster::Roster.Mark`'s own
-    // required `to` collides with routing exactly as it always did
-    // (BUG#7's own established, matching-refusal behavior).
+    // legacy shape, is UNCHANGED by this fix — `from_json` still always
+    // reads a present, non-null `to` as an attempted route (computing
+    // `route` from it, erroring here before `facts` is ever computed
+    // since this malformed route object has no `aggregate` key) rather
+    // than as a domain fact, so `Roster::Roster.Mark`'s own required `to`
+    // collides with routing exactly as it always did (BUG#7's own
+    // established, matching-refusal behavior).
     #[test]
     fn non_null_to_still_takes_the_routing_branch_not_the_legacy_one() {
         let input = Json::obj(vec![("to", Json::obj(vec![("value", Json::int(282))]))]);
 
         let err = CommandInvocation::from_json(&input).unwrap_err();
         assert!(err.to_string().contains("entity route requires a scalar aggregate identity"));
+    }
+
+    // BUG#17 — a caller sending a real, non-null `to:` (here a plain
+    // scalar aggregate identity) ALONGSIDE the command's own flat/legacy
+    // facts, with no `with:` key at all, used to have those facts
+    // silently dropped: `from_json` took the "explicit" branch (any
+    // non-null `to`/`with` used to count as opting into it) and defaulted
+    // `facts` to `with`'s own value — an empty object, since `with` was
+    // never offered. Ruby's `Routing.payload` never makes that mistake:
+    // its facts source is gated on `with:` ALONE (`return legacy unless
+    // with`), completely independent of whatever `to:` resolves to. The
+    // command's own real declared fact (`quantity`) must survive into
+    // `facts` here, and the route must still resolve from `to`.
+    #[test]
+    fn non_null_scalar_to_with_no_with_key_keeps_the_flat_facts() {
+        let input = Json::obj(vec![
+            ("to", Json::str("ORDER-7")),
+            ("quantity", Json::int(3)),
+        ]);
+
+        let invocation = CommandInvocation::from_json(&input).unwrap();
+        let route = invocation.route().unwrap();
+        route.require_depth(0).unwrap();
+        assert_eq!(route.aggregate(), "ORDER-7");
+        assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
+    }
+
+    // Same bug, the routing-shaped-object form of `to:` (an entity route)
+    // instead of a bare scalar — confirms the fix isn't scalar-specific.
+    #[test]
+    fn non_null_entity_route_to_with_no_with_key_keeps_the_flat_facts() {
+        let input = Json::obj(vec![
+            (
+                "to",
+                Json::obj(vec![
+                    ("aggregate", Json::str("DOWNTOWN:12")),
+                    ("entity", Json::str("2026-01-05:1")),
+                ]),
+            ),
+            ("note", Json::str("Flagged")),
+        ]);
+
+        let invocation = CommandInvocation::from_json(&input).unwrap();
+        let route = invocation.route().unwrap();
+        route.require_depth(1).unwrap();
+        assert_eq!(route.aggregate(), "DOWNTOWN:12");
+        assert_eq!(route.entities(), &["2026-01-05:1"]);
+        assert_eq!(
+            invocation.facts(),
+            &Json::obj(vec![("note", Json::str("Flagged"))])
+        );
+    }
+
+    // Same bug again, the "undeclared to: carries an explicit null" shape
+    // named in BUG#17's own ledger entry — belt-and-suspenders alongside
+    // BUG#16's own null-to tests above, but written against a payload
+    // that ALSO carries a real command fact, matching the actual repro
+    // shape (a fuzzer-offered `to: null` sitting next to the command's
+    // own declared facts, no `with:` key at all).
+    #[test]
+    fn null_to_alongside_real_facts_keeps_the_flat_facts() {
+        let input = Json::obj(vec![
+            ("to", Json::Null),
+            ("quantity", Json::int(3)),
+        ]);
+
+        let invocation = CommandInvocation::from_json(&input).unwrap();
+        assert_eq!(invocation.route(), None);
+        assert_eq!(invocation.facts(), &Json::obj(vec![("quantity", Json::int(3))]));
     }
 
     #[test]
