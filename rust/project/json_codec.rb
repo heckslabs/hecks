@@ -223,19 +223,37 @@ module RustProjection
     # attributes + [:id, *aggregate.identity_heads, reference_key(command)]
     # + correlation_keys(domain)` — declared attributes plus every OTHER
     # name a caller is legitimately allowed to address a command by or
-    # smuggle a saga's correlation through. Only ever passed for an
-    # AGGREGATE-level command's own `from_json` (`emit_unknown_argument_
-    # check`'s own caller) — entity commands run no such check at all
-    # (`EntityInterpreter::DISPATCH_ORDER` has no `refuse_unknown_arguments`/
-    # `refuse_absent_arguments` step, commands.rb's own header on
-    # `emit_entity_command`), and a nested value object's own fields are a
-    # different, more permissive concern `Value.for_attribute`'s coercion
-    # already covers — never this gate.
-    def command_argument_allowlist(aggregate, command, process_managers)
+    # smuggle a saga's correlation through. Originally documented as
+    # "only ever passed for an AGGREGATE-level command's own `from_json`
+    # — entity commands run no such check at all", quoting
+    # `EntityInterpreter::DISPATCH_ORDER`'s PRE-H1 shape. That premise
+    # went stale the moment H1 (docs/audits/2026-08-10-main-bug-audit.md)
+    # gave `EntityInterpreter::DISPATCH_ORDER` its own
+    # `refuse_unknown_arguments`/`refuse_absent_arguments` steps, "same
+    # position `AggregateDispatchOrder` holds them at"
+    # (entity_interpreter.rb's own comment on that fix) — this generator
+    # was never updated to match, so an entity command's own generated
+    # `from_json` kept building every declared field, invariant checks
+    # included, straight through an undeclared key it should have
+    # refused first (BUG#8: `Chess::Game.Piece.Move` — an extra `colour`
+    # key sailed past a missing check here, and coercing `destination`
+    # next raised `InvariantViolation` where Ruby's real
+    # `refuse_unknown_arguments` step, now running BEFORE any field is
+    # ever built, already refuses `UnknownArgument`).
+    #
+    # `extra_identity_heads:` — `ArgumentGate#refuse_unknown_arguments`'s
+    # own `extra_identity_heads:` (argument_gate.rb), the SAME reason
+    # that kwarg exists there: an entity dispatch addresses not just the
+    # root aggregate but the entity itself, and `element_of`
+    # (entity_element.rb) reads the entity's own identity head straight
+    # out of `args`, never as a declared command fact. `[]` (the
+    # default) for a plain aggregate command's own call site, which has
+    # no entity to add.
+    def command_argument_allowlist(aggregate, command, process_managers, extra_identity_heads: [])
       reference_key = command[:references].to_s.empty? ? nil : Hecks::Naming.reference_key(command[:references]).to_s
       identity_heads = aggregate[:identified_by].map { |path| path.split(".").first }
       correlation_keys = Array(process_managers).filter_map { |pm| pm[:correlates_by]&.split(".")&.first }
-      (["id", reference_key] + identity_heads + correlation_keys).compact.uniq
+      (["id", reference_key] + identity_heads + extra_identity_heads + correlation_keys).compact.uniq
     end
 
     # `command_name` — `ArgumentGate#refuse_unknown_arguments`'s own

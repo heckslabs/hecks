@@ -366,6 +366,13 @@ impl SlipAmendEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("SlipAmendEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["amount", "id", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Amend does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[

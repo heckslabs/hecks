@@ -71,7 +71,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "SlipReference",
@@ -109,7 +111,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "SlipAmount",
@@ -146,7 +150,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -167,9 +173,15 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "FolderOpened"
           ],
@@ -203,8 +215,12 @@
               "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "slips",
@@ -223,9 +239,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
       "entities": [
         {
@@ -274,8 +296,12 @@
                   "relationship": null
                 }
               ],
-              "givens": [],
-              "ensures": [],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
               "mutations": [
                 {
                   "target": "amount",
@@ -294,22 +320,42 @@
               "provenance": null
             }
           ],
-          "queries": [],
-          "entities": [],
-          "preconditions": [],
-          "invariants": [],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
           "lifecycle": null
         }
       ],
-      "queries": [],
-      "ports": [],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -327,7 +373,9 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
+    "capable_aggregates": [
+
+    ]
   },
   "persistence": {
     "aggregates": [
@@ -338,6 +386,8 @@
       }
     ]
   },
-  "translations": [],
+  "translations": [
+
+  ],
   "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/qa-loop/SKILL.md's Phase 4).\n#\n# TARGETED AT ONE SPECIFIC, ALREADY-CONFIRMED DIVERGENCE CLASS: an entity\n# command dispatched with BOTH a nonexistent addressed element AND an\n# argument that fails its own invariant. ADR 0037's re-verification\n# (2026-09-09) found Ruby and Rust disagree on which refusal wins for\n# exactly this shape on `Banking::Account.LedgerEntry.Amend` (seed 34) —\n# Ruby raises the argument's InvariantViolation first, Rust answers\n# NotFound because its entity-addressing extraction never builds/\n# invariant-checks a typed value object for the addressing field at all.\n# Confirmed still open, correctly left unfixed (needs a real codegen\n# capability, not a one-line guard) — this domain is the re-trigger-in-\n# a-new-context half of the loop's own strategy: same class of bug,\n# unrelated business shape, to see whether it's LedgerEntry-specific or\n# general to every entity command.\nHecks.bluebook \"LedgerOrdering\" do\n  vision \"One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?\"\n\n  core\n\n  aggregate \"Folder\" do\n    description \"A folder holding slips, addressed by reference.\"\n\n    identified_by :reference\n\n    attribute :reference, FolderReference\n    attribute :slips,     list_of(Slip)\n\n    value_object \"FolderReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a folder is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Start a folder\"\n\n      attribute :reference, FolderReference\n\n      emits \"FolderOpened\"\n    end\n\n    command \"AddSlip\" do\n      role \"Clerk\"\n      goal \"Add a slip to the folder\"\n\n      reference_to Folder\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount\n\n      sets :slips, append: { reference: :reference, amount: :amount }\n\n      emits \"SlipAdded\"\n    end\n\n    value_object \"SlipReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a slip is referenced\") { !value.to_s.empty? }\n    end\n\n    # THE INVARIANT AT THE CENTER OF THE STRESS TEST — positive only, so\n    # `amount.value=-1` is guaranteed to fail it, and a nonexistent\n    # `to.entity` is guaranteed to fail existence. Same dispatch, both\n    # failures true at once: which one the runtime reports first is\n    # exactly what's under test.\n    value_object \"SlipAmount\" do\n      attribute :value, Integer\n      invariant(\"a slip amount is positive\") { value.positive? }\n    end\n\n    entity \"Slip\" do\n      description \"One slip in the folder, with an amount that must be positive.\"\n\n      identified_by :reference\n\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount, optional: true\n\n      # THE STRESS COMMAND. Dispatch this against a `to.entity` that does\n      # not exist, carrying an `amount.value` that fails its own\n      # invariant, on BOTH engines, and diff which refusal comes back.\n      command \"Amend\" do\n        role \"Clerk\"\n        goal \"Change what a slip is worth\"\n\n        attribute :amount, SlipAmount\n\n        sets :amount\n\n        emits \"SlipAmended\"\n      end\n    end\n  end\nend\n"
 }

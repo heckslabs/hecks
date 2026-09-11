@@ -746,6 +746,13 @@ impl LedgerEntryAmendEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerEntryAmendEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["adjustment", "narrative", "id", "number", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Amend does not declare {} — it takes adjustment, narrative",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["adjustment", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
@@ -859,6 +866,13 @@ impl LedgerEntryReverseEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerEntryReverseEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["narrative", "id", "number", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reverse does not declare {} — it takes narrative",
+        unknown.join(", ")
+    )));
 }
 let absent: Vec<&str> = ["narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
