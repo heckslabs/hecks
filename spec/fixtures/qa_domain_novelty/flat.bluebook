@@ -1,0 +1,19 @@
+# A FIXTURE FOR spec/qa_domain_novelty_spec.rb — a FLAT bluebook, the
+# shape bin/qa_domain_novelty refuses up front (a stress domain is
+# `<name>/bluebook/<name>.bluebook`, never a bare file — see
+# qa/stress_domains/ledger_ordering/NOTES.md).
+Hecks.bluebook "Flat" do
+  generic
+
+  aggregate "Thing" do
+    identified_by :name
+    attribute :name, Name
+    value_object("Name") { attribute :value, String }
+
+    command "Make" do
+      attribute :name, Name
+      sets :name
+      emits "Made"
+    end
+  end
+end
