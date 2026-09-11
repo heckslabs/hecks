@@ -589,9 +589,21 @@ jobs:
       # betting on which shared piece of a fresh runner's ~/.cargo or
       # ~/.rustup it was. `qa_sweep_all_spec` stays here — it needs this
       # job's Postgres, and is now the only cargo user left in it.
+      # `--group-by filesize` — default `parallel_tests` behavior groups by
+      # FILE COUNT ("4 processes for 288 specs, ~72 specs per process"),
+      # not by expected work; confirmed live, one real run's own four
+      # worker times were 57s / 2m1s / 4m18s / 5m55s — file count balanced,
+      # wall-clock did not, because the handful of specs doing real
+      # subprocess/cargo work (`qa_sweep_all_spec` among them) happened to
+      # land on the same worker. `filesize` uses each file's own byte size
+      # as a free, no-setup proxy for how much work it represents — a
+      # cheap, real improvement over round-robin, though not as accurate
+      # as `--group-by runtime`, which needs a `--runtime-log` persisted
+      # across runs (a bigger, separate CI-caching change, not done here).
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
           bundle exec parallel_rspec spec \
+            --group-by filesize \
             --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
             -o "--tag io --tag ~fuzzing"
 
