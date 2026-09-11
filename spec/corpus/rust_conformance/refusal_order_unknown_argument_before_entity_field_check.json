@@ -1,0 +1,41 @@
+{
+  "domain": "examples/banking",
+  "note": "BUG#8 (qa/bluebook/quality_control.bluebook) — dispatch-order parity for an ENTITY command, the same class of gap `refusal_order_invariant_before_reference.json` already pins for an aggregate one: `refuse_unknown_arguments` BEFORE any declared field is ever built, matching Ruby's own EntityDispatchOrder (Vocabulary::EntityDispatchOrder — H1, docs/audits/2026-08-10-main-bug-audit.md, gave `EntityInterpreter::DISPATCH_ORDER` its own `refuse_unknown_arguments`/`refuse_absent_arguments` steps, 'same position AggregateDispatchOrder holds them at'). A single Banking::Account.LedgerEntry.Amend carries an unrecognized `colour` key AND an `adjustment` whose `currency` fails Money's own three-letter invariant, in the same step, so the two checks race. Found live on `examples/chess`'s first-ever compiled Rust conformance binary (Chess::Game.Piece.Move, a fuzzer-generated `colour` key alongside an out-of-range `destination`): Ruby always refuses UnknownArgument (`refuse_unknown_arguments` runs first, before any field is coerced); unmodified Rust's generated entity-command `from_json` (rust/project/commands.rb#emit_entity_command, rust/codegen/src/commands.rs#emit_entity_command) never emitted an unknown-key check at all — `command_argument_allowlist`'s own header used to read 'only ever passed for an AGGREGATE-level command... entity commands run no such check at all', a premise H1 made stale — so it built `adjustment` straight through and refused Money's own InvariantViolation instead, never seeing the unknown key. Fixed by threading `unknown_argument_allowlist:` (aggregate identity head plus the ENTITY's own identity head, mirroring `ArgumentGate#refuse_unknown_arguments`'s `extra_identity_heads:`) into an entity command's own `emit_from_json_flat` call, in both generators.",
+  "steps": [
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": { "value": "CUST-BUG8" },
+        "name": { "given": "Grace", "family": "Hopper" },
+        "email": { "address": "grace@example.com" }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": { "value": "acct-bug8" },
+        "kind": { "name": "current" },
+        "daily_limit": { "cents": 50000 },
+        "customer": "CUST-BUG8"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "amount": { "cents": 10000, "currency": "USD" },
+        "narrative": { "text": "Opening deposit" },
+        "number": { "value": "acct-bug8" }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "number": { "value": "acct-bug8" },
+        "sequence": { "value": 1 },
+        "adjustment": { "cents": 500, "currency": "X" },
+        "narrative": { "text": "Corrected" },
+        "colour": "red"
+      }
+    }
+  ]
+}

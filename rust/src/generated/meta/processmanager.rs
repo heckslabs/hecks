@@ -851,6 +851,13 @@ impl HandlerDispatchEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("HandlerDispatchEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["command_name", "position", "id", "bluebook", "name", "event_type", "from_state"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Dispatch does not declare {} — it takes command_name, position",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["command_name", "position"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[

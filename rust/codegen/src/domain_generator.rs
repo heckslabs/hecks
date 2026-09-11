@@ -416,6 +416,7 @@ pub fn generate(
                         domain_name,
                         &value_objects_by_name,
                         &aggregates_by_name,
+                        &process_managers,
                     ),
                 );
                 puts_blank(&mut out);
@@ -571,7 +572,7 @@ pub fn generate(
             );
             puts_blank(&mut out);
             let allowlist =
-                json_codec::command_argument_allowlist(aggregate, command, &process_managers);
+                json_codec::command_argument_allowlist(aggregate, command, &process_managers, &[]);
             puts_str(
                 &mut out,
                 &json_codec::emit_from_json_flat(

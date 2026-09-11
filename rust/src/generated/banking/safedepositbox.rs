@@ -651,6 +651,13 @@ impl VisitAnnotateEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("VisitAnnotateEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["note", "id", "branch_code", "box_number", "date", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Annotate does not declare {} — it takes note",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
@@ -840,6 +847,13 @@ impl KeyIssuanceReturnEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("KeyIssuanceReturnEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["serial", "id", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Return does not declare {} — it takes serial",
+        unknown.join(", ")
+    )));
 }
 let absent: Vec<&str> = ["serial"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
