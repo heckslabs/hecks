@@ -1,14 +1,17 @@
 # PRD 02 — Run the fuzzer/property suite against real adapters, not just Memory
 
-**Status:** Done for Sqlite and Postgres (2026-08-27). Postgres was
-initially scoped out of this PRD's first round (see the original "What
-shipped" below for why) and shipped as the follow-up round that section
-called for, in a parallel branch merged the same day — `IsolatedBoot`
-gained an actual settings-injection path for Postgres (a real `.world`
-written per boot, a shared `hecks_fuzz` database/schema dropped and
-recreated before every ephemeral boot, plus a `GC.start` fix for a real
-`max_connections` exhaustion bug hit live). PostgresEra specifically
-remains out of scope — nothing here touches era/lineage machinery.
+**Status:** Done for Sqlite, Postgres, and (as of 2026-09-11) PostgresEra.
+Postgres was initially scoped out of this PRD's first round (see the
+original "What shipped" below for why) and shipped as the follow-up round
+that section called for, in a parallel branch merged the same day —
+`IsolatedBoot` gained an actual settings-injection path for Postgres (a
+real `.world` written per boot, a shared `hecks_fuzz` database/schema
+dropped and recreated before every ephemeral boot, plus a `GC.start` fix
+for a real `max_connections` exhaustion bug hit live). PostgresEra was
+left out of both rounds ("nothing here touches era/lineage machinery")
+and closed later, as its own `hecks_qa` persistence-adapter-parity work
+— see "Resolved, not a gap" below for what that took and the real
+boot-gate blocker it found along the way.
 
 ## The problem
 
@@ -170,6 +173,30 @@ runtime proof: it's refused at DSL-seal time
 (`aggregate_builder.rb`'s `seal_query_hop`), so no bluebook can declare
 one on any adapter. Live-verified against real Postgres and real Sqlite —
 `spec/adapters/query_hop_agreement_spec.rb`, 8 examples, both green.
-**PostgresEra remains fully out of scope** — nothing here touches
-era/lineage machinery; a fuzzed sequence against `PostgresEra` would need
-its own PRD.
+
+**PostgresEra closed the gap it was left with — 2026-09-11, `hecks_qa`'s
+own persistence-adapter-parity work.** `IsolatedBoot` gained a fourth
+adapter mode, `adapter: :postgres_era`, alongside the three above —
+`rebind_to_postgres_era!` (isolated_boot.rb) rewrites every binding to
+`"PostgresEra"` and writes a fresh `.world` per `.hecksagon`, same shape
+`rebind_to_postgres!` already established, but REQUIRES the caller to
+supply its own throwaway `database:`/`schema:` rather than defaulting to
+a shared, permanent scratch database — its only caller
+(`bin/qa_sweep --persistence-parity`, see `lib/hecks/fuzzing/
+persistence_parity.rb`) already owns a disposable database's whole
+lifecycle itself. A real, previously-unknown blocker surfaced live
+wiring this up against `examples/directory` (the one domain in this
+corpus with a real `compute`/`rekey` translation edge): `Runtime::
+EraCheck.check_compute_rules!` refuses ANY non-lineage-capable adapter
+outright for an aggregate whose lineage carries a `compute` rule —
+`:memory`/`:sqlite`/`:postgres` (plain `Postgres` is not
+`lineage_capable?` either) included, not just `PostgresEra`'s own
+absence. This was very likely the actual MECHANICAL reason `directory`
+had to be shelved out of `hecks_qa`'s own rotation, not merely "less
+interesting to fuzz on Memory." Fixed by having `IsolatedBoot` strip a
+domain's own `bluebook/translations/*.bluebook` files for every
+non-lineage-capable adapter mode (`strip_translations!`) — an ephemeral,
+zero-history replay boot never has a pre-existing era-1 row to translate
+in the first place, so the edge is irrelevant to what fuzz/replay
+actually exercises; left untouched for `:postgres_era` itself, where the
+bound adapter genuinely is lineage-capable and no refusal occurs.

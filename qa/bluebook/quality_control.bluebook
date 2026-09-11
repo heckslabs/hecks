@@ -152,6 +152,21 @@ unless defined?(QualityControlDials)
     # sweeping session and short enough that nothing sits untouched for
     # days.
     ROTATION_STALE_FLOOR_SECONDS = 21_600
+
+    # THE PERSISTENCE-PARITY AXIS'S OWN SPEED FENCE — `bin/qa_sweep
+    # --persistence-parity` (lib/hecks/fuzzing/persistence_parity.rb) pays
+    # for a real `PG.connect` and real SQL per dispatch, against a real
+    # disposable `PostgresEra` database, where every OTHER check this
+    # practice runs (Memory-vs-Rust, Memory-only properties) pays for
+    # neither. Clamped here, not left to whatever `--seeds` a human or an
+    # agent happens to type — the same reason `CADENCE_SECONDS`/
+    # `PR_CAP_PER_DAY` live as data instead of prose: a human changes the
+    # number by editing this file and reviewing the diff, not by asking a
+    # running agent to remember a different one. `bin/qa_sweep` reads this
+    # as a CEILING on `--seeds`, clamping down (never up) and printing a
+    # note when it does — a smaller `--seeds` for an ordinary quick check
+    # is still honoured exactly as given.
+    PERSISTENCE_PARITY_SEED_CAP = 5
   end
 end
 

@@ -84,12 +84,19 @@ module Hecks
       # own header), so `Hecks::Fuzzing::SelfConsistency.check` has to run
       # while both are still alive, against the exact same repositories
       # this replay's own dispatch loop just wrote to.
-      def call(domain_path, steps, adapter: :memory, self_consistency: false)
+      #
+      # `database:`/`schema:` — ONLY meaningful, and REQUIRED, for
+      # `adapter: :postgres_era` — see `IsolatedBoot#rebind_to_postgres_era!`'s
+      # own header for why that one mode takes caller-owned connection
+      # identity rather than a shared default the way `:postgres` does.
+      # Forwarded straight through, unchanged, exactly like `adapter:`
+      # itself already was.
+      def call(domain_path, steps, adapter: :memory, database: nil, schema: nil, self_consistency: false)
         # See isolated_boot.rb's own header: resets data/ AND rebinds
         # persistence to the chosen adapter (Memory by default), since a
         # Postgres-bound domain's real store lives outside the copied
         # directory and cannot be reached by resetting data/ alone.
-        IsolatedBoot.call(domain_path, adapter: adapter) do |copy|
+        IsolatedBoot.call(domain_path, adapter: adapter, database: database, schema: schema) do |copy|
           runtime = Hecks.boot(copy)
 
           refusals        = []
