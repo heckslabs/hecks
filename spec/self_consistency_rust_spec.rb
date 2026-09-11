@@ -72,8 +72,10 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
     expect(status).to be_success
 
     live = JSON.parse(stdout)["instances"]
-    expect(live.values.any? { |state| state.key?("emitted_fee_applied") }).to be(true),
-      "fixture assumption broken: no record in this generated sequence carries emitted_fee_applied any more"
+    carries_bookkeeping_field = live.values.any? { |state| state.key?("emitted_fee_applied") }
+    expect(carries_bookkeeping_field).to be(true),
+                                         "fixture assumption broken: no record in this generated sequence " \
+                                         "carries emitted_fee_applied any more"
 
     expect(Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, live)).to be_empty
     expect(Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, live)).to be_empty
