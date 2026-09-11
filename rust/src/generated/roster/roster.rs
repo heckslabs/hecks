@@ -1566,6 +1566,7 @@ pub fn dispatch_enlist(
         ],
         None,
         |record| {
+        if record.crew.iter().any(|e| e.id == args.id.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Member"), ("aggregate", "Roster"), ("identity", "id.value"), ("offered", &format!("{:?}", args.id.clone()))]))); }
         record.crew.push(Member { id: args.id.clone(), age: args.age.clone(), rank: Rank::Hand, status: "active".to_string() });
             Ok(())
         },

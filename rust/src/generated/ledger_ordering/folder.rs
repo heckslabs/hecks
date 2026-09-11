@@ -686,6 +686,7 @@ pub fn dispatch_add_slip(
         ],
         None,
         |record| {
+        if record.slips.iter().any(|e| e.reference == args.reference.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Slip"), ("aggregate", "Folder"), ("identity", "reference.value"), ("offered", &format!("{:?}", args.reference.clone()))]))); }
         record.slips.push(Slip { reference: args.reference.clone(), amount: Some(args.amount.clone()) });
             Ok(())
         },
