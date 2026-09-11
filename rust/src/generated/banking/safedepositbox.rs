@@ -1432,6 +1432,7 @@ pub fn dispatch_issue_key(
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
         |record| {
+        if record.keys.iter().any(|e| e.serial == args.serial.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "KeyIssuance"), ("aggregate", "SafeDepositBox"), ("identity", "serial.value"), ("offered", &format!("{:?}", args.serial.clone()))]))); }
         record.keys.push(KeyIssuance { serial: args.serial.clone(), status: "issued".to_string() });
             Ok(())
         },

@@ -400,6 +400,7 @@ fn emit_mutation_line_body(
                 })
                 .collect();
 
+            let mut collision_guard = String::new();
             if let Some(entity) = entity {
                 let mut present: Vec<String> = fields.iter().map(|(k, _)| k.clone()).collect();
                 if let Some((id_attr, id_vo)) = entity_identity_mint(entity, value_objects_by_name) {
@@ -416,6 +417,62 @@ fn emit_mutation_line_body(
                         );
                         fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
                         present.push(id_name.to_string());
+                    } else if entity.get("identified_by").map(Json::each).unwrap_or(&[]).len() == 1 {
+                        // A CALLER-SUPPLIED IDENTITY, non-composite only —
+                        // `MutationApplier#check_entity_collision`'s own
+                        // guard (mutation_applier.rb), ported: reached only
+                        // when the append's own field map ALREADY carries
+                        // the identity (the `if` above skips auto-minting),
+                        // the same condition Ruby's own `entity_element`
+                        // branches on. Neither generator used to check the
+                        // sibling list at all here — a second element
+                        // offered under an identity already held silently
+                        // duplicated, and became permanently unaddressable
+                        // by any later command (`EntityInterpreter
+                        // #element_of`'s own `find_index` always matches the
+                        // FIRST match). Mirrors `rust/project/mutations.rb`'s
+                        // own identical fix byte for byte — this is a
+                        // SEPARATE, independent implementation of the same
+                        // codegen, and codegen_parity_spec holds the two
+                        // byte-identical.
+                        //
+                        // COMPOSITE identities (`identified_by.len() != 1`,
+                        // e.g. `ProcessManager::Dispatch`'s own
+                        // `command_name.value, position.value`) are
+                        // deliberately EXCLUDED here — `entity_identity_mint`
+                        // (above) only ever inspects `identified_by.first()`,
+                        // so `id_attr`/`id_name` at this point name just ONE
+                        // of a composite identity's several heads. Guarding
+                        // on that alone would refuse two elements as
+                        // duplicates whenever they merely SHARE that one
+                        // head (e.g. two `Dispatch`es with the same
+                        // `command_name` at different `position`s) — a false
+                        // positive, not a fix. Left as a real, documented,
+                        // pre-existing gap (composite-identity entity lists
+                        // still accept a genuine duplicate silently),
+                        // narrower than the single-field case this bug
+                        // report actually demonstrated.
+                        let id_field = naming::rust_ident_field(id_name);
+                        let id_rhs = fields
+                            .iter()
+                            .find(|(k, _)| k == id_name)
+                            .map(|(_, source)| {
+                                let field_attr = element_attrs
+                                    .iter()
+                                    .find(|a| crate::attr::name(a) == id_name)
+                                    .expect("append field must be a declared element attribute");
+                                append_field_rhs(source, field_attr, command, value_objects_by_name)
+                            })
+                            .expect("caller-supplied identity field must be in the append's own field map");
+                        let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
+                        let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
+                        let identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+                        let entity_lit = naming::ruby_inspect_string(entity_name);
+                        let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
+                        let identity_lit = naming::ruby_inspect_string(&identity_reading);
+                        collision_guard = format!(
+                            "if record.{target_field}.iter().any(|e| e.{id_field} == {id_rhs}) {{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[(\"entity\", {entity_lit}), (\"aggregate\", {aggregate_lit}), (\"identity\", {identity_lit}), (\"offered\", &format!(\"{{:?}}\", {id_rhs}))]))); }}\n        "
+                        );
                     }
                 }
                 if let Some(entity_lifecycle) = entity.get("lifecycle") {
@@ -473,7 +530,7 @@ fn emit_mutation_line_body(
                 }
             }
 
-            exemplar.render("mutation_append", &[("tmpl_field", target_field.to_string()), ("tmpl_fields_placeholder()", format!("{vo_type} {{ {} }}", fields_assignment.join(", ")))])
+            format!("{collision_guard}{}", exemplar.render("mutation_append", &[("tmpl_field", target_field.to_string()), ("tmpl_fields_placeholder()", format!("{vo_type} {{ {} }}", fields_assignment.join(", ")))]))
         }
         "set" => {
             if lifecycle_field.map(|f| f == target_name).unwrap_or(false) {
