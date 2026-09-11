@@ -40,7 +40,7 @@ require "pathname"
 # reaches the whole tree with no code path in `bin/qa_sweep` needing to
 # know a spec is driving it.
 RSpec.describe "bin/qa_sweep --all", :io do
-  DATABASE = "hecks_qa_sweep_all_spec".freeze
+  QA_SWEEP_ALL_DATABASE = "hecks_qa_sweep_all_spec".freeze
 
   # THE FIXTURE LEDGER'S OWN `.hecksagon` — line-for-line what
   # `qa/bluebook/quality_control.hecksagon` declares (every aggregate
@@ -188,7 +188,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{DATABASE}" }
+        persisted_by("PostgresEra") { database "#{QA_SWEEP_ALL_DATABASE}" }
       end
     RUBY
 
@@ -205,8 +205,8 @@ RSpec.describe "bin/qa_sweep --all", :io do
     @target_domain_relpath = Pathname.new(@target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{DATABASE}")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_ALL_DATABASE} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{QA_SWEEP_ALL_DATABASE}")
     admin.close
   end
 
@@ -214,7 +214,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     next unless PostgresProbe.available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{DATABASE} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_ALL_DATABASE} WITH (FORCE)")
     admin.close
     FileUtils.remove_entry(@fixture_root)
     FileUtils.remove_entry(@target_domain_dir)
@@ -227,7 +227,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
   before { reset_schema! }
 
   def reset_schema!
-    scrub = PG.connect(dbname: DATABASE)
+    scrub = PG.connect(dbname: QA_SWEEP_ALL_DATABASE)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
