@@ -27,6 +27,7 @@
 #   bin/qa_sweep --all --seeds 25     # same, more seeded sequences per target
 #   bin/qa_sweep pizzas --adversarial 0.5   # mutate half the generated command steps
 #   bin/qa_sweep --all --adversarial 0      # turn adversarial generation OFF
+#   bin/qa_sweep directory --persistence-parity   # Memory vs real PostgresEra, one target only
 #
 # ADVERSARIAL BY DEFAULT. Every sequence this script generates goes
 # through `SequenceGenerator`'s adversarial layer (`lib/hecks/fuzzing/
@@ -48,6 +49,25 @@
 # SOMETHING report carries the `adversarial:` fraction that was in
 # effect, and every step that was mutated is listed with what was done
 # to it, so the Bug can name the mechanism.
+#
+# `--persistence-parity` — A GENUINELY NEW AXIS, NOT A REPLACEMENT for the
+# Ruby-vs-Rust differential mode above: Memory vs a real, disposable
+# `PostgresEra` database, both sides the SAME Ruby engine
+# (`Hecks::Fuzzing::PersistenceParity`, lib/hecks/fuzzing/persistence_
+# parity.rb — read its own header for the full design). Opt-in and
+# single-target only (never `--all`, see the abort just below argument
+# parsing) for two reasons: cost (a real `PG.connect` and real SQL per
+# dispatch — `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP`,
+# qa/bluebook/quality_control.bluebook, clamps `--seeds` down for exactly
+# this reason) and relevance (only a domain that actually binds
+# `PostgresEra` gains anything from this comparison at all — see the
+# eligibility check right after target resolution, below). This script
+# owns the disposable database's own lifecycle — created once, up front,
+# a throwaway schema unique to THIS sweep dropped again once it ends,
+# clean or surprised — never a shared, leaked-forever scratch database the
+# way `IsolatedBoot`'s own `:postgres` mode uses for `bin/fuzz`; see
+# `rebind_to_postgres_era!`'s own header (isolated_boot.rb) for why that
+# distinction matters here specifically.
 #
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
 #   0  clean — every generated sequence held, the sweep concluded and the
@@ -152,6 +172,7 @@ require "hecks/fuzzing"
 require "json"
 require "open3"
 require "tempfile"
+require "securerandom"
 
 ROOT = File.expand_path("..", __dir__)
 require_relative "../spec/support/rust_conformance_helpers"
@@ -195,7 +216,31 @@ EXIT_ERROR           = 1
 EXIT_FOUND_SOMETHING = 2
 
 USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--adversarial FRACTION]\n       " \
-        "bin/qa_sweep --all [--seeds N] [--adversarial FRACTION]".freeze
+        "bin/qa_sweep --all [--seeds N] [--adversarial FRACTION]\n       " \
+        "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]".freeze
+
+# `PostgresEra`-BOUND ONLY — the one signal this script uses to decide a
+# target is worth the real `PG.connect`-per-dispatch cost
+# `--persistence-parity` pays (see this file's own top-of-file comment).
+# A domain with no `persisted_by("PostgresEra")` binding at all — every
+# domain in the DEFAULT rotation today (pizzas, banking) — would just
+# have `IsolatedBoot#rewrite_bindings!` force one onto it that its own
+# `.world` never declared, comparing Memory against an adapter the domain
+# was never meant to run under: trivial agreement at best (ordinary
+# aggregate command dispatch doesn't touch the adapter at all), a
+# meaningless "PostgresEra refuses this domain's own real binding"
+# confusion at worst. Matches BOTH spellings `IsolatedBoot#rewrite_
+# bindings!` itself already has to catch — aggregate-scoped
+# (`Directory::Member.persisted_by("PostgresEra")`) and the bare,
+# domain-level default (`persisted_by "PostgresEra"`, no parens, no
+# receiver).
+POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
+
+def postgres_era_bound?(domain_path)
+  Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
+    File.read(path).match?(POSTGRES_ERA_BINDING)
+  end
+end
 
 # A THIN WRAPPER, NOT A REWRITE — `RustConformanceHelpers` is a plain
 # module of instance methods meant to be `include`d into an RSpec example
@@ -217,6 +262,7 @@ all_mode = false
 # `--adversarial` is remembered here and the dial only consulted when
 # none was given.
 adversarial = nil
+persistence_parity_mode = false
 
 until ARGV.empty?
   arg = ARGV.shift
@@ -226,6 +272,8 @@ until ARGV.empty?
     exit EXIT_OK
   when "--all"
     all_mode = true
+  when "--persistence-parity"
+    persistence_parity_mode = true
   when "--seeds"
     value = ARGV.shift
     abort "#{USAGE}\n--seeds needs a number" unless value
@@ -259,6 +307,17 @@ if all_mode && target_ref
         "(got #{target_ref.inspect})"
 end
 
+if all_mode && persistence_parity_mode
+  abort "#{USAGE}\n--persistence-parity is single-target only (a real Postgres connection per dispatch, " \
+        "genuinely expensive — see this file's own top-of-file comment) — it does not combine with --all"
+end
+
+if persistence_parity_mode && !target_ref
+  abort "#{USAGE}\n--persistence-parity needs an explicit target-reference — it never auto-picks from the " \
+        "rotation, since only a PostgresEra-bound domain gains anything from this comparison at all " \
+        "(see this file's own top-of-file comment)"
+end
+
 # ── boot the ledger for real ───────────────────────────────────────────
 #
 # `Hecks.boot` with `install_facade` at its default (true) — exactly what
@@ -282,6 +341,17 @@ def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 # without the dial (an isolated spec's own fixture, say) runs the layer
 # OFF rather than inventing a number here.
 adversarial ||= defined?(QualityControlDials::ADVERSARIAL_FRACTION) ? QualityControlDials::ADVERSARIAL_FRACTION.to_f : 0.0
+
+# `QualityControlDials::PERSISTENCE_PARITY_SEED_CAP` — SAME MODULE, ONE
+# MORE DIAL. Only meaningful for `--persistence-parity`; clamps DOWN,
+# never up, and only when the flag is actually set — an ordinary
+# `--seeds 3` differential sweep is unaffected.
+if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
+  puts "note: --seeds #{seeds} exceeds QualityControlDials::PERSISTENCE_PARITY_SEED_CAP " \
+       "(#{QualityControlDials::PERSISTENCE_PARITY_SEED_CAP}) — clamping down. Real PostgresEra I/O per " \
+       "dispatch is genuinely expensive; edit that dial in qa/bluebook/quality_control.bluebook to run more."
+  seeds = QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
+end
 
 # ── --all: every waiting target, genuinely in parallel ────────────────
 #
@@ -479,6 +549,16 @@ domain_path = File.join(ROOT, target_path)
 abort "target #{target_reference.inspect} names a path that does not exist on disk: #{domain_path}" \
   unless File.directory?(domain_path)
 
+# BEFORE THE CLAIM — an ineligible target here is an operational error
+# (exit 1), not a finding, and must never leave the target held or a
+# sweep open. See POSTGRES_ERA_BINDING's own comment above for why this
+# is the one signal used.
+if persistence_parity_mode && !postgres_era_bound?(domain_path)
+  abort "target #{target_reference.inspect} (#{target_path}) declares no persisted_by(\"PostgresEra\") " \
+        "binding in its own .hecksagon — --persistence-parity has nothing to compare Memory against for " \
+        "this domain. examples/directory is the known example that qualifies."
+end
+
 # ── claim it ─────────────────────────────────────────────────────────
 
 target = QualityControl::Target.find(target_reference)
@@ -507,8 +587,53 @@ sweep = QualityControl::Sweep.open!(target: target.id, reference: { value: sweep
 
 differ  = Differ.new
 feature = File.basename(domain_path).downcase
-binary  = differ.build_rust_for(feature, RUST_DIR)
-mode    = binary ? :differential : :ruby_only
+
+# `--persistence-parity` NEVER TOUCHES THE RUST BUILD AT ALL — a
+# genuinely different axis (Memory vs real PostgresEra, both sides
+# Ruby — see lib/hecks/fuzzing/persistence_parity.rb's own header), not
+# a third fallback tier below `:differential`/`:ruby_only`. Attempting
+# `build_rust_for` here would be wasted work at best (`directory` names
+# no `rust/Cargo.toml` feature at all) and a confusing false signal at
+# worst, for a mode this flag already opted OUT of the Rust comparison
+# for.
+if persistence_parity_mode
+  binary = nil
+  mode   = :persistence_parity
+else
+  binary = differ.build_rust_for(feature, RUST_DIR)
+  mode   = binary ? :differential : :ruby_only
+end
+
+# ── the persistence-parity axis's own disposable database ──────────────
+#
+# OWNED HERE, NOT INSIDE `IsolatedBoot` — see `rebind_to_postgres_era!`'s
+# own header (isolated_boot.rb) for why that mode REQUIRES a caller-
+# supplied `database:`/`schema:` rather than defaulting to a shared
+# constant the way `:postgres` does. `QA_PERSISTENCE_PARITY_DATABASE` is
+# a FIXED, dedicated, never-the-real-ledger name — created idempotently
+# if it doesn't already exist, same as `IsolatedBoot`'s own `:postgres`
+# scratch database, and never dropped by this script (dropping a
+# database out from under a concurrent sweep against a DIFFERENT schema
+# in it would be destructive; only the schema below is this run's own to
+# destroy). `persistence_parity_schema` IS unique per run — the target's
+# own reference plus this process's pid plus eight random hex digits —
+# and IS dropped again in the `ensure` around the seed loop below,
+# whether this sweep ends clean, surprised, or crashes outright: nothing
+# from this run is ever left behind.
+persistence_parity_database = "hecks_qa_persistence_parity"
+persistence_parity_schema   = nil
+
+if persistence_parity_mode
+  require "pg"
+  persistence_parity_schema = "qa_pp_#{target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
+
+  admin = PG.connect(dbname: "postgres")
+  exists = admin.exec_params(
+    "SELECT 1 FROM pg_database WHERE datname = $1", [persistence_parity_database]
+  ).ntuples.positive?
+  admin.exec(%(CREATE DATABASE "#{persistence_parity_database}")) unless exists
+  admin.close
+end
 
 # THE ACTUAL RUBY-VS-RUST DIFF `spec/rust_conformance_fuzz_spec.rb` runs
 # per generated seed, factored out unchanged rather than re-derived —
@@ -610,8 +735,11 @@ def mark_surprised!(runtime, sweep, sequence, observation)
 end
 
 mode_label =
-  if mode == :differential
+  case mode
+  when :differential
     "Ruby vs compiled Rust (#{feature})"
+  when :persistence_parity
+    "Memory vs real PostgresEra (#{feature}) — persistence-adapter parity"
   else
     "Ruby-only property/exception check (no compiled Rust binary for #{feature})"
   end
@@ -619,11 +747,29 @@ mode_label =
 puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
      "#{STEPS_PER_SEQUENCE} steps each, adversarial fraction #{adversarial}"
 
-# ONE SEED, EITHER MODE — pulled out of the loop below so that loop reads
+# THE PERSISTENCE-PARITY OUTCOME — `Hecks::Fuzzing::PersistenceParity
+# .diff`, called once per seed against THIS SWEEP'S OWN disposable
+# schema (dropped between seeds by `IsolatedBoot#ensure_postgres_era_
+# schema!` itself, the same zero-history guarantee every other adapter
+# mode already gives — see that method's own header). A real
+# `PG::Error`/`WiringError` escaping the diff itself (the connection
+# refused mid-run, a malformed `.world`) is a crash, not a divergence —
+# the same `[:crash, ...]` shape `ruby_only_outcome` already uses right
+# above, for the identical reason: an operational failure mid-sweep is
+# still something this script needs to SURFACE, never swallow silently.
+def persistence_parity_outcome(domain_path, steps, database, schema)
+  divergences = Hecks::Fuzzing::PersistenceParity.diff(domain_path, steps, database: database, schema: schema)
+  [divergences.empty? ? :clean : :divergence, divergences]
+rescue StandardError => e
+  [:crash, [{ field: "process", detail: "#{e.class}: #{e.message}" }]]
+end
+
+# ONE SEED, EVERY MODE — pulled out of the loop below so that loop reads
 # as "run a seed, log it, stop on a surprise" rather than burying that
-# shape under the two modes' own detail. Returns everything the loop and
+# shape under each mode's own detail. Returns everything the loop and
 # (on a surprise) the final report need; nothing here talks to the
-# ledger — that stays the loop's own job.
+# ledger — that stays the loop's own job. `database:`/`schema:` are only
+# ever non-nil for `:persistence_parity` — every other mode ignores them.
 #
 # A GENERATOR CRASH IS A FINDING TOO. `SequenceGenerator` dispatches
 # every candidate step against a live throwaway runtime as it builds
@@ -632,7 +778,14 @@ puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} 
 # interpreter before a replay was ever attempted. That is exactly the
 # kind of surprise this script exists to stop on, not an operational
 # error to abort with.
-def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial)
+#
+# THREE MODES, ONE METHOD — the same reason `diff_ruby_vs_rust` above
+# stays one long method rather than three short ones: each `case` branch
+# shares `steps`/`subject`/`expectation`/`clean`/`observation` with the
+# other two, and splitting per mode would just re-thread those locals
+# through three call sites for no real gain.
+# rubocop:disable-next Metrics/MethodLength
+def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial, database: nil, schema: nil)
   shape = "#{STEPS_PER_SEQUENCE} steps, adversarial #{adversarial}"
   begin
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: STEPS_PER_SEQUENCE,
@@ -645,11 +798,23 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial)
              clean: false, observation: "generator crashed: #{e.class}: #{e.message}", steps: [] }
   end
 
-  if mode == :differential
+  case mode
+  when :differential
     subject     = "#{feature} fuzz seed #{seed} (#{shape}) vs compiled Rust (#{feature})"
     expectation = "Ruby and the compiled Rust conformance binary agree on instances, events, refusals, " \
                   "reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
     divergences = diff_ruby_vs_rust(differ, domain_path, steps, binary)
+    clean       = divergences.empty?
+    observation = if clean
+                    "agreed across all #{STEPS_PER_SEQUENCE} steps"
+                  else
+                    "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}"
+                  end
+  when :persistence_parity
+    subject     = "#{feature} fuzz seed #{seed} (#{shape}) — Memory vs real PostgresEra"
+    expectation = "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
+                  "refusals, reactions, sagas and queries across all #{STEPS_PER_SEQUENCE} generated steps"
+    _verdict, divergences = persistence_parity_outcome(domain_path, steps, database, schema)
     clean       = divergences.empty?
     observation = if clean
                     "agreed across all #{STEPS_PER_SEQUENCE} steps"
@@ -672,22 +837,38 @@ end
 
 surprise = nil
 
-(1..seeds).each do |seed|
-  result = run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial)
+begin
+  (1..seeds).each do |seed|
+    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, adversarial,
+                          database: persistence_parity_database, schema: persistence_parity_schema)
 
-  sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
-  sequence = sweep.checks.last[:sequence][:value]
+    sweep    = log_check!(sweep, subject: result[:subject], expectation: result[:expectation])
+    sequence = sweep.checks.last[:sequence][:value]
 
-  if result[:clean]
-    mark_held!(runtime, sweep, sequence, result[:observation])
-    puts "  seed #{seed}: held"
-    next
+    if result[:clean]
+      mark_held!(runtime, sweep, sequence, result[:observation])
+      puts "  seed #{seed}: held"
+      next
+    end
+
+    mark_surprised!(runtime, sweep, sequence, result[:observation])
+    puts "  seed #{seed}: SURPRISED"
+    surprise = result.merge(seed: seed)
+    break
   end
-
-  mark_surprised!(runtime, sweep, sequence, result[:observation])
-  puts "  seed #{seed}: SURPRISED"
-  surprise = result.merge(seed: seed)
-  break
+ensure
+  # THE DISPOSABLE SCHEMA'S OWN TEARDOWN — runs whether this sweep ends
+  # clean, surprised, or crashes outright (a Ruby `ensure` runs across
+  # `exit`, which raises `SystemExit` under the hood, the same as any
+  # other exception unwinding through here). The DATABASE itself is
+  # deliberately left standing (see its own creation comment above) —
+  # only the schema this ONE run minted is this run's own to destroy.
+  if persistence_parity_schema
+    admin = PG.connect(dbname: persistence_parity_database)
+    admin.exec("SET client_min_messages = warning")
+    admin.exec("DROP SCHEMA IF EXISTS #{admin.quote_ident(persistence_parity_schema)} CASCADE")
+    admin.close
+  end
 end
 
 # ── report and exit ─────────────────────────────────────────────────
@@ -717,10 +898,19 @@ if surprise
   puts "observation: #{surprise[:observation]}"
   puts
 
+  # TWO KEY-PAIR SHAPES, ONE LOOP — `diff_ruby_vs_rust` divergences carry
+  # `ruby:`/`rust:`, `Hecks::Fuzzing::PersistenceParity.diff` divergences
+  # carry `memory:`/`postgres_era:` (that module's own header explains
+  # why: a genuinely different PAIRING, not a relabeling of the same
+  # one). `mode:`, printed just above, is what tells a reader which
+  # pairing a given report's own divergences use.
   surprise[:divergences].each do |divergence|
     puts "-- #{divergence[:field]} --"
     if divergence[:detail]
       puts divergence[:detail]
+    elsif divergence.key?(:memory)
+      puts "memory:       #{divergence[:memory].inspect}"
+      puts "postgres_era: #{divergence[:postgres_era].inspect}"
     else
       puts "ruby: #{divergence[:ruby].inspect}"
       puts "rust: #{divergence[:rust].inspect}"
