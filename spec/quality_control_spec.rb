@@ -837,6 +837,32 @@ RSpec.describe "QualityControl" do
       expect(open_numbers).to be_empty
     end
 
+    # REAL, NOT HYPOTHETICAL — PR #543 (a deliberate proof-only PR, never
+    # meant to merge) was closed by a human the moment its point was made,
+    # while still sitting at "opened" in this ledger: `bin/qa_pr_check`
+    # never got a chance to dispatch `Land` at all. `retire_if_settled?`
+    # dispatches `Close` the instant `gh pr view` reports CLOSED, whatever
+    # this ledger's own status says — this is the case `Merge`/`Close`
+    # being `from: ["landed", "needs_fix"]` alone (missing "opened") let
+    # crash with an uncaught `LifecycleRefused` instead of retiring
+    # cleanly, the same as `Patch`'s own equivalent test above (which has
+    # no "landed" to skip) already exercises for a bug's own fix.
+    it "drops out of the worklist when GitHub closes it before it was ever landed" do
+      improvement = open_improvement
+      improvement.close!
+
+      expect(improvement.status).to eq("closed")
+      expect(open_numbers).to be_empty
+    end
+
+    it "drops out of the worklist when GitHub merges it before it was ever landed" do
+      improvement = open_improvement
+      improvement.merge!
+
+      expect(improvement.status).to eq("merged")
+      expect(open_numbers).to be_empty
+    end
+
     # A DELIBERATE CITATION IS REAL, NOT REQUIRED — `Angle.Build` already
     # marks a lead resolved-by-building-something; this is the other half
     # of that same loop, readable from the improvement's own side.

@@ -1892,11 +1892,23 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String
     end
 
+    # BOTH ENDINGS ALSO REACHABLE STRAIGHT FROM "opened" — the `Merge`/
+    # `Close` commands below say so already ("the same `opened →
+    # merged`/`closed` shape `Patch` already keeps"), and GitHub itself
+    # does not wait for a `Land` before merging or closing a PR: a
+    # deliberate proof-only PR (never meant to merge, closed the moment
+    # its point was made — real example, PR #543) can be closed by a
+    # human while this ledger still has it at "opened", having never been
+    # `Land`ed at all. Confirmed live, not assumed: `bin/qa_pr_check`
+    # crashed with an uncaught `LifecycleRefused` the first time
+    # `retire_if_settled?` tried exactly this — "opened" missing here was
+    # the whole gap, matched by `Patch`'s own `Close`/`Merge`, both
+    # `from: "opened"`, with no "landed" state to have skipped.
     lifecycle :status, default: "opened" do
       transition "Land"    => "landed",   from: ["opened", "needs_fix"]
       transition "Regress" => "needs_fix", from: "landed"
-      transition "Merge"   => "merged",   from: ["landed", "needs_fix"]
-      transition "Close"   => "closed",   from: ["landed", "needs_fix"]
+      transition "Merge"   => "merged",   from: ["opened", "landed", "needs_fix"]
+      transition "Close"   => "closed",   from: ["opened", "landed", "needs_fix"]
     end
 
     # DISPATCHED BY THE ORCHESTRATOR, THE SAME MOMENT AND FOR THE SAME
