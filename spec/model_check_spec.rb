@@ -148,6 +148,28 @@ RSpec.describe "the model checker" do
       archive_findings = findings.select { |f| f.subject == "OnArchive" }
       expect(archive_findings.map(&:kind)).to eq([:deaf_policy])
     end
+
+    # BUG#23 — a policy triggering an `asks`/`tells` PORT OPERATION
+    # (`Aggregate::Port::Operation`, three colon-joined segments) rather
+    # than a plain command (`Aggregate::Command`, two). The real-world
+    # case, not a synthetic one: `qa/bluebook/quality_control.bluebook`'s
+    # own `FileWhenSubmitted`/`AskOnceMore` policies, both `trigger
+    # Ticket::IssueTracker::File`. Before the fix this always reported
+    # `unknown_trigger` — `verbs_of` never enumerated a port operation as
+    # a triggerable verb, and the comparison read raw strings instead of
+    # `Naming.split_verb` triples — even though the same trigger genuinely
+    # dispatches at runtime (`PolicyInterpreter#deliver` re-qualifies with
+    # this domain's own name, and `Naming.split_verb` already folds the
+    # leftover `::` correctly, PR #520). See `Hecks::Bluebook::ModelCheck::
+    # ALLOWED_FINDINGS`'s own now-removed "quality_control" entry for the
+    # full trace.
+    it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
+      quality_control = File.join(ROOT_DIR, "qa/bluebook/quality_control.bluebook")
+      real_findings = call_model_check(boot(quality_control))
+
+      unknown_triggers = real_findings.select { |f| f.kind == :unknown_trigger }
+      expect(unknown_triggers.map(&:subject)).not_to include("FileWhenSubmitted", "AskOnceMore")
+    end
   end
 
   describe "relationship findings (Context Mapping)" do
