@@ -87,6 +87,21 @@ unless defined?(QualityControlDials)
     # N` overrides this for one run.
     ADVERSARIAL_FRACTION = 0.3
 
+    # WHETHER `bin/qa_sweep` ALSO RUNS THE SELF-CONSISTENCY PASS — cold
+    # rehydration, replay idempotency, value-object JSON round trip
+    # (`Hecks::Fuzzing::SelfConsistency`) — beside its own, older
+    # differential (Ruby vs compiled Rust) comparison, on the SAME
+    # generated sequence (adversarially mutated or not — the two layers
+    # compose for free: this pass reads whatever `history` the dispatch
+    # of THAT sequence produced, adversarial or plain, with no idea which
+    # it was). ON by default: this is a genuinely different comparison
+    # axis (one engine against ITSELF, not one engine against the other),
+    # not an experimental extra, so the practice's own default posture is
+    # to run it every sweep. `--self-consistency false` (or `true`)
+    # overrides this for one run the same way `--adversarial` overrides
+    # `ADVERSARIAL_FRACTION`.
+    SELF_CONSISTENCY_CHECKS = true
+
     # THE THREE DIALS BELOW ARE DIFFERENT FROM `CADENCE_SECONDS`/
     # `PR_CAP_PER_DAY` ABOVE IN ONE WAY WORTH FLAGGING (the same way
     # `ADVERSARIAL_FRACTION` just above already is): those two are read
