@@ -5,6 +5,36 @@
 # what "a known, understood boundary, not a bug" means — that judgment is
 # real, cited, and earned per case (see rust_conformance_spec.rb's own
 # extensive comments on each), and belongs in exactly one place.
+#
+# `@build_cache`'s own header (below) already explains why ONE process
+# building `--features X` then `--features Y` back to back is unsafe —
+# `bin/qa_sweep --all` (see that script's own header on why) is what made
+# a SECOND, worse version of the same problem real: several
+# `bin/qa_sweep <target>` invocations, each its OWN OS process with its
+# OWN empty `@build_cache`, now genuinely run `cargo build --features X`
+# and `cargo build --features Y` AT THE SAME TIME rather than back to
+# back. `cargo build` itself is safe under that — it holds its own lock
+# over `target/` and simply serializes the two real compiles — but this
+# method's OWN critical section is not: `system("cargo build", ...)`
+# always writes to the SAME shared `target/debug/rust` path no matter
+# which feature was requested, and only THIS method's own next two lines
+# (`FileUtils.cp` to the per-feature pinned path) rescue that shared
+# artifact before it can be overwritten again. Between one process's
+# `system` call returning and its own `FileUtils.cp` running, nothing
+# used to stop a SECOND process's `cargo build` for a DIFFERENT feature
+# from finishing first and overwriting `target/debug/rust` out from under
+# it — the first process would then pin the SECOND process's binary under
+# its OWN feature's name, and a differential fuzz run would silently diff
+# Ruby against the wrong domain's Rust, either crashing on shape mismatch
+# or — worse — looking clean by accident. `File.flock`, taken over the
+# whole build-then-pin section below and released before this method
+# returns, closes that window: two processes can still both run `cargo
+# build` freely (cargo's own lock already handles that), but only one at
+# a time is ever between "cargo finished" and "the right binary is
+# safely copied out" for this rust_dir — matching this repository's own
+# established answer to "two processes, one shared piece of state" (the
+# real Postgres advisory lock `PostgresEra#with_write_lock` takes for the
+# identical reason, `lib/hecks/runtime/interpreting.rb`'s own comment).
 require "fileutils"
 
 module RustConformanceHelpers
@@ -45,23 +75,47 @@ module RustConformanceHelpers
     cargo_toml = File.read(File.join(rust_dir, "Cargo.toml"))
     return cache[cache_key] = nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
 
-    built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
-                   chdir: rust_dir, out: File::NULL, err: File::NULL)
-    return cache[cache_key] = nil unless built
+    cache[cache_key] = build_and_pin(domain_feature, rust_dir)
+  end
 
-    binary = File.join(rust_dir, "target", "debug", "rust")
-    return cache[cache_key] = nil unless File.executable?(binary)
+  # THE CROSS-PROCESS CRITICAL SECTION — see the module header for the
+  # race this closes. Held across `cargo build` through the copy-out,
+  # not just the copy: only THAT stretch, start to finish, is what
+  # "safely rescue the shared `target/debug/rust` artifact before
+  # another process's own build can overwrite it" actually requires.
+  # `File::LOCK_EX` blocks the whole calling process until it gets the
+  # lock — a second process's `cargo build` for a DIFFERENT feature
+  # waits its turn rather than running concurrently with this one, which
+  # is exactly the trade `PostgresEra#with_write_lock` already makes for
+  # the identical reason (this module's header, and that method's own
+  # comment). One lock file per `rust_dir`, created if it does not exist
+  # yet — never removed, the same "leave the lock file on disk forever"
+  # convention `flock(2)` itself expects.
+  def build_and_pin(domain_feature, rust_dir)
+    lock_path = File.join(rust_dir, "target", ".build_rust_for.lock")
+    FileUtils.mkdir_p(File.dirname(lock_path))
 
-    # `cargo build` always writes to this SAME path regardless of which
-    # feature was requested — the next domain's build would silently
-    # overwrite it out from under a memoized path pointing here. Copy it
-    # out to a per-domain file immediately, before that can happen, so a
-    # cached entry stays valid (and pointing at the right domain's
-    # binary) for the rest of the process no matter what builds after it.
-    pinned = File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
-    FileUtils.cp(binary, pinned)
-    File.chmod(0o755, pinned)
-    cache[cache_key] = pinned
+    File.open(lock_path, File::CREAT | File::RDWR) do |lock|
+      lock.flock(File::LOCK_EX)
+
+      built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
+                     chdir: rust_dir, out: File::NULL, err: File::NULL)
+      next nil unless built
+
+      binary = File.join(rust_dir, "target", "debug", "rust")
+      next nil unless File.executable?(binary)
+
+      # `cargo build` always writes to this SAME path regardless of
+      # which feature was requested — copy it out to a per-domain file
+      # immediately, still inside the lock, so a concurrent process
+      # from a DIFFERENT OS-level invocation can never observe (or
+      # overwrite) this feature's binary mid-copy the way it could
+      # before the lock existed.
+      pinned = File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
+      FileUtils.cp(binary, pinned)
+      File.chmod(0o755, pinned)
+      pinned
+    end
   end
 
   # `corrects`'s own per-record flag fields (`emitted_<event>`, docs/

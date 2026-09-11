@@ -23,6 +23,8 @@
 #   bin/qa_sweep                     # least-recently-swept waiting target
 #   bin/qa_sweep banking              # a named target, by its own reference
 #   bin/qa_sweep pizzas --seeds 25    # more seeded sequences per sweep
+#   bin/qa_sweep --all                # every currently-waiting target, in parallel
+#   bin/qa_sweep --all --seeds 25     # same, more seeded sequences per target
 #
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
 #   0  clean — every generated sequence held, the sweep concluded and the
@@ -37,6 +39,51 @@
 #      logged (that step needs a human/agent judgment call, never this
 #      script's own guess), and nothing is concluded or released. Full
 #      reproduction details are on stdout, above the exit.
+#
+# `--all` — WHY A SECOND MODE OF THE SAME SCRIPT, NOT A SEPARATE ONE.
+# Sweeping the whole rotation used to mean dispatching one LLM subagent
+# per waiting target, each babysitting its own `bin/qa_sweep <target>`
+# run — real wall-clock cost (and real token cost) paid just to fan work
+# out that has no judgment in it at all on the clean path. `--all` makes
+# the routine case genuinely mechanical: query the rotation once, spawn
+# one REAL `bundle exec ruby bin/qa_sweep <target> --seeds N` OS process
+# per waiting target — the exact same single-target path this file
+# already has, run as a normal, independent invocation of THIS SAME
+# SCRIPT, not a copy of its logic — wait for all of them, and print one
+# consolidated report.
+#
+# A SPAWNED PROCESS, DELIBERATELY, NOT `Kernel#fork`. By the time `--all`
+# picks a target, this process has already called `Hecks.boot`, which
+# means it already holds a live Postgres connection (`QualityControl`'s
+# own ledger is `PostgresEra`-backed — see `qa/bluebook/quality_control.
+# hecksagon`). `fork`ing after that duplicates this process's own file
+# descriptors, the live socket included — the child inherits a copy of
+# the SAME connection and any write either process makes down it can
+# corrupt what the other reads. `Process.spawn` sidesteps this
+# entirely: each child execs a genuinely fresh `ruby`, which means a
+# fresh `Hecks.boot`, which means its OWN Postgres connection, opened
+# from scratch — exactly what an ordinary `bin/qa_sweep <target>` already
+# does today, run one more time.
+#
+# WHY THIS IS SAFE WITHOUT A SECOND LOCK OF ITS OWN. Every child names a
+# DIFFERENT target — this process enumerates the rotation exactly once,
+# up front, and never lets a child auto-pick (see `run_all_mode` below);
+# two children can never even attempt the same claim. What actually
+# guards against a collision — a child racing some OTHER concurrent
+# sweep (another `--all` run, a human's own manual `bin/qa_sweep
+# <target>`, a stale claim's window closing at just the wrong moment) —
+# is `QualityControl::Target.claim!`'s own `given` clause, dispatched
+# against a `PostgresEra`-bound aggregate: `run_dispatch_order_with_
+# isolation` (`lib/hecks/runtime/interpreting.rb`) takes a REAL Postgres
+# advisory lock (`with_write_lock`, ADR 0036) for the whole hydrate-
+# through-save of that dispatch, from EVERY process touching this ledger,
+# not just this script's own children. `--all` adds no concurrency
+# control of its own because none is needed — the ledger it dispatches
+# against already had to be safe for exactly this shape of access
+# (`rust/host` talking to the same tables from its own separate OS
+# process), and `spec/adapters/driven/postgres_era_concurrent_dispatch_
+# spec.rb` proves that mechanism directly, with real forked processes,
+# already.
 #
 # WHAT THIS REUSES RATHER THAN REINVENTS — see each file's own header:
 #   `Hecks::Fuzzing::SequenceGenerator` / `Hecks::Fuzzing::Replay` — the
@@ -81,11 +128,26 @@ require "hecks/ports/persistence/plugins/era"
 require "hecks/fuzzing"
 require "json"
 require "open3"
+require "tempfile"
 
 ROOT = File.expand_path("..", __dir__)
 require_relative "../spec/support/rust_conformance_helpers"
 
-DOMAIN_DIR         = File.join(ROOT, "qa/bluebook")
+# `QA_SWEEP_DOMAIN_DIR` — an escape hatch, not a feature. Every REAL
+# invocation of this script, single-target or `--all`, boots the one
+# true ledger at `qa/bluebook`; nothing here ever points anywhere else
+# on its own. The override exists ONLY so an isolated spec can stand up
+# its own throwaway `QualityControl`-shaped ledger (same `.bluebook`,
+# a fixture `.hecksagon`/`.world` pointing at a disposable Postgres
+# database) and drive REAL `bin/qa_sweep`/`bin/qa_sweep --all`
+# subprocesses against it — proving the actual claim/spawn/aggregate
+# mechanics this file implements, not a stand-in for them, without
+# leaving the practice's own live rotation different after every CI run
+# (`spec/quality_control_spec.rb`'s own header explains why that would be
+# unacceptable). `--all` spawns children with `Process.spawn`'s default
+# environment inheritance, so setting this once in a parent process's own
+# `ENV` reaches every child it spawns for free.
+DOMAIN_DIR         = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
 RUST_DIR           = File.join(ROOT, "rust")
 ENGINEER           = "qa_sweep".freeze
 STEPS_PER_SEQUENCE = 25
@@ -95,7 +157,8 @@ EXIT_OK = 0
 EXIT_ERROR           = 1
 EXIT_FOUND_SOMETHING = 2
 
-USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N]".freeze
+USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N]\n       " \
+        "bin/qa_sweep --all [--seeds N]".freeze
 
 # A THIN WRAPPER, NOT A REWRITE — `RustConformanceHelpers` is a plain
 # module of instance methods meant to be `include`d into an RSpec example
@@ -111,6 +174,7 @@ end
 
 target_ref = nil
 seeds = 10
+all_mode = false
 
 until ARGV.empty?
   arg = ARGV.shift
@@ -118,6 +182,8 @@ until ARGV.empty?
   when "-h", "--help"
     puts USAGE
     exit EXIT_OK
+  when "--all"
+    all_mode = true
   when "--seeds"
     value = ARGV.shift
     abort "#{USAGE}\n--seeds needs a number" unless value
@@ -136,6 +202,11 @@ end
 
 abort "#{USAGE}\n--seeds must be at least 1 — Sweep.Conclude refuses a sweep that checked nothing" if seeds < 1
 
+if all_mode && target_ref
+  abort "#{USAGE}\n--all sweeps every waiting target itself — it does not take a target-reference " \
+        "(got #{target_ref.inspect})"
+end
+
 # ── boot the ledger for real ───────────────────────────────────────────
 #
 # `Hecks.boot` with `install_facade` at its default (true) — exactly what
@@ -152,6 +223,142 @@ rescue StandardError => e
 end
 
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
+
+# ── --all: every waiting target, genuinely in parallel ────────────────
+#
+# See this file's own top-of-file comment ("`--all` — WHY A SECOND MODE
+# OF THE SAME SCRIPT...") for the full design rationale. The four
+# methods below are just its mechanics, kept separate from each other
+# the same way the rest of this file already separates "run one seed"
+# from "log it" from "report it": each stays small enough to read in one
+# piece, and each is exactly what a spec exercises to prove its own one
+# claim (real parallelism, no interleaved output, correct precedence).
+
+# One REAL child process per target — an ordinary `bin/qa_sweep
+# <target> --seeds N`, run through `bundle exec` exactly the way a human
+# would type it by hand, with its combined stdout/stderr landing in a
+# private, already-unlinked temp file rather than this process's own.
+# `Process.spawn` returns immediately; nothing here blocks on the child,
+# which is what lets the caller spawn every target before waiting on
+# any of them (see `run_all_mode` below).
+def spawn_sweep_child(target_reference, seeds)
+  # Unlinked the instant it's open: the fd stays good for this
+  # process's own later `rewind`/`read` (ordinary POSIX "delete while
+  # open" semantics), but nothing survives on disk if this process
+  # itself dies before ever reading it back — no cleanup step to
+  # forget, and no fixed path a second concurrent `--all` run could
+  # collide on.
+  log = Tempfile.new(["qa_sweep-#{target_reference}-", ".log"])
+  log.unlink
+
+  pid = Process.spawn(
+    "bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), target_reference, "--seeds", seeds.to_s,
+    out: log, err: log, chdir: ROOT
+  )
+
+  { target: target_reference, pid: pid, log: log }
+end
+
+# Blocks until THIS ONE child exits, then reads back everything it ever
+# wrote. Called once per spawned child, in `run_all_mode`'s own
+# `results = children.map { ... }` — by the time the FIRST call here
+# actually blocks, every other child is already an independent,
+# already-running OS process (see `spawn_sweep_child` above), which is
+# what makes the whole pass take roughly as long as the SLOWEST target
+# rather than the sum of all of them.
+def collect_sweep_child(child)
+  _pid, status = Process.waitpid2(child[:pid])
+  child[:log].rewind
+  output = child[:log].read
+  child[:log].close
+
+  { target: child[:target], exit_status: status.exitstatus, termsig: status.termsig, output: output }
+end
+
+# ONE REPORT, never an interleaved one — every child's own output was
+# captured into its OWN file the whole time (see `spawn_sweep_child`),
+# so nothing here is racing anything else's `puts`; this just decides
+# what order to print already-complete strings in. A clean target gets
+# one line; an operational error gets its real message (short, but
+# still the actual problem, not a summary of it); a genuine finding
+# gets its FULL structured report, byte for byte — chapter, seed,
+# reproduction steps, subject/expectation/observation, the divergence
+# detail — because a human or a follow-up subagent has to act on
+# exactly that, and a summary would be the one thing standing between
+# them and doing so correctly.
+def print_all_mode_report(results, elapsed, clean, found, errored)
+  puts "=" * 72
+  puts "CONSOLIDATED REPORT — #{results.size} target(s) swept, #{elapsed.round(1)}s wall-clock " \
+       "(genuinely parallel — not the sum of every target's own sweep time)"
+  puts "=" * 72
+  puts
+  puts "clean (#{clean.size}): #{clean.empty? ? 'none' : clean.map { |r| r[:target] }.join(', ')}"
+
+  unless errored.empty?
+    puts
+    puts "OPERATIONAL ERRORS (#{errored.size}) — read each message, fix the actual problem, don't retry blind:"
+    errored.each do |r|
+      label = r[:exit_status] ? "exit #{r[:exit_status]}" : "killed by signal #{r[:termsig]}"
+      puts
+      puts "-- #{r[:target]} (#{label}) --"
+      puts r[:output].strip
+    end
+  end
+
+  return if found.empty?
+
+  puts
+  puts "FOUND SOMETHING (#{found.size}) — full report per target below; act on every one:"
+  found.each do |r|
+    puts
+    puts "#" * 72
+    puts "# #{r[:target]}"
+    puts "#" * 72
+    puts r[:output]
+  end
+end
+
+# THE PRECEDENCE — a genuine finding always outranks an operational
+# hiccup elsewhere: exit 2 the moment ANY child found something, no
+# matter how many OTHER children also errored; exit 1 only when nothing
+# was found but at least one child hit an operational problem; exit 0
+# only when every single child came back clean. This is the same order
+# a human skimming the report above would want acted on first — a real
+# Ruby/Rust divergence is the whole reason this practice exists, an
+# operational hiccup ("the ledger wouldn't boot", "the claim was
+# already stale") is "go look, then maybe retry" work, one rung down.
+def all_mode_exit_code(found, errored)
+  return EXIT_FOUND_SOMETHING unless found.empty?
+  return EXIT_ERROR unless errored.empty?
+
+  EXIT_OK
+end
+
+def run_all_mode(runtime, seeds)
+  waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
+
+  if waiting.empty?
+    puts "rotation is empty — nothing waiting to sweep. Clean no-op."
+    exit EXIT_OK
+  end
+
+  puts "sweeping #{waiting.size} waiting target(s) in parallel: #{waiting.join(', ')}"
+  puts
+
+  started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  children   = waiting.map { |target_reference| spawn_sweep_child(target_reference, seeds) }
+  results    = children.map { |child| collect_sweep_child(child) }
+  elapsed    = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+
+  clean   = results.select { |r| r[:exit_status] == EXIT_OK }
+  found   = results.select { |r| r[:exit_status] == EXIT_FOUND_SOMETHING }
+  errored = results.reject { |r| [EXIT_OK, EXIT_FOUND_SOMETHING].include?(r[:exit_status]) }
+
+  print_all_mode_report(results, elapsed, clean, found, errored)
+  exit all_mode_exit_code(found, errored)
+end
+
+run_all_mode(runtime, seeds) if all_mode
 
 # ── pick a target ───────────────────────────────────────────────────
 
