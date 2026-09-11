@@ -155,9 +155,31 @@ pub fn required_composite_argument_expr(struct_name: &str, key: &str, attr: &Jso
 /// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
 /// allowlist — declared attributes plus every OTHER name a caller is
 /// legitimately allowed to address a command by or smuggle a saga's
-/// correlation through. Only ever passed for an AGGREGATE-level command's
-/// own `from_json` — entity commands run no such check at all.
-pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_managers: &[Json]) -> Vec<String> {
+/// correlation through. Originally documented as "only ever passed for
+/// an AGGREGATE-level command's own `from_json` — entity commands run no
+/// such check at all", quoting `EntityInterpreter::DISPATCH_ORDER`'s
+/// PRE-H1 shape. That premise went stale the moment H1
+/// (docs/audits/2026-08-10-main-bug-audit.md) gave
+/// `EntityInterpreter::DISPATCH_ORDER` its own `refuse_unknown_arguments`/
+/// `refuse_absent_arguments` steps, "same position `AggregateDispatchOrder`
+/// holds them at" (entity_interpreter.rb's own comment on that fix) —
+/// this generator was never updated to match, so an entity command's own
+/// generated `from_json` kept building every declared field, invariant
+/// checks included, straight through an undeclared key it should have
+/// refused first (BUG#8: `Chess::Game.Piece.Move` — an extra `colour` key
+/// sailed past a missing check here, and coercing `destination` next
+/// raised `InvariantViolation` where Ruby's real `refuse_unknown_
+/// arguments` step, now running BEFORE any field is ever built, already
+/// refuses `UnknownArgument`).
+///
+/// `extra_identity_heads` — `ArgumentGate#refuse_unknown_arguments`'s own
+/// `extra_identity_heads:` (argument_gate.rb), the SAME reason that kwarg
+/// exists there: an entity dispatch addresses not just the root aggregate
+/// but the entity itself, and `element_of` (entity_element.rb) reads the
+/// entity's own identity head straight out of `args`, never as a
+/// declared command fact. `&[]` for a plain aggregate command's own call
+/// site, which has no entity to add.
+pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_managers: &[Json], extra_identity_heads: &[String]) -> Vec<String> {
     let references = command.get("references").map(Json::to_s).unwrap_or_default();
     let reference_key = if references.is_empty() { None } else { Some(crate::hecks_naming::reference_key(&references)) };
 
@@ -171,6 +193,7 @@ pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_mana
         out.push(rk);
     }
     out.extend(identity_heads);
+    out.extend(extra_identity_heads.iter().cloned());
     out.extend(correlation_keys);
     let mut seen = Vec::new();
     out.retain(|k| {

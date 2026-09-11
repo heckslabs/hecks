@@ -864,6 +864,7 @@ pub fn emit_entity_command(
     domain_name: &str,
     value_objects_by_name: &HashMap<String, &Json>,
     aggregates_by_name: &HashMap<String, &Json>,
+    process_managers: &[Json],
 ) -> String {
     let parent_record = naming::rust_ident(parent_aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let element_record = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
@@ -978,7 +979,26 @@ pub fn emit_entity_command(
         crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
         crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
-        crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, Some(&qualified_command_name), true, true, Some(aggregates_by_name)),
+        {
+            // `unknown_argument_allowlist:` — BUG#8's own fix: an entity
+            // command's args struct used to build every declared field
+            // straight through, unknown-key check skipped entirely (see
+            // `json_codec::command_argument_allowlist`'s own doc comment
+            // for the stale-premise history). Computed the SAME way an
+            // aggregate command's own call site does
+            // (domain_generator.rs), plus the entity's own identity head
+            // — `ArgumentGate#refuse_unknown_arguments`'s
+            // `extra_identity_heads:` on the Ruby runtime side.
+            let entity_identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &entity_identity_heads);
+            crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
+        },
         entity_dispatch_fn,
     ]
     .join("\n\n")

@@ -810,6 +810,13 @@ impl MemberRetireEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberRetireEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes id",
+        unknown.join(", ")
+    )));
+}
         let id = match v.get("id") { Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(MemberId::from_json(&x.coerce_single_field("value"))?) };
         if let Some(v) = &id { v.check_invariants()?; }
         Ok(Self {

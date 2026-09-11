@@ -332,7 +332,8 @@ module RustProjection
                 next
               end
 
-              f.puts Projector.emit_entity_command(command, entity, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
+              f.puts Projector.emit_entity_command(command, entity, aggregate, domain_name, value_objects_by_name, aggregates_by_name,
+                                                   process_managers: ir[:process_managers])
               f.puts
 
               # THE ROUTABILITY SPLIT — this command's own Rust function

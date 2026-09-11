@@ -979,6 +979,13 @@ impl KeywordDeprecateEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordDeprecateEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Deprecate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -1072,6 +1079,13 @@ impl KeywordRetireEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordRetireEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
 }
         Ok(Self {
 
@@ -1310,6 +1324,13 @@ impl ArgumentDeprecateEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentDeprecateEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Deprecate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
 
         })
@@ -1403,6 +1424,13 @@ impl ArgumentRetireEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentRetireEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
 }
         Ok(Self {
 

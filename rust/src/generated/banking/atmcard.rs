@@ -591,6 +591,13 @@ impl WithdrawalDisputeEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("WithdrawalDisputeEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["narrative", "id", "serial", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Dispute does not declare {} — it takes narrative",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[

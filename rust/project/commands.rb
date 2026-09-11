@@ -842,7 +842,8 @@ module RustProjection
     # `parent_id` and the entity's own address as separate caller-supplied
     # strings, mirroring `EntityInterpreter#parent`/`#element_of`'s two
     # separate lookups.
-    def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name)
+    def emit_entity_command(command, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name,
+                            process_managers: [])
       parent_record  = rust_ident(parent_aggregate[:name])
       element_record = rust_ident(entity[:name])
       cmd = rust_ident(command[:name])
@@ -941,7 +942,19 @@ module RustProjection
         # deliberately left unwired to avoid diverging from
         # `hecks-codegen`'s own separate reimplementation.
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
+        # `unknown_argument_allowlist:` — BUG#8's own fix: an entity
+        # command's args struct used to build every declared field
+        # straight through, unknown-key check skipped entirely (see
+        # `command_argument_allowlist`'s own comment, json_codec.rb, for
+        # the stale-premise history). Computed the SAME way an aggregate
+        # command's own call site does (domain_generator.rb), plus the
+        # entity's own identity head — `ArgumentGate#refuse_unknown_
+        # arguments`'s `extra_identity_heads:` on the Ruby runtime side.
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
+                            unknown_argument_allowlist: command_argument_allowlist(
+                              parent_aggregate, command, process_managers,
+                              extra_identity_heads: entity[:identified_by].map { |path| path.split(".").first }
+                            ),
                             command_name: command[:name].to_s, absent_argument_check: true,
                             interleave_checks: true, aggregates_by_name: aggregates_by_name),
         entity_dispatch_fn,
