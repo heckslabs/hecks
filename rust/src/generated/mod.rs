@@ -19,7 +19,7 @@ pub mod waybill;
 // no matter which domain that resolves to.
 //
 // DOMAIN FEATURES ARE MUTUALLY EXCLUSIVE (R5) — Cargo has no native
-// concept of that, and `default = ["nested_pieces"]` in
+// concept of that, and `default = ["roster"]` in
 // Cargo.toml stays enabled unless a build passes
 // `--no-default-features`, so a plain `cargo build --features banking`
 // used to enable BOTH the default domain's feature and banking's,
@@ -49,11 +49,11 @@ pub use embryonaut::merged as active;
 pub use ledger_ordering::merged as active;
 #[cfg(feature = "meta")]
 pub use meta::merged as active;
-#[cfg(all(feature = "nested_pieces", not(any(feature = "banking", feature = "chess", feature = "compliance", feature = "embryonaut", feature = "ledger_ordering", feature = "meta", feature = "pizzas", feature = "roster", feature = "waybill"))))]
+#[cfg(feature = "nested_pieces")]
 pub use nested_pieces::merged as active;
 #[cfg(feature = "pizzas")]
 pub use pizzas::merged as active;
-#[cfg(feature = "roster")]
+#[cfg(all(feature = "roster", not(any(feature = "banking", feature = "chess", feature = "compliance", feature = "embryonaut", feature = "ledger_ordering", feature = "meta", feature = "nested_pieces", feature = "pizzas", feature = "waybill"))))]
 pub use roster::merged as active;
 #[cfg(feature = "waybill")]
 pub use waybill::merged as active;
@@ -72,10 +72,10 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and ledger_ordering are enabled)");
 #[cfg(all(feature = "banking", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and meta are enabled)");
+#[cfg(all(feature = "banking", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and nested_pieces are enabled)");
 #[cfg(all(feature = "banking", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and pizzas are enabled)");
-#[cfg(all(feature = "banking", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and roster are enabled)");
 #[cfg(all(feature = "banking", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both banking and waybill are enabled)");
 #[cfg(all(feature = "chess", feature = "compliance"))]
@@ -86,10 +86,10 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and ledger_ordering are enabled)");
 #[cfg(all(feature = "chess", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and meta are enabled)");
+#[cfg(all(feature = "chess", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and nested_pieces are enabled)");
 #[cfg(all(feature = "chess", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and pizzas are enabled)");
-#[cfg(all(feature = "chess", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and roster are enabled)");
 #[cfg(all(feature = "chess", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both chess and waybill are enabled)");
 #[cfg(all(feature = "compliance", feature = "embryonaut"))]
@@ -98,39 +98,39 @@ compile_error!("domain features are mutually exclusive — enable only one of: b
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and ledger_ordering are enabled)");
 #[cfg(all(feature = "compliance", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and meta are enabled)");
+#[cfg(all(feature = "compliance", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and nested_pieces are enabled)");
 #[cfg(all(feature = "compliance", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and pizzas are enabled)");
-#[cfg(all(feature = "compliance", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and roster are enabled)");
 #[cfg(all(feature = "compliance", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both compliance and waybill are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "ledger_ordering"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and ledger_ordering are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and meta are enabled)");
+#[cfg(all(feature = "embryonaut", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and nested_pieces are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and pizzas are enabled)");
-#[cfg(all(feature = "embryonaut", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and roster are enabled)");
 #[cfg(all(feature = "embryonaut", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both embryonaut and waybill are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "meta"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both ledger_ordering and meta are enabled)");
+#[cfg(all(feature = "ledger_ordering", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both ledger_ordering and nested_pieces are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both ledger_ordering and pizzas are enabled)");
-#[cfg(all(feature = "ledger_ordering", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both ledger_ordering and roster are enabled)");
 #[cfg(all(feature = "ledger_ordering", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both ledger_ordering and waybill are enabled)");
+#[cfg(all(feature = "meta", feature = "nested_pieces"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both meta and nested_pieces are enabled)");
 #[cfg(all(feature = "meta", feature = "pizzas"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both meta and pizzas are enabled)");
-#[cfg(all(feature = "meta", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both meta and roster are enabled)");
 #[cfg(all(feature = "meta", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both meta and waybill are enabled)");
-#[cfg(all(feature = "pizzas", feature = "roster"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both pizzas and roster are enabled)");
+#[cfg(all(feature = "nested_pieces", feature = "pizzas"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both nested_pieces and pizzas are enabled)");
+#[cfg(all(feature = "nested_pieces", feature = "waybill"))]
+compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both nested_pieces and waybill are enabled)");
 #[cfg(all(feature = "pizzas", feature = "waybill"))]
 compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both pizzas and waybill are enabled)");
-#[cfg(all(feature = "roster", feature = "waybill"))]
-compile_error!("domain features are mutually exclusive — enable only one of: banking, chess, compliance, embryonaut, ledger_ordering, meta, nested_pieces, pizzas, roster, waybill (both roster and waybill are enabled)");
