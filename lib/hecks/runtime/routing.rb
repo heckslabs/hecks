@@ -142,10 +142,31 @@ module Hecks
       end
       private_class_method :refuse_absent_facts!
 
+      # BUG#18 — an entity route naming NO entity at all (`entities: []`,
+      # or neither `entity:` nor `entities:` present) used to come back
+      # `[]` here unremarked, which only ever refused downstream for an
+      # ENTITY command (`envelope`'s own `entities.size != entity_depth`
+      # check, entity_depth >= 1) — for an AGGREGATE-level command
+      # (entity_depth 0), `[].size == 0` trivially satisfied that check,
+      # so the degenerate Hash `{aggregate:, entities: []}` reached the
+      # command's own validation instead of being refused as malformed
+      # routing. Rust's `RoutingEnvelope::from_json` never let it get
+      # that far: the Hash branch refuses "entity route requires at
+      # least one entity identity" unconditionally, before any
+      # entity_depth is known. Refusing it here too, at the same point,
+      # closes the gap without touching the scalar branch (a bare
+      # aggregate identity, no Hash at all) that every ordinary aggregate
+      # dispatch already uses instead of this shape (`Facade::Handle#
+      # dispatch`'s own `to: @id`, `CommandRequest`'s own header —
+      # "aggregate command: { to: "record-id", ... }" — and, now,
+      # `Judge#address`).
       def entity_identities(hash)
         raise TypeMismatch, "to: takes entity: or entities:, not both" if hash.key?(:entities) && hash.key?(:entity)
 
-        hash.key?(:entities) ? Array(hash[:entities]) : Array(hash[:entity])
+        identities = hash.key?(:entities) ? Array(hash[:entities]) : Array(hash[:entity])
+        raise TypeMismatch, "to: entity route requires at least one entity identity" if identities.empty?
+
+        identities
       end
       private_class_method :entity_identities
     end
