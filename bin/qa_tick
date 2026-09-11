@@ -1,0 +1,153 @@
+#!/usr/bin/env ruby
+
+# ONE TICK OF THE PRACTICE, MECHANICAL END TO END — the thing `/loop
+# hecks_qa` dispatches, and the only thing it dispatches on a clean tick.
+#
+# `.claude/skills/hecks_qa/SKILL.md` used to say, in three separate
+# places and in capitals, that `bin/qa_pr_check` runs FIRST, every tick,
+# no exceptions, before `bin/qa_sweep --all` — a rule an agent was asked
+# to remember, which is exactly the kind of rule that gets skipped the
+# one time it matters. Nobody reads tick history to decide anything, and
+# "the order two scripts run in" is a fact only the PROCESS that runs
+# both can enforce — so there is no `Tick` aggregate in the ledger (a
+# record cannot make a script run before another), just this script,
+# which cannot be run in the wrong order because it IS the order.
+#
+#   bin/qa_tick
+#
+# WHAT ONE TICK IS, IN ORDER:
+#   1. REFUSE unless the working tree is clean (`git status
+#      --porcelain` empty). A tick that rebased over uncommitted work
+#      would be the quiet divergence this practice hunts, in its own
+#      runner; the persistent worktree is expected to be left clean by
+#      the previous tick's own follow-ups.
+#   2. `git fetch origin && git rebase origin/main` — every tick starts
+#      from current main (`bin/qa_sweep` itself may have changed, and a
+#      prior tick's PR may have merged). A rebase that stops is aborted
+#      and reported, never left half-done.
+#   3. `bin/qa_pr_check` — the CI watch over every PR the ledger tracks
+#      as open, ALWAYS before a fresh sweep (that script's own header
+#      explains the gap it closes).
+#   4. `bin/qa_sweep --all` — the whole rotation, bounded and with stale
+#      holds reclaimed (that script's own header).
+#   5. One consolidated report, and ONE exit code with `bin/qa_sweep
+#      --all`'s own precedence applied across BOTH steps:
+#        2  either step found something (a newly-red PR, or a target
+#           that surprised) — an agent's judgment is needed, and the
+#           report above says exactly where;
+#        1  neither found anything but at least one step hit an
+#           operational error (including this script's own refusals);
+#        0  both clean.
+#      The report also counts `reclaimed stale hold:` lines from the
+#      sweep — a target that has to be reclaimed EVERY tick is a sweep
+#      whose release keeps failing to land, and that pattern is only
+#      visible across ticks if each tick says the number out loud.
+#
+# `QA_REPO_DIR` — which checkout steps 1–2 run in; defaults to this
+# repository's own root (the runner's persistent worktree is a checkout
+# of it). `QA_SWEEP_DOMAIN_DIR` is inherited by steps 3–4 the way
+# `bin/qa_sweep --all`'s own children already inherit it — one setting,
+# the whole tree. Both exist so `spec/qa_tick_spec.rb` can drive a REAL
+# run of this script against a throwaway repo and a disposable ledger.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: any judgment. It never logs a bug,
+# never releases a suspended target, never opens a PR — `bin/qa_log_bug`,
+# `bin/qa_sweep --release`, `bin/qa_open_pr` are those doors, and each
+# is a decision a person or an agent makes after reading this report.
+
+require "open3"
+
+ROOT     = File.expand_path("..", __dir__)
+REPO_DIR = ENV.fetch("QA_REPO_DIR", ROOT)
+
+EXIT_OK              = 0
+EXIT_ERROR           = 1
+EXIT_FOUND_SOMETHING = 2
+
+USAGE = "usage: bin/qa_tick".freeze
+
+unless ARGV.empty?
+  if %w[-h --help].include?(ARGV.first)
+    puts USAGE
+    exit EXIT_OK
+  end
+  abort "#{USAGE}\nthis script takes no arguments — one tick is always the same tick"
+end
+
+def git(*)
+  out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
+  [out.strip, err.strip, status]
+end
+
+def banner(title)
+  puts
+  puts "── #{title} " + ("─" * [0, 70 - title.size].max)
+  puts
+end
+
+# ── 1. a clean tree, or nothing ────────────────────────────────────────
+
+banner "worktree (#{REPO_DIR})"
+dirty, err, status = git("status", "--porcelain")
+abort "refused: could not read git status at #{REPO_DIR} — #{err}" unless status.success?
+unless dirty.empty?
+  abort "refused: the working tree is dirty — a tick starts from a clean checkout, never over uncommitted work:\n#{dirty}"
+end
+puts "clean"
+
+# ── 2. current main ────────────────────────────────────────────────────
+
+banner "git fetch origin && git rebase origin/main"
+out, err, status = git("fetch", "origin")
+abort "refused: git fetch origin failed — #{err.empty? ? out : err}" unless status.success?
+out, err, status = git("rebase", "origin/main")
+unless status.success?
+  git("rebase", "--abort")
+  abort "refused: git rebase origin/main stopped (aborted, tree restored) — #{err.empty? ? out : err}"
+end
+head, = git("rev-parse", "--short", "HEAD")
+puts "at #{head}"
+
+# ── 3 and 4. the two scripts, in this order, always ───────────────────
+
+def run_step(*command)
+  output, status = Open3.capture2e(*command, chdir: ROOT)
+  puts output
+  status.exitstatus
+end
+
+banner "bin/qa_pr_check"
+pr_check_exit = run_step("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_pr_check"))
+
+banner "bin/qa_sweep --all"
+sweep_output, sweep_status = Open3.capture2e("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_sweep"), "--all",
+                                             chdir: ROOT)
+puts sweep_output
+sweep_exit = sweep_status.exitstatus
+reclaimed  = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
+
+# ── 5. one report, one exit code ───────────────────────────────────────
+
+def verdict(code)
+  case code
+  when EXIT_OK then "clean"
+  when EXIT_FOUND_SOMETHING then "FOUND SOMETHING"
+  when EXIT_ERROR then "operational error"
+  else "exit #{code.inspect}"
+  end
+end
+
+banner "tick report"
+puts "bin/qa_pr_check:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
+puts "bin/qa_sweep --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
+named = reclaimed.empty? ? "" : " (#{reclaimed.join(', ')})"
+puts "stale holds reclaimed: #{reclaimed.size}#{named}"
+
+exits = [pr_check_exit, sweep_exit]
+tick_exit =
+  if exits.include?(EXIT_FOUND_SOMETHING) then EXIT_FOUND_SOMETHING
+  elsif exits.all?(EXIT_OK) then EXIT_OK
+  else EXIT_ERROR
+  end
+puts "tick: #{verdict(tick_exit)} (exit #{tick_exit})"
+exit tick_exit

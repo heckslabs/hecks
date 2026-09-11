@@ -1,0 +1,263 @@
+#!/usr/bin/env ruby
+
+# OPEN A PR AND WRITE IT DOWN, IN ONE BREATH — THE ONLY DOOR INTO
+# `QualityControl::Patch.Open` / `Improvement.Open`.
+#
+# THE GAP THIS CLOSES. `.claude/skills/hecks_qa/SKILL.md` used to ask a
+# sweep subagent to open a PR, run `gh pr view --json number,url,
+# headRefName,headRefOid,title`, put those five facts in its report, and
+# then ask the ORCHESTRATOR to copy them into `patch.open` by hand once
+# the report came back — fifty lines of prose about a fact that is true
+# the instant `gh pr create` returns. Copying it later meant a retried
+# report could record a PR twice and a dropped one never; and the daily
+# cap (`QualityControlDials::PR_CAP_PER_DAY`) was a grep an agent was
+# asked to remember to run. This script is that whole paragraph, run
+# once, mechanically: every refusal below is a rule that used to be a
+# sentence.
+#
+#   bin/qa_open_pr --bug BUG#n --title "…" [--body "…"]
+#   bin/qa_open_pr --improvement [--angle ANGLE-n] --title "…" [--body "…"]
+#
+# REFUSALS (exit 1, nothing opened, nothing recorded):
+#   - the current branch does not start with `QualityControlDials::
+#     BRANCH_PREFIX` (the old `loop-parity/` convention was never
+#     enforced and drifted — `Patch`'s own header, #534);
+#   - the working tree is dirty (a PR opened from an unpushed tree is a
+#     PR at the wrong commit);
+#   - `PR_CAP_PER_DAY` is positive and `Patch.OpenedSince` +
+#     `Improvement.OpenedSince` from LOCAL MIDNIGHT already meets it
+#     (`0` = uncapped; a row whose `opened_at` is 0 — recorded before
+#     the field existed — never counts);
+#   - `--bug`: the bug is not `fixed`, or `Bug.commit` is not an ancestor
+#     of HEAD (`git merge-base --is-ancestor`) — the PR must actually
+#     carry the commit the ledger says fixes it;
+#   - `--improvement --angle`: the angle is not `investigating`.
+#
+# THEN, IN ORDER: `gh pr create` (`--draft` iff `DRAFT_ONLY`); `gh pr
+# view --json …` to read the five facts straight back; `patch.open` (or
+# `improvement.open` + `improvement.land`, so `ImprovementCiWatch` starts
+# before this script exits) with an explicit `now`; and `gh pr merge
+# --auto --squash` iff `AUTO_MERGE`. IDEMPOTENT: if the branch already
+# has an open PR, it is not re-created, and a number the ledger already
+# holds is not re-recorded — running this twice is safe.
+#
+# `QA_REPO_DIR` — which checkout `git` runs in; defaults to this
+# repository's own root. An escape hatch in the `QA_SWEEP_DOMAIN_DIR`
+# spirit, so a spec can point a REAL run of this script at a throwaway
+# repo (with a fake `gh` on PATH) rather than at the branch it is itself
+# being developed on.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+# ADR 0033 — see bin/run's own identical require.
+require "hecks/ports/persistence/plugins/era"
+require "json"
+require "open3"
+
+ROOT       = File.expand_path("..", __dir__)
+DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
+REPO_DIR   = ENV.fetch("QA_REPO_DIR", ROOT)
+
+EXIT_OK      = 0
+EXIT_REFUSED = 1
+
+USAGE = "usage: bin/qa_open_pr --bug BUG#n --title \"…\" [--body \"…\"]\n       " \
+        "bin/qa_open_pr --improvement [--angle ANGLE-n] --title \"…\" [--body \"…\"]".freeze
+
+SHA_PATTERN = /\A[0-9a-fA-F]{7,40}\z/
+
+options = {}
+until ARGV.empty?
+  arg = ARGV.shift
+  case arg
+  when "-h", "--help"
+    puts USAGE
+    exit EXIT_OK
+  when "--improvement"
+    options[:improvement] = true
+  when "--bug", "--angle", "--title", "--body"
+    value = ARGV.shift
+    abort "#{USAGE}\n#{arg} needs a value" if value.nil? || value.empty?
+    options[arg.delete_prefix("--").to_sym] = value
+  else
+    abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
+  end
+end
+
+abort "#{USAGE}\n--title is required" unless options[:title]
+abort "#{USAGE}\ngive --bug BUG#n OR --improvement, not both" if options[:bug] && options[:improvement]
+abort "#{USAGE}\ngive --bug BUG#n or --improvement" unless options.key?(:bug) || options.key?(:improvement)
+abort "#{USAGE}\n--angle only means something with --improvement" if options[:angle] && !options[:improvement]
+
+# ── git and gh, never guessing at their exit codes ─────────────────────
+
+def git(*)
+  out, err, status = Open3.capture3("git", *, chdir: REPO_DIR)
+  [out.strip, err.strip, status]
+end
+
+def gh(*)
+  out, err, status = Open3.capture3("gh", *, chdir: REPO_DIR)
+  [out.strip, err.strip, status]
+end
+
+branch, _err, status = git("rev-parse", "--abbrev-ref", "HEAD")
+abort "refused: not a git checkout at #{REPO_DIR}" unless status.success?
+
+dirty, _err, status = git("status", "--porcelain")
+abort "refused: could not read git status at #{REPO_DIR}" unless status.success?
+abort "refused: the working tree at #{REPO_DIR} is dirty — commit or discard first:\n#{dirty}" unless dirty.empty?
+
+head, _err, = git("rev-parse", "HEAD")
+
+# ── boot the ledger for real ───────────────────────────────────────────
+
+runtime = begin
+  Hecks.boot(DOMAIN_DIR)
+rescue StandardError => e
+  abort "the QualityControl ledger did not boot — fix the ledger itself before opening a PR against it " \
+        "(#{e.class}: #{e.message})"
+end
+
+def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
+
+# THE DIALS, read once the boot above has loaded the bluebook that
+# defines them — with the same fallbacks a dial-less fixture ledger
+# gets everywhere else: uncapped, non-draft, no auto-merge, `qa/`.
+def dial(name, fallback)
+  return fallback unless defined?(QualityControlDials) && QualityControlDials.const_defined?(name)
+
+  QualityControlDials.const_get(name)
+end
+
+PR_CAP_PER_DAY = dial(:PR_CAP_PER_DAY, 0)
+DRAFT_ONLY     = dial(:DRAFT_ONLY, false)
+AUTO_MERGE     = dial(:AUTO_MERGE, false)
+BRANCH_PREFIX  = dial(:BRANCH_PREFIX, "qa/")
+
+unless branch.start_with?(BRANCH_PREFIX)
+  abort "refused: branch #{branch.inspect} does not start with QualityControlDials::BRANCH_PREFIX " \
+        "(#{BRANCH_PREFIX.inspect}) — a PR this practice opens is on a branch it can recognise as its own"
+end
+
+# ── the cap, counted from the ledger ───────────────────────────────────
+
+if PR_CAP_PER_DAY.positive?
+  today = Time.now
+  midnight = Time.new(today.year, today.month, today.day).to_i
+  opened_today = q(runtime, "Patch.OpenedSince", since: { value: midnight }).size +
+                 q(runtime, "Improvement.OpenedSince", since: { value: midnight }).size
+  if opened_today >= PR_CAP_PER_DAY
+    abort "refused: #{opened_today} PR(s) already opened since local midnight, and QualityControlDials::" \
+          "PR_CAP_PER_DAY is #{PR_CAP_PER_DAY} — leave this as an open Bug/Angle and open it tomorrow, or " \
+          "raise the dial in qa/bluebook/quality_control.bluebook"
+  end
+end
+
+# ── the record this PR is for ──────────────────────────────────────────
+
+bug = angle = nil
+
+if options[:bug]
+  bug = QualityControl::Bug.find(options[:bug])
+  abort "refused: no such bug #{options[:bug].inspect}" unless bug
+  unless bug.status == "fixed"
+    abort "refused: #{bug.id} is #{bug.status.inspect}, not \"fixed\" — dispatch investigate/fix first " \
+          "(bin/run qa/bluebook fix id=#{bug.id} reference.value=#{bug.id} commit.value=<sha>)"
+  end
+  commit = bug.commit.to_h[:value].to_s
+  abort "refused: #{bug.id} carries no commit" unless commit.match?(SHA_PATTERN)
+  _out, _err, ancestor = git("merge-base", "--is-ancestor", commit, "HEAD")
+  unless ancestor.success?
+    abort "refused: #{bug.id}'s own fix commit #{commit[0, 7]} is not an ancestor of HEAD (#{head[0, 7]}) on " \
+          "#{branch} — the PR must carry the commit the ledger says fixes it"
+  end
+end
+
+if options[:angle]
+  angle = QualityControl::Angle.find(options[:angle])
+  abort "refused: no such angle #{options[:angle].inspect}" unless angle
+  unless angle.status == "investigating"
+    abort "refused: #{angle.id} is #{angle.status.inspect}, not \"investigating\" — dispatch angle.investigate " \
+          "first, so the lead reads as picked up before something is built from it"
+  end
+end
+
+# ── open it, or find the one already open on this branch ───────────────
+
+VIEW_FIELDS = "number,url,headRefName,headRefOid,title,state".freeze
+
+def view_pr(branch)
+  out, _err, status = gh("pr", "view", branch, "--json", VIEW_FIELDS)
+  return nil unless status.success?
+
+  view = JSON.parse(out, symbolize_names: true)
+  view[:state] == "OPEN" ? view : nil
+end
+
+view = view_pr(branch)
+if view
+  puts "PR ##{view[:number]} already open for #{branch} — not re-creating"
+else
+  # THE BODY NAMES THE LEDGER RECORD — so the PR and the ledger point at
+  # each other from both sides, the same way `Patch.bug` does from here.
+  cited = if bug then "Fixes #{bug.id}."
+          elsif angle then "Builds #{angle.id}."
+          else "Deliberate work, no Bug or Angle behind it."
+          end
+  body   = options[:body] || "#{cited}\n\nOpened by bin/qa_open_pr and recorded in the QualityControl ledger."
+  create = ["pr", "create", "--head", branch, "--title", options[:title], "--body", body]
+  create << "--draft" if DRAFT_ONLY
+  out, err, status = gh(*create)
+  abort "gh pr create failed — #{err.empty? ? out : err}" unless status.success?
+
+  view = view_pr(branch)
+  abort "gh pr create returned, but gh pr view #{branch} shows no open PR — record nothing" unless view
+end
+
+number = view[:number]
+sha    = view[:headRefOid].to_s
+abort "refused: gh reports head #{sha.inspect} for ##{number}, which does not look like a sha" unless sha.match?(SHA_PATTERN)
+
+# ── write it down — once ───────────────────────────────────────────────
+
+now = Time.now.to_i
+
+if bug
+  known = q(runtime, "Patch.All").map { |row| row[:number][:value] }
+  if known.include?(number)
+    puts "Patch ##{number} already recorded — not re-recording"
+  else
+    QualityControl::Patch.open!(
+      bug: bug.id, number: { value: number }, url: { value: view[:url] },
+      branch: { value: view[:headRefName] }, commit: { value: sha }, title: { value: view[:title] },
+      now: { value: now }
+    )
+    puts "recorded Patch ##{number} for #{bug.id} at #{sha[0, 7]}"
+  end
+else
+  known = q(runtime, "Improvement.All").map { |row| row[:number][:value] }
+  if known.include?(number)
+    puts "Improvement ##{number} already recorded — not re-recording"
+  else
+    QualityControl::Improvement.open!(
+      **(angle ? { angle: angle.id } : {}),
+      number: { value: number }, url: { value: view[:url] },
+      branch: { value: view[:headRefName] }, title: { value: view[:title] },
+      now: { value: now }
+    )
+    QualityControl::Improvement.find(number).land!(number: { value: number }, commit: { value: sha })
+    for_angle = angle ? " for #{angle.id}" : ""
+    puts "recorded Improvement ##{number}#{for_angle}, landed at #{sha[0, 7]}"
+  end
+end
+
+if AUTO_MERGE
+  _out, err, status = gh("pr", "merge", number.to_s, "--auto", "--squash")
+  abort "recorded, but gh pr merge --auto failed — #{err}" unless status.success?
+  puts "auto-merge queued for ##{number} (QualityControlDials::AUTO_MERGE)"
+end
+
+puts "#{view[:url]} (#{view[:headRefName]} @ #{sha[0, 7]}) — #{view[:title]}"
+exit EXIT_OK
