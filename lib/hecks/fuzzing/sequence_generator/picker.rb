@@ -16,8 +16,19 @@ module Hecks
 
           makers = catalog[:creating].select { |entry| satisfiable?(catalog, entry) }
           pool   = rest + makers.flat_map { |entry| [entry] * creating_weight(rest.size) }
+          pool  += deep_entity_bias(rest) if adversarial?
 
           steer(pool).sample(random: @random)
+        end
+
+        # BUG#11's own preference (adversary.rb) — an entity command two
+        # or more hops deep is weighted up the same way an unexercised
+        # verb is, ONLY in adversarial mode: the eligibility rules above
+        # still decide what is possible, and a default-mode pool is
+        # exactly the pool it always was.
+        def deep_entity_bias(rest)
+          deep = rest.select { |entry| (entry[:chain] || []).size >= Adversary::DEEP_ENTITY_DEPTH }
+          deep * Adversary::DEEP_ENTITY_WEIGHT
         end
 
         # WHILE THERE IS NOTHING TO FIND, MAKING SOMETHING IS THE ONLY USEFUL MOVE.

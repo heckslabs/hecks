@@ -73,6 +73,19 @@ unless defined?(QualityControlDials)
     # watching the loop closely; a human who IS watching it can say so, in
     # this file, rather than the loop inventing a limit nobody chose.
     PR_CAP_PER_DAY = 0
+
+    # WHAT FRACTION OF GENERATED COMMAND STEPS `bin/qa_sweep` MUTATES
+    # ADVERSARIALLY (0.0..1.0) — `SequenceGenerator`'s `adversarial:`
+    # option, `lib/hecks/fuzzing/sequence_generator/adversary.rb`: the
+    # argument shapes BUG#7–#16 were actually found through, injected on
+    # every domain in the rotation rather than only the one that happened
+    # to declare the colliding name. Zero turns the layer off (a sweep
+    # then generates exactly what it did before the layer existed).
+    # Higher finds refusal-ordering splits sooner but reaches deep state
+    # less often — a mutated step is usually refused, and a refused step
+    # creates nothing later steps can act on. `bin/qa_sweep --adversarial
+    # N` overrides this for one run.
+    ADVERSARIAL_FRACTION = 0.3
   end
 end
 

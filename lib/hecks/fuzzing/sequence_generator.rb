@@ -7,6 +7,7 @@ require_relative "sequence_generator/catalog"
 require_relative "sequence_generator/picker"
 require_relative "sequence_generator/step_builder"
 require_relative "sequence_generator/outcome_tracker"
+require_relative "sequence_generator/adversary"
 
 module Hecks
   module Fuzzing
@@ -28,13 +29,16 @@ module Hecks
     #
     # One concern per file beside this one: what the domain offers
     # (sequence_generator/catalog.rb), which step to try next (picker.rb),
-    # how a step is built and dispatched (step_builder.rb), and what a
-    # success taught us (outcome_tracker.rb).
+    # how a step is built and dispatched (step_builder.rb), what a
+    # success taught us (outcome_tracker.rb), and — opt-in, `adversarial:`
+    # — the argument shapes real Ruby/Rust divergences were found through
+    # (adversary.rb).
     class SequenceGenerator
       include Catalog
       include Picker
       include StepBuilder
       include OutcomeTracker
+      include Adversary
 
       # Creating commands are always eligible ; weighting them heavier (not
       # exclusively — a domain with only one or two aggregates would starve
@@ -72,8 +76,15 @@ module Hecks
       # the generating end rather than the scoring end.
       UNEXERCISED_WEIGHT = 4
 
-      def self.generate(domain_path, seed:, steps:, adapter: :memory)
-        new(domain_path, seed: seed, steps: steps, adapter: adapter).call
+      # `adversarial:` — the fraction of generated COMMAND steps (0.0..1.0)
+      # that get one deliberately adversarial argument mutation
+      # (adversary.rb — the shapes BUG#7–#16 were found through). `0.0`,
+      # the default, draws nothing extra from the seeded RNG, so a seed's
+      # output is byte-for-byte what it was before the option existed;
+      # any positive value is just as deterministic per seed, since every
+      # choice the mutation makes comes from the same `Random.new(seed)`.
+      def self.generate(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0)
+        new(domain_path, seed: seed, steps: steps, adapter: adapter, adversarial: adversarial).call
       end
 
       # How many EVENTS the generated sequence actually produced — not
@@ -86,16 +97,22 @@ module Hecks
       # replay one.
       attr_reader :event_count
 
-      def initialize(domain_path, seed:, steps:, adapter: :memory)
-        @domain_path      = domain_path
-        @seed             = seed
-        @step_count       = steps
-        @adapter          = adapter
-        @random           = Random.new(seed)
-        @known_ids        = Hash.new { |h, k| h[k] = [] }
-        @entity_known_ids = Hash.new { |h, k| h[k] = [] }
-        @exercised        = Set.new
-        @event_count      = 0
+      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0)
+        unless adversarial.is_a?(Numeric) && adversarial.between?(0, 1)
+          raise ArgumentError, "adversarial: must be a fraction between 0.0 and 1.0, got #{adversarial.inspect}"
+        end
+
+        @domain_path         = domain_path
+        @seed                = seed
+        @step_count          = steps
+        @adapter             = adapter
+        @adversarial         = adversarial.to_f
+        @random              = Random.new(seed)
+        @known_ids           = Hash.new { |h, k| h[k] = [] }
+        @entity_known_ids    = Hash.new { |h, k| h[k] = [] }
+        @appended_identities = Hash.new { |h, k| h[k] = [] }
+        @exercised           = Set.new
+        @event_count         = 0
       end
 
       def call

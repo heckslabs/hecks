@@ -40,16 +40,31 @@ module Hecks
           { "query" => entry[:verb], "args" => args }
         end
 
+        # THE ADVERSARIAL LAYER SITS HERE, AND ONLY HERE — after the step's
+        # arguments and identity are fully built, BEFORE the one real
+        # dispatch this generator makes to learn what the step did, and
+        # before the step is returned as corpus data. That ordering is
+        # the whole contract: the mutated `args` are what this generator's
+        # own inline dispatch sees (so `known_ids` tracking reflects what
+        # actually happened), AND they are the bytes `Fuzzing::Replay`
+        # later hands Ruby's runtime and the bytes `JSON.generate({steps:
+        # ...})` hands the compiled Rust binary — one step, one payload,
+        # both engines. Nothing downstream of this method can tell a
+        # mutated step from an ordinary one except by reading the
+        # `"adversarial"` metadata it carries (see adversary.rb).
         def build_command_step(runtime, catalog, entry)
           args = args_for(entry[:command].attributes, entry[:aggregate])
           add_identity!(args, entry)
+          mutations = adversarial_mutations!(args, entry, catalog)
 
           outcome = safe_call { runtime.dispatch(entry[:verb], **symbolize(args)) }
           if outcome
             record_outcome(catalog, entry, args)
             @event_count += outcome.events.length
           end
-          { "verb" => entry[:verb], "args" => args }
+          step = { "verb" => entry[:verb], "args" => args }
+          step["adversarial"] = mutations unless mutations.empty?
+          step
         end
 
         def args_for(attributes, aggregate)
@@ -154,9 +169,23 @@ module Hecks
           if entry[:entity]
             parent_scalar = pick_known(aggregate.hecks_name)
             args[parent_key] = identity_shaped(aggregate, aggregate.identified_by, parent_scalar, aggregate)
-            entity_key = (entry[:entity].identified_by || :id).to_s
-            entity_scalar = pick_entity_known(aggregate.hecks_name, entry[:entity].hecks_name, parent_scalar)
-            args[entity_key] = identity_shaped(entry[:entity], entry[:entity].identified_by, entity_scalar, aggregate)
+            # ONE IDENTITY PER HOP, each drawn from the pool its OWN
+            # parent-plus-hops landed elements in (`entity_pool_key`) —
+            # a depth-1 chain draws exactly what it always did; a
+            # `Board.Card` chain draws a Board under this Workspace, then
+            # a Card under THAT Board. Flat args, one head per hop, is
+            # the legacy addressing `EntityElement#locate_chain` reads
+            # (`args[head]` per identity path); the routed `to: {
+            # aggregate:, entities: [...] }` spelling is an adversarial
+            # shape layered on top (adversary.rb), never the default.
+            scalars = [parent_scalar]
+            names   = []
+            entry[:chain].each do |piece|
+              names << piece.hecks_name
+              scalar = pick_entity_known(entity_pool_key(aggregate.hecks_name, names, scalars))
+              args[(piece.identified_by || :id).to_s] = identity_shaped(piece, piece.identified_by, scalar, aggregate)
+              scalars << scalar
+            end
           elsif entry[:command].creates?
             # A COMPOSITE IDENTITY (`identified_by` answering nil with MORE
             # THAN ONE declared path — Behaviour::Identified's own "a
