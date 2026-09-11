@@ -22,19 +22,26 @@ class Differ
 end
 
 RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
-  ROOT      = InMemoryDomain::ROOT
-  PIZZAS    = File.join(ROOT, "examples/pizzas")
-  BANKING   = File.join(ROOT, "examples/banking")
-  RUST_DIR  = File.join(ROOT, "rust")
-  FIXTURE_RUST_DIR = File.join(ROOT, "spec/fixtures/self_consistency_rust_fixture")
+  # PREFIXED, NOT THE BARE NAME EVERY OTHER SPEC FILE ALSO REACHES FOR —
+  # `spec/load_hygiene_spec.rb`'s own "lets no two spec files disagree
+  # about a top-level constant" check flags ANY name two files both
+  # assign, `PIZZAS`/`BANKING`/`RUST_DIR`/`ROOT` included (an
+  # `RSpec.describe` block is not a real namespace — every constant
+  # assigned inside one lands on `Object`, at ANY nesting depth), whether
+  # or not the two definitions happen to agree. `spec/fuzzing/adversary_
+  # spec.rb`'s own `ADVERSARY_BANKING` rename is the exact precedent.
+  SELF_CONSISTENCY_RUST_PIZZAS = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  SELF_CONSISTENCY_BANKING           = File.join(InMemoryDomain::ROOT, "examples/banking")
+  SELF_CONSISTENCY_RUST_DIR          = File.join(InMemoryDomain::ROOT, "rust")
+  SELF_CONSISTENCY_FIXTURE_RUST_DIR  = File.join(InMemoryDomain::ROOT, "spec/fixtures/self_consistency_rust_fixture")
 
   let(:differ) { Differ.new }
 
   it "stays clean against a real compiled domain binary (pizzas)" do
-    binary = differ.build_rust_for("pizzas", RUST_DIR)
+    binary = differ.build_rust_for("pizzas", SELF_CONSISTENCY_RUST_DIR)
     skip "pizzas Rust feature not declared in rust/Cargo.toml" unless binary
 
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(PIZZAS, seed: 3, steps: 15)
+    steps = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_RUST_PIZZAS, seed: 3, steps: 15)
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
     expect(status).to be_success
 
@@ -64,10 +71,10 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
   # `corrects` reaction rather than only `pizzas` (which has none). Proves
   # the fix, not just the mechanism `pizzas` alone already covers above.
   it "stays clean against a real compiled domain binary with an emitted_* bookkeeping field (banking)" do
-    binary = differ.build_rust_for("banking", RUST_DIR)
+    binary = differ.build_rust_for("banking", SELF_CONSISTENCY_RUST_DIR)
     skip "banking Rust feature not declared in rust/Cargo.toml" unless binary
 
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(BANKING, seed: 5, steps: 25)
+    steps = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_BANKING, seed: 5, steps: 25)
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
     expect(status).to be_success
 
@@ -82,7 +89,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
   end
 
   it "fires check_rust_rehydration against a binary whose seed door is genuinely broken" do
-    binary = differ.build_rust_for("self_consistency_rust_fixture", FIXTURE_RUST_DIR)
+    binary = differ.build_rust_for("self_consistency_rust_fixture", SELF_CONSISTENCY_FIXTURE_RUST_DIR)
     raise "fixture binary failed to build" unless binary
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [] }))
@@ -95,7 +102,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
   end
 
   it "fires check_rust_idempotency against the same genuinely broken binary" do
-    binary = differ.build_rust_for("self_consistency_rust_fixture", FIXTURE_RUST_DIR)
+    binary = differ.build_rust_for("self_consistency_rust_fixture", SELF_CONSISTENCY_FIXTURE_RUST_DIR)
     raise "fixture binary failed to build" unless binary
 
     stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [] }))

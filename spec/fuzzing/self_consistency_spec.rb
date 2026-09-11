@@ -30,15 +30,15 @@ require "hecks/fuzzing/self_consistency"
 # value_object_round_trip` — that is a true fact about how deeply these
 # three checks share one mechanism, not an artifact of a sloppy break.
 RSpec.describe "Hecks::Fuzzing::SelfConsistency" do
-  PIZZAS = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  SELF_CONSISTENCY_PIZZAS = File.join(InMemoryDomain::ROOT, "examples/pizzas")
 
   # ONE FIXED, DETERMINISTIC SEQUENCE — seed 2 is not special, just
   # pinned so every example (and the "restore" half of each) replays the
   # identical steps and gets the identical, reproducible baseline.
-  STEPS = Hecks::Fuzzing::SequenceGenerator.generate(PIZZAS, seed: 2, steps: 15).freeze
+  STEPS = Hecks::Fuzzing::SequenceGenerator.generate(SELF_CONSISTENCY_PIZZAS, seed: 2, steps: 15).freeze
 
   def self_consistency_findings
-    Hecks::Fuzzing::Replay.call(PIZZAS, STEPS, self_consistency: true).fetch(:self_consistency)
+    Hecks::Fuzzing::Replay.call(SELF_CONSISTENCY_PIZZAS, STEPS, self_consistency: true).fetch(:self_consistency)
   end
 
   it "is clean against a real domain with nothing broken" do
