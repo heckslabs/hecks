@@ -1,0 +1,9 @@
+{
+  "domain": "examples/pizzas",
+  "note": "BUG#17 — Pizzas::Order.Purchase declares no `to` attribute of its own; its receiver is addressed the ordinary legacy way (a flat `name` key) and its only required facts are `amount`/`customer_name` (sets). A fuzzer-corrupted step can still offer a real, non-null `to:` (here a valid aggregate identity, so routing itself succeeds) ALONGSIDE those flat facts, with no `with:` key at all. Ruby's `Routing.payload` gates its facts source on `with:` alone (`return legacy unless with`) — whether `to:` is present, absent, null, or a real value never enters that decision — so `legacy` (the flat args minus `to`/`with`) still reaches Purchase's own validation, and Purchase succeeds (PizzaPurchased, `status` → \"sold\"). `CommandInvocation::from_json` (rust/src/kernel/routing.rs) used to conflate the two: any non-null `to` took the \"explicit routing\" branch, which defaulted `facts` to `with`'s own value — an EMPTY object, since `with:` was never offered — silently dropping `amount`/`customer_name`/`name` and refusing AbsentArgument for a fact Ruby never even had to check. Confirmed live pre-fix: this exact sequence refused `Pizzas::Order.Purchase was not given amount — it takes amount, customer_name` against the compiled Rust binary while Ruby succeeded.",
+  "steps": [
+    {"verb": "Pizzas::Order.CreatePizza", "args": {"name": {"value": "Bare"}, "pizza": {"price_cents": {"cents": 900}, "size": {"value": "small"}}}},
+    {"verb": "Pizzas::Order.AddTopping", "args": {"name": "Bare", "topping": {"value": "Olive"}, "amount": {"value": 1}}},
+    {"verb": "Pizzas::Order.Purchase", "args": {"name": "Bare", "customer_name": {"value": "Sam"}, "amount": {"cents": 900}, "to": "Bare"}}
+  ]
+}

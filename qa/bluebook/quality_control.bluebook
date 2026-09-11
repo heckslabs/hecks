@@ -74,16 +74,32 @@ unless defined?(QualityControlDials)
     # this file, rather than the loop inventing a limit nobody chose.
     PR_CAP_PER_DAY = 0
 
+    # WHAT FRACTION OF GENERATED COMMAND STEPS `bin/qa_sweep` MUTATES
+    # ADVERSARIALLY (0.0..1.0) — `SequenceGenerator`'s `adversarial:`
+    # option, `lib/hecks/fuzzing/sequence_generator/adversary.rb`: the
+    # argument shapes BUG#7–#16 were actually found through, injected on
+    # every domain in the rotation rather than only the one that happened
+    # to declare the colliding name. Zero turns the layer off (a sweep
+    # then generates exactly what it did before the layer existed).
+    # Higher finds refusal-ordering splits sooner but reaches deep state
+    # less often — a mutated step is usually refused, and a refused step
+    # creates nothing later steps can act on. `bin/qa_sweep --adversarial
+    # N` overrides this for one run.
+    ADVERSARIAL_FRACTION = 0.3
+
     # WHETHER `bin/qa_sweep` ALSO RUNS THE SELF-CONSISTENCY PASS — cold
     # rehydration, replay idempotency, value-object JSON round trip
     # (`Hecks::Fuzzing::SelfConsistency`) — beside its own, older
     # differential (Ruby vs compiled Rust) comparison, on the SAME
-    # generated sequence. ON by default: this is a genuinely different
-    # comparison axis (one engine against ITSELF, not one engine against
-    # the other), not an experimental extra, so the practice's own
-    # default posture is to run it every sweep. `--self-consistency
-    # false` (or `true`) overrides this for one run the same way
-    # `--adversarial` overrides `ADVERSARIAL_FRACTION`.
+    # generated sequence (adversarially mutated or not — the two layers
+    # compose for free: this pass reads whatever `history` the dispatch
+    # of THAT sequence produced, adversarial or plain, with no idea which
+    # it was). ON by default: this is a genuinely different comparison
+    # axis (one engine against ITSELF, not one engine against the other),
+    # not an experimental extra, so the practice's own default posture is
+    # to run it every sweep. `--self-consistency false` (or `true`)
+    # overrides this for one run the same way `--adversarial` overrides
+    # `ADVERSARIAL_FRACTION`.
     SELF_CONSISTENCY_CHECKS = true
   end
 end

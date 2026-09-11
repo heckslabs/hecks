@@ -167,7 +167,31 @@ module RustProjection
           # id` against `facts_json` for the legacy shape, matching
           # `CommandInterpreter#hydrate_existing`'s own `route ||
           # identity_of(...)` order exactly.
-          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json)?, };"
+          # BUG#20 (qa/bluebook/quality_control.bluebook) — `extract_id`'s
+          # own `no identity found at all` case (every one of its tried
+          # sources — the composite identity, `id`, and the command's own
+          # reference key — came back empty, including a caller-supplied
+          # `id: null`, which `to_id_component` refuses and this call
+          # site used to let propagate raw) always raised `TypeMismatch`.
+          # `CommandInterpreter#hydrate_existing`'s own identical fallback
+          # chain (`identity_of || identity_from(:id) ||
+          # identity_from(reference_key) || raise(...)`,
+          # command_interpreter.rb, read directly) raises
+          # `NotFound`/`acting_no_identity` instead — this IS `dispatch`
+          # (kernel/dispatch.rs)'s own `Hydrate::Act` NOT-FOUND site's
+          # upstream twin: an ACTING command's id is resolved HERE, at the
+          # router, before `dispatch` (and its already-correct
+          # `Hydrate::Act` repo.find-miss `NotFoundRecordMissing` check)
+          # is ever called at all, so `dispatch` itself never saw this
+          # case to refuse correctly. `extract_id` has no per-command
+          # context (command name, declared identity reading) of its own
+          # to render `RefusalSite::NotFoundActingNoIdentity` — its ONE
+          # possible `Err` is wrapped here, where both are already in
+          # scope, into the exact same wording
+          # `RefusalWording.render("NotFound", "acting_no_identity", ...)`
+          # produces on the Ruby side.
+          acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
+          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
@@ -288,16 +312,21 @@ module RustProjection
       # LEVELS DEEP. `commands.rb`'s own `dispatch_entity_<entity>_
       # <nested>_<fn>` names the generated function
       # (`domain_generator.rb`'s own `nested_entity_commands` accumulator,
-      # `fn:` computed identically there). ROUTED ONLY — `route` is
-      # REQUIRED here (unlike `entity_arms`'s own `Some(route) => ... |
-      # None => ...` fallback to `extract_id`/`extract_wants`): this
-      # depth has no legacy/flat-argument addressing generated at all
-      # (`domain_generator.rb`'s own header on why, and `nested`'s own
-      # struct only ever gets an `identity()` method, never `extract_id`/
-      # `extract_wants` — see that same header). `route.require_depth(2)`
+      # `fn:` computed identically there).
+      #
+      # BUG#19 (loop-parity) — `c[:unrouted_supported]` (domain_
+      # generator.rb's own header on when it's true) now picks between
+      # the SAME `Some(route) => ... | None => ...` shape `entity_arms`
+      # above already has (extended one hop deeper: `hop1_id`/`hop1_
+      # wants` resolved off `entity`'s own `extract_id`/`extract_wants`,
+      # `hop2_id`/`hop2_wants` off `nested`'s own — both newly emitted by
+      # `domain_generator.rb` for this) and the ROUTED-only shape BUG#11
+      # originally shipped (kept, unchanged, for a domain whose identity
+      # shape at either hop isn't `extract_id`-supported yet —
+      # `json_codec.rb#extract_id_supported?`). `route.require_depth(2)`
       # is the ordinary `RoutingEnvelope` check every OTHER depth already
       # uses (`require_depth(0)`/`require_depth(1)` above) — nothing
-      # about the wire format itself changes with depth.
+      # about the wire format itself changes with depth, in EITHER arm.
       nested_entity_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         Array(a[:nested_entity_commands]).map do |c|
@@ -305,15 +334,17 @@ module RustProjection
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
           dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))"
 
+          route_binding =
+            if c[:unrouted_supported]
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json)?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+            else
+              "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
+            end
+
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
-                  "let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?;",
-                  "route.require_depth(2)?;",
+                  "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  "let parent_id = route.aggregate().to_string();",
-                  "let hop1_id = route.entities()[0].clone();",
-                  "let hop2_id = route.entities()[1].clone();",
-                  "let hop1_wants = hop1_id.clone();",
-                  "let hop2_wants = hop2_id.clone();",
+                  route_binding,
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   *c[:invariant_check_lines], role_line, *reference_lines,
                   "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",

@@ -19,7 +19,7 @@
     "id": "NestedPieces::Workspace.Board.Card.Annotate",
     "generated": true,
     "routed": true,
-    "reason": "routed (`to: { entities: [...] }`) only — no legacy/flat-argument fallback at this depth (BUG#11)"
+    "reason": "routed (`to: { entities: [...] }`) and flat-args (one identity head per hop) both supported (BUG#19)"
   },
   {
     "kind": "entity_command",

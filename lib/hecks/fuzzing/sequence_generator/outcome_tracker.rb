@@ -16,10 +16,10 @@ module Hecks
 
           @known_ids[aggregate.hecks_name] << parent_scalar if entry[:entity].nil? && entry[:command].creates?
 
-          populator = catalog[:populators].find { |p| p[:command].equal?(entry[:command]) && p[:aggregate].equal?(aggregate) }
+          populator = populator_for_entry(catalog, entry)
           return unless populator
 
-          key = "#{aggregate.hecks_name}.#{populator[:entity].hecks_name}##{parent_scalar}"
+          key = append_pool_key(populator, args)
 
           # The auto-minted case (CommandInterpreter#entity_element): the
           # element just landed at count-so-far + 1. The explicit case: this
@@ -33,6 +33,38 @@ module Hecks
               (@entity_known_ids[key].size + 1).to_s
             end
           @entity_known_ids[key] << new_id
+
+          # THE CALLER-SUPPLIED IDENTITY TUPLE, kept whole — every mapped
+          # identity argument and the exact value this step offered for it
+          # — so the adversarial duplicate-identity mutation (BUG#13's own
+          # shape, `Folder.AddSlip` twice under the same `reference`) can
+          # offer it AGAIN later against the same parent, composite
+          # identities included (BUG#13's fix explicitly did NOT cover
+          # those; this is how a sequence gets to ask).
+          return if populator[:identity_arguments].empty?
+
+          @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
+        end
+
+        # THE POOL AN APPENDED ELEMENT LANDS IN — the aggregate's own
+        # identity, then one scalar per owning hop (an aggregate-level
+        # append has none; `Board.AddCard` has `Board`'s own `number`,
+        # read straight back off the args this step addressed it by).
+        def append_pool_key(populator, args)
+          parent_scalar = identity_scalar_of(populator[:aggregate], args)
+          owner_scalars = populator[:owner_chain].map do |piece|
+            ValueGenerator.scalar_of(args[(piece.identified_by || :id).to_s])
+          end
+          entity_pool_key(populator[:aggregate].hecks_name,
+                          populator[:owner_chain].map(&:hecks_name) + [populator[:entity].hecks_name],
+                          [parent_scalar] + owner_scalars)
+        end
+
+        # `"Agg.Board#w1"` for a depth-1 pool — byte-identical to the key
+        # this always used, so nothing a pinned seed draws from moves —
+        # and `"Agg.Board.Card#w1/1"` one hop deeper.
+        def entity_pool_key(aggregate_name, chain_names, scalars)
+          "#{aggregate_name}.#{chain_names.join('.')}##{scalars.join('/')}"
         end
 
         # THE SCALAR THIS STEP'S OWN AGGREGATE IDENTITY RESOLVES TO, from the
@@ -68,8 +100,8 @@ module Hecks
           pool.sample(random: @random)
         end
 
-        def pick_entity_known(aggregate_name, entity_name, parent_id)
-          pool = @entity_known_ids["#{aggregate_name}.#{entity_name}##{parent_id}"]
+        def pick_entity_known(key)
+          pool = @entity_known_ids[key]
           return ValueGenerator.random_id(@random) if pool.empty? || @random.rand < ValueGenerator::INVALID_REFERENCE_PROBABILITY
 
           pool.sample(random: @random)
