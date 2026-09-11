@@ -1194,7 +1194,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     shelved --&gt; waiting: Restore</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>Shelving a target says why.</li><li>A staleness window is positive.</li></ul>
+<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>Shelving a target says why.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
 <div class="terms">
 <article class="term" id="all-6">
 <h3>All</h3>
@@ -1223,7 +1223,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="release">
 <h3>Release</h3>
-<p>Hand a chapter back to the rotation, stamped with when. Done by the qa engineer.</p>
+<p>Hand a chapter back to the rotation, stamped with when and what this pass was worth. Done by the qa engineer.</p>
 </article>
 <article class="term" id="restore">
 <h3>Restore</h3>
@@ -1231,7 +1231,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="rotation">
 <h3>Rotation</h3>
-<p>Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists.</p>
+<p>Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.</p>
 </article>
 <article class="term" id="shelve">
 <h3>Shelve</h3>
@@ -1289,6 +1289,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="untouched">
 <h3>Untouched</h3>
 <p>Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.</p>
+</article>
+<article class="term" id="yield-score">
+<h3>Yield score</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: a yield score is not negative.</p>
 </article></div>
 </section>
 <section id="ticket">

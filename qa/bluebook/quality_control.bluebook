@@ -86,6 +86,57 @@ unless defined?(QualityControlDials)
     # creates nothing later steps can act on. `bin/qa_sweep --adversarial
     # N` overrides this for one run.
     ADVERSARIAL_FRACTION = 0.3
+
+    # THE THREE DIALS BELOW ARE DIFFERENT FROM `CADENCE_SECONDS`/
+    # `PR_CAP_PER_DAY` ABOVE IN ONE WAY WORTH FLAGGING (the same way
+    # `ADVERSARIAL_FRACTION` just above already is): those two are read
+    # by an AGENT following `.claude/skills/hecks_qa/SKILL.md`'s own
+    # prose — nothing in this repository's Ruby ever names them. These
+    # three, like `ADVERSARIAL_FRACTION`, are read in CODE —
+    # `Hecks::Fuzzing::RotationPriority`, every time `bin/qa_sweep` picks
+    # a single target with no name given — because the weighting formula
+    # this task exists to add has to be a pure function of ledger state,
+    # not a "please remember to weight it" instruction, so the numbers
+    # it runs on have to be data a program reads too, not only a human.
+
+    # HOW MANY SECONDS OF STALENESS ONE POINT OF A TARGET'S OWN DECAYED
+    # YIELD SCORE IS WORTH. `RotationPriority.pick` adds
+    # `yield_score.value * YIELD_WEIGHT_SECONDS` straight onto a target's
+    # own staleness in seconds before comparing candidates, so this reads
+    # literally as "one more bug-bearing release is worth this many
+    # seconds of head start over a target that has not been swept in a
+    # while." Zero would make yield invisible and put the pick straight
+    # back to pure least-recently-swept — unlike the two dials above,
+    # that is not a real "uncapped" escape hatch here, just a small
+    # weight, so pick a number believing the practice actually wants
+    # yield to matter.
+    YIELD_WEIGHT_SECONDS = 1_800
+
+    # WHAT SURVIVES ONE RELEASE, as a percentage of the OLD score. A
+    # target's yield score is not a running total of every bug it has
+    # ever produced — a chapter that found three things two months ago
+    # and has been clean for forty sweeps since should not still
+    # out-rank one nobody has looked at all week, which a running total
+    # would do forever. 50 means roughly the last two or three releases'
+    # worth of findings dominate the number, which is what "recent"
+    # yield is supposed to mean. The decay itself happens in the CALLER,
+    # never inside `Target.Release` — see that command's own comment for
+    # why the mutation language cannot express "decay, then add" against
+    # one field in one command.
+    YIELD_DECAY_PERCENT = 50
+
+    # THE FLOOR. Weighting toward yield is supposed to sharpen the
+    # rotation, not let an exhausted target starve just because
+    # something else keeps finding bugs — a target can go quiet for a
+    # long stretch and then find something again, the way roster did
+    # across a whole session's worth of otherwise-clean sweeps
+    # elsewhere. Past this many seconds since it was last swept, a
+    # waiting target wins `RotationPriority.pick` outright, yield score
+    # or not — see that module's own comment for the exact mechanics.
+    # Six hours is long enough that it never fires in one ordinary
+    # sweeping session and short enough that nothing sits untouched for
+    # days.
+    ROTATION_STALE_FLOOR_SECONDS = 21_600
   end
 end
 
@@ -117,6 +168,13 @@ Hecks.bluebook "QualityControl" do
     attribute :claimed_at, Instant
     attribute :window,     StaleAfter
     attribute :last_swept, SweptIn
+    # A DECAYED COUNT OF HOW OFTEN THIS CHAPTER HAS RECENTLY BEEN WORTH
+    # SWEEPING — see `YieldScore`'s own comment for what it holds and
+    # `QualityControlDials::YIELD_WEIGHT_SECONDS`/`RotationPriority` for
+    # what it is FOR. Zero, same as `SweptIn`, means "nothing recent to
+    # weight toward" — a fresh target and a long-clean one both start
+    # here, which is exactly right: neither has EARNED priority yet.
+    attribute :yield_score, YieldScore
     attribute :reason,     TargetReason
 
     value_object "TargetReference" do
@@ -156,6 +214,20 @@ Hecks.bluebook "QualityControl" do
     value_object "TargetReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("shelving a target says why") { !value.to_s.empty? }
+    end
+
+    # RECENCY-WEIGHTED, NOT LIFETIME. This is not "how many bugs this
+    # chapter has ever produced" — that number only grows, and would let
+    # one hot month outrank every other target forever. It is the
+    # decayed count `Hecks::Fuzzing::RotationPriority.next_yield_score`
+    # computes at each `Release`: mostly this period's own findings,
+    # fading out what came before by `QualityControlDials::
+    # YIELD_DECAY_PERCENT` every time. An Integer, like `CheckCount` and
+    # `BugOrder` elsewhere in this chapter — a priority signal, not a
+    # statistic anyone reports on its own.
+    value_object "YieldScore" do
+      attribute :value, Integer, default: 0
+      invariant("a yield score is not negative") { !value.negative? }
     end
 
     lifecycle :status, default: "waiting" do
@@ -222,7 +294,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Release" do
       role "QA engineer"
-      goal "Hand a chapter back to the rotation, stamped with when"
+      goal "Hand a chapter back to the rotation, stamped with when and what this pass was worth"
 
       # THE ARGUMENT IS `now`, AND THE FIELD IS `last_swept`, which is what
       # `sets` is for. It was `last_swept` on both sides and that made it
@@ -233,7 +305,32 @@ Hecks.bluebook "QualityControl" do
       reference_to Target
       attribute :now, Instant
 
+      # REQUIRED, NOT DEFAULTED TO ZERO — the same call `Submitter` already
+      # makes over `Engineer`'s "nobody" default (see that value object's own
+      # comment): a caller that could silently release a target at yield
+      # zero would quietly erase whatever it actually found, the exact
+      # failure this whole chapter exists to hunt. The releasing caller
+      # already has the target's OLD `yield_score` in hand (it just claimed
+      # or is holding this very record) and knows how many things this pass
+      # actually turned up, so it computes the next value itself —
+      # `Hecks::Fuzzing::RotationPriority.next_yield_score` — and this
+      # command only stores what it is told, the same division of labor
+      # `now`/`last_swept` already have.
+      #
+      # WHY THE DECAY DOES NOT LIVE HERE, AS ITS OWN MUTATION. The
+      # mutation language has both `multiply` (decay) and `increment` (add
+      # this period's finds) — but a command's declared mutations are one
+      # update set, and build refuses a field written twice
+      # (`MutationApplier`'s own comment on `CommandBuilder#refuse_
+      # duplicate_targets!`). `sets :yield_score, multiply: ...` and a
+      # second `sets :yield_score, increment: ...` right after it is not two
+      # steps, it is a build-time refusal. So the arithmetic happens exactly
+      # where `now` already happens — in the caller — and only the finished
+      # number crosses into the aggregate.
+      attribute :yield_score, YieldScore
+
       sets :last_swept, to: :now
+      sets :yield_score
 
       emits "TargetReleased"
     end
@@ -258,8 +355,23 @@ Hecks.bluebook "QualityControl" do
       emits "TargetRestored"
     end
 
+    # STILL ORDERED BY `last_swept` ALONE, DELIBERATELY — `order_by`
+    # sorts by exactly one stored field (`Ports::Query::Ordering`), and a
+    # target's actual rotation PRIORITY wants two blended together: time
+    # since last swept, AND recent yield (`yield_score`, now a field on
+    # every row this returns). Nothing in the query sublanguage can
+    # express that blend, and computing it here would mean this query's
+    # answer changes with the wall clock even between two reads in the
+    # same request — which `where`/`order_by` never do anywhere else in
+    # this chapter. So this stays the raw view — useful on its own, "what
+    # has gone longest untouched" — and `Hecks::Fuzzing::RotationPriority
+    # .pick` is what actually weights it, against the rows this returns,
+    # in Ruby, where `now` can be an argument instead of a lie. See that
+    # module's own header for exactly what it changes: `bin/qa_sweep`
+    # picking ONE target with no name given, and nothing about `bin/
+    # qa_sweep --all`, which sweeps every row here regardless of order.
     query "Rotation" do
-      description "Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists."
+      description "Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows."
       where(status: "waiting")
       order_by :last_swept
     end

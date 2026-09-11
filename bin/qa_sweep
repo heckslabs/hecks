@@ -442,6 +442,13 @@ def seed_default_targets!(runtime)
   end
 end
 
+# THE ONE CALLER OF `Hecks::Fuzzing::RotationPriority.pick` — see that
+# module's own header for why: `--all` (`run_all_mode`, above) sweeps
+# every row `Target.Rotation` returns regardless of order, so weighting
+# changes nothing about it. This is the only place a SINGLE target gets
+# picked with no name given, which is exactly where weighting toward
+# recent yield (without starving an exhausted target — the floor in
+# `RotationPriority.pick`) actually matters.
 def pick_target_row(runtime, target_ref)
   if target_ref
     row = q(runtime, "Target.All").find { |r| r[:reference][:value] == target_ref }
@@ -461,7 +468,7 @@ def pick_target_row(runtime, target_ref)
           "(every known target is currently held or shelved)"
   end
 
-  rotation.first
+  Hecks::Fuzzing::RotationPriority.pick(rotation, now: Time.now.to_i)
 end
 
 target_row       = pick_target_row(runtime, target_ref)
@@ -744,7 +751,19 @@ notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} feature=#{f
         "steps=#{STEPS_PER_SEQUENCE} adversarial=#{adversarial} — every seed held, no divergence or property " \
         "violation found."
 sweep.conclude!(notes: { value: notes })
-target.release!(now: { value: Time.now.to_i })
+
+# ZERO SURPRISES, THIS PATH ONLY — this line is only ever reached when
+# every seed held (the `exit EXIT_FOUND_SOMETHING` above already left
+# this process for a surprise). It still DECAYS whatever the target's
+# `yield_score` already was from an earlier, bug-bearing release — a
+# clean pass is real evidence too, the evidence that a hot streak is
+# cooling off. See `Hecks::Fuzzing::RotationPriority#next_yield_score`'s
+# own comment for the decay itself, and `Target.Release`'s own comment
+# for why this computation lives here and not in the command.
+next_yield_score = Hecks::Fuzzing::RotationPriority.next_yield_score(
+  old_score: target.yield_score.value, surprises_this_period: 0
+)
+target.release!(now: { value: Time.now.to_i }, yield_score: { value: next_yield_score })
 
 puts
 puts "clean — #{target_reference} concluded and released."

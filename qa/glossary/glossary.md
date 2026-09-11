@@ -1024,6 +1024,7 @@ stateDiagram-v2
 - An instant is not before the epoch.
 - A sweep time is not before the epoch.
 - Shelving a target says why.
+- A yield score is not negative.
 - A staleness window is positive.
 
 ### All
@@ -1054,7 +1055,7 @@ Always true: an instant is not before the epoch.
 
 ### Release
 
-Hand a chapter back to the rotation, stamped with when. Done by the qa engineer.
+Hand a chapter back to the rotation, stamped with when and what this pass was worth. Done by the qa engineer.
 
 ### Restore
 
@@ -1062,7 +1063,7 @@ Put a shelved chapter back in the rotation. Done by the qa engineer.
 
 ### Rotation
 
-Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists.
+Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.
 
 ### Shelve
 
@@ -1125,6 +1126,12 @@ Recorded after [Shelve](#shelve).
 ### Untouched
 
 Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.
+
+### Yield score
+
+A whole number.
+
+Always true: a yield score is not negative.
 
 ## Ticket
 

@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/fuzzing"
 
 # THE QA LEDGER, EXERCISED THE WAY IT WILL ACTUALLY BE USED.
 #
@@ -247,7 +248,7 @@ RSpec.describe "QualityControl" do
     it "offers the least recently swept first" do
       swept = a_target("banking")
       swept.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      swept.release!(now: { value: 1_000 })
+      swept.release!(now: { value: 1_000 }, yield_score: { value: 0 })
       a_target("pizzas", "examples/pizzas")
 
       # "never" sorts before any sweep reference, which is the ordering the
@@ -289,10 +290,71 @@ RSpec.describe "QualityControl" do
     it "puts a released chapter back at the end of the rotation" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      target.release!(now: { value: 1_000 })
+      target.release!(now: { value: 1_000 }, yield_score: { value: 0 })
 
       expect(target.status).to eq("waiting")
       expect(rows("Target.Untouched")).to be_empty
+    end
+
+    # ── yield-weighted priority ──────────────────────────────────────
+
+    it "starts every target's yield score at zero" do
+      target = a_target
+
+      expect(target.yield_score.to_h).to eq(value: 0)
+    end
+
+    it "stores whatever yield score a release is given" do
+      target = a_target
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
+      released = target.release!(now: { value: 1_000 }, yield_score: { value: 7 })
+
+      expect(released.yield_score.to_h).to eq(value: 7)
+    end
+
+    it "refuses to leave the yield score unsaid" do
+      target = a_target
+      target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
+
+      expect { runtime.dispatch("QualityControl::Target.Release", id: target.id, now: { value: 1_000 }) }
+        .to raise_error(Hecks::Runtime::AbsentArgument)
+    end
+
+    # THE FORMULA ITSELF, AGAINST REAL DISPATCH — `Hecks::Fuzzing::
+    # RotationPriority.pick` is exercised directly (no ledger needed) in
+    # spec/rotation_priority_spec.rb; this proves the SAME rows really
+    # come back out of a booted `Target.Rotation` carrying a
+    # `yield_score` a caller can feed it.
+    it "picks the higher-yield target over the merely-older one, below the floor" do
+      exhausted = a_target("pizzas", "examples/pizzas")
+      exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 })
+
+      roster = a_target("roster", "examples/roster")
+      roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 })
+
+      picked = Hecks::Fuzzing::RotationPriority.pick(
+        rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 100_000
+      )
+
+      expect(picked[:reference][:value]).to eq("roster")
+    end
+
+    it "still picks the exhausted target once it crosses the floor, regardless of yield" do
+      exhausted = a_target("pizzas", "examples/pizzas")
+      exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 })
+
+      roster = a_target("roster", "examples/roster")
+      roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 })
+
+      picked = Hecks::Fuzzing::RotationPriority.pick(
+        rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 900
+      )
+
+      expect(picked[:reference][:value]).to eq("pizzas")
     end
   end
 
