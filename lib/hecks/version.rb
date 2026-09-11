@@ -13,8 +13,4 @@ module Hecks
   # because gemspec evaluation happens before anything Bundler
   # resolves is actually loadable yet.
   VERSION = "1.2.0".freeze
-  # ci: rspec_postgres_io_parallel skip-gate run-case verification (PR
-  # #573) — lib/** is on that job's own real dependency surface (every
-  # spec it runs `require "hecks"`, which eager-loads this whole tree),
-  # so a comment-only change here should still trigger a real run.
 end
