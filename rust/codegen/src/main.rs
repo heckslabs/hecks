@@ -316,9 +316,14 @@ fn run_full(args: &[String]) -> Result<(), String> {
     // never updated when it landed, unlike `domain_generator.rs`'s own
     // `generate` (used by every OTHER codegen entry point), which calls
     // it correctly. Position matches `rust/project/domain_generator.rb`'s
-    // own ordering exactly: identity_head, THEN command_attributes,
-    // THEN query — `spec/project_rust_pipeline_spec.rb` compares this
-    // file byte-for-byte, so order is load-bearing, not cosmetic.
+    // own ordering exactly: identity_head, THEN entity_identity_head
+    // (BUG#10 — same R1 drift risk, added here to stay in sync with
+    // `domain_generator.rs`'s own `generate` call order), THEN
+    // command_attributes, THEN query — `spec/project_rust_pipeline_spec.rb`
+    // compares this file byte-for-byte, so order is load-bearing, not
+    // cosmetic.
+    puts_str(&mut merged_rs, &reactions::emit_entity_identity_head_table(&ex, &merged_aggregates));
+    puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_command_attributes_table(&ex, &merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &queries::emit_query_table(&ex, &merged_queries));

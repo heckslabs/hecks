@@ -321,6 +321,8 @@ else
   # stdin/stdout contract, which is exactly what proving it byte-for-byte
   # against Ruby (spec/rust_conformance_meta_spec.rb) needs.
   meta_merged_path = File.join(out_root, "meta", "merged.rs")
+  # rubocop:disable-next Metrics/BlockLength -- one line per emit_* table
+  # call, same shape as the target domain's own merged_wrote block below.
   meta_merged_wrote = RustProjection::WriteIfChanged.block(meta_merged_path) do |f|
     f.puts RustProjection::Projector.emit_registry(meta_result[:aggregates])
     f.puts
@@ -337,6 +339,8 @@ else
     f.puts RustProjection::Projector.emit_creates_table(meta_result[:aggregates])
     f.puts
     f.puts RustProjection::Projector.emit_identity_head_table(meta_result[:aggregates])
+    f.puts
+    f.puts RustProjection::Projector.emit_entity_identity_head_table(meta_result[:aggregates])
     f.puts
     f.puts RustProjection::Projector.emit_command_attributes_table(meta_result[:aggregates])
     f.puts
@@ -464,6 +468,8 @@ else
     f.puts RustProjection::Projector.emit_creates_table(merged_aggregates)
     f.puts
     f.puts RustProjection::Projector.emit_identity_head_table(merged_aggregates)
+    f.puts
+    f.puts RustProjection::Projector.emit_entity_identity_head_table(merged_aggregates)
     f.puts
     f.puts RustProjection::Projector.emit_command_attributes_table(merged_aggregates)
     f.puts

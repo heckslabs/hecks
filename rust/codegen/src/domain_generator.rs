@@ -25,7 +25,8 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::registry::{
-    AggregateEntry, CommandEntry, EntityCommandEntry, NestedEntityCommandEntry, PortEntry, ReferenceCheck,
+    AggregateEntry, CommandEntry, EntityCommandEntry, EntityIdentityEntry, NestedEntityCommandEntry, PortEntry,
+    ReferenceCheck,
 };
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
@@ -301,8 +302,21 @@ pub fn generate(
 
         let mut entity_commands: Vec<EntityCommandEntry> = Vec::new();
         let mut nested_entity_commands: Vec<NestedEntityCommandEntry> = Vec::new();
+        // THIS AGGREGATE'S OWN NESTED ENTITIES, name + identity paths
+        // only (BUG#10) — mirrors `domain_generator.rb`'s own identical
+        // `entities:` collection, one level up from `entity_commands`
+        // above: every entity this aggregate directly declares gets an
+        // entry here regardless of whether any of its OWN commands ended
+        // up routable (`entity_can_route`, below) — `reactions.rs`'s own
+        // `emit_entity_identity_head_table` needs the entity's identity
+        // shape, not its own command routability.
+        let mut registry_entities: Vec<EntityIdentityEntry> = Vec::new();
 
         for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+            registry_entities.push(EntityIdentityEntry {
+                name: entity.get("name").and_then(Json::as_str).unwrap_or("").to_string(),
+                identified_by: entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
+            });
             puts_str(
                 &mut out,
                 &types::emit_entity(exemplar, entity, &value_objects_by_name),
@@ -834,6 +848,7 @@ pub fn generate(
                 aggregate.get("attributes").map(Json::each).unwrap_or(&[]),
             ),
             identified_by: aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect(),
+            entities: registry_entities,
         });
     }
 
@@ -945,6 +960,11 @@ pub fn generate(
     puts_str(
         &mut registry_rs,
         &reactions::emit_identity_head_table(exemplar, &registry_aggregates),
+    );
+    puts_blank(&mut registry_rs);
+    puts_str(
+        &mut registry_rs,
+        &reactions::emit_entity_identity_head_table(exemplar, &registry_aggregates),
     );
     puts_blank(&mut registry_rs);
     puts_str(

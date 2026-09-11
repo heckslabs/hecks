@@ -1267,6 +1267,15 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     }
 }
 
+pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static str> {
+    match qualified_path {
+        "Banking::Account.LedgerEntry" => Some("sequence"),
+        "Banking::ATMCard.Withdrawal" => Some("sequence"),
+        "Banking::SafeDepositBox.KeyIssuance" => Some("serial"),
+        _ => None,
+    }
+}
+
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "Banking::Customer.Register" => &["reference", "name", "email"],

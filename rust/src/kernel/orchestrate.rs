@@ -410,7 +410,7 @@ fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Even
     // `qualify_saga_command_name`'s own header (BUG#6/BUG#9) for why this
     // is not a plain `contains("::")` guess.
     let qualified = qualify_saga_command_name(domain_name, spec.command_name);
-    split_routed_args(projected, &qualified, tables)
+    route_dispatch_args(projected, &qualified, tables, event)
 }
 
 /// Bundles the "same for the whole call tree" tables/functions every
@@ -437,6 +437,11 @@ pub struct Tables<'a> {
     /// `ReactionInvocation.command_facts` (`args.slice(*declared)`). See
     /// `emit_command_attributes_table`'s own header for the full story.
     pub command_attributes_fn: fn(&str) -> &'static [&'static str],
+    /// BUG#10 — a ONE-LEVEL-deep entity command's own identity head,
+    /// keyed by "Domain::Aggregate.Entity" — `route_dispatch_args`'s own
+    /// header has the full argument; `reactions.rb`'s `emit_entity_
+    /// identity_head_table` is the generator side.
+    pub entity_identity_head_fn: fn(&str) -> Option<&'static str>,
 }
 
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
@@ -779,6 +784,112 @@ fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Jso
         }
     }
     Json::Object(facts)
+}
+
+/// Splits a qualified verb into (aggregate_qualified, entity_qualified)
+/// for a ONE-LEVEL-deep entity command ("Domain::Aggregate.Entity.
+/// Command") only — `None` for a plain aggregate command (one dot total)
+/// or a TWO-level-deep entity command (BUG#11's own separate, larger,
+/// still-open gap: `command_rest.contains('.')` below catches it and
+/// bails, deliberately never attempted here). `split_once`, not
+/// `rsplit_once` — `target_verb`'s own domain::aggregate boundary is a
+/// `::`, never a `.`, so the FIRST `.` is always the one separating the
+/// aggregate from whatever comes after it, one dot or several.
+fn entity_command_paths(target_verb: &str) -> Option<(&str, String)> {
+    let (aggregate_name, rest) = target_verb.split_once('.')?;
+    let (entity_name, command_rest) = rest.split_once('.')?;
+    if command_rest.contains('.') {
+        return None;
+    }
+    Some((aggregate_name, format!("{aggregate_name}.{entity_name}")))
+}
+
+/// A with:-projected field resolved through `resolve_with`'s own
+/// ordinary (non-correlation-head) branch carries whatever shape the
+/// triggering event's payload stored it in — for a VO-typed field
+/// (`Slot`'s own `number`, `SlotNumber`) that's the nested `{"value":
+/// ...}` object every VO round-trips as, not a bare scalar
+/// `to_id_component` alone accepts. The correlation-head special case
+/// (`resolve_with`'s own `if *name == head`) is the ONLY existing path
+/// that ever hands `split_routed_args`'s candidates loop a bare string
+/// today — an ordinary field lookup never did, until `route_dispatch_
+/// args` became the first caller to resolve an identity from one.
+/// Mirrors the generated `extract_id`/`extract_wants` functions' own
+/// `dig("field.value")` convention (`manifest.rs`'s own `Slot::extract_
+/// id`) one level down: try the value as-is first, then its own
+/// `"value"` field once, never recursing deeper (a composite VO is
+/// already excluded upstream by `entity_identity_head_table`/`identity_
+/// head_table`'s own single-component restriction).
+fn resolved_id_component(v: &Json) -> Option<String> {
+    v.to_id_component().ok().or_else(|| v.get("value").and_then(|inner| inner.to_id_component().ok())).filter(|id| !id.is_empty())
+}
+
+/// BUG#10 — generalizes `split_routed_args`'s own single-aggregate-
+/// scalar routing to a ONE-LEVEL-deep entity-owned saga dispatch target
+/// too (`qa/stress_domains/waybill`'s own `Packing` saga, leg 3:
+/// `Manifest::Slot.Fill`). `split_routed_args` alone can never resolve
+/// this shape: `Fill`'s own `with: { number: :number, item: :item }`
+/// carries no field named after `Manifest`'s own identity head
+/// (`reference`) at all — Ruby resolves the PARENT aggregate's identity
+/// through an entirely separate channel, `SagaInterpreter#deliver_saga_
+/// dispatch`'s own `source_receiver: { aggregate: event.aggregate,
+/// identity: event.id }` (the triggering event's own aggregate/id, fed
+/// into `ReactionInvocation.build`'s `aggregate_identity ||=
+/// inherited_receiver` fallback) — never from the projected `with:`
+/// facts. `build_dispatch_args` already has `event: &Event` in scope for
+/// exactly this reason; this is the first caller that actually reads it
+/// for its aggregate/id rather than only its payload/name.
+///
+/// Falls straight through to whatever `split_routed_args` itself already
+/// computed — unchanged — for every case this doesn't apply to (a plain
+/// aggregate command, already handled; a creating command; a two-level
+/// entity command; an entity command this same aggregate's event didn't
+/// itself trigger, or whose entity has no single-component identity
+/// head) — so this can never make an already-working dispatch (Account.
+/// Debit/Credit, every other saga leg in the corpus) behave any
+/// differently than it did before this function existed.
+fn route_dispatch_args(projected: Json, target_verb: &str, tables: &Tables, event: &Event) -> Json {
+    let routed = split_routed_args(projected.clone(), target_verb, tables);
+    if matches!(&routed, Json::Object(fields) if fields.iter().any(|(k, _)| k == "to")) {
+        return routed;
+    }
+
+    let Some((aggregate_name, entity_qualified)) = entity_command_paths(target_verb) else { return routed };
+    let Json::Object(pairs) = &projected else { return routed };
+
+    // ENTITY IDENTITY — the SAME structural match `ReactionInvocation.
+    // identity_for`'s own `Identity.of` tries first on the Ruby side: the
+    // entity's own declared identity attribute, present in the projected
+    // `with:` facts by that EXACT name (`reactions.rb`'s own `emit_
+    // entity_identity_head_table` header has the full argument for why
+    // this table only ever carries a single-component identity).
+    let Some(entity_head) = (tables.entity_identity_head_fn)(&entity_qualified) else { return routed };
+    let Some(entity_id) = pairs.iter().find(|(k, _)| k == entity_head).and_then(|(_, v)| resolved_id_component(v)) else {
+        return routed;
+    };
+
+    // AGGREGATE IDENTITY — tried the SAME way `split_routed_args`'s own
+    // candidates loop already tries it (an explicit with:-projected
+    // field naming the aggregate's own identity/reference key), THEN
+    // falls back to the triggering event's own aggregate/id exactly like
+    // Ruby's `source_receiver_for`/`ReactionInvocation.build`'s own
+    // `aggregate_identity ||= inherited_receiver` — the parent record a
+    // saga leg dispatching into one of its own entities is always
+    // already IN, never invented.
+    let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
+    let aggregate_id = candidates
+        .into_iter()
+        .flatten()
+        .find_map(|key| pairs.iter().find(|(k, _)| k == key).and_then(|(_, v)| resolved_id_component(v)))
+        .or_else(|| (event.aggregate == aggregate_name && !event.id.is_empty()).then(|| event.id.clone()));
+    let Some(aggregate_id) = aggregate_id else { return routed };
+
+    let declared = (tables.command_attributes_fn)(target_verb);
+    let facts: Vec<(String, Json)> = pairs.iter().filter(|(k, _)| declared.contains(&k.as_str())).cloned().collect();
+    Json::obj(vec![
+        ("to", Json::obj(vec![("aggregate", Json::str(aggregate_id)), ("entities", Json::Array(vec![Json::str(entity_id)]))])),
+        ("with", Json::Object(facts)),
+    ])
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1662,6 +1773,9 @@ mod tests {
     fn multi_leg_no_declared_attributes(_verb: &str) -> &'static [&'static str] {
         &[]
     }
+    fn multi_leg_no_entity_identity_head(_qualified_path: &str) -> Option<&'static str> {
+        None
+    }
 
     #[test]
     fn multi_leg_reentrant_saga_fires_completed_compensations_newest_first_on_a_later_legs_refusal() {
@@ -1721,6 +1835,7 @@ mod tests {
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
+            entity_identity_head_fn: multi_leg_no_entity_identity_head,
         };
 
         let mut store = MultiLegTestStore;
@@ -1882,6 +1997,7 @@ mod tests {
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
+            entity_identity_head_fn: multi_leg_no_entity_identity_head,
         };
 
         let mut store = MultiLegTestStore;
@@ -1943,6 +2059,124 @@ mod tests {
         assert_eq!(qualify_saga_command_name("Waybill", "Manifest.AddSlot"), "Waybill::Manifest.AddSlot");
     }
 
+    #[test]
+    fn entity_command_paths_only_matches_a_one_level_deep_entity_command() {
+        assert_eq!(
+            entity_command_paths("Waybill::Manifest.Slot.Fill"),
+            Some(("Waybill::Manifest", "Waybill::Manifest.Slot".to_string()))
+        );
+        // A plain aggregate command has only one dot total — never an
+        // entity command.
+        assert_eq!(entity_command_paths("Waybill::Manifest.AddSlot"), None);
+        // A TWO-level-deep entity command (BUG#11's own separate, larger,
+        // still-open gap) is deliberately never attempted here.
+        assert_eq!(entity_command_paths("Domain::Workspace.Board.Card.Annotate"), None);
+    }
+
+    // A FIXED FIXTURE, shared by both tests below — a one-level entity
+    // command ("Widgets::Crate.Slot.Fill") whose `with:` carries the
+    // ENTITY's own identity ("number", Slot's own `identified_by`) but
+    // never the parent aggregate's — BUG#10's own exact shape (`Manifest
+    // ::Slot.Fill`'s own `with: { number: :number, item: :item }`, one
+    // level up). Plain, non-capturing `fn`s, matching the real shape a
+    // generated table already has (a `fn` pointer, never a closure).
+    fn bug10_entity_identity_head(qualified_path: &str) -> Option<&'static str> {
+        (qualified_path == "Widgets::Crate.Slot").then_some("number")
+    }
+    fn bug10_declared_attributes(verb: &str) -> &'static [&'static str] {
+        if verb == "Widgets::Crate.Slot.Fill" {
+            &["item"]
+        } else {
+            &[]
+        }
+    }
+    fn bug10_identity_head_never_found(_aggregate: &str) -> Option<&'static str> {
+        None
+    }
+    fn bug10_reference_key_never_found(_aggregate: &str) -> Option<&'static str> {
+        None
+    }
+    fn bug10_never_creates(_verb: &str) -> bool {
+        false
+    }
+    fn bug10_fixture_tables() -> Tables<'static> {
+        Tables {
+            policies: &[],
+            cross_domain_policies: &[],
+            process_managers: &[],
+            reference_key_fn: bug10_reference_key_never_found,
+            queries: &[],
+            command_creates_fn: bug10_never_creates,
+            identity_head_fn: bug10_identity_head_never_found,
+            command_attributes_fn: bug10_declared_attributes,
+            entity_identity_head_fn: bug10_entity_identity_head,
+        }
+    }
+
+    #[test]
+    fn route_dispatch_args_threads_the_triggering_events_aggregate_identity_into_a_one_level_entity_commands_route() {
+        // `Fill`'s own `with: { number: :number, item: :item }` —
+        // `number` is Slot's own identity, VO-nested (`{"value": ...}`)
+        // the way an ordinary event-payload lookup hands it back (BUG#10's
+        // own root cause: NEITHER field names the parent aggregate's own
+        // identity at all — that comes only from the triggering event,
+        // mirroring Ruby's `SagaInterpreter#deliver_saga_dispatch`'s own
+        // `source_receiver: { aggregate: event.aggregate, identity: event.
+        // id }`).
+        let tables = bug10_fixture_tables();
+        let projected = Json::obj(vec![("number", Json::obj(vec![("value", Json::int(7))])), ("item", Json::str("hello"))]);
+        let event = Event {
+            name: "SlotAdded".to_string(),
+            aggregate: "Widgets::Crate".to_string(),
+            id: "crate-1".to_string(),
+            payload: Json::Object(vec![]),
+            occurred_at: None,
+            correlation: None,
+        };
+
+        let routed = route_dispatch_args(projected, "Widgets::Crate.Slot.Fill", &tables, &event);
+        assert_eq!(
+            routed,
+            Json::obj(vec![
+                ("to", Json::obj(vec![("aggregate", Json::str("crate-1")), ("entities", Json::Array(vec![Json::str("7")]))])),
+                ("with", Json::obj(vec![("item", Json::str("hello"))])),
+            ]),
+            "should route to {{aggregate: crate-1, entities: [7]}} with facts sliced to Fill's own \
+             declared attributes, mirroring Ruby's ReactionInvocation.build/source_receiver_for — \
+             got {routed:?}"
+        );
+    }
+
+    #[test]
+    fn route_dispatch_args_falls_through_unchanged_when_the_triggering_event_is_a_different_aggregate() {
+        // Same fixture as above, but the triggering event names a
+        // DIFFERENT aggregate — Ruby's own `source_receiver_for`'s
+        // `same_aggregate` guard refuses to invent a receiver here
+        // either, so this must fall straight through to split_routed_
+        // args's own (unrouted) answer, never fabricate an aggregate
+        // identity from an unrelated event.
+        let tables = bug10_fixture_tables();
+        let projected = Json::obj(vec![("number", Json::obj(vec![("value", Json::int(7))])), ("item", Json::str("hello"))]);
+        let event = Event {
+            name: "SomethingElseHappened".to_string(),
+            aggregate: "Widgets::OtherThing".to_string(),
+            id: "other-1".to_string(),
+            payload: Json::Object(vec![]),
+            occurred_at: None,
+            correlation: None,
+        };
+
+        let routed = route_dispatch_args(projected, "Widgets::Crate.Slot.Fill", &tables, &event);
+        assert_eq!(
+            routed,
+            Json::obj(vec![("item", Json::str("hello"))]),
+            "with no aggregate identity anywhere (not in the projected facts, and the triggering \
+             event names a different aggregate entirely), this must fall through to split_routed_\
+             args's own unrouted, declared-attributes-only answer, never invent a receiver — \
+             got {routed:?}"
+        );
+    }
+
     // C10.3 — the kernel half of spec/corpus/semantics/
     // saga_leg_selected_by_state.json (whose domain is Ruby-only): two
     // legs on ONE event from different states, each reached exactly when
@@ -2002,6 +2236,7 @@ mod tests {
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
+            entity_identity_head_fn: multi_leg_no_entity_identity_head,
         };
 
         let mut store = MultiLegTestStore;
@@ -2127,6 +2362,7 @@ mod tests {
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
+            entity_identity_head_fn: multi_leg_no_entity_identity_head,
         };
 
         let mut store = MultiLegTestStore;

@@ -88,6 +88,24 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
 }
 // TMPL:identity_head_table END
 
+// `orchestrate.rs`'s own saga-dispatch routing (BUG#10) — reactions.rb's
+// own header on `emit_entity_identity_head_table` for the full argument:
+// the SAME single-component restriction `identity_head_table` already
+// carries, one level down, for an ENTITY's own declared identity rather
+// than its owning aggregate's. Keyed by "Domain::Aggregate.Entity", the
+// exact prefix a ONE-LEVEL-deep entity command's own qualified verb
+// splits down to — a two-level-deep one (BUG#11's own separate, larger,
+// still-open gap) never computes that longer prefix, so it simply never
+// resolves through this table.
+// TMPL:entity_identity_head_table BEGIN
+pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static str> {
+    match qualified_path {
+"tmpl_qualified" => Some("tmpl_head"),
+        _ => None,
+    }
+}
+// TMPL:entity_identity_head_table END
+
 // `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
 // on `emit_command_attributes_table` for the full argument (R1,
 // docs/audits/2026-08-11-bug-triage.md).

@@ -452,6 +452,43 @@ module RustProjection
       Exemplar.render("identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
     end
 
+    # ── THE ENTITY's OWN SINGLE-COMPONENT IDENTITY HEAD — `orchestrate.
+    # rs`'s own saga-dispatch routing (BUG#10: `qa/stress_domains/
+    # waybill`'s own `Packing` saga, whose leg 3 targets `Manifest::
+    # Slot.Fill`, an ENTITY-owned command) needs the ENTITY's own
+    # identity, not just its parent aggregate's, to build a real
+    # `{aggregate:, entities:}` route the way `ReactionInvocation.build`'s
+    # own `entity_identities` loop already does on the Ruby side (`identity_
+    # for`'s structural match against the entity's OWN declared identity
+    # attribute name, found directly in the saga's `with:`-projected
+    # facts — `Manifest::Slot.Fill`'s own `with: { number: :number, item:
+    # :item }` projects `number`, Slot's own `identified_by`, for exactly
+    # this reason, even though `Fill` itself never declares `number` as
+    # an attribute). Same restraint `emit_identity_head_table` already
+    # documents for the AGGREGATE case, one level down: a composite
+    # identity (more than one component) is a real, documented gap here
+    # too, skipped rather than guessed at. Keyed by "Domain::Aggregate.
+    # Entity" — the exact prefix a ONE-LEVEL-deep entity command's own
+    # qualified verb splits down to (`orchestrate.rs`'s own `entity_
+    # command_paths`); a TWO-level-deep entity command (BUG#11's own
+    # separate, larger, still-open gap) never computes that longer
+    # prefix, so it simply never resolves through this table — out of
+    # scope here on purpose, not silently mishandled.
+    def emit_entity_identity_head_table(aggregates)
+      arms = aggregates.flat_map do |aggregate|
+        Array(aggregate[:entities]).filter_map do |entity|
+          heads = Array(entity[:identified_by])
+          next if heads.size != 1
+
+          head = heads.first.to_s.split(".").first
+          qualified = "#{aggregate[:domain_name]}::#{aggregate[:name]}.#{entity[:name]}"
+          "        #{qualified.inspect} => Some(#{head.inspect}),"
+        end
+      end
+
+      Exemplar.render("entity_identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
+    end
+
     # ── THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1,
     # docs/audits/2026-08-11-bug-triage.md) — `orchestrate.rs`'s own
     # `split_routed_args` needs this to build a reaction-triggered

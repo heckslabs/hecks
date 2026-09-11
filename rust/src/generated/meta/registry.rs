@@ -1263,6 +1263,15 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     }
 }
 
+pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static str> {
+    match qualified_path {
+        "Bluebook::ValueObject.Member" => Some("position"),
+        "Bluebook::Syntax.Keyword" => Some("position"),
+        "Bluebook::Syntax.Argument" => Some("position"),
+        _ => None,
+    }
+}
+
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "Bluebook::Aggregate.Identify" => &["path"],

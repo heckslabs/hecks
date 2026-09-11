@@ -20,7 +20,7 @@
 // generated.
 
 use super::{named_query, orchestrate, query_comparators, read_model, repository, AggregateScan, CompletedCompensation, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance, Tables};
-use crate::generated::active::{command_attributes_for_verb, command_creates, dispatch_by_name, identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
+use crate::generated::active::{command_attributes_for_verb, command_creates, dispatch_by_name, entity_identity_head_for_path, identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
 use std::collections::HashMap;
 
 // C3.7 FOR A NAMED QUERY'S OWN ARGUMENTS — the generated gate
@@ -459,6 +459,7 @@ pub fn run(input: &str) -> String {
             command_creates_fn: command_creates,
             identity_head_fn: identity_head_for_aggregate,
             command_attributes_fn: command_attributes_for_verb,
+            entity_identity_head_fn: entity_identity_head_for_path,
         };
         if let Err(refusal) = orchestrate(
             &mut store,
@@ -565,6 +566,7 @@ fn tables() -> Tables<'static> {
         command_creates_fn: command_creates,
         identity_head_fn: identity_head_for_aggregate,
         command_attributes_fn: command_attributes_for_verb,
+        entity_identity_head_fn: entity_identity_head_for_path,
     }
 }
 
