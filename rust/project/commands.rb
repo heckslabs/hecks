@@ -960,5 +960,188 @@ module RustProjection
         entity_dispatch_fn,
       ].join("\n\n")
     end
+
+    # BUG#11 (loop-parity) — A COMMAND OWNED BY AN ENTITY NESTED TWO
+    # LEVELS DEEP (`Aggregate.Entity.Entity.Command`, e.g. `Workspace.
+    # Board.Card.Annotate`). `domain_generator.rb`'s own header on its
+    # nested-entity loop has the full argument for why this is a real,
+    # bounded gap rather than an architecture mismatch — the short
+    # version: `kernel::dispatch_entity` and `kernel::apply_entity_
+    # command` (dispatch.rs) are ALREADY generic over any (parent, list,
+    # matches, apply_mutations) tuple, so the second hop is just ANOTHER
+    # `apply_entity_command` call, nested INSIDE the first hop's own
+    # `apply_mutations` closure — no new kernel primitive, just one more
+    # composition of the two that already exist. `delegation_of`'s own
+    # `delegate_apply` (above) already proves the same primitive
+    # (`apply_entity_command`, called directly rather than through
+    # `dispatch_entity`) composes with a surrounding `dispatch`/`dispatch_
+    # entity` call; this is that same composition, one level deeper.
+    #
+    # ROUTED ONLY (`to: { aggregate:, entities: [hop1, hop2] }`) — see
+    # `domain_generator.rb`'s own header for why the unrouted legacy
+    # shape is deliberately left a separate, still-open gap at this
+    # depth rather than guessed at here.
+    #
+    # NO Board-level (the OUTER hop's own) given/ensures/transition —
+    # `nested`'s OWN command never declares one for the entity it is
+    # nested inside; that entity is purely a chain link here, the same
+    # way `locate_chain` (entity_element.rb) treats every intermediate
+    # `owner` — so the outer `dispatch_entity` call below is handed `&[]`/
+    # `None` for those three parameters, and every REAL given/ensures/
+    # transition this command declares belongs to the INNER `apply_
+    # entity_command` call instead, exactly where `command[:givens]`/
+    # `command[:ensures]`/`lifecycle_transition_for(command, nested)`
+    # actually name them.
+    def emit_nested_entity_command(command, nested, entity, parent_aggregate, domain_name, value_objects_by_name, aggregates_by_name,
+                                   process_managers: [])
+      parent_record = rust_ident(parent_aggregate[:name])
+      entity_record = rust_ident(entity[:name])
+      nested_record = rust_ident(nested[:name])
+      cmd = rust_ident(command[:name])
+
+      aggregate_name          = parent_aggregate[:name].to_s
+      parent_identity_reading = parent_aggregate[:identified_by].join(", ")
+      entity_name             = entity[:name].to_s
+      entity_identity_reading = entity[:identified_by].join(", ")
+      nested_name             = nested[:name].to_s
+      nested_identity_reading = nested[:identified_by].join(", ")
+
+      # THE TWO LIST ATTRIBUTES THIS CHAIN WALKS — the parent aggregate's
+      # own list holding `entity` (exactly `emit_entity_command`'s own
+      # `list_attr`), and `entity`'s OWN list holding `nested` (the SAME
+      # `a.list? && a.type == entity_name` search, one level in).
+      list_attr1 = parent_aggregate[:attributes].find { |a| a[:list] && a[:type] == entity[:name] }
+      raise "#{entity[:name]}: no list attribute on #{parent_aggregate[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr1
+
+      list_attr2 = entity[:attributes].find { |a| a[:list] && a[:type] == nested[:name] }
+      raise "#{nested[:name]}: no list attribute on #{entity[:name]} holds it — unsupported_attribute_types should have caught this" unless list_attr2
+
+      list_field1 = rust_ident_field(list_attr1[:name])
+      list_field2 = rust_ident_field(list_attr2[:name])
+
+      # `NestedEntityArgs`, not `EntityArgs` — a THIRD args-struct suffix,
+      # alongside `emit_command`'s bare `Args` and `emit_entity_command`'s
+      # `EntityArgs`, for the identical name-collision reason
+      # `emit_entity_command`'s own header already gives for ITS suffix.
+      args_struct_name = "#{nested_record}#{cmd}NestedEntityArgs"
+
+      args_struct = ["pub struct #{args_struct_name} {"]
+      command[:attributes].each do |attr|
+        type = rust_type(attr[:type], list: attr[:list])
+        type = "Option<#{type}>" if attr[:optional]
+        args_struct << "    #{Exemplar.render('struct_field', 'TmplFieldType' => type, 'tmpl_field' => rust_ident_field(attr[:name]))}"
+      end
+      args_struct << "}"
+
+      invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
+
+      given_specs = command[:givens].map do |given|
+        "                    crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_ast(given[:ast])}, corrects_event: None },"
+      end
+
+      ensures_specs = command[:ensures].map do |rule|
+        "                    crate::kernel::EnsuresSpec { description: #{rust_string_literal(rule[:description])}, expr: #{ExprEmitter.emit_ast(rule[:ast])} },"
+      end
+
+      # THE NESTED ENTITY's OWN lifecycle, not `entity`'s and not the
+      # parent aggregate's — same reasoning as `emit_entity_command`'s
+      # identical call, one level deeper.
+      transition = lifecycle_transition_for(command, nested)
+      transition_arg = transition_check_arg(transition)
+
+      mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, nested, command, value_objects_by_name, optional: false) }
+      mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
+      mutation_lines << "                record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
+      mutation_lines = ["                let _ = record;"] if mutation_lines.empty?
+
+      # BARE — same reasoning as `emit_entity_command`'s identical
+      # `qualified_command_name`: feeds refusal-message text, which
+      # Ruby's own `command.hecks_name` never domain/entity-qualifies.
+      qualified_command_name = command[:name].to_s
+      fn_name = "dispatch_entity_#{entity[:name].downcase}_#{nested[:name].downcase}_#{dispatch_fn_name(cmd)}"
+
+      nested_dispatch_fn = <<~RUST
+        pub fn #{fn_name}(
+            repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
+            hop2_id: &str, hop2_wants: &str, args: #{args_struct_name}, mutations: &mut Vec<crate::kernel::MutationRecord>,
+            owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+        ) -> crate::kernel::DispatchResult<#{parent_record}> {
+        #{invariant_checks.join("\n")}
+            #{with_references_binding}
+            #{seed_projections_binding(parent_aggregate)}
+
+            crate::kernel::dispatch_entity(
+                repo,
+                parent_id,
+                |r: &#{parent_record}| &r.#{list_field1},
+                |r: &mut #{parent_record}| &mut r.#{list_field1},
+                |el: &#{entity_record}| el.identity() == hop1_id,
+                #{qualified_command_name.inspect},
+                #{"#{domain_name}::#{parent_aggregate[:name]}".inspect},
+                #{aggregate_name.inspect},
+                #{parent_identity_reading.inspect},
+                #{entity_name.inspect},
+                #{entity_identity_reading.inspect},
+                hop1_wants,
+                &with_references,
+                &[],
+                None,
+                |nested_owner: &mut #{entity_record}| {
+                    crate::kernel::apply_entity_command(
+                        nested_owner,
+                        hop1_id,
+                        |r: &#{entity_record}| &r.#{list_field2},
+                        |r: &mut #{entity_record}| &mut r.#{list_field2},
+                        |el: &#{nested_record}| el.identity() == hop2_id,
+                        #{qualified_command_name.inspect},
+                        #{aggregate_name.inspect},
+                        #{nested_name.inspect},
+                        #{nested_identity_reading.inspect},
+                        hop2_wants,
+                        &with_references,
+                        &[
+        #{given_specs.join("\n")}
+                        ],
+                        #{transition_arg},
+                        |record| {
+        #{mutation_lines.join("\n")}
+                            Ok(())
+                        },
+                        &[
+        #{ensures_specs.join("\n")}
+                        ],
+                        false,
+                    )
+                },
+                &[],
+                &#{invariants_fn_name(parent_aggregate)}(),
+                &[#{command[:emits].map(&:inspect).join(', ')}],
+                args.to_json(),
+                mutations,
+                seed_projections,
+            )
+        }
+      RUST
+
+      [
+        emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        "#[derive(Debug, Clone)]\n#{args_struct.join("\n")}",
+        emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name, sparse: true),
+        # `extra_identity_heads:` — BOTH hops' own identity heads, not
+        # just the addressed (innermost) entity's — matching Ruby's own
+        # `ctx.chain.flat_map(&:identity_heads)` (entity_interpreter.rb),
+        # which allows a caller's JSON to carry every construct the
+        # chain walked through, not only the one a command's own
+        # attributes declare.
+        emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name,
+                            unknown_argument_allowlist: command_argument_allowlist(
+                              parent_aggregate, command, process_managers,
+                              extra_identity_heads: (entity[:identified_by] + nested[:identified_by]).map { |path| path.split(".").first }
+                            ),
+                            command_name: command[:name].to_s, absent_argument_check: true,
+                            interleave_checks: true, aggregates_by_name: aggregates_by_name),
+        nested_dispatch_fn,
+      ].join("\n\n")
+    end
   end
 end

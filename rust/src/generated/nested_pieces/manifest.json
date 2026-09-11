@@ -17,9 +17,9 @@
   {
     "kind": "entity_command",
     "id": "NestedPieces::Workspace.Board.Card.Annotate",
-    "generated": false,
-    "gap_class": "structural",
-    "reason": "entity nested two levels deep (NestedPieces::Workspace.Board.Card) — kernel::cli.rs's JSON router and registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+    "generated": true,
+    "routed": true,
+    "reason": "routed (`to: { entities: [...] }`) only — no legacy/flat-argument fallback at this depth (BUG#11)"
   },
   {
     "kind": "entity_command",

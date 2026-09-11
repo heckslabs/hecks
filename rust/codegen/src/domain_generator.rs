@@ -25,7 +25,7 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::registry::{
-    AggregateEntry, CommandEntry, EntityCommandEntry, PortEntry, ReferenceCheck,
+    AggregateEntry, CommandEntry, EntityCommandEntry, NestedEntityCommandEntry, PortEntry, ReferenceCheck,
 };
 use crate::{commands, json_codec, mutations, ports, queries, reactions, read_models, types};
 use std::collections::HashMap;
@@ -300,6 +300,7 @@ pub fn generate(
         }
 
         let mut entity_commands: Vec<EntityCommandEntry> = Vec::new();
+        let mut nested_entity_commands: Vec<NestedEntityCommandEntry> = Vec::new();
 
         for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
             puts_str(
@@ -339,17 +340,24 @@ pub fn generate(
             puts_blank(&mut out);
 
             // S17, ADR 0026 — AN ENTITY NESTED INSIDE THIS ONE
-            // (`ProcessManager.Handler.Dispatch`). Struct + JSON codec
-            // only, mirroring rust/project/domain_generator.rb's own
-            // identical fix exactly — making a doubly-nested entity's
-            // OWN commands (`Dispatch.Bind`) reachable through
-            // kernel::cli.rs's JSON router is a separate, deeper
-            // question the router/dispatch table aren't built for yet
-            // (one level of Aggregate.Entity.Command, not two), so
-            // those commands are simply never added to `entity_commands`
-            // below — real functions never get emitted for them here at
-            // all, unlike the Ruby generator's own manifest-tracked
-            // skip; this tool has no manifest to track it in.
+            // (`ProcessManager.Handler.Dispatch`). Struct + JSON codec,
+            // mirroring rust/project/domain_generator.rb's own identical
+            // shape exactly.
+            //
+            // BUG#11 (loop-parity) — ITS OWN COMMANDS ARE NOW ROUTED
+            // TOO, for the ROUTED (`to: { aggregate:, entities: [...] }`)
+            // addressing shape only. See `commands.rs::emit_nested_
+            // entity_command`'s own doc comment and `rust/project/
+            // domain_generator.rb`'s own header for the full argument —
+            // short version: `kernel::dispatch_entity`/`kernel::apply_
+            // entity_command` (dispatch.rs) were already generic enough
+            // to compose one hop deeper with no kernel change at all, so
+            // this was a real, bounded codegen gap, not an architecture
+            // mismatch. Deliberately NOT generalized past two levels, and
+            // no legacy/flat-argument fallback at this depth — scoped to
+            // exactly the shape `qa/stress_domains/nested_pieces` and
+            // this language's own `ProcessManager.Handler.Dispatch`
+            // actually exercise.
             for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
                 puts_str(
                     &mut out,
@@ -387,6 +395,91 @@ pub fn generate(
                     ),
                 );
                 puts_blank(&mut out);
+                // `identity()` — the ONLY thing a ROUTED dispatch needs
+                // off a doubly-nested element (`matches = |el| el.
+                // identity() == hop2_id`) — no `extract_id`/`extract_
+                // wants`, matching the Ruby generator's own identical
+                // scoping (no legacy fallback at this depth).
+                puts_str(&mut out, &json_codec::emit_self_identity(exemplar, nested));
+                puts_blank(&mut out);
+
+                let nested_identified_by = nested.get("identified_by").map(Json::each).unwrap_or(&[]);
+                for command in nested.get("commands").map(Json::each).unwrap_or(&[]) {
+                    let reason = commands::entity_command_skip_reason(command, nested, &value_objects_by_name);
+                    if reason.is_some() {
+                        continue;
+                    }
+
+                    puts_str(
+                        &mut out,
+                        &commands::emit_nested_entity_command(
+                            exemplar,
+                            command,
+                            nested,
+                            entity,
+                            aggregate,
+                            domain_name,
+                            &value_objects_by_name,
+                            &aggregates_by_name,
+                            &process_managers,
+                        ),
+                    );
+                    puts_blank(&mut out);
+
+                    let nested_command_name = command.get("name").and_then(Json::as_str).unwrap_or("");
+                    let entity_name_str = entity.get("name").and_then(Json::as_str).unwrap_or("");
+                    let nested_name_str = nested.get("name").and_then(Json::as_str).unwrap_or("");
+                    nested_entity_commands.push(NestedEntityCommandEntry {
+                        verb: format!("{domain_name}::{agg_name}.{entity_name_str}.{nested_name_str}.{nested_command_name}"),
+                        name: nested_command_name.to_string(),
+                        entity_record: entity_name_ident.clone(),
+                        nested_record: nested_name_ident.clone(),
+                        fn_name: format!(
+                            "{}_{}_{}",
+                            entity_name_str.to_lowercase(),
+                            nested_name_str.to_lowercase(),
+                            crate::naming::dispatch_fn_name(&crate::naming::rust_ident(nested_command_name))
+                        ),
+                        args_struct: format!(
+                            "{nested_name_ident}{}NestedEntityArgs",
+                            crate::naming::rust_ident(nested_command_name)
+                        ),
+                        reference_checks: reference_checks(command, &aggregates_by_name, &unsupported_names),
+                        reference_specs: crate::reference_specs::reference_specs(
+                            domain_name,
+                            command.get("attributes").map(Json::each).unwrap_or(&[]),
+                        ),
+                        attributes: command
+                            .get("attributes")
+                            .map(Json::each)
+                            .unwrap_or(&[])
+                            .iter()
+                            .map(|a| a.get("name").map(Json::to_s).unwrap_or_default())
+                            .collect(),
+                        invariant_check_lines: commands::invariant_checks_for(
+                            exemplar,
+                            command,
+                            &aggregates_by_name,
+                            &value_objects_by_name,
+                        ),
+                        role: command.get("role").map(Json::to_s),
+                        entity_name: entity_name_str.to_string(),
+                        entity_identity_reading: entity
+                            .get("identified_by")
+                            .map(Json::each)
+                            .unwrap_or(&[])
+                            .iter()
+                            .map(Json::to_s)
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        nested_name: nested_name_str.to_string(),
+                        nested_identity_reading: nested_identified_by
+                            .iter()
+                            .map(Json::to_s)
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    });
+                }
             }
 
             let entity_can_route = json_codec::extract_id_supported(entity);
@@ -732,6 +825,7 @@ pub fn generate(
             record: record_name,
             commands: registry_commands,
             entity_commands,
+            nested_entity_commands,
             ports: port_operations,
             chapter_mod: mod_name.to_string(),
             domain_name: domain_name.to_string(),
