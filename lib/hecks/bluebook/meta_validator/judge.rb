@@ -117,6 +117,28 @@ module Hecks
           offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
         end
 
+        # THE RECEIVER, SPELLED THE WAY A REAL CALLER ADDRESSES IT.
+        #
+        # `receiver` is an internal accumulator — it tracks the aggregate this
+        # walk is inside AND, once it crosses into a real entity-owned category
+        # (Member/Handler/Dispatch — S17, ADR 0026), every entity hop on top of
+        # it. But `Routing.envelope`/`parse_envelope_hash` do not want that
+        # shape restated when there is no entity to route to: a plain aggregate
+        # command is addressed by its bare id (`Facade::Handle#dispatch` — "to:
+        # @id" — and `CommandRequest`'s own header: "aggregate command: { to:
+        # "record-id", ... }"), never `{aggregate:, entities: []}` — that hash
+        # is the ENTITY route's own shape, degenerate with nothing in it.
+        #
+        # So THIS is the one place `receiver` turns into a `to:` value: bare
+        # when there is no entity hop (the overwhelming common case — every
+        # category but those three), the full envelope only when there
+        # genuinely is one.
+        def address(receiver)
+          return receiver[:aggregate] if receiver[:entities].empty?
+
+          receiver
+        end
+
         def judge!
           declare_node("Bluebook", @bluebook, nil, 0)
           detail_node("Bluebook", @bluebook, nil, 0)
@@ -384,7 +406,7 @@ module Hecks
             end
             next if payload.values.all?(&:nil?)
 
-            send_to("Bluebook::#{verb_for(plan, setter.verb)}", receiver[:aggregate], to: receiver, **payload)
+            send_to("Bluebook::#{verb_for(plan, setter.verb)}", receiver[:aggregate], to: address(receiver), **payload)
           end
         end
 
@@ -409,7 +431,7 @@ module Hecks
               end
 
               send_to("Bluebook::#{verb_for(plan, chosen.verb)}", "#{id}##{list_name}[#{index}]",
-                      to: receiver, **payload)
+                      to: address(receiver), **payload)
             end
           end
         end
@@ -430,7 +452,7 @@ module Hecks
 
         def sealers(plan, _category, receiver)
           id = receiver[:entities].last || receiver[:aggregate]
-          plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, to: receiver) }
+          plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, to: address(receiver)) }
         end
 
         # An aggregate's or an entity's attribute names its value object by TYPE,
