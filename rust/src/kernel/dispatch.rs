@@ -221,6 +221,34 @@ where
 {
     let (id, mut record) = match hydrate {
         Hydrate::Create { id, build } => {
+            // `NotFound`/`creating_no_identity` — `Identity.of`
+            // (identity.rb), read directly: "A BLANK PART NAMES NOTHING,
+            // the same as an ABSENT one — AN ID IS A SCALAR, and '' is
+            // not a fact about anything." `CommandInterpreter#hydrate_
+            // complete_state`/`#hydrate_prior_or_initial` both raise this
+            // exact site the moment `Identity.of` answers `nil` for a
+            // creating command, BEFORE `repository.find` ever runs — so
+            // a blank identity is refused, never looked up. Every
+            // generated `id` expression here is `RefusalSite::
+            // NotFoundCreatingNoIdentity` already had a template for (it
+            // was declared, verbatim, in refusal_wording.rs from the
+            // start) but nothing ever raised it: `Hydrate::Create` took
+            // whatever `String` codegen handed it — including "" for a
+            // single-component identity whose only part arrived
+            // blank — straight to `repo.find`/`build()`, minting a real,
+            // empty-string-keyed record Ruby would have refused before
+            // ever reaching a store. Checked here, once, generically —
+            // every `Hydrate::Create { id, .. }` call site already
+            // builds `id` the same way Ruby's own `Naming.identity`
+            // joins declared parts, so this is the one place both
+            // codegen pipelines' output converges through.
+            if id.is_empty() {
+                return Err(Refusal::NotFound(RefusalSite::NotFoundCreatingNoIdentity.render(&[
+                    ("command", command_name),
+                    ("aggregate", aggregate_name),
+                    ("identity", identity_reading),
+                ])));
+            }
             if repo.find(&id).is_some() {
                 // `AlreadyExists`/`creating_duplicate` — `CommandInterpreter
                 // #hydrate`'s own second guard, read directly: "a second
