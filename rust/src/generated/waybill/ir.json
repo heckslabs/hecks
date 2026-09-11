@@ -1,0 +1,767 @@
+{
+  "ir_version": 1,
+  "name": "Waybill",
+  "version": null,
+  "vision": "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Consignment",
+      "description": "A request to pack and ship one item, driving the Packing saga end to end.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "ConsignmentReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "number",
+          "type": "SlotNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "item",
+          "type": "ItemLabel",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ConsignmentReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a consignment is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SlotNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a slot number is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ItemLabel",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an item is labeled",
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "text"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Request",
+          "role": "Customer",
+          "goal": "Request one item be packed onto a numbered slot and shipped",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "ConsignmentReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "number",
+              "type": "SlotNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "item",
+              "type": "ItemLabel",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ConsignmentRequested"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Ship",
+          "role": "System",
+          "goal": "Mark the consignment shipped once its slot is filled",
+          "references": "Consignment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ConsignmentShipped"
+          ],
+          "from": "requested",
+          "provenance": null
+        },
+        {
+          "name": "Cancel",
+          "role": "System",
+          "goal": "Cancel a consignment whose slot could not be filled",
+          "references": "Consignment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ConsignmentCancelled"
+          ],
+          "from": "requested",
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "requested",
+        "transitions": [
+          {
+            "command": "Ship",
+            "to_state": "shipped",
+            "from_state": "requested"
+          },
+          {
+            "command": "Cancel",
+            "to_state": "cancelled",
+            "from_state": "requested"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Requested",
+          "description": "Consignments still awaiting a packed, shipped slot.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"requested\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Manifest",
+      "description": "One manifest, holding numbered slots the Packing saga fills one at a time.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "ManifestReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "slots",
+          "type": "Slot",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ManifestReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a manifest is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SlotNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a slot number is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ItemLabel",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an item is labeled",
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "text"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Loader",
+          "goal": "Open a manifest for a consignment",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "ManifestReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ManifestOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddSlot",
+          "role": "Loader",
+          "goal": "Reserve a numbered slot on the manifest",
+          "references": "Manifest",
+          "attributes": [
+            {
+              "name": "number",
+              "type": "SlotNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "slots",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "number": ":number"
+              }
+            }
+          ],
+          "emits": [
+            "SlotAdded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Slot",
+          "description": "One numbered slot on the manifest, filled with one item.",
+          "identified_by": [
+            "number.value"
+          ],
+          "attributes": [
+            {
+              "name": "number",
+              "type": "SlotNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "item",
+              "type": "ItemLabel",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Fill",
+              "role": "Loader",
+              "goal": "Load an item into the slot",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "item",
+                  "type": "ItemLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "item",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "item"
+                  }
+                }
+              ],
+              "emits": [
+                "SlotFilled"
+              ],
+              "from": null,
+              "provenance": null
+            },
+            {
+              "name": "Clear",
+              "role": "Loader",
+              "goal": "Clear a slot's item back out — the compensating half of Fill",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "item",
+                  "type": "ItemLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "item",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "item"
+                  }
+                }
+              ],
+              "emits": [
+                "SlotCleared"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
+          "lifecycle": null
+        }
+      ],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [
+    {
+      "name": "Packing",
+      "correlates_by": "reference.value",
+      "starts_on": "ConsignmentRequested",
+      "ends_on": "ConsignmentShipped",
+      "states": [
+        "packing",
+        "filling",
+        "filled",
+        "cancelled"
+      ],
+      "handlers": [
+        {
+          "event_type": "ConsignmentRequested",
+          "from_state": "packing",
+          "to_state": "packing",
+          "dispatches": [
+            {
+              "command_name": "Manifest.Open",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "ManifestOpened",
+          "from_state": "packing",
+          "to_state": "packing",
+          "dispatches": [
+            {
+              "command_name": "Manifest.AddSlot",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ],
+                [
+                  "number",
+                  ":number"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "SlotAdded",
+          "from_state": "packing",
+          "to_state": "filling",
+          "dispatches": [
+            {
+              "command_name": "Manifest::Slot.Fill",
+              "with_spec": [
+                [
+                  "number",
+                  ":number"
+                ],
+                [
+                  "item",
+                  ":item"
+                ]
+              ],
+              "compensates": {
+                "command_name": "Manifest::Slot.Clear",
+                "with_spec": [
+                  [
+                    "number",
+                    ":number"
+                  ],
+                  [
+                    "item",
+                    ":item"
+                  ]
+                ],
+                "compensates": null
+              }
+            }
+          ]
+        },
+        {
+          "event_type": "SlotFilled",
+          "from_state": "filling",
+          "to_state": "filled",
+          "dispatches": [
+            {
+              "command_name": "Consignment.Ship",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "refused",
+          "from_state": "filling",
+          "to_state": "cancelled",
+          "dispatches": [
+            {
+              "command_name": "Consignment.Cancel",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attaches_to": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": []
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Consignment",
+        "storage_name": "consignment",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Manifest",
+        "storage_name": "manifest",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/hecks_qa/SKILL.md's \"Authoring a\n# new stress domain\" section).\n#\n# THE CONSTRUCT-COMBINATION THIS DOMAIN IS FOR, ABSENT FROM THE ENTIRE\n# CORPUS UNTIL NOW: a `process_manager` (saga) whose own `dispatch` leg\n# targets a command owned by a NESTED ENTITY, not a plain aggregate.\n# Every `process_manager` in this repository — banking's own\n# `Onboarding`/`Settlement`/`ExternalSettlement`, quality_control's own\n# `BugCiWatch` — dispatches exclusively into AGGREGATE-level commands.\n# `qa/stress_domains/nested_pieces` proved a two-level nested entity\n# fuzzes and dispatches correctly through ORDINARY (non-saga) addressing.\n# Neither combination — saga leg targeting an entity command — had ever\n# been declared anywhere, checked directly against every existing\n# `process_manager` in the corpus (`grep -rn 'dispatch ' examples/\n# banking/bluebook/*.bluebook qa/bluebook/quality_control.bluebook`)\n# before this domain was authored.\n#\n# WHAT THIS DOMAIN FOUND, FIRST TRY — BUG#6, NOW FIXED: the combination\n# did not work, in two compounding ways, both in shared runtime dispatch\n# code this domain's own bluebook never needed to change:\n#\n#   1. `SagaInterpreter#qualified` (`lib/hecks/runtime/saga_interpreter.\n#      rb`) used to decide whether a dispatch's own `command_name`\n#      already carried an explicit domain qualifier with one heuristic:\n#      `command_name.include?(\"::\")`. That heuristic could not tell a\n#      genuinely cross-domain reference (`Banking::Account::Debit` — one\n#      `::` survives `Naming.command_ref`'s own rewrite) apart from a\n#      bare, SAME-DOMAIN entity command reference (`Manifest::Slot::\n#      Fill` — ALSO one `::` survives, for an unrelated reason: entity\n#      nesting, not a domain qualifier), and picked the cross-domain\n#      reading unconditionally — so `Manifest::Slot::Fill` dispatched\n#      unprefixed, and `Naming.split_verb` read \"Manifest\" as a domain\n#      name instead of this chapter's own aggregate. Fixed by dropping\n#      the guess entirely: confirmed against the whole corpus, no saga\n#      anywhere ever dispatches genuinely cross-domain, so a saga\n#      dispatch is now always qualified against its own home domain,\n#      unconditionally — the same default `PolicyInterpreter#deliver`\n#      already applied via its own explicit (never string-inferred)\n#      `target_domain` field.\n#\n#   2. Once (1) resolved the verb correctly, `ReactionInvocation.build`\n#      (`lib/hecks/runtime/reaction_invocation.rb`) still could not\n#      resolve the manifest's own receiver identity: `source_receiver_\n#      for` refused outright whenever a target carried any entities, and\n#      separately misread `target.command.creates?` — true for EVERY\n#      entity command by construction, not only a genuinely creating one\n#      — as a reason to refuse inheriting the aggregate's own identity\n#      from the triggering event. Both were dead code paths (no policy\n#      or saga anywhere had ever targeted an entity command while\n#      relying on an inherited receiver) until this domain exercised\n#      them for the first time. Fixed to match `build`'s own already-\n#      correct `target.entities.empty? && target.command.creates?` guard\n#      one caller below.\n#\n# See `saga_interpreter.rb`'s `qualified` and `reaction_invocation.rb`'s\n# `source_receiver_for` for the full fix and reasoning; `NOTES.md` still\n# carries the original reproduction write-up for the historical record.\n#\n# THE DOMAIN ITSELF models a small warehouse consignment: a `Consignment`\n# request starts a `Packing` saga, which opens a `Manifest`, reserves a\n# numbered `Slot` on it (an aggregate-level dispatch), then fills that\n# slot (`Manifest::Slot::Fill`, an ENTITY-level dispatch — the leg BUG#6\n# broke) with a `compensates Manifest::Slot::Clear` alongside it\n# (per-dispatch saga compensation targeting an entity command for the\n# first time anywhere in this corpus too). The saga's own `:refused` leg\n# cancels the consignment — now reachable only on a genuine refusal, not\n# structurally on every run: `ConsignmentShipped` (this process\n# manager's own `ends_on`) is the ordinary happy path, and `spec/\n# waybill_spec.rb` pins exactly that end-to-end.\nHecks.bluebook \"Waybill\" do\n  vision \"A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's.\"\n\n  core\n\n  aggregate \"Consignment\" do\n    description \"A request to pack and ship one item, driving the Packing saga end to end.\"\n\n    attribute :reference, ConsignmentReference\n    identified_by :reference\n\n    attribute :number, SlotNumber\n    attribute :item,   ItemLabel\n\n    value_object \"ConsignmentReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a consignment is referenced\") { !value.to_s.empty? }\n    end\n\n    # SAME SHAPE AS `nested_pieces`' OWN `BoardNumber`/`CardSequence` —\n    # positive-only, so `0` is non-blank (survives routing) and still\n    # fails the invariant once a typed rebuild is attempted. Declared\n    # again here (Manifest declares its own copy too, below) rather than\n    # shared — this corpus's own convention (`Transfer`'s aliased\n    # `reference_to Account, as: :source`/`:destination` aside, no\n    # existing chapter shares one value object BY NAME across two\n    # aggregates without redeclaring it locally; `bluebook_builder/\n    # validation.rb`'s own `correlates_by` check reads each owning\n    # aggregate's OWN `value_object` table, never a cross-aggregate one).\n    value_object \"SlotNumber\" do\n      attribute :value, Integer\n      invariant(\"a slot number is positive\") { value.positive? }\n    end\n\n    value_object \"ItemLabel\" do\n      attribute :text, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an item is labeled\") { !text.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"requested\" do\n      transition \"Ship\"   => \"shipped\",   from: \"requested\"\n      transition \"Cancel\" => \"cancelled\", from: \"requested\"\n    end\n\n    command \"Request\" do\n      role \"Customer\"\n      goal \"Request one item be packed onto a numbered slot and shipped\"\n\n      attribute :reference, ConsignmentReference\n      attribute :number,    SlotNumber\n      attribute :item,      ItemLabel\n\n      emits ConsignmentRequested\n    end\n\n    command \"Ship\", from: \"requested\" do\n      role \"System\"\n      goal \"Mark the consignment shipped once its slot is filled\"\n\n      reference_to Consignment\n\n      emits ConsignmentShipped\n    end\n\n    command \"Cancel\", from: \"requested\" do\n      role \"System\"\n      goal \"Cancel a consignment whose slot could not be filled\"\n\n      reference_to Consignment\n\n      emits ConsignmentCancelled\n    end\n\n    query \"Requested\" do\n      description \"Consignments still awaiting a packed, shipped slot.\"\n      where(status: \"requested\")\n      order_by :reference\n    end\n  end\n\n  aggregate \"Manifest\" do\n    description \"One manifest, holding numbered slots the Packing saga fills one at a time.\"\n\n    identified_by :reference\n\n    attribute :reference, ManifestReference\n    attribute :slots,     list_of(Slot)\n\n    value_object \"ManifestReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a manifest is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"SlotNumber\" do\n      attribute :value, Integer\n      invariant(\"a slot number is positive\") { value.positive? }\n    end\n\n    value_object \"ItemLabel\" do\n      attribute :text, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an item is labeled\") { !text.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Loader\"\n      goal \"Open a manifest for a consignment\"\n\n      attribute :reference, ManifestReference\n\n      emits ManifestOpened\n    end\n\n    command \"AddSlot\" do\n      role \"Loader\"\n      goal \"Reserve a numbered slot on the manifest\"\n\n      reference_to Manifest\n      attribute :number, SlotNumber\n\n      sets :slots, append: { number: :number }\n\n      emits SlotAdded\n    end\n\n    # S17, ADR 0026 — a piece nested inside a piece, one level (see\n    # `qa/stress_domains/nested_pieces` for two). THE WHOLE REASON THIS\n    # DOMAIN EXISTS: a `process_manager`'s own `dispatch` targeting\n    # `Fill`, below, is the untested combination — see this file's own\n    # header comment for the exact gap it surfaces.\n    entity \"Slot\" do\n      description \"One numbered slot on the manifest, filled with one item.\"\n\n      identified_by :number\n\n      attribute :number, SlotNumber\n      attribute :item,   ItemLabel, optional: true\n\n      command \"Fill\" do\n        role \"Loader\"\n        goal \"Load an item into the slot\"\n\n        attribute :item, ItemLabel\n\n        sets :item\n\n        emits SlotFilled\n      end\n\n      # THE COMPENSATING HALF OF `Fill` — armed for the saga's own leg 3\n      # (`Manifest::Slot::Fill`), which now delivers (see this file's own\n      # header comment: BUG#6, fixed). `compensates` targeting an ENTITY\n      # command is, itself, a second combination absent from the rest of\n      # the corpus (banking's own `Settlement` compensates\n      # `Account::Credit`, a plain aggregate command) — this domain is\n      # its regression pin too, exercised whenever leg 3 genuinely\n      # refuses.\n      command \"Clear\" do\n        role \"Loader\"\n        goal \"Clear a slot's item back out — the compensating half of Fill\"\n\n        attribute :item, ItemLabel\n\n        sets :item\n\n        emits SlotCleared\n      end\n    end\n  end\n\n  # THE SAGA ITSELF. `correlates_by :\"reference.value\"` — the SAME\n  # dotted field name on both `Consignment` (the starting aggregate) and\n  # every dispatch target below, matching every existing corpus saga's\n  # own convention (Onboarding/Settlement/ExternalSettlement/BugCiWatch\n  # all correlate on one dotted scalar shared across every aggregate a\n  # leg touches).\n  process_manager \"Packing\" do\n    correlates_by :\"reference.value\"\n    starts_on Consignment::ConsignmentRequested\n    ends_on   Consignment::ConsignmentShipped\n\n    # LEG 1 — AGGREGATE-LEVEL, WORKS TODAY. Fires on the saga's own\n    # starting event, the same self-transition-on-starts_on shape\n    # `Settlement`'s own first leg and `BugCiWatch` both already use.\n    transition Consignment::ConsignmentRequested => \"packing\", from: \"packing\" do\n      dispatch Manifest::Open, with: { reference: :reference }\n    end\n\n    # LEG 2 — AGGREGATE-LEVEL, WORKS TODAY.\n    transition Manifest::ManifestOpened => \"packing\", from: \"packing\" do\n      dispatch Manifest::AddSlot, with: { reference: :reference, number: :number }\n    end\n\n    # LEG 3 — THE ENTITY-LEVEL DISPATCH THIS DOMAIN EXISTS TO EXERCISE.\n    # See this file's own header comment: this used to refuse every\n    # time, structurally (BUG#6, now fixed) — `Manifest::Slot::Fill`\n    # delivers correctly today.\n    transition Manifest::SlotAdded => \"filling\", from: \"packing\" do\n      dispatch Manifest::Slot::Fill, with: { number: :number, item: :item } do\n        compensates Manifest::Slot::Clear, with: { number: :number, item: :item }\n      end\n    end\n\n    # THE HAPPY-PATH LEG — reachable now that leg 3 above delivers;\n    # `spec/waybill_spec.rb` pins this exact end-to-end run.\n    transition Manifest::SlotFilled => \"filled\", from: \"filling\" do\n      dispatch Consignment::Ship, with: { reference: :reference }\n    end\n\n    # THE COMPENSATING LEG — fires on a genuine refusal of leg 3, not\n    # structurally on every run (see header comment: that was BUG#6).\n    transition :refused => \"cancelled\", from: \"filling\" do\n      dispatch Consignment::Cancel, with: { reference: :reference }\n    end\n  end\nend\n"
+}

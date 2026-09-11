@@ -1,0 +1,2335 @@
+{
+  "ir_version": 1,
+  "name": "Chess",
+  "version": null,
+  "vision": "A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Game",
+      "description": "One game: its pieces, whose turn it is, and how the game currently stands.",
+      "identified_by": [
+        "label.value"
+      ],
+      "attributes": [
+        {
+          "name": "label",
+          "type": "GameLabel",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "turn",
+          "type": "Color",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "draw_offer",
+          "type": "DrawOffer",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "ply",
+          "type": "Ply",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "pieces",
+          "type": "Piece",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "GameLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a game is labeled",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PieceId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a piece has an id",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Square",
+          "attributes": [
+            {
+              "name": "file",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "rank",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a square sits on the board",
+              "canonical": "file >= 0 && file <= 7 && rank >= 0 && rank <= 7",
+              "ast": {
+                "op": "and",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": true,
+                    "equal": false,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "file"
+                    ]
+                  },
+                  "right": {
+                    "op": "int",
+                    "value": 0
+                  }
+                },
+                "right": {
+                  "op": "and",
+                  "left": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": true,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "file"
+                      ]
+                    },
+                    "right": {
+                      "op": "int",
+                      "value": 7
+                    }
+                  },
+                  "right": {
+                    "op": "and",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": true,
+                        "equal": false,
+                        "negated": true
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "rank"
+                        ]
+                      },
+                      "right": {
+                        "op": "int",
+                        "value": 0
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": true,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "rank"
+                        ]
+                      },
+                      "right": {
+                        "op": "int",
+                        "value": 7
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Color",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "white"
+              ]
+            ],
+            [
+              [
+                "value",
+                "black"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "PieceKind",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "pawn"
+              ]
+            ],
+            [
+              [
+                "value",
+                "knight"
+              ]
+            ],
+            [
+              [
+                "value",
+                "bishop"
+              ]
+            ],
+            [
+              [
+                "value",
+                "rook"
+              ]
+            ],
+            [
+              [
+                "value",
+                "queen"
+              ]
+            ],
+            [
+              [
+                "value",
+                "king"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "MovedFlag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "unmoved"
+              ]
+            ],
+            [
+              [
+                "value",
+                "moved"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "GameOutcome",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "ongoing"
+              ]
+            ],
+            [
+              [
+                "value",
+                "check"
+              ]
+            ],
+            [
+              [
+                "value",
+                "checkmate"
+              ]
+            ],
+            [
+              [
+                "value",
+                "stalemate"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "DrawOffer",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "none"
+              ]
+            ],
+            [
+              [
+                "value",
+                "white"
+              ]
+            ],
+            [
+              [
+                "value",
+                "black"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "Ply",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "ply never goes negative",
+              "canonical": "value >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Start",
+          "role": null,
+          "goal": "Begin a new, empty game",
+          "references": null,
+          "attributes": [
+            {
+              "name": "label",
+              "type": "GameLabel",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "label",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "label"
+              }
+            },
+            {
+              "target": "turn",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "white"
+              }
+            },
+            {
+              "target": "draw_offer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "none"
+              }
+            },
+            {
+              "target": "ply",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": 0
+              }
+            }
+          ],
+          "emits": [
+            "GameStarted"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "PlacePiece",
+          "role": null,
+          "goal": "Set a piece down on the board — used to build the starting position, or any position a test needs",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "id",
+              "type": "PieceId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "kind",
+              "type": "PieceKind",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "color",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "square",
+              "type": "Square",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a piece id is not reused",
+              "canonical": "pieces.none? { |p| p.id.value == id.value }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "pieces"
+                  ]
+                },
+                "param": "p",
+                "predicate": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "p",
+                      "id",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "id",
+                      "value"
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "description": "no two pieces already share a square",
+              "canonical": "pieces.none? { |p| p.status == \"on_board\" && p.square.file == square.file && p.square.rank == square.rank }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "none",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "pieces"
+                  ]
+                },
+                "param": "p",
+                "predicate": {
+                  "op": "and",
+                  "left": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "p",
+                        "status"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "on_board"
+                    }
+                  },
+                  "right": {
+                    "op": "and",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "p",
+                          "square",
+                          "file"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "file"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "p",
+                          "square",
+                          "rank"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "rank"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "pieces",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "id": ":id",
+                "kind": ":kind",
+                "color": ":color",
+                "square": ":square",
+                "moved": "\"unmoved\""
+              }
+            }
+          ],
+          "emits": [
+            "PiecePlaced"
+          ],
+          "from": [
+            "in_progress",
+            "check"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "MovePiece",
+          "role": null,
+          "goal": "Move one of your own pieces, on your turn, on the caller's behalf",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "id",
+              "type": "PieceId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "destination",
+              "type": "Square",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "outcome",
+              "type": "GameOutcome",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [
+            {
+              "description": "the mover's own king remains on the board after the move",
+              "canonical": "pieces.any? { |p| p.kind.value == \"king\" && p.color.value == by.value && p.status == \"on_board\" }",
+              "ast": {
+                "op": "block_predicate",
+                "mode": "any",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "pieces"
+                  ]
+                },
+                "param": "p",
+                "predicate": {
+                  "op": "and",
+                  "left": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "p",
+                        "kind",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "king"
+                    }
+                  },
+                  "right": {
+                    "op": "and",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "p",
+                          "color",
+                          "value"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "by",
+                          "value"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "p",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "on_board"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "mutations": [
+            {
+              "target": "Piece.Move",
+              "op": "delegate",
+              "sign": "",
+              "fields": {
+                "id": ":id",
+                "destination": ":destination",
+                "by": ":by",
+                "outcome": ":outcome"
+              }
+            }
+          ],
+          "emits": [],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "CapturePiece",
+          "role": null,
+          "goal": "Capture an opposing piece, on the caller's behalf — dispatched before the capturing piece's own MovePiece onto the vacated square",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "id",
+              "type": "PieceId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "Piece.Capture",
+              "op": "delegate",
+              "sign": "",
+              "fields": {
+                "id": ":id",
+                "by": ":by"
+              }
+            }
+          ],
+          "emits": [],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AdvanceTurn",
+          "role": null,
+          "goal": "Pass the move to the other color and clear any prior check, after a piece has moved",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "turn",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "turn",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "turn"
+              }
+            },
+            {
+              "target": "ply",
+              "op": "increment",
+              "sign": "1",
+              "source": {
+                "kind": "literal",
+                "value": 1
+              }
+            }
+          ],
+          "emits": [
+            "TurnAdvanced"
+          ],
+          "from": [
+            "in_progress",
+            "check"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "DeclareCheck",
+          "role": null,
+          "goal": "Record that the side now to move stands in check",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "CheckDeclared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "DeclareCheckmate",
+          "role": null,
+          "goal": "End the game — the side to move has no way out of check",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "GameEnded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "DeclareStalemate",
+          "role": null,
+          "goal": "End the game — the side to move has no legal move and is not in check",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "GameEnded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Resign",
+          "role": null,
+          "goal": "Give up the game, ending it immediately",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "GameResigned"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "OfferDraw",
+          "role": null,
+          "goal": "Offer a draw to the other side",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a side does not re-offer a draw already on the table",
+              "canonical": "draw_offer.value == \"none\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "draw_offer",
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "none"
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "draw_offer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "by"
+              }
+            }
+          ],
+          "emits": [
+            "DrawOffered"
+          ],
+          "from": [
+            "in_progress",
+            "check"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "AcceptDraw",
+          "role": null,
+          "goal": "Accept the other side's outstanding draw offer",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a draw was actually offered, by the other side",
+              "canonical": "draw_offer.value != \"none\" && draw_offer.value != by.value",
+              "ast": {
+                "op": "and",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "draw_offer",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "none"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "draw_offer",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "by",
+                      "value"
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "draw_offer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "none"
+              }
+            }
+          ],
+          "emits": [
+            "DrawAgreed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "DeclineDraw",
+          "role": null,
+          "goal": "Turn down the other side's draw offer",
+          "references": "Game",
+          "attributes": [
+            {
+              "name": "by",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a draw was actually offered, by the other side",
+              "canonical": "draw_offer.value != \"none\" && draw_offer.value != by.value",
+              "ast": {
+                "op": "and",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "draw_offer",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "none"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "draw_offer",
+                      "value"
+                    ]
+                  },
+                  "right": {
+                    "op": "lookup",
+                    "path": [
+                      "by",
+                      "value"
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "draw_offer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "literal",
+                "value": "none"
+              }
+            }
+          ],
+          "emits": [
+            "DrawDeclined"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [
+        {
+          "description": "a draw was actually offered, by the other side",
+          "canonical": "draw_offer.value != \"none\" && draw_offer.value != by.value",
+          "ast": {
+            "op": "and",
+            "left": {
+              "op": "compare",
+              "cmp": {
+                "less_than": false,
+                "equal": true,
+                "negated": true
+              },
+              "left": {
+                "op": "lookup",
+                "path": [
+                  "draw_offer",
+                  "value"
+                ]
+              },
+              "right": {
+                "op": "str",
+                "value": "none"
+              }
+            },
+            "right": {
+              "op": "compare",
+              "cmp": {
+                "less_than": false,
+                "equal": true,
+                "negated": true
+              },
+              "left": {
+                "op": "lookup",
+                "path": [
+                  "draw_offer",
+                  "value"
+                ]
+              },
+              "right": {
+                "op": "lookup",
+                "path": [
+                  "by",
+                  "value"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "projected_fields": [],
+      "lifecycle": {
+        "field": "status",
+        "default": "in_progress",
+        "transitions": [
+          {
+            "command": "AdvanceTurn",
+            "to_state": "in_progress",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "AdvanceTurn",
+            "to_state": "in_progress",
+            "from_state": "check"
+          },
+          {
+            "command": "DeclareCheck",
+            "to_state": "check",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "DeclareCheckmate",
+            "to_state": "checkmate",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "DeclareCheckmate",
+            "to_state": "checkmate",
+            "from_state": "check"
+          },
+          {
+            "command": "DeclareStalemate",
+            "to_state": "stalemate",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "Resign",
+            "to_state": "resigned",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "Resign",
+            "to_state": "resigned",
+            "from_state": "check"
+          },
+          {
+            "command": "AcceptDraw",
+            "to_state": "draw",
+            "from_state": "in_progress"
+          },
+          {
+            "command": "AcceptDraw",
+            "to_state": "draw",
+            "from_state": "check"
+          }
+        ]
+      },
+      "entities": [
+        {
+          "name": "Piece",
+          "description": "One piece — no identity, no lifecycle, no query of its own outside the game that holds it. A captured piece is never a standalone record: it stays exactly where it always lived, in this same list, marked captured.",
+          "identified_by": [
+            "id.value"
+          ],
+          "attributes": [
+            {
+              "name": "id",
+              "type": "PieceId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "kind",
+              "type": "PieceKind",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "color",
+              "type": "Color",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "square",
+              "type": "Square",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "moved",
+              "type": "MovedFlag",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Move",
+              "role": null,
+              "goal": "Move this piece to a new square, on its own color's turn",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "id",
+                  "type": "PieceId",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "destination",
+                  "type": "Square",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "by",
+                  "type": "Color",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "outcome",
+                  "type": "GameOutcome",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+                {
+                  "description": "only an active game may be played",
+                  "canonical": "parent.status == \"in_progress\" || parent.status == \"check\"",
+                  "ast": {
+                    "op": "or",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "parent",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "in_progress"
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "parent",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "check"
+                      }
+                    }
+                  }
+                },
+                {
+                  "description": "only the color to move may move a piece",
+                  "canonical": "parent.turn.value == by.value",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "turn",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "lookup",
+                      "path": [
+                        "by",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "description": "a piece may only be moved by its own color",
+                  "canonical": "by.value == color.value",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "by",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "lookup",
+                      "path": [
+                        "color",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "description": "the destination differs from the current square",
+                  "canonical": "square.file != destination.file || square.rank != destination.rank",
+                  "ast": {
+                    "op": "or",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": true
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "file"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "destination",
+                          "file"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": true
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "rank"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "destination",
+                          "rank"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "description": "no piece of the same color already stands on the destination",
+                  "canonical": "parent.pieces.none? { |p| p.status == \"on_board\" && p.color.value == color.value && p.square.file == destination.file && p.square.rank == destination.rank }",
+                  "ast": {
+                    "op": "block_predicate",
+                    "mode": "none",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "pieces"
+                      ]
+                    },
+                    "param": "p",
+                    "predicate": {
+                      "op": "and",
+                      "left": {
+                        "op": "compare",
+                        "cmp": {
+                          "less_than": false,
+                          "equal": true,
+                          "negated": false
+                        },
+                        "left": {
+                          "op": "lookup",
+                          "path": [
+                            "p",
+                            "status"
+                          ]
+                        },
+                        "right": {
+                          "op": "str",
+                          "value": "on_board"
+                        }
+                      },
+                      "right": {
+                        "op": "and",
+                        "left": {
+                          "op": "compare",
+                          "cmp": {
+                            "less_than": false,
+                            "equal": true,
+                            "negated": false
+                          },
+                          "left": {
+                            "op": "lookup",
+                            "path": [
+                              "p",
+                              "color",
+                              "value"
+                            ]
+                          },
+                          "right": {
+                            "op": "lookup",
+                            "path": [
+                              "color",
+                              "value"
+                            ]
+                          }
+                        },
+                        "right": {
+                          "op": "and",
+                          "left": {
+                            "op": "compare",
+                            "cmp": {
+                              "less_than": false,
+                              "equal": true,
+                              "negated": false
+                            },
+                            "left": {
+                              "op": "lookup",
+                              "path": [
+                                "p",
+                                "square",
+                                "file"
+                              ]
+                            },
+                            "right": {
+                              "op": "lookup",
+                              "path": [
+                                "destination",
+                                "file"
+                              ]
+                            }
+                          },
+                          "right": {
+                            "op": "compare",
+                            "cmp": {
+                              "less_than": false,
+                              "equal": true,
+                              "negated": false
+                            },
+                            "left": {
+                              "op": "lookup",
+                              "path": [
+                                "p",
+                                "square",
+                                "rank"
+                              ]
+                            },
+                            "right": {
+                              "op": "lookup",
+                              "path": [
+                                "destination",
+                                "rank"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "ensures": [
+                {
+                  "description": "the piece is exactly where it was told to move",
+                  "canonical": "square.file == destination.file && square.rank == destination.rank",
+                  "ast": {
+                    "op": "and",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "file"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "destination",
+                          "file"
+                        ]
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "square",
+                          "rank"
+                        ]
+                      },
+                      "right": {
+                        "op": "lookup",
+                        "path": [
+                          "destination",
+                          "rank"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ],
+              "mutations": [
+                {
+                  "target": "square",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "destination"
+                  }
+                },
+                {
+                  "target": "moved",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "literal",
+                    "value": "moved"
+                  }
+                }
+              ],
+              "emits": [
+                "PieceMoved"
+              ],
+              "from": "on_board",
+              "provenance": null
+            },
+            {
+              "name": "Capture",
+              "role": null,
+              "goal": "Remove this piece from play, taken by the opposing side",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "id",
+                  "type": "PieceId",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "by",
+                  "type": "Color",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+                {
+                  "description": "only an active game may be played",
+                  "canonical": "parent.status == \"in_progress\" || parent.status == \"check\"",
+                  "ast": {
+                    "op": "or",
+                    "left": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "parent",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "in_progress"
+                      }
+                    },
+                    "right": {
+                      "op": "compare",
+                      "cmp": {
+                        "less_than": false,
+                        "equal": true,
+                        "negated": false
+                      },
+                      "left": {
+                        "op": "lookup",
+                        "path": [
+                          "parent",
+                          "status"
+                        ]
+                      },
+                      "right": {
+                        "op": "str",
+                        "value": "check"
+                      }
+                    }
+                  }
+                },
+                {
+                  "description": "only the color to move may capture",
+                  "canonical": "parent.turn.value == by.value",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "parent",
+                        "turn",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "lookup",
+                      "path": [
+                        "by",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "description": "a side may only capture the opposing color's piece",
+                  "canonical": "by.value != color.value",
+                  "ast": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": true
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "by",
+                        "value"
+                      ]
+                    },
+                    "right": {
+                      "op": "lookup",
+                      "path": [
+                        "color",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              ],
+              "ensures": [],
+              "mutations": [],
+              "emits": [
+                "PieceCaptured"
+              ],
+              "from": "on_board",
+              "provenance": null
+            }
+          ],
+          "queries": [
+            {
+              "name": "OnBoard",
+              "description": "Every piece still on the board, whichever game it belongs to.",
+              "attributes": [],
+              "wheres": [
+                {
+                  "field": "status",
+                  "op": "eq",
+                  "value": "\"on_board\""
+                }
+              ],
+              "order_by": null,
+              "limit": null
+            }
+          ],
+          "entities": [],
+          "preconditions": [
+            {
+              "description": "only an active game may be played",
+              "canonical": "parent.status == \"in_progress\" || parent.status == \"check\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "parent",
+                      "status"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "in_progress"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "parent",
+                      "status"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "check"
+                  }
+                }
+              }
+            }
+          ],
+          "invariants": [],
+          "lifecycle": {
+            "field": "status",
+            "default": "on_board",
+            "transitions": [
+              {
+                "command": "Capture",
+                "to_state": "captured",
+                "from_state": "on_board"
+              }
+            ]
+          }
+        }
+      ],
+      "queries": [
+        {
+          "name": "InProgress",
+          "description": "Every game still being played, check included.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"in_progress\""
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [
+    {
+      "name": "OnWhiteMovedAdvanceTurn",
+      "on_event": "Game.PieceMoved",
+      "trigger_command": "Game.AdvanceTurn",
+      "target_domain": null,
+      "where": "by.value == \"white\"",
+      "for_each": null,
+      "with_spec": [
+        [
+          "turn",
+          "\"black\""
+        ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "by",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "white"
+        }
+      }
+    },
+    {
+      "name": "OnBlackMovedAdvanceTurn",
+      "on_event": "Game.PieceMoved",
+      "trigger_command": "Game.AdvanceTurn",
+      "target_domain": null,
+      "where": "by.value == \"black\"",
+      "for_each": null,
+      "with_spec": [
+        [
+          "turn",
+          "\"white\""
+        ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "by",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "black"
+        }
+      }
+    },
+    {
+      "name": "OnCheckDeclaredAfterMove",
+      "on_event": "Game.PieceMoved",
+      "trigger_command": "Game.DeclareCheck",
+      "target_domain": null,
+      "where": "outcome.value == \"check\"",
+      "for_each": null,
+      "with_spec": [
+        [
+          "by",
+          ":by"
+        ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "outcome",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "check"
+        }
+      }
+    },
+    {
+      "name": "OnCheckmateDeclaredAfterMove",
+      "on_event": "Game.PieceMoved",
+      "trigger_command": "Game.DeclareCheckmate",
+      "target_domain": null,
+      "where": "outcome.value == \"checkmate\"",
+      "for_each": null,
+      "with_spec": [
+        [
+          "by",
+          ":by"
+        ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "outcome",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "checkmate"
+        }
+      }
+    },
+    {
+      "name": "OnStalemateDeclaredAfterMove",
+      "on_event": "Game.PieceMoved",
+      "trigger_command": "Game.DeclareStalemate",
+      "target_domain": null,
+      "where": "outcome.value == \"stalemate\"",
+      "for_each": null,
+      "with_spec": [
+        [
+          "by",
+          ":by"
+        ]
+      ],
+      "where_ast": {
+        "op": "compare",
+        "cmp": {
+          "less_than": false,
+          "equal": true,
+          "negated": false
+        },
+        "left": {
+          "op": "lookup",
+          "path": [
+            "outcome",
+            "value"
+          ]
+        },
+        "right": {
+          "op": "str",
+          "value": "stalemate"
+        }
+      }
+    }
+  ],
+  "process_managers": [],
+  "attaches_to": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+      {
+        "name": "Game",
+        "storage_name": "game"
+      }
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Game",
+        "storage_name": "game",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "Hecks.bluebook \"Chess\" do\n  vision \"A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.\"\n  supporting\n\n  # WHY THIS DOMAIN EXISTS (ADR 0026) — `entity`, `lifecycle`/`transition`,\n  # `policy`, and `ensures` are all declared by the language and only\n  # thinly exercised by the rest of the corpus. A chess game gives each\n  # one real, non-contrived work: a piece has no identity or lifecycle\n  # apart from the game it belongs to (entity); a game's own status moves\n  # in_progress -> check -> checkmate/stalemate/resigned/draw and refuses\n  # every illegal jump (lifecycle); turn order and check are announced by\n  # a policy reacting to a move actually having happened, not computed\n  # inline (policy); and a move has to leave the board in a state its own\n  # postcondition can still vouch for after the fact (ensures).\n  #\n  # DELIBERATELY SIMPLIFIED, on purpose, per this domain's own charter:\n  # this is not a chess engine. Move-shape legality (can a bishop\n  # actually reach that square) is trusted from the caller, the same way\n  # a real client would already have computed it before ever sending the\n  # command. What this domain enforces structurally is everything a rules\n  # engine cannot get away with skipping: whose turn it is, whether the\n  # game is still being played at all, that a square is not already\n  # occupied by a piece of the same color, and that the game's own status\n  # can only ever take one of its declared, legal transitions.\n  aggregate \"Game\" do\n    description \"One game: its pieces, whose turn it is, and how the game currently stands.\"\n\n    identified_by :label\n\n    attribute :label,       GameLabel\n    attribute :turn,        Color\n    attribute :draw_offer,  DrawOffer\n    attribute :ply,         Ply\n    attribute :pieces,      list_of(Piece)\n\n    value_object \"GameLabel\" do\n      attribute :value, String\n      invariant(\"a game is labeled\") { !value.to_s.empty? }\n    end\n\n    value_object \"PieceId\" do\n      attribute :value, String\n      invariant(\"a piece has an id\") { !value.to_s.empty? }\n    end\n\n    # FILE/RANK, ZERO-INDEXED — file 0 is the a-file, rank 0 is white's\n    # own back rank and rank 7 is black's, the same orientation a real\n    # client's own board representation would already use.\n    value_object \"Square\" do\n      attribute :file, Integer\n      attribute :rank, Integer\n      invariant(\"a square sits on the board\") { file >= 0 && file <= 7 && rank >= 0 && rank <= 7 }\n    end\n\n    value_object \"Color\" do\n      attribute :value, String, one_of: [\"white\", \"black\"]\n    end\n\n    value_object \"PieceKind\" do\n      attribute :value, String, one_of: [\"pawn\", \"knight\", \"bishop\", \"rook\", \"queen\", \"king\"]\n    end\n\n    # WHETHER A PIECE HAS EVER MOVED — a real rule (castling and a pawn's\n    # own first-move double-step both depend on it) kept as a bare fact\n    # this domain records rather than a legality check it enforces, the\n    # same simplification this file's own header names.\n    value_object \"MovedFlag\" do\n      attribute :value, String, one_of: [\"unmoved\", \"moved\"]\n    end\n\n    # THE FACT A MOVER DECLARES ABOUT THE OPPONENT'S OWN SIDE, immediately\n    # after the move — this domain trusts it the same way it trusts move\n    # shape, and the two policies below are what turn a true declaration\n    # into the game's own recorded status.\n    value_object \"GameOutcome\" do\n      attribute :value, String, one_of: [\"ongoing\", \"check\", \"checkmate\", \"stalemate\"]\n    end\n\n    # A CLOSED SET ONE MEMBER WIDER THAN Color — \"none\" is the state\n    # nobody has offered a draw, which Color itself has no member for.\n    # `OfferDraw`, below, bridges a Color argument straight into this\n    # field (`sets :draw_offer, to: :by`): every Color member is also a\n    # DrawOffer member, so the bridge can never refuse.\n    value_object \"DrawOffer\" do\n      attribute :value, String, one_of: [\"none\", \"white\", \"black\"]\n    end\n\n    value_object \"Ply\" do\n      attribute :value, Integer\n      invariant(\"ply never goes negative\") { value >= 0 }\n    end\n\n    entity \"Piece\" do\n      description \"One piece — no identity, no lifecycle, no query of its own outside the game that holds it. A captured piece is never a standalone record: it stays exactly where it always lived, in this same list, marked captured.\"\n\n      attribute :id,     PieceId\n      attribute :kind,   PieceKind\n      attribute :color,  Color\n      attribute :square, Square\n      attribute :moved,  MovedFlag\n\n      identified_by :id\n\n      # DECLARED ONCE, ON THE PIECE (the same shape banking's own\n      # LedgerEntry uses for \"customer is active\"/\"account is open\") —\n      # Move and Capture both need the identical fact about the GAME they\n      # belong to, read through `parent` rather than retyped on each.\n      given(\"only an active game may be played\") { parent.status == \"in_progress\" || parent.status == \"check\" }\n\n      lifecycle :status, default: \"on_board\" do\n        transition \"Capture\" => \"captured\", from: \"on_board\"\n      end\n\n      command \"Move\", from: \"on_board\" do\n        goal \"Move this piece to a new square, on its own color's turn\"\n\n        attribute :id,          PieceId\n        attribute :destination, Square\n        attribute :by,          Color\n        attribute :outcome,     GameOutcome\n\n        given(\"only an active game may be played\")\n        given(\"only the color to move may move a piece\") { parent.turn.value == by.value }\n        given(\"a piece may only be moved by its own color\") { by.value == color.value }\n        given(\"the destination differs from the current square\") { square.file != destination.file || square.rank != destination.rank }\n        given(\"no piece of the same color already stands on the destination\") do\n          parent.pieces.none? { |p| p.status == \"on_board\" && p.color.value == color.value && p.square.file == destination.file && p.square.rank == destination.rank }\n        end\n\n        sets :square, to: :destination\n        sets :moved,  to: \"moved\"\n\n        ensures(\"the piece is exactly where it was told to move\") { square.file == destination.file && square.rank == destination.rank }\n\n        emits PieceMoved\n      end\n\n      command \"Capture\", from: \"on_board\" do\n        goal \"Remove this piece from play, taken by the opposing side\"\n\n        attribute :id, PieceId\n        attribute :by, Color\n\n        given(\"only an active game may be played\")\n        given(\"only the color to move may capture\") { parent.turn.value == by.value }\n        given(\"a side may only capture the opposing color's piece\") { by.value != color.value }\n\n        emits PieceCaptured\n      end\n\n      query \"OnBoard\" do\n        description \"Every piece still on the board, whichever game it belongs to.\"\n        where(status: \"on_board\")\n      end\n    end\n\n    # A draw offer only ever came from one side or nobody — declared once\n    # so AcceptDraw and DeclineDraw read the identical fact rather than\n    # retyping it.\n    given(\"a draw was actually offered, by the other side\") { draw_offer.value != \"none\" && draw_offer.value != by.value }\n\n    lifecycle :status, default: \"in_progress\" do\n      # ORDER MATTERS HERE — every policy below reacting to \"PieceMoved\"\n      # fires in the order its own `policy` block is declared (Runtime::\n      # PolicyInterpreter#policies_for reads a bluebook's own array in\n      # declaration order), and `AdvanceTurn` is declared, and therefore\n      # runs, BEFORE the three Declare* policies further down. AdvanceTurn\n      # unconditionally clears a stale \"check\" back to \"in_progress\" every\n      # time a piece moves; only after that does a genuine new check,\n      # checkmate, or stalemate get declared on top of it. Reverse that\n      # declaration order and a freshly-declared check would be wiped the\n      # instant the turn advances.\n      transition \"AdvanceTurn\"      => \"in_progress\", from: [\"in_progress\", \"check\"]\n      transition \"DeclareCheck\"     => \"check\",       from: \"in_progress\"\n      transition \"DeclareCheckmate\" => \"checkmate\",   from: [\"in_progress\", \"check\"]\n      transition \"DeclareStalemate\" => \"stalemate\",   from: \"in_progress\"\n      transition \"Resign\"           => \"resigned\",    from: [\"in_progress\", \"check\"]\n      transition \"AcceptDraw\"       => \"draw\",        from: [\"in_progress\", \"check\"]\n    end\n\n    command \"Start\" do\n      goal \"Begin a new, empty game\"\n\n      attribute :label, GameLabel\n\n      # Wave 8 fix — :label is this aggregate's own IDENTITY (line 28),\n      # already a required command attribute, but was never `sets` —\n      # every started game's own :label came back nil.\n      sets :label\n      sets :turn,       to: \"white\"\n      sets :draw_offer, to: \"none\"\n      sets :ply,        to: 0\n\n      emits GameStarted\n    end\n\n    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025). `PlacePiece`/\n    # `OfferDraw` name no matching `transition` — placing a piece or\n    # offering a draw doesn't move the game's own status — so `from:`\n    # is the only thing gating them. `AdvanceTurn`, below, DOES match a\n    # transition; its own `from:` there is redundant-but-kept, same\n    # reason `Account`'s FreezeAccount/Unfreeze/CloseAccount already do\n    # both.\n    command \"PlacePiece\", from: [\"in_progress\", \"check\"] do\n      goal \"Set a piece down on the board — used to build the starting position, or any position a test needs\"\n\n      reference_to Game\n      attribute :id,     PieceId\n      attribute :kind,   PieceKind\n      attribute :color,  Color\n      attribute :square, Square\n\n      given(\"a piece id is not reused\") { pieces.none? { |p| p.id.value == id.value } }\n      given(\"no two pieces already share a square\") do\n        pieces.none? { |p| p.status == \"on_board\" && p.square.file == square.file && p.square.rank == square.rank }\n      end\n\n      sets :pieces, append: { id: :id, kind: :kind, color: :color, square: :square, moved: \"unmoved\" }\n\n      emits PiecePlaced\n    end\n\n    # THE ONLY DOOR A CALLER USES TO MOVE A PIECE — Piece.Move itself is\n    # never dispatched directly here. `delegates_to` makes the entity's\n    # own refusal this command's refusal, synchronously, in the same\n    # dispatch, rather than a reaction a caller would have to poll a log\n    # to see the result of.\n    command \"MovePiece\" do\n      goal \"Move one of your own pieces, on your turn, on the caller's behalf\"\n\n      reference_to Game\n      attribute :id,          PieceId\n      attribute :destination, Square\n      attribute :by,          Color\n      attribute :outcome,     GameOutcome\n\n      ensures(\"the mover's own king remains on the board after the move\") do\n        pieces.any? { |p| p.kind.value == \"king\" && p.color.value == by.value && p.status == \"on_board\" }\n      end\n\n      delegates_to \"Piece.Move\", with: { id: :id, destination: :destination, by: :by, outcome: :outcome }\n    end\n\n    command \"CapturePiece\" do\n      goal \"Capture an opposing piece, on the caller's behalf — dispatched before the capturing piece's own MovePiece onto the vacated square\"\n\n      reference_to Game\n      attribute :id, PieceId\n      attribute :by, Color\n\n      delegates_to \"Piece.Capture\", with: { id: :id, by: :by }\n    end\n\n    command \"AdvanceTurn\", from: [\"in_progress\", \"check\"] do\n      goal \"Pass the move to the other color and clear any prior check, after a piece has moved\"\n\n      reference_to Game\n      attribute :turn, Color\n\n\n      sets :turn\n      sets :ply, increment: 1\n\n      emits TurnAdvanced\n    end\n\n    command \"DeclareCheck\" do\n      goal \"Record that the side now to move stands in check\"\n\n      reference_to Game\n      attribute :by, Color\n\n      emits CheckDeclared\n    end\n\n    command \"DeclareCheckmate\" do\n      goal \"End the game — the side to move has no way out of check\"\n\n      reference_to Game\n      attribute :by, Color\n\n      emits GameEnded\n    end\n\n    command \"DeclareStalemate\" do\n      goal \"End the game — the side to move has no legal move and is not in check\"\n\n      reference_to Game\n      attribute :by, Color\n\n      emits GameEnded\n    end\n\n    command \"Resign\" do\n      goal \"Give up the game, ending it immediately\"\n\n      reference_to Game\n      attribute :by, Color\n\n      emits GameResigned\n    end\n\n    command \"OfferDraw\", from: [\"in_progress\", \"check\"] do\n      goal \"Offer a draw to the other side\"\n\n      reference_to Game\n      attribute :by, Color\n\n      given(\"a side does not re-offer a draw already on the table\") { draw_offer.value == \"none\" }\n\n      sets :draw_offer, to: :by\n\n      emits DrawOffered\n    end\n\n    command \"AcceptDraw\" do\n      goal \"Accept the other side's outstanding draw offer\"\n\n      reference_to Game\n      attribute :by, Color\n\n      given(\"a draw was actually offered, by the other side\")\n\n      sets :draw_offer, to: \"none\"\n\n      emits DrawAgreed\n    end\n\n    command \"DeclineDraw\" do\n      goal \"Turn down the other side's draw offer\"\n\n      reference_to Game\n      attribute :by, Color\n\n      given(\"a draw was actually offered, by the other side\")\n\n      sets :draw_offer, to: \"none\"\n\n      emits DrawDeclined\n    end\n\n    query \"InProgress\" do\n      description \"Every game still being played, check included.\"\n      where(status: \"in_progress\")\n    end\n  end\n\n  # TURN ALTERNATION — declared FIRST, see the lifecycle's own comment on\n  # why declaration order matters here. Exactly one of these two ever\n  # matches a given \"PieceMoved\" event, since `by` is always exactly one\n  # Color.\n  policy \"OnWhiteMovedAdvanceTurn\" do\n    on Game::PieceMoved\n    where { by.value == \"white\" }\n    trigger Game::AdvanceTurn, with: { turn: \"black\" }\n  end\n\n  policy \"OnBlackMovedAdvanceTurn\" do\n    on Game::PieceMoved\n    where { by.value == \"black\" }\n    trigger Game::AdvanceTurn, with: { turn: \"white\" }\n  end\n\n  # CHECK DETECTION — reacting to a move having actually happened, not\n  # computed inline inside `Piece.Move` itself. Each `where` reads the\n  # `outcome` the mover declared on the very event `AdvanceTurn`, above,\n  # already reacted to.\n  policy \"OnCheckDeclaredAfterMove\" do\n    on Game::PieceMoved\n    where { outcome.value == \"check\" }\n    trigger Game::DeclareCheck, with: { by: :by }\n  end\n\n  policy \"OnCheckmateDeclaredAfterMove\" do\n    on Game::PieceMoved\n    where { outcome.value == \"checkmate\" }\n    trigger Game::DeclareCheckmate, with: { by: :by }\n  end\n\n  policy \"OnStalemateDeclaredAfterMove\" do\n    on Game::PieceMoved\n    where { outcome.value == \"stalemate\" }\n    trigger Game::DeclareStalemate, with: { by: :by }\n  end\nend\n"
+}

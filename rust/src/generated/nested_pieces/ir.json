@@ -1,0 +1,505 @@
+{
+  "ir_version": 1,
+  "name": "NestedPieces",
+  "version": null,
+  "vision": "A workspace holding boards, each holding cards — two real levels of entity nesting, stressing whether the addressing-identity-vs-existence ordering question (BUG#3) recurs at a hop this corpus has never actually reached before.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Workspace",
+      "description": "A workspace holding boards; each board holds cards.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "WorkspaceReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "boards",
+          "type": "Board",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "WorkspaceReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a workspace is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "BoardNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a board number is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "BoardLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a board label is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "CardSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a card sequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "CardNote",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Owner",
+          "goal": "Start a workspace",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "WorkspaceReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "WorkspaceOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddBoard",
+          "role": "Owner",
+          "goal": "Add a board to the workspace",
+          "references": "Workspace",
+          "attributes": [
+            {
+              "name": "number",
+              "type": "BoardNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "boards",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "number": ":number"
+              }
+            }
+          ],
+          "emits": [
+            "BoardAdded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Board",
+          "description": "One board in the workspace, holding cards.",
+          "identified_by": [
+            "number.value"
+          ],
+          "attributes": [
+            {
+              "name": "number",
+              "type": "BoardNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "BoardLabel",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "cards",
+              "type": "Card",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "AddCard",
+              "role": "Owner",
+              "goal": "Add a card to the board",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "sequence",
+                  "type": "CardSequence",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "cards",
+                  "op": "append",
+                  "sign": "",
+                  "fields": {
+                    "sequence": ":sequence"
+                  }
+                }
+              ],
+              "emits": [
+                "CardAdded"
+              ],
+              "from": null,
+              "provenance": null
+            },
+            {
+              "name": "Label",
+              "role": "Owner",
+              "goal": "Label the board",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "label",
+                  "type": "BoardLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "label",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "label"
+                  }
+                }
+              ],
+              "emits": [
+                "BoardLabeled"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [
+            {
+              "name": "Card",
+              "description": "One card on the board, with a sequence that must be positive.",
+              "identified_by": [
+                "sequence.value"
+              ],
+              "attributes": [
+                {
+                  "name": "sequence",
+                  "type": "CardSequence",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "note",
+                  "type": "CardNote",
+                  "list": false,
+                  "default": null,
+                  "optional": true,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "commands": [
+                {
+                  "name": "Annotate",
+                  "role": "Owner",
+                  "goal": "Add a note to the card",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "note",
+                      "type": "CardNote",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [],
+                  "ensures": [],
+                  "mutations": [
+                    {
+                      "target": "note",
+                      "op": "set",
+                      "sign": "",
+                      "source": {
+                        "kind": "argument",
+                        "name": "note"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "CardAnnotated"
+                  ],
+                  "from": null,
+                  "provenance": null
+                }
+              ],
+              "queries": [],
+              "entities": [],
+              "preconditions": [],
+              "invariants": [],
+              "lifecycle": null
+            }
+          ],
+          "preconditions": [],
+          "invariants": [],
+          "lifecycle": null
+        }
+      ],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": []
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Workspace",
+        "storage_name": "workspace",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/hecks_qa/SKILL.md's \"Authoring a\n# new stress domain\" section).\n#\n# TWO THINGS THIS DOMAIN IS FOR, BOTH NEW TO THE CORPUS:\n#\n# 1. A GENUINELY NESTED PIECE — \"a piece nested inside a piece\" (ADR 0026's\n#    own words), i.e. `entity \"Card\"` declared INSIDE `entity \"Board\"`\n#    declared inside `aggregate \"Workspace\"`. `EntityBuilder#entity_impl`\n#    has supported this since ADR 0026 landed, and the ONLY place it is\n#    actually exercised anywhere in this repository is the language's own\n#    self-describing meta-bluebook, `lib/hecks/language/bluebook/\n#    process_manager.bluebook` (`entity \"Handler\"` containing `entity\n#    \"Dispatch\"`) — used for grammar/glossary tooling, never fuzzed, never\n#    dispatched through a real running domain. Not one example\n#    (pizzas/banking/chess/roster/...) or existing qa/stress_domains\n#    entry (ledger_ordering) declares two levels of entity nesting. This\n#    domain does, on purpose, to find out whether `bin/project_rust`'s\n#    codegen and the differential fuzz harness even handle a SECOND hop\n#    correctly — a construct-combination genuinely absent from every\n#    fuzzed domain until now.\n#\n# 2. A NEW-DEPTH CONFIRMATION OF BUG#3's FIX (PR #526, merged) — before\n#    the fix, `EntityElement#element_of` coerced an offered addressing\n#    identity through its OWN declared type, invariant included, BEFORE\n#    ever checking whether any stored element matches it. An identity\n#    that failed its own invariant (e.g. `LedgerSequence`'s \"a ledger\n#    sequence is positive\", offered as `0`) raised `InvariantViolation`\n#    in Ruby where Rust's own generated `extract_wants` (a raw scalar\n#    read, never a typed rebuild) always answered `NotFound` — a genuine\n#    Ruby/Rust divergence. PR #526 fixed it generically, in `element_of`\n#    itself, which `locate_chain` calls once per hop — meaning the fix\n#    SHOULD be hop-depth-agnostic by construction, but nothing had ever\n#    actually exercised a second hop to confirm that rather than assume\n#    it. `Card.identified_by :sequence` is `CardSequence`, positive-only,\n#    deliberately the same shape as the original finding — `Card.Annotate`\n#    addressed by a nonexistent, invariant-failing sequence is the SAME\n#    bug, at hop TWO (`Workspace` -> `Board` -> `Card`) instead of hop\n#    one. `Board.Label`, addressed by a non-blank but invariant-failing\n#    `BoardNumber` (`0`, never positive — `to:`'s own routing envelope\n#    already refuses a BLANK entity identity before coercion is ever\n#    reached, so the addressing type has to be able to fail its\n#    invariant on something non-empty; a String \"referenced\" invariant\n#    like `LedgerOrdering`'s own can't), is the identical shape one hop\n#    shallower, so both depths are exercised, not just the new one — see\n#    this domain's own NOTES.md for what each dispatch confirms and what\n#    does not.\nHecks.bluebook \"NestedPieces\" do\n  vision \"A workspace holding boards, each holding cards — two real levels of entity nesting, stressing whether the addressing-identity-vs-existence ordering question (BUG#3) recurs at a hop this corpus has never actually reached before.\"\n\n  core\n\n  aggregate \"Workspace\" do\n    description \"A workspace holding boards; each board holds cards.\"\n\n    identified_by :reference\n\n    attribute :reference, WorkspaceReference\n    attribute :boards,    list_of(Board)\n\n    value_object \"WorkspaceReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a workspace is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Owner\"\n      goal \"Start a workspace\"\n\n      attribute :reference, WorkspaceReference\n\n      emits \"WorkspaceOpened\"\n    end\n\n    command \"AddBoard\" do\n      role \"Owner\"\n      goal \"Add a board to the workspace\"\n\n      reference_to Workspace\n      attribute :number, BoardNumber\n\n      sets :boards, append: { number: :number }\n\n      emits \"BoardAdded\"\n    end\n\n    # THE HOP-ONE ADDRESSING TYPE — positive only, same shape as\n    # `CardSequence` below, deliberately: a STRING \"is referenced\"\n    # invariant (like `LedgerOrdering`'s own `SlipReference`) can only\n    # ever fail on an EMPTY value, and `Routing#envelope` already refuses\n    # a blank entity identity before any typed coercion runs at all\n    # (`to: contains a blank entity identity`) — so a string identity\n    # type can never reach `EntityElement#element_of`'s own coercion step\n    # while failing its invariant. A positive-only integer can: `\"0\"` is\n    # non-blank (passes routing) and still fails `BoardNumber`'s own\n    # invariant once `element_of` tries to build it.\n    value_object \"BoardNumber\" do\n      attribute :value, Integer\n      invariant(\"a board number is positive\") { value.positive? }\n    end\n\n    value_object \"BoardLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a board label is not blank\") { !value.to_s.empty? }\n    end\n\n    # THE HOP-TWO ADDRESSING TYPE — positive only, so `sequence.value=0`\n    # (or negative) is guaranteed to fail its own invariant, exactly the\n    # shape `LedgerSequence` (BUG#3's original finding) already is.\n    value_object \"CardSequence\" do\n      attribute :value, Integer\n      invariant(\"a card sequence is positive\") { value.positive? }\n    end\n\n    value_object \"CardNote\" do\n      attribute :text, String\n    end\n\n    entity \"Board\" do\n      description \"One board in the workspace, holding cards.\"\n\n      identified_by :number\n\n      attribute :number, BoardNumber\n      attribute :label,  BoardLabel, optional: true\n      attribute :cards,  list_of(Card)\n\n      command \"AddCard\" do\n        role \"Owner\"\n        goal \"Add a card to the board\"\n\n        attribute :sequence, CardSequence\n\n        sets :cards, append: { sequence: :sequence }\n\n        emits \"CardAdded\"\n      end\n\n      # THE HOP-ONE CONFIRMATION COMMAND. Dispatch this against a\n      # `board.number` that does not exist AND fails `BoardNumber`'s own\n      # invariant (`0`, never positive) — answers `NotFound` post-fix\n      # (`spec/nested_pieces_spec.rb`), the same single-hop shape BUG#3\n      # was originally found on `Banking::Account.LedgerEntry.Amend`,\n      # confirmed here in a new business shape.\n      command \"Label\" do\n        role \"Owner\"\n        goal \"Label the board\"\n\n        attribute :label, BoardLabel\n\n        sets :label\n\n        emits \"BoardLabeled\"\n      end\n\n      # S17, ADR 0026 — A PIECE NESTED INSIDE A PIECE. `Card` lives entirely\n      # inside `Board`, never addressable except through it — the second\n      # hop `locate_chain` walks (`EntityElement#element_of`, called once\n      # per hop, `owner` becoming `Board` and `container` becoming the\n      # just-located `Board` element by the time THIS entity's own command\n      # is reached).\n      entity \"Card\" do\n        description \"One card on the board, with a sequence that must be positive.\"\n\n        identified_by :sequence\n\n        attribute :sequence, CardSequence\n        attribute :note,     CardNote, optional: true\n\n        # THE HOP-TWO CONFIRMATION COMMAND — THE WHOLE REASON THIS DOMAIN\n        # EXISTS. Dispatch this against a `card.sequence` that does not\n        # exist AND fails `CardSequence`'s own invariant (`0` or negative)\n        # — answers `NotFound` post-fix (`spec/nested_pieces_spec.rb`),\n        # confirming BUG#3's fix generalizes one hop deeper than anywhere\n        # it had actually been exercised before this domain existed.\n        command \"Annotate\" do\n          role \"Owner\"\n          goal \"Add a note to the card\"\n\n          attribute :note, CardNote\n\n          sets :note\n\n          emits \"CardAnnotated\"\n        end\n      end\n    end\n  end\nend\n"
+}

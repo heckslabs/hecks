@@ -1,0 +1,343 @@
+{
+  "ir_version": 1,
+  "name": "LedgerOrdering",
+  "version": null,
+  "vision": "One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Folder",
+      "description": "A folder holding slips, addressed by reference.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "FolderReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "slips",
+          "type": "Slip",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "FolderReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a folder is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SlipReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a slip is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "SlipAmount",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a slip amount is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Clerk",
+          "goal": "Start a folder",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "FolderReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "FolderOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddSlip",
+          "role": "Clerk",
+          "goal": "Add a slip to the folder",
+          "references": "Folder",
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "SlipReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "amount",
+              "type": "SlipAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "slips",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "reference": ":reference",
+                "amount": ":amount"
+              }
+            }
+          ],
+          "emits": [
+            "SlipAdded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Slip",
+          "description": "One slip in the folder, with an amount that must be positive.",
+          "identified_by": [
+            "reference.value"
+          ],
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "SlipReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "amount",
+              "type": "SlipAmount",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Amend",
+              "role": "Clerk",
+              "goal": "Change what a slip is worth",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "amount",
+                  "type": "SlipAmount",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "amount",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "amount"
+                  }
+                }
+              ],
+              "emits": [
+                "SlipAmended"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
+          "lifecycle": null
+        }
+      ],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": []
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Folder",
+        "storage_name": "folder",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/qa-loop/SKILL.md's Phase 4).\n#\n# TARGETED AT ONE SPECIFIC, ALREADY-CONFIRMED DIVERGENCE CLASS: an entity\n# command dispatched with BOTH a nonexistent addressed element AND an\n# argument that fails its own invariant. ADR 0037's re-verification\n# (2026-09-09) found Ruby and Rust disagree on which refusal wins for\n# exactly this shape on `Banking::Account.LedgerEntry.Amend` (seed 34) —\n# Ruby raises the argument's InvariantViolation first, Rust answers\n# NotFound because its entity-addressing extraction never builds/\n# invariant-checks a typed value object for the addressing field at all.\n# Confirmed still open, correctly left unfixed (needs a real codegen\n# capability, not a one-line guard) — this domain is the re-trigger-in-\n# a-new-context half of the loop's own strategy: same class of bug,\n# unrelated business shape, to see whether it's LedgerEntry-specific or\n# general to every entity command.\nHecks.bluebook \"LedgerOrdering\" do\n  vision \"One aggregate, one entity, one command that takes an invariant-checked argument while addressing the entity by id — deliberately minimal, built to answer one question: does Ruby and Rust's argument-invariant-vs-entity-existence ordering disagreement generalize past LedgerEntry.Amend?\"\n\n  core\n\n  aggregate \"Folder\" do\n    description \"A folder holding slips, addressed by reference.\"\n\n    identified_by :reference\n\n    attribute :reference, FolderReference\n    attribute :slips,     list_of(Slip)\n\n    value_object \"FolderReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a folder is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Start a folder\"\n\n      attribute :reference, FolderReference\n\n      emits \"FolderOpened\"\n    end\n\n    command \"AddSlip\" do\n      role \"Clerk\"\n      goal \"Add a slip to the folder\"\n\n      reference_to Folder\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount\n\n      sets :slips, append: { reference: :reference, amount: :amount }\n\n      emits \"SlipAdded\"\n    end\n\n    value_object \"SlipReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a slip is referenced\") { !value.to_s.empty? }\n    end\n\n    # THE INVARIANT AT THE CENTER OF THE STRESS TEST — positive only, so\n    # `amount.value=-1` is guaranteed to fail it, and a nonexistent\n    # `to.entity` is guaranteed to fail existence. Same dispatch, both\n    # failures true at once: which one the runtime reports first is\n    # exactly what's under test.\n    value_object \"SlipAmount\" do\n      attribute :value, Integer\n      invariant(\"a slip amount is positive\") { value.positive? }\n    end\n\n    entity \"Slip\" do\n      description \"One slip in the folder, with an amount that must be positive.\"\n\n      identified_by :reference\n\n      attribute :reference, SlipReference\n      attribute :amount,    SlipAmount, optional: true\n\n      # THE STRESS COMMAND. Dispatch this against a `to.entity` that does\n      # not exist, carrying an `amount.value` that fails its own\n      # invariant, on BOTH engines, and diff which refusal comes back.\n      command \"Amend\" do\n        role \"Clerk\"\n        goal \"Change what a slip is worth\"\n\n        attribute :amount, SlipAmount\n\n        sets :amount\n\n        emits \"SlipAmended\"\n      end\n    end\n  end\nend\n"
+}

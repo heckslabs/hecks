@@ -1,0 +1,70 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Waybill::Consignment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Waybill::Consignment.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Waybill::Consignment.Ship",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Waybill::Consignment.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Waybill::Manifest",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Waybill::Manifest.Slot",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Waybill::Manifest.Slot.Fill",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Waybill::Manifest.Slot.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Waybill::Manifest.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Waybill::Manifest.AddSlot",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Waybill::Consignment.Requested",
+    "generated": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Waybill::Packing",
+    "generated": true,
+    "routed": true
+  }
+]
