@@ -112,7 +112,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ship acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::ShipArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Ship", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
@@ -124,7 +124,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::consignment::Consignment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing Consignment — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::consignment::CancelArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Consignment", &id);
@@ -148,7 +148,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::manifest::Manifest::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::waybill::manifest::Manifest::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlot acts on an existing Manifest — pass reference.value:".to_string()))?, };
               let args = crate::generated::waybill::manifest::AddSlotArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "AddSlot", caller_role, caller_actor_id, &*store, QUERIES)?;
