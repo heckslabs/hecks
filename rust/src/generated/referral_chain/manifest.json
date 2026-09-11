@@ -1,0 +1,54 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ReferralChain::Sponsor",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReferralChain::Sponsor.Enroll",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ReferralChain::Sponsor.Suspend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ReferralChain::Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReferralChain::Member.Join",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ReferralChain::Referral",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ReferralChain::Referral.Issue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ReferralChain::Referral.Reassign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "ReferralChain::Referral.FromGoodSponsors",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "where clause on \"member/sponsor/standing\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  }
+]
