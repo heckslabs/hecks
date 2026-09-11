@@ -1,0 +1,33 @@
+# A STANDALONE FIXTURE CRATE, DELIBERATELY OUTSIDE `rust/`'s OWN
+# workspace/feature list — see `spec/qa_sweep_all_spec.rb`'s own header
+# comment on why the "found something" example needs a compiled Rust
+# conformance binary that this ONE spec fully owns, forever, independent
+# of the real `rust/` crate (`bin/project_rust`'s own generated feature
+# list and `rust/src/generated/mod.rs`) and independent of this
+# repository's own live `qa/stress_domains/` rotation. `bin/qa_sweep`'s
+# own `QA_SWEEP_RUST_DIR` escape hatch (mirroring its pre-existing
+# `QA_SWEEP_DOMAIN_DIR`) is what points a real `bin/qa_sweep` subprocess
+# at THIS Cargo.toml instead of the real one — nothing here is reachable
+# from an ordinary `bin/qa_sweep`/`bin/qa_sweep --all` invocation.
+#
+# ONE FEATURE, matching the fixture domain directory's own basename
+# exactly (`RustConformanceHelpers#build_rust_for`'s own regex) — never
+# added to or removed by `bin/project_rust`, which has no reason to ever
+# look here.
+[features]
+qa_sweep_all_found_fixture = []
+
+[package]
+name = "qa_sweep_all_found_fixture_rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# `name = "rust"` — NOT this package's own name. `RustConformanceHelpers
+# #build_and_pin` always looks for `target/debug/rust` no matter which
+# `rust_dir` it was pointed at (`rust/src/main.rs`'s own `[[bin]]` name,
+# reused here so the exact same generic build/pin/diff code works
+# against this fixture crate unchanged).
+[[bin]]
+name = "rust"
+path = "src/main.rs"
