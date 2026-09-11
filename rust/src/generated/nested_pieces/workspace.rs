@@ -751,6 +751,7 @@ pub fn dispatch_entity_board_add_card(
         ],
         None,
         |record| {
+        if record.cards.iter().any(|e| e.sequence == args.sequence.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Card"), ("aggregate", "Board"), ("identity", "sequence.value"), ("offered", &format!("{:?}", args.sequence.clone()))]))); }
         record.cards.push(Card { sequence: args.sequence.clone(), note: None });
             Ok(())
         },
@@ -1129,6 +1130,7 @@ pub fn dispatch_add_board(
         ],
         None,
         |record| {
+        if record.boards.iter().any(|e| e.number == args.number.clone()) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Board"), ("aggregate", "Workspace"), ("identity", "number.value"), ("offered", &format!("{:?}", args.number.clone()))]))); }
         record.boards.push(Board { number: args.number.clone(), cards: Vec::new(), label: None });
             Ok(())
         },
