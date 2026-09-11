@@ -219,10 +219,12 @@ module Hecks
       # a rehydration divergence, unconditionally, on every domain that
       # has one at all. Found live against `examples/banking`
       # (`Banking::Account`'s own `corrects` reaction) while this
-      # integration was being written: `debug_seed_call3.rb`'s own
-      # side-by-side raw-`Open3`-vs-`check_rust_rehydration` comparison is
-      # what caught it — the raw round trip preserved `emitted_fee_
-      # applied` correctly; only THIS method's own stripping dropped it.
+      # integration was being written, by comparing this method's own
+      # answer against the compiled binary's RAW stdout for the identical
+      # seed call: the raw round trip preserved `emitted_fee_applied`
+      # correctly; only THIS method's own stripping dropped it. `spec/
+      # self_consistency_rust_spec.rb`'s own "banking" example pins the
+      # regression against a real domain going forward.
       def rust_seed_round_trip(binary, _differ, seed_instances)
         stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [], "seed" => seed_instances }))
         return { "__self_consistency_error__" => "rust binary exited #{status.exitstatus}: #{stdout}" } \
@@ -306,13 +308,20 @@ module Hecks
                       .to_h { |record| [record.id.to_s, Runtime::Value.materialize(record.state)] }
       end
 
-      # RECURSES THROUGH A `Value`'S OWN FIELDS, NOT JUST `#to_h` —
-      # `#to_h` already materializes a nested composite value object into
-      # a plain Hash (`Value.materialize`), which would hide it from this
-      # walk entirely. `#[]` reads the raw, unmaterialized field instead,
-      # so a `Payment` holding a `Money` yields BOTH as their own,
-      # independently round-tripped, `Value` instances. `seen` is a
-      # `compare_by_identity` Hash: the same INSTANCE can legitimately
+      # RECURSES THROUGH A `Value`'S OWN FIELDS VIA `#[]`, NOT `#to_h` —
+      # `#to_h` already materializes every field (`Value.materialize`),
+      # which would hide a nested `Value` from this walk before it ever
+      # got here. In practice a value object's OWN composite fields
+      # (`Coercion#normalize_composite_fields`) are validated but stored
+      # as plain, already-materialized Hashes, not re-wrapped `Value`
+      # instances — confirmed live, not assumed — so this recursion finds
+      # nothing further past the field it started from FOR TODAY'S
+      # coercion pipeline specifically. Kept anyway, not dead code: the
+      # generic `Hash`/`Array` branches below reach the exact same nested
+      # data through `node[attribute.name]` regardless, and a future
+      # change that DOES start wrapping composite fields as real `Value`
+      # instances would be walked correctly here with no change needed.
+      # `seen` is a `compare_by_identity` Hash: the same INSTANCE can legitimately
       # appear more than once (an aggregate's live state and an event
       # payload both reference the exact same frozen object), and
       # checking it twice would just waste time, never change the
