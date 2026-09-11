@@ -996,7 +996,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     registry = load_registry(PRICING_V1)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
-      current_text: PRICING_V1, settings: { database: LINEAGE_DB }
+      current_text: PRICING_V1, settings: { database: owner_url }
     )
     quote = registry.bluebooks.values.first.aggregate("Quote")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
@@ -1020,7 +1020,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
-        current_text: PRICING_V2, settings: { database: LINEAGE_DB }
+        current_text: PRICING_V2, settings: { database: owner_url }
       )
     end.to raise_error(
       Hecks::Runtime::WiringError,
@@ -1042,7 +1042,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
-        current_text: PRICING_V2, settings: { database: LINEAGE_DB }
+        current_text: PRICING_V2, settings: { database: owner_url }
       )
     end.to raise_error(
       Hecks::Runtime::WiringError,
@@ -1061,7 +1061,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: drifted, bluebook: drifted.bluebooks.values.first,
-      current_text: PRICING_V2, settings: { database: LINEAGE_DB }
+      current_text: PRICING_V2, settings: { database: owner_url }
     )
 
     # the compiled matview evaluated the SQL...
@@ -1140,7 +1140,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     registry = load_registry(ROSTER_V1)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
-      current_text: ROSTER_V1, settings: { database: LINEAGE_DB }
+      current_text: ROSTER_V1, settings: { database: owner_url }
     )
     person = registry.bluebooks.values.first.aggregate("Person")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
@@ -1173,7 +1173,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
-        current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
+        current_text: ROSTER_V2, settings: { database: owner_url }
       )
     end.to raise_error(Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/)
 
@@ -1187,7 +1187,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: drifted, bluebook: drifted.bluebooks.values.first,
-      current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
+      current_text: ROSTER_V2, settings: { database: owner_url }
     )
 
     # the compiled matview resolves the record under its NEW id, and
@@ -1434,6 +1434,131 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     ).to match(/row-level security/i)
   end
 
+  # BUG#24. Every refusal this file asserts above is ROW-LEVEL SECURITY,
+  # and Postgres exempts a superuser (or any BYPASSRLS role) from every
+  # policy, FORCE included — which is exactly why this file's own header
+  # connects as a non-superuser owner: on the ambient dev connection
+  # every one of those assertions would pass for the wrong reason. Found
+  # live on the QA ledger, whose `.world` named a bare database: every
+  # session connected as the machine's superuser, and an old checkout
+  # wrote its own superseded era straight through two mints — 37 rows no
+  # newer head could read, and not one warning. The boot now asks
+  # pg_roles FIRST and refuses by default; `allow_superuser` boots anyway
+  # and says so; and a held-but-superseded checkout refuses its own
+  # writes in-process, where no role attribute can void it.
+  #
+  # The ambient connection here IS whatever runs the suite — a superuser
+  # locally and on CI (`PGUSER: postgres`), verified rather than assumed:
+  # the two boot examples skip, loudly, on a machine where it is not.
+  def ambient_role
+    db = PG.connect(dbname: LINEAGE_DB)
+    row = db.exec(
+      "SELECT rolname, (rolsuper OR rolbypassrls) AS exempt FROM pg_roles WHERE rolname = current_user"
+    )[0]
+    db.close
+    row
+  end
+
+  def check_as_ambient!(source, **extra_settings)
+    registry = load_registry(source)
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
+      registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
+      settings: { database: LINEAGE_DB }.merge(extra_settings)
+    )
+    registry
+  end
+
+  it "refuses to boot over a superuser connection by default — the era write-fence is void for it, and says so" do
+    ambient = ambient_role
+    skip "the ambient Postgres role #{ambient['rolname']} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
+
+    refusal = Regexp.new(
+      "\\A#{Regexp.escape("cannot boot Ledger: PostgresEra's era write-fence is row-level security, and this " \
+                          "connection's role #{ambient['rolname'].inspect} is ")}(a superuser|granted BYPASSRLS).*" \
+      "#{Regexp.escape('Connect as an ordinary role instead')}.*" \
+      "#{Regexp.escape('or declare `allow_superuser true` in the same persisted_by block')}",
+      Regexp::MULTILINE
+    )
+    expect { check_as_ambient!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, refusal)
+
+    # refused BEFORE provisioning anything — a refused boot holds no era
+    db = PG.connect(dbname: LINEAGE_DB)
+    expect(db.exec("SELECT to_regclass('hecks_eras') IS NULL AS absent")[0]["absent"]).to eq("t")
+    db.close
+  end
+
+  it "boots over a superuser connection under allow_superuser — and says the fence is void, every boot" do
+    ambient = ambient_role
+    skip "the ambient Postgres role #{ambient['rolname']} is neither a superuser nor BYPASSRLS here" if ambient["exempt"] != "t"
+
+    void = Regexp.new(
+      "#{Regexp.escape("[hecks] Ledger: booting PostgresEra as #{ambient['rolname'].inspect}, ")}.*" \
+      "#{Regexp.escape('under allow_superuser — the era write-fence is void for this connection')}"
+    )
+    expect { check_as_ambient!(V1_SOURCE, allow_superuser: true) }.to output(void).to_stderr
+    # the string spelling opts in too, and a quiet reboot warns again —
+    # the fence is just as void the second time
+    expect { check_as_ambient!(V1_SOURCE, "allow_superuser" => true) }.to output(void).to_stderr
+    # a stored `false` is a real answer, not an absent key — still refused
+    expect { check_as_ambient!(V1_SOURCE, allow_superuser: false, "allow_superuser" => true) }
+      .to raise_error(Hecks::Runtime::WiringError, /era write-fence is row-level security/)
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    expect(db.exec("SELECT count(*) FROM hecks_eras WHERE domain = 'Ledger'")[0]["count"]).to eq("1")
+    db.close
+  end
+
+  # The in-process half — proven as the OWNER (fenced by RLS too, so the
+  # refusal asserted here has to come from the adapter, not the policy:
+  # `WiringError`, before any INSERT, not `PG::InsufficientPrivilege`).
+  # One old checkout checked from every side it has to hold at once:
+  # the boot marks itself superseded, a current-era boot does not, every
+  # write path refuses, reads still answer, and nothing landed for
+  # merge_tail to reconcile.
+  # rubocop:disable-next RSpec/ExampleLength
+  it "a held-but-superseded checkout refuses its own writes in-process, naming the newer era — while its reads still work" do
+    write_v1_record
+    from = label_of(V1_SOURCE)
+    to = label_of(V2_SOURCE)
+    check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
+
+    # the matched branch: an old checkout boots, and knows it is stale
+    old_registry = check!(V1_SOURCE)
+    expect(old_registry.resolved_eras["Ledger"]).to eq(1)
+    expect(old_registry.superseded_eras["Ledger"]).to eq(2)
+    # a current-era boot carries no such mark
+    current = check!(V2_SOURCE, translation_source: edge_source(from: from, to: to))
+    expect(current.resolved_eras["Ledger"]).to eq(2)
+    expect(current.superseded_eras["Ledger"]).to be_nil
+
+    # exactly the settings RepositoryFactory.build merges in for that boot
+    acct = old_registry.bluebooks.values.first.aggregate("Acct")
+    old_world = Hecks::Adapters::PostgresEra.new(
+      aggregate: acct,
+      settings:  { database: owner_url, domain: "Ledger",
+                   era: old_registry.resolved_eras["Ledger"], superseded_by: old_registry.superseded_eras["Ledger"] }
+    )
+    refusal = "cannot write acct for Ledger: this checkout booted era 1, which era 2 has superseded — its shape " \
+              "was replaced by a mint, and a write here would land in a partition no newer head reads. Reads " \
+              "still work; pull the current bluebook and reboot to write again."
+    late_state = { cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" } }
+    expect { old_world.save(Hecks::Runtime::Instance.new(aggregate: acct, id: "a9", state: late_state)) }
+      .to raise_error(Hecks::Runtime::WiringError, refusal)
+    expect { old_world.atomic_put(Hecks::Ports::Persistence::Entry.new(operation: "save", id: "a9", state: late_state)) }
+      .to raise_error(Hecks::Runtime::WiringError, refusal)
+    expect { old_world.delete("a1") }.to raise_error(Hecks::Runtime::WiringError, refusal)
+
+    # reads keep working — the documented contract for an old checkout
+    expect(old_world.find("a1").cost.to_h).to eq(cents: 100, currency: "USD")
+    expect(old_world.find("a9")).to be_nil
+    expect(old_world.count).to eq(1)
+
+    # and nothing reached the superseded partition
+    db = PG.connect(dbname: LINEAGE_DB)
+    expect(Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(1)).to eq(0)
+    db.close
+  end
+
   # One shared pair of roles and one mint, checked from four angles
   # (old role writes era 1 pre-mint, new role writes what it minted,
   # old role ALSO writes the new era unprompted, and both are refused
@@ -1604,7 +1729,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     expect do
       Hecks::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
-        current_text: V3_REKEYED_SOURCE, settings: { database: LINEAGE_DB }
+        current_text: V3_REKEYED_SOURCE, settings: { database: owner_url }
       )
     end.to raise_error(Hecks::Runtime::WiringError, /this edge carries a compute or rekey rule/)
 
@@ -1618,7 +1743,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: drifted, bluebook: drifted.bluebooks.values.first,
-      current_text: V3_REKEYED_SOURCE, settings: { database: LINEAGE_DB }
+      current_text: V3_REKEYED_SOURCE, settings: { database: owner_url }
     )
 
     db = PG.connect(dbname: LINEAGE_DB)

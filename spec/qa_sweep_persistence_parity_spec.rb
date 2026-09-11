@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_role"
 require "open3"
 require "fileutils"
 require "pathname"
@@ -121,7 +122,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QA_SWEEP_PERSISTENCE_PARITY_DATABASE}" }
+        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)}" }
       end
     RUBY
 
@@ -137,6 +138,9 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_PERSISTENCE_PARITY_DATABASE} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{QA_SWEEP_PERSISTENCE_PARITY_DATABASE}")
     admin.close
+    # the real ledger's own operator step, run for real against this
+    # spec's own database (BUG#24; see qa_sweep_all_spec.rb's own example)
+    QaLedgerRole.provision!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 
   after(:all) do
@@ -168,6 +172,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+    QaLedgerRole.own_public!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 
   def run_qa_sweep(*args)

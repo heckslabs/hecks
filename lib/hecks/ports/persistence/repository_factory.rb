@@ -13,13 +13,16 @@ module Hecks
           settings = (registry.world(domain)&.for_binding(settings_verb, bind.adapter) || {})
                      .reject { |key, _| key.to_sym == :role }
           registry.check_settings(bind, settings)
-          # The domain and the resolved era ride along after the
-          # declared-settings check: a lineage adapter journals per
-          # DOMAIN and writes into its own ERA's partition — neither of
-          # which a world's settings carry.
+          # The domain, the resolved era, and (for an old checkout) the era
+          # that superseded it ride along after the declared-settings
+          # check: a lineage adapter journals per DOMAIN, writes into its
+          # own ERA's partition, and refuses to write at all once that era
+          # is superseded (`PostgresEra#append`, BUG#24) — none of which a
+          # world's settings carry.
           adapter = registry.adapter_class(bind.adapter)
                             .new(aggregate: aggregate,
-                                 settings:  settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s]),
+                                 settings:  settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s],
+                                                           superseded_by: registry.superseded_eras[domain.to_s]),
                                  root:      registry.root)
           repository = AppendOnly.new(adapter)
           recover ? repository.recover! : repository
