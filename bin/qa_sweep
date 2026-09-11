@@ -934,9 +934,10 @@ if release_mode
   # it has proven itself clean again" stance, never a guessed +1.
   puts "no open sweep against #{target_reference} — releasing with the streak reset" if open_sweeps.empty?
 
+  was    = target.status
   target = release_target!(target, domain_path, target.clean_streak.value, surprises: surprises, clean: clean)
-  puts "released #{target_reference} (was #{release_mode ? 'suspended/held' : target.status}) — " \
-       "status #{target.status}, clean_streak #{target.clean_streak.value}, yield_score #{target.yield_score.value}, " \
+  puts "released #{target_reference} (was #{was}) — status #{target.status}, " \
+       "clean_streak #{target.clean_streak.value}, yield_score #{target.yield_score.value}, " \
        "capabilities #{target.capabilities.value.inspect}"
   exit EXIT_OK
 end
