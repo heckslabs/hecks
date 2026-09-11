@@ -1034,14 +1034,9 @@ pub fn dispatch_by_name(
           }
           "Bluebook::ProcessManager.Handler.Dispatch.Bind" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.Bind addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
-              route.require_depth(2)?;
+              let route = invocation.route();
               let facts_json = invocation.facts();
-              let parent_id = route.aggregate().to_string();
-              let hop1_id = route.entities()[0].clone();
-              let hop2_id = route.entities()[1].clone();
-              let hop1_wants = hop1_id.clone();
-              let hop2_wants = hop2_id.clone();
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
@@ -1053,14 +1048,9 @@ pub fn dispatch_by_name(
           }
           "Bluebook::ProcessManager.Handler.Dispatch.Compensates" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.Compensates addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
-              route.require_depth(2)?;
+              let route = invocation.route();
               let facts_json = invocation.facts();
-              let parent_id = route.aggregate().to_string();
-              let hop1_id = route.entities()[0].clone();
-              let hop2_id = route.entities()[1].clone();
-              let hop1_wants = hop1_id.clone();
-              let hop2_wants = hop2_id.clone();
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?;
                       args.compensates_command_name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1071,14 +1061,9 @@ pub fn dispatch_by_name(
           }
           "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.BindCompensation addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
-              route.require_depth(2)?;
+              let route = invocation.route();
               let facts_json = invocation.facts();
-              let parent_id = route.aggregate().to_string();
-              let hop1_id = route.entities()[0].clone();
-              let hop2_id = route.entities()[1].clone();
-              let hop1_wants = hop1_id.clone();
-              let hop2_wants = hop2_id.clone();
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;

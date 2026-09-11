@@ -216,14 +216,9 @@ pub fn dispatch_by_name(
           }
           "NestedPieces::Workspace.Board.Card.Annotate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NestedPieces::Workspace.Board.Card.Annotate addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
-              route.require_depth(2)?;
+              let route = invocation.route();
               let facts_json = invocation.facts();
-              let parent_id = route.aggregate().to_string();
-              let hop1_id = route.entities()[0].clone();
-              let hop2_id = route.entities()[1].clone();
-              let hop1_wants = hop1_id.clone();
-              let hop2_wants = hop2_id.clone();
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id(facts_json)?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;

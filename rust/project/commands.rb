@@ -977,10 +977,18 @@ module RustProjection
     # `dispatch_entity`) composes with a surrounding `dispatch`/`dispatch_
     # entity` call; this is that same composition, one level deeper.
     #
-    # ROUTED ONLY (`to: { aggregate:, entities: [hop1, hop2] }`) — see
-    # `domain_generator.rb`'s own header for why the unrouted legacy
-    # shape is deliberately left a separate, still-open gap at this
-    # depth rather than guessed at here.
+    # THE GENERATED `dispatch_entity_<entity>_<nested>_<fn>` FUNCTION
+    # BELOW IS ADDRESSING-AGNOSTIC — it takes `parent_id`/`hop1_id`/
+    # `hop1_wants`/`hop2_id`/`hop2_wants` as plain `&str` parameters, no
+    # `RoutingEnvelope` in sight. BUG#11 (this function's own original
+    # form) only ever CALLED it from the ROUTED (`to: { aggregate:,
+    # entities: [hop1, hop2] }`) shape; BUG#19 taught `registry.rb`'s own
+    # `nested_entity_arms` a SECOND caller shape — flat args, one
+    # identity head per hop, resolved via `entity`'s/`nested`'s own
+    # `extract_id`/`extract_wants` (domain_generator.rb's own header) —
+    # with no change needed here at all, confirming what BUG#11's own
+    # investigation already found: this function was always generic
+    # enough, only the router in front of it was scoped narrow.
     #
     # NO Board-level (the OUTER hop's own) given/ensures/transition —
     # `nested`'s OWN command never declares one for the entity it is
