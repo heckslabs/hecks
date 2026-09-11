@@ -98,7 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlip acts on an existing Folder — pass reference.value:".to_string()))?, };
               let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;

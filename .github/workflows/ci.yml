@@ -343,17 +343,41 @@ jobs:
       # actually drifted. Likewise `rust/Cargo.toml`'s `default` feature
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
-      # roster is the one order that reproduces the committed tree
-      # byte-for-byte today (verified by hand before this step was
-      # added); change it and re-verify locally (`git diff --stat rust/`
-      # after running the four `bin/project_rust` lines below against a
+      # roster, ledger_ordering, nested_pieces, waybill is the one order
+      # that reproduces the committed tree byte-for-byte today (verified
+      # by hand before this step was extended to the qa/stress_domains
+      # trio); change it and re-verify locally (`git diff --stat rust/`
+      # after running every `bin/project_rust` line below against a
       # clean checkout) rather than guessing.
+      #
+      # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
+      # added here after this exact gap caused a real false positive: a
+      # fix landed and was correctly regenerated into examples/* (BUG#20,
+      # PR #561), but qa/stress_domains/nested_pieces's own compiled Rust
+      # binary — never in this step's own regen list — was not
+      # regenerated alongside it, so a later differential fuzz sweep
+      # against it found what looked like a brand-new Ruby/Rust
+      # divergence but was actually just stale generated code repeating
+      # an already-fixed bug (see BUG#23's own investigation in
+      # qa/bluebook/quality_control.bluebook). embryonaut's own exclusion
+      # reasoning above applies identically to `chess` (examples/chess):
+      # it is NOT in this step's regen list either, a separate
+      # pre-existing gap outside this change's own scope — see whichever
+      # domain under qa/stress_domains/ has no rust/src/generated/<name>/
+      # directory at all (e.g. none, today) for the "only regenerate a
+      # domain that already has committed Rust output" rule this step
+      # follows; a stress domain authored Ruby-only, with no Rust
+      # projection yet, stays out of this list until one exists (see that
+      # domain's own NOTES.md for why it doesn't yet).
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: |
           bundle exec bin/project_rust examples/banking
           bundle exec bin/project_rust examples/compliance
           bundle exec bin/project_rust examples/pizzas
           bundle exec bin/project_rust examples/roster
+          bundle exec bin/project_rust qa/stress_domains/ledger_ordering
+          bundle exec bin/project_rust qa/stress_domains/nested_pieces
+          bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 
       # THE COVERAGE CHECKER, PER DOMAIN — a different question than
