@@ -208,7 +208,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Suspend acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::SuspendArgs::from_json(facts_json)?;
                       args.standing.check_invariants()?;
               crate::kernel::check_role(Some("Compliance officer"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -221,7 +221,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reinstate acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::ReinstateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Reinstate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Customer", &id);
@@ -233,7 +233,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::CloseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Close", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Customer", &id);
@@ -259,7 +259,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Credit acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CreditArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -273,7 +273,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Debit acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::DebitArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -287,7 +287,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("FreezeAccount acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::FreezeAccountArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "FreezeAccount", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
@@ -299,7 +299,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Unfreeze acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::UnfreezeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Unfreeze", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
@@ -311,7 +311,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CloseAccount acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CloseAccountArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "CloseAccount", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
@@ -323,7 +323,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ApplyFee acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::ApplyFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -337,7 +337,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CorrectFee acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CorrectFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "CorrectFee", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -350,7 +350,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AccrueInterest acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::AccrueInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("System"), "AccrueInterest", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -363,7 +363,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CorrectInterest acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CorrectInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "CorrectInterest", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -390,7 +390,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on an existing OnboardingCase — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::onboardingcase::ClearArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::OnboardingCase", &id);
@@ -402,7 +402,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Decline acts on an existing OnboardingCase — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::onboardingcase::DeclineArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Decline", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::OnboardingCase", &id);
@@ -428,7 +428,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rename acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::RenameArgs::from_json(facts_json)?;
                       args.nickname.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Rename", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -441,7 +441,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Withdraw acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::WithdrawArgs::from_json(facts_json)?;
                       args.cents.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -455,7 +455,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Activate acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::ActivateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Activate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &id);
@@ -467,7 +467,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::RetireArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &id);
@@ -494,7 +494,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::CaptureArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Capture", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -506,7 +506,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Void acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::VoidArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Void", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -518,7 +518,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Refund acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::RefundArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Refund", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -530,7 +530,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::ReverseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -542,7 +542,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::DisputeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.customer, &args.disputed_by, "Customer", "reference")?;
@@ -555,7 +555,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Chargeback acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::ChargebackArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Chargeback", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -567,7 +567,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("RejectDispute acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::RejectDisputeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "RejectDispute", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::CardPayment", &id);
@@ -593,7 +593,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Surrender acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::SurrenderArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Surrender", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &id);
@@ -605,7 +605,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("LogVisit acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::LogVisitArgs::from_json(facts_json)?;
                       args.date.check_invariants()?;
                       args.sequence.check_invariants()?;
@@ -620,7 +620,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("IssueKey acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::IssueKeyArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "IssueKey", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -665,7 +665,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Debited acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::DebitedArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Debited", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Transfer", &id);
@@ -677,7 +677,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::SettleArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Settle", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Transfer", &id);
@@ -689,7 +689,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Credited acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::CreditedArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Credited", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Transfer", &id);
@@ -701,7 +701,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::ReverseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Transfer", &id);
@@ -713,7 +713,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reject acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::RejectArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reject", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Transfer", &id);
@@ -742,7 +742,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("SendTransfer acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::SendTransferArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "SendTransfer", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
@@ -754,7 +754,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Recall acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::RecallArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Recall", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
@@ -766,7 +766,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::ReturnArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Return", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
@@ -794,7 +794,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Execute acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::ExecuteArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Execute", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
@@ -806,7 +806,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::CancelArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
@@ -818,7 +818,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fail acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::FailArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Fail", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
@@ -830,7 +830,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retry acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::RetryArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Retry", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);
@@ -842,7 +842,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Abandon acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::AbandonArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Abandon", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ScheduledPayment", &id);

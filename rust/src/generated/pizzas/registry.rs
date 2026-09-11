@@ -99,7 +99,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddTopping acts on an existing Order — pass name.value:".to_string()))?, };
               let args = crate::generated::pizzas::order::AddToppingArgs::from_json(facts_json)?;
                       args.topping.check_invariants()?;
                       args.amount.check_invariants()?;
@@ -113,7 +113,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Purchase acts on an existing Order — pass name.value:".to_string()))?, };
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       if let Some(v) = &args.customer_name { v.check_invariants()?; }

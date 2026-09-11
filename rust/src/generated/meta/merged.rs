@@ -206,7 +206,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -219,7 +219,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -239,7 +239,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -259,7 +259,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -279,7 +279,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::LifecycleArgs::from_json(facts_json)?;
                       args.state_field.check_invariants()?;
                       args.state_start.check_invariants()?;
@@ -293,7 +293,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
                       if let Some(v) = &args.from_state { v.check_invariants()?; }
@@ -308,7 +308,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Aggregate", &id);
@@ -320,7 +320,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Value acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ValueArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Value", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -333,7 +333,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -347,7 +347,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -361,7 +361,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Projects acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ProjectsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.reference.check_invariants()?;
@@ -376,7 +376,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attach acts on an existing Bluebook — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::bluebook::AttachArgs::from_json(facts_json)?;
                       args.context.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Attach", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -389,7 +389,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Normalise acts on an existing Bluebook — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::bluebook::NormaliseArgs::from_json(facts_json)?;
                       args.strategy.check_invariants()?;
                       args.source_token.check_invariants()?;
@@ -406,7 +406,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -426,7 +426,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -446,7 +446,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rule acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::RuleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -460,7 +460,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ensure acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::EnsureArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -474,7 +474,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Change acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ChangeArgs::from_json(facts_json)?;
                       args.target.check_invariants()?;
                       if !["set", "append", "increment", "decrement", "multiply", "clamp", "remove", "delegate", "corrects"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\", \"multiply\", \"clamp\", \"remove\", \"delegate\", \"corrects\" — got ", args.op.value))); }
@@ -492,7 +492,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ActsOn acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ActsOnArgs::from_json(facts_json)?;
                       args.root.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "ActsOn", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -505,7 +505,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Announce acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::AnnounceArgs::from_json(facts_json)?;
                       args.announces.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Announce", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -518,7 +518,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -531,7 +531,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
@@ -543,7 +543,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -563,7 +563,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -583,7 +583,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.list.check_invariants()?;
@@ -603,7 +603,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -617,7 +617,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -631,7 +631,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.state_field { v.check_invariants()?; }
                       if let Some(v) = &args.state_start { v.check_invariants()?; }
@@ -645,7 +645,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
                       if let Some(v) = &args.from_state { v.check_invariants()?; }
@@ -660,7 +660,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on an existing Policy — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::policy::BindArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
@@ -674,7 +674,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("State acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::processmanager::StateArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "State", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -687,7 +687,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Handler acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::processmanager::HandlerArgs::from_json(facts_json)?;
                       args.event_type.check_invariants()?;
                       args.from_state.check_invariants()?;
@@ -702,7 +702,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Gather acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::GatherArgs::from_json(facts_json)?;
                       args.aggregate.check_invariants()?;
                       args.r#as.check_invariants()?;
@@ -717,7 +717,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("GroupBy acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::GroupByArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "GroupBy", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -730,7 +730,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Count acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::CountArgs::from_json(facts_json)?;
                       if let Some(v) = &args.count { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Count", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -743,7 +743,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Median acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::MedianArgs::from_json(facts_json)?;
                       if let Some(v) = &args.median_field { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Median", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -756,7 +756,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
                       args.key.check_invariants()?;
@@ -772,7 +772,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Filter acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::FilterArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
                       if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", args.op.value))); }
@@ -788,7 +788,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
                       args.key.check_invariants()?;
@@ -804,7 +804,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -824,7 +824,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Field acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::FieldArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.r#type.check_invariants()?;
@@ -844,7 +844,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::CloseArgs::from_json(facts_json)?;
                       if let Some(v) = &args.rows { v.check_invariants()?; }
               crate::kernel::check_role(Some("Language"), "Close", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -857,7 +857,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assert acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::AssertArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
                       args.canonical.check_invariants()?;
@@ -871,7 +871,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Member acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::MemberArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Member", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -897,7 +897,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Keyword acts on an existing Syntax — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::syntax::KeywordArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
                       args.word.check_invariants()?;
@@ -924,7 +924,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json)?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Syntax — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::syntax::ArgumentArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
                       args.keyword.check_invariants()?;

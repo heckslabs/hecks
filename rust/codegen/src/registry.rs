@@ -304,12 +304,42 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 a.module_name,
                 if c.creates { extra_pass } else { "&id, ".to_string() }
             );
+            // BUG#20 (qa/bluebook/quality_control.bluebook) — `extract_id`'s
+            // own `no identity found at all` case (every one of its
+            // tried sources — the composite identity, `id`, and the
+            // command's own reference key — came back empty, including a
+            // caller-supplied `id: null`, which `to_id_component` refuses
+            // and this call site used to let propagate raw) always
+            // raised `TypeMismatch`. `CommandInterpreter#hydrate_
+            // existing`'s own identical fallback chain (`identity_of ||
+            // identity_from(:id) || identity_from(reference_key) ||
+            // raise(...)`, command_interpreter.rb, read directly) raises
+            // `NotFound`/`acting_no_identity` instead — this IS `dispatch`
+            // (kernel/dispatch.rs)'s own `Hydrate::Act` NOT-FOUND site's
+            // upstream twin: an ACTING command's id is resolved HERE, at
+            // the router, before `dispatch` (and its already-correct
+            // `Hydrate::Act` repo.find-miss `NotFoundRecordMissing`
+            // check) is ever called at all, so `dispatch` itself never
+            // saw this case to refuse correctly. `extract_id` has no
+            // per-command context (command name, declared identity
+            // reading) of its own to render `RefusalSite::
+            // NotFoundActingNoIdentity` — its ONE possible `Err` is
+            // wrapped here, where both are already in scope, into the
+            // exact same wording `RefusalWording.render("NotFound",
+            // "acting_no_identity", ...)` produces on the Ruby side.
             let id_line = if c.creates {
                 String::new()
             } else {
+                let acting_no_identity_message = format!(
+                    "{} acts on an existing {} — pass {}:",
+                    c.name,
+                    a.record,
+                    a.identified_by.join(", ")
+                );
                 format!(
-                    "let id = match route {{ Some(route) => {{ route.require_depth(0)?; route.aggregate().to_string() }}, None => {mod_path}::{}::extract_id(facts_json)?, }};",
-                    a.record
+                    "let id = match route {{ Some(route) => {{ route.require_depth(0)?; route.aggregate().to_string() }}, None => {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?, }};",
+                    a.record,
+                    naming::ruby_inspect_string(&acting_no_identity_message)
                 )
             };
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
@@ -735,5 +765,63 @@ mod tests {
         assert!(generated.contains("store.safedepositbox.find(&id)"));
         assert!(generated.contains("PaymentGatewayReceiveArgs::from_json(facts_json)?"));
         assert!(generated.contains("dispatch_operation_paymentgateway_receive(&id, args)"));
+    }
+
+    // BUG#20 (qa/bluebook/quality_control.bluebook) — an ACTING command's
+    // `extract_id(facts_json)?` used to let ANY internal failure (its
+    // one real case: every identity source it tries — the composite
+    // identity, `id`, and the reference key — came back empty,
+    // including a caller-supplied `id: null`) propagate as `extract_id`'s
+    // own generic `TypeMismatch("... no identity found ...")`. Ruby's
+    // `CommandInterpreter#hydrate_existing` (command_interpreter.rb, read
+    // directly) raises `NotFound`/`acting_no_identity` for the identical
+    // case instead — `RefusalWording.render("NotFound",
+    // "acting_no_identity", command:, aggregate:, identity:)`, rendered
+    // here at CODEGEN time (this router's own call site, not `extract_id`
+    // itself, is the one place with the command's short name, the
+    // aggregate's bare record name, AND its declared identity reading
+    // all already in scope) with the EXACT same wording
+    // `RefusalSite::NotFoundActingNoIdentity`'s template gives.
+    #[test]
+    fn acting_command_id_resolution_failure_refuses_not_found_not_type_mismatch() {
+        let aggregate = AggregateEntry {
+            name: "SafeDepositBox".to_string(),
+            module_name: "safedepositbox".to_string(),
+            record: "SafeDepositBox".to_string(),
+            commands: vec![CommandEntry {
+                verb: "Banking::SafeDepositBox.Close".to_string(),
+                name: "Close".to_string(),
+                fn_name: "close".to_string(),
+                args_struct: "CloseArgs".to_string(),
+                creates: false,
+                identity_extra_params: Vec::new(),
+                reference_checks: Vec::new(),
+                reference_specs: Vec::new(),
+                attributes: Vec::new(),
+                invariant_check_lines: Vec::new(),
+                role: None,
+            }],
+            entity_commands: Vec::new(),
+            nested_entity_commands: Vec::new(),
+            ports: Vec::new(),
+            chapter_mod: "banking".to_string(),
+            domain_name: "Banking".to_string(),
+            reference_specs: Vec::new(),
+            identified_by: vec!["branch_code.value".to_string(), "box_number.value".to_string()],
+            entities: Vec::new(),
+        };
+
+        let generated = emit_registry(&Exemplar::load(), &[aggregate]);
+
+        // The raw `extract_id(facts_json)?` (no `.map_err`, still
+        // TypeMismatch on ANY failure) must be gone from an acting
+        // command's own id_line ...
+        assert!(!generated.contains("SafeDepositBox::extract_id(facts_json)?,"));
+        // ... replaced by a wrapper that converts extract_id's failure
+        // into the exact NotFound/acting_no_identity wording Ruby's own
+        // CommandInterpreter#hydrate_existing raises for this case.
+        assert!(generated.contains(
+            "SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(\"Close acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:\".to_string()))?,"
+        ));
     }
 }
