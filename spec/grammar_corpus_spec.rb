@@ -69,9 +69,14 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
     RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
     GRAMMAR_BINARY  = File.join(RUST_PARSER_DIR, "target", "debug", "hecks-parse")
 
+    # cargo's own stderr is CARRIED INTO THE FAILURE, not discarded —
+    # this used to swallow it and say "run `cargo build` there directly
+    # to see why", which is no help at all when "there" is a CI runner
+    # that has already been torn down (PR #557's merge-queue ejections
+    # left no record of what actually went wrong). Success stays silent.
     def self.build_parser!
-      built = system("cargo", "build", chdir: RUST_PARSER_DIR, out: File::NULL, err: File::NULL)
-      raise "cargo build failed for rust/parser — run `cargo build` there directly to see why" unless built
+      _stdout, stderr, status = Open3.capture3("cargo", "build", chdir: RUST_PARSER_DIR)
+      raise "cargo build failed for rust/parser (exit #{status.exitstatus}):\n#{stderr}" unless status.success?
       raise "cargo build did not produce #{GRAMMAR_BINARY}" unless File.executable?(GRAMMAR_BINARY)
     end
 

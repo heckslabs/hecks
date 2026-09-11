@@ -573,10 +573,26 @@ jobs:
       # test/runner.rb:240-247, `files -= files.grep(exclude_pattern)`)
       # applies at FILE DISCOVERY, before files are even assigned to
       # workers — no `-o` nesting, no second layer of quoting to survive.
+      #
+      # `grammar_corpus_spec` IS IN THIS LIST because it `cargo build`s
+      # rust/parser (the "needs a real cargo build" rule above) — it
+      # landed (#479) without being added, so it ran HERE: a job with no
+      # Rust cache, where its cold parser build could overlap in time
+      # with `qa_sweep_all_spec`'s own fixture-crate `cargo build` (a
+      # real `bin/qa_sweep --all` child). Found live on PR #557's two
+      # merge-queue runs: whenever the two builds overlapped, one of them
+      # failed (the parser build once, the fixture build once); in every
+      # run where they did not overlap the same tree passed. Both specs
+      # discard cargo's stderr, so the exact mechanism is not in any
+      # log; moving the parser build to rspec_rust_parser (cached, one
+      # serial process) removes the overlap by construction rather than
+      # betting on which shared piece of a fresh runner's ~/.cargo or
+      # ~/.rustup it was. `qa_sweep_all_spec` stays here — it needs this
+      # job's Postgres, and is now the only cargo user left in it.
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
           bundle exec parallel_rspec spec \
-            --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
+            --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
             -o "--tag io --tag ~fuzzing"
 
   # FOUR JOBS, NOT ONE — `rspec_rust_io` used to run all 12 `cargo`-
@@ -871,12 +887,15 @@ jobs:
 
   # rust/parser/ ("hecks-parse") — an independent Cargo project, own
   # Cargo.toml/target dir, no interaction with rust/src/generated/ or
-  # rust/Cargo.toml at all. Both specs build it via their own
-  # `before(:context) { self.class.build_parser! }`, so no separate
+  # rust/Cargo.toml at all. The parity and grammar-corpus specs build it
+  # via their own `before(:context) { self.class.build_parser! }` (the
+  # second is a no-op against the first's fresh target/), so no separate
   # build step is needed at this job level the way rspec_rust_io needs
   # one (that spec-internal build is exactly why this job is safe to run
   # concurrently with rspec_rust_io in the first place — nothing here
-  # ever opens a file under the main crate's tree).
+  # ever opens a file under the main crate's tree). grammar_corpus_spec
+  # moved here from rspec_postgres_io_parallel — see that job's own
+  # `--exclude-pattern` comment for the overlap failure that found it.
   rspec_rust_parser:
     runs-on: ubuntu-latest
 
@@ -899,11 +918,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-parser-
 
-      - name: "rspec: Rust parser parity + coverage"
+      - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
           bundle exec rspec --tag io \
             spec/parser_parity_spec.rb \
-            spec/parser_coverage_spec.rb
+            spec/parser_coverage_spec.rb \
+            spec/grammar_corpus_spec.rb
 
   # rust/codegen/ ("hecks-codegen") — same shape as rspec_rust_parser
   # above, a different independent Cargo project. codegen_parity_spec.rb
