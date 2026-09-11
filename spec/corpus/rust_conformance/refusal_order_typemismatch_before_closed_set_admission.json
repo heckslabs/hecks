@@ -1,0 +1,8 @@
+{
+  "domain": "examples/chess",
+  "note": "BUG#14 (qa/bluebook/quality_control.bluebook) — a REQUIRED closed-set-typed command argument (Chess::Game.DeclineDraw's own `by: Color`) offered as a bare JSON `null` is a MISSING field, not a present-but-invalid one: `Value::Coercion#validate!` runs `check_required_fields` (raising `TypeMismatch`, 'Color.value expects String, got nil') BEFORE `admit_member` (raising `InvariantViolation` for a genuinely offered non-member), and `normalize_args` itself runs before `hydrate`/`enforce_givens` in `CommandInterpreter::DISPATCH_ORDER`, so this refuses TypeMismatch even against a game that was never started. Found live via `bin/qa_sweep chess --seeds 2` (seed 2, step 20 of a 25-step generated sequence). Unmodified Rust's generated `Color::from_json` (rust/src/exemplar/json.rs's `closed_set_codec` — the single-field-closed-set shape `required_composite_argument_expr`'s own BUG#4 fix translates a required argument's bare `null` into an empty object for) never distinguished the two cases: `v.dig(\"value\")` finding nothing fell straight through to the same admission match a genuinely-offered non-member value hits, always misreporting `InvariantViolation` (\"Color admits ..., got nil\") instead of Ruby's own `TypeMismatch`.",
+  "steps": [
+    { "verb": "Chess::Game.Start", "args": { "label": { "value": "bug14-g1" } } },
+    { "verb": "Chess::Game.DeclineDraw", "args": { "label": { "value": "bug14-g1" }, "by": null } }
+  ]
+}
