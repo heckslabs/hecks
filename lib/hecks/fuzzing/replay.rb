@@ -201,13 +201,27 @@ module Hecks
             # `{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`: the command
             # evaluated hypothetically, nothing saved or emitted, no reaction.
             # Recorded, never a refusal: a refused dry run is an ANSWER.
+            #
+            # `before:`/`after:` — the whole observable store (every
+            # instance, the event count) on either side of the hypothetical
+            # call, so `Properties.dry_runs_leave_no_trace` can hold the
+            # door to its own contract rather than trusting it. The SAME
+            # `role:`/`actor_id:` binding a real dispatch gets (below) —
+            # `kernel/cli.rs`'s own `dry_run` reads both keys too, so a
+            # role-gated dry run is refused (or not) identically on both
+            # sides. `verb`/`ok` are what the differential comparison
+            # reads; the rest is Ruby's own oracle data.
             if (hypothetical = step["dry_run"])
+              before = { instances: snapshot_instances(runtime), events: runtime.events.size }
+              entry  = { verb: hypothetical }
               begin
-                runtime.dry_run?(hypothetical, **args)
-                dry_runs << { verb: hypothetical, ok: true }
+                as_step_caller(step) { runtime.dry_run?(hypothetical, **args) }
+                entry[:ok] = true
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-                dry_runs << { verb: hypothetical, ok: false, error: e.message }
+                entry.merge!(ok: false, error: e.message, kind: refusal_kind(e))
               end
+              after = { instances: snapshot_instances(runtime), events: runtime.events.size }
+              dry_runs << entry.merge(before: before, after: after)
               next
             end
 
@@ -269,20 +283,19 @@ module Hecks
               # all, or one whose identity args don't resolve).
               mutation_trace = build_mutation_trace(runtime, step["verb"], args)
 
-              # `role:` — an OPTIONAL per-step key, absent on every one of
-              # the 231 existing `spec/corpus/*.json` steps (their own
+              # `role:`/`actor_id:` — OPTIONAL per-step keys, absent on every
+              # one of the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
               # already pinned changes behavior). Binds the SAME ambient
               # caller `refuse_role_mismatch` reads (`Hecks.as_caller`,
               # `Runtime::Caller.as`) for exactly the one dispatch this
               # step makes, then unbinds — mirrors `Caller.as`'s own
               # `ensure`-restore, so back-to-back steps with different (or
-              # no) `role:` never leak into each other.
-              result = if step["role"]
-                         Hecks.as_caller(role: step["role"]) { runtime.dispatch(step["verb"], **args) }
-                       else
-                         runtime.dispatch(step["verb"], **args)
-                       end
+              # no) `role:` never leak into each other. `actor_id:` is the
+              # sibling `kernel/cli.rs` already read (its own comment on
+              # the key): with it, a Governance-attached domain runs the
+              # real `holds_role?` lookup instead of the string fallback.
+              result = as_step_caller(step) { runtime.dispatch(step["verb"], **args) }
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
               guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
@@ -382,6 +395,15 @@ module Hecks
 
           history
         end
+      end
+
+      # A step with no `role:` dispatches exactly as every corpus step
+      # always has — bare, no caller bound at all (`Caller.current` nil,
+      # so `refuse_role_mismatch` returns before checking anything).
+      def as_step_caller(step, &)
+        return yield unless step["role"]
+
+        Hecks.as_caller(role: step["role"], actor_id: step["actor_id"], &)
       end
 
       # THE GUARD ORACLE'S OWN RESOLUTION — "which record, if any, is

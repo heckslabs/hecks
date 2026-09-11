@@ -47,6 +47,11 @@ module Hecks
           { creating: creating, instance: instance, entity_commands: entity_commands,
             queries: queries, entity_queries: entity_queries, read_models: read_models,
             populators: populators(runtime),
+            # Every `role "..."` any command in the boot declares — the
+            # "wrong hat" pool the caller draw's `mismatched` shape picks
+            # from (adversary.rb `other_role`).
+            roles: (creating + instance + entity_commands).filter_map { |e| e[:command].role }
+                                                          .map(&:to_s).reject(&:empty?).uniq.sort,
             # Which aggregates this corpus can actually make one of — the ones
             # `satisfiable?` is entitled to wait for.
             creatable: creating.to_set { |entry| entry[:aggregate].hecks_name } }
