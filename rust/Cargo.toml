@@ -10,6 +10,10 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["roster"]
+ledger_ordering = []
+waybill = []
+nested_pieces = []
+chess = []
 roster = []
 compliance = []
 meta = []
