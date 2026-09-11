@@ -768,6 +768,422 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
     }
 }
 
+impl Dispatch {
+    pub fn identity(&self) -> String {
+        vec![self.command_name.value.to_string(), self.position.value.to_string()].join(":")
+    }
+}
+
+impl crate::kernel::Fielded for DispatchBindNestedEntityArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "key" => Some(Field::Nested(&self.key)),
+            "value" => Some(Field::Nested(&self.value)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DispatchBindNestedEntityArgs {
+    pub key: DispatchText,
+    pub value: DispatchText,
+}
+
+impl DispatchBindNestedEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl DispatchBindNestedEntityArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchBindNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Bind does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Bind"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+        let key = DispatchText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchBindNestedEntityArgs.key expects DispatchText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let value = DispatchText::from_json(&(match v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchBindNestedEntityArgs.value expects DispatchText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        value.check_invariants()?;
+        Ok(Self {
+        key,
+        value,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_handler_dispatch_bind(
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
+    hop2_id: &str, hop2_wants: &str, args: DispatchBindNestedEntityArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ProcessManager> {
+        args.key.check_invariants()?;
+        args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ProcessManager| &r.handlers,
+        |r: &mut ProcessManager| &mut r.handlers,
+        |el: &Handler| el.identity() == hop1_id,
+        "Bind",
+        "Bluebook::ProcessManager",
+        "ProcessManager",
+        "bluebook, name.value",
+        "Handler",
+        "event_type.value, from_state.value",
+        hop1_wants,
+        &with_references,
+        &[],
+        None,
+        |nested_owner: &mut Handler| {
+            crate::kernel::apply_entity_command(
+                nested_owner,
+                hop1_id,
+                |r: &Handler| &r.dispatches,
+                |r: &mut Handler| &mut r.dispatches,
+                |el: &Dispatch| el.identity() == hop2_id,
+                "Bind",
+                "ProcessManager",
+                "Dispatch",
+                "command_name.value, position.value",
+                hop2_wants,
+                &with_references,
+                &[
+
+                ],
+                None,
+                |record| {
+        record.with_spec.push(Binding { key: args.key.value.clone(), value: args.value.value.clone() });
+                    Ok(())
+                },
+                &[
+
+                ],
+                false,
+            )
+        },
+        &[],
+        &processmanager_invariants(),
+        &["BindingAttached"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
+impl crate::kernel::Fielded for DispatchCompensatesNestedEntityArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "compensates_command_name" => Some(Field::Nested(&self.compensates_command_name)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DispatchCompensatesNestedEntityArgs {
+    pub compensates_command_name: DispatchText,
+}
+
+impl DispatchCompensatesNestedEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("compensates_command_name".to_string(), self.compensates_command_name.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl DispatchCompensatesNestedEntityArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchCompensatesNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["compensates_command_name", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Compensates does not declare {} — it takes compensates_command_name",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["compensates_command_name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Compensates"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "compensates_command_name"),
+    ])));
+}
+        let compensates_command_name = DispatchText::from_json(&(match v.get("compensates_command_name").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchCompensatesNestedEntityArgs.compensates_command_name expects DispatchText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        compensates_command_name.check_invariants()?;
+        Ok(Self {
+        compensates_command_name,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_handler_dispatch_compensates(
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
+    hop2_id: &str, hop2_wants: &str, args: DispatchCompensatesNestedEntityArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ProcessManager> {
+        args.compensates_command_name.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ProcessManager| &r.handlers,
+        |r: &mut ProcessManager| &mut r.handlers,
+        |el: &Handler| el.identity() == hop1_id,
+        "Compensates",
+        "Bluebook::ProcessManager",
+        "ProcessManager",
+        "bluebook, name.value",
+        "Handler",
+        "event_type.value, from_state.value",
+        hop1_wants,
+        &with_references,
+        &[],
+        None,
+        |nested_owner: &mut Handler| {
+            crate::kernel::apply_entity_command(
+                nested_owner,
+                hop1_id,
+                |r: &Handler| &r.dispatches,
+                |r: &mut Handler| &mut r.dispatches,
+                |el: &Dispatch| el.identity() == hop2_id,
+                "Compensates",
+                "ProcessManager",
+                "Dispatch",
+                "command_name.value, position.value",
+                hop2_wants,
+                &with_references,
+                &[
+
+                ],
+                None,
+                |record| {
+        record.compensates_command_name = Some(args.compensates_command_name.clone());
+                    Ok(())
+                },
+                &[
+
+                ],
+                false,
+            )
+        },
+        &[],
+        &processmanager_invariants(),
+        &["CompensationDeclared"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
+impl crate::kernel::Fielded for DispatchBindCompensationNestedEntityArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "key" => Some(Field::Nested(&self.key)),
+            "value" => Some(Field::Nested(&self.value)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DispatchBindCompensationNestedEntityArgs {
+    pub key: DispatchText,
+    pub value: DispatchText,
+}
+
+impl DispatchBindCompensationNestedEntityArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+
+impl DispatchBindCompensationNestedEntityArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchBindCompensationNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BindCompensation does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "BindCompensation"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+        let key = DispatchText::from_json(&(match v.get("key").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchBindCompensationNestedEntityArgs.key expects DispatchText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        key.check_invariants()?;
+        let value = DispatchText::from_json(&(match v.get("value").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchBindCompensationNestedEntityArgs.value expects DispatchText, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        value.check_invariants()?;
+        Ok(Self {
+        key,
+        value,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_handler_dispatch_bind_compensation(
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
+    hop2_id: &str, hop2_wants: &str, args: DispatchBindCompensationNestedEntityArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ProcessManager> {
+        args.key.check_invariants()?;
+        args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ProcessManager| &r.handlers,
+        |r: &mut ProcessManager| &mut r.handlers,
+        |el: &Handler| el.identity() == hop1_id,
+        "BindCompensation",
+        "Bluebook::ProcessManager",
+        "ProcessManager",
+        "bluebook, name.value",
+        "Handler",
+        "event_type.value, from_state.value",
+        hop1_wants,
+        &with_references,
+        &[],
+        None,
+        |nested_owner: &mut Handler| {
+            crate::kernel::apply_entity_command(
+                nested_owner,
+                hop1_id,
+                |r: &Handler| &r.dispatches,
+                |r: &mut Handler| &mut r.dispatches,
+                |el: &Dispatch| el.identity() == hop2_id,
+                "BindCompensation",
+                "ProcessManager",
+                "Dispatch",
+                "command_name.value, position.value",
+                hop2_wants,
+                &with_references,
+                &[
+
+                ],
+                None,
+                |record| {
+        record.compensates_with_spec.push(Binding { key: args.key.value.clone(), value: args.value.value.clone() });
+                    Ok(())
+                },
+                &[
+
+                ],
+                false,
+            )
+        },
+        &[],
+        &processmanager_invariants(),
+        &["CompensationBindingAttached"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
 impl Handler {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {

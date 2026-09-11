@@ -1032,6 +1032,62 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::syntax::dispatch_entity_argument_retire(&mut store.syntax, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::ProcessManager.Handler.Dispatch.Bind" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.Bind addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
+              route.require_depth(2)?;
+              let facts_json = invocation.facts();
+              let parent_id = route.aggregate().to_string();
+              let hop1_id = route.entities()[0].clone();
+              let hop2_id = route.entities()[1].clone();
+              let hop1_wants = hop1_id.clone();
+              let hop2_wants = hop2_id.clone();
+              let args = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.value.check_invariants()?;
+              crate::kernel::check_role(Some("Language"), "Bind", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ProcessManager.Handler.Dispatch.Compensates" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.Compensates addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
+              route.require_depth(2)?;
+              let facts_json = invocation.facts();
+              let parent_id = route.aggregate().to_string();
+              let hop1_id = route.entities()[0].clone();
+              let hop2_id = route.entities()[1].clone();
+              let hop1_wants = hop1_id.clone();
+              let hop2_wants = hop2_id.clone();
+              let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?;
+                      args.compensates_command_name.check_invariants()?;
+              crate::kernel::check_role(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_compensates(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ProcessManager.Handler.Dispatch.BindCompensation" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook::ProcessManager.Handler.Dispatch.BindCompensation addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".to_string()))?;
+              route.require_depth(2)?;
+              let facts_json = invocation.facts();
+              let parent_id = route.aggregate().to_string();
+              let hop1_id = route.entities()[0].clone();
+              let hop2_id = route.entities()[1].clone();
+              let hop1_wants = hop1_id.clone();
+              let hop2_wants = hop2_id.clone();
+              let args = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(facts_json)?;
+                      args.key.check_invariants()?;
+                      args.value.check_invariants()?;
+              crate::kernel::check_role(Some("Language"), "BindCompensation", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind_compensation(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
 }
