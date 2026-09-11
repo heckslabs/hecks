@@ -11,11 +11,11 @@ require "hecks/fuzzing"
 # Ruby's runtime and `JSON.generate({steps: ...})` hands the compiled
 # Rust binary.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator do
-  PIZZAS          = File.join(InMemoryDomain::ROOT, "examples/pizzas")
-  BANKING         = File.join(InMemoryDomain::ROOT, "examples/banking")
-  CHESS           = File.join(InMemoryDomain::ROOT, "examples/chess")
-  NESTED_PIECES   = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
-  LEDGER_ORDERING = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering")
+  PIZZAS            = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  ADVERSARY_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
+  CHESS             = File.join(InMemoryDomain::ROOT, "examples/chess")
+  NESTED_PIECES     = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
+  LEDGER_ORDERING   = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering")
 
   # Every `[step, mutation]` pair across a handful of seeds, grouped by
   # mutation kind — `adversarial: 1.0` so every command step that CAN be
@@ -40,8 +40,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
     it "stays deterministic on banking too, across several seeds" do
       (1..4).each do |seed|
-        first  = described_class.generate(BANKING, seed: seed, steps: 25, adversarial: 0.5)
-        second = described_class.generate(BANKING, seed: seed, steps: 25, adversarial: 0.5)
+        first  = described_class.generate(ADVERSARY_BANKING, seed: seed, steps: 25, adversarial: 0.5)
+        second = described_class.generate(ADVERSARY_BANKING, seed: seed, steps: 25, adversarial: 0.5)
         expect(first).to eq(second), "banking seed #{seed} diverged between two identical calls"
       end
     end
@@ -100,7 +100,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
   describe "each mutation kind produces its documented shape" do
     before(:all) do
       @by_kind = mutations_over(PIZZAS, seeds: 6)
-      mutations_over(BANKING, seeds: 3).each { |kind, pairs| (@by_kind[kind] ||= []).concat(pairs) }
+      mutations_over(ADVERSARY_BANKING, seeds: 3).each { |kind, pairs| (@by_kind[kind] ||= []).concat(pairs) }
     end
 
     it "routing_key — an undeclared to:/with:/id: as null, a scalar, or a routing-shaped object (BUG#7/#16/#8)" do
