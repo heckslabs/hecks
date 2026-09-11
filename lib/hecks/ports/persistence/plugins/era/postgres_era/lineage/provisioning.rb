@@ -287,6 +287,56 @@ module Hecks
             raise Runtime::WiringError, "cannot rename #{@formerly_known_as} to #{@domain}: #{e.message.strip}"
           end
 
+          # THE FENCE HAS TO BE ABLE TO BITE THIS CONNECTION, OR NOTHING
+          # ensure_base! BUILDS MEANS ANYTHING. The whole write-fence is
+          # row-level security (FORCE ROW LEVEL SECURITY above, plus
+          # advance_era!'s one INSERT policy), and Postgres exempts a
+          # superuser — or any role granted BYPASSRLS — from every policy
+          # on every table, unconditionally: FORCE only narrows the
+          # OWNER's exemption and has no lever against either of those.
+          # Found live, not reasoned about (BUG#24): the QA ledger's own
+          # `.world` named a bare database, so every session connected as
+          # the machine's default Postgres user — a superuser — and an
+          # old checkout wrote its own superseded era straight through
+          # two mints, 37 rows no newer head could read, and nothing
+          # warned. Asked of the catalog ONCE, at boot, BEFORE anything
+          # is provisioned: the answer is a fact about the ROLE, not about
+          # any table, so there is nothing to wait for and nothing to
+          # half-build first.
+          #
+          # Refuses by default — quiet divergence is the enemy — naming
+          # the role and both ways out. `allow_superuser` boots anyway,
+          # but says so on stderr on EVERY boot, because the only guard
+          # left standing then is PostgresEra#append's own in-process
+          # superseded-era check (the belt to this suspender), and an
+          # operator reading the log deserves to know which one they are
+          # relying on. Presence-over-truthiness for the setting itself
+          # is `PostgresEra.setting`'s job (the caller's); here a truthy
+          # value opts in and anything else does not.
+          def check_fence_applies!(allow_superuser: false)
+            row = @db.exec("SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")[0]
+            exempt = []
+            exempt << "a superuser" if row["rolsuper"] == "t"
+            exempt << "granted BYPASSRLS" if row["rolbypassrls"] == "t"
+            return if exempt.empty?
+
+            role = row["rolname"].inspect
+            unless allow_superuser
+              raise Runtime::WiringError,
+                    "cannot boot #{@domain}: PostgresEra's era write-fence is row-level security, and this " \
+                    "connection's role #{role} is #{exempt.join(' and ')} — Postgres exempts it from every " \
+                    "policy, FORCE included, so an old checkout connected this way keeps writing a superseded " \
+                    "era and nothing refuses. Connect as an ordinary role instead (database " \
+                    "\"postgres://<role>@<host>/<db>\" in the .world — a non-superuser OWNER still provisions " \
+                    "and mints), or declare `allow_superuser true` in the same persisted_by block to boot with " \
+                    "the fence void, on the record."
+            end
+
+            warn "[hecks] #{@domain}: booting PostgresEra as #{role}, #{exempt.join(' and ')}, under " \
+                 "allow_superuser — the era write-fence is void for this connection; only this process's own " \
+                 "superseded-era check (PostgresEra#append) stands between an old checkout and a superseded era"
+          end
+
           # Nothing provisioned yet — build it. Provisioned and owned —
           # keep it current. Provisioned by SOMEONE ELSE — this is an app
           # role, and the owner has already done this work.

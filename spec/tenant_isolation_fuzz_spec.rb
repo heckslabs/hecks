@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require_relative "support/postgres_probe"
+require_relative "support/fenced_owner"
 
 # FUZZED, NOT HAND-PICKED — tenant_isolation_spec.rb proves isolation
 # for one sequential write each; this proves it across many random,
@@ -146,6 +147,9 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
     admin.exec("DROP DATABASE IF EXISTS #{db} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{db}")
     admin.close
+    # every tenant boots as a NON-superuser owner (BUG#24; see
+    # support/fenced_owner.rb)
+    FencedOwner.own!(db)
 
     begin
       (1..4).each do |seed|
@@ -153,8 +157,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
           write_domain(
             dir, adapter:         "PostgresEra",
                  tenant_settings: {
-                   "acme"  => { database: db, schema: "fuzz_acme_#{seed}" },
-                   "bloom" => { database: db, schema: "fuzz_bloom_#{seed}" }
+                   "acme"  => { database: FencedOwner.url(db), schema: "fuzz_acme_#{seed}" },
+                   "bloom" => { database: FencedOwner.url(db), schema: "fuzz_bloom_#{seed}" }
                  }
           )
 

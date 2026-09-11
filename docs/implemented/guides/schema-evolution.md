@@ -158,6 +158,7 @@ File.write(File.join(GRANGE_DIR, "bluebook/grange.world"), <<~WORLD)
     realm "Doctest"
     persisted_by("PostgresEra") do
       database "postgres://localhost/#{GRANGE_DB}"
+      allow_superuser true   # this guide runs as the ambient Postgres user — see "Who the fence can hold" below
     end
   end
 WORLD
@@ -422,6 +423,47 @@ teaching the merge about rekeys is real, separate work.
 `retired "OldAggregate"`, declared at the edge level rather than inside
 an `aggregate` block, says an aggregate is simply gone — the honest
 alternative to a `was:` claim pointing at something unrelated.
+
+## Who the fence can hold
+
+Everything above rests on one Postgres mechanism: the moment a new era
+materializes, a row-level security policy on the journal admits inserts
+to that era and no other — `FORCE ROW LEVEL SECURITY`, so even the
+table's owner is held to it. An old checkout that keeps running may
+still boot and read its own era; it may not write it. That is the whole
+guarantee, and it has one hole Postgres itself leaves open: a
+**superuser**, or any role granted **BYPASSRLS**, is exempt from every
+policy on every table, unconditionally. `FORCE` narrows the owner's
+exemption and nothing else. Connect the domain as such a role and the
+fence is void — an old checkout writes its superseded era straight
+through every mint, into a partition no newer head reads, and nothing
+refuses.
+
+That is exactly what a bare `database "some_db"` does on a self-hosted
+machine: it connects as whatever Postgres user your shell defaults to,
+which is almost always a superuser. So `PostgresEra` asks the catalog
+first, on every boot, and **refuses** to boot over a superuser or
+BYPASSRLS connection, naming the role and the two ways out:
+
+- **Bind an ordinary role in the URL** — `database
+  "postgres://<role>@<host>/<db>"`. An ordinary role that *owns* the
+  database still provisions and mints (owner-only DDL), and is held to
+  the fence like everyone else. This is the real fix, and what a
+  deployment does; `qa/bluebook/quality_control.world` in this
+  repository is the worked example, with `bin/qa_postgres_role` as its
+  one-time operator step.
+- **`allow_superuser true`**, in the same `persisted_by` block — boots
+  anyway, on the record, and says so on stderr on every boot. The
+  examples in this repository carry it because they run against your
+  local Postgres as you; this guide's own `Grange` world above carries
+  it for the same reason.
+
+Even under the opt-in, one guard still stands: a checkout that booted a
+superseded era knows it did, and refuses its own writes in-process,
+before any `INSERT` — reads keep working, and the refusal names the era
+that superseded it and tells you to pull and reboot. The database-level
+fence is the one that holds against *every* process; that in-process
+check is the one that holds when the fence cannot.
 
 ## What to actually do
 

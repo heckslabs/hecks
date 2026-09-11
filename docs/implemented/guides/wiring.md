@@ -254,9 +254,23 @@ Hecks.world "Pizzas" do
   realm "Examples"
   persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_pizzas"
+    allow_superuser true
   end
 end
 ```
+
+That `allow_superuser true` is the one line a real deployment never
+writes. `PostgresEra`'s era write-fence is Postgres row-level security,
+and a superuser (or any role granted BYPASSRLS) walks straight through
+every policy, `FORCE ROW LEVEL SECURITY` included — so `PostgresEra`
+refuses to boot over such a connection by default, naming the role and
+the two ways out: an ordinary role in the URL
+(`postgres://<role>@<host>/<db>` — an ordinary *owner* still provisions
+and mints), or this explicit opt-in, which boots with the fence void,
+on the record, and says so on stderr on every boot. The example carries
+it because it runs against whatever Postgres user your shell defaults
+to, which on a self-hosted machine is almost always a superuser; the
+[schema evolution guide](schema-evolution.md) has the whole story.
 
 A `.world` block can carry more than one adapter binding, plus a
 deployment target. `examples/banking/bluebook/banking.world`, quoted

@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/fenced_owner"
 
 # bin/project_tenant is a SCRIPT, not a library — same reasoning
 # project_deploy_contract_spec.rb's own header gives: there's nothing
@@ -17,6 +18,10 @@ RSpec.describe "bin/project_tenant", :io do
   # top-level constant" gate.
   SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
   DB = "hecks_project_tenant_spec".freeze
+  # What the generated overlay actually binds: the database BY URL, as a
+  # NON-superuser owner — the ambient dev/CI user is a superuser, which
+  # PostgresEra refuses to boot as (BUG#24; see support/fenced_owner.rb).
+  DB_URL = FencedOwner.url(DB)
 
   def fixture(dir)
     File.write(File.join(dir, "scratch.bluebook"), <<~BLUEBOOK)
@@ -75,6 +80,7 @@ RSpec.describe "bin/project_tenant", :io do
     admin.exec("DROP DATABASE IF EXISTS #{DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{DB}")
     admin.close
+    FencedOwner.own!(DB)
   end
 
   after(:context) do
@@ -92,7 +98,7 @@ RSpec.describe "bin/project_tenant", :io do
       fixture(dir)
 
       out, err, status = run_project_tenant(
-        dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB
+        dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL
       )
       expect(status).to be_success, "stdout: #{out}\nstderr: #{err}"
       expect(out).to include("wrote #{File.join(dir, 'environments/acme.world')}")
@@ -101,7 +107,7 @@ RSpec.describe "bin/project_tenant", :io do
 
       overlay = File.read(File.join(dir, "environments/acme.world"))
       expect(overlay).to include('realm "Acme"')
-      expect(overlay).to include("database \"#{DB}\"")
+      expect(overlay).to include("database \"#{DB_URL}\"")
       expect(overlay).to include('schema   "acme"')
     end
   end
@@ -112,8 +118,8 @@ RSpec.describe "bin/project_tenant", :io do
     Dir.mktmpdir do |dir|
       fixture(dir)
 
-      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB)
-      _out, _err, status = run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB)
+      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
+      _out, _err, status = run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
 
       expect(status).to be_success
     end
@@ -125,8 +131,8 @@ RSpec.describe "bin/project_tenant", :io do
     Dir.mktmpdir do |dir|
       fixture(dir)
 
-      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB)
-      run_project_tenant(dir, "bloom", domain: "Scratch", realm: "Bloom", schema: "bloom", database: DB)
+      run_project_tenant(dir, "acme", domain: "Scratch", realm: "Acme", schema: "acme", database: DB_URL)
+      run_project_tenant(dir, "bloom", domain: "Scratch", realm: "Bloom", schema: "bloom", database: DB_URL)
 
       acme  = Hecks.boot(dir, environment: "acme", install_facade: false)
       bloom = Hecks.boot(dir, environment: "bloom", install_facade: false)
@@ -150,7 +156,7 @@ RSpec.describe "bin/project_tenant", :io do
       fixture(dir)
 
       _out, err, status = run_project_tenant(
-        dir, "Not A Slug", domain: "Scratch", realm: "Bad", schema: "acme", database: DB
+        dir, "Not A Slug", domain: "Scratch", realm: "Bad", schema: "acme", database: DB_URL
       )
 
       expect(status).not_to be_success

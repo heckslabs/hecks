@@ -1,0 +1,173 @@
+#!/usr/bin/env ruby
+
+# THE ROLE THE QA LEDGER CONNECTS AS — created, and handed the database,
+# idempotently. The operator step behind `qa/bluebook/quality_control
+# .world`'s own `database "postgres://hecks_qa@localhost/..."` binding;
+# read that file's header first.
+#
+# WHY A ROLE AT ALL (BUG#24). PostgresEra's era write-fence is Postgres
+# row-level security, and Postgres exempts a superuser — or any role
+# granted BYPASSRLS — from every policy unconditionally; FORCE ROW LEVEL
+# SECURITY only narrows the table OWNER's exemption. A `.world` naming a
+# bare database connects as the machine's default Postgres user, which on
+# a self-hosted dev box is almost always a superuser: found live on the
+# real ledger, where an old checkout wrote its own superseded era straight
+# through two mints (37 rows no newer head could read) and nothing
+# warned. `Lineage#check_fence_applies!` now refuses that boot outright.
+# The way through is what this script provisions: an ORDINARY role that
+# OWNS the database and everything in it — fenced by RLS like any other
+# role (FORCE reaches the owner), yet still able to provision and mint,
+# which an app-only, non-owner role cannot (`provisioner?`, owner-only
+# DDL). One identity, no prod-style owner/app split: every QA session may
+# have to mint, so every session is the owner.
+#
+# WHAT IT DOES, IN ORDER, EACH STEP SKIPPED WHEN ALREADY TRUE:
+#   1. CREATE ROLE <role> LOGIN — NOSUPERUSER NOBYPASSRLS NOCREATEDB
+#      NOCREATEROLE, the plainest role Postgres has (the same shape
+#      spec/adapters/driven/postgres_era/lineage_spec.rb's own
+#      `hecks_lineage_owner` takes). Race-safe: two specs running under
+#      `parallel_rspec` may both reach this line for the same role.
+#   2. ALTER DATABASE <database> OWNER TO <role>.
+#   3. Inside <database>: ALTER SCHEMA public OWNER TO <role>, then every
+#      table, partition, sequence, view and materialized view in `public`
+#      (a `DROP SCHEMA public CASCADE; CREATE SCHEMA public` reset, which
+#      the specs do before every example, leaves a superuser-owned schema
+#      the role could not CREATE in — hence the schema itself, not only
+#      what is in it), and every function there (PostgresEra's own
+#      `hecks_tr_*` jsonb helpers, `install_transforms!`) — OWNER TO
+#      <role>. Explicit `ALTER ... OWNER TO`, relation by relation, rather
+#      than one `REASSIGN OWNED BY`: REASSIGN OWNED acts on EVERY
+#      object the old role owns — every other database that superuser
+#      owns on the instance, not only this one — and the bootstrap
+#      superuser's initdb-time objects (`public` itself among them) are
+#      pinned and invisible to it besides. Owned/identity sequences
+#      follow their tables on their own; the loop handles any that do
+#      not.
+#
+# ALREADY APPLIED TO THE LIVE LEDGER, BY HAND, 2026-09-11 — exactly these
+# statements (CREATE ROLE hecks_qa LOGIN; per-object ALTER ... OWNER TO
+# hecks_qa across `public`; ALTER DATABASE hecks_quality_control OWNER TO
+# hecks_qa) were run against `hecks_quality_control` before the `.world`
+# switched to the hecks_qa URL. Running this script against it again is
+# the idempotent no-op it reports as "already".
+#
+# REFUSES, rather than proceeds, if <role> already exists as a superuser
+# or with BYPASSRLS — handing the ledger to such a role is exactly the
+# state this exists to end. The connection this script itself runs on is
+# whatever the ambient environment gives it (a superuser locally; CI's
+# `PGUSER=postgres`) — it needs to be one that can create roles and
+# reassign the database, and says so if it is not.
+#
+# NEVER RUN AGAINST THE LIVE LEDGER FROM A SPEC. The specs run this
+# against their own disposable databases (`spec/qa_sweep_all_spec.rb`,
+# `spec/qa_sweep_persistence_parity_spec.rb`) — the round trip proven
+# there is what makes running it once, by hand, against
+# `hecks_quality_control` safe:
+#
+#   bin/qa_postgres_role hecks_quality_control            # the live ledger
+#   bin/qa_postgres_role <database> --role <role>         # any other, any role
+#
+# <database> is REQUIRED — no default, so nothing here ever touches the
+# real ledger by accident of an empty argument.
+
+require "pg"
+
+def usage_and_exit(message = nil)
+  warn "bin/qa_postgres_role: #{message}" if message
+  warn "usage: bin/qa_postgres_role <database> [--role <role>]"
+  exit 1
+end
+
+role = "hecks_qa"
+if (index = ARGV.index("--role"))
+  role = ARGV[index + 1] or usage_and_exit("--role needs a name")
+  ARGV.slice!(index, 2)
+end
+database = ARGV.shift
+usage_and_exit("no database named") if database.to_s.empty?
+usage_and_exit("unexpected argument #{ARGV.first.inspect}") unless ARGV.empty?
+
+done = []
+skipped = []
+
+# ── 1. the role ────────────────────────────────────────────────────────
+admin = PG.connect(dbname: "postgres")
+attrs = admin.exec_params("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = $1", [role])
+if attrs.ntuples.zero?
+  # CREATE ROLE has no IF NOT EXISTS — the DO block is the race-safe
+  # spelling, so two concurrent runs (parallel_rspec) both succeed.
+  admin.exec(<<~SQL)
+    DO $$ BEGIN
+      CREATE ROLE #{admin.quote_ident(role)} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$
+  SQL
+  done << "created role #{role} (LOGIN, no SUPERUSER, no BYPASSRLS)"
+elsif attrs[0]["rolsuper"] == "t" || attrs[0]["rolbypassrls"] == "t"
+  admin.close
+  abort "bin/qa_postgres_role: role #{role} already exists as " \
+        "#{attrs[0]['rolsuper'] == 't' ? 'a superuser' : 'a BYPASSRLS role'} — the era write-fence cannot bite " \
+        "it, which is the exact state this script exists to end. Pick another role, or ALTER ROLE #{role} " \
+        "NOSUPERUSER NOBYPASSRLS first."
+else
+  skipped << "role #{role} exists, ordinary"
+end
+
+# ── 2. the database ────────────────────────────────────────────────────
+owner = admin.exec_params(
+  "SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = $1", [database]
+)
+if owner.ntuples.zero?
+  admin.close
+  abort "bin/qa_postgres_role: no database #{database} — createdb it first (PostgresEra provisions every " \
+        "table it needs on first connect, never the database itself)"
+end
+if owner[0]["owner"] == role
+  skipped << "database #{database} already owned by #{role}"
+else
+  admin.exec("ALTER DATABASE #{admin.quote_ident(database)} OWNER TO #{admin.quote_ident(role)}")
+  done << "database #{database}: owner #{owner[0]['owner']} -> #{role}"
+end
+admin.close
+
+# ── 3. everything inside it ────────────────────────────────────────────
+db = PG.connect(dbname: database)
+quoted_role = db.quote_ident(role)
+
+schema_owner = db.exec("SELECT pg_get_userbyid(nspowner) AS owner FROM pg_namespace WHERE nspname = 'public'")
+if schema_owner.ntuples.positive? && schema_owner[0]["owner"] != role
+  db.exec("ALTER SCHEMA public OWNER TO #{quoted_role}")
+  done << "schema public: owner #{schema_owner[0]['owner']} -> #{role}"
+end
+
+# relkind: r table, p partitioned table, S sequence, v view, m matview —
+# every kind PostgresEra provisions; partitions are their own rows here
+# (ALTER TABLE ... OWNER on the parent does not recurse to them).
+KINDS = { "r" => "TABLE", "p" => "TABLE", "S" => "SEQUENCE", "v" => "VIEW", "m" => "MATERIALIZED VIEW" }.freeze
+relations = db.exec_params(<<~SQL, [role])
+  SELECT c.relname, c.relkind, pg_get_userbyid(c.relowner) AS owner
+  FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'S', 'v', 'm') AND pg_get_userbyid(c.relowner) <> $1
+  ORDER BY c.relkind, c.relname
+SQL
+relations.each do |row|
+  db.exec("ALTER #{KINDS.fetch(row['relkind'])} #{db.quote_ident(row['relname'])} OWNER TO #{quoted_role}")
+end
+done << "#{relations.ntuples} relation(s) in public -> #{role}" if relations.ntuples.positive?
+
+functions = db.exec_params(<<~SQL, [role])
+  SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+  FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public' AND pg_get_userbyid(p.proowner) <> $1
+  ORDER BY p.proname
+SQL
+functions.each do |row|
+  db.exec("ALTER FUNCTION #{db.quote_ident(row['proname'])}(#{row['args']}) OWNER TO #{quoted_role}")
+end
+done << "#{functions.ntuples} function(s) in public -> #{role}" if functions.ntuples.positive?
+db.close
+
+puts "bin/qa_postgres_role: #{database} is #{role}'s"
+done.each    { |line| puts "  did:     #{line}" }
+skipped.each { |line| puts "  already: #{line}" }
+puts "  bind it: database \"postgres://#{role}@localhost/#{database}\"" if done.any?

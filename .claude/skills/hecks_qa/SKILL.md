@@ -50,6 +50,12 @@ Instead:
    once (`EnterWorktree` with a fixed `name`, or `git worktree add`
    directly) and never tear it down between sweeps. This is where
    `qa/data/` actually lives, permanently.
+   Also one time, per machine: the ledger connects as `hecks_qa`, an
+   ordinary (non-superuser) Postgres role, because PostgresEra refuses
+   to boot over a superuser connection — its era write-fence is
+   row-level security, which a superuser walks through (BUG#24). Run
+   `bin/qa_postgres_role hecks_quality_control` once (idempotent; see
+   `qa/bluebook/quality_control.world`'s header) before the first boot.
 2. **Every tick — MANDATORY, NO EXCEPTIONS, before any fresh sweep
    starts**: `bin/qa_pr_check` runs, inside the SAME subagent dispatch
    described below, in the SAME persistent worktree. This is not left to

@@ -14,7 +14,10 @@ require "hecks/ports/persistence/plugins/era"
 # whenever the symbol spelling held `false`, granting a role nobody asked
 # for. That substitution is exactly what this proves does not happen.
 RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::EraResolver — role resolution" do
-  let(:lineage) { instance_double(Hecks::Adapters::PostgresEra::Lineage, ensure_base!: nil, eras: [], hold_first!: nil, ensure_first_head!: nil, grant_role!: nil) }
+  let(:lineage) do
+    instance_double(Hecks::Adapters::PostgresEra::Lineage, check_fence_applies!: nil, ensure_base!: nil, eras: [],
+                                                             hold_first!: nil, ensure_first_head!: nil, grant_role!: nil)
+  end
   let(:registry) { Hecks::Runtime::Registry.new }
   let(:bluebook) { double("bluebook", name: "Widgets", formerly_known_as: nil, aggregates: []) } # rubocop:disable RSpec/VerifiedDoubles
 

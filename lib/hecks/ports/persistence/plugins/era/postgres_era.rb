@@ -209,6 +209,20 @@ module Hecks
         # promise.
         @era = settings.key?(:era) ? settings[:era] : settings["era"]
         @era ||= @lineage.current_era
+        # THE IN-PROCESS HALF OF THE ERA FENCE. `EraResolver.check!` sets
+        # `registry.superseded_eras[domain]` for a held-but-superseded
+        # boot only, and `RepositoryFactory.build` merges it in here as
+        # `superseded_by:` — so this is nil for every current-era boot AND
+        # for a directly-instantiated adapter (specs, consoles), which,
+        # like `era:` above, self-resolves rather than being told. When
+        # set, `append`/`atomic_put` refuse BEFORE issuing an INSERT (see
+        # `refuse_superseded_write!`): the RLS fence already refuses the
+        # same write for an ordinary role, but a superuser walks through
+        # RLS (BUG#24), and this checkout's own knowledge that it is stale
+        # is the one guard no role attribute can void. Same coalescing as
+        # `era:` — the key is always PRESENT from the factory, holding nil
+        # for the ordinary case.
+        @superseded_by = settings.key?(:superseded_by) ? settings[:superseded_by] : settings["superseded_by"]
         # Unconditional and idempotent, regardless of era — belt-and-
         # suspenders self-healing (compile_head! already ensures this for
         # a freshly-minted era's own name; ensure_first_head! for era 1's)
@@ -341,6 +355,7 @@ module Hecks
       # same already-held (per-session-reentrant) advisory lock; a bare
       # `repository.save` outside a full dispatch still takes it fresh.
       def append(entry)
+        refuse_superseded_write!
         transaction do
           lock_writes!
           append_and_project!(entry)
@@ -348,11 +363,27 @@ module Hecks
         entry
       end
 
+      # BEFORE the transaction, before the lock, before the INSERT — a
+      # superseded checkout takes nothing and touches nothing. Reads are
+      # deliberately untouched: `EraResolver.check!`'s own contract for an
+      # old checkout is "may keep BOOTING and READING, but may not keep
+      # WRITING", and the head views it reads through are its own era's.
+      def refuse_superseded_write!
+        return unless @superseded_by
+
+        raise Runtime::WiringError,
+              "cannot write #{table} for #{@domain}: this checkout booted era #{@era}, which era " \
+              "#{@superseded_by} has superseded — its shape was replaced by a mint, and a write here would " \
+              "land in a partition no newer head reads. Reads still work; pull the current bluebook and " \
+              "reboot to write again."
+      end
+
       # Outcome detection, journal append and every derived projection share
       # the SAME transaction and domain write lock. The lineage-aware head
       # determines whether this id is already visible; no repository `find`
       # occurs before entering this adapter-native operation.
       def atomic_put(entry, insert_only: false)
+        refuse_superseded_write!
         status = nil
         transaction do
           lock_writes!

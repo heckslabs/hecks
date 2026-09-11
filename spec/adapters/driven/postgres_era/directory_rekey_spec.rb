@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
+require_relative "../../../support/fenced_owner"
 
 # examples/directory is the corpus's own real `rekey` (and `compute`)
 # example — the exact `identified_by :name` -> `identified_by :email`
@@ -54,6 +55,10 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     admin.exec("DROP DATABASE IF EXISTS #{DIRECTORY_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{DIRECTORY_DB}")
     admin.close
+    # every check! below connects as a NON-superuser owner — the ambient
+    # dev/CI user is a superuser, which PostgresEra refuses to boot as
+    # (BUG#24; see support/fenced_owner.rb)
+    FencedOwner.own!(DIRECTORY_DB)
   end
 
   after(:all) do
@@ -82,7 +87,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: { database: DIRECTORY_DB }
+      registry: registry, bluebook: bluebook, current_text: source, settings: { database: FencedOwner.url(DIRECTORY_DB) }
     )
     registry
   end

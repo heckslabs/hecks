@@ -22,6 +22,12 @@ module Hecks
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
             db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
+            # FIRST, before ensure_base! provisions or verifies anything —
+            # the one point every PostgresEra boot passes through, and the
+            # earliest at which the connection's own role is known. See
+            # check_fence_applies!'s own header (BUG#24) for why a
+            # superuser connection refuses here by default.
+            lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
             lineage.ensure_base!
             # Both spellings honored, key? first — never `||`, which cannot
             # tell a genuinely stored `false` apart from an absent key (see
@@ -78,6 +84,14 @@ module Hecks
               # called with a superseded ordinal.
               lineage.grant_role!(role, aggregates: bluebook.aggregates, era: matched[:ordinal]) if role
               registry.resolved_eras[bluebook.name] = matched[:ordinal]
+              # ...and the boot REMEMBERS that it is superseded, not only
+              # which era it is: `RepositoryFactory.build` hands this to
+              # the adapter as `superseded_by:`, and `PostgresEra#append`
+              # refuses on it before issuing the INSERT. That is the
+              # in-process half of "may not keep WRITING" — the half that
+              # holds even for a connection the RLS fence cannot bite
+              # (a superuser under allow_superuser; BUG#24).
+              registry.superseded_eras[bluebook.name] = latest[:ordinal]
               return
             end
 

@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_role"
 require "open3"
 require "tempfile"
 require "fileutils"
@@ -195,10 +196,15 @@ RSpec.describe "bin/qa_sweep --all", :io do
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
+    # THE SAME URL SHAPE THE REAL LEDGER BINDS (qa/bluebook/quality_control
+    # .world): the database by URL, as `hecks_qa`, an ordinary owner role
+    # — PostgresEra refuses to boot as the ambient superuser (BUG#24).
+    # `bin/qa_postgres_role`, run for real below, is what makes it
+    # connectable — the one operator step that file's header names.
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QA_SWEEP_ALL_DATABASE}" }
+        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_ALL_DATABASE)}" }
       end
     RUBY
 
@@ -218,6 +224,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_ALL_DATABASE} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{QA_SWEEP_ALL_DATABASE}")
     admin.close
+    @role_report = QaLedgerRole.provision!(QA_SWEEP_ALL_DATABASE)
   end
 
   after(:all) do
@@ -241,6 +248,36 @@ RSpec.describe "bin/qa_sweep --all", :io do
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+    QaLedgerRole.own_public!(QA_SWEEP_ALL_DATABASE)
+  end
+
+  # THE OPERATOR STEP, PROVEN ON A DISPOSABLE DATABASE (BUG#24) — the
+  # exact `bin/qa_postgres_role <database>` the real ledger's `.world`
+  # header asks an operator to run once against `hecks_quality_control`,
+  # already run for real in `before(:all)` above against this spec's own
+  # throwaway database. What it reports, what a second run reports
+  # (idempotent: nothing left to do), and that the resulting owner is
+  # genuinely an ORDINARY role — the whole point — are the three facts an
+  # operator is being asked to trust.
+  it "bin/qa_postgres_role hands the ledger's database to hecks_qa, an ordinary owner, idempotently" do
+    expect(@role_report).to include("#{QA_SWEEP_ALL_DATABASE} is hecks_qa's")
+    expect(@role_report).to include("database #{QA_SWEEP_ALL_DATABASE}: owner")
+
+    again = QaLedgerRole.provision!(QA_SWEEP_ALL_DATABASE)
+    expect(again).to include("already: role hecks_qa exists, ordinary")
+    expect(again).to include("already: database #{QA_SWEEP_ALL_DATABASE} already owned by hecks_qa")
+    expect(again).not_to include("did:")
+
+    db = PG.connect(dbname: QA_SWEEP_ALL_DATABASE)
+    role = db.exec("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'hecks_qa'")[0]
+    owner = db.exec("SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = current_database()")[0]
+    db.close
+    expect(role).to eq("rolsuper" => "f", "rolbypassrls" => "f")
+    expect(owner["owner"]).to eq("hecks_qa")
+
+    # ...and a boot over that URL is the ordinary, fenced kind: it neither
+    # refuses nor warns, where the ambient superuser would have refused
+    expect { identify_targets!("fenced" => @target_domain_relpath) }.not_to output.to_stderr
   end
 
   # Booted IN-PROCESS, briefly, purely to write `Target` rows down —

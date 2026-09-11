@@ -346,6 +346,23 @@ module Hecks
         # EXISTS`s it, so this method only ever needs to DROP it first
         # (in `ensure_postgres_era_schema!`, below) for the zero-history
         # guarantee every other adapter mode already gives.
+        #
+        # `allow_superuser true` — ON THE RECORD, ON PURPOSE. A bare
+        # `database` connects as the ambient Postgres user, and
+        # PostgresEra refuses to boot at all when that user is a
+        # superuser (its era write-fence is row-level security, which a
+        # superuser walks through — `Lineage#check_fence_applies!`,
+        # BUG#24). That refusal protects a REAL ledger from an old
+        # checkout's stale writes; nothing here is one. This is an
+        # ephemeral boot into a throwaway schema the caller itself
+        # creates and drops, whose data no second checkout ever shares,
+        # and what it compares is Memory's answers against PostgresEra's
+        # own SQL — the era fence is not under test and cannot be
+        # crossed. So opt in explicitly rather than make every
+        # persistence-parity run first provision a fenced role for a
+        # database it is about to throw away; the one-line warning
+        # PostgresEra prints per boot under the opt-in is the honest
+        # price. Inert on a machine whose ambient user is ordinary.
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |hecksagon_path|
           names = File.read(hecksagon_path).scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten.uniq
           next if names.empty?
@@ -357,6 +374,7 @@ module Hecks
                 persisted_by("PostgresEra") do
                   database "#{database}"
                   schema "#{schema}"
+                  allow_superuser true
                 end
               end
             WORLD

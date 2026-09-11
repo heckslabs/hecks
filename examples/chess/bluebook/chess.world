@@ -3,5 +3,9 @@ Hecks.world "Chess" do
 
   persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_chess"
+    # a local example run as your shell's default (usually superuser)
+    # Postgres user — see examples/pizzas/bluebook/pizzas.world's own
+    # comment on this line; a real deployment binds an ordinary role
+    allow_superuser true
   end
 end

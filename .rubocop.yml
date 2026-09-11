@@ -183,8 +183,11 @@ Style/OpenStructUse:
 # builder.rb's real growth from identified_by + has_many/has_one/
 # belongs_to (S6/S9, the identity-and-relationships arc) — same
 # reasoning as the original loosening, not a second one.
+# Bumped once more for postgres_era.rb's in-process half of the era
+# fence (`refuse_superseded_write!`, BUG#24) — nine lines of real guard
+# in the one class that carries eras, same reasoning as above.
 Metrics/ClassLength:
-  Max: 385
+  Max: 400
 Metrics/ModuleLength:
   Max: 350
   Exclude:

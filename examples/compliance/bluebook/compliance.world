@@ -2,6 +2,11 @@ Hecks.world "Compliance" do
   realm "Examples"
   persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_compliance"
+    # a local example run as your shell's default (usually superuser)
+    # Postgres user — see examples/pizzas/bluebook/pizzas.world's own
+    # comment on this line; the deployed stack's RDS master user is not
+    # a superuser, so this line is inert there
+    allow_superuser true
   end
 
   # SELF-CONTAINED, DELIBERATELY — not Shared mode (Banking/Pizzas/
