@@ -1,0 +1,96 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Prints, one per line, the `spec/**/*_spec.rb` files that actually carry
+# at least one example matching the given RSpec tag filter — used by
+# `rspec_postgres_io_parallel` in `.github/workflows/ci.yml` to build the
+# file list it hands to `parallel_rspec`, instead of handing it the whole
+# `spec` directory.
+#
+# WHY THIS EXISTS (root cause, confirmed against the vendored
+# parallel_tests-4.10.1 gem source and reproduced locally, not guessed):
+#
+# `parallel_rspec spec --exclude-pattern '...'` — the previous approach —
+# discovers ALL `_spec.rb` files under `spec/` (288 of them, after that
+# job's own exclusions) and hands that whole list to
+# `ParallelTests::Test::Runner.tests_with_size`. With `--group-by` left
+# unset (the correct choice — see ci.yml's own comment on why
+# `--group-by default` is not a real option), that method's `when nil`
+# branch only uses the recorded-runtime log if
+# `runtimes.size * 1.5 > tests.size` — i.e. the log must already cover at
+# least ~67% of the candidate files, or it silently falls back to
+# `sort_by_filesize` with NO warning printed. But `rspec`'s own
+# `RuntimeLogger` formatter only logs a file when at least one of its
+# examples actually RAN under this job's `--tag io --tag ~fuzzing`
+# filter — and only 30 of the 288 candidate files (measured via a real
+# `--dry-run`, see below) carry any such example. `runtimes.size` can
+# therefore never exceed ~30, `30 * 1.5 = 45`, nowhere near `288` — the
+# runtime-log branch is UNREACHABLE for this job's file list no matter
+# how warm or complete the cache is. That fully explains why three
+# different nominal grouping strategies (the original unmodified
+# baseline, `--group-by filesize`, and `--group-by`-unset-with-a-real-
+# warm-runtime-cache) all produced the IDENTICAL 33/59/74/82 worker
+# split — all three silently ran `sort_by_filesize` underneath.
+#
+# THE FIX: shrink the candidate list itself down to the ~30 files that
+# can ever contribute a real example, via a real `--dry-run` (loads every
+# candidate file and asks RSpec's own filter which examples would run —
+# far more reliable than grepping for the literal tag, which can't see
+# tag inheritance from a surrounding `describe`/`context`, `~fuzzing`
+# exclusion, or shared examples). Once `tests.size` is ~30 instead of
+# 288, the runtime-log branch's 67%-coverage bar is realistic to clear
+# after even one prior run, and grouping is finally driven by real
+# measured cost instead of always silently falling back to file size.
+#
+# Usage:
+#   bin/rspec_io_parallel_files '<exclude-pattern regex>' -- --tag io --tag ~fuzzing
+#
+# The exclude-pattern argument is the SAME regex string
+# `rspec_postgres_io_parallel` already passes as its own top-level
+# `--exclude-pattern` elsewhere (moved to a job `env:` var so both places
+# read one copy) — applied here first so the dry-run never has to load
+# the Rust-building / shared-hecks_pizzas files this job already routes
+# elsewhere.
+
+require "json"
+require "open3"
+
+exclude_pattern_arg, *rest = ARGV
+separator_index = rest.index("--")
+abort "usage: #{$PROGRAM_NAME} '<exclude-pattern regex>' -- <rspec tag args...>" unless exclude_pattern_arg && separator_index
+tag_args = rest[(separator_index + 1)..]
+abort "usage: #{$PROGRAM_NAME} '<exclude-pattern regex>' -- <rspec tag args...>" if tag_args.nil? || tag_args.empty?
+
+exclude_pattern = Regexp.new(exclude_pattern_arg)
+
+candidates = Dir["spec/**/*_spec.rb"].grep_v(exclude_pattern).sort
+if candidates.empty?
+  abort "bin/rspec_io_parallel_files: found ZERO candidate spec files after applying the exclude pattern — " \
+        "that's almost certainly a broken pattern or an empty checkout, not a real empty test suite. Refusing " \
+        "to silently hand parallel_rspec nothing to run."
+end
+
+dry_run_cmd = ["bundle", "exec", "rspec", "--dry-run", *tag_args, "--format", "json", *candidates]
+stdout_str, stderr_str, status = Open3.capture3(*dry_run_cmd)
+unless status.success?
+  warn stderr_str
+  abort "bin/rspec_io_parallel_files: `#{dry_run_cmd.join(' ')}` exited #{status.exitstatus} — " \
+        "see stderr above. Refusing to guess a file list from a failed dry run."
+end
+
+json_start = stdout_str.index('{"version"')
+abort "bin/rspec_io_parallel_files: couldn't find RSpec's JSON output in the dry-run's stdout:\n#{stdout_str}" unless json_start
+
+data = JSON.parse(stdout_str[json_start..])
+files = (data["examples"] || []).map { |e| e.fetch("file_path").sub(%r{\A\./}, "") }.uniq.sort
+
+if files.empty?
+  abort "bin/rspec_io_parallel_files: #{candidates.size} candidate files, but the dry run matched ZERO examples " \
+        "under `#{tag_args.join(' ')}` — that's almost certainly a broken tag filter, not a real empty set. " \
+        "Refusing to silently hand parallel_rspec nothing to run."
+end
+
+warn "bin/rspec_io_parallel_files: #{files.size} of #{candidates.size} candidate files carry a matching example " \
+     "(#{data['examples'].size} examples total) under `#{tag_args.join(' ')}`"
+
+puts files
