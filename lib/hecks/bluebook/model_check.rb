@@ -59,42 +59,46 @@ module Hecks
       # add (no event of Notifications' own to name) and no real domain
       # to point `uses_framework` at.
       ALLOWED_FINDINGS = {
-        "banking"         => [
+        "banking" => [
           [:unacknowledged_relationship, "NotifyOnClosure"],
           [:unknown_target_domain, "NotifyOnClosure"],
           [:unacknowledged_relationship, "FlagKeyReturn"],
           [:unknown_target_domain, "FlagKeyReturn"]
-        ],
-        # QualityControl is the FIRST domain in this corpus to trigger an
-        # `asks`/`tells` PORT OPERATION from a `policy` — every other
-        # `asks`/`tells` user (there is exactly one: this ledger's own
-        # IssueTracker/CI ports) only ever gets dispatched directly, never
-        # through a policy's own `on`/`trigger`. One real, narrow gap in
-        # that combination, confirmed by reading the checker itself, not
-        # a domain defect:
-        #   - `unknown_trigger` (FileWhenSubmitted, AskOnceMore): a
-        #     policy's `trigger Ticket::IssueTracker::File` — three
-        #     segments (aggregate, port, operation) — is not a shape
-        #     `Naming.command_ref`'s bare-constant rewrite was built for
-        #     (`Account::Debit`, two segments); it rewrites to
-        #     "Ticket::IssueTracker.File", which parses as a totally
-        #     different aggregate.
-        # Belongs to Naming/PolicyBuilder — a real follow-up, not something
-        # to force-fix here.
+        ]
+        # QualityControl WAS the first domain in this corpus to trigger an
+        # `asks`/`tells` PORT OPERATION from a `policy`, and used to carry
+        # two entries here for it — both GONE now, not just quieted:
         #
         # `deaf_policy` (ClearOnPass, RefuseOnFail, RecordTheIssue,
-        # RecordTheRefusal) USED TO LIVE HERE TOO, and is GONE, not just
-        # quieted: `emitted_events` below now reads an outbound operation's
-        # `.answers`/`.refuses` the same way it already read a command's
-        # `.emits`, so `Clearance.SuitePassed`/`SuiteFailed` and
-        # `Ticket.IssueFiled`/`IssueFilingRefused` enter the known-emits set
-        # for real — the same fix `bin/qa_pr_check`'s own move to dispatching
-        # through the CI port (rather than `Clearance::Passed`/`Failed`
-        # directly) needed to make these two policies actually fire.
-        "quality_control" => [
-          [:unknown_trigger, "FileWhenSubmitted"],
-          [:unknown_trigger, "AskOnceMore"]
-        ]
+        # RecordTheRefusal) went first: `emitted_events` below now reads an
+        # outbound operation's `.answers`/`.refuses` the same way it already
+        # read a command's `.emits`, so `Clearance.SuitePassed`/`SuiteFailed`
+        # and `Ticket.IssueFiled`/`IssueFilingRefused` enter the known-emits
+        # set for real — the same fix `bin/qa_pr_check`'s own move to
+        # dispatching through the CI port (rather than `Clearance::Passed`/
+        # `Failed` directly) needed to make these two policies actually fire.
+        #
+        # `unknown_trigger` (FileWhenSubmitted, AskOnceMore) — BUG#23 — was
+        # never actually a `Naming`/`PolicyBuilder` defect, confirmed by
+        # tracing the real dispatch path rather than assuming the comment
+        # that used to sit here: `Naming.command_ref`'s bare-constant
+        # rewrite DOES leave `trigger Ticket::IssueTracker::File` (aggregate,
+        # port, operation) as "Ticket::IssueTracker.File", a leftover `::`
+        # past the aggregate — but `PolicyInterpreter#deliver` re-qualifies
+        # every trigger with this domain's own name before dispatch
+        # ("QualityControl::Ticket::IssueTracker.File"), and `Naming.
+        # split_verb` already folds that reintroduced `::` into the
+        # dot-joined tail correctly (fixed for `ReactionInvocation#
+        # resolve_target`, PR #520, predating this entry's own removal) —
+        # confirmed live: a real dispatch through `Ticket.Submit` fires
+        # `IssueFiled`/`TicketFiled` exactly as declared. The actual gap was
+        # entirely in THIS checker: `verbs_of` never enumerated a port
+        # operation as a triggerable verb at all, and `policy_findings`
+        # compared raw strings instead of `Naming.split_verb` triples the
+        # way `handler_findings`'s own `unknown_dispatch` check already does
+        # (BUG#6). Fixed with `port_verbs_of`/`triggerable_verbs`, scoped
+        # entirely to this file — no change to `Naming` or `PolicyBuilder`
+        # was needed or made.
       }.freeze
 
       module_function
@@ -423,9 +427,27 @@ module Hecks
         # `trigger` is spelled "Aggregate.Command" (or "Entity.Command" one
         # level down), completed to an FQN by PolicyInterpreter#deliver as
         # "#{domain}::#{trigger_command}" — the same join `verbs_of` builds
-        # independently, so the two spellings have to be compared as FQNs,
-        # never as bare command names.
-        unless verbs_of(bluebook).include?("#{bluebook.name}::#{policy.trigger_command}")
+        # independently, so the two spellings have to be compared as FQNs.
+        #
+        # COMPARED AS A TRIPLE, NOT A STRING — `handler_findings`'s own
+        # `unknown_dispatch` check (BUG#6) already applies this fix for a
+        # saga's dispatch; a policy's `trigger` needed the identical one. A
+        # policy triggering an `asks`/`tells` PORT OPERATION (`Aggregate::
+        # Port::Operation`, three colon-joined segments — `Naming.command_ref`'s
+        # bare-constant rewrite turns this into "Aggregate::Port.Operation",
+        # a leftover `::` past the aggregate) is a real, WORKING dispatch —
+        # `PolicyInterpreter#deliver` qualifies it with this domain's own
+        # name before `Naming.split_verb` ever sees it, and `split_verb`
+        # already folds that leftover `::` into the dot-joined tail
+        # correctly (fixed for `ReactionInvocation#resolve_target`, PR
+        # #520) — but this check compared raw strings against `verbs_of`,
+        # which never enumerated port operations at all, so it reported
+        # every port-operation trigger as unknown regardless. `triggerable_
+        # verbs` now includes both, and both sides are parsed through
+        # `Naming.split_verb` before comparing, the same reading
+        # `resolve_target` relies on at runtime.
+        qualified = Naming.split_verb("#{bluebook.name}::#{policy.trigger_command}")
+        unless qualified && triggerable_verbs(bluebook).include?(qualified)
           findings << Finding.new(kind: :unknown_trigger, severity: :error, subject: policy.name,
                                   message: "trigger #{policy.trigger_command.inspect} resolves to no command " \
                                            "this domain declares")
@@ -568,6 +590,35 @@ module Hecks
             end
           end
         end
+      end
+
+      # AN AGGREGATE-OWNED PORT OPERATION IS A TRIGGERABLE VERB TOO —
+      # `ReactionInvocation#resolve_target`'s own port-operation branch
+      # resolves one by the exact same two-segment tail shape ("Aggregate::
+      # Port.Operation", the aggregate then the port then the operation,
+      # dot-joined past the domain) an entity command uses, checked first,
+      # same order `Dispatcher#dispatch` already resolves a live verb in.
+      # Only an aggregate's OWN ports (`aggregate.ports`) are in scope here
+      # — a policy's `trigger` always names one aggregate, never a chapter-
+      # level port with no owner to address through.
+      def port_verbs_of(bluebook)
+        bluebook.aggregates.flat_map do |aggregate|
+          aggregate.ports.flat_map do |port|
+            port.operations.map do |operation|
+              "#{bluebook.name}::#{aggregate.hecks_name}.#{port.name}.#{operation.hecks_name}"
+            end
+          end
+        end
+      end
+
+      # EVERY TRIGGERABLE VERB, AS A TRIPLE — `verbs_of` (ordinary/entity
+      # commands) plus `port_verbs_of` (port operations), each parsed
+      # through `Naming.split_verb` so a caller never has to compare two
+      # spellings of the same verb as strings (see `policy_findings`'s own
+      # `unknown_trigger` check for why that comparison has to happen this
+      # way, not as `include?` on a raw string).
+      def triggerable_verbs(bluebook)
+        (verbs_of(bluebook) + port_verbs_of(bluebook)).to_set { |verb| Naming.split_verb(verb) }
       end
 
       def bare(event) = event.to_s.split("::").last
