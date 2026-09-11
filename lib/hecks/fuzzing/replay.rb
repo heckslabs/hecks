@@ -1,6 +1,7 @@
 require "fileutils"
 require "tmpdir"
 require_relative "isolated_boot"
+require_relative "self_consistency"
 require_relative "../query_specification/common/comparators"
 require_relative "../query_specification/common/where_clause"
 require_relative "../query_specification/field_path"
@@ -71,7 +72,19 @@ module Hecks
       # rubocop:disable-next Metrics/CyclomaticComplexity
       # rubocop:disable-next Metrics/MethodLength
       # rubocop:disable-next Metrics/PerceivedComplexity
-      def call(domain_path, steps, adapter: :memory)
+      # `self_consistency:` — OFF by default, same "existing callers see no
+      # change" contract `adapter:` already has. `bin/qa_sweep` is the one
+      # real caller that opts in (gated by `QualityControlDials::
+      # SELF_CONSISTENCY_CHECKS`/`--self-consistency`): `bin/fuzz`,
+      # `Properties.check`'s own callers, and every existing spec keep
+      # calling this with no second axis of comparison at all, exactly as
+      # before. Computed HERE, not by a caller reading `runtime` back out
+      # afterward — `runtime` and the whole `IsolatedBoot` tmp directory
+      # go out of scope the moment this method returns (see this file's
+      # own header), so `Hecks::Fuzzing::SelfConsistency.check` has to run
+      # while both are still alive, against the exact same repositories
+      # this replay's own dispatch loop just wrote to.
+      def call(domain_path, steps, adapter: :memory, self_consistency: false)
         # See isolated_boot.rb's own header: resets data/ AND rebinds
         # persistence to the chosen adapter (Memory by default), since a
         # Postgres-bound domain's real store lives outside the copied
@@ -346,13 +359,21 @@ module Hecks
           # whichever one happened to load first. A property that needs
           # to resolve a verb back to its OWN declaring bluebook — not
           # "the" bluebook — reads this instead.
-          { instances: instances, events: events, refusals: refusals,
-            reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-            queries: queries, dry_runs: dry_runs, fan_outs: fan_outs, guard_checks: guard_checks,
-            mutation_traces: mutation_traces,
-            saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
-            bluebook: runtime.registry.bluebooks.values.first,
-            bluebooks: runtime.registry.bluebooks.dup }
+          history = { instances: instances, events: events, refusals: refusals,
+                      reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
+                      queries: queries, dry_runs: dry_runs, fan_outs: fan_outs, guard_checks: guard_checks,
+                      mutation_traces: mutation_traces,
+                      saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
+                      bluebook: runtime.registry.bluebooks.values.first,
+                      bluebooks: runtime.registry.bluebooks.dup }
+
+          # `runtime` IS STILL LIVE HERE — this is the one and only place
+          # it is. See `SelfConsistency`'s own header for why this needs
+          # to happen NOW, against the SAME registry/repositories this
+          # replay's own dispatch loop just populated, not a second boot.
+          history[:self_consistency] = SelfConsistency.check(runtime, history) if self_consistency
+
+          history
         end
       end
 
