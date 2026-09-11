@@ -268,6 +268,13 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
     }
 }
 
+pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static str> {
+    match qualified_path {
+        "Waybill::Manifest.Slot" => Some("number"),
+        _ => None,
+    }
+}
+
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "Waybill::Consignment.Request" => &["reference", "number", "item"],

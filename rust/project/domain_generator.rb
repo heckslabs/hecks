@@ -726,6 +726,12 @@ module RustProjection
           # composite identity is a real, documented gap there, not
           # silently assumed to work).
           identified_by: aggregate[:identified_by],
+          # THIS AGGREGATE'S OWN NESTED ENTITIES, name + identity paths
+          # only — `emit_entity_identity_head_table`/`reactions.rb`'s own
+          # sibling to `identified_by` just above, one level down
+          # (BUG#10: a saga-dispatched entity command needs the ENTITY's
+          # own identity, not just its parent aggregate's).
+          entities: aggregate[:entities].map { |e| { name: e[:name], identified_by: e[:identified_by] } },
           # WHICH TOP-LEVEL GENERATED MODULE this aggregate's own .rs file
           # lives under (`meta`, `embryonaut`, `governance`, ...) — a
           # standalone per-chapter registry.rs (this file, below) uses it
@@ -937,6 +943,8 @@ module RustProjection
         f.puts Projector.emit_creates_table(registry_aggregates)
         f.puts
         f.puts Projector.emit_identity_head_table(registry_aggregates)
+        f.puts
+        f.puts Projector.emit_entity_identity_head_table(registry_aggregates)
         f.puts
         f.puts Projector.emit_command_attributes_table(registry_aggregates)
         f.puts

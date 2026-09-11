@@ -125,6 +125,17 @@ pub struct PortEntry {
     pub to_receiver_field: Option<String>,
 }
 
+/// THIS AGGREGATE'S OWN NESTED ENTITY — name + identity paths only,
+/// mirroring `domain_generator.rb`'s own `entities:` hash field
+/// (BUG#10). `reactions.rs`'s own `emit_entity_identity_head_table`
+/// reads the single-component case (the only shape it resolves), the
+/// same restraint `AggregateEntry::identified_by` already carries one
+/// level up.
+pub struct EntityIdentityEntry {
+    pub name: String,
+    pub identified_by: Vec<String>,
+}
+
 pub struct AggregateEntry {
     pub name: String,
     pub module_name: String,
@@ -143,6 +154,9 @@ pub struct AggregateEntry {
     /// verbatim — `reactions.rs`'s own `emit_identity_head_table` reads
     /// the single-component case (the only shape it resolves).
     pub identified_by: Vec<String>,
+    /// THIS AGGREGATE'S OWN NESTED ENTITIES — `reactions.rs`'s own
+    /// `emit_entity_identity_head_table` sibling table (BUG#10).
+    pub entities: Vec<EntityIdentityEntry>,
 }
 
 pub fn emit_role_check(
@@ -701,6 +715,7 @@ mod tests {
             domain_name: "Banking".to_string(),
             reference_specs: Vec::new(),
             identified_by: vec!["branch_code".to_string(), "box_number".to_string()],
+            entities: Vec::new(),
         };
 
         let generated = emit_registry(&Exemplar::load(), &[aggregate]);
