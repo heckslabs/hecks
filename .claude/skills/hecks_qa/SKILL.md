@@ -59,51 +59,100 @@ Instead:
    exactly the gap this whole mechanism exists to close, and "the agent
    forgot to check" is not an acceptable reason for it to reopen. Put the
    instruction to run it FIRST in the subagent's own prompt, ahead of
-   "Running one sweep" — see "Checking on open PRs" below for its own
+   `bin/qa_sweep --all` — see "Checking on open PRs" below for its own
    exit-code contract and what happens on exit 2.
-3. **Every sweep** (after the PR check above, same subagent, same
-   dispatch): the subagent's prompt is:
+3. **Sweep the WHOLE rotation, mechanically, in one shot** (after the PR
+   check above, same subagent, same dispatch): `bin/qa_sweep --all` (see
+   that script's own top-of-file comment for the full design — one real
+   `Process.spawn` OS process per currently-waiting `Target`, genuinely
+   concurrent, each running the exact single-target path `bin/qa_sweep
+   <target>` always has) replaces what used to be N subagents fanned out
+   by THIS session, one per waiting chapter, each babysitting its own
+   sweep. That fan-out cost real wall-clock and real token spend to
+   orchestrate a step that has NO judgment in it on the clean path — a
+   loop dispatching a subagent to run a script that itself only ever
+   dispatches five inner CLI calls. `--all` collapses that: the
+   concurrency now happens as real OS processes, not LLM-level fan-out,
+   and the ONLY case still worth a subagent is a genuine finding — see
+   step 4. The subagent's prompt is:
    - the exact working directory to `cd` into (the persistent worktree
      from step 1, as an absolute path),
    - an instruction to `git fetch && git rebase origin/main` first, so
      it starts from current main (matters both because `bin/qa_sweep`
      itself may have changed, and because a prior sweep may have opened
      a PR that's since merged),
-   - "Checking on open PRs" below, verbatim, run BEFORE "Running one
-     sweep" — if it exits 2, its own judgment section is followed to a
-     fix (or a left-open Bug) BEFORE picking a fresh sweep target,
-   - the full "Running one sweep" section below, verbatim,
+   - "Checking on open PRs" below, verbatim, run BEFORE `bin/qa_sweep
+     --all` — if it exits 2, its own judgment section is followed to a
+     fix (or a left-open Bug) BEFORE sweeping,
+   - `bundle exec ruby bin/qa_sweep --all` (widen `--seeds` the same way
+     a single sweep already would), then an instruction to relay its
+     ENTIRE printed consolidated report back VERBATIM — nothing
+     summarized away, nothing acted on. This subagent's own job stops
+     there: it makes NO judgment call of its own, the exact same
+     discipline `bin/qa_sweep` itself already holds to on a single
+     target's own surprise. Its own exit code is read here only to know
+     what kind of report came back — see that script's own header for
+     the contract: `0` (every currently-waiting target came back clean,
+     or nothing was waiting — either way a complete, unremarkable tick),
+     `1` (at least one target hit an operational error and NONE found
+     anything — the ledger wouldn't boot, a claim was already held and
+     not stale, a named path doesn't exist, the same causes a single
+     sweep's own exit 1 always meant, just now possibly several at
+     once), `2` (at least one target found something — a genuine
+     finding always outranks an operational error sitting alongside it
+     in the same report, see the script's own comment on that
+     precedence),
    - an instruction to leave the worktree clean (on `main`, no
      uncommitted changes, no lingering branch checked out) before
-     finishing — so the *next* sweep, in the same worktree, starts from
+     finishing — so the *next* tick, in the same worktree, starts from
      a known-good state.
-4. Wait for the subagent's report. Relay only its short summary here —
-   don't pull its internal transcript into this conversation.
+4. Wait for the subagent's report, then read its ONE consolidated
+   `bin/qa_sweep --all` report yourself — this judgment stays here, in
+   the orchestrating session, deliberately kept OUT of the mechanical
+   subagent dispatched in step 3 above:
+   - **Exit 0 — nothing to act on.** Relay the short summary and move
+     on; there is no per-target follow-up to dispatch.
+   - **Exit 1, nothing found.** Read the real error message(s) yourself
+     — fix the actual problem or report it, same as a single sweep's
+     own exit 1 always meant. Still nothing to dispatch per target.
+   - **Exit 2 — one or more targets found something.** The consolidated
+     report's own "FOUND SOMETHING" section already lists every one of
+     them, each with its OWN full structured report — chapter, seed,
+     reproduction steps, subject/expectation/observation, the
+     divergence detail. For EACH one, dispatch ONE FRESH subagent,
+     carrying that target's own slice of the report VERBATIM (copied
+     out of what you already have — never re-derived, never re-run) and
+     "On a surprising check" below, verbatim. This is the only place a
+     subagent still gets dispatched per target, and only when a real
+     finding earns it — a target that came back clean in the same
+     `--all` run needs nothing further this tick. Multiple findings in
+     one tick mean multiple such subagents, dispatched independently;
+     one target's own fix or open Bug never waits on another's.
 
-   **If the report says a draft PR was opened, record it in the ledger
-   before moving on — this is YOUR job, not the subagent's.**
-   `QualityControl::Patch` (`qa/bluebook/quality_control.bluebook`, "──
-   which pull requests are ours ──") is what `bin/qa_pr_check` now reads
-   *instead of* `gh pr list --search` — a PR this aggregate does not know
-   about is invisible to it, the same way #534 was once invisible to the
-   old branch/title search. The subagent's own report already carries
-   everything `Patch.Open` needs — its number, url, branch, head commit
-   and title are `gh pr create`'s own return value, read straight back by
-   the subagent right after opening (`gh pr view --json
-   number,url,headRefName,headRefOid,title`) and put in its report
-   verbatim, not re-derived by you. Dispatch, against the persistent
-   worktree's own ledger:
+   **If a per-target subagent's report says a draft PR was opened,
+   record it in the ledger before moving on — this is YOUR job, not the
+   subagent's.** `QualityControl::Patch` (`qa/bluebook/quality_control
+   .bluebook`, "── which pull requests are ours ──") is what
+   `bin/qa_pr_check` now reads *instead of* `gh pr list --search` — a PR
+   this aggregate does not know about is invisible to it, the same way
+   #534 was once invisible to the old branch/title search. The
+   subagent's own report already carries everything `Patch.Open` needs
+   — its number, url, branch, head commit and title are `gh pr create`'s
+   own return value, read straight back by the subagent right after
+   opening (`gh pr view --json number,url,headRefName,headRefOid,title`)
+   and put in its report verbatim, not re-derived by you. Dispatch,
+   against the persistent worktree's own ledger:
    ```
    bundle exec ruby bin/run qa/bluebook patch.open bug=<bug-reference> \
      number.value=<n> url.value="<url>" branch.value="<branch>" \
      commit.value=<head-commit-sha> title.value="<title>"
    ```
    Recording it is *this* action, deliberately kept out of "On a
-   surprising check" below — that section is the subagent's own prompt,
-   and a fact this durable only becomes true once `gh pr create` has
-   actually returned, which is exactly the moment a report reaches you,
-   not a moment a subagent's own dispatch can be trusted to land twice
-   for free if a report is ever retried.
+   surprising check" below — that section is the per-target subagent's
+   own prompt, and a fact this durable only becomes true once `gh pr
+   create` has actually returned, which is exactly the moment a report
+   reaches you, not a moment a subagent's own dispatch can be trusted to
+   land twice for free if a report is ever retried.
 
    **If the report says a draft PR was opened for something that is NOT
    a bug fix — infra/domain-modeling work with no `Bug` behind it —
@@ -133,23 +182,26 @@ Instead:
    bundle exec ruby bin/run qa/bluebook improvement.land id=<n> \
      number.value=<n> commit.value=<head-commit-sha>
    ```
-5. If invoked via `/loop hecks_qa`: **dispatch the next sweep
-   immediately** when this one's subagent reports back — the loop's job
-   is to keep the practice alive, not to pace it. `QualityControlDials
-   ::CADENCE_SECONDS` (top of `qa/bluebook/quality_control.bluebook`) is
-   read as a floor, not a target: `0` (the default) means start the next
-   sweep the moment this one concludes, with no artificial wait in
-   between. Use `ScheduleWakeup` only as a **liveness fallback** — in
-   case a subagent hangs and its task-notification never arrives — not
-   as the sweep-pacing mechanism; a long fallback (the loop skill's own
+5. If invoked via `/loop hecks_qa`: **dispatch the next tick's mechanical
+   subagent (step 3) immediately** once every subagent THIS tick started
+   — the mechanical one, and any per-target follow-ups step 4 dispatched
+   — has reported back; the loop's job is to keep the practice alive,
+   not to pace it. `QualityControlDials::CADENCE_SECONDS` (top of
+   `qa/bluebook/quality_control.bluebook`) is read as a floor, not a
+   target: `0` (the default) means start the next tick the moment this
+   one concludes, with no artificial wait in between. Use
+   `ScheduleWakeup` only as a **liveness fallback** — in case a subagent
+   hangs and its task-notification never arrives — not as the
+   tick-pacing mechanism; a long fallback (the loop skill's own
    1200–1800s guidance) is appropriate precisely because it should
    almost never be the thing that fires. If invoked directly (one-off),
-   you're done — report the outcome (PR check AND sweep) and stop.
+   you're done — report the outcome (PR check AND the consolidated
+   sweep, plus any per-target follow-up) and stop.
 
 ## Checking on open PRs
 
-*(This is part of the subagent's own prompt too, run BEFORE "Running one
-sweep" — see the orchestrator step above.)*
+*(This is part of the subagent's own prompt too, run BEFORE `bin/qa_sweep
+--all` — see the orchestrator step above.)*
 
 A draft PR this loop opened is a fix judged self-contained and verified
 LOCALLY — which is not the same fact as "CI's own fresh build still
