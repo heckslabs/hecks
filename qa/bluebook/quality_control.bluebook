@@ -220,6 +220,17 @@ Hecks.bluebook "QualityControl" do
     # pass until they have proven themselves clean again. Same shape
     # `SweptIn`'s own "zero sorts first for free" comment already gives.
     attribute :clean_streak, CleanStreak
+    # WHAT THIS CHAPTER CAN BE COMPARED AGAINST — comma-joined mode names
+    # (`"rust,postgres_era"`), recorded by whoever releases it from what
+    # that runner actually inferred from the chapter's own files (a
+    # `rust/Cargo.toml` feature, a `persisted_by("PostgresEra")` binding).
+    # STORED, NOT DECIDED: inference at sweep time stays the decider of
+    # which modes run; this field only makes that decision LEDGER-VISIBLE
+    # (`EligibleFor`, below), so "why did directory never get a parity
+    # pass" is a query rather than an archaeology. A stored list that
+    # lags yesterday's Cargo feature is itself the quiet divergence this
+    # practice hunts — see `Capabilities`'s own comment on the shape.
+    attribute :capabilities, Capabilities
     attribute :reason,     TargetReason
 
     value_object "TargetReference" do
@@ -271,6 +282,25 @@ Hecks.bluebook "QualityControl" do
     value_object "TargetReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("shelving a target says why") { !value.to_s.empty? }
+    end
+
+    # COMMA-JOINED, ONE STRING — the `Bug.Tagged` shape (`contains`
+    # against a bound argument) without a `list_of`: `EligibleFor` asks
+    # "does this chapter carry mode X" and `contains` answers it as a
+    # substring on a scalar, which is exactly what a comma-joined list of
+    # short, distinct mode names needs and nothing more. `default: ""` is
+    # what makes this ADDITIVE to a live ledger, the same `CleanStreak`
+    # precedent: a `Target` row written before this field existed
+    # hydrates as "nothing recorded yet", not as a refusal to boot.
+    value_object "Capabilities" do
+      attribute :value, String, default: ""
+    end
+
+    # ONE MODE NAME, as `EligibleFor`'s own argument — a query attribute,
+    # never stored on the record, so it costs no era.
+    value_object "Capability" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a mode is named") { !value.to_s.empty? }
     end
 
     # RECENCY-WEIGHTED, NOT LIFETIME. This is not "how many bugs this
@@ -504,6 +534,14 @@ Hecks.bluebook "QualityControl" do
     # and rather than a list because a `where` cannot ask whether a list is
     # empty.
     attribute :waived,    WaiverCount
+    # WHO WAIVED — the signature beside the count. `waived` says a gate
+    # was gone round; this says by whom, and `WaivedBy`'s own invariants
+    # are what make "never waive it yourself" a REFUSAL rather than a
+    # sentence in SKILL.md an agent had to remember. Absent on every
+    # sweep that never waived anything, and on every row written before
+    # this field existed — no default, on purpose: a default signature
+    # would be a forged one.
+    attribute :waived_by, WaivedBy
     attribute :checks,    list_of(Check)
 
     value_object "SweepReference" do
@@ -538,6 +576,33 @@ Hecks.bluebook "QualityControl" do
     value_object "WaiverReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # THE UNWAIVABLE SHAPE, APPLIED TO WAIVING ITSELF. This chapter's own
+    # header: an argument is satisfied or refused and never waived. "Never
+    # waive it yourself" used to be a bullet in SKILL.md — a rule an agent
+    # was asked to hold in mind — and now it is a required argument whose
+    # invariants refuse the loop's own identity outright. The literal
+    # `"qa_sweep"` here IS `QualityControlDials::AUTOMATED_ENGINEER`; the
+    # invariant grammar reads literals, not constants, so the two are
+    # pinned equal by `spec/quality_control_spec.rb` rather than by
+    # reference. `"nobody"` is refused for the reason `Submitter` already
+    # gives: an unsigned waiver is an anonymous one.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
+    end
+
+    # THE TARGET, RESTATED ON A SURPRISE so the EVENT carries it — the
+    # `Bug.Fix` precedent (that command's own `reference` comment gives
+    # the full reasoning): an emitted event carries exactly the arguments
+    # it was dispatched with, never the record's own references, so
+    # `CheckSurprised` said `sequence` and `observation` and nothing a
+    # policy could address a `Target` by. `SuspendOnSurprise` (this file's
+    # own foot) is the reaction that needs it.
+    value_object "TargetRef" do
+      attribute :value, String
     end
 
     value_object "CheckSequence" do
@@ -843,6 +908,20 @@ Hecks.bluebook "QualityControl" do
     attribute :reason,        BugReason
     attribute :next_step,     NextStep
     attribute :waived,        WaiverCount
+    # THE SAME SIGNATURE `Sweep.waived_by` CARRIES, for the same reason —
+    # read that attribute's own comment. Absent until a person waives.
+    attribute :waived_by,     WaivedBy
+    # SELF-CONTAINED OR BIGGER — the one judgment "On a surprising check"
+    # always asked an agent to make and never asked it to WRITE DOWN.
+    # `undecided` is the state a bug is born in; `Triage` is the only
+    # thing that moves it, and `BugsByDisposition` is what makes the
+    # practice's own split ("how much of what we find can we fix on the
+    # spot") a number rather than a feeling. `one_of` with a default, the
+    # `Check.ever_surprised` idiom, rather than a Boolean this chapter has
+    # no precedent for — and `default:` is what makes this ADDITIVE to
+    # every bug already on file: each hydrates `undecided`, which is
+    # exactly true of a bug nobody triaged.
+    attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
     # A BUG IS WORK, AND WORK GETS CLAIMED.
     #
     # Sweeping is not the only way an agent gets something to do — it can
@@ -942,6 +1021,16 @@ Hecks.bluebook "QualityControl" do
     value_object "WaiverReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # REDECLARED, NOT SHARED — this file's own habit (`Engineer`, `Instant`,
+    # `CommitRef`); `Sweep::WaivedBy`'s own comment gives the reasoning
+    # once for both. The `"qa_sweep"` literal is pinned equal to
+    # `QualityControlDials::AUTOMATED_ENGINEER` by spec, here too.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
     end
 
     value_object "SweepRef" do
@@ -1891,6 +1980,18 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, PatchBranch
     attribute :commit, CommitRef
     attribute :title,  PatchTitle
+    # WHEN, AS A NUMBER — what makes `QualityControlDials::PR_CAP_PER_DAY`
+    # COUNTABLE (`OpenedSince`, below; `bin/qa_open_pr` is the reader).
+    # `default: 0` for the `CleanStreak` reason: every patch recorded
+    # before this field existed hydrates at the epoch, which `OpenedSince`
+    # never counts against today's cap — exactly right for a PR opened
+    # before the cap was ever enforced.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
 
     value_object "PatchNumber" do
       attribute :value, Integer
@@ -2083,6 +2184,14 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, ImprovementBranch
     attribute :commit, CommitRef
     attribute :title,  ImprovementTitle
+    # WHEN — see `Patch.opened_at`'s own comment; the same field, for the
+    # same cap, restated per aggregate the way this file already does.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
 
     value_object "ImprovementNumber" do
       attribute :value, Integer
