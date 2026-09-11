@@ -335,6 +335,69 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(exit_statuses).to all(eq(0))
   end
 
+  # THE POOL BOUND — `QualityControlDials::SWEEP_MAX_PARALLEL` (read here
+  # from the same symlinked bluebook the fixture ledger boots, so this
+  # spec pins the REAL dial, not a copy of it). Six targets, a pool of
+  # four: the children are grandchildren of this process (spawned by the
+  # real `bin/qa_sweep --all` subprocess), so liveness is read the one
+  # way a grandparent can — `ps`, sampled while `--all` runs — counting
+  # command lines that name a `pool_` target. The upper bound is the
+  # claim; the lower bound (at least two at once) is what proves the
+  # sampling saw real concurrency rather than an idle moment.
+  it "keeps at most SWEEP_MAX_PARALLEL real bin/qa_sweep children alive at once" do
+    Hecks.boot(@fixture_dir)
+    max_parallel = QualityControlDials::SWEEP_MAX_PARALLEL
+    targets = (1..(max_parallel + 2)).to_h { |n| ["pool_#{n}", @target_domain_relpath] }
+    targets.each { |reference, path| QualityControl::Target.identify!(reference: { value: reference }, path: { value: path }) }
+
+    log = Tempfile.new("pool")
+    pid = Process.spawn(
+      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
+      "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), "--all", "--seeds", "2",
+      out: log, err: log, chdir: InMemoryDomain::ROOT
+    )
+
+    peak = 0
+    while process_alive?(pid)
+      alive = `ps -eo args`.lines.count { |line| line.include?("bin/qa_sweep pool_") }
+      peak = [peak, alive].max
+      sleep 0.2
+    end
+    _pid, status = Process.waitpid2(pid)
+    log.rewind
+    output = log.read
+    log.close
+
+    expect(status.exitstatus).to eq(0), output
+    expect(output).to include("at most #{max_parallel} at once", "clean (#{targets.size})")
+    expect(peak).to be >= 2
+    expect(peak).to be <= max_parallel
+  end
+
+  # THE STALE-HOLD RECLAIM — the ledger's own "a claim that goes stale is
+  # taken by whoever is next", finally offered to `--all`. `stale_one`'s
+  # claim is older than its own 900s window; `fresh_one`'s is live, and
+  # must be left exactly as it is.
+  it "sweeps a target whose hold has gone stale, names the reclaim, and leaves a live hold alone" do
+    identify_targets!("stale_one" => @target_domain_relpath, "fresh_one" => @target_domain_relpath)
+    now = Time.now.to_i
+    QualityControl::Target.find("stale_one").claim!(held_by: { value: "ghost" }, now: { value: now - 5_000 })
+    QualityControl::Target.find("fresh_one").claim!(held_by: { value: "busy" }, now: { value: now })
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "1")
+
+    expect(status.exitstatus).to eq(0), stdout
+    expect(stdout).to match(/^reclaimed stale hold: stale_one \(held by ghost, \d+s ago\)$/)
+    expect(stdout).to include("clean (1): stale_one")
+    expect(stdout).not_to include("fresh_one")
+
+    Hecks.boot(@fixture_dir)
+    expect(QualityControl::Target.find("stale_one").status).to eq("waiting")
+    fresh = QualityControl::Target.find("fresh_one")
+    expect(fresh.status).to eq("held")
+    expect(fresh.held_by.to_h).to eq(value: "busy")
+  end
+
   it "lets exactly one of two real concurrent claims on the SAME target win" do
     identify_targets!("contested" => @target_domain_relpath)
     script = File.join(@fixture_root, "claim_race.rb")
@@ -414,6 +477,19 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(found_report).to include("target:      found_one", "sweep:       SW-found_one-",
                                     "-- instances --", "-- events --")
     expect(found_report).not_to include("clean_one", "broken_one")
+
+    # SUSPENDED, NOT HELD — by the ledger's own `SuspendOnSurprise`
+    # policy, fired inside the child's `Sweep.Check.Surprised` dispatch
+    # against real PostgresEra: the target is out of `Rotation` until a
+    # person releases it, and the report says so.
+    expect(found_report).to include("target found_one SUSPENDED", "--release --notes")
+    runtime = Hecks.boot(@fixture_dir)
+    found = QualityControl::Target.find("found_one")
+    expect(found.status).to eq("suspended")
+    expect(found.reason.to_h[:value]).to include("--release")
+    rotation = runtime.query("QualityControl::Target.Rotation").map { |row| row[:reference][:value] }
+    expect(rotation).to include("clean_one")
+    expect(rotation).not_to include("found_one")
   end
 
   it "exits 1 when every child hit an operational error and nothing was ever found" do

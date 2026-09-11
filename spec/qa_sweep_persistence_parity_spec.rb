@@ -235,7 +235,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     target = target.shelve!(reason: { value: "structurally can't be reached by any Memory-only fuzz/replay path" })
     expect(target.status).to eq("shelved")
 
-    target = target.restore!
+    target = target.restore!(reason: { value: "PR #564 fixed the era-check blocker; PostgresEra-bound domains fuzz again" })
     expect(target.status).to eq("waiting")
 
     stdout, stderr, status = run_qa_sweep("directory", "--persistence-parity", "--seeds", "2")
