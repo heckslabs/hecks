@@ -652,18 +652,32 @@ jobs:
       # same 33/59/74/82 split as the baseline above. Once the log is
       # warm this should measurably rebalance the split; see the PR
       # description for the actual before/after numbers from two real CI
-      # runs. (`--format` is repeatable — confirmed against rspec-core-
-      # 3.13.6's option_parser.rb, each `--format` pushes onto an array
-      # rather than replacing the previous one — and `.rspec` already sets
-      # an explicit `--format documentation` project-wide, so adding this
-      # one alongside it doesn't touch console readability here or in any
-      # other job.)
+      # runs.
+      #
+      # `--format documentation` IS REPEATED HERE EXPLICITLY, even though
+      # `.rspec` already sets it project-wide — found live (this job's own
+      # first real run under this change): with it left implicit, console
+      # output went completely silent, no example names, no final "N
+      # examples, N failures" summary, nothing but stderr noise (Postgres
+      # NOTICEs, Ruby warnings). Root cause, confirmed by reading
+      # rspec-core-3.13.6's configuration_options.rb and reproducing live:
+      # `--format` genuinely IS repeatable WITHIN one args source (each
+      # `-f`/`--format` in the SAME parse pushes onto that source's own
+      # `:formatters` array, confirmed against option_parser.rb) — but
+      # `ConfigurationOptions#organize_options` merges MULTIPLE sources
+      # (`.rspec`, then this command line) with plain `Hash#merge`, and
+      # `:formatters` isn't one of the two keys (`:libs`/`:requires`) that
+      # get concatenated across sources — so the command line's own
+      # `:formatters` array REPLACES `.rspec`'s wholesale rather than
+      # adding to it. Repeating `--format documentation` here, in the SAME
+      # `-o` string as the RuntimeLogger below, keeps both in the one
+      # source that actually wins.
       - name: "rspec: postgres + deploy/tenant I/O (parallel — file-level isolation, verified no shared resource names)"
         run: |
           bundle exec parallel_rspec spec \
             --runtime-log tmp/parallel_runtime_rspec.log \
             --exclude-pattern '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$' \
-            -o "--tag io --tag ~fuzzing --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.log"
+            -o "--tag io --tag ~fuzzing --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.log"
 
       # Saves the log this run just wrote — real per-file timing data even
       # on a cold cache, see above — back under THIS run's own unique key,
