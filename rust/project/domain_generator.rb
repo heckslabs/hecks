@@ -210,6 +210,7 @@ module RustProjection
         can_route = Projector.extract_id_supported?(aggregate)
         registry_commands = []
         entity_commands = []
+        nested_entity_commands = []
         port_operations = []
         record_name = Projector.rust_ident(aggregate[:name])
 
@@ -281,31 +282,99 @@ module RustProjection
             # references it as a `Vec<...>` element type (`emit_entity`
             # above already resolved `dispatches: list_of(Dispatch)` to
             # `Vec<Dispatch>` — a type reference nothing before this
-            # generated a definition for). Struct + codec only: making
-            # its OWN commands (`Dispatch.Bind`) reachable through
-            # `kernel::cli.rs`'s JSON router is a SEPARATE, deeper
-            # question — the router and `registry.rs`'s dispatch table
-            # both assume one level of `Aggregate.Entity.Command`, not
-            # two — left a named, tracked gap (manifest_entry below)
-            # rather than attempted here.
+            # generated a definition for).
+            #
+            # BUG#11 (loop-parity) — ITS OWN COMMANDS ARE NOW ROUTED TOO,
+            # for the ROUTED (`to: { aggregate:, entities: [...] }`)
+            # addressing shape only. `rust/src/kernel/routing.rs`'s own
+            # `RoutingEnvelope` was already depth-agnostic (`entities:
+            # Vec<String>`, `require_depth(N)` for any N — see that
+            # file's own `preserves_ordered_entity_receiver_identities`
+            # test, which already exercised depth 2 before this fix
+            # existed) and Ruby's own `EntityElement#locate_chain` was
+            # already hop-depth-agnostic by construction (one `element_
+            # of` call per chain entry) — what was actually missing was
+            # ONLY this generator's own dispatch-table wiring: a real,
+            # bounded codegen gap, not a wire-format or architecture
+            # mismatch. `emit_nested_entity_command` (commands.rb)
+            # composes the SAME two hand-written, already-generic kernel
+            # primitives a one-level entity command already uses —
+            # `dispatch_entity` for the outer hop, `apply_entity_command`
+            # (already used standalone by a DELEGATING door's own
+            # `delegate_apply` shape) nested inside its own `apply_
+            # mutations` closure for the inner hop — so no kernel/
+            # dispatch.rs change was needed either.
+            #
+            # DELIBERATELY NOT GENERALIZED to a third level, and not
+            # (yet) given a legacy/flat-argument fallback the way a
+            # one-level entity command's own `entity_can_route` branch
+            # has (registry.rb's own `nested_entity_arms`, below, refuses
+            # a nested entity command dispatched with no `to:` route at
+            # all) — this fix is scoped to exactly the shape BUG#11
+            # confirmed live and `spec/nested_pieces_spec.rb` actually
+            # exercises (`Workspace.Board.Card.Annotate` via `to: {
+            # entities: [...] }`), not extrapolated further than that
+            # evidence reaches. A THIRD level, or the unrouted legacy
+            # shape at depth 2, is real, separate, still-open scope —
+            # named here rather than silently assumed to work the same
+            # way.
             entity[:entities].each do |nested|
               nested_verb = "#{entity_verb}.#{nested[:name]}"
               manifest << manifest_entry(kind: "entity", id: nested_verb, generated: true)
               f.puts Projector.emit_entity(nested, value_objects_by_name)
               f.puts
-              nested_name = Projector.rust_ident(nested[:name])
-              f.puts Projector.emit_to_json_flat(nested_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
+              nested_rust_name = Projector.rust_ident(nested[:name])
+              f.puts Projector.emit_to_json_flat(nested_rust_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
               f.puts
-              f.puts Projector.emit_from_json_state(nested_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
+              f.puts Projector.emit_from_json_state(nested_rust_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
+              f.puts
+              # `identity()` — the ONLY thing a ROUTED dispatch needs off
+              # a doubly-nested element (`matches = |el| el.identity() ==
+              # hop2_id`, commands.rb's own `emit_nested_entity_command`)
+              # — no `extract_id`/`extract_wants` needed the way a
+              # one-level entity's own `entity_can_route` branch needs
+              # them, since those back only the UNROUTED legacy fallback
+              # this fix deliberately doesn't attempt at this depth (see
+              # this loop's own header comment above).
+              f.puts Projector.emit_self_identity(nested)
               f.puts
 
               nested[:commands].each do |command|
-                manifest << manifest_entry(
-                  kind: "entity_command", id: "#{nested_verb}.#{command[:name]}", generated: false,
-                  gap_class: "structural",
-                  reason: "entity nested two levels deep (#{nested_verb}) — kernel::cli.rs's JSON router and " \
-                           "registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
-                )
+                nested_command_verb = "#{nested_verb}.#{command[:name]}"
+                reason = Projector.entity_command_skip_reason(command, nested, value_objects_by_name)
+                if reason
+                  puts "skipping #{nested_command_verb}: #{reason}"
+                  manifest << manifest_entry(kind: "entity_command", id: nested_command_verb, generated: false,
+                                              gap_class: "per_instance", reason: reason)
+                  next
+                end
+
+                f.puts Projector.emit_nested_entity_command(command, nested, entity, aggregate, domain_name, value_objects_by_name, aggregates_by_name,
+                                                             process_managers: ir[:process_managers])
+                f.puts
+
+                manifest << manifest_entry(kind: "entity_command", id: nested_command_verb, generated: true, routed: true,
+                                            reason: "routed (`to: { entities: [...] }`) only — no legacy/flat-argument fallback at this depth (BUG#11)")
+
+                nested_entity_commands << {
+                  verb: nested_command_verb,
+                  name: command[:name],
+                  entity_record: Projector.rust_ident(entity[:name]),
+                  nested_record: nested_rust_name,
+                  # Matches commands.rb's `emit_nested_entity_command` naming
+                  # exactly: `dispatch_entity_#{entity.downcase}_#{nested.downcase}_#{dispatch_fn_name(cmd)}`.
+                  fn: "#{entity[:name].downcase}_#{nested[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
+                  args_struct: "#{nested_rust_name}#{Projector.rust_ident(command[:name])}NestedEntityArgs",
+                  reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+                  reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
+                  attributes: command[:attributes].map { |a| a[:name].to_s },
+                  role: command[:role],
+                  invariant_check_lines: Projector.invariant_checks_for(command, aggregates_by_name, value_objects_by_name),
+                  entity_name: entity[:name],
+                  entity_identity_reading: entity[:identified_by].join(", "),
+                  nested_name: nested[:name],
+                  nested_identity_reading: nested[:identified_by].join(", "),
+                }
               end
             end
 
@@ -649,6 +718,7 @@ module RustProjection
           record: record_name,
           commands: registry_commands,
           entity_commands: entity_commands,
+          nested_entity_commands: nested_entity_commands,
           ports: port_operations,
           # THIS AGGREGATE'S OWN DECLARED IDENTITY PATHS, carried through
           # verbatim — `emit_identity_head_table`/`reactions.rb` reads the

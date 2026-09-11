@@ -1003,3 +1003,238 @@ pub fn emit_entity_command(
     ]
     .join("\n\n")
 }
+
+/// BUG#11 (loop-parity) — mirrors `rust/project/commands.rb#emit_nested_
+/// entity_command` exactly: a command owned by an entity nested TWO
+/// levels deep (`Aggregate.Entity.Entity.Command`, e.g. `ProcessManager.
+/// Handler.Dispatch.BindCompensation`). `kernel::dispatch_entity` and
+/// `kernel::apply_entity_command` (dispatch.rs, unchanged by either
+/// generator) are already generic over any (parent, list, matches,
+/// apply_mutations) tuple — this composes them exactly the way `emit_
+/// entity_command`'s own `delegate_apply` already proves `apply_entity_
+/// command` composes with a surrounding `dispatch`/`dispatch_entity`
+/// call, one level deeper: the outer hop runs through `dispatch_entity`
+/// with no given/ensures/transition of its own (`nested`'s command
+/// belongs to the INNER hop, never the entity it's nested inside — see
+/// the Ruby generator's own header for why), and the inner hop is one
+/// more `apply_entity_command` call nested inside the outer's own
+/// `apply_mutations` closure. ROUTED ONLY (`to: { aggregate:, entities:
+/// [hop1, hop2] }`) — `nested` gets an `identity()` method (`emit_self_
+/// identity`) but no `extract_id`/`extract_wants`, so there is no
+/// legacy/flat-argument fallback at this depth, matching `domain_
+/// generator.rb`'s own scoping.
+pub fn emit_nested_entity_command(
+    exemplar: &Exemplar,
+    command: &Json,
+    nested: &Json,
+    entity: &Json,
+    parent_aggregate: &Json,
+    domain_name: &str,
+    value_objects_by_name: &HashMap<String, &Json>,
+    aggregates_by_name: &HashMap<String, &Json>,
+    process_managers: &[Json],
+) -> String {
+    let parent_record = naming::rust_ident(parent_aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
+    let entity_record = naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
+    let nested_record = naming::rust_ident(nested.get("name").and_then(Json::as_str).unwrap_or(""));
+    let cmd = naming::rust_ident(command.get("name").and_then(Json::as_str).unwrap_or(""));
+
+    let aggregate_name = parent_aggregate.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let parent_identity_reading = parent_aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let entity_identity_reading = entity.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let nested_name = nested.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let nested_identity_reading = nested.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+
+    let parent_attrs = parent_aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let list_attr1 = parent_attrs
+        .iter()
+        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == entity.get("name").and_then(Json::as_str).unwrap_or(""))
+        .unwrap_or_else(|| panic!("{entity_name}: no list attribute on {aggregate_name} holds it — unsupported_attribute_types should have caught this"));
+    let list_field1 = naming::rust_ident_field(crate::attr::name(list_attr1));
+
+    let entity_attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+    let list_attr2 = entity_attrs
+        .iter()
+        .find(|a| crate::attr::list(a) && crate::attr::type_name(a) == nested.get("name").and_then(Json::as_str).unwrap_or(""))
+        .unwrap_or_else(|| panic!("{nested_name}: no list attribute on {entity_name} holds it — unsupported_attribute_types should have caught this"));
+    let list_field2 = naming::rust_ident_field(crate::attr::name(list_attr2));
+
+    let args_struct_name = format!("{nested_record}{cmd}NestedEntityArgs");
+
+    let attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+    let mut args_struct = vec![format!("pub struct {args_struct_name} {{")];
+    for attr in attrs {
+        let mut ty = naming::rust_type(crate::attr::type_name(attr), crate::attr::list(attr));
+        if crate::attr::optional(attr) {
+            ty = format!("Option<{ty}>");
+        }
+        args_struct.push(format!("    {}", exemplar.render("struct_field", &[("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))])));
+    }
+    args_struct.push("}".to_string());
+
+    let invariant_checks = invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
+
+    let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
+    let given_specs: Vec<String> = givens
+        .iter()
+        .map(|g| {
+            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
+            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+            format!("                    crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
+        })
+        .collect();
+
+    let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
+    let ensures_specs: Vec<String> = ensures
+        .iter()
+        .map(|e| {
+            let description = e.get("description").and_then(Json::as_str).unwrap_or("");
+            let ast = e.get("ast").unwrap_or_else(|| panic!("ensures row has no ast: {e:?}"));
+            format!("                    crate::kernel::EnsuresSpec {{ description: {}, expr: {} }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
+        })
+        .collect();
+
+    // THE NESTED ENTITY's OWN lifecycle — same reasoning as `emit_entity_
+    // command`'s identical call, one level deeper.
+    let transition = mutations::lifecycle_transition_for(command, nested);
+    let transition_arg = match &transition {
+        Some(t) => format!(
+            "Some(crate::kernel::TransitionCheck {{ field: {}, from_states: &[{}] }})",
+            naming::ruby_inspect_string(&t.field),
+            t.from_states.iter().map(|s| naming::ruby_inspect_string(s)).collect::<Vec<_>>().join(", ")
+        ),
+        None => "None".to_string(),
+    };
+
+    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let mut mutation_lines: Vec<String> = mutations_list.iter().map(|m| mutations::emit_mutation_line(exemplar, m, nested, command, value_objects_by_name, false)).collect();
+    if mutations::reads_pre_state(mutations_list) {
+        mutation_lines.insert(0, mutations::pre_state_line());
+    }
+    if let Some(t) = &transition {
+        if !t.to_state.is_empty() {
+            mutation_lines.push(format!("                record.{} = {}.to_string();", naming::rust_ident_field(&t.field), naming::ruby_inspect_string(&t.to_state)));
+        }
+    }
+    if mutation_lines.is_empty() {
+        mutation_lines = vec!["                let _ = record;".to_string()];
+    }
+
+    // BARE — same reasoning as `emit_entity_command`'s identical
+    // `qualified_command_name`.
+    let qualified_command_name = command.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
+    let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
+    let fn_name = format!(
+        "dispatch_entity_{}_{}_{}",
+        entity.get("name").and_then(Json::as_str).unwrap_or("").to_lowercase(),
+        nested.get("name").and_then(Json::as_str).unwrap_or("").to_lowercase(),
+        naming::dispatch_fn_name(&cmd)
+    );
+
+    let nested_dispatch_fn = format!(
+        "pub fn {fn_name}(\n    \
+            repo: &mut impl crate::kernel::Repository<{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,\n    \
+            hop2_id: &str, hop2_wants: &str, args: {args_struct_name}, mutations: &mut Vec<crate::kernel::MutationRecord>,\n    \
+            owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,\n\
+        ) -> crate::kernel::DispatchResult<{parent_record}> {{\n\
+        {invariant_checks}\n    \
+            {with_references}\n    \
+            {seed_projections}\n\n    \
+            crate::kernel::dispatch_entity(\n        \
+                repo,\n        \
+                parent_id,\n        \
+                |r: &{parent_record}| &r.{list_field1},\n        \
+                |r: &mut {parent_record}| &mut r.{list_field1},\n        \
+                |el: &{entity_record}| el.identity() == hop1_id,\n        \
+                {qualified_command_name_inspect},\n        \
+                {qualified_name_inspect},\n        \
+                {aggregate_name_inspect},\n        \
+                {parent_identity_reading_inspect},\n        \
+                {entity_name_inspect},\n        \
+                {entity_identity_reading_inspect},\n        \
+                hop1_wants,\n        \
+                &with_references,\n        \
+                &[],\n        \
+                None,\n        \
+                |nested_owner: &mut {entity_record}| {{\n            \
+                    crate::kernel::apply_entity_command(\n                \
+                        nested_owner,\n                \
+                        hop1_id,\n                \
+                        |r: &{entity_record}| &r.{list_field2},\n                \
+                        |r: &mut {entity_record}| &mut r.{list_field2},\n                \
+                        |el: &{nested_record}| el.identity() == hop2_id,\n                \
+                        {qualified_command_name_inspect},\n                \
+                        {aggregate_name_inspect},\n                \
+                        {nested_name_inspect},\n                \
+                        {nested_identity_reading_inspect},\n                \
+                        hop2_wants,\n                \
+                        &with_references,\n                \
+                        &[\n{given_specs}\n                \
+                        ],\n                \
+                        {transition_arg},\n                \
+                        |record| {{\n{mutation_lines}\n                    \
+                            Ok(())\n                \
+                        }},\n                \
+                        &[\n{ensures_specs}\n                \
+                        ],\n                \
+                        false,\n            \
+                    )\n        \
+                }},\n        \
+                &[],\n        \
+                &{invariants_fn}(),\n        \
+                &[{emits_expr}],\n        \
+                args.to_json(),\n        \
+                mutations,\n        \
+                seed_projections,\n    \
+            )\n\
+        }}\n",
+        invariant_checks = invariant_checks.join("\n"),
+        with_references = with_references_binding(),
+        seed_projections = seed_projections_binding(parent_aggregate),
+        qualified_command_name_inspect = naming::ruby_inspect_string(&qualified_command_name),
+        qualified_name_inspect = naming::ruby_inspect_string(&format!("{domain_name}::{aggregate_name}")),
+        aggregate_name_inspect = naming::ruby_inspect_string(&aggregate_name),
+        parent_identity_reading_inspect = naming::ruby_inspect_string(&parent_identity_reading),
+        entity_name_inspect = naming::ruby_inspect_string(&entity_name),
+        entity_identity_reading_inspect = naming::ruby_inspect_string(&entity_identity_reading),
+        nested_name_inspect = naming::ruby_inspect_string(&nested_name),
+        nested_identity_reading_inspect = naming::ruby_inspect_string(&nested_identity_reading),
+        given_specs = given_specs.join("\n"),
+        ensures_specs = ensures_specs.join("\n"),
+        mutation_lines = mutation_lines.join("\n"),
+        invariants_fn = invariants_fn_name(parent_aggregate),
+        emits_expr = emits_expr,
+    );
+
+    [
+        crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
+        format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
+        crate::json_codec::emit_to_json_flat_sparse(exemplar, &args_struct_name, attrs, value_objects_by_name),
+        {
+            // `extra_identity_heads:` — BOTH hops' own identity heads, not
+            // just `nested`'s own — matching Ruby's own `ctx.chain.
+            // flat_map(&:identity_heads)` (entity_interpreter.rb).
+            let mut identity_heads: Vec<String> = entity
+                .get("identified_by")
+                .map(Json::each)
+                .unwrap_or(&[])
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect();
+            identity_heads.extend(
+                nested
+                    .get("identified_by")
+                    .map(Json::each)
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|p| p.to_s().split('.').next().unwrap_or("").to_string()),
+            );
+            let allowlist = crate::json_codec::command_argument_allowlist(parent_aggregate, command, process_managers, &identity_heads);
+            crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, Some(&allowlist), Some(&qualified_command_name), true, true, Some(aggregates_by_name))
+        },
+        nested_dispatch_fn,
+    ]
+    .join("\n\n")
+}

@@ -82,6 +82,31 @@ pub struct EntityCommandEntry {
     pub entity_identity_reading: String,
 }
 
+/// BUG#11 (loop-parity) — a command owned by an entity nested TWO levels
+/// deep (`Aggregate.Entity.Entity.Command`). Mirrors `EntityCommandEntry`,
+/// above, plus a second (`nested_*`) name/identity-reading pair for the
+/// INNERMOST entity — the one `nested`'s own command actually belongs to
+/// — alongside the FIRST hop's (`entity_name`/`entity_identity_reading`,
+/// same fields `EntityCommandEntry` already carries, describing the
+/// entity `nested` lives inside).
+pub struct NestedEntityCommandEntry {
+    pub verb: String,
+    pub name: String,
+    pub entity_record: String,
+    pub nested_record: String,
+    pub fn_name: String,
+    pub args_struct: String,
+    pub reference_checks: Vec<ReferenceCheck>,
+    pub reference_specs: Vec<ReferenceSpec>,
+    pub attributes: Vec<String>,
+    pub invariant_check_lines: Vec<String>,
+    pub role: Option<String>,
+    pub entity_name: String,
+    pub entity_identity_reading: String,
+    pub nested_name: String,
+    pub nested_identity_reading: String,
+}
+
 pub struct PortEntry {
     pub verb: String,
     pub name: String,
@@ -106,6 +131,7 @@ pub struct AggregateEntry {
     pub record: String,
     pub commands: Vec<CommandEntry>,
     pub entity_commands: Vec<EntityCommandEntry>,
+    pub nested_entity_commands: Vec<NestedEntityCommandEntry>,
     pub ports: Vec<PortEntry>,
     pub chapter_mod: String,
     pub domain_name: String,
@@ -411,6 +437,77 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         }
     }
 
+    // BUG#11 (loop-parity) — a command owned by an entity nested TWO
+    // levels deep. Mirrors `rust/project/registry.rb`'s own `nested_
+    // entity_arms` exactly: ROUTED ONLY (`route` is REQUIRED — no
+    // `None => ...` legacy fallback the way `entity_arms` above has,
+    // since `nested`'s own generated struct only ever gets an
+    // `identity()` method, never `extract_id`/`extract_wants` —
+    // `commands.rs::emit_nested_entity_command`'s own header on why).
+    let mut nested_entity_arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        let mod_path = chapter_path(a);
+        for c in &a.nested_entity_commands {
+            let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
+            let reference_lines: Vec<String> = c
+                .reference_checks
+                .iter()
+                .map(|check| emit_reference_check(exemplar, check))
+                .collect();
+            let dispatch_call = format!(
+                "{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))",
+                c.fn_name, a.module_name
+            );
+            let route_error = format!(
+                "{} addresses an entity nested two levels deep — requires an explicit to: {{ aggregate:, entities: [...] }} route",
+                c.verb
+            );
+
+            let mut body: Vec<String> = vec![
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
+                format!(
+                    "let route = invocation.route().ok_or_else(|| crate::kernel::Refusal::TypeMismatch({}.to_string()))?;",
+                    naming::ruby_inspect_string(&route_error)
+                ),
+                "route.require_depth(2)?;".to_string(),
+                "let facts_json = invocation.facts();".to_string(),
+                "let parent_id = route.aggregate().to_string();".to_string(),
+                "let hop1_id = route.entities()[0].clone();".to_string(),
+                "let hop2_id = route.entities()[1].clone();".to_string(),
+                "let hop1_wants = hop1_id.clone();".to_string(),
+                "let hop2_wants = hop2_id.clone();".to_string(),
+                format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct),
+            ];
+            body.extend(c.invariant_check_lines.iter().cloned());
+            if let Some(rl) = role_line {
+                body.push(rl);
+            }
+            body.extend(reference_lines);
+            body.push(
+                "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();"
+                    .to_string(),
+            );
+            body.push(format!(
+                "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
+                reference_specs::emit_reference_specs_literal(&c.reference_specs)
+            ));
+            body.push(
+                "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());"
+                    .to_string(),
+            );
+            body.push(dispatch_call);
+
+            nested_entity_arms.push(format!(
+                "          {} => {{\n{}\n          }}",
+                naming::ruby_inspect_string(&c.verb),
+                body.iter()
+                    .map(|l| format!("              {l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
+        }
+    }
+
     let mut port_arms: Vec<String> = Vec::new();
     for a in aggregates {
         let mod_path = chapter_path(a);
@@ -464,6 +561,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
 
     let mut dispatch_arms = aggregate_arms;
     dispatch_arms.extend(entity_arms);
+    dispatch_arms.extend(nested_entity_arms);
     dispatch_arms.extend(port_arms);
 
     let header = "// GENERATED by bin/project_rust — the JSON command router\n// `kernel::cli` dispatches every step through. Do not hand-edit —\n// re-run bin/project_rust instead.\n#![allow(dead_code, unused_variables)]\n\n// `Repository::save` (from_seed, below) is a TRAIT method —\n// `InMemoryRepository`'s own inherent methods (entries(), used\n// by instances()) need no import, but save() does.\nuse crate::kernel::Repository;\n\n";
@@ -589,6 +687,7 @@ mod tests {
                 entity_name: "Visit".to_string(),
                 entity_identity_reading: "date, sequence".to_string(),
             }],
+            nested_entity_commands: Vec::new(),
             ports: vec![PortEntry {
                 verb: "Banking::SafeDepositBox.PaymentGateway.Receive".to_string(),
                 name: "Receive".to_string(),
