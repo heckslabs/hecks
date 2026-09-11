@@ -42,6 +42,16 @@ require "pathname"
 RSpec.describe "bin/qa_sweep --all", :io do
   QA_SWEEP_ALL_DATABASE = "hecks_qa_sweep_all_spec".freeze
 
+  # THE "FOUND SOMETHING" EXAMPLE'S OWN FIXTURE CRATE — a small
+  # STANDALONE Rust crate (own `Cargo.toml`, `spec/fixtures/qa_sweep_all_
+  # found_fixture_rust/`, deliberately outside `rust/`'s own workspace/
+  # feature list) whose compiled binary always answers a fixed,
+  # hand-written mismatch against `spec/fixtures/qa_sweep_all_found_
+  # fixture`'s own trivially well-behaved Ruby domain — see both
+  # fixtures' own header comments, and `run_qa_sweep`'s own comment on
+  # `QA_SWEEP_RUST_DIR` below, for the full reasoning.
+  FIXTURE_RUST_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_sweep_all_found_fixture_rust").freeze
+
   # THE FIXTURE LEDGER'S OWN `.hecksagon` — line-for-line what
   # `qa/bluebook/quality_control.hecksagon` declares (every aggregate
   # `persisted_by("PostgresEra")`, the same two dormant/bound ports),
@@ -243,13 +253,18 @@ RSpec.describe "bin/qa_sweep --all", :io do
     end
   end
 
-  # The exact invocation a human (or `--all`'s own children) would type,
-  # run for real via `Open3.capture3` — `QA_SWEEP_DOMAIN_DIR` is the only
-  # thing that tells it to use this spec's own fixture ledger instead of
-  # the real one.
+  # THE EXACT INVOCATION a human (or `--all`'s own children) would type,
+  # run for real via `Open3.capture3` — `QA_SWEEP_DOMAIN_DIR` is what
+  # tells it to use this spec's own fixture ledger instead of the real
+  # one, and `QA_SWEEP_RUST_DIR` (harmless for every example except the
+  # "found something" one — no OTHER target name in this file ever
+  # matches a feature `FIXTURE_RUST_DIR`'s own `Cargo.toml` declares) is
+  # what tells `found_one`'s own differential diff to build/run this
+  # spec's own hand-maintained fixture crate rather than reaching for
+  # the real `rust/`.
   def run_qa_sweep(*args)
     Open3.capture3(
-      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
+      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir, "QA_SWEEP_RUST_DIR" => FIXTURE_RUST_DIR },
       "bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_sweep"), *args,
       chdir: InMemoryDomain::ROOT
     )
@@ -347,17 +362,37 @@ RSpec.describe "bin/qa_sweep --all", :io do
   # A GENUINE FINDING, AN OPERATIONAL ERROR, AND A CLEAN TARGET, ALL AT
   # ONCE — three children writing to three SEPARATE temp files the whole
   # time (bin/qa_sweep's own `spawn_sweep_child`), so nothing here is
-  # racing anything else's stdout. `qa/stress_domains/waybill` is a REAL,
-  # currently-open divergence in this repository's own live QA rotation
-  # (confirmed live while building this spec: Ruby ships a Consignment,
-  # Rust cancels it — a real `Manifest::Slot.Fill` routing gap), which
-  # makes it a genuinely reproducible real fixture for the FOUND
-  # SOMETHING path rather than a synthetic one — see this repo's own
-  # live ledger for the tracking Bug, not re-derived here.
+  # racing anything else's stdout.
+  #
+  # `found_one` USED TO POINT AT `qa/stress_domains/waybill` — a REAL,
+  # then-currently-open divergence in this repository's own live QA
+  # rotation (confirmed live while building the spec this replaced: Ruby
+  # shipped a Consignment, Rust cancelled it — a real `Manifest::Slot.
+  # Fill` routing gap). That made this example FRAGILE BY DESIGN: it
+  # depended on some domain in the shared rotation staying broken forever
+  # to keep passing, which is backwards — the whole point of this
+  # practice is to drive every domain in the rotation to zero known
+  # divergences, and this example broke for real the moment BUG#10's fix
+  # (PR #551) closed that exact gap.
+  #
+  # `found_one` now points at `spec/fixtures/qa_sweep_all_found_fixture`
+  # instead — a trivially well-behaved Ruby domain (this spec's own,
+  # same spirit as `FIXTURE_TARGET_BLUEBOOK` above) diffed against
+  # `spec/fixtures/qa_sweep_all_found_fixture_rust`, a small STANDALONE
+  # Rust crate (own `Cargo.toml`, outside `rust/`'s own workspace/feature
+  # list entirely) whose compiled binary always answers a fixed,
+  # hand-written JSON naming a sentinel id
+  # (`__qa_sweep_all_spec_phantom__`) the Ruby side can never generate.
+  # `QA_SWEEP_RUST_DIR` (bin/qa_sweep's own header, mirroring the
+  # pre-existing `QA_SWEEP_DOMAIN_DIR`) is what points THIS spec's own
+  # real subprocess at that fixture crate instead of the real `rust/`
+  # one. The divergence is total and permanent by construction — it
+  # never depends on what the fuzzer happened to generate, and never
+  # depends on anything ELSE in this codebase, healthy or not.
   it "captures each child's own output without interleaving, and a real finding outranks a real error" do
     identify_targets!(
       "clean_one"  => @target_domain_relpath,
-      "found_one"  => "qa/stress_domains/waybill",
+      "found_one"  => "spec/fixtures/qa_sweep_all_found_fixture",
       "broken_one" => "qa/stress_domains/__qa_sweep_all_spec_does_not_exist__"
     )
 

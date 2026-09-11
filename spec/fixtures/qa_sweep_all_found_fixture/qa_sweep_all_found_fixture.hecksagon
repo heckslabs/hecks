@@ -1,0 +1,3 @@
+Hecks.hecksagon "QaSweepAllFoundFixture" do
+  QaSweepAllFoundFixture::Beacon.persisted_by("Memory")
+end

@@ -1,0 +1,34 @@
+# THE "FOUND SOMETHING" SIDE OF `spec/qa_sweep_all_spec.rb`'s own three-
+# children example — a trivially well-behaved Ruby domain, same spirit as
+# that spec's own `FIXTURE_TARGET_BLUEBOOK` ("clean_one"/"contested"): one
+# aggregate, one creating command, nothing a fuzzer could ever get
+# genuinely wrong on the RUBY side. The divergence that example needs is
+# entirely on the RUST side — `../qa_sweep_all_found_fixture_rust/src/
+# main.rs`'s own fixed, hand-written stdout, which never mints the
+# sentinel id `__qa_sweep_all_spec_phantom__` this Ruby side is
+# guaranteed to never dispatch either — see that file's own header for
+# the full reasoning.
+Hecks.bluebook "QaSweepAllFoundFixture" do
+  vision "A trivially well-behaved domain, authored only so spec/qa_sweep_all_spec.rb's own 'found something' example never depends on this repository's own live, actively-changing QA corpus staying broken."
+
+  aggregate "Beacon" do
+    description "One lit beacon — nothing a fuzzer can ever catch on the Ruby side alone."
+
+    identified_by :reference
+
+    attribute :reference, BeaconReference
+
+    value_object "BeaconReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a beacon is referenced") { !value.to_s.empty? }
+    end
+
+    command "Light" do
+      attribute :reference, BeaconReference
+
+      sets :reference
+
+      emits "BeaconLit"
+    end
+  end
+end

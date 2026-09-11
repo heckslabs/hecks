@@ -148,7 +148,21 @@ require_relative "../spec/support/rust_conformance_helpers"
 # environment inheritance, so setting this once in a parent process's own
 # `ENV` reaches every child it spawns for free.
 DOMAIN_DIR         = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
-RUST_DIR           = File.join(ROOT, "rust")
+
+# `QA_SWEEP_RUST_DIR` — THE SAME ESCAPE HATCH, ONE LEVEL OVER. Every REAL
+# invocation builds/diffs against the one true `rust/` crate; nothing
+# here ever points anywhere else on its own. The override exists ONLY so
+# an isolated spec can point a real `bin/qa_sweep` subprocess's
+# differential mode at its OWN small, hand-maintained fixture Cargo
+# crate instead — `spec/qa_sweep_all_spec.rb`'s own "found something"
+# example, and that fixture crate's own `Cargo.toml` header, explain why:
+# a divergence this spec owns outright, forever, rather than one that
+# depends on this repository's own live `qa/stress_domains/` rotation
+# staying broken to keep proving anything. `RustConformanceHelpers#
+# build_rust_for`/`#build_and_pin` already take `rust_dir` as a plain
+# argument — this constant is the only thing that needed to stop being
+# hardcoded for that to reach all the way through.
+RUST_DIR           = ENV.fetch("QA_SWEEP_RUST_DIR", File.join(ROOT, "rust"))
 ENGINEER           = "qa_sweep".freeze
 STEPS_PER_SEQUENCE = 25
 DEFAULT_TARGETS    = { "pizzas" => "examples/pizzas", "banking" => "examples/banking" }.freeze
