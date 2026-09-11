@@ -696,7 +696,8 @@ module RustProjection
     # closed-set door.
     def emit_closed_set_codec(vo)
       name = rust_ident(vo[:name])
-      field_name = rust_field(vo[:attributes].first[:name])
+      sole_attribute = vo[:attributes].first
+      field_name = rust_field(sole_attribute[:name])
       rows = vo[:members].map { |row| [closed_set_variant(row), row.first.last.to_s] }
 
       # Both arm shapes need `TmplMemberA`/`tmpl_member_a` per row, so one
@@ -705,6 +706,12 @@ module RustProjection
 
       type_name = vo[:name].to_s
       admitted  = rows.map { |_variant, raw| raw.inspect }.join(", ")
+      # BUG#14 — the SAME "numeric_field" wording `required_field_expr`
+      # already gives every OTHER composite field's own missing-key case
+      # ("{type}.{field} expects {expected}, got nil"), resolved here at
+      # codegen time since the sole field's declared name/type are both
+      # already known statically, matching `admitted`/`type_name` just above.
+      null_message = "#{type_name}.#{sole_attribute[:name]} expects #{sole_attribute[:type]}, got nil"
 
       Exemplar.assemble(
         "closed_set_codec",
@@ -713,6 +720,7 @@ module RustProjection
           '"tmpl_field_name"' => field_name.inspect,
           '"tmpl_closed_set_type"' => type_name.inspect,
           '"tmpl_closed_set_admitted"' => admitted.inspect,
+          '"tmpl_null_field_message"' => null_message.inspect,
         },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => Exemplar.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
