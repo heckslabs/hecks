@@ -106,14 +106,42 @@ Instead:
      finding always outranks an operational error sitting alongside it
      in the same report, see the script's own comment on that
      precedence),
+   - **after `--all` completes, also run `bundle exec ruby bin/qa_sweep
+     directory --persistence-parity` once** (`--persistence-parity` is
+     single-target-only, see `bin/qa_sweep`'s own top-of-file comment —
+     it can never be folded into `--all` itself, so this is a genuinely
+     separate command in the same dispatch, not a flag on the one
+     above). `examples/directory` is the one target in the current
+     rotation that actually binds `PostgresEra` (`bin/qa_sweep`'s own
+     eligibility-check abort message names it directly) — this axis is
+     Memory vs. a real, disposable `PostgresEra` database, both sides
+     the SAME Ruby engine, catching persistence-layer bugs the
+     Ruby-vs-Rust differential mode structurally cannot. First run,
+     2026-09-11: ~3m25s wall-clock (5 seeds — `QualityControlDials
+     ::PERSISTENCE_PARITY_SEED_CAP` — × 25 steps, adversarial 0.3,
+     self-consistency on), clean. Cheap enough to run every tick
+     unconditionally, not just occasionally — this was a real, standing
+     gap (built as part of Phase 4, verified once at build time via PR
+     #564, then never actually scheduled anywhere) until now. If
+     `directory` is ever found `shelved` rather than `waiting`/`held`,
+     that's a live regression of the same architectural blocker PR #564
+     fixed (`Runtime::EraCheck.check_compute_rules!` refusing a
+     non-lineage-capable adapter) — worth a Bug, not a silent
+     `Target.Restore`. Relay this command's own exit code and full
+     output the same verbatim way as `--all`'s own report, below.
    - an instruction to leave the worktree clean (on `main`, no
      uncommitted changes, no lingering branch checked out) before
      finishing — so the *next* tick, in the same worktree, starts from
      a known-good state.
 4. Wait for the subagent's report, then read its ONE consolidated
-   `bin/qa_sweep --all` report yourself — this judgment stays here, in
-   the orchestrating session, deliberately kept OUT of the mechanical
-   subagent dispatched in step 3 above:
+   `bin/qa_sweep --all` report AND the separate `--persistence-parity`
+   report yourself — this judgment stays here, in the orchestrating
+   session, deliberately kept OUT of the mechanical subagent dispatched
+   in step 3 above. Treat a `--persistence-parity` "FOUND SOMETHING"
+   exactly like one from `--all`: dispatch a fresh per-target follow-up
+   subagent, its own slice of the report carried verbatim, per step 4's
+   own instructions below (a persistence-parity divergence still gets
+   "On a surprising check" verbatim, the same as any other):
    - **Exit 0 — nothing to act on.** Relay the short summary and move
      on; there is no per-target follow-up to dispatch.
    - **Exit 1, nothing found.** Read the real error message(s) yourself
