@@ -143,9 +143,11 @@ module Hecks
             aggregate = aggregate_for_verb(bluebooks, entry[:verb])
             next [] unless aggregate
 
+            owner = owner_for_verb(bluebooks, entry[:verb]) || aggregate
+
             command.mutations.select { |m| RECOMPUTABLE_MUTATION_OPS.include?(m.op) }.filter_map do |mutation|
               expected = recompute_mutation(mutation, entry[:before][mutation.target], entry[:args], entry[:before],
-                                            aggregate, command)
+                                            aggregate, command, owner)
               next if expected == :unrecomputable
 
               actual = entry[:after][mutation.target]
@@ -176,21 +178,51 @@ module Hecks
           bluebooks[domain_name]&.aggregate(aggregate_name)
         end
 
-        def recompute_mutation(mutation, current, args, before_scope, aggregate, command)
+        # `mutation.target`'s own DECLARING construct — the root
+        # aggregate for an aggregate-owned command (`AddSlot`'s own
+        # `:slots`), or the entity a dot-shaped command belongs to
+        # (`Board.AddCard`'s own `:cards`, declared on `Board`, not on
+        # `Workspace`) — needed only by BUG#12's own recompute-side fix
+        # (`recompute_append`, below): `entity.attribute(mutation.target)`
+        # has to be asked of whichever construct actually declares it,
+        # never the root aggregate unconditionally, the same distinction
+        # `EntityElement#locate_chain` draws between `root_aggregate` and
+        # each hop's own `owner`. Re-derived independently from
+        # `entry[:verb]` alone, the same reasoning `aggregate_for_verb`'s
+        # own comment gives.
+        def owner_for_verb(bluebooks, verb)
+          domain_name, aggregate_name, command_path = Naming.split_verb(verb)
+          return nil unless command_path
+
+          aggregate = bluebooks[domain_name]&.aggregate(aggregate_name)
+          return nil unless aggregate
+          return aggregate unless command_path.include?(".")
+
+          entity_name, = command_path.split(".", 2)
+          aggregate.entities.find { |candidate| candidate.hecks_name == entity_name }
+        end
+
+        def recompute_mutation(mutation, current, args, before_scope, aggregate, command, owner = aggregate)
           case mutation.op
-          when :append   then recompute_append(current, mutation.source, before_scope, args, aggregate, command)
+          when :append
+            recompute_append(current, mutation.source, before_scope, args, aggregate, command, owner, mutation.target)
           when :remove   then recompute_remove(current, mutation.source, args)
           when :multiply then recompute_multiply(current, resolve_mutation_source(mutation.source, args))
           when :clamp    then recompute_clamp(current, mutation.source)
           end
         end
 
-        # `MutationApplier#appended`'s own value-object branch (never the
-        # entity_element branch — see #build_mutation_trace's own comment
-        # on why an entity-dispatched command's own mutations never reach
-        # it), reproduced: the field map resolved the SAME two-tier way
+        # `EntityElement#appended_to_element`'s own field-mapping half,
+        # reproduced: the field map resolved the SAME two-tier way
         # (`MutationApplier#resolve_append_source` — a caller-supplied
-        # arg, or the entity's own current field), then appended.
+        # arg, or the entity's own current field), then appended. (An
+        # entity-dispatched command's own mutations DO reach here —
+        # `#build_mutation_trace`'s own comment describing them as never
+        # reaching "the entity_element branch" means `MutationApplier#
+        # appended`'s own AGGREGATE-level entity_element fallback
+        # specifically, which really is unreached from here; entity-owned
+        # append dispatches go through `EntityElement#appended_to_element`
+        # instead, and DO reach this method.)
         #
         # BUG#5 — an entity-owned `:append` whose target field is itself
         # value-object-typed (`Board.AddCard`'s own `sets :cards, append:
@@ -206,11 +238,58 @@ module Hecks
         # MATERIALIZED shape `build_mutation_trace` snapshotted it in
         # (`Value.materialize`, same as `entry[:after]`), not a raw value
         # sitting behind a live `Value`.
-        def recompute_append(current, source_map, before_scope, args, aggregate, command)
+        #
+        # BUG#12 — `owner`/`target` (new here) let this ALSO reproduce
+        # `EntityElement#fill_declared_defaults`'s own entity-nested-in-
+        # entity fallback (`appended_to_element`'s `else` branch, when
+        # the appended element is itself an entity — `Card`, nested
+        # inside `Board` — not a value object): `owner.attribute(target)
+        # &.type` names the appended element's own type; when that names
+        # an entity of `aggregate` rather than a value object, every one
+        # of ITS OWN declared attributes `fields` doesn't already hold
+        # gets `Instance.default_for`'s own default — reused, not
+        # reimplemented, for the identical "never agree with itself"
+        # reason BUG#5's own coercion re-derivation above already gives:
+        # `Instance.default_for` is pre-existing, independently-tested
+        # machinery (an ordinary aggregate's own creation already runs
+        # through it via `Instance.defaults`), not the NEW glue
+        # (`fill_declared_defaults` itself) this property exists to
+        # catch a drift in.
+        def recompute_append(current, source_map, before_scope, args, aggregate, command, owner = aggregate, target = nil)
           fields = source_map.transform_values do |source|
             resolve_mutation_append_field(source, before_scope, args, aggregate, command)
           end
+          fill_recompute_declared_defaults(aggregate, owner, target, fields)
           Array(current) + [symbolize_deep(fields)]
+        end
+
+        # BUG#12's own recompute-side half — see `#recompute_append`'s
+        # own comment above for why this exists and why it reuses
+        # `Instance.default_for` rather than calling `EntityElement#
+        # fill_declared_defaults` again. A no-op whenever `target` names
+        # no attribute at all (every RECOMPUTABLE_MUTATION_OPS caller but
+        # `:append` passes no `target`) or `target`'s own declared type
+        # isn't an entity nested directly under `owner` (a value object,
+        # or nothing declared at all — `owner.attribute` answering `nil`
+        # for a target the DSL itself would already have refused at
+        # build time). `owner.entities`, NOT `aggregate.entities` — a
+        # piece nested inside a piece is a child of the OWNING entity
+        # (`Card` is `Board.entities`, never `Workspace.entities`), the
+        # same distinction `EntityElement#appended_to_element`'s own fix
+        # draws.
+        def fill_recompute_declared_defaults(aggregate, owner, target, fields)
+          return fields unless target
+
+          element_type = owner&.attribute(target)&.type
+          entity = element_type && owner.entities.find { |piece| piece.hecks_name == element_type.to_s }
+          return fields unless entity
+
+          entity.attributes.each do |attribute|
+            next if fields.key?(attribute.name)
+
+            fields[attribute.name] = attribute.list? ? [] : Runtime::Instance.default_for(aggregate, attribute)
+          end
+          fields
         end
 
         def resolve_mutation_append_field(source, before_scope, args, aggregate, command)

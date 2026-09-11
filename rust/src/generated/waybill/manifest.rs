@@ -366,6 +366,13 @@ impl SlotFillEntityArgs {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("SlotFillEntityArgs expects an object, got {}", v.inspect())));
 }
+let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Fill does not declare {} — it takes item",
+        unknown.join(", ")
+    )));
+}
 let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
     return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
@@ -470,6 +477,13 @@ impl SlotClearEntityArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 if !matches!(v, crate::kernel::Json::Object(_)) {
     return Err(crate::kernel::Refusal::TypeMismatch(format!("SlotClearEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Clear does not declare {} — it takes item",
+        unknown.join(", ")
+    )));
 }
 let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
 if !absent.is_empty() {
