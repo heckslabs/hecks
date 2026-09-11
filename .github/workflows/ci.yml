@@ -59,12 +59,32 @@ name: CI
 # useful — not `rspec`/`checks`/`rspec_postgres_io`/the four
 # `rspec_rust_*` jobs/`rspec_fuzzing`/`runtime_changed` (whose own
 # `stress_concurrency` dependent then also skips, via `needs:`, with no
-# `if:` of its own needed). `rspec_postgres_io_parallel` itself needs no
-# `if:` — it already ran on `pull_request`/`merge_group` and should now
-# also run on `push`, so leaving it unconditional is correct.
+# `if:` of its own needed). `rspec_postgres_io_parallel` used to need no
+# `if:` of its own for THIS reason — it already ran on
+# `pull_request`/`merge_group` and this push trigger just adds a third
+# event it should also run under.
+#
+# THAT'S NO LONGER THE WHOLE STORY — added 2026-09-11, a genuinely
+# different reason: `rspec_postgres_io_parallel` now ALSO carries a real
+# skip gate against `postgres_io_relevant_changed` (see that job's own
+# header comment, immediately above `rspec_postgres_io_parallel` below),
+# so a change that touches nothing this job could ever catch a
+# regression in doesn't have to pay for it. The two `if:`s don't
+# conflict: the skip gate explicitly exempts `push` from itself
+# (`github.event_name == 'push' || ...`), so a genuine push to `main`
+# still runs this job unconditionally, same as this paragraph always
+# required — the skip gate only ever has a say on `pull_request`/
+# `merge_group`.
 
 # EIGHT JOBS, RUN CONCURRENTLY (no `needs:` between any of them, so
-# GitHub Actions schedules all eight the moment the workflow starts).
+# GitHub Actions schedules all eight the moment the workflow starts) —
+# PLUS, now, `postgres_io_relevant_changed`, a ninth job outside this
+# set whose only purpose is deciding whether the fourth of these eight
+# (`rspec_postgres_io_parallel`) needs to run at all; see its own header
+# comment below. It sits alongside `runtime_changed`/`stress_concurrency`
+# (a pre-existing detector-plus-gated-job pair, further down) rather than
+# among "no `needs:` between any of them" above — that claim is still
+# true of the eight themselves, none of which depend on each other.
 # This used to be two jobs (`rspec`, `checks`) with `rspec` itself split
 # into a parallel_rspec step followed by a SERIAL "io + fuzzing" step
 # that ran real Postgres/cargo work on the critical path, after the
@@ -552,8 +572,205 @@ jobs:
   # list) OR it touches the shared `hecks_pizzas` database by name (add
   # it to the serial job above AND this list). Forgetting either fails
   # loud — a spec error, not a silent skip.
+
+  # THE SKIP GATE FOR THE JOB BELOW — mirrors `runtime_changed`/
+  # `stress_concurrency`'s own shape further down this file (a separate
+  # detector job, plus `needs:`/`if:` on the gated job) rather than
+  # reinventing one: a job-level `if:` is the only way to skip
+  # provisioning the Postgres `services:` container below too, not just
+  # the `rspec` invocation — a step-level `if:` doesn't avoid that cost.
+  #
+  # UNLIKE `runtime_changed`, THIS DETECTOR RUNS ON EVERY TRIGGER, `push`
+  # INCLUDED — no `if: github.event_name != 'push'` here. A job whose
+  # `needs:` job was itself SKIPPED is, by default, also skipped — and
+  # reliably overriding that (so `rspec_postgres_io_parallel` still runs
+  # unconditionally on `push` per PR #572, see top-of-file comment) needs
+  # either `always()` on the gated job's own `if:` (which then also has
+  # to avoid treating a genuinely FAILED detector run as "skip", the
+  # wrong default per this job's own loud-not-silent philosophy below) or
+  # just letting this detector run under every trigger so it's never the
+  # thing being skipped in the first place. The latter costs one more
+  # cheap job on `push` (a checkout plus a `git diff`, no services, no
+  # Ruby/Bundler setup) in exchange for `rspec_postgres_io_parallel`'s own
+  # `if:` staying a plain, unambiguous expression. What this job computes
+  # for a `push` run is never actually consulted either way —
+  # `rspec_postgres_io_parallel`'s own `if:` below short-circuits on
+  # `github.event_name == 'push'` before it looks at this job's output —
+  # it still runs so the `needs:`/`if:` relationship stays unconditional
+  # rather than correct only for the two triggers that happen to matter
+  # today.
+  #
+  # THE SAFE-TO-SKIP LIST BELOW IS EXCLUDE-SHAPED, NOT INCLUDE-SHAPED —
+  # deliberately the opposite of `runtime_changed`'s own single
+  # `lib/hecks/runtime/**` prefix. That job's real coverage genuinely is
+  # that narrow (one directory tree); this job's is NOT — real
+  # investigation (not assumed) of what the ~30 files
+  # `bin/rspec_io_parallel_files` actually selects (PR #570's own tool;
+  # see this job's own `--exclude-pattern` comment above for how that
+  # list is derived) found:
+  #
+  #   - EVERY one of the 30 files `require "hecks"` — directly, or via
+  #     `spec_helper.rb`, which itself does. A plain `require "hecks"`
+  #     (lib/hecks.rb) eager-`require_relative`s the ENTIRE `lib/hecks/`
+  #     tree (ports, bluebook, router, runtime, adapters, projector,
+  #     projections, storehouse, framework, ...) — not a lazy autoload of
+  #     only what each file happens to touch. So `lib/**` is in scope
+  #     wholesale, the same way it already is for `rspec`/
+  #     `rspec_postgres_io` — this job's real dependency surface was
+  #     never actually narrower than theirs, it just was never written
+  #     down as a skip condition until now.
+  #   - Many of the 30 real-subprocess-invoke a real `bin/` script —
+  #     grepped every file for `bin/[a-z_]+`, not guessed: `project_deploy`,
+  #     `project_tenant`, `lint_deploy_recipes`, `qa_sweep`,
+  #     `qa_postgres_migrate`, `heki_compact`, `translation_audit`,
+  #     `scaffold_translation`, `merge_tail`. Treated as `bin/**`
+  #     wholesale below rather than that exact list, so a new script one
+  #     of these specs starts shelling out to doesn't silently fall
+  #     outside this list's own blind spot.
+  #   - `spec/self_consistency_rust_spec.rb` — one of the 30 — calls
+  #     `RustConformanceHelpers#build_rust_for("pizzas"/"banking", <the
+  #     real repo-root rust/ crate>)`, which runs a REAL `cargo build
+  #     --features <domain>` against it (spec/support/
+  #     rust_conformance_helpers.rb; confirmed by reading the method, not
+  #     assumed from the filename). This job DOES touch the shared Rust
+  #     crate, despite `IO_PARALLEL_EXCLUDE_PATTERN` above deliberately
+  #     routing every OTHER cargo-building spec to `rspec_rust_*`. So
+  #     `rust/Cargo.toml`, `rust/Cargo.lock`, `rust/src/**`, and
+  #     `rust-toolchain.toml` (pins the toolchain that build uses) are
+  #     all in scope too — but `rust/parser/`, `rust/codegen/`,
+  #     `rust/host/`, `rust/build/`, `rust/lsp/`, `rust/web/`,
+  #     `rust/tests/`, `rust/project/` (the Ruby generator, never
+  #     compiled by `cargo build`), and `rust/project.rb`/
+  #     `rust/project_rust_pipeline.rb` stay OUT of scope — confirmed via
+  #     `rust/Cargo.toml`'s own `[lib]`/`[[bin]]` `path =` pointing only
+  #     at `src/`, no `path =` dependency on any sibling crate, and via
+  #     grep: none of the 30 files reads a file under any of them.
+  #     `qa_sweep_all_spec.rb`'s own differential-fuzz example LOOKS like
+  #     a second real-rust-crate dependency but isn't: it sets
+  #     `QA_SWEEP_RUST_DIR` to its OWN small fixture crate under
+  #     `spec/fixtures/`, never the real `rust/` — see that spec file's
+  #     own header comment on `QA_SWEEP_RUST_DIR`.
+  #   - `examples/pizzas`, `examples/banking`, `examples/chess`,
+  #     `examples/directory` are named directly (grepped); so are
+  #     `qa/bluebook/quality_control.bluebook` and `qa/stress_domains/
+  #     {ledger_ordering,waybill}`. Kept as `examples/**`/`qa/**`
+  #     wholesale below rather than that exact subset — small
+  #     directories, and a narrower allowlist here is exactly the kind of
+  #     hand-guessed narrowing this job's own `--exclude-pattern` comment
+  #     above already warns fails loud the WRONG way (silent
+  #     under-testing) the day a new domain lands in whatever got left
+  #     out.
+  #   - `Gemfile`/`Gemfile.lock`/`hecks.gemspec` (every job's own
+  #     `bundler-cache: true` step depends on them) and `.rspec` (this
+  #     job's own "rspec: postgres + deploy/tenant I/O" step's comment
+  #     above already explains how its actual runtime behavior depends on
+  #     `.rspec`'s own `:formatters` merge behavior) are left OUT of the
+  #     safe list below too, for the same reason.
+  #
+  # WHAT'S ACTUALLY LEFT, once all of the above is excluded, is a real,
+  # narrow, genuinely-irrelevant set: documentation (`docs/**`, the
+  # top-level `*.md`/`LICENSE`), the editor extension (`editors/**`), the
+  # gem-release script (`release/**`), `deploy/**` (bin/project_deploy's
+  # own WRITE-ONLY scratch target during these specs — never read as a
+  # fixture, confirmed by grep; the per-domain content actually committed
+  # there today is output from real, non-test deploys), this repository's
+  # own agent tooling (`.claude/**`), the local pre-push hook
+  # (`.githooks/**`, never invoked by this GitHub Actions job itself),
+  # rubocop config (read only by the `checks` job's own `rubocop` step),
+  # and a couple of other local-dev-only files (`.mcp.json`,
+  # `.rspec-local.example`). `.github/**` is deliberately NOT on this
+  # list, `ci.yml` included — a workflow-file change is exactly the kind
+  # of "real doubt" this job's own philosophy says to run through rather
+  # than hand-verify is safe.
+  postgres_io_relevant_changed:
+    runs-on: ubuntu-latest
+
+    outputs:
+      touched: ${{ steps.diff.outputs.touched }}
+
+    env:
+      # See the header comment above for how this was derived — a real
+      # ~30-file dependency-surface investigation, not a guess. Anything
+      # NOT matching one of these prefixes/files is treated as possibly
+      # relevant (fails toward RUNNING the job, never toward skipping it).
+      POSTGRES_IO_SAFE_TO_SKIP_PATTERN: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FULL HISTORY — same reason as `runtime_changed`'s own
+          # identical setting below: the `git diff` needs both endpoints
+          # present as real objects in this checkout, not just the tip a
+          # shallow fetch would give it.
+          fetch-depth: 0
+
+      # BASE resolution — the same two cases `runtime_changed`'s own step
+      # below already uses (a pull_request's base commit, else a
+      # merge_group's base), reused rather than re-derived, PLUS a third
+      # case `runtime_changed` never needed: `github.event.before`, for
+      # the `push` trigger this job (unlike `runtime_changed`) actually
+      # runs under. Its result is never consulted for a `push` run either
+      # way (`rspec_postgres_io_parallel`'s own `if:` below short-circuits
+      # on `github.event_name == 'push'` first) — computed anyway so this
+      # step behaves sensibly under every trigger this workflow has,
+      # rather than being correct only for the two cases that happen to
+      # matter today.
+      #
+      # FAILS TOWARD "RUN IT", NOT "SKIP IT" — unlike letting a hard
+      # failure anywhere in this step turn into a job failure (which
+      # would cascade into skipping `rspec_postgres_io_parallel` via the
+      # `needs:`/`if:` below — the OPPOSITE of this job's own "when in
+      # doubt, run it" philosophy, see above), every branch here that
+      # can't positively confirm a real, safely-excludable diff sets
+      # `touched=true` instead of letting the step fail or guessing.
+      - name: does this change touch anything rspec_postgres_io_parallel covers?
+        id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
+          fi
+          if [ -z "$BASE" ]; then
+            BASE="${{ github.event.before }}"
+          fi
+
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "no usable BASE to diff against — running rspec_postgres_io_parallel rather than guessing" >&2
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED="$(git diff --name-only "$BASE" "${{ github.sha }}")" || {
+            echo "git diff itself failed — running rspec_postgres_io_parallel rather than guessing" >&2
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          if [ -z "$CHANGED" ]; then
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if echo "$CHANGED" | grep -vE "$POSTGRES_IO_SAFE_TO_SKIP_PATTERN" | grep -q .; then
+            echo "touched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "touched=false" >> "$GITHUB_OUTPUT"
+          fi
+
   rspec_postgres_io_parallel:
     runs-on: ubuntu-latest
+
+    needs: postgres_io_relevant_changed
+
+    # `push` is exempt from the skip gate entirely — PR #572 (see
+    # top-of-file comment) needs this job unconditional on a genuine push
+    # to main, to keep its runtime-log cache warm at default-branch
+    # scope; a skip here on push would silently undo that fix by never
+    # refreshing the cache after a doc-only (or otherwise skip-eligible)
+    # merge. See `postgres_io_relevant_changed`'s own header comment
+    # above for the real dependency-surface investigation behind the
+    # non-push half of this condition.
+    if: github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true'
 
     services:
       postgres:
