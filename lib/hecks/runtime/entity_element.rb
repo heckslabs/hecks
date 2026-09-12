@@ -214,7 +214,7 @@ module Hecks
       # shape here without doing the same there would break that
       # intentional mirroring, which is what lets the two be diffed
       # against each other when one gets a fix the other needs too.
-      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
       # `pre` — the element as it was before this command (C4.2): every
       # read below goes through it, every write lands on `element`.
       def apply_to_element(rules, aggregate, entity, element, mutation, args, pre = element)
