@@ -30,6 +30,8 @@
 #   bin/qa_sweep --all --adversarial 0      # turn adversarial generation OFF
 #   bin/qa_sweep pizzas --self-consistency false   # differential comparison only
 #   bin/qa_sweep directory --persistence-parity   # Memory vs real PostgresEra, one target only
+#   bin/qa_sweep --all --persistence-parity       # --all, forcing the parity wave on regardless of the dial
+#   bin/qa_sweep --all --no-parity                 # --all, skipping the parity wave even if the dial has it on
 #
 # ADVERSARIAL BY DEFAULT. Every sequence this script generates goes
 # through `SequenceGenerator`'s adversarial layer (`lib/hecks/fuzzing/
@@ -505,16 +507,33 @@ if all_mode && target_ref
         "(got #{target_ref.inspect})"
 end
 
-# `--all --persistence-parity` USED TO ABORT ("single-target only"). Now
-# `--all` runs the persistence-parity pass ITSELF, as a second wave
-# over every `postgres_era`-capable target that came back clean from
-# the first (see `run_parity_wave` below) — so the flag under `--all`
-# just narrows every child to that one mode, the same thing `--modes
-# persistence_parity` says. Single-target, it still needs a name: the
-# rotation's own auto-pick weights by staleness and yield, not by who
-# binds PostgresEra, and a target that can't be compared this way is an
-# operational error, not a finding.
-if persistence_parity_mode && !all_mode && !target_ref
+# `--all --persistence-parity` USED TO ABORT ("single-target only"). It
+# is a legitimate combination now, but NOT "narrow every child to only
+# this one mode" — that would abort every OTHER target in an ordinary
+# rotation individually ("declares no persisted_by(PostgresEra)
+# binding"), one noisy operational error per ineligible target, which
+# is exactly the wrong shape for a flag whose old behavior was a single
+# clean refusal. Under `--all` this flag instead means "make sure the
+# parity wave runs" — folding back to plain `--all` with
+# `persistence_parity` ADDED to the enabled set (the same union
+# `--self-consistency true` already does to that set), forcing the wave
+# on even if a dial ever disabled the mode by default. `--modes
+# persistence_parity` is still the lower-level escape hatch for
+# genuinely narrowing `--all` to one mode across the whole rotation,
+# ineligible-target errors and all — this flag is not that.
+#
+# SINGLE-TARGET, UNTOUCHED — the narrowing above (`explicit_modes =
+# %i[persistence_parity]`) still applies exactly as before for a human
+# who names ONE eligible target on purpose; the rotation's own auto-pick
+# weights by staleness and yield, not by who binds PostgresEra, so a
+# named target is still required there.
+force_parity_wave = all_mode && persistence_parity_mode
+if force_parity_wave
+  persistence_parity_mode = false
+  explicit_modes = nil
+end
+
+if persistence_parity_mode && !target_ref
   abort "#{USAGE}\n--persistence-parity needs an explicit target-reference — it never auto-picks from the " \
         "rotation, since only a PostgresEra-bound domain gains anything from this comparison at all " \
         "(`resolved modes:` on any single-target run says whether a target qualifies)"
@@ -576,6 +595,10 @@ enabled_modes = explicit_modes ||
 if self_consistency_explicit || explicit_modes.nil?
   enabled_modes = self_consistency ? (enabled_modes | [:self_consistency]) : (enabled_modes - [:self_consistency])
 end
+# `--all --persistence-parity` (see `force_parity_wave` above) — the
+# same kind of union `--self-consistency true` makes, forcing the wave
+# on regardless of what the dial says today.
+enabled_modes |= [:persistence_parity] if force_parity_wave
 structural_boundary =
   defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
 

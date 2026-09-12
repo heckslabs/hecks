@@ -142,21 +142,29 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator do
 
       history = Hecks::Fuzzing::Replay.call(ROLE_PIZZAS, steps)
       expect(history[:dry_runs].size).to eq(dry.size)
+      # `dry_runs` ITSELF STAYS exactly `{verb:, ok:, error?:}` — the same
+      # shape the compiled Rust binary's own `dry_run` answers, so
+      # `spec/rust_conformance_spec.rb`'s direct comparison against it
+      # never sees a key Rust doesn't have; `before:`/`after:` live on the
+      # SEPARATE, parallel `dry_run_traces` array instead.
+      expect(history[:dry_runs]).to all(include(:verb, :ok))
+      expect(history[:dry_runs]).to all(satisfy { |e| !e.key?(:before) && !e.key?(:after) })
       expect(Hecks::Fuzzing::Properties.dry_runs_leave_no_trace(history)).to be(true)
-      expect(history[:dry_runs]).to all(include(:verb, :ok, :before, :after))
+      expect(history[:dry_run_traces].size).to eq(dry.size)
+      expect(history[:dry_run_traces]).to all(include(:verb, :ok, :before, :after))
     end
 
     it "dry_runs_leave_no_trace names a hypothetical that wrote something" do
-      history = { dry_runs: [{ verb: "Pizzas::Order.CreatePizza", ok: true,
-                               before: { instances: {}, events: 0 },
-                               after:  { instances: { "Pizzas::Order#x" => {} }, events: 1 } }] }
+      history = { dry_run_traces: [{ verb: "Pizzas::Order.CreatePizza", ok: true,
+                                     before: { instances: {}, events: 0 },
+                                     after:  { instances: { "Pizzas::Order#x" => {} }, events: 1 } }] }
       result = Hecks::Fuzzing::Properties.dry_runs_leave_no_trace(history)
       expect(result).to be_a(String)
       expect(result).to include("CreatePizza", "events 0 -> 1", "instances changed")
     end
 
     it "dry_runs_leave_no_trace passes an entry with no snapshots through — no claim, no finding" do
-      expect(Hecks::Fuzzing::Properties.dry_runs_leave_no_trace({ dry_runs: [{ verb: "x", ok: false }] })).to be(true)
+      expect(Hecks::Fuzzing::Properties.dry_runs_leave_no_trace({ dry_run_traces: [{ verb: "x", ok: false }] })).to be(true)
     end
   end
 

@@ -102,6 +102,7 @@ module Hecks
           refusals        = []
           queries         = []
           dry_runs        = []
+          dry_run_traces  = []
           fan_outs        = []
           guard_checks    = []
           mutation_traces = []
@@ -202,15 +203,25 @@ module Hecks
             # evaluated hypothetically, nothing saved or emitted, no reaction.
             # Recorded, never a refusal: a refused dry run is an ANSWER.
             #
-            # `before:`/`after:` — the whole observable store (every
-            # instance, the event count) on either side of the hypothetical
-            # call, so `Properties.dry_runs_leave_no_trace` can hold the
-            # door to its own contract rather than trusting it. The SAME
-            # `role:`/`actor_id:` binding a real dispatch gets (below) —
-            # `kernel/cli.rs`'s own `dry_run` reads both keys too, so a
-            # role-gated dry run is refused (or not) identically on both
-            # sides. `verb`/`ok` are what the differential comparison
-            # reads; the rest is Ruby's own oracle data.
+            # `dry_runs` STAYS EXACTLY `{verb:, ok:, error?:}` — the SAME
+            # shape it always had, and the SAME shape `kernel/cli.rs`'s own
+            # `dry_run` answers (`{"verb", "ok"}` or `{"verb", "ok": false,
+            # "error"}`, that function's own doc comment) — `spec/rust_
+            # conformance_spec.rb` compares this array against the compiled
+            # binary's own verbatim, so it can never carry a key Rust's own
+            # answer does not. The role-gated binding (`as_step_caller`,
+            # the SAME `role:`/`actor_id:` a real dispatch gets below) still
+            # applies to the dry-run call itself — only what gets RECORDED
+            # about it is unchanged.
+            #
+            # `dry_run_traces` — A SEPARATE, PARALLEL array (same order,
+            # not merged into `dry_runs` above) carrying `before:`/`after:`
+            # snapshots of the whole observable store (every instance, the
+            # event count) on either side of the hypothetical call, so
+            # `Properties.dry_runs_leave_no_trace` can hold `Dispatcher
+            # #dry_run?`'s own contract to the store rather than trusting
+            # it. Ruby's own oracle data — Rust has nothing to compare it
+            # against, so it stays out of the compared surface entirely.
             if (hypothetical = step["dry_run"])
               before = { instances: snapshot_instances(runtime), events: runtime.events.size }
               entry  = { verb: hypothetical }
@@ -218,10 +229,11 @@ module Hecks
                 as_step_caller(step) { runtime.dry_run?(hypothetical, **args) }
                 entry[:ok] = true
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-                entry.merge!(ok: false, error: e.message, kind: refusal_kind(e))
+                entry.merge!(ok: false, error: e.message)
               end
               after = { instances: snapshot_instances(runtime), events: runtime.events.size }
-              dry_runs << entry.merge(before: before, after: after)
+              dry_runs << entry
+              dry_run_traces << entry.merge(before: before, after: after)
               next
             end
 
@@ -381,7 +393,8 @@ module Hecks
           # "the" bluebook — reads this instead.
           history = { instances: instances, events: events, refusals: refusals,
                       reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-                      queries: queries, dry_runs: dry_runs, fan_outs: fan_outs, guard_checks: guard_checks,
+                      queries: queries, dry_runs: dry_runs, dry_run_traces: dry_run_traces,
+                      fan_outs: fan_outs, guard_checks: guard_checks,
                       mutation_traces: mutation_traces,
                       saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
                       bluebook: runtime.registry.bluebooks.values.first,

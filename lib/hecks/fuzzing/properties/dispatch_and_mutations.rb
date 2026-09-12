@@ -5,14 +5,19 @@ module Hecks
       # ("the command evaluated hypothetically, nothing saved or emitted,
       # no reaction"), held to the store rather than trusted: `Replay`
       # snapshots every instance and the event count on either side of
-      # each `{"dry_run": …}` step (`before:`/`after:` on the entry), and
-      # this is the comparison. Refused or accepted makes no difference —
-      # a hypothetical that was refused had even less business writing
-      # anything. Entries without the snapshots (a hand-built history, an
-      # older corpus) are skipped, not failed: no claim, no finding.
+      # each `{"dry_run": …}` step, in a SEPARATE `dry_run_traces` array
+      # (same order as `history[:dry_runs]`, never merged into it — that
+      # array stays the exact `{verb:, ok:, error?:}` shape the compiled
+      # Rust binary's own `dry_run` answers, so `spec/rust_conformance_
+      # spec.rb`'s direct comparison against it never sees a key Rust
+      # doesn't have), and this is the comparison. Refused or accepted
+      # makes no difference — a hypothetical that was refused had even
+      # less business writing anything. Entries without the snapshots (a
+      # hand-built history, an older corpus) are skipped, not failed: no
+      # claim, no finding.
       module DryRuns
         def dry_runs_leave_no_trace(history)
-          offenders = Array(history[:dry_runs]).filter_map do |entry|
+          offenders = Array(history[:dry_run_traces]).filter_map do |entry|
             before = entry[:before]
             after  = entry[:after]
             next unless before && after
