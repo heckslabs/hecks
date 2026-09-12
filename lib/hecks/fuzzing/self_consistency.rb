@@ -2,6 +2,7 @@ require "json"
 require "tmpdir"
 require "open3"
 require_relative "../adapters/driven/heki"
+require_relative "../runtime/saga_interpreter"
 
 module Hecks
   module Fuzzing
@@ -80,7 +81,9 @@ module Hecks
       # check can fire never has to reason about the other two.
       def check(runtime, history)
         { rehydration: check_rehydration(runtime), idempotency: check_idempotency(runtime),
-          value_object_round_trip: check_value_object_round_trip(history) }
+          value_object_round_trip: check_value_object_round_trip(history),
+          saga_rehydration: check_saga_rehydration(runtime, history),
+          saga_redelivery_idempotency: check_saga_idempotency(runtime, history) }
       end
 
       # CHECK 1 — REHYDRATE-FROM-JOURNAL == LIVE STATE.
@@ -180,6 +183,158 @@ module Hecks
 
           { field: "value_object_round_trip", type: value.type_name, original: value.to_h,
             rehydrated: rebuilt.to_h }
+        end
+      end
+
+      # CHECK 4 — SAGA COLD-REHYDRATION (ANGLE-10). Checks 1/2 above cold-
+      # read an AGGREGATE's own journal through Heki; nothing in this file
+      # ever exercised the OTHER durable store `SagaInterpreter#checkpoint`
+      # writes through — `Ports::Persistence::NullSagaStore`'s own header
+      # calls Heki's `SagaStore` (`adapters/driven/heki/saga_store.rb`) the
+      # OPTIONAL saga-persistence capability, and it is real and already
+      # shipping, just never fuzzed: `Registry#rehydrate_sagas!` — the
+      # production "process just restarted" path — folds exactly what
+      # `each_saga` yields back into `@saga_instances`, and until now
+      # nothing ever proved that round trip faithful for a sequence this
+      # practice actually generated. `BUG#6`/`#9`/`#10` all came out of
+      # this exact interpreter, which is why this checks it specifically
+      # rather than folding it into checks 1/2's own aggregate walk.
+      #
+      # `history[:saga_instances]` (`replay.rb`'s own `saga_instances`
+      # local, built once at the very end of a replay) is the SAME
+      # materialized `{pm_name => {correlation => {state:, memory:}}}`
+      # shape `SagaInterpreter#checkpoint` itself hands a real adapter —
+      # read from `history`, not re-derived from the (by-now-live, already
+      # mutated by whatever `check_saga_idempotency` ran first, see that
+      # method's own header) `runtime.registry.saga_instances`. Written
+      # through a REAL `Adapters::Heki` (a throwaway tmpdir, one per
+      # process manager so two process managers with correlations that
+      # happen to collide as strings never share a store), read back
+      # through a FRESH instance (unmemoized `@store`/`@saga_store`, same
+      # reason `fold!` above uses one) — forcing the identical
+      # `JSON.generate`/`JSON.parse` boundary a real crash-then-restart
+      # takes, not a live-object pass-through.
+      #
+      # ONE FINDING PER (domain, process manager) — every correlation this
+      # process manager's own `history[:saga_instances]` entry holds,
+      # compared as a whole Hash — the same aggregate-granularity (not
+      # per-record) `check_rehydration` already reports at.
+      #
+      # `completed_compensations` is DELIBERATELY OUT OF SCOPE — `history[
+      # :saga_instances]` never captures it (`replay.rb`'s own comment:
+      # only `state`/`memory` are threaded through, since a saga's
+      # in-flight compensation ledger is a fact about a leg still running,
+      # not the settled snapshot this history exists to describe), so
+      # there is no ground truth to compare it against here. Written as an
+      # empty array on the way in and never read back on the way out.
+      def check_saga_rehydration(runtime, history)
+        saga_instances = history[:saga_instances] || {}
+        each_domain_process_manager(runtime).filter_map do |domain_name, process_manager|
+          persisted = saga_instances[process_manager.name]
+          next if persisted.nil? || persisted.empty?
+
+          anchor = runtime.registry.bluebook(domain_name).aggregates.first
+          next unless anchor
+
+          Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
+            writer = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+            persisted.each do |correlation, saga|
+              writer.save_saga(process_manager: process_manager.name, correlation: correlation.to_s,
+                               state: saga[:state], memory: saga[:memory], completed_compensations: [])
+            end
+
+            live       = normalize_saga_rows(persisted)
+            rehydrated = cold_read_saga_rows(anchor, tmp, domain_name)
+            next if rehydrated == live
+
+            { field: "saga_rehydration", domain: domain_name, process_manager: process_manager.name,
+              live: live, rehydrated: rehydrated }
+          end
+        end
+      end
+
+      # CHECK 5 — REDELIVERY IDEMPOTENCY OF THE CHECKPOINT-THEN-LOAD PATH.
+      # `check_saga_rehydration` above proves cold-reading a checkpoint
+      # reproduces the same DATA; this proves the OTHER half of a real
+      # crash/restart — a message an at-least-once delivery mechanism (an
+      # outbox redrive, a queue redelivery) hands the rehydrated saga a
+      # SECOND time — does not silently re-advance it. There is no flag
+      # for this in production (`SagaInterpreter#unwind`'s own comment:
+      # "the check is the guard") — the (event, current state) lookup
+      # `handler_for` performs is the ENTIRE mechanism, and it has never
+      # been exercised against a state this practice loaded from cold
+      # storage rather than one still sitting in a live process's memory.
+      #
+      # ONE (PROCESS MANAGER, CORRELATION) TESTED, using a fresh
+      # `Runtime::SagaInterpreter` sharing `runtime`'s own `registry` and
+      # `door: runtime` — the identical two objects the DISPATCHER'S own
+      # `@sagas` was built from (`dispatcher.rb`'s own `SagaInterpreter.
+      # new(registry, door: self)`) — not a hand-rolled re-implementation
+      # of `advance_saga`'s own state-guard. `only: process_manager` scopes
+      # the redelivery to exactly the one procedure under test, the same
+      # keyword the outbox relay already uses to run one consumer alone
+      # (`Runtime::Outbox::Relay#run_consumer`).
+      #
+      # WHICH EVENT TO REDELIVER — `runtime.registry.saga_log`'s own last
+      # `advanced: true` row for this (process manager, correlation) names
+      # the event BY NAME ONLY; the REAL `Runtime::Event` object (payload,
+      # aggregate, id, `correlation` — everything `saga_correlation`/
+      # `dispatch_args` actually read) lives in `runtime.events`, still
+      # live for exactly this reason (this file's own header: "runtime IS
+      # STILL LIVE HERE"). Matched back by NAME plus `saga_correlation`
+      # itself (`Runtime::SagaInterpreter::Correlation`, `private`) —
+      # reused via `send` rather than reproduced, because reproducing its
+      # three-tier fallback (a dotted payload field, a stamped passthrough,
+      # a self-identifying `event.id`) here would be exactly the
+      # hand-rolled approximation this file was told not to build. A
+      # `:refused`-driven (compensating) transition is skipped outright —
+      # its own `saga_log` row's `on:` is the synthetic `REFUSED` trigger
+      # name, never a real domain event, so there is nothing to redeliver.
+      #
+      # SIMULATING "JUST RESTARTED" — the live registry's own in-memory
+      # `saga_instances[pm][correlation]` slot is overwritten, IN PLACE,
+      # with whatever a cold Heki read of the SAME checkpoint answers
+      # (exactly what `Registry#rehydrate_sagas!` does for real on every
+      # boot), the redelivery is driven through the real interpreter, and
+      # the slot is put back — `ensure`d — once this correlation's own
+      # check is done. Safe ONLY because `check`/`Replay.call` run this,
+      # synchronously, single-threaded, as the very last thing before
+      # `runtime` and its whole tmp directory go out of scope for good;
+      # nothing downstream of this method ever reads the LIVE registry
+      # again (`check_saga_rehydration`, `check_rehydration`, `check_
+      # idempotency`, `check_value_object_round_trip` all read `history`'s
+      # own frozen snapshot instead, never `runtime.registry` — so calling
+      # order relative to this method's own mutation doesn't matter).
+      #
+      # THE ASSERTION IS ABOUT `state`/`memory`, NOT "did a dispatch fire"
+      # — a leg whose own `from:`/`to:` are the SAME state (every existing
+      # saga's own starts_on self-transition, `waybill.bluebook`'s own leg
+      # 1/2) is EXPECTED to re-run on redelivery with no visible state
+      # change at all; that is a property of the declared handler graph,
+      # not a rehydration defect, and asserting against it here would
+      # manufacture a false positive on every saga this corpus has. A
+      # correlation whose current state has no declared handler at all for
+      # the redelivered event name (the ordinary, expected case once a
+      # saga has moved past the leg that produced its own current
+      # checkpoint) is exactly what this proves stays put.
+      def check_saga_idempotency(runtime, history)
+        saga_instances = history[:saga_instances] || {}
+        interpreter    = Runtime::SagaInterpreter.new(runtime.registry, door: runtime)
+
+        each_domain_process_manager(runtime).flat_map do |domain_name, process_manager|
+          persisted = saga_instances[process_manager.name]
+          next [] if persisted.nil? || persisted.empty?
+
+          anchor = runtime.registry.bluebook(domain_name).aggregates.first
+          next [] unless anchor
+
+          persisted.filter_map do |correlation, saga|
+            redelivery = last_advancing_event(runtime, interpreter, process_manager, correlation)
+            next unless redelivery
+
+            check_one_saga_redelivery(runtime, interpreter, domain_name, process_manager, anchor,
+                                      correlation, saga, redelivery)
+          end
         end
       end
 
@@ -285,6 +440,149 @@ module Hecks
 
       def snapshot(repository)
         repository.all.to_h { |record| [record.id.to_s, Runtime::Value.materialize(record.state)] }
+      end
+
+      # EVERY [domain, process manager] PAIR ANY LOADED BLUEBOOK DECLARES —
+      # regardless of whether this replay's own `history[:saga_instances]`
+      # ever touched it (mirrors `each_touched_repository`'s own walk one
+      # level up; the "did anything actually persist" filter lives in each
+      # check's own caller, same as that method's `entries.empty?` guard).
+      # An empty return here IS the "domain declares no process manager"
+      # skip `check_saga_rehydration`/`check_saga_idempotency` both need —
+      # `filter_map`/`flat_map` over an empty Array already answers `[]`,
+      # identical to "ran and found nothing," which is deliberate: neither
+      # check has a positive "passed" artifact to report either way (see
+      # this file's own header on why silence is never a claimed pass).
+      def each_domain_process_manager(runtime)
+        found = []
+        runtime.registry.bluebooks.each do |domain_name, bluebook|
+          bluebook.process_managers.each { |pm| found << [domain_name, pm] }
+        end
+        found
+      end
+
+      # THE LIVE-SIDE GROUND TRUTH, key-shape-normalized (see `deep_
+      # stringify_keys`'s own comment) so it compares fairly against a
+      # real Heki round trip's own shallow-symbolize convention.
+      def normalize_saga_rows(persisted)
+        persisted.each_with_object({}) do |(correlation, saga), rows|
+          rows[correlation.to_s] = { state: saga[:state], memory: deep_stringify_keys(saga[:memory]) }
+        end
+      end
+
+      # A FRESH `Adapters::Heki` AT THE SAME `tmp`/`domain` — unmemoized
+      # `@store`/`@saga_store`, so `#each_saga` is forced back through
+      # `read_snapshot`/`replay_journal`, real bytes off real disk, not
+      # whatever the writer that just wrote them still holds in its own
+      # process memory (the same reason `fold!`, above, opens a second
+      # `Adapters::Heki` instance rather than reading its own writer back).
+      def cold_read_saga_rows(anchor, tmp, domain_name)
+        reader = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+        reader.each_saga.with_object({}) do |(_pm, correlation, state, memory, _completed), rows|
+          rows[correlation] = { state: state, memory: deep_stringify_keys(memory) }
+        end
+      end
+
+      # `SagaStore#each_saga` ONLY EVER SYMBOLIZES `memory`'S OWN TOP-LEVEL
+      # KEYS (`heki/saga_store.rb`'s own `each_saga`, one level deep) —
+      # `Registry::SagaPersistence#warn_stalled_saga` already documents
+      # this exact asymmetry for the one reserved key production code
+      # cares about (`SAGA_PENDING_DISPATCH_KEY`). A NESTED composite
+      # memory field (any saga whose starting event carries a value
+      # object, which is most of them — `waybill.bluebook`'s own
+      # `ConsignmentRequested` alone has three) comes back with STRING
+      # keys at every level BELOW the top, while `history[:saga_instances]`
+      # 's own `Runtime::Value.materialize` call produces SYMBOL keys
+      # throughout. That asymmetry is Heki's own documented, accepted
+      # storage convention — an "opaque, adapter-agnostic JSON blob"
+      # (`SagaInterpreter#checkpoint`'s own comment), never a typed
+      # rebuild the way an AGGREGATE's own composite fields get on cold
+      # read (this file's own header: there is no VO schema to rebuild
+      # against for a saga's memory blob at all) — not a rehydration
+      # defect this check exists to find. Recursively re-stringifying
+      # BOTH sides before comparing is what tells that KNOWN, accepted
+      # shape difference apart from an ACTUAL data-loss bug (a dropped
+      # key, a changed value, a missing field) — exactly the kind (b)'s
+      # own seeded fixture in `spec/fuzzing/self_consistency_saga_spec.rb`
+      # proves this still catches.
+      def deep_stringify_keys(value)
+        case value
+        when Hash  then value.each_with_object({}) { |(k, v), h| h[k.to_s] = deep_stringify_keys(v) }
+        when Array then value.map { |item| deep_stringify_keys(item) }
+        else value
+        end
+      end
+
+      # THE REAL, ALREADY-ANNOUNCED EVENT this correlation's CURRENT
+      # checkpoint came from — walked back out of `runtime.registry.
+      # saga_log`'s own `advanced: true` rows (newest first), skipping the
+      # synthetic `REFUSED` trigger (`Runtime::SagaInterpreter::REFUSED`
+      # — a compensating transition's own log entry names that, never a
+      # real domain event; there is nothing in `runtime.events` to
+      # redeliver for it). `nil` when no real advancing event exists at
+      # all (a correlation only ever `begin_saga`'d, never advanced) —
+      # `check_saga_idempotency`'s own caller skips a `nil` outright,
+      # exactly like `each_touched_repository`'s own "nothing to check"
+      # skip one level up.
+      #
+      # `interpreter.send(:saga_correlation, ...)` — `Correlation` is
+      # `private`, and reproducing its own three-tier fallback (a dotted
+      # payload field, a stamped passthrough, a self-identifying
+      # `event.id`) here rather than reusing it would be exactly the
+      # "hand-rolled approximation" this check exists to avoid; `send` on
+      # an interpreter sharing this SAME `runtime`'s own registry is the
+      # real thing, not a copy of it.
+      def last_advancing_event(runtime, interpreter, process_manager, correlation)
+        entry = runtime.registry.saga_log.reverse_each.find do |row|
+          row[:process_manager] == process_manager.name && row[:instance] == correlation &&
+            row[:advanced] && row[:on] != Runtime::SagaInterpreter::REFUSED
+        end
+        return nil unless entry
+
+        runtime.events.reverse_each.find do |event|
+          event.name == entry[:on] && interpreter.send(:saga_correlation, process_manager, event) == correlation
+        end
+      end
+
+      # ONE (process manager, correlation)'s OWN redelivery check — pulled
+      # out of `check_saga_idempotency` itself so that method's own
+      # `flat_map`/`filter_map` walk stays readable; every local this
+      # shares with its caller (`interpreter`, `anchor`) is passed in
+      # rather than re-derived.
+      def check_one_saga_redelivery(runtime, interpreter, domain_name, process_manager, anchor,
+                                    correlation, saga, redelivery)
+        Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
+          writer = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+          writer.save_saga(process_manager: process_manager.name, correlation: correlation.to_s,
+                           state: saga[:state], memory: saga[:memory], completed_compensations: [])
+
+          rehydrated = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+                                     .each_saga.find { |_pm, corr, *| corr == correlation.to_s }
+          next unless rehydrated
+
+          _pm, _corr, state, memory, compensations = rehydrated
+          before = { state: state, memory: deep_stringify_keys(memory) }
+
+          saga_instances = runtime.registry.saga_instances[process_manager.name]
+          original       = saga_instances[correlation]
+          begin
+            saga_instances[correlation] = { state: state, memory: memory, completed_compensations: compensations || [] }
+            interpreter.advance(redelivery, domain_name, only: process_manager)
+
+            after       = saga_instances[correlation]
+            after_shape = after && { state: after[:state], memory: deep_stringify_keys(after[:memory]) }
+            next if after_shape == before
+
+            { field: "saga_redelivery_idempotency", domain: domain_name, process_manager: process_manager.name,
+              correlation: correlation, on: redelivery.name, before: before, after: after_shape }
+          ensure
+            if original
+              saga_instances[correlation] = original
+            else
+              saga_instances.delete(correlation)
+            end
+          end
+        end
       end
 
       # ONE FOLD OF `entries` INTO `writer` (a real, already-open `Heki`
