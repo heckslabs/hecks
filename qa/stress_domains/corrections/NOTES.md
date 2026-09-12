@@ -60,6 +60,23 @@ all. Two independent gaps compound:
   data-dependent, not universal, which is exactly why it had never been
   seen before this domain existed to isolate it.
 
+  **CI implication, found and closed the same session:** `bin/fuzz` (the
+  `checks` GitHub Actions job — `.github/workflows/ci.yml`, `bundle exec
+  bin/fuzz`, no args, every corpus domain) sweeps this domain too, and
+  the crash above propagates straight through it — `bin/fuzz`'s own
+  `rescue Hecks::Runtime::WiringError` around sequence generation already
+  exists, but was scoped ONLY to a different, unrelated known gap
+  (`compute`/`rekey` translation rules needing a real era/Postgres boot)
+  and explicitly re-raised anything else. Rather than leave `checks` red
+  on `main` for as long as this stays unfixed, `bin/fuzz` now carries a
+  second, equally narrow `when` for this EXACT exception message
+  (`known_unfuzzable_wiring_gap`, `bin/fuzz`) — scoped to the message
+  text alone, not a blanket `WiringError` rescue, so it stops applying
+  automatically, with no further edit needed, the instant finding 1 is
+  actually fixed and nothing raises it anymore. This is tracking a real,
+  logged Bug against the QualityControl ledger, not a permanent accepted
+  gap — see that Bug for the authoritative record.
+
 ## 2. Rust's own generated code has NO admissibility check for entity-level `corrects` — the headline divergence
 
 `rust/project/commands.rb#corrects_given_specs` (the synthetic, prepended
