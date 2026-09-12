@@ -23549,11 +23549,11 @@
               ],
               [
                 "site",
-                "reference_as_object"
+                "reference_wrong_shape"
               ],
               [
                 "template",
-                "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
+                "{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}"
               ]
             ],
             [

@@ -148,7 +148,7 @@ module Hecks
         {"refusal"=>"UnknownVerb", "site"=>"no_aggregate", "template"=>"{domain} has no aggregate {aggregate}"}.freeze,
         {"refusal"=>"LifecycleRefused", "site"=>"transition_blocked", "template"=>"{command} refused — {field} is {current}, and {command} moves it only from {allowed}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"value_object_shape", "template"=>"{name} is a {type} — pass its fields as an object, not {offered}"}.freeze,
-        {"refusal"=>"TypeMismatch", "site"=>"reference_as_object", "template"=>"{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"}.freeze,
+        {"refusal"=>"TypeMismatch", "site"=>"reference_wrong_shape", "template"=>"{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"multi_field_scalar", "template"=>"{type} has multiple fields and cannot stand in for a scalar"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"composite_identity", "template"=>"{type} is a composite identity — an identity must have exactly one field"}.freeze,
         {"refusal"=>"TypeMismatch", "site"=>"numeric_field", "template"=>"{type}.{field} expects {expected}, got {offered}"}.freeze,

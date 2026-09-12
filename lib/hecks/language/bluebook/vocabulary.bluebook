@@ -284,8 +284,20 @@ Hecks.bluebook "Bluebook" do
              template: "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
       member refusal: "TypeMismatch", site: "value_object_shape",
              template: "{name} is a {type} — pass its fields as an object, not {offered}"
-      member refusal: "TypeMismatch", site: "reference_as_object",
-             template: "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
+      # RENAMED FROM `reference_as_object` (BUG#27, QualityControl ledger) —
+      # a reference command argument that is an object was never the only
+      # wrong shape, only the first one anyone noticed: a bare Boolean,
+      # Array, or `null` used to sail past this refusal entirely, get
+      # `.to_s`'d into a lookup key by `CommandRules::References#
+      # reference_key` ("true", "false", "[8, 8]"), and answer NotFound (or,
+      # for `null`, skip the lookup outright and answer whatever the
+      # command's own `given` said instead) — a shape error misreading as a
+      # missing record. `{offered}` now names what actually arrived; the
+      # Hash/Value case still renders "an object" (Value::Coercion's own
+      # `reference_shape_description`), so the wording already pinned byte
+      # for byte in spec/runtime/reference_shape_spec.rb is unchanged.
+      member refusal: "TypeMismatch", site: "reference_wrong_shape",
+             template: "{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}"
       member refusal: "TypeMismatch", site: "multi_field_scalar",
              template: "{type} has multiple fields and cannot stand in for a scalar"
       member refusal: "TypeMismatch", site: "composite_identity",

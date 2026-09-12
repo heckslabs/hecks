@@ -66,6 +66,87 @@ RSpec.describe "a reference that arrives as an object" do
     expect(wire[:destination]).to eq("b")
   end
 
+  # BUG#27 (QualityControl ledger) — found live on qa/stress_domains/
+  # referral_chain's Member.Join/Referral.Issue: a bare Boolean, Array, or
+  # `null` used to sail past this refusal entirely (only Hash/Value ever
+  # matched it), get `.to_s`'d into a lookup key by `CommandRules::
+  # References#reference_key` ("true", "false", "[8, 8]"), and answer
+  # NotFound — or, for `null`, skip the lookup outright (`next if
+  # held.nil?`, command_rules/references.rb) and answer whatever the
+  # command's own `given` said instead (GivenNotMet here — "a wire moves
+  # something" never even reaches `amount`). Rust's generated `from_json`
+  # has always required a JSON string for a required reference field
+  # before anything else runs — these four pin Ruby refusing the SAME
+  # kind, at the SAME step (`normalize_args`, before `resolve_references`
+  # ever gets a value to look up), matching it.
+  describe "a non-string, non-object reference argument" do
+    {
+      "a bare Boolean (false)" => false,
+      "a bare Boolean (true)"  => true,
+      "a bare Array"           => [8, 8]
+    }.each do |description, malformed|
+      it "refuses #{description} as a wrong shape, not a lookup" do
+        expect do
+          runtime.dispatch("Wire::Wire.Ask", reference: { value: "w3" }, amount: { cents: 100 },
+                                              source: malformed, destination: "b")
+        end.to raise_error(Hecks::Runtime::TypeMismatch,
+                           "Ask refused — a reference is an id, and source arrived as " \
+                           "#{malformed.is_a?(Array) ? malformed.to_json : malformed} (Drawer is known by number)")
+      end
+    end
+
+    it "refuses a REQUIRED reference offered as null, rather than reaching the command's own given" do
+      expect do
+        runtime.dispatch("Wire::Wire.Ask", reference: { value: "w4" }, amount: { cents: 100 },
+                                            source: nil, destination: "b")
+      end.to raise_error(Hecks::Runtime::TypeMismatch,
+                         "Ask refused — a reference is an id, and source arrived as nil (Drawer is known by number)")
+    end
+  end
+
+  # THE OTHER HALF OF THE JUDGMENT — an OPTIONAL command-level reference
+  # (`reference_to ..., optional: true`) still passes an explicit `null`
+  # straight through untouched: the caller genuinely may have nothing to
+  # name yet (`Improvement.Open`'s own `reference_to Angle, optional:
+  # true`, qa/bluebook/quality_control.bluebook), and BUG#27's fix is
+  # scoped to a REQUIRED reference's own wrong shapes, not to this case.
+  describe "an optional reference argument" do
+    # NOT `HOP_CHAIN` — `spec/runtime/query_hop_spec.rb` already owns that
+    # top-level name for the identical fixture path, and `load_hygiene_
+    # spec.rb` refuses two spec files disagreeing about (or merely
+    # duplicating) a top-level constant.
+    OPTIONAL_REFERENCE_HOP_CHAIN = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
+
+    def boot_hop_chain
+      registry = Hecks::Runtime::Registry.new
+
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(OPTIONAL_REFERENCE_HOP_CHAIN)
+        Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+      end
+    end
+
+    let(:hop_chain_runtime) { boot_hop_chain }
+
+    it "accepts an explicit null for a reference declared optional: true" do
+      expect do
+        hop_chain_runtime.dispatch("HopChain::Proposal.Draft", number: { value: "p1" }, engagement: nil)
+      end.not_to raise_error
+    end
+
+    it "still refuses a wrong NON-NULL shape on that same optional reference" do
+      expect do
+        hop_chain_runtime.dispatch("HopChain::Proposal.Draft", number: { value: "p2" }, engagement: false)
+      end.to raise_error(Hecks::Runtime::TypeMismatch,
+                         "Draft refused — a reference is an id, and engagement arrived as false " \
+                         "(Engagement is known by reference)")
+    end
+  end
+
   # AN ASK'S REFERENCE IS AN ID TOO, and this one closes a real split rather
   # than a hypothetical: one query path once opened a wrapped reference and
   # answered, while another read it whole and found nothing. Only a stale caller

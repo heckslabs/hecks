@@ -490,7 +490,7 @@ module Hecks
         # it carried said retiring it meant changing how references are STORED ;
         # that is what happened.
 
-        # A REFERENCE IS AN ID, SO AN OBJECT IS NOT ONE.
+        # A REFERENCE IS AN ID, SO ANYTHING ELSE IS NOT ONE.
         #
         # Nothing coerces a reference — `for_attribute` misses on
         # "Reference<Account>", which is no value object's name, and hands the
@@ -502,19 +502,74 @@ module Hecks
         # coercion because the sentence names the COMMAND, and `for_attribute`
         # never learns which command it is serving.
         #
-        # An Array is deliberately not refused here. A reference is never a list
-        # today, and inventing a rule for a shape the language cannot declare is
-        # how decoration gets written.
+        # WIDENED PAST THE OBJECT SHAPE BY BUG#27 (QualityControl ledger,
+        # found live on `qa/stress_domains/referral_chain`'s `Member.Join`/
+        # `Referral.Issue`). A bare Boolean, Array, or `null` used to sail
+        # through here untouched — nothing but Hash/Value ever refused —
+        # then get `.to_s`'d into a lookup key by `CommandRules::
+        # References#reference_key` ("true", "false", "[8, 8]") and answer
+        # NotFound, or, for `null`, skip the lookup outright
+        # (`next if held.nil?`, command_rules/references.rb) and let the
+        # command run on to whatever its own `given` happened to say — a
+        # shape error misreading as a missing record, or as an unrelated
+        # domain refusal. Rust's generated `from_json` requires a JSON
+        # string for a required reference field before anything else runs
+        # (`JoinArgs.sponsor: expected String`); this closes the same gate
+        # at the same DISPATCH_ORDER step Ruby already runs it at
+        # (`normalize_args`, `Vocabulary::AggregateDispatchOrder`/
+        # `EntityDispatchOrder`), strictly before `resolve_references` ever
+        # receives a value to look up — so the two engines now agree on
+        # BOTH kind and order, not just kind.
+        #
+        # `nil` STAYS LEGITIMATE for a `reference_to ..., optional: true`
+        # argument (`Improvement.Open`'s own `reference_to Angle, optional:
+        # true` — `qa/bluebook/quality_control.bluebook`): the caller
+        # genuinely may have nothing to name yet, and `nil_argument`
+        # (interpreting.rb) already passes an optional reference's `nil`
+        # through untouched. A REQUIRED reference offered as `null` is a
+        # caller leaving a required argument empty in every OTHER sense
+        # this runtime already refuses (C3.7) — refusing it HERE, rather
+        # than falling through to `resolve_references`' own nil-skip and
+        # then whatever the command's `given` happens to say, is what
+        # actually names the empty argument instead of something else.
+        #
+        # A `has_many` reference's own Array shape is still never refused
+        # by ITS wrapper (`Array(value).find { ... }` only inspects the
+        # list's ELEMENTS) — a reference is never a scalar list-of-lists
+        # today, and inventing a rule for a shape the language cannot
+        # declare is how decoration gets written. `reference_list` (below)
+        # already owns "not an Array at all" for that case.
         def refuse_object_reference(command, attribute, value)
           return unless attribute.reference?
 
-          offered = attribute.list? ? Array(value).find { |item| item.is_a?(Hash) || item.is_a?(self) } : value
-          return unless offered.is_a?(Hash) || offered.is_a?(self)
+          if attribute.list?
+            offered = Array(value).find { |item| item.is_a?(Hash) || item.is_a?(self) }
+            return unless offered
+          else
+            return if value.nil? && attribute.optional?
+            return if value.is_a?(String)
+
+            offered = value
+          end
 
           raise TypeMismatch,
-                RefusalWording.render("TypeMismatch", "reference_as_object",
+                RefusalWording.render("TypeMismatch", "reference_wrong_shape",
                                       command: command.hecks_name, attribute: attribute.name,
+                                      offered: reference_shape_description(offered),
                                       known_by: known_by(attribute))
+        end
+
+        # "an object" for the Hash/Value shape — the ORIGINAL wording this
+        # method always gave, pinned byte for byte by
+        # `spec/runtime/reference_shape_spec.rb`, kept unchanged by BUG#27's
+        # widening. `Rendering.describe` for everything else: `true`,
+        # `false`, `nil`, `[8, 8]` — the same rendering every other
+        # TypeMismatch in this file already uses for "here is what you
+        # actually sent."
+        def reference_shape_description(value)
+          return "an object" if value.is_a?(Hash) || value.is_a?(self)
+
+          Rendering.describe(value)
         end
 
         # "(Account is known by number)" — what to send instead. No article, on
