@@ -1,5 +1,6 @@
 require "spec_helper"
 require "json"
+require "hecks/fuzzing/form_census"
 
 # A FORM EXERCISED ALONE IS NOT A FORM EXERCISED.
 #
@@ -31,63 +32,53 @@ require "json"
 #
 # THE UNIT IS ONE AGGREGATE. Two forms in the same chapter but different heads
 # never meet at dispatch; two forms on one head do.
+#
+# THE TABLE ITSELF LIVES IN `Hecks::Fuzzing::FormCensus` (lib/hecks/fuzzing/
+# form_census.rb) — extracted so `bin/qa_domain_novelty` (the gate a NEW
+# stress domain has to pass before it joins the QA rotation: does it put
+# two forms together that no existing target does?) measures with the
+# identical census this spec holds the golden corpus to. One table, two
+# gates; a form added there joins both.
 RSpec.describe "every pair of declared forms, met on one aggregate" do
-  # WHAT AN AGGREGATE CAN EXHIBIT. Each entry is a form the language declares
-  # and a runtime has to handle — chosen because it has produced a defect, or
-  # sits one step from one. Adding a property here is how a new form joins the
-  # gate; it will name its own uncovered pairs on the first run.
-  #
-  # ONE FLAT TABLE, ON PURPOSE — each entry is an independent boolean check
-  # against the same `aggregate`, laid out so every declared form can be read
-  # (and added to) at a glance. Splitting this into one method per property
-  # would scatter the table this comment describes across a dozen tiny
-  # methods for no gain — there is no shared state or ordering between
-  # entries to protect by keeping them apart.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/CyclomaticComplexity
-  # rubocop:disable-next Metrics/PerceivedComplexity
-  def properties(aggregate)
-    pieces     = aggregate["entities"] || []
-    commands   = aggregate["commands"] || []
-    attributes = aggregate["attributes"] || []
-    {
-      "composite_id"    => (aggregate["identified_by"] || []).size >= 2,
-      "has_entity"      => pieces.any?,
-      "two_entities"    => pieces.size >= 2,
-      "composite_piece" => pieces.any? { |piece| (piece["identified_by"] || []).size >= 2 },
-      "multi_emit"      => commands.any? { |verb| (verb["emits"] || []).size >= 2 },
-      "lifecycle"       => !aggregate["lifecycle"].nil?,
-      "piece_lifecycle" => pieces.any? { |piece| !piece["lifecycle"].nil? },
-      "has_query"       => (aggregate["queries"] || []).any?,
-      "list_attr"       => attributes.any? { |held| held["list"] },
-      "reference_attr"  => attributes.any? { |held| held["type"].to_s.start_with?("Reference<") },
-      "closed_set"      => (aggregate["value_objects"] || []).any? { |shape| shape["closed_set"] },
-      "has_default"     => attributes.any? { |held| !held["default"].nil? },
-      "has_optional"    => commands.any? { |verb| (verb["attributes"] || []).any? { |held| held["optional"] } }
-    }
-  end
+  FormCensus = Hecks::Fuzzing::FormCensus
 
   # UNMET ON PURPOSE — and empty, which is the position to defend. An entry
   # would be a pair of forms no aggregate exercises together, with a reason.
   ALLOWED_APART = {}.freeze
 
+  # HELD OUTSIDE THE GOLDENS, ON PURPOSE. The reference-hop family joined
+  # the census with `qa/stress_domains/referral_chain` (ANGLE-2) — forms
+  # the golden corpus was never enriched to pair with everything else,
+  # because the place a rare reference shape gets exercised against the
+  # rest of the language is a STRESS DOMAIN in the QA rotation, measured
+  # by `bin/qa_domain_novelty` against every ledger target, not a
+  # teaching example pinned in spec/golden. Every pair touching one of
+  # these forms is excused from the golden gate here, by form, with the
+  # domain that holds it; the staleness check below still fires the day
+  # the goldens meet every one of that form's pairs on their own.
+  HELD_OUTSIDE_THE_GOLDENS = {
+    "two_hop_given"      => "qa/stress_domains/referral_chain (Referral.Issue)",
+    "multi_hop_where"    => "qa/stress_domains/referral_chain (Referral.FromGoodSponsors)",
+    "revalued_reference" => "qa/stress_domains/referral_chain (Referral.Reassign)"
+  }.freeze
+
   def aggregates
     Dir[File.join(InMemoryDomain::ROOT, "spec/golden/ir/*.json")].flat_map do |file|
-      chapter = File.basename(file, ".json")
-      (JSON.parse(File.read(file))["aggregates"] || []).map do |aggregate|
-        ["#{chapter}::#{aggregate['name']}", properties(aggregate)]
-      end
+      FormCensus.aggregates_in(JSON.parse(File.read(file)))
     end
   end
 
-  it "meets every pair of forms on some aggregate, or names why it does not" do
-    held  = aggregates
-    forms = held.first.last.keys
+  def held_outside?(pair)
+    pair.any? { |form| HELD_OUTSIDE_THE_GOLDENS.key?(form) }
+  end
 
-    apart = forms.combination(2).reject do |left, right|
-      held.any? { |_, shows| shows[left] && shows[right] }
+  it "meets every pair of forms on some aggregate, or names why it does not" do
+    covered = FormCensus.covered_pairs(aggregates)
+
+    apart = FormCensus::FORMS.keys.combination(2).reject do |pair|
+      covered.key?(FormCensus.pair_key(*pair)) || held_outside?(pair)
     end
-    unnamed = apart.reject { |pair| ALLOWED_APART.key?(pair.sort.join(" + ")) }
+    unnamed = apart.reject { |pair| ALLOWED_APART.key?(FormCensus.pair_key(*pair)) }
 
     expect(unnamed).to be_empty, <<~WHY
       These forms are each exercised somewhere, and never on the SAME aggregate:
@@ -109,15 +100,29 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
   # Held in both directions, like the other two gates: an excuse the corpus has
   # outgrown is how a gate quietly stops gating.
   it "carries no excuse the corpus has outgrown" do
-    held  = aggregates
-    stale = ALLOWED_APART.keys.select do |key|
-      left, right = key.split(" + ")
-      held.any? { |_, shows| shows[left] && shows[right] }
-    end
+    covered = FormCensus.covered_pairs(aggregates)
+    stale = ALLOWED_APART.keys.select { |key| covered.key?(key) }
 
     expect(stale).to be_empty,
                      "the corpus now meets #{stale.join(', ')} on one aggregate — " \
                      "delete the ALLOWED_APART entry, the claim is tested now"
+  end
+
+  it "holds outside the goldens only forms the goldens do not yet pair with everything" do
+    covered = FormCensus.covered_pairs(aggregates)
+    outgrown = HELD_OUTSIDE_THE_GOLDENS.keys.select do |form|
+      (FormCensus::FORMS.keys - [form]).all? { |other| covered.key?(FormCensus.pair_key(form, other)) }
+    end
+
+    expect(outgrown).to be_empty,
+                        "the goldens now meet every pair of #{outgrown.join(', ')} on their own — " \
+                        "delete the HELD_OUTSIDE_THE_GOLDENS entry, the gate holds them now"
+  end
+
+  it "names only census forms in its excuse tables" do
+    unknown = (ALLOWED_APART.keys.flat_map { |key| key.split(" + ") } + HELD_OUTSIDE_THE_GOLDENS.keys) -
+              FormCensus::FORMS.keys
+    expect(unknown).to be_empty, "#{unknown.inspect} is not a form Hecks::Fuzzing::FormCensus::FORMS declares"
   end
 
   # The measurement has to be able to fail. Banking's SafeDepositBox is the
@@ -133,5 +138,17 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
                                                      "Banking::SafeDepositBox no longer carries #{rare.reject do |f|
                                                        box.last[f]
                                                      end.join(', ')}"
+  end
+
+  # The same walk, over a domain on disk instead of a golden file — the
+  # path `bin/qa_domain_novelty` measures a candidate through. Banking's
+  # own `Transfer.Request` is the golden corpus's one two-hop given
+  # (`source.customer.status`), so the disk census has to see it too.
+  it "measures a domain on disk the same way it measures a golden" do
+    transfer = FormCensus.census(File.join(InMemoryDomain::ROOT, "examples/banking"))
+                         .find { |name, _| name == "Banking::Transfer" }
+    expect(transfer).not_to be_nil
+    expect(transfer.last.slice("two_hop_given", "reference_attr", "lifecycle"))
+      .to eq("two_hop_given" => true, "reference_attr" => true, "lifecycle" => true)
   end
 end

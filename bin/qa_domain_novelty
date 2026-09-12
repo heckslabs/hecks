@@ -1,0 +1,161 @@
+#!/usr/bin/env ruby
+
+# DOES A NEW STRESS DOMAIN EARN ITS PLACE? — the gate `.claude/skills/
+# hecks_qa/SKILL.md`'s "Authoring a new stress domain" step runs before
+# a domain is identified as a `QualityControl::Target`.
+#
+#   bin/qa_domain_novelty <domain-path>
+#   bin/qa_domain_novelty <domain-path> --against <path> [<path> ...]
+#
+# THE QUESTION IT ANSWERS, MECHANICALLY. Every bug class the QA loop has
+# found so far (BUG#1–#23) came from either a new adversarial argument
+# shape or a new CONSTRUCT COMBINATION — two declared forms meeting on
+# one aggregate for the first time (`spec/combination_coverage_spec.rb`'s
+# own header has the four original defects, every one of them a pair).
+# So the honest test of "is this domain new" is not "does it look
+# different" but: does it put two forms together, on one aggregate, that
+# NO domain the ledger already sweeps does? `Hecks::Fuzzing::FormCensus`
+# (lib/hecks/fuzzing/form_census.rb) is the one table both this script
+# and that spec measure with — extracted from the spec so the two can
+# never drift on what a form is.
+#
+# WHAT IT COMPARES AGAINST. By default, every `Target.path` the ledger
+# holds — read through `bin/run qa/bluebook ask target.all`, read-only,
+# so it needs the same `PGUSER` the ledger boots under. `--against`
+# names the paths directly instead (its own spec uses this; so can a
+# session with no ledger in reach). A path that is not on disk is
+# reported and skipped, never silently dropped — a stale ledger row is a
+# fact worth seeing. The candidate's own path, if it is already a
+# target, is left OUT of the comparison: measuring a domain against
+# itself always answers "nothing new."
+#
+# A SATURATED CENSUS ANSWERS "NOTHING NEW" — AND THAT IS THE POINT. The
+# thirteen original forms are already met pairwise by banking alone, so
+# no domain can be novel in them: the first thing a new stress domain
+# does is NAME the form it exists for, in `FormCensus::FORMS` (each entry
+# there cites the gap it is one step from), and only then does this gate
+# have something to find. `qa/stress_domains/referral_chain` (ANGLE-2)
+# is the worked example — three reference-hop forms, none of which any
+# target paired with anything until it did.
+#
+# THE PATH SHAPE IS ENFORCED HERE TOO. A stress domain is
+# `<name>/bluebook/<name>.bluebook` — `bin/project_rust` reads exactly
+# that file for `source_text`, and a flat `<name>.bluebook` breaks it
+# (qa/stress_domains/ledger_ordering/NOTES.md, on PR #516's naming
+# constraint). Refused up front, before any ledger read, so the
+# mistake costs seconds rather than a failed Rust projection later.
+#
+# EXIT CODES — an agent reads these, not the prose:
+#   0  at least one new pair; the domain earns its place
+#   1  no new pair; every pair it puts together is already met somewhere
+#   2  usage, or a candidate that is not shaped like a stress domain
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/fuzzing/form_census"
+require "json"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+
+EXIT_NOVEL   = 0
+EXIT_NOTHING = 1
+EXIT_USAGE   = 2
+
+USAGE = "usage: bin/qa_domain_novelty <domain-path> [--against <path> ...]".freeze
+
+def usage!(message)
+  warn message
+  warn USAGE
+  exit EXIT_USAGE
+end
+
+# `<name>/bluebook/<name>.bluebook` — the one shape every stress domain,
+# every example and the ledger itself share.
+def refuse_unless_stress_domain_shaped!(path)
+  expected = File.join(path, "bluebook", "#{File.basename(path)}.bluebook")
+  return if File.file?(expected)
+
+  usage! "#{path} is not shaped like a stress domain: expected #{expected} to exist " \
+         "(`<name>/bluebook/<name>.bluebook` — a flat file breaks bin/project_rust; " \
+         "see qa/stress_domains/ledger_ordering/NOTES.md)"
+end
+
+# The ledger's own targets, by path — one read-only `ask`, parsed, never
+# a boot of the ledger in this process.
+def ledger_target_paths
+  out, err, status = Open3.capture3("bundle", "exec", "ruby", File.join(ROOT, "bin/run"),
+                                    "qa/bluebook", "ask", "target.all", chdir: ROOT)
+  unless status.success?
+    warn "bin/qa_domain_novelty: could not read the ledger's targets (bin/run qa/bluebook ask target.all " \
+         "exited #{status.exitstatus}):\n#{err}"
+    warn "pass --against <path> ... to run without the ledger"
+    exit EXIT_USAGE
+  end
+
+  JSON.parse(out).map { |row| row.dig("path", "value") }.compact
+end
+
+def normalize(path) = File.expand_path(path, ROOT)
+
+candidate = nil
+against = []
+mode = :candidate
+ARGV.each do |arg|
+  if arg == "--against"
+    mode = :against
+  elsif mode == :against
+    against << arg
+  elsif candidate.nil?
+    candidate = arg
+  else
+    usage! "unexpected argument #{arg.inspect}"
+  end
+end
+usage! "no candidate domain given" if candidate.nil?
+usage! "--against needs at least one path" if mode == :against && against.empty?
+
+refuse_unless_stress_domain_shaped!(normalize(candidate))
+
+existing_source = against.empty? ? "the ledger's Target.path rows" : "--against"
+existing = (against.empty? ? ledger_target_paths : against).map { |path| normalize(path) }.uniq
+
+own = existing.select { |path| path == normalize(candidate) }
+existing -= own
+puts "note: #{candidate} is already a target — left out of the comparison" unless own.empty?
+
+missing, present = existing.partition { |path| Hecks::Fuzzing::FormCensus.bluebook_files(path).nil? }
+missing.each { |path| warn "skipping #{path}: no bluebook/*.bluebook on disk" }
+
+candidate_census = Hecks::Fuzzing::FormCensus.census(normalize(candidate))
+candidate_pairs  = Hecks::Fuzzing::FormCensus.covered_pairs(candidate_census)
+
+existing_pairs = present.each_with_object(Hash.new { |h, k| h[k] = [] }) do |path, covered|
+  Hecks::Fuzzing::FormCensus.covered_pairs(Hecks::Fuzzing::FormCensus.census(path)).each do |pair, names|
+    covered[pair].concat(names.map { |name| "#{name} (#{path.delete_prefix("#{ROOT}/")})" })
+  end
+end
+
+new_pairs = candidate_pairs.reject { |pair, _| existing_pairs.key?(pair) }
+
+puts "candidate: #{candidate} — #{candidate_census.size} aggregate(s), #{candidate_pairs.size} form pair(s) met"
+puts "against:   #{present.size} domain(s) from #{existing_source}, #{existing_pairs.size} form pair(s) met between them"
+puts
+
+if new_pairs.empty?
+  puts "no new pair — every pair of forms #{candidate} puts together on one aggregate is already met by an " \
+       "existing target. Either the domain is not new, or the form it exists for is not yet named in " \
+       "Hecks::Fuzzing::FormCensus::FORMS (lib/hecks/fuzzing/form_census.rb) — name it there first, citing " \
+       "the gap it is one step from, and run this again."
+  exit EXIT_NOTHING
+end
+
+width = new_pairs.keys.map(&:size).max
+puts "new pair(s) — met on one aggregate here, on none of the existing targets:"
+new_pairs.sort.each do |pair, names|
+  puts "  #{pair.ljust(width)}  #{names.uniq.join(', ')}"
+end
+puts
+puts "#{new_pairs.size} new pair(s) — #{candidate} earns its place."
+exit EXIT_NOVEL

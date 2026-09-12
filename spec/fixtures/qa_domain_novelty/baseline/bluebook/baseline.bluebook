@@ -1,0 +1,56 @@
+# A FIXTURE FOR spec/qa_domain_novelty_spec.rb — the "existing target"
+# side of the comparison: one plain reference, one lifecycle, one query
+# with no hop. Everything `hopper` (its sibling fixture) pairs, minus
+# the reference-hop family.
+Hecks.bluebook "Baseline" do
+  generic
+
+  aggregate "Client" do
+    identified_by :name
+    attribute :name, Name
+    value_object("Name") { attribute :value, String }
+
+    lifecycle :status, default: "active" do
+      transition "Churn" => "churned", from: "active"
+    end
+
+    command "Register" do
+      attribute :name, Name
+      sets :name
+      emits "Registered"
+    end
+
+    command "Churn" do
+      reference_to Client
+      emits "Churned"
+    end
+  end
+
+  aggregate "Engagement" do
+    identified_by :reference
+    reference_to Client
+    attribute :reference, Reference
+    value_object("Reference") { attribute :value, String }
+
+    lifecycle :stage, default: "started" do
+      transition "Close" => "closed", from: "started"
+    end
+
+    command "Start" do
+      reference_to Client
+      attribute :reference, Reference
+      sets :reference
+      sets :client
+      emits "Started"
+    end
+
+    command "Close" do
+      reference_to Engagement
+      emits "Closed"
+    end
+
+    query "Started" do
+      where stage: "started"
+    end
+  end
+end
