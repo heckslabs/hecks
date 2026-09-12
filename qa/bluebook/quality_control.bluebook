@@ -1184,6 +1184,20 @@ Hecks.bluebook "QualityControl" do
     # and `optional: true` for the same reason: no row written before
     # this field existed can fill it.
     attribute :waived_by,     WaivedBy, optional: true
+    # A SHORT, MEMORABLE HANDLE — `BUG#33` is unambiguous but says nothing;
+    # `replace-entries-duplicate-identity` is what a person actually
+    # remembers a bug by a week later. `Log`'s own comment (below) is
+    # where a fresh bug picks one up going forward; this is what lets
+    # every bug already on file get one after the fact.
+    #
+    # OPTIONAL, NO DEFAULT — `WaivedBy`'s own comment gives the identical
+    # reasoning: no row written before this field existed can fill it
+    # (`optional: true`), and there is no legitimate value to backfill it
+    # with either. A good slug cannot be auto-generated for an old bug —
+    # only a person reading what it actually was can write one — and a
+    # forced `default: ""` would be noise on every one of the 36 bugs
+    # already logged, not a real name.
+    attribute :name,          BugName, optional: true
     # SELF-CONTAINED OR BIGGER — the one judgment "On a surprising check"
     # always asked an agent to make and never asked it to WRITE DOWN.
     # `undecided` is the state a bug is born in; `Triage` is the only
@@ -1306,6 +1320,19 @@ Hecks.bluebook "QualityControl" do
       invariant("a waiver is signed") { value != "nobody" }
     end
 
+    # KEBAB-CASE, AT LEAST TWO WORDS — `TicketRepository`'s own
+    # `^owner/repo$` shape and `CommitRef`'s own hex shape are this
+    # file's precedent for a scalar whose entire contract IS its pattern:
+    # fully anchored, no separate `invariant` needed, because a value
+    # that matches the pattern already satisfies everything worth
+    # checking. One word alone (`"duplication"`) is too close to a tag
+    # (`Tag`'s own `^[a-z0-9][a-z0-9_-]*$`, one word by design) to tell
+    # the two apart at a glance, so `+(-[a-z0-9]+)+` requires the hyphen
+    # a real slug actually has.
+    value_object "BugName" do
+      attribute :value, String, pattern: '^[a-z0-9]+(-[a-z0-9]+)+$'
+    end
+
     value_object "SweepRef" do
       attribute :value, String
     end
@@ -1409,6 +1436,16 @@ Hecks.bluebook "QualityControl" do
       # rather than findings.
       attribute :submitter,     Submitter
       attribute :tags,          list_of(Tag), optional: true
+      # OPTIONAL, LIKE THE AGGREGATE'S OWN FIELD (see its comment) — a
+      # submitter names a bug at log time going forward if a good slug is
+      # already obvious; `Name` (below) is what covers the rest, both for
+      # a bug logged without one and for the 36 already on file before
+      # this argument existed. NO `sets` NEEDED — unlike `Name`'s mutation
+      # of an existing record, `Log` is a creation command, and a command
+      # argument sharing its name with the aggregate's own field already
+      # lands there directly (the same way `title`/`demonstration`/
+      # `symptom` above need no `sets` either).
+      attribute :name,          BugName, optional: true
 
       emits "BugLogged"
     end
@@ -1472,6 +1509,26 @@ Hecks.bluebook "QualityControl" do
       sets :disposition
 
       emits "BugTriaged"
+    end
+
+    # THE SAME SHAPE AS `Triage`/`Rank`/`Tag` — NOT A LIFECYCLE MOVE,
+    # deliberately, and callable from ANY status. `Triage` above has no
+    # status-`given` at all, and for the identical reason: a slug is
+    # knowable — or worth assigning — at any point in a bug's life
+    # (logged, investigating, fixed, verified, paused, even withdrawn),
+    # and naming it changes nothing about what may happen to it next.
+    # This is also the whole point: it is what lets an ALREADY-LOGGED bug
+    # get a name after the fact, no matter what became of it since.
+    command "Name" do
+      role "QA engineer"
+      goal "Give a bug a short, memorable slug — at log time or any point after"
+
+      reference_to Bug
+      attribute :name, BugName
+
+      sets :name
+
+      emits "BugNamed"
     end
 
     # THE LOOKUP THE TAGS EXIST FOR. `contains` against a bound argument

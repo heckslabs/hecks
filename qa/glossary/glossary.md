@@ -244,6 +244,14 @@ Recorded after [Investigate](#investigate-1).
 
 Recorded after [Log](#log).
 
+### Bug name
+
+Text.
+
+### Bug named
+
+Recorded after [Name](#name).
+
 ### Bug order
 
 A whole number.
@@ -373,6 +381,10 @@ Name the code that is wrong and say why. Done by the qa engineer.
 ### Log
 
 Write down something that is wrong, with the test that proves it. Done by the qa engineer.
+
+### Name
+
+Give a bug a short, memorable slug — at log time or any point after. Done by the qa engineer.
 
 ### Next step
 
@@ -1449,7 +1461,7 @@ Always true: a ticket is titled.
 
 ### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Open (sweep)](#open-3), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-2), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (improvement)](#open-1), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
 
 ### System
 
