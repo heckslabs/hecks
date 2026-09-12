@@ -98,6 +98,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddSlipArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["reference", "amount", "id", "folder"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddSlip does not declare {} — it takes reference, amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "reference"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddSlip"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "reference, amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlip acts on an existing Folder — pass reference.value:".to_string()))?, };
               let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;

@@ -53,6 +53,16 @@ pub struct CommandEntry {
     /// run first regardless.
     pub invariant_check_lines: Vec<String>,
     pub role: Option<String>,
+    /// BUG#23 (qa/bluebook/quality_control.bluebook) — the standalone
+    /// structural argument gate (`json_codec::structural_precheck`, same
+    /// text `Args::from_json` already builds internally), precomputed at
+    /// `CommandEntry` construction time the same way `invariant_check_
+    /// lines` above is. `None` for a CREATING command: `id_line` (this
+    /// module's own `emit_registry`) is never emitted for one either, so
+    /// there is no identity-resolution-before-structural-checks race for
+    /// this fix to close there. See `emit_registry`'s own header on why
+    /// this runs BEFORE `id_line`.
+    pub structural_precheck: Option<String>,
 }
 
 pub struct EntityCommandEntry {
@@ -350,6 +360,41 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     naming::ruby_inspect_string(&acting_no_identity_message)
                 )
             };
+            // BUG#23 (qa/bluebook/quality_control.bluebook) — Ruby's own
+            // `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_
+            // absent_arguments` structurally BEFORE `hydrate`, but
+            // `id_line` just above (an ACTING command's own identity
+            // resolution) used to run BEFORE `Args::from_json` — the ONE
+            // place those structural checks lived — every single time,
+            // so a malformed `id`/`to:` (a route-shaped `{aggregate:,
+            // entities:}` value offered where the command declares a
+            // plain scalar identity, say) short-circuited the whole
+            // dispatch via `extract_id`'s own `?`/`NotFound`-wrap before
+            // a missing OTHER argument was ever checked — Ruby and Rust
+            // then refused DIFFERENT KINDS for the identical malformed
+            // command. `c.structural_precheck` (`json_codec::structural_
+            // precheck`, `domain_generator.rs`) is the IDENTICAL unknown/
+            // absent-argument check text `Args::from_json` already runs
+            // internally — run a SECOND time, standalone, here, against
+            // the raw `facts_json` `v` is bound to, BEFORE `id_line`.
+            // `None` for a CREATING command (`domain_generator.rs`'s own
+            // gate: `id_line` above is never emitted for one either, so
+            // there is no race for this to close there). Deliberately
+            // redundant with the copy still inside `Args::from_json`
+            // itself (unchanged) rather than replacing it — the same
+            // "can only ever refuse SOONER with the exact kind `from_
+            // json` would have produced anyway, never diverge from it"
+            // shape `invariant_check_lines` below already established for
+            // R3 — NOT the reordering BUG#4 (PR #529) already tried and
+            // reverted: `id_line` itself still runs in exactly the same
+            // place, unchanged; this only adds an EARLIER, narrower gate
+            // ahead of it, scoped to a command's own declared argument
+            // shape, never to record existence.
+            let structural_precheck_line = c
+                .structural_precheck
+                .as_ref()
+                .map(|check| format!("{{ let v = facts_json; {check} }}"))
+                .unwrap_or_default();
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
             let reference_lines: Vec<String> = c
                 .reference_checks
@@ -383,6 +428,9 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
             ];
+            if !structural_precheck_line.is_empty() {
+                body.push(structural_precheck_line);
+            }
             if !id_line.is_empty() {
                 body.push(id_line);
             }
@@ -720,6 +768,7 @@ mod tests {
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
                     role: None,
+                    structural_precheck: None,
                 },
                 CommandEntry {
                     verb: "Banking::SafeDepositBox.Close".to_string(),
@@ -733,6 +782,7 @@ mod tests {
                     attributes: Vec::new(),
                     invariant_check_lines: Vec::new(),
                     role: None,
+                    structural_precheck: None,
                 },
             ],
             entity_commands: vec![EntityCommandEntry {
@@ -818,6 +868,7 @@ mod tests {
                 attributes: Vec::new(),
                 invariant_check_lines: Vec::new(),
                 role: None,
+                structural_precheck: None,
             }],
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),

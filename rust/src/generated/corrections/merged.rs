@@ -110,6 +110,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RecordArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "id", "ledger", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Record does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Record"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Record acts on an existing Ledger — pass reference.value:".to_string()))?, };
               let args = crate::generated::corrections::ledger::RecordArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -123,6 +142,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReplaceEntriesArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["entries", "id", "ledger", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReplaceEntries does not declare {} — it takes entries",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["entries"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "ReplaceEntries"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "entries"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ReplaceEntries acts on an existing Ledger — pass reference.value:".to_string()))?, };
               let args = crate::generated::corrections::ledger::ReplaceEntriesArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Clerk"), "ReplaceEntries", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -147,6 +185,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FlagArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "audit_trail", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Flag does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::audittrail::AuditTrail::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Flag acts on an existing AuditTrail — pass reference.value:".to_string()))?, };
               let args = crate::generated::corrections::audittrail::FlagArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Flag", caller_role, caller_actor_id, &*store, QUERIES)?;

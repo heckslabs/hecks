@@ -121,6 +121,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SuspendArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "sponsor", "handle"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Suspend does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::sponsor::Sponsor::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Suspend acts on an existing Sponsor — pass handle.value:".to_string()))?, };
               let args = crate::generated::referral_chain::sponsor::SuspendArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Registrar"), "Suspend", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -157,6 +168,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReassignArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["member", "id", "referral", "code"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reassign does not declare {} — it takes member",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["member"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Reassign"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "member"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::referral::Referral::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reassign acts on an existing Referral — pass code.value:".to_string()))?, };
               let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(facts_json)?;
                       args.member.check_invariants()?;
