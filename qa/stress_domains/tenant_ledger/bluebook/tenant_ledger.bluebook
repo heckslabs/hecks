@@ -6,15 +6,28 @@
 # for queries/read models — `authorize policy, tenant: field` is a word
 # `QuerySpecification::Common::DSL` grants to `QueryBuilder`/`ReadModel
 # Builder`, never to `CommandBuilder` (confirmed by reading the grammar
-# directly: no `authorize` word exists on the command side at all). A
-# WRITE that carries a `reference_to` from one tenant-scoped aggregate
-# into another's is checked by NOTHING at dispatch time — `TenantScope`
-# never runs for a command, and no `given`/`ensures` anywhere in this
-# corpus checks a cross-aggregate tenant field either. `examples/banking/
-# bluebook/safe_deposit_boxes.bluebook:261` (`authorize :vault_access,
-# tenant: :branch_code`) is the ONLY `tenant:` declaration anywhere in
-# the corpus before this domain — a single data point, on the READ side
-# only.
+# directly: no `authorize` word exists on the command side at all).
+# `examples/banking/bluebook/safe_deposit_boxes.bluebook:261`
+# (`authorize :vault_access, tenant: :branch_code`) is the ONLY
+# `tenant:` declaration anywhere in the corpus before this domain — a
+# single data point, on the READ side only.
+#
+# THE WRITE-SIDE GAP THIS DOMAIN EXISTS TO EXPOSE IS NOW CLOSED, at
+# dispatch time — `CommandRules::References#enforce_tenant_boundary`
+# (lib/hecks/runtime/command_rules/references.rb), hooked in beside the
+# existing `reference_to` existence check both `CommandInterpreter#
+# step_save` and `EntityInterpreter#step_save` already run against the
+# settled, post-mutation state. A command whose `reference_to` resolves
+# to a record in a different tenant than the record being written now
+# refuses (`Unauthorized`/`cross_tenant_reference`), the same as a
+# query missing its `tenant:` arg always has. `commands_respect_tenant_
+# scope` (below) stays in the standard battery as a permanent
+# regression guard — a refused write is never stored, so the property
+# should never find a violation again through real dispatch, and
+# `spec/fuzzing/tenant_ledger_property_spec.rb` pins the property's own
+# detection logic directly (against a synthetic `history[:instances]`)
+# so that guard stays meaningful even though real dispatch can no
+# longer feed it a genuine finding.
 #
 # See this domain's own NOTES.md for what the first differential run
 # found. `lib/hecks/fuzzing/properties/guards.rb`'s new `commands_
@@ -193,18 +206,18 @@ Hecks.bluebook "TenantLedger" do
       invariant("an amount is never negative") { value >= 0 }
     end
 
-    # THE WRITE-SIDE GAP, MADE CONCRETE. `sets :region` and `sets :ledger`
-    # are both the BARE self-referential shorthand (`CommandBuilder#
-    # resolve_bare_set!`) — importing `Transfer`'s own already-declared
-    # `region`/`ledger` attributes verbatim, so a caller passes BOTH
-    # directly: `region: "east"` and `ledger: "<any Ledger's own code>"`,
-    # completely independently. Nothing here — no `given`, no runtime
-    # check anywhere in `lib/hecks/runtime` — requires that the named
-    # ledger's own `region` agree with the one declared right beside it.
-    # `TenantScope.apply` (runtime/tenant_scope.rb) would refuse this in
-    # a QUERY missing its `tenant:` arg; there is no equivalent refusal
-    # for a COMMAND accepting one that disagrees with a cross-aggregate
-    # reference. That silence is ANGLE-8's own premise, reached directly.
+    # THE WRITE-SIDE GAP, MADE CONCRETE — AND NOW CLOSED. `sets :region`
+    # and `sets :ledger` are both the BARE self-referential shorthand
+    # (`CommandBuilder#resolve_bare_set!`) — importing `Transfer`'s own
+    # already-declared `region`/`ledger` attributes verbatim, so a caller
+    # passes BOTH directly: `region: "east"` and `ledger: "<any Ledger's
+    # own code>"`, completely independently. No `given` here requires
+    # that the named ledger's own `region` agree with the one declared
+    # right beside it — but `CommandRules::References#enforce_tenant_
+    # boundary` (runtime/command_rules/references.rb) now does, at
+    # dispatch time, the same way `TenantScope.apply` (runtime/
+    # tenant_scope.rb) already refuses a QUERY missing its `tenant:` arg.
+    # ANGLE-8's own premise was this silence; it no longer holds.
     command "Request" do
       role "Clerk"
       goal "Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name"
@@ -226,13 +239,20 @@ Hecks.bluebook "TenantLedger" do
     end
   end
 
-  # A PROCESS MANAGER WHOSE SAGA CROSSES TENANTS — `Transfer.Request`'s
-  # own region and the `Ledger.Credit` leg's own target may belong to two
-  # different regions, and the saga dispatches anyway: `SagaInterpreter#
-  # deliver_saga_dispatch` (lib/hecks/runtime/saga_interpreter.rb) carries
-  # no tenant concept at all, the same way `PolicyInterpreter#deliver`
-  # doesn't either. One leg is enough to prove the saga machinery itself
-  # adds no tenant check on top of what the aggregates already don't have.
+  # A PROCESS MANAGER WHOSE SAGA WOULD HAVE CROSSED TENANTS — moot now
+  # that `Transfer.Request` itself refuses a cross-tenant `ledger:`
+  # (see that command's own comment): `starts_on Transfer::
+  # TransferRequested` means this saga can never even begin from a
+  # cross-tenant `Request`, since a refused command never emits.
+  # `SagaInterpreter#deliver_saga_dispatch` (lib/hecks/runtime/
+  # saga_interpreter.rb) still carries no tenant concept of its own —
+  # same as `PolicyInterpreter#deliver` — so a saga leg that dispatches
+  # a cross-tenant write WITHOUT going through an aggregate's own
+  # `reference_to` (nothing in this corpus does that today) would still
+  # not be caught here. Left in place as a still-real, still-useful
+  # demonstration that the saga mechanism itself adds no tenant check
+  # of its own — the write-side fix closes this domain's own concrete
+  # repro by closing what feeds it, not by teaching sagas about tenants.
   process_manager "SettleAcrossRegions" do
     correlates_by :"reference.value"
     starts_on Transfer::TransferRequested

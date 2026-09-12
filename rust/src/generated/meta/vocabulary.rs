@@ -1150,6 +1150,7 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "InvariantViolation", site: "undeclared_set", template: "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds" },
     RefusalTemplate { refusal: "Unauthorized", site: "tenant_required", template: "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to" },
     RefusalTemplate { refusal: "Unauthorized", site: "role_mismatch", template: "{command} refused — role: {role}, and the caller stated {caller_role}" },
+    RefusalTemplate { refusal: "Unauthorized", site: "cross_tenant_reference", template: "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference" },
     RefusalTemplate { refusal: "AttributeAbsent", site: "absent_read", template: "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true" },
     RefusalTemplate { refusal: "ProjectionAbsent", site: "absent_read", template: "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait" },
 ];

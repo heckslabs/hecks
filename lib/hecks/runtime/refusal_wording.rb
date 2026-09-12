@@ -106,6 +106,9 @@ module Hecks
         "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
         %w[Unauthorized role_mismatch]                =>
         "{command} refused — role: {role}, and the caller stated {caller_role}",
+        %w[Unauthorized cross_tenant_reference]        =>
+        "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} " \
+        "is {other} — a cross-tenant reference",
         %w[AttributeAbsent absent_read]               =>
         "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it " \
         "in a translation (backfill :{field}, default: ...), or declare it optional: true",

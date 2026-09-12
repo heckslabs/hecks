@@ -1,5 +1,26 @@
 # `TenantLedger` — retention note
 
+## UPDATE — the write-side gap this domain names is now closed
+
+`CommandRules::References#enforce_tenant_boundary` (lib/hecks/runtime/
+command_rules/references.rb) now refuses a command whose `reference_to`
+resolves to a record in a different tenant than the record being
+written, mirroring `TenantScope.apply`'s query-side mechanism. The
+concrete repro this domain gave the property (`Transfer.Request`
+naming a `ledger:` from a different `region:`) now refuses outright
+(`Unauthorized`/`cross_tenant_reference`) instead of landing. `bin/
+fuzz`'s own `KNOWN_FUZZ_FINDINGS["tenant_ledger"]` allowlist entry for
+this — added specifically to excuse this known, then-open gap — is
+removed; the fuzzer passes this domain on its own merits now. Blast
+radius investigated before shipping the fix: the only aggregate-level
+(not command-level) `reference_to` in the whole corpus crossing two
+independently `tenant:`-declaring aggregates is `Transfer`'s own
+`reference_to Ledger`, right here — no other existing corpus command
+starts refusing. Everything below is retained as-written: the accurate
+history of what was true before this fix, and of the domain's own
+first differential run (still fully relevant — nothing about the Rust
+divergences below is closed by this fix).
+
 **Targets ANGLE-8**: `lib/hecks/fuzzing/properties/guards.rb:57-93`
 (`authorize_scopes_or_refuses`) enforces `TenantScope.apply`'s tenant
 boundary, and that boundary exists ONLY for queries/read models —

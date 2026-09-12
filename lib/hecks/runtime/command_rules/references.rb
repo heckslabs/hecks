@@ -1,6 +1,8 @@
 require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../value"
+require_relative "../../rendering"
+require_relative "../../ports/query/in_memory"
 
 module Hecks
   module Runtime
@@ -40,6 +42,8 @@ module Hecks
         # This is what makes a `has_many` declared on an aggregate honest even
         # when a command supplies its list through an ordinary typed argument.
         def resolve_state_references(domain, construct, state)
+          own_tenant_field = tenant_field_for(construct)
+
           construct.attributes.each do |attribute|
             next unless attribute.reference?
 
@@ -51,6 +55,7 @@ module Hecks
             next unless target
 
             validate_reference_values(domain, target, held, list: attribute.list?)
+            enforce_tenant_boundary(domain, construct, attribute, target, held, state, own_tenant_field)
           end
 
           Array(construct.entities).each do |entity|
@@ -100,6 +105,76 @@ module Hecks
                                         target: target.name, heads: target.identity_heads.join(", "),
                                         key: key.inspect)
           end
+        end
+
+        # ANGLE-8's OWN WRITE-SIDE HALF of `TenantScope.apply` (runtime/
+        # tenant_scope.rb) — the QUERY-side mechanism this mirrors. That
+        # module turns a declared `authorize policy, tenant: :field` into a
+        # synthetic where-clause checked against the CALLER's own supplied
+        # tenant argument; there is no caller-identity/session system this
+        # runtime has to check a WRITE's caller against (TenantScope's own
+        # header names that as a separate, still-open gap), so this checks
+        # the one thing that IS available without one: whether the record
+        # being written and the record it references agree about which
+        # tenant they belong to. `lib/hecks/fuzzing/properties/guards.rb`'s
+        # `commands_respect_tenant_scope` states the identical claim,
+        # read off `history[:instances]` after the fact — this is what
+        # makes that claim hold BY CONSTRUCTION (a refused write is never
+        # stored) rather than merely checked for regression.
+        #
+        # Hooked into `resolve_state_references` rather than a new
+        # DISPATCH_ORDER step deliberately: that method already walks
+        # every `reference_to`-typed attribute against the SETTLED,
+        # post-mutation state (the same moment `commands_respect_tenant_
+        # scope` itself inspects), already resolves the referenced record
+        # through the repository right above, and already runs from BOTH
+        # `CommandInterpreter#step_save` and `EntityInterpreter#step_save`
+        # — one change, both interpreters covered, no new vocabulary step
+        # to keep in sync with `Vocabulary::AggregateDispatchOrder`/
+        # `EntityDispatchOrder`.
+        def enforce_tenant_boundary(domain, construct, attribute, target, held, state, own_tenant_field)
+          return unless own_tenant_field && state.key?(own_tenant_field)
+
+          target_tenant_field = tenant_field_for(target)
+          return unless target_tenant_field
+
+          own_tenant = Ports::Query::InMemory.comparable(state[own_tenant_field])
+
+          values = attribute.list? ? Array(held) : [held]
+          values.each do |value|
+            key = reference_key(value)
+            next if key.empty?
+
+            record = @registry.repository(domain, target).find(key)
+            next unless record&.state&.key?(target_tenant_field)
+
+            target_tenant = Ports::Query::InMemory.comparable(record.state[target_tenant_field])
+            next if target_tenant == own_tenant
+
+            raise Unauthorized,
+                  RefusalWording.render("Unauthorized", "cross_tenant_reference",
+                                        aggregate: construct.hecks_name, field: own_tenant_field,
+                                        tenant: Rendering.describe(state[own_tenant_field]),
+                                        attribute: attribute.name, target: target.name,
+                                        target_field: target_tenant_field,
+                                        other: Rendering.describe(record.state[target_tenant_field]))
+          end
+        end
+
+        # THE FIELD AN AGGREGATE'S OWN QUERY NAMES AS TENANT-SCOPING — the
+        # exact same lookup `Fuzzing::Properties::Guards#tenant_field_for`
+        # already established for the property that found this gap, reused
+        # here rather than reinvented: an aggregate's own declared tenant
+        # field is whichever field ONE OF ITS OWN queries names in
+        # `authorize policy, tenant: :field`. `nil` for a construct that
+        # declares no such query — not every aggregate is tenant-scoped,
+        # and an entity never declares a query of its own at all today
+        # (`Entity.queries` is always empty in the real corpus), so this
+        # answers `nil` for every entity without needing to special-case
+        # one.
+        def tenant_field_for(construct)
+          authorization = construct.queries.filter_map(&:authorization).find(&:tenant)
+          authorization&.tenant&.to_sym
         end
 
         # `value` is the referenced record's own id, EXACTLY as `Identity.of`
