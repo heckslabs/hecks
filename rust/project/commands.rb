@@ -115,8 +115,19 @@ module RustProjection
     end
 
     def command_skip_reason(command, aggregate, value_objects_by_name, creating_possible: true)
-      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
-      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)" if unsupported_ops.any?
+      # BUG#32 (QualityControl ledger) — `remove` used to be excluded
+      # from this list OUTRIGHT, for every shape, entity-typed or not:
+      # nothing in this generator had ever implemented ANY `remove:`
+      # mutation before this fix. `remove_field_problems`, below,
+      # narrows that to exactly the one shape this generator can
+      # actually emit correctly today (an ENTITY-typed list, matched by
+      # its own identity field) — a VALUE-OBJECT-typed list's own
+      # `remove:` (matched by whole-value equality) is real on the Ruby
+      # side (`spec/mutation_remove_growth_spec.rb`) but has no live
+      # corpus command declaring one for THIS generator to prove itself
+      # against, so it stays unsupported here, same as before this fix.
+      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement multiply clamp remove delegate corrects].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
+      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement/multiply/clamp/remove/delegate/corrects are)" if unsupported_ops.any?
 
       corrects = corrects_of(command)
       # `derive_reverses_mutations!` (mutations.rb, called before this
@@ -138,6 +149,8 @@ module RustProjection
       return "sets append field(s): #{append_problems.join('; ')}" if append_problems.any?
       state_problems = state_source_problems(command, aggregate, value_objects_by_name)
       return "sets state source(s): #{state_problems.join('; ')}" if state_problems.any?
+      remove_problems = remove_field_problems(command, aggregate, value_objects_by_name)
+      return "sets remove field(s): #{remove_problems.join('; ')}" if remove_problems.any?
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
