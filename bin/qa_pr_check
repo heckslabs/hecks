@@ -161,13 +161,21 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecks"
 # ADR 0033 — see bin/run's own identical require: the era/lineage
 # subsystem no longer loads with core, and this ledger's `persisted_by
-# "Heki"` binding needs it explicitly.
+# "PostgresEra"` binding (`qa/bluebook/quality_control.hecksagon`) needs
+# it explicitly — `PostgresEra` IS the era plugin's own adapter.
 require "hecks/ports/persistence/plugins/era"
 require "json"
 require "open3"
 
 ROOT       = File.expand_path("..", __dir__)
-DOMAIN_DIR = File.join(ROOT, "qa/bluebook")
+# `QA_SWEEP_DOMAIN_DIR` — THE SAME ESCAPE HATCH `bin/qa_sweep` ALREADY
+# HAS, for the same one reason (read that script's own comment by the
+# same constant): `bin/qa_tick` runs this script for real, and
+# `spec/qa_tick_spec.rb` drives a real `bin/qa_tick` against a disposable
+# fixture ledger — which this script would otherwise ignore, booting the
+# practice's own live ledger from inside a spec. Every real invocation
+# still boots `qa/bluebook`; nothing here points anywhere else on its own.
+DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
 
 EXIT_OK        = 0
 EXIT_ERROR     = 1

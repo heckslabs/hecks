@@ -60,19 +60,87 @@
 # second-and-later load a no-op instead of a warning generator.
 unless defined?(QualityControlDials)
   module QualityControlDials
-    # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A SWEEP CONCLUDES BEFORE
+    # HOW LONG `hecks_qa`'s OWN LOOP WAITS AFTER A TICK CONCLUDES BEFORE
     # STARTING THE NEXT ONE. Zero means immediately: the loop restarts the
-    # moment the previous sweep's report comes back, rather than waiting
-    # out a fixed interval. This number is read as a CEILING, not a pace —
-    # the longest the orchestrator will EVER go without hearing back
-    # before it assumes a subagent stalled and starts again anyway.
+    # moment the previous tick's report comes back, rather than waiting
+    # out a fixed interval. This number is read as a FLOOR, not a pace —
+    # the SHORTEST gap the orchestrator ever leaves between one tick's
+    # report and the next tick's dispatch (an earlier comment here said
+    # "CEILING", which contradicted both `0 = immediately` and SKILL.md's
+    # own reading; the stall fallback is `LIVENESS_FALLBACK_SECONDS`,
+    # below, not this). Still read by the `/loop hecks_qa` CALLER, never by
+    # any script in this repository — pacing is the loop's own job.
     CADENCE_SECONDS = 0
 
-    # HOW MANY draft PRs `hecks_qa` may open in one calendar day. Zero
+    # HOW MANY PRs `hecks_qa` may open in one calendar day, across BOTH
+    # `Patch` (a bug's own fix) and `Improvement` (deliberate work). Zero
     # means uncapped. A positive number here is a fence for when nobody is
     # watching the loop closely; a human who IS watching it can say so, in
     # this file, rather than the loop inventing a limit nobody chose.
+    # READ IN CODE, since `bin/qa_open_pr` exists: that script counts
+    # `Patch.OpenedSince` + `Improvement.OpenedSince` from local midnight
+    # and REFUSES (exit 1) to open one more than this allows — a rule an
+    # agent used to be asked to remember, now a refusal it cannot skip.
     PR_CAP_PER_DAY = 0
+
+    # THE WIDENING TABLE — how hard `bin/qa_sweep` fuzzes a target as a
+    # function of `Target.clean_streak` (that attribute's own comment says
+    # what the streak means). Three discrete tiers, not a continuous
+    # `seeds = 10 + streak` formula: BUG#14/#15/#16 turned up at seeds 2-4
+    # on targets whose own seed 1 held clean, so a big first jump (10 ->
+    # 25) matters more than smooth growth does, and three numbers are
+    # something a human tunes by editing a table. Moved HERE from
+    # `bin/qa_sweep` itself (where it was policy data living in a script,
+    # duplicated as prose in SKILL.md) for exactly the reason every other
+    # dial lives here. Read by `Hecks::Fuzzing::SweepDepth.for_streak`.
+    #
+    # THE LAST ROW IS THE CEILING, EXPLICITLY — `upto: Float::INFINITY`
+    # reads oddly next to two finite numbers, and that is deliberate: a
+    # target clean for 5 sweeps running and one clean for 5,000 both land
+    # here and both get exactly 50 seeds x 100 steps, never more.
+    WIDENING_TIERS = [
+      { upto: 4,               seeds: 10, steps: 25 },
+      { upto: 19,              seeds: 25, steps: 50 },
+      { upto: Float::INFINITY, seeds: 50, steps: 100 }
+    ].freeze
+
+    # HOW MANY `bin/qa_sweep <target>` CHILDREN `--all` KEEPS ALIVE AT
+    # ONCE. `--all` used to be unbounded — one `Process.spawn` per waiting
+    # target, all at once — which on a ten-target rotation meant ten
+    # concurrent Rust conformance builds and ten Ruby runtimes on one
+    # machine. Read by `run_all_mode` (bin/qa_sweep) as a bounded pool:
+    # this many run, the next starts the moment one exits.
+    SWEEP_MAX_PARALLEL = 4
+
+    # THE `/loop hecks_qa` CALLER'S OWN `ScheduleWakeup` FALLBACK — how
+    # long the orchestrating session waits for a tick subagent's report
+    # before assuming it stalled. SKILL.md used to say "1200–1800s" in a
+    # sentence; this is that number, as data. Read by the loop caller
+    # (an agent), the same way `CADENCE_SECONDS` is.
+    LIVENESS_FALLBACK_SECONDS = 1_500
+
+    # THE IDENTITY THE LOOP RUNS AS — `bin/qa_sweep`'s `ENGINEER`, the
+    # `held_by` on every claim it takes and the `engineer` on every sweep
+    # it opens. Named here, not hardcoded in the script, because
+    # `WaivedBy` (the `Sweep`/`Bug` value object below) refuses exactly
+    # this literal: a gate is waived by a person, never by the loop. The
+    # invariant grammar reads literals, not constants, so that value
+    # object spells "qa_sweep" out again — `spec/quality_control_spec.rb`
+    # pins the two equal, so they cannot drift apart unnoticed.
+    AUTOMATED_ENGINEER = "qa_sweep"
+
+    # HOW `bin/qa_open_pr` OPENS A PR. `DRAFT_ONLY = true` would pass
+    # `--draft` to `gh pr create` (the practice's original posture: green
+    # CI is necessary, not sufficient, for something that ran unattended);
+    # `AUTO_MERGE = true` runs `gh pr merge --auto` right after, so the
+    # PR lands the moment its required checks go green. Both a human's
+    # call, made 2026-09-11: non-draft, auto-queued. `BRANCH_PREFIX` is
+    # what `bin/qa_open_pr` refuses a branch NOT starting with — the
+    # old `loop-parity/` prefix was never enforced and drifted (see
+    # `Patch`'s own header on #534).
+    DRAFT_ONLY    = false
+    AUTO_MERGE    = true
+    BRANCH_PREFIX = "qa/"
 
     # WHAT FRACTION OF GENERATED COMMAND STEPS `bin/qa_sweep` MUTATES
     # ADVERSARIALLY (0.0..1.0) — `SequenceGenerator`'s `adversarial:`
@@ -102,17 +170,15 @@ unless defined?(QualityControlDials)
     # `ADVERSARIAL_FRACTION`.
     SELF_CONSISTENCY_CHECKS = true
 
-    # THE THREE DIALS BELOW ARE DIFFERENT FROM `CADENCE_SECONDS`/
-    # `PR_CAP_PER_DAY` ABOVE IN ONE WAY WORTH FLAGGING (the same way
-    # `ADVERSARIAL_FRACTION` just above already is): those two are read
-    # by an AGENT following `.claude/skills/hecks_qa/SKILL.md`'s own
-    # prose — nothing in this repository's Ruby ever names them. These
-    # three, like `ADVERSARIAL_FRACTION`, are read in CODE —
-    # `Hecks::Fuzzing::RotationPriority`, every time `bin/qa_sweep` picks
-    # a single target with no name given — because the weighting formula
-    # this task exists to add has to be a pure function of ledger state,
-    # not a "please remember to weight it" instruction, so the numbers
-    # it runs on have to be data a program reads too, not only a human.
+    # THE THREE DIALS BELOW ARE READ IN CODE — `Hecks::Fuzzing::
+    # RotationPriority`, every time `bin/qa_sweep` picks a single target
+    # with no name given — because the weighting formula has to be a pure
+    # function of ledger state, not a "please remember to weight it"
+    # instruction, so the numbers it runs on have to be data a program
+    # reads too, not only a human. Only `CADENCE_SECONDS` and
+    # `LIVENESS_FALLBACK_SECONDS` above are still read by an AGENT (the
+    # `/loop hecks_qa` caller) rather than by Ruby; every other dial in
+    # this module is named by a script or a module in this repository.
 
     # HOW MANY SECONDS OF STALENESS ONE POINT OF A TARGET'S OWN DECAYED
     # YIELD SCORE IS WORTH. `RotationPriority.pick` adds
@@ -293,6 +359,17 @@ Hecks.bluebook "QualityControl" do
     # pass until they have proven themselves clean again. Same shape
     # `SweptIn`'s own "zero sorts first for free" comment already gives.
     attribute :clean_streak, CleanStreak
+    # WHAT THIS CHAPTER CAN BE COMPARED AGAINST — comma-joined mode names
+    # (`"rust,postgres_era"`), recorded by whoever releases it from what
+    # that runner actually inferred from the chapter's own files (a
+    # `rust/Cargo.toml` feature, a `persisted_by("PostgresEra")` binding).
+    # STORED, NOT DECIDED: inference at sweep time stays the decider of
+    # which modes run; this field only makes that decision LEDGER-VISIBLE
+    # (`EligibleFor`, below), so "why did directory never get a parity
+    # pass" is a query rather than an archaeology. A stored list that
+    # lags yesterday's Cargo feature is itself the quiet divergence this
+    # practice hunts — see `Capabilities`'s own comment on the shape.
+    attribute :capabilities, Capabilities
     attribute :reason,     TargetReason
 
     value_object "TargetReference" do
@@ -346,6 +423,25 @@ Hecks.bluebook "QualityControl" do
       invariant("shelving a target says why") { !value.to_s.empty? }
     end
 
+    # COMMA-JOINED, ONE STRING — the `Bug.Tagged` shape (`contains`
+    # against a bound argument) without a `list_of`: `EligibleFor` asks
+    # "does this chapter carry mode X" and `contains` answers it as a
+    # substring on a scalar, which is exactly what a comma-joined list of
+    # short, distinct mode names needs and nothing more. `default: ""` is
+    # what makes this ADDITIVE to a live ledger, the same `CleanStreak`
+    # precedent: a `Target` row written before this field existed
+    # hydrates as "nothing recorded yet", not as a refusal to boot.
+    value_object "Capabilities" do
+      attribute :value, String, default: ""
+    end
+
+    # ONE MODE NAME, as `EligibleFor`'s own argument — a query attribute,
+    # never stored on the record, so it costs no era.
+    value_object "Capability" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a mode is named") { !value.to_s.empty? }
+    end
+
     # RECENCY-WEIGHTED, NOT LIFETIME. This is not "how many bugs this
     # chapter has ever produced" — that number only grows, and would let
     # one hot month outrank every other target forever. It is the
@@ -360,11 +456,25 @@ Hecks.bluebook "QualityControl" do
       invariant("a yield score is not negative") { !value.negative? }
     end
 
+    # `suspended` IS "SURPRISED, WAITING FOR A PERSON" — a real state,
+    # distinct from `held`. Before it existed, a target `bin/qa_sweep`
+    # left held after a surprise was indistinguishable from one an agent
+    # was busy sweeping: both read `held`, both dropped out of `Rotation`,
+    # and the only difference was in a report somebody may have read. A
+    # claim that goes stale is taken by whoever is next (this chapter's
+    # own header) — which is exactly right for a busy agent and exactly
+    # wrong for a chapter with an unresolved surprising check, which must
+    # NOT be re-fuzzed in a known-broken state on the next tick. So the
+    # surprise moves the record here (`SuspendOnSurprise`, at this file's
+    # own foot), where no stale-claim arithmetic ever reaches it, and only
+    # a `Release` — a person's deliberate `bin/qa_sweep <t> --release` —
+    # puts it back in the rotation.
     lifecycle :status, default: "waiting" do
-      transition "Claim"   => "held",    from: ["waiting", "held"]
-      transition "Release" => "waiting", from: "held"
-      transition "Shelve"  => "shelved", from: ["waiting", "held"]
-      transition "Restore" => "waiting", from: "shelved"
+      transition "Claim"   => "held",      from: ["waiting", "held"]
+      transition "Release" => "waiting",   from: ["held", "suspended"]
+      transition "Suspend" => "suspended", from: "held"
+      transition "Shelve"  => "shelved",   from: ["waiting", "held"]
+      transition "Restore" => "waiting",   from: "shelved"
     end
 
     command "Identify" do
@@ -461,6 +571,16 @@ Hecks.bluebook "QualityControl" do
       reference_to Target
       attribute :now,          Instant
       attribute :next_streak,  CleanStreak
+      # WHAT THE RELEASING RUNNER INFERRED THIS CHAPTER CAN BE COMPARED
+      # AGAINST — see the attribute's own comment. REQUIRED, like
+      # `yield_score` and for the same reason: an in-process dispatch does
+      # not fill a defaulted value object in for an absent argument (only
+      # the CLI door does, and only for `now`), so an omitted list would
+      # be a refusal, not a quiet blank — which is right. `bin/qa_sweep`
+      # infers it on every release it makes, the clean path and
+      # `--release` alike; a human releasing through `bin/run` by hand
+      # types what they know (`capabilities.value=""` is honest too).
+      attribute :capabilities, Capabilities
 
       # REQUIRED, NOT DEFAULTED TO ZERO — the same call `Submitter` already
       # makes over `Engineer`'s "nobody" default (see that value object's own
@@ -489,8 +609,29 @@ Hecks.bluebook "QualityControl" do
       sets :last_swept, to: :now
       sets :yield_score
       sets :clean_streak, to: :next_streak
+      sets :capabilities
 
       emits "TargetReleased"
+    end
+
+    # `role "System"` — DISPATCHED BY A POLICY, NEVER TYPED. `SuspendOnSurprise`
+    # (this file's own foot) fires this the moment any `Sweep::Check::
+    # Surprised` lands, carrying that check's own restated `target`. The
+    # same `System` role `Ticket.Filed`/`Clearance.Passed` already wear for
+    # the identical reason: a fact the machine records about itself, not a
+    # decision a person makes. `reason` is a literal the policy supplies —
+    # see that policy's own `with:` — so a reader of `Target.Suspended`
+    # sees what to do, not just that something happened.
+    command "Suspend" do
+      role "System"
+      goal "Take a chapter out of the rotation because a check surprised, until a person releases it"
+
+      reference_to Target
+      attribute :reason, TargetReason
+
+      sets :reason
+
+      emits "TargetSuspended"
     end
 
     command "Shelve" do
@@ -505,11 +646,21 @@ Hecks.bluebook "QualityControl" do
       emits "TargetShelved"
     end
 
+    # `reason` IS REQUIRED HERE TOO, since BUG#23's own era: a silent
+    # un-shelve was how a chapter shelved for a real architectural blocker
+    # got put back in the rotation with nothing on the record saying
+    # whether that blocker was actually fixed or merely forgotten. The
+    # same `sets :reason` `Shelve` already keeps — so the record's `reason`
+    # always reads as the LAST decision made about it, in either direction.
     command "Restore" do
       role "QA engineer"
-      goal "Put a shelved chapter back in the rotation"
+      goal "Put a shelved chapter back in the rotation, and say what changed"
 
       reference_to Target
+      attribute :reason, TargetReason
+
+      sets :reason
+
       emits "TargetRestored"
     end
 
@@ -553,6 +704,24 @@ Hecks.bluebook "QualityControl" do
       order_by :reference
     end
 
+    query "Suspended" do
+      description "Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep <target> --release --notes is how one comes back."
+      where(status: "suspended")
+      order_by :reference
+    end
+
+    # THE AUDIT `capabilities` EXISTS FOR — "which waiting chapters could
+    # a given mode run against", answered from the ledger rather than by
+    # re-walking every chapter's files. Least recently swept first, the
+    # same raw ordering `Rotation` gives, and for the same reason.
+    query "EligibleFor" do
+      description "Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides."
+      attribute :mode, Capability
+      where(:"capabilities.value" => { contains: :mode })
+      where(status: "waiting")
+      order_by :last_swept
+    end
+
     query "All" do
       description "Every chapter ever written down — the inventory a runner walking the repository checks its findings against."
       order_by :reference
@@ -577,6 +746,14 @@ Hecks.bluebook "QualityControl" do
     # and rather than a list because a `where` cannot ask whether a list is
     # empty.
     attribute :waived,    WaiverCount
+    # WHO WAIVED — the signature beside the count. `waived` says a gate
+    # was gone round; this says by whom, and `WaivedBy`'s own invariants
+    # are what make "never waive it yourself" a REFUSAL rather than a
+    # sentence in SKILL.md an agent had to remember. Absent on every
+    # sweep that never waived anything, and on every row written before
+    # this field existed — no default, on purpose: a default signature
+    # would be a forged one.
+    attribute :waived_by, WaivedBy
     attribute :checks,    list_of(Check)
 
     value_object "SweepReference" do
@@ -611,6 +788,33 @@ Hecks.bluebook "QualityControl" do
     value_object "WaiverReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # THE UNWAIVABLE SHAPE, APPLIED TO WAIVING ITSELF. This chapter's own
+    # header: an argument is satisfied or refused and never waived. "Never
+    # waive it yourself" used to be a bullet in SKILL.md — a rule an agent
+    # was asked to hold in mind — and now it is a required argument whose
+    # invariants refuse the loop's own identity outright. The literal
+    # `"qa_sweep"` here IS `QualityControlDials::AUTOMATED_ENGINEER`; the
+    # invariant grammar reads literals, not constants, so the two are
+    # pinned equal by `spec/quality_control_spec.rb` rather than by
+    # reference. `"nobody"` is refused for the reason `Submitter` already
+    # gives: an unsigned waiver is an anonymous one.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
+    end
+
+    # THE TARGET, RESTATED ON A SURPRISE so the EVENT carries it — the
+    # `Bug.Fix` precedent (that command's own `reference` comment gives
+    # the full reasoning): an emitted event carries exactly the arguments
+    # it was dispatched with, never the record's own references, so
+    # `CheckSurprised` said `sequence` and `observation` and nothing a
+    # policy could address a `Target` by. `SuspendOnSurprise` (this file's
+    # own foot) is the reaction that needs it.
+    value_object "TargetRef" do
+      attribute :value, String
     end
 
     value_object "CheckSequence" do
@@ -715,6 +919,13 @@ Hecks.bluebook "QualityControl" do
 
         attribute :sequence,    CheckSequence
         attribute :observation, Observation
+        # RESTATED, NOT READ — see `TargetRef`'s own comment. The sweep
+        # this check lives under already references its target; this
+        # says it again purely so `CheckSurprised` rides forward with a
+        # `Target` id that `SuspendOnSurprise` can address. Required: a
+        # caller that forgets it is refused (`AbsentArgument`), not
+        # silently suspending nothing.
+        attribute :target,      TargetRef
 
         sets :observation
         # `to: "yes"` — A LITERAL, NEVER `Remake`d BACK. `ever_surprised`'s
@@ -817,12 +1028,17 @@ Hecks.bluebook "QualityControl" do
     # protocol has a price that shows up in a number.
     command "Waive" do
       role "QA engineer"
-      goal "Go round a gate, on the record"
+      goal "Go round a gate, on the record, signed by a person"
 
       reference_to Sweep
-      attribute :reason, WaiverReason
+      attribute :reason,    WaiverReason
+      # SIGNED, AND THE SIGNATURE IS CHECKED — `WaivedBy`'s own invariants
+      # refuse `"qa_sweep"` and `"nobody"`, which is the whole of "only a
+      # human actually calls waive" as an argument instead of a rule.
+      attribute :waived_by, WaivedBy
 
       sets :waived, increment: { value: 1 }
+      sets :waived_by
 
       ensures("a waiver is never silent") { waived.value == old.waived.value + 1 }
 
@@ -916,6 +1132,20 @@ Hecks.bluebook "QualityControl" do
     attribute :reason,        BugReason
     attribute :next_step,     NextStep
     attribute :waived,        WaiverCount
+    # THE SAME SIGNATURE `Sweep.waived_by` CARRIES, for the same reason —
+    # read that attribute's own comment. Absent until a person waives.
+    attribute :waived_by,     WaivedBy
+    # SELF-CONTAINED OR BIGGER — the one judgment "On a surprising check"
+    # always asked an agent to make and never asked it to WRITE DOWN.
+    # `undecided` is the state a bug is born in; `Triage` is the only
+    # thing that moves it, and `BugsByDisposition` is what makes the
+    # practice's own split ("how much of what we find can we fix on the
+    # spot") a number rather than a feeling. `one_of` with a default, the
+    # `Check.ever_surprised` idiom, rather than a Boolean this chapter has
+    # no precedent for — and `default:` is what makes this ADDITIVE to
+    # every bug already on file: each hydrates `undecided`, which is
+    # exactly true of a bug nobody triaged.
+    attribute :disposition,   one_of("undecided", "self_contained", "bigger"), default: { value: "undecided" }
     # A BUG IS WORK, AND WORK GETS CLAIMED.
     #
     # Sweeping is not the only way an agent gets something to do — it can
@@ -1015,6 +1245,16 @@ Hecks.bluebook "QualityControl" do
     value_object "WaiverReason" do
       attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a waived gate says why") { !value.to_s.empty? }
+    end
+
+    # REDECLARED, NOT SHARED — this file's own habit (`Engineer`, `Instant`,
+    # `CommitRef`); `Sweep::WaivedBy`'s own comment gives the reasoning
+    # once for both. The `"qa_sweep"` literal is pinned equal to
+    # `QualityControlDials::AUTOMATED_ENGINEER` by spec, here too.
+    value_object "WaivedBy" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a gate is waived by a person, never by the loop") { value != "qa_sweep" }
+      invariant("a waiver is signed") { value != "nobody" }
     end
 
     value_object "SweepRef" do
@@ -1155,6 +1395,34 @@ Hecks.bluebook "QualityControl" do
       sets :tags
 
       emits "BugTagged"
+    end
+
+    # THE JUDGMENT, RECORDED — the `Rank` shape: not a lifecycle move,
+    # because "can this be fixed here" is knowable at any point in the
+    # fix and changes nothing about what may happen to the bug next. Only
+    # the two decided values are accepted; `undecided` is what a bug is
+    # BORN as (see the attribute) and never something a person chooses.
+    # `bin/qa_log_bug --triage` dispatches this right after `Log`, so a
+    # bug reaches the ledger already carrying the call its finder made.
+    command "Triage" do
+      role "QA engineer"
+      goal "Write down whether this can be fixed on the spot or needs a bigger judgment"
+
+      reference_to Bug
+      attribute :disposition, one_of("self_contained", "bigger")
+
+      # THE GIVEN IS THE FENCE, NOT THE `one_of` ABOVE — found live, not
+      # assumed: a command attribute sharing its NAME with the record's
+      # own `one_of` field coerces against the record's wider set, so the
+      # narrower inline set here documents intent but "undecided" still
+      # got through it. A predicate reads the argument first (`Expression::
+      # Resolver#fetch` checks args before state), so this reads the
+      # caller's word, not the record's current one.
+      given("a triage decides — self_contained or bigger, never undecided") { disposition.value != "undecided" }
+
+      sets :disposition
+
+      emits "BugTriaged"
     end
 
     # THE LOOKUP THE TAGS EXIST FOR. `contains` against a bound argument
@@ -1322,12 +1590,15 @@ Hecks.bluebook "QualityControl" do
 
     command "Waive" do
       role "QA engineer"
-      goal "Go round a gate on this bug, on the record"
+      goal "Go round a gate on this bug, on the record, signed by a person"
 
       reference_to Bug
-      attribute :reason, WaiverReason
+      attribute :reason,    WaiverReason
+      # SIGNED, AND CHECKED — see `Sweep.Waive`'s own identical argument.
+      attribute :waived_by, WaivedBy
 
       sets :waived, increment: { value: 1 }
+      sets :waived_by
 
       emits "GateWaived"
     end
@@ -1335,6 +1606,17 @@ Hecks.bluebook "QualityControl" do
     query "Open" do
       description "Every bug still owed work — the open ledger, derived rather than maintained."
       where(status: { in: "logged,investigating,paused" })
+      order_by :sequence
+    end
+
+    # THE PILE NOBODY HAS MADE THE CALL ON YET — live bugs still at the
+    # disposition they were born with. A row here past its own sweep is a
+    # finding somebody logged and walked away from before deciding what
+    # kind of thing it was.
+    query "Untriaged" do
+      description "Live bugs (logged or investigating) nobody has triaged as self_contained or bigger yet — the judgment still owed on each."
+      where(status: { in: "logged,investigating" })
+      where(:"disposition.value" => "undecided")
       order_by :sequence
     end
 
@@ -1601,6 +1883,19 @@ Hecks.bluebook "QualityControl" do
     query "Resolved" do
       description "Leads already acted on, one way or the other — built into something real, or discarded with a reason. Read beside Backlog for the practice's own hit rate."
       where(status: { in: "built,discarded" })
+      order_by :reference
+    end
+
+    # THE DUPLICATE-PREMISE CHECK — the same question `Ticket.ForBug` and
+    # `Patch.ForBug` already answer for their own kind of duplicate, asked
+    # of a lead: has anybody already proposed an angle citing THIS exact
+    # fact? Asked before `Propose`, so a second session re-deriving the
+    # same citation finds the first one's own row instead of minting a
+    # twin of it.
+    query "Citing" do
+      description "Every angle ever proposed on one exact citation, whatever became of it — the check before proposing another on the same fact."
+      attribute :citation, AngleCitation
+      where(citation: :citation)
       order_by :reference
     end
 
@@ -1964,6 +2259,18 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, PatchBranch
     attribute :commit, CommitRef
     attribute :title,  PatchTitle
+    # WHEN, AS A NUMBER — what makes `QualityControlDials::PR_CAP_PER_DAY`
+    # COUNTABLE (`OpenedSince`, below; `bin/qa_open_pr` is the reader).
+    # `default: 0` for the `CleanStreak` reason: every patch recorded
+    # before this field existed hydrates at the epoch, which `OpenedSince`
+    # never counts against today's cap — exactly right for a PR opened
+    # before the cap was ever enforced.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
 
     value_object "PatchNumber" do
       attribute :value, Integer
@@ -2012,13 +2319,16 @@ Hecks.bluebook "QualityControl" do
       transition "Close" => "closed", from: "opened"
     end
 
-    # DISPATCHED BY WHOEVER OPENS THE PR — which, per `.claude/skills/
-    # hecks_qa/SKILL.md`'s own wiring, is the ORCHESTRATOR, once a sweep
-    # subagent's report comes back naming the number, url, branch, commit
-    # and title it already has from its own `gh pr create`. Not the
-    # subagent itself: see that file's own new step for why this piece of
-    # bookkeeping is kept an orchestrator action rather than something
-    # handed to a subagent to dispatch on its own.
+    # DISPATCHED BY `bin/qa_open_pr --bug BUG#n`, AND BY NOTHING ELSE. That
+    # script is what runs `gh pr create`, reads the five facts straight
+    # back (`gh pr view --json number,url,headRefName,headRefOid,title`)
+    # and dispatches this in the same breath — the fact is written down
+    # by the same process that made it true, never copied out of a
+    # subagent's report by an orchestrator afterward (which is how an
+    # earlier SKILL.md had it, and how a retried report could record one
+    # PR twice, or a dropped one never). `now` is that script's own
+    # clock read, threaded in explicitly the way `Target.Claim` already
+    # takes it; the cap that reads it back is `OpenedSince`, below.
     command "Open" do
       role "QA engineer"
       goal "Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known"
@@ -2029,6 +2339,9 @@ Hecks.bluebook "QualityControl" do
       attribute :branch, PatchBranch
       attribute :commit, CommitRef
       attribute :title,  PatchTitle
+      attribute :now,    Instant
+
+      sets :opened_at, to: :now
 
       emits "PatchOpened"
     end
@@ -2064,6 +2377,17 @@ Hecks.bluebook "QualityControl" do
       description "Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue."
       attribute :bug_id, BugRef
       where(bug: :bug_id)
+      order_by :number
+    end
+
+    # THE CAP, COUNTABLE — `bin/qa_open_pr` asks this (and `Improvement.
+    # OpenedSince`, its twin) with local midnight as `since` and compares
+    # the two row counts against `QualityControlDials::PR_CAP_PER_DAY`.
+    # `gte` against a bound argument, the `Account.AtOrAbove` shape.
+    query "OpenedSince" do
+      description "Every patch opened at or after one instant, in number order — what today's count against PR_CAP_PER_DAY is read from."
+      attribute :since, Instant
+      where(:"opened_at.value" => { gte: :since })
       order_by :number
     end
 
@@ -2156,6 +2480,14 @@ Hecks.bluebook "QualityControl" do
     attribute :branch, ImprovementBranch
     attribute :commit, CommitRef
     attribute :title,  ImprovementTitle
+    # WHEN — see `Patch.opened_at`'s own comment; the same field, for the
+    # same cap, restated per aggregate the way this file already does.
+    attribute :opened_at, Instant
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
 
     value_object "ImprovementNumber" do
       attribute :value, Integer
@@ -2211,12 +2543,13 @@ Hecks.bluebook "QualityControl" do
       transition "Close"   => "closed",   from: ["opened", "landed", "needs_fix"]
     end
 
-    # DISPATCHED BY THE ORCHESTRATOR, THE SAME MOMENT AND FOR THE SAME
-    # REASON `Patch.Open`'s own comment already gives: whoever opens the
-    # PR already has its number/url/branch/title from `gh pr create`'s
-    # own return value, and this is where that gets written down instead
-    # of re-derived later. See `.claude/skills/hecks_qa/SKILL.md`'s own
-    # bullet on when this fires instead of `patch.open`.
+    # DISPATCHED BY `bin/qa_open_pr --improvement [--angle ANGLE-n]`, THE
+    # SAME MOMENT AND FOR THE SAME REASON `Patch.Open`'s own comment
+    # already gives: that script has the number/url/branch/title straight
+    # from `gh pr create`'s own return value, and this is where they get
+    # written down instead of re-derived later — followed, in the same
+    # script run, by `Land` with the head commit, so `ImprovementCiWatch`
+    # starts watching before the script even exits.
     command "Open" do
       role "QA engineer"
       goal "Record that a deliberate, non-bugfix piece of work has been opened as a pull request, before its own commit is known to be worth watching"
@@ -2226,6 +2559,9 @@ Hecks.bluebook "QualityControl" do
       attribute :url,    ImprovementUrl
       attribute :branch, ImprovementBranch
       attribute :title,  ImprovementTitle
+      attribute :now,    Instant
+
+      sets :opened_at, to: :now
 
       emits "ImprovementOpened"
     end
@@ -2306,6 +2642,14 @@ Hecks.bluebook "QualityControl" do
       description "Every improvement ever landed against one angle — the duplicate check, the same shape Patch.ForBug already gives for a bug."
       attribute :angle_id, AngleRef
       where(angle: :angle_id)
+      order_by :number
+    end
+
+    # `Patch.OpenedSince`'S TWIN — the cap counts both kinds of PR.
+    query "OpenedSince" do
+      description "Every improvement opened at or after one instant, in number order — the other half of today's count against PR_CAP_PER_DAY."
+      attribute :since, Instant
+      where(:"opened_at.value" => { gte: :since })
       order_by :number
     end
 
@@ -2540,6 +2884,16 @@ Hecks.bluebook "QualityControl" do
     group_by :submitter, :reference
   end
 
+  # HOW MUCH OF WHAT WE FIND CAN BE FIXED ON THE SPOT. `self_contained`
+  # beside `bigger` is the practice's own fix-rate; `undecided` beside
+  # both is how much judgment is still owed — the same reading
+  # `Bug.Untriaged` gives as rows, as a count.
+  read_model "BugsByDisposition" do
+    description "Every bug sorted by the call its finder made — self-contained, bigger, or not yet decided — beside its reference. The fix-rate, and the judgment still owed, at a glance."
+    include Bug
+    group_by :disposition, :reference
+  end
+
   # THE FILING PILE AT A GLANCE. `submitting` rows are calls whose outcome
   # nobody recorded and `abandoned` rows are ones nothing automatic will
   # touch again — both are only alarming as a COUNT, which is the reading
@@ -2625,12 +2979,31 @@ Hecks.bluebook "QualityControl" do
   # what makes `Ticket.Raised` a list worth reading rather than a millisecond
   # of internal state.
 
-  # NO POLICY FOR THE ROTATION, and it was written out and taken back. "On
-  # SweepConcluded, release the target" is one dispatch and looks right — but
+  # THE ROTATION GETS EXACTLY ONE AUTOMATIC REACTION, AND THIS IS IT. "On
+  # SweepConcluded, release the target" was written out and taken back —
   # a policy carries the EVENT's payload, and `Target.Release` needs the
-  # target's own id and the sweep that swept it, which that payload does not
-  # have. A reaction that cannot carry what its target needs refuses at run
-  # time and reads, in the log, as though it had worked. The runner releases
-  # the target, and `Target.Held` is where a stale claim stays visible until
-  # somebody does.
+  # target's own id, a `next_streak` only the runner can compute, and a
+  # yield score the same; `SweepConcluded` carries none of that, and a
+  # reaction that cannot carry what its target needs refuses at run time
+  # and reads, in the log, as though it had worked. So the runner still
+  # releases (`bin/qa_sweep`, clean path or `--release`).
+  #
+  # `Suspend` IS THE WORKED EXAMPLE OF WHAT A POLICY CAN DO HERE. The
+  # trigger needs only a `Target` id and a reason; `with:` supplies the
+  # reason as a literal, and the id rides in on `CheckSurprised` because
+  # `Sweep::Check::Surprised` RESTATES `target` (its own `TargetRef`
+  # comment — the `Bug.Fix` precedent). `on Sweep::CheckSurprised`, not
+  # `Sweep::Check::…`: an entity command's event is stamped with its
+  # PARENT aggregate (`PolicyInterpreter#policies_for` matches the
+  # qualifier against `event.aggregate`, and `EntityInterpreter` emits
+  # through the parent record) — chess's `on Game::PieceMoved` for a
+  # `Piece` entity's own event is the corpus precedent. `role "System"`
+  # on `Suspend` is what lets a policy fire it at all.
+  policy "SuspendOnSurprise" do
+    on      Sweep::CheckSurprised
+    trigger Target::Suspend, with: {
+      target: :target,
+      reason: { value: "a check surprised — a person releases with bin/qa_sweep <target> --release --notes" }
+    }
+  end
 end

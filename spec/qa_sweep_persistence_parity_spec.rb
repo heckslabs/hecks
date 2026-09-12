@@ -215,7 +215,8 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
 
     expect(status.exitstatus).to eq(0), "expected a clean --all, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
     expect(stdout).to include("clean (3): directory, ineligible, directory [parity wave]")
-    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s): directory")
+    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s), at most " \
+                              "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory")
     expect(stdout).to include(
       "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
       "deferred: persistence_parity)"
@@ -274,7 +275,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     target = target.shelve!(reason: { value: "structurally can't be reached by any Memory-only fuzz/replay path" })
     expect(target.status).to eq("shelved")
 
-    target = target.restore!
+    target = target.restore!(reason: { value: "PR #564 fixed the era-check blocker; PostgresEra-bound domains fuzz again" })
     expect(target.status).to eq("waiting")
 
     stdout, stderr, status = run_qa_sweep("directory", "--persistence-parity", "--seeds", "2")
