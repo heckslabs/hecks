@@ -160,6 +160,7 @@ pub fn dispatch_by_name(
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::referral_chain::referral::Referral::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reassign acts on an existing Referral — pass code.value:".to_string()))?, };
               let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(facts_json)?;
                       args.member.check_invariants()?;
+              crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "ReferralChain::Referral", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

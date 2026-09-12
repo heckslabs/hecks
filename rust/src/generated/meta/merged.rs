@@ -888,6 +888,7 @@ pub fn dispatch_by_name(
                       args.bluebook.check_invariants()?;
                       args.name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_reference(&store.bluebook, &args.bluebook.value, "Bluebook", "name")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
