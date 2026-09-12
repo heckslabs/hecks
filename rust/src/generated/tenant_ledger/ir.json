@@ -1,0 +1,950 @@
+{
+  "ir_version": 1,
+  "name": "TenantLedger",
+  "version": null,
+  "vision": "Two tenant-scoped aggregates, a cross-tenant reference_to between them, an entity, and a saga that crosses tenants — enough surface to prove the write side has no TenantScope equivalent at all.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Ledger",
+      "description": "One region's ledger — the record a cross-tenant Transfer.Request can name without ever proving it belongs to the same region.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "LedgerCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "region",
+          "type": "LedgerRegion",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "balance_cents",
+          "type": "LedgerAmountCents",
+          "list": false,
+          "default": {
+            "value": 0
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "entries",
+          "type": "Entry",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "LedgerCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ledger is coded",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LedgerRegion",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ledger names its region",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LedgerAmountCents",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an amount is never negative",
+              "canonical": "value >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "EntrySequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an entry is sequenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "EntryNote",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LedgerCreditReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a credit still names the transfer that asked for it",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Clerk",
+          "goal": "Start a ledger for one region",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "LedgerCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "region",
+              "type": "LedgerRegion",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            },
+            {
+              "target": "region",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "region"
+              }
+            }
+          ],
+          "emits": [
+            "LedgerOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Credit",
+          "role": "System",
+          "goal": "Credit funds into a ledger, settling a transfer that may or may not share this ledger's own region",
+          "references": "Ledger",
+          "attributes": [
+            {
+              "name": "amount_cents",
+              "type": "LedgerAmountCents",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "EntrySequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reference",
+              "type": "LedgerCreditReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "balance_cents",
+              "op": "increment",
+              "sign": "1",
+              "source": {
+                "kind": "argument",
+                "name": "amount_cents"
+              }
+            },
+            {
+              "target": "entries",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "sequence": ":sequence",
+                "amount_cents": ":amount_cents"
+              }
+            }
+          ],
+          "emits": [
+            "LedgerCredited"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Entry",
+          "description": "One posting into the ledger, in the order it landed.",
+          "identified_by": [
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "EntrySequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "amount_cents",
+              "type": "LedgerAmountCents",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "note",
+              "type": "EntryNote",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Annotate",
+              "role": "Auditor",
+              "goal": "Note something about a posting after the fact",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "note",
+                  "type": "EntryNote",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "note",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "note"
+                  }
+                }
+              ],
+              "emits": [
+                "EntryAnnotated"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+        {
+          "name": "ByRegion",
+          "description": "Ledgers open in one region, for a caller standing in that region.",
+          "attributes": [
+
+          ],
+          "wheres": [
+
+          ],
+          "order_by": {
+            "field": "code",
+            "direction": "asc"
+          },
+          "limit": null,
+          "authorization": {
+            "policy": "ledger_access",
+            "tenant": "region"
+          }
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Transfer",
+      "description": "A request to move funds into some ledger — the ledger a caller names is never proven to share this transfer's own declared region.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "TransferReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "region",
+          "type": "TransferRegion",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "ledger",
+          "type": "Reference<Ledger>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "amount_cents",
+          "type": "TransferAmountCents",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "TransferReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a transfer is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "TransferRegion",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a transfer names its own region",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "TransferAmountCents",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an amount is never negative",
+              "canonical": "value >= 0",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": true,
+                  "equal": false,
+                  "negated": true
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                },
+                "right": {
+                  "op": "int",
+                  "value": 0
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Request",
+          "role": "Clerk",
+          "goal": "Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "TransferReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "region",
+              "type": "TransferRegion",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "ledger",
+              "type": "Reference<Ledger>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            },
+            {
+              "name": "amount_cents",
+              "type": "TransferAmountCents",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "region",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "region"
+              }
+            },
+            {
+              "target": "ledger",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ledger"
+              }
+            },
+            {
+              "target": "amount_cents",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "amount_cents"
+              }
+            }
+          ],
+          "emits": [
+            "TransferRequested"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "ByRegion",
+          "description": "Transfers requested from one region, for a caller standing in that region.",
+          "attributes": [
+
+          ],
+          "wheres": [
+
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null,
+          "authorization": {
+            "policy": "transfer_access",
+            "tenant": "region"
+          }
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+    {
+      "name": "SettleAcrossRegions",
+      "correlates_by": "reference.value",
+      "starts_on": "TransferRequested",
+      "ends_on": "LedgerCredited",
+      "states": [
+        "settling"
+      ],
+      "handlers": [
+        {
+          "event_type": "TransferRequested",
+          "from_state": "settling",
+          "to_state": "settling",
+          "dispatches": [
+            {
+              "command_name": "Ledger.Credit",
+              "with_spec": [
+                [
+                  "code",
+                  ":ledger"
+                ],
+                [
+                  "amount_cents",
+                  ":amount_cents"
+                ],
+                [
+                  "sequence",
+                  ":reference"
+                ],
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Ledger",
+        "storage_name": "ledger",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Transfer",
+        "storage_name": "transfer",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, same reasoning waybill/ledger_ordering/nested_pieces already\n# give in their own headers. Targeted at ANGLE-8: `authorize_scopes_or_\n# refuses` (lib/hecks/fuzzing/properties/guards.rb:57-93) enforces\n# `TenantScope.apply`'s tenant boundary, and that boundary exists ONLY\n# for queries/read models — `authorize policy, tenant: field` is a word\n# `QuerySpecification::Common::DSL` grants to `QueryBuilder`/`ReadModel\n# Builder`, never to `CommandBuilder` (confirmed by reading the grammar\n# directly: no `authorize` word exists on the command side at all). A\n# WRITE that carries a `reference_to` from one tenant-scoped aggregate\n# into another's is checked by NOTHING at dispatch time — `TenantScope`\n# never runs for a command, and no `given`/`ensures` anywhere in this\n# corpus checks a cross-aggregate tenant field either. `examples/banking/\n# bluebook/safe_deposit_boxes.bluebook:261` (`authorize :vault_access,\n# tenant: :branch_code`) is the ONLY `tenant:` declaration anywhere in\n# the corpus before this domain — a single data point, on the READ side\n# only.\n#\n# See this domain's own NOTES.md for what the first differential run\n# found. `lib/hecks/fuzzing/properties/guards.rb`'s new `commands_\n# respect_tenant_scope` (beside `authorize_scopes_or_refuses`) is the\n# property this domain exists to feed.\nHecks.bluebook \"TenantLedger\" do\n  vision \"Two tenant-scoped aggregates, a cross-tenant reference_to between them, an entity, and a saga that crosses tenants — enough surface to prove the write side has no TenantScope equivalent at all.\"\n\n  core\n\n  # TENANT-SCOPED AGGREGATE ONE. `region` is this aggregate's OWN\n  # declared tenant field — named the same way `authorize_scopes_or_\n  # refuses` already reads a QUERY's tenant field (`declared.\n  # authorization&.tenant`), just read here off `ByRegion` instead and\n  # reused by `commands_respect_tenant_scope` as \"the field that answers\n  # which tenant this record belongs to,\" for ANY aggregate that\n  # declares one, not only this one.\n  aggregate \"Ledger\" do\n    description \"One region's ledger — the record a cross-tenant Transfer.Request can name without ever proving it belongs to the same region.\"\n\n    identified_by :code\n\n    attribute :code,          LedgerCode\n    attribute :region,        LedgerRegion\n    attribute :balance_cents, LedgerAmountCents, default: { value: 0 }\n    attribute :entries,       list_of(Entry)\n\n    value_object \"LedgerCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger is coded\") { !value.to_s.empty? }\n    end\n\n    value_object \"LedgerRegion\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger names its region\") { !value.to_s.empty? }\n    end\n\n    value_object \"LedgerAmountCents\" do\n      attribute :value, Integer\n      invariant(\"an amount is never negative\") { value >= 0 }\n    end\n\n    value_object \"EntrySequence\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"an entry is sequenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"EntryNote\" do\n      attribute :text, String\n    end\n\n    # THE PASS-THROUGH CORRELATION FIELD — carries `Transfer.Request`'s\n    # own `reference` across the saga leg below so `SettleAcrossRegions`\n    # can correlate `Transfer::TransferRequested` and `Ledger::\n    # LedgerCredited` on the SAME scalar (`correlates_by :\"reference.\n    # value\"`). NEVER stored on `Ledger` itself (no `sets` targets it) —\n    # `CommandRules::Emission#emit` writes `payload: args` unconditionally\n    # (every declared argument, not only `sets` targets), so a plain\n    # declared attribute already reaches the emitted event without\n    # needing a field to hold it. Its own type is a LOCAL value object,\n    # not `Transfer`'s `TransferReference` — a value object is always\n    # declared inside the aggregate that owns it (grammar-wide, checked:\n    # no corpus site names one across an aggregate boundary), so this is\n    # the same \"same shape, redeclared, deliberately\" move `SlipReference\n    # `/`FolderReference` already make in ledger_ordering.\n    value_object \"LedgerCreditReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a credit still names the transfer that asked for it\") { !value.to_s.empty? }\n    end\n\n    # A PIECE ON ONE OF THE TWO AGGREGATES — the \"an entity on one\" half\n    # of this domain's own construct list, same role `Visit` plays on\n    # `SafeDepositBox`: nested state one level in, exercised by an\n    # ordinary append (`Credit`, below) and its own command (`Annotate`).\n    entity \"Entry\" do\n      description \"One posting into the ledger, in the order it landed.\"\n\n      identified_by :sequence\n\n      attribute :sequence, EntrySequence\n      attribute :amount_cents, LedgerAmountCents\n      attribute :note, EntryNote, optional: true\n\n      command \"Annotate\" do\n        role \"Auditor\"\n        goal \"Note something about a posting after the fact\"\n\n        attribute :note, EntryNote\n        sets :note\n\n        emits \"EntryAnnotated\"\n      end\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Start a ledger for one region\"\n\n      attribute :code,   LedgerCode\n      attribute :region, LedgerRegion\n\n      sets :code\n      sets :region\n\n      emits \"LedgerOpened\"\n    end\n\n    # THE SAGA'S OWN TARGET — dispatched by `SettleAcrossRegions` against\n    # WHICHEVER ledger `Transfer.Request` named, cross-tenant or not.\n    # Nothing here checks `region` against anything: no `given` reads the\n    # dispatching Transfer's own region (a command cannot see the record\n    # that triggered a saga leg — the saga's own memory is all a `dispatch\n    # ..., with:` can pass in), and no runtime mechanism stops a saga from\n    # crossing a tenant boundary a query would have refused outright. This\n    # command is not a bug by itself — role \"System\" (an automated actor,\n    # never a query's own caller) already reads as \"not tenant-checked\" the\n    # same way every other cross-aggregate `dispatch` target in this corpus\n    # (`Account::Debit`, `Account::Credit`) reads as \"not customer-scoped.\"\n    # The finding is that NOTHING ELSE in the whole dispatch closes the gap\n    # this leaves open, and `commands_respect_tenant_scope` is what proves\n    # that by checking the record this leaves behind.\n    command \"Credit\" do\n      role \"System\"\n      goal \"Credit funds into a ledger, settling a transfer that may or may not share this ledger's own region\"\n\n      reference_to Ledger\n      attribute :amount_cents, LedgerAmountCents\n      attribute :sequence,     EntrySequence\n      attribute :reference,    LedgerCreditReference\n\n      sets :balance_cents, increment: :amount_cents\n      sets :entries, append: { sequence: :sequence, amount_cents: :amount_cents }\n\n      emits \"LedgerCredited\"\n    end\n\n    query \"ByRegion\" do\n      description \"Ledgers open in one region, for a caller standing in that region.\"\n      order_by :code\n      authorize :ledger_access, tenant: :region\n    end\n  end\n\n  # TENANT-SCOPED AGGREGATE TWO. Its OWN `region` is a plain, caller-\n  # supplied argument at `Request` time — never derived from, or checked\n  # against, the `ledger` it names below. That gap is the whole domain.\n  aggregate \"Transfer\" do\n    description \"A request to move funds into some ledger — the ledger a caller names is never proven to share this transfer's own declared region.\"\n\n    identified_by :reference\n\n    attribute :reference,     TransferReference\n    attribute :region,        TransferRegion\n    # THE CROSS-TENANT reference_to — `Ledger` is a DIFFERENT tenant-\n    # scoped aggregate than `Transfer` itself. Corpus precedent for a\n    # PLAIN aggregate-level `reference_to` crossing between two\n    # independently tenant-scoped heads: none before this domain — every\n    # existing `reference_to`/`belongs_to` in the corpus (`SafeDepositBox\n    # belongs_to Customer`, `Account reference_to Customer`) points at an\n    # aggregate that declares no tenant boundary of its own at all.\n    reference_to Ledger\n    attribute :amount_cents,  TransferAmountCents\n\n    value_object \"TransferReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a transfer is referenced\") { !value.to_s.empty? }\n    end\n\n    value_object \"TransferRegion\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a transfer names its own region\") { !value.to_s.empty? }\n    end\n\n    value_object \"TransferAmountCents\" do\n      attribute :value, Integer\n      invariant(\"an amount is never negative\") { value >= 0 }\n    end\n\n    # THE WRITE-SIDE GAP, MADE CONCRETE. `sets :region` and `sets :ledger`\n    # are both the BARE self-referential shorthand (`CommandBuilder#\n    # resolve_bare_set!`) — importing `Transfer`'s own already-declared\n    # `region`/`ledger` attributes verbatim, so a caller passes BOTH\n    # directly: `region: \"east\"` and `ledger: \"<any Ledger's own code>\"`,\n    # completely independently. Nothing here — no `given`, no runtime\n    # check anywhere in `lib/hecks/runtime` — requires that the named\n    # ledger's own `region` agree with the one declared right beside it.\n    # `TenantScope.apply` (runtime/tenant_scope.rb) would refuse this in\n    # a QUERY missing its `tenant:` arg; there is no equivalent refusal\n    # for a COMMAND accepting one that disagrees with a cross-aggregate\n    # reference. That silence is ANGLE-8's own premise, reached directly.\n    command \"Request\" do\n      role \"Clerk\"\n      goal \"Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name\"\n\n      attribute :reference, TransferReference\n\n      sets :reference\n      sets :region\n      sets :ledger\n      sets :amount_cents\n\n      emits \"TransferRequested\"\n    end\n\n    query \"ByRegion\" do\n      description \"Transfers requested from one region, for a caller standing in that region.\"\n      order_by :reference\n      authorize :transfer_access, tenant: :region\n    end\n  end\n\n  # A PROCESS MANAGER WHOSE SAGA CROSSES TENANTS — `Transfer.Request`'s\n  # own region and the `Ledger.Credit` leg's own target may belong to two\n  # different regions, and the saga dispatches anyway: `SagaInterpreter#\n  # deliver_saga_dispatch` (lib/hecks/runtime/saga_interpreter.rb) carries\n  # no tenant concept at all, the same way `PolicyInterpreter#deliver`\n  # doesn't either. One leg is enough to prove the saga machinery itself\n  # adds no tenant check on top of what the aggregates already don't have.\n  process_manager \"SettleAcrossRegions\" do\n    correlates_by :\"reference.value\"\n    starts_on Transfer::TransferRequested\n    ends_on   Ledger::LedgerCredited\n\n    transition Transfer::TransferRequested => \"settling\", from: \"settling\" do\n      dispatch Ledger::Credit, with: { code: :ledger, amount_cents: :amount_cents,\n                                       sequence: :reference, reference: :reference }\n    end\n  end\nend\n"
+}

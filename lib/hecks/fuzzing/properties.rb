@@ -205,6 +205,7 @@ module Hecks
           paging_offset_partitions_correctly:               paging_offset_partitions_correctly(history),
           lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history),
           authorize_scopes_or_refuses:                      authorize_scopes_or_refuses(history),
+          commands_respect_tenant_scope:                    commands_respect_tenant_scope(history),
           dispatch_binding_fidelity:                        dispatch_binding_fidelity(history),
           mutations_match_recompute:                        mutations_match_recompute(history) }
       end

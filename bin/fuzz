@@ -76,6 +76,63 @@ end
 
 DRAW_LIMIT = 5
 
+# A SPECIFIC, DELIBERATE PROPERTY-CHECK FINDING, excused from failing
+# this sweep without being silenced — the same "named, narrow, explained"
+# discipline `Bluebook::ModelCheck::ALLOWED_FINDINGS` already holds real
+# findings to (lib/hecks/bluebook/model_check.rb), applied to THIS file's
+# own kind of finding instead. `bin/fuzz` has no broader exemption
+# mechanism for a generated-history property violation, and this shape —
+# a domain name, keyed to the exact `failure[:signature]` this sweep
+# already computes, holding Regexps that must match EVERY ";"-joined
+# offender in the message — is exactly the one PR #527 added for hecks_qa
+# BUG#4/#5 (removed whole once that real bug was fixed, per its own
+# commit's self-destructing condition: "this spec fails the moment BUG#4
+# is actually fixed, which is the signal to delete the entry"). This
+# entry is a DIFFERENT KIND from that one: not a bug in the property
+# check's own recompute, but `qa/stress_domains/tenant_ledger`'s (ANGLE-8)
+# entire reason to exist — `commands_respect_tenant_scope` (lib/hecks/
+# fuzzing/properties/guards.rb) correctly reports that NOTHING in the
+# runtime stops a command's own `reference_to` from crossing two
+# independently tenant-scoped aggregates, and that domain's `Transfer`/
+# `Ledger` pair is built to make that finding fire on almost any generated
+# sequence that touches both — see that domain's own NOTES.md. The same
+# self-destructing discipline still applies: THIS entry is the signal
+# that no runtime enforcement exists yet, and deleting it (or narrowing
+# it) is exactly what a future fix — either a real `TenantScope`-shaped
+# check for commands, or a decision to retire the domain — should also
+# do, the same way BUG#4's own entry was retired the moment its fix
+# landed.
+# `outcome`'s own `"#{name}: #{message}"` prefixes the PROPERTY's name
+# once, onto the very front of the whole joined message — but `commands_
+# respect_tenant_scope` itself ALSO joins its own multiple offenders with
+# the identical "; " separator (`Properties::Guards`), so splitting on
+# "; " here (below) breaks the combined string into "<property>: <first
+# offender>", then one bare offender per remaining chunk, never a second
+# "<property>: " prefix. The leading label is therefore OPTIONAL, present
+# on the first chunk only.
+TENANT_LEDGER_CROSS_REGION_SHAPE = Regexp.new(
+  '\A(?:commands_respect_tenant_scope: )?TenantLedger::Transfer#.+? \(region: .+?\) references ledger: .+?, ' \
+  'but TenantLedger::Ledger#.+? carries region: .+? — a cross-tenant write nothing refused\z',
+  Regexp::MULTILINE
+)
+
+KNOWN_FUZZ_FINDINGS = {
+  "tenant_ledger" => {
+    "property_violation: commands_respect_tenant_scope" => [TENANT_LEDGER_CROSS_REGION_SHAPE].freeze
+  }.freeze
+}.freeze
+
+# Every "; "-joined chunk of the message must match one of the domain's
+# own allowed shapes — a compound finding that mixes this known shape
+# with anything else (a second, unrelated offender in the same history)
+# is NOT known, and still fails the run.
+def known_finding?(name, failure)
+  matchers = KNOWN_FUZZ_FINDINGS.dig(name, failure[:signature])
+  return false unless matchers
+
+  failure[:message].split("; ").all? { |chunk| matchers.any? { |regex| regex.match?(chunk) } }
+end
+
 def fuzz_domain(domain, seeds, steps, adapter = :memory)
   domain = domain.chomp("/")
   name = File.basename(domain)
@@ -134,6 +191,16 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
     failures << { seed: seed, steps: generated, verdict: verdict, message: message,
                   signature: "#{verdict}: #{signature_of(message)}" }
   end
+
+  # KNOWN findings are printed — visible, auditable, never silently
+  # swallowed — but don't fail the run: they're accounted for the same
+  # way a clean seed is, so a sweep that draws exactly `seeds` known-plus-
+  # clean results doesn't read as SHORT. See KNOWN_FUZZ_FINDINGS above.
+  known, failures = failures.partition { |failure| known_finding?(name, failure) }
+  known.each do |failure|
+    puts "   KNOWN (allowlisted, not failing) — #{failure[:signature]} — #{failure[:message]}"
+  end
+  clean += known.length
 
   report(domain, name, seeds, drawn, clean, failures, adapter)
 end

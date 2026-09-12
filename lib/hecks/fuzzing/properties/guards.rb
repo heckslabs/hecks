@@ -138,6 +138,109 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
+        # ANGLE-8's OWN WRITE-SIDE HALF. `authorize_scopes_or_refuses`
+        # (above) enforces `TenantScope.apply`'s boundary, and that
+        # boundary exists ONLY for queries/read models — `authorize
+        # policy, tenant: field` is a word `QuerySpecification::Common::
+        # DSL#authorize_impl` grants to `QueryBuilder`/`ReadModelBuilder`
+        # alone; `CommandBuilder` never includes that module, so no
+        # bluebook can declare it on a command at all (confirmed by
+        # reading the grammar directly, not inferred). A WRITE that
+        # carries a `reference_to` from one tenant-scoped record into
+        # another's is checked by NOTHING at dispatch time: `TenantScope`
+        # never runs for a command, and no runtime `given`/`ensures`
+        # anywhere in this corpus reads a cross-aggregate tenant field
+        # either. `qa/stress_domains/tenant_ledger` exists to give this
+        # property a real place to fire.
+        #
+        # THE RULE: an aggregate's own declared TENANT FIELD is whichever
+        # field one of ITS OWN queries names in `authorize policy, tenant:
+        # :field` — the exact same declaration `authorize_scopes_or_
+        # refuses` reads off a query above, reused here to name a field
+        # on the AGGREGATE ITSELF that stores the tenant it belongs to.
+        # For every STORED record (`history[:instances]` — a refused
+        # dispatch never writes one, so "a refusal is correct behaviour,
+        # not a finding" holds by construction, the same way `history
+        # [:instances]` already guarantees this for `stored_records_
+        # satisfy_declared_invariants`) whose own aggregate declares a
+        # tenant field, walk every `reference_to`-typed attribute it
+        # carries (`Bluebook::Reference` — "a reference IS the id",
+        # value/coercion.rb's own header, so the stored value is always a
+        # plain id, never a nested payload) pointing at ANOTHER aggregate
+        # that ALSO declares a tenant field: if the referenced record's
+        # own tenant value disagrees with the referencing record's own
+        # tenant value, the write crossed a tenant boundary and nothing
+        # refused it — a finding.
+        #
+        # A DANGLING/UNRESOLVABLE REFERENCE IS SKIPPED — a different,
+        # existence-shaped property's claim, not this one's (the same
+        # "inconclusive, not a claimed pass" restraint `lifecycle_guard_
+        # and_given_violations_are_refused` already documents for a
+        # differently-shaped case). Comparison goes through `Ports::
+        # Query::InMemory.comparable` (the SAME normalization `authorize_
+        # scopes_or_refuses` already applies to a query row's own tenant
+        # field, just above) rather than `Runtime::Value#==` directly —
+        # two single-attribute value objects with the SAME scalar but
+        # DIFFERENT declared names (`LedgerRegion`/`TransferRegion`, this
+        # domain's own pair — a value object is always declared inside
+        # the aggregate that owns it, so two independently tenant-scoped
+        # aggregates can never share one) compare UNEQUAL under `Value#==`
+        # (`type_name` is part of that equality) despite meaning the
+        # identical tenant, which would make every same-tenant write a
+        # false positive.
+        # rubocop:disable-next Metrics/CyclomaticComplexity
+        # rubocop:disable-next Metrics/PerceivedComplexity
+        def commands_respect_tenant_scope(history)
+          bluebooks = history.fetch(:bluebooks)
+          instances = history.fetch(:instances)
+
+          offenders = instances.flat_map do |key, state|
+            domain_name    = key.split("::").first
+            aggregate_name = key.split("::").last.split("#").first
+            aggregate      = bluebooks[domain_name]&.aggregate(aggregate_name)
+            next [] unless aggregate
+
+            own_tenant_field = tenant_field_for(aggregate)
+            next [] unless own_tenant_field && state.key?(own_tenant_field)
+
+            own_tenant = Ports::Query::InMemory.comparable(state[own_tenant_field])
+
+            aggregate.attributes.filter_map do |attribute|
+              next unless attribute.type.is_a?(Bluebook::Reference)
+
+              target = bluebooks[domain_name]&.aggregate(attribute.type.target_name)
+              target_tenant_field = target && tenant_field_for(target)
+              next unless target_tenant_field
+
+              target_id = state[attribute.name]
+              next unless target_id
+
+              target_state = instances["#{domain_name}::#{target.name}##{target_id}"]
+              next unless target_state&.key?(target_tenant_field)
+
+              target_tenant = Ports::Query::InMemory.comparable(target_state[target_tenant_field])
+              next if target_tenant == own_tenant
+
+              "#{key} (#{own_tenant_field}: #{own_tenant.inspect}) references #{attribute.name}: #{target_id.inspect}, " \
+                "but #{domain_name}::#{target.name}##{target_id} carries #{target_tenant_field}: " \
+                "#{target_tenant.inspect} — a cross-tenant write nothing refused"
+            end
+          end
+
+          offenders.empty? || offenders.join("; ")
+        end
+
+        # THE FIELD AN AGGREGATE'S OWN QUERY NAMES AS TENANT-SCOPING —
+        # shared by `commands_respect_tenant_scope` above for both sides
+        # of a `reference_to`. `nil` for an aggregate with no `authorize
+        # ..., tenant:` on any of its own queries — not every aggregate
+        # is tenant-scoped, and one that isn't has nothing for this
+        # property to check either side of.
+        def tenant_field_for(aggregate)
+          authorization = aggregate.queries.filter_map(&:authorization).find(&:tenant)
+          authorization&.tenant&.to_sym
+        end
+
         # A DECLARED PROCESS MANAGER'S OWN COMMAND — `command.hecks_name`,
         # or an entity's own if the verb's second component is itself
         # dotted (`Aggregate.Entity.Command`, the same two shapes
