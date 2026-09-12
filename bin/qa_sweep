@@ -132,6 +132,51 @@
 # measured against the whole rotation; flipping the dial is the entire
 # enablement once someone has.
 #
+# `era_boundary` — SEEDLESS, A REAL LEDGER AUDIT, NEVER A FUZZ. Every
+# mode above compares two ANSWERS to a generated question; this one asks
+# a single, unconditional question of a target's own REAL, already-
+# configured `PostgresEra` database (never a disposable one — see
+# `Hecks::Fuzzing::EraBoundary`'s own header): does any ancestor era
+# still hold post-cut writes nobody has ever merged forward
+# (`Lineage#diverged_count`, the exact arithmetic `bin/merge_tail`'s own
+# diagnostic line already runs by hand)? This is the class of bug this
+# very practice found live, twice, in its own ledger — an operational
+# gap Step 0 of the session that added this mode recovered from by hand,
+# and BUG#24 (a superuser connection walking through the era write-fence)
+# — both "a fork happened and nothing said so." No sequence is ever
+# generated for it (`SEEDLESS_MODES`, below), so it runs once per sweep,
+# not once per seed, and is eligible only where `MODE_REQUIREMENTS`
+# already says a target has BOTH declared `postgres_era` AND actually
+# evolved its own schema at least once (`translations` — a target that
+# has never minted a second era cannot yet have an orphaned one).
+#
+# `concurrency` — A GENERATED SEQUENCE, RACED FOR REAL, NOT JUST REPLAYED
+# SEQUENTIALLY. Every other mode here dispatches one generated sequence
+# through ONE runtime, in order; this one reuses the exact cross-process
+# advisory-lock mechanism `spec/adapters/driven/postgres_era_concurrent_
+# dispatch_spec.rb` proves by hand (real `Process.fork`, real separate
+# `PostgresEra` connections, ADR 0036's own fix), but against a command
+# THE GENERATOR PICKED rather than one a human hand-authored once. See
+# `Hecks::Fuzzing::ConcurrentDispatch`'s own header for the full
+# mechanism (a mid-sequence command step raced from two real forked
+# processes against a real disposable schema, checked against the SAME
+# pair dispatched sequentially with no contention as its own oracle) —
+# it is its own SEAT (`PERSISTENCE_PARITY_SEED_CAP`'s sibling,
+# `CONCURRENCY_SEED_CAP`, clamps it down for the identical reason: two
+# disposable schemas and a real fork, per seed, is genuinely expensive),
+# never folded into the ordinary differential/ruby_only loop the way
+# `adapter_parity_sqlite` is.
+#
+# BOTH DEFAULT `false` — THE SAME REASONING `adapter_parity_sqlite`'s OWN
+# PARAGRAPH ABOVE ALREADY GIVES, not yet cost-measured against the whole
+# rotation, and `concurrency` specifically pays for a real fork AND two
+# real schemas per seed (roughly twice `persistence_parity`'s own
+# per-dispatch cost). Both are provably wired (this file's own `--modes
+# era_boundary`/`--modes concurrency`, and `--all`'s own later wave —
+# `run_deferred_wave`, below, generalizes `run_parity_wave`'s own shape
+# rather than copying it a second and third time) — flipping either dial
+# is the entire enablement once someone has measured the cost.
+#
 # CLEAN-STREAK DEPTH ESCALATION — WHY TWO SWEEPS OF THE SAME TARGET CAN
 # RUN A DIFFERENT NUMBER OF SEEDS. A fixed `--seeds 10 --steps 25` forever
 # tests a target identically on its first ever pass and its five-hundredth
@@ -317,6 +362,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
+require "hecks/fuzzing/era_boundary"
+require "hecks/fuzzing/concurrent_dispatch"
 require "json"
 require "open3"
 require "tempfile"
@@ -1019,9 +1066,44 @@ def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_
   results.map { |r| r.merge(wave: 2, target: "#{r[:target]} [parity wave]") }
 end
 
+# A GENERALIZED, LATER WAVE — `run_parity_wave` above stayed exactly as
+# it was (its own `--persistence-parity` alias flag, its own single
+# hand-picked capability, its own report label) rather than being
+# rewritten onto this; this is what `era_boundary` and `concurrency`
+# reuse instead, since neither needs a dedicated alias flag or a
+# database-lifecycle argument of its own — `--modes <mode>` is already
+# the door `spawn_sweep_child` opens for exactly one mode, the same
+# escape hatch a human typing `--modes persistence_parity` by hand
+# already has. Eligibility is asked generically
+# (`TargetCapabilities.eligible?(mode, capabilities)`) rather than the
+# one hardcoded capability name `run_parity_wave` checks, so this same
+# function serves any future deferred mode with no further change here.
+def run_deferred_wave(runtime, wave1, mode, seeds_override, adversarial, role_draw, dry_run, max_parallel)
+  clean_refs = wave1.select { |r| r[:exit_status] == EXIT_OK }.map { |r| r[:target] }
+  rows       = q(runtime, "Target.All").select { |row| clean_refs.include?(row[:reference][:value]) }
+  eligible   = rows.select do |row|
+    capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, row[:path][:value]), rust_dir: RUST_DIR)
+    Hecks::Fuzzing::TargetCapabilities.eligible?(mode, capabilities)
+  end
+  candidates = eligible.map { |row| row[:reference][:value] }
+
+  if candidates.empty?
+    puts "#{mode} wave: no clean target qualifies. Skipped."
+    return []
+  end
+
+  puts
+  puts "#{mode} wave: #{candidates.size} target(s), at most #{max_parallel} at once: #{candidates.join(', ')}"
+  results = run_pool(candidates, max_parallel) do |target_reference|
+    spawn_sweep_child(target_reference, seeds_override, nil, adversarial, false,
+                      modes: [mode], role_draw: role_draw, dry_run: dry_run, parity: false)
+  end
+  results.map { |r| r.merge(wave: 2, target: "#{r[:target]} [#{mode} wave]") }
+end
+
 # rubocop:disable-next Metrics/AbcSize
 def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency, modes:, role_draw:, dry_run:,
-                 parity_wave: true, max_parallel: SWEEP_MAX_PARALLEL)
+                 parity_wave: true, deferred_wave_modes: [], max_parallel: SWEEP_MAX_PARALLEL)
   now     = Time.now.to_i
   waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
   stale   = stale_holds(runtime, now)
@@ -1048,6 +1130,17 @@ def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_cons
   end
   results = results.map { |r| r.merge(wave: 1) }
   results += run_parity_wave(runtime, results, seeds_override, adversarial, role_draw, dry_run, max_parallel) if parity_wave
+  # EACH DEFERRED MODE THE DIAL TURNED ON GETS ITS OWN LATER WAVE, OVER
+  # WAVE 1'S OWN CLEAN TARGETS — `era_boundary`/`concurrency` today, any
+  # future deferred mode with no further change here (`run_deferred_wave`
+  # asks `TargetCapabilities.eligible?(mode, ...)` generically). Every
+  # wave stacks on the SAME wave-1 result set (never on a PRIOR wave's
+  # own results) — nothing today needs one deferred mode's own wave to
+  # gate another's.
+  deferred_wave_modes.each do |mode|
+    results += run_deferred_wave(runtime, results.select { |r| r[:wave] == 1 }, mode, seeds_override, adversarial,
+                                 role_draw, dry_run, max_parallel)
+  end
   elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
   clean   = results.select { |r| r[:exit_status] == EXIT_OK }
@@ -1059,9 +1152,21 @@ def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_cons
 end
 
 if all_mode
+  # `--no-parity` SKIPS EVERY LATER WAVE, NOT ONLY PERSISTENCE-PARITY'S
+  # OWN — one flag, the same "skip the expensive real-Postgres wave(s)"
+  # meaning it always had, now generalized the same way `deferred_modes`
+  # itself was (see that computation's own comment, above). Each mode
+  # gets a wave only when the dial actually enabled it AND `--modes`
+  # was not used to narrow this run to something else entirely — the
+  # identical two conditions `parity_wave` already checks for
+  # persistence_parity.
+  deferred_wave_modes = %i[era_boundary concurrency].select do |mode|
+    !skip_parity_wave && explicit_modes.nil? && enabled_modes.include?(mode)
+  end
   run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency,
                modes: enabled_modes, role_draw: role_draw, dry_run: dry_run,
-               parity_wave: !skip_parity_wave && explicit_modes.nil? && enabled_modes.include?(:persistence_parity))
+               parity_wave: !skip_parity_wave && explicit_modes.nil? && enabled_modes.include?(:persistence_parity),
+               deferred_wave_modes: deferred_wave_modes)
 end
 
 # ── pick a target ───────────────────────────────────────────────────
@@ -1180,15 +1285,28 @@ end
 # `--all`'s second wave — printed so a human sees they qualify.
 #
 # A DEFERRED MODE RUNS ONLY WHEN IT IS THE WHOLE ASK — `--persistence-
-# parity`, or `--modes persistence_parity` on its own. A `--modes` list
-# that merely INCLUDES it (the exact list `--all` forwards to every
-# wave-1 child, since the dial enables it) still defers it to wave 2;
-# otherwise every PostgresEra-bound target in the rotation would pay
-# the parity pass inside its ordinary sweep, with no seat for the
-# differential comparison at all.
+# parity`, or `--modes persistence_parity` on its own (and, since
+# era_boundary/concurrency joined the deferred set, `--modes
+# era_boundary`, `--modes concurrency`, or any `--modes` list made up
+# ENTIRELY of deferred names, together). A `--modes` list that merely
+# INCLUDES a deferred mode alongside a non-deferred one (the exact list
+# `--all` forwards to every wave-1 child, since the dial enables several
+# at once) still defers it to its own later wave; otherwise every
+# eligible target in the rotation would pay an expensive real-Postgres
+# pass inside its ordinary sweep, with no seat for the differential
+# comparison at all.
+#
+# `persistence_parity_mode` (the `--persistence-parity` flag/alias) is
+# its own narrower thing — see that flag's own single-target-only abort,
+# below — kept as its own boolean rather than folded into this because
+# it ALSO forces `explicit_modes` to exactly one name (parse_modes/the
+# `--persistence-parity` branch, above) before this line ever runs, so
+# `explicit_all_deferred` already agrees with it for that one case.
 capabilities   = Hecks::Fuzzing::TargetCapabilities.infer(domain_path, rust_dir: RUST_DIR)
 resolved_modes = Hecks::Fuzzing::TargetCapabilities.resolve(enabled_modes, capabilities)
-deferred_modes = persistence_parity_mode ? [] : resolved_modes & Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES
+explicit_all_deferred = explicit_modes && !explicit_modes.empty? &&
+                        (explicit_modes - Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES).empty?
+deferred_modes = explicit_all_deferred ? [] : resolved_modes & Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES
 active_modes   = resolved_modes - deferred_modes
 
 if persistence_parity_mode && !active_modes.include?(:persistence_parity)
@@ -1197,11 +1315,26 @@ if persistence_parity_mode && !active_modes.include?(:persistence_parity)
         "nothing to compare Memory against for this domain. examples/directory is the known example that qualifies."
 end
 
-unless active_modes.intersect?(%i[differential ruby_only persistence_parity])
+# `era_boundary` IS SEEDLESS (an audit of the target's own already-
+# persisted lineage, never a generated sequence — see that module's own
+# header) and so is meaningful entirely on its own, with no primary
+# comparison seat running at all; `concurrency` IS a seat (it needs the
+# generated sequence every other seat needs) and belongs beside
+# `persistence_parity` here for the identical reason.
+unless active_modes.intersect?(%i[differential ruby_only persistence_parity concurrency era_boundary])
   abort "target #{target_reference.inspect} (#{target_path}) resolves no comparison mode at all — enabled " \
         "#{enabled_modes.join(',')}, capabilities #{capabilities.join(',')} (deferred: #{deferred_modes.join(',')}). " \
-        "Nothing here can be swept without at least one of differential/ruby_only/persistence_parity."
+        "Nothing here can be swept without at least one of differential/ruby_only/persistence_parity/concurrency/" \
+        "era_boundary."
 end
+
+# SEEDLESS — MODES WITH NO PER-SEED LOOP AT ALL. `era_boundary` is the
+# first (and, today, only) one: nothing here generates a sequence for it
+# to check, so when it is the ONLY active mode, the ordinary "pick a
+# primary seat, generate `seeds` sequences" machinery below has nothing
+# to do and is skipped outright — see `seeded_modes`, below.
+SEEDLESS_MODES = %i[era_boundary].freeze
+seeded_modes = active_modes - SEEDLESS_MODES
 
 # ── claim it ─────────────────────────────────────────────────────────
 
@@ -1243,6 +1376,20 @@ if persistence_parity_mode && seeds > QualityControlDials::PERSISTENCE_PARITY_SE
   seeds = QualityControlDials::PERSISTENCE_PARITY_SEED_CAP
 end
 
+# `QualityControlDials::CONCURRENCY_SEED_CAP` — THE SAME FENCE, ONE SEAT
+# OVER, AND TIGHTER: each `concurrency` seed pays for TWO disposable
+# schemas (the race and its own sequential oracle) and a real fork —
+# roughly twice `persistence_parity`'s own per-dispatch cost, for one
+# seed. Gated on `active_modes.include?(:concurrency)` rather than a
+# dedicated flag (there is no `--concurrency` alias the way
+# `--persistence-parity` gets one — `--modes concurrency` is the door).
+if active_modes.include?(:concurrency) && seeds > QualityControlDials::CONCURRENCY_SEED_CAP
+  puts "note: --seeds #{seeds} exceeds QualityControlDials::CONCURRENCY_SEED_CAP " \
+       "(#{QualityControlDials::CONCURRENCY_SEED_CAP}) — clamping down. Each seed forks two real racers against " \
+       "real PostgresEra I/O; edit that dial in qa/bluebook/quality_control.bluebook to run more."
+  seeds = QualityControlDials::CONCURRENCY_SEED_CAP
+end
+
 puts "resolved depth: seeds=#{seeds} steps=#{steps_per_sequence} (clean_streak=#{current_streak})"
 modes_line = "resolved modes: #{active_modes.join(',')} (capabilities=#{capabilities.join(',')}"
 modes_line += "; deferred=#{deferred_modes.join(',')}" unless deferred_modes.empty?
@@ -1280,18 +1427,32 @@ feature = File.basename(domain_path).downcase
 # worst, for a mode this flag already opted OUT of the Rust comparison
 # for.
 #
-# THE PRIMARY SEAT — exactly one of `:persistence_parity`,
+# THE PRIMARY SEAT — exactly one of `:persistence_parity`, `:concurrency`,
 # `:differential`, `:ruby_only`, in that order of precedence from the
-# ACTIVE set. `differential` resolved means a Cargo feature exists; the
-# build itself can still fail (a half-projected domain), and then the
-# seat degrades to `ruby_only` WITH A NOTE rather than silently — the
-# same fallback the script always had, now said out loud. The other
-# active modes (`self_consistency`, `properties_in_differential`,
+# ACTIVE set — or, when `seeded_modes` is empty (a SEEDLESS-only sweep,
+# `era_boundary` on its own today — see `SEEDLESS_MODES`, above), no seat
+# at all: `mode` is a bookkeeping label the seed loop below never reaches.
+# `differential` resolved means a Cargo feature exists; the build itself
+# can still fail (a half-projected domain), and then the seat degrades to
+# `ruby_only` WITH A NOTE rather than silently — the same fallback the
+# script always had, now said out loud. The other active modes
+# (`self_consistency`, `properties_in_differential`,
 # `structural_skip_report`) are extra Checks folded into the primary
-# seat's own seed loop, never a seat of their own.
-if active_modes.include?(:persistence_parity)
+# seat's own seed loop, never a seat of their own. `concurrency` is its
+# own seat, the SAME reason `persistence_parity` is one: it pays for real
+# Postgres I/O of a shape none of the other seats share (a whole extra
+# fork/race per seed — `lib/hecks/fuzzing/concurrent_dispatch.rb`'s own
+# header), so it is never folded into the ordinary differential/ruby_only
+# loop the way `adapter_parity_sqlite` is.
+if seeded_modes.empty?
+  binary = nil
+  mode   = :seedless
+elsif active_modes.include?(:persistence_parity)
   binary = nil
   mode   = :persistence_parity
+elsif active_modes.include?(:concurrency)
+  binary = nil
+  mode   = :concurrency
 elsif active_modes.include?(:differential) && (binary = differ.build_rust_for(feature, RUST_DIR))
   mode = :differential
 else
@@ -1320,19 +1481,45 @@ end
 # and IS dropped again in the `ensure` around the seed loop below,
 # whether this sweep ends clean, surprised, or crashes outright: nothing
 # from this run is ever left behind.
+# `ensure_scratch_database!` — the ONE idempotent "does this container
+# database exist, create it if not" check, shared by every mode below
+# that needs a real disposable schema to live somewhere. Never dropped by
+# this script for the reason `persistence_parity_database`'s own comment
+# already gives — only the schema each mode mints inside it is this run's
+# own to destroy.
+def ensure_scratch_database!(name)
+  admin = PG.connect(dbname: "postgres")
+  exists = admin.exec_params("SELECT 1 FROM pg_database WHERE datname = $1", [name]).ntuples.positive?
+  admin.exec(%(CREATE DATABASE "#{name}")) unless exists
+  admin.close
+end
+
 persistence_parity_database = "hecks_qa_persistence_parity"
 persistence_parity_schema   = nil
 
-if persistence_parity_mode
+if active_modes.include?(:persistence_parity)
   require "pg"
   persistence_parity_schema = "qa_pp_#{target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
+  ensure_scratch_database!(persistence_parity_database)
+end
 
-  admin = PG.connect(dbname: "postgres")
-  exists = admin.exec_params(
-    "SELECT 1 FROM pg_database WHERE datname = $1", [persistence_parity_database]
-  ).ntuples.positive?
-  admin.exec(%(CREATE DATABASE "#{persistence_parity_database}")) unless exists
-  admin.close
+# `concurrency`'S OWN TWO DISPOSABLE SCHEMAS, SAME CONTAINER DATABASE —
+# `Hecks::Fuzzing::ConcurrentDispatch.check`'s own header explains why it
+# needs TWO: `race_schema` is where the real, ungated fork race happens;
+# `reference_schema` is where the SAME setup-then-race-step pair is
+# dispatched sequentially, with no contention, as the oracle the race is
+# checked against. Both unique per run (target + this process's pid + a
+# random suffix, the identical scheme `persistence_parity_schema` already
+# uses) and both dropped again in the `ensure` around the seed loop below.
+concurrency_database         = "hecks_qa_persistence_parity"
+concurrency_race_schema      = nil
+concurrency_reference_schema = nil
+
+if active_modes.include?(:concurrency)
+  require "pg"
+  concurrency_race_schema      = "qa_cc_race_#{target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
+  concurrency_reference_schema = "qa_cc_ref_#{target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
+  ensure_scratch_database!(concurrency_database)
 end
 
 # SHARED BY BOTH DIFFERENTIAL-FAMILY MODES — `ruby_result`/`history`
@@ -1528,7 +1715,13 @@ MODE_EXPECTATIONS = {
   persistence_parity:         "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
                               "refusals, reactions, sagas and queries across every generated step",
   adapter_parity_sqlite:      "Memory and a real, on-disk SQLite-backed boot agree on instances, events, refusals, " \
-                              "reactions, sagas and queries across every generated step"
+                              "reactions, sagas and queries across every generated step",
+  concurrency:                "two real, forked, cross-process dispatches of the same generated command against " \
+                              "the same PostgresEra-backed schema settle on the same set of outcomes the identical " \
+                              "pair settles on when dispatched sequentially with no contention",
+  era_boundary:               "no ancestor PostgresEra era this target's own real lineage holds still carries " \
+                              "post-cut writes nobody has merged forward (Lineage#diverged_count, every ancestor, " \
+                              "is zero)"
 }.freeze
 
 def check_for(mode, feature, seed, shape, divergences)
@@ -1598,13 +1791,21 @@ mode_label =
     "Ruby vs compiled Rust (#{feature})"
   when :persistence_parity
     "Memory vs real PostgresEra (#{feature}) — persistence-adapter parity"
+  when :concurrency
+    "real forked cross-process dispatch vs its own sequential oracle (#{feature}) — write-lock serialization"
+  when :seedless
+    "no primary seat (#{active_modes.join(',')} — audits this target's own real state, generates nothing)"
   else
     "Ruby-only property/exception check (no compiled Rust binary for #{feature})"
   end
 
-puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
-     "#{steps_per_sequence} steps each, adversarial fraction #{adversarial}, role draw #{role_draw}, " \
-     "dry-run fraction #{dry_run}, active modes #{active_modes.join(',')}"
+if mode == :seedless
+  puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, active modes #{active_modes.join(',')}"
+else
+  puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} seed(s), " \
+       "#{steps_per_sequence} steps each, adversarial fraction #{adversarial}, role draw #{role_draw}, " \
+       "dry-run fraction #{dry_run}, active modes #{active_modes.join(',')}"
+end
 
 # THE PERSISTENCE-PARITY OUTCOME — `Hecks::Fuzzing::PersistenceParity
 # .diff`, called once per seed against THIS SWEEP'S OWN disposable
@@ -1642,6 +1843,56 @@ rescue StandardError => e
   [{ field: "process", detail: "#{e.class}: #{e.message}" }]
 end
 
+# THE CONCURRENCY OUTCOME — `Hecks::Fuzzing::ConcurrentDispatch.check`
+# already returns the flat, `field:`-keyed divergence shape every other
+# outcome here does (including its own `[]` for "this seed's generated
+# sequence had no command step to race at all," which is a legitimate
+# clean result, not a skipped check). Nothing here needs its own crash
+# discipline — that module's own `check` already rescues everything down
+# to a `process` finding, the identical contract `persistence_parity_
+# outcome`/`adapter_parity_sqlite_divergences` both keep by hand; kept
+# here as a one-line wrapper only so `run_one_seed`'s own `case` reads
+# exactly like every other seat's.
+def concurrency_outcome(domain_path, steps, database, race_schema, reference_schema)
+  Hecks::Fuzzing::ConcurrentDispatch.check(domain_path, steps, database: database,
+                                                                race_schema: race_schema, reference_schema: reference_schema)
+end
+
+# THE ERA-BOUNDARY CHECK — SEEDLESS, ONCE PER SWEEP, NEVER PER SEED (see
+# `SEEDLESS_MODES`, above, and `Hecks::Fuzzing::EraBoundary`'s own header
+# for why: it audits the target's own already-persisted real lineage,
+# generating nothing). `checked: false` (the target's real database
+# unreachable, or not PostgresEra-bound at all — shouldn't happen given
+# `MODE_REQUIREMENTS` already gated eligibility on it, but a target can
+# still be genuinely unprovisioned locally) is reported as an operational
+# NOTE, not a finding and not a crash: a human who flipped this mode on
+# for a target whose real database is not reachable from THIS machine
+# gets told why, cleanly, rather than a false "clean" or a false
+# "surprised."
+def era_boundary_check(domain_path)
+  result = Hecks::Fuzzing::EraBoundary.diverged_ancestor_writes(domain_path)
+  unless result[:checked]
+    return { mode: :era_boundary, subject: "[era_boundary] #{File.basename(domain_path)} — ancestor-era audit",
+              expectation: MODE_EXPECTATIONS.fetch(:era_boundary), divergences: [], clean: true,
+              observation: "not checked — #{result[:reason]}" }
+  end
+
+  divergences =
+    if result[:diverged_total].positive?
+      [{ field: "era_boundary", breakdown: result[:breakdown],
+         detail: "#{result[:diverged_total]} post-cut write(s) across #{result[:era_count]} era(s) that nothing has " \
+                 "ever merged forward — bin/merge_tail <this target's own domain path> is the fix; see this " \
+                 "script's own header on `era_boundary` for the class of bug this is" }]
+    else
+      []
+    end
+
+  { mode: :era_boundary, subject: "[era_boundary] #{File.basename(domain_path)} — ancestor-era audit " \
+                                  "(#{result[:era_count]} era(s) on record)",
+    expectation: MODE_EXPECTATIONS.fetch(:era_boundary), divergences: divergences, clean: divergences.empty?,
+    observation: divergences.empty? ? "no ancestor era holds an unmerged write" : "#{result[:diverged_total]} diverged" }
+end
+
 # ONE SEED, EVERY ACTIVE MODE — pulled out of the loop below so that
 # loop reads as "run a seed, log its checks, stop on a surprise" rather
 # than burying that shape under each mode's own detail. Returns `{
@@ -1672,7 +1923,8 @@ end
 # `role_draw:`/`dry_run:` reach the generator the same way `adversarial`
 # does (items 2 and 5 of the detection plan).
 def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial, modes,
-                 role_draw: 0.0, dry_run: 0.0, database: nil, schema: nil)
+                 role_draw: 0.0, dry_run: 0.0, database: nil, schema: nil,
+                 concurrency_database: nil, concurrency_race_schema: nil, concurrency_reference_schema: nil)
   shape = "#{steps_per_sequence} steps, adversarial #{adversarial}, role_draw #{role_draw}, dry_run #{dry_run}"
   begin
     steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: steps_per_sequence,
@@ -1692,7 +1944,10 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_seq
     case mode
     when :differential       then diff_ruby_vs_rust(differ, domain_path, steps, binary, modes: modes)
     when :persistence_parity then { persistence_parity: persistence_parity_outcome(domain_path, steps, database, schema).last }
-    else                          ruby_only_outcome(domain_path, steps, modes: modes)
+    when :concurrency
+      { concurrency: concurrency_outcome(domain_path, steps, concurrency_database, concurrency_race_schema,
+                                         concurrency_reference_schema) }
+    else ruby_only_outcome(domain_path, steps, modes: modes)
     end
 
   { steps: steps, checks: outcomes.map { |mode_key, divergences| check_for(mode_key, feature, seed, shape, divergences) } }
@@ -1701,34 +1956,43 @@ end
 surprise = nil
 
 begin
-  (1..seeds).each do |seed|
-    result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
-                          active_modes, role_draw: role_draw, dry_run: dry_run,
-                          database: persistence_parity_database, schema: persistence_parity_schema)
+  # NO SEED LOOP AT ALL FOR A SEEDLESS-ONLY SWEEP — `seeded_modes.empty?`
+  # is exactly the `mode == :seedless` case from the primary-seat
+  # selection above; skipping the loop outright (rather than iterating
+  # `seeds` times doing nothing) is what keeps a `--modes era_boundary`
+  # sweep from claiming to have generated sequences it never did.
+  if seeded_modes.any?
+    (1..seeds).each do |seed|
+      result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
+                            active_modes, role_draw: role_draw, dry_run: dry_run,
+                            database: persistence_parity_database, schema: persistence_parity_schema,
+                            concurrency_database: concurrency_database, concurrency_race_schema: concurrency_race_schema,
+                            concurrency_reference_schema: concurrency_reference_schema)
 
-    # EVERY MODE'S CHECK IS LOGGED, held or surprised, BEFORE the loop
-    # decides anything — a seed that surprised on properties but held
-    # differentially records BOTH facts, which is the whole point of one
-    # Check per mode.
-    surprised = result[:checks].reject do |check|
-      sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
-      sequence = sweep.checks.last[:sequence][:value]
-      if check[:clean]
-        mark_held!(runtime, sweep, sequence, check[:observation])
-      else
-        mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
+      # EVERY MODE'S CHECK IS LOGGED, held or surprised, BEFORE the loop
+      # decides anything — a seed that surprised on properties but held
+      # differentially records BOTH facts, which is the whole point of one
+      # Check per mode.
+      surprised = result[:checks].reject do |check|
+        sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
+        sequence = sweep.checks.last[:sequence][:value]
+        if check[:clean]
+          mark_held!(runtime, sweep, sequence, check[:observation])
+        else
+          mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
+        end
+        check[:clean]
       end
-      check[:clean]
-    end
 
-    if surprised.empty?
-      puts "  seed #{seed}: held (#{result[:checks].map { |c| c[:mode] }.join(', ')})"
-      next
-    end
+      if surprised.empty?
+        puts "  seed #{seed}: held (#{result[:checks].map { |c| c[:mode] }.join(', ')})"
+        next
+      end
 
-    puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(', ')})"
-    surprise = result.merge(seed: seed, checks: surprised)
-    break
+      puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(', ')})"
+      surprise = result.merge(seed: seed, checks: surprised)
+      break
+    end
   end
 
   # THE ONCE-PER-SWEEP STRUCTURAL-SKIP CHECK — only after a differential
@@ -1747,17 +2011,43 @@ begin
       surprise = { seed: nil, steps: [], checks: [check] }
     end
   end
+
+  # THE ONCE-PER-SWEEP ERA-BOUNDARY CHECK — independent of `mode`
+  # entirely (it never shares a primary seat with anything: see
+  # `SEEDLESS_MODES`), gated only on the mode being active at all and on
+  # nothing having surprised yet.
+  if surprise.nil? && active_modes.include?(:era_boundary)
+    check    = era_boundary_check(domain_path)
+    sweep    = log_check!(sweep, subject: check[:subject], expectation: check[:expectation])
+    sequence = sweep.checks.last[:sequence][:value]
+    if check[:clean]
+      mark_held!(runtime, sweep, sequence, check[:observation])
+      puts "  era boundary: #{check[:observation]}"
+    else
+      mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
+      puts "  era boundary: SURPRISED — #{check[:observation]}"
+      surprise = { seed: nil, steps: [], checks: [check] }
+    end
+  end
 ensure
-  # THE DISPOSABLE SCHEMA'S OWN TEARDOWN — runs whether this sweep ends
+  # THE DISPOSABLE SCHEMAS' OWN TEARDOWN — runs whether this sweep ends
   # clean, surprised, or crashes outright (a Ruby `ensure` runs across
   # `exit`, which raises `SystemExit` under the hood, the same as any
-  # other exception unwinding through here). The DATABASE itself is
-  # deliberately left standing (see its own creation comment above) —
-  # only the schema this ONE run minted is this run's own to destroy.
+  # other exception unwinding through here). The DATABASES themselves are
+  # deliberately left standing (see their own creation comments above) —
+  # only the schema(s) this ONE run minted are this run's own to destroy.
   if persistence_parity_schema
     admin = PG.connect(dbname: persistence_parity_database)
     admin.exec("SET client_min_messages = warning")
     admin.exec("DROP SCHEMA IF EXISTS #{admin.quote_ident(persistence_parity_schema)} CASCADE")
+    admin.close
+  end
+  if concurrency_race_schema || concurrency_reference_schema
+    admin = PG.connect(dbname: concurrency_database)
+    admin.exec("SET client_min_messages = warning")
+    [concurrency_race_schema, concurrency_reference_schema].compact.each do |schema|
+      admin.exec("DROP SCHEMA IF EXISTS #{admin.quote_ident(schema)} CASCADE")
+    end
     admin.close
   end
 end

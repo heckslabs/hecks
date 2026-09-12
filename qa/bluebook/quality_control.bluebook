@@ -234,6 +234,16 @@ unless defined?(QualityControlDials)
     # is still honoured exactly as given.
     PERSISTENCE_PARITY_SEED_CAP = 5
 
+    # THE `concurrency` AXIS'S OWN SPEED FENCE, TIGHTER STILL —
+    # `bin/qa_sweep --modes concurrency` (lib/hecks/fuzzing/
+    # concurrent_dispatch.rb) pays for TWO disposable PostgresEra schemas
+    # per seed (a real forked race, plus its own sequential oracle) where
+    # `persistence_parity` pays for one — roughly twice the real-Postgres
+    # I/O, for one seed. Same discipline as `PERSISTENCE_PARITY_SEED_CAP`:
+    # a ceiling on `--seeds`, clamped down (never up), a human's number
+    # changed by editing this file.
+    CONCURRENCY_SEED_CAP = 3
+
     # WHICH TWO ADAPTERS EACH ADAPTER-PARITY MODE COMPARES, BY MODE NAME —
     # `Hecks::Fuzzing::PersistenceParity.diff` (lib/hecks/fuzzing/
     # persistence_parity.rb) used to hardcode Memory vs PostgresEra; it now
@@ -275,6 +285,18 @@ unless defined?(QualityControlDials)
     # multiplied across the whole rotation, and this practice has not yet
     # measured that cost at rotation scale. Left off until someone does;
     # flipping it is the entire enablement once they have.
+    #
+    # `era_boundary`/`concurrency` — ALSO NOW BUILT (`lib/hecks/fuzzing/
+    # era_boundary.rb`, `lib/hecks/fuzzing/concurrent_dispatch.rb`, both
+    # wired into `bin/qa_sweep`'s own mode system and its own `--all`
+    # later wave), STILL `false` for the SAME reasoning
+    # `adapter_parity_sqlite` already states one paragraph up: neither
+    # has been cost-measured at rotation scale, and `concurrency`
+    # specifically pays for a real fork and two real disposable schemas
+    # per seed — see `bin/qa_sweep`'s own top-of-file comment on both for
+    # the full mechanism. `wasm_front` stays `false` for a different
+    # reason: no compiled WASM dispatch front exists in this repository
+    # to differentially compare against yet.
     MODES = {
       differential:               true,
       ruby_only:                  true,

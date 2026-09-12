@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+
+# ONE RACER, A REAL SEPARATE OS PROCESS — `Hecks::Fuzzing::
+# ConcurrentDispatch`'s own worker, `Process.spawn`ed, DELIBERATELY not
+# `Process.fork`ed from inside `bin/qa_sweep` itself.
+#
+# WHY SPAWN, NOT FORK — THE EXACT HAZARD `bin/qa_sweep`'s OWN top-of-file
+# comment on `--all` already names for the identical reason ("A SPAWNED
+# PROCESS, DELIBERATELY, NOT `Kernel#fork`"): by the time a `concurrency`
+# seed runs, the calling process already holds the QualityControl
+# ledger's own live PostgresEra connection (and, most seeds, this
+# module's own reference-oracle connection too). `Process.fork`
+# duplicates every open file descriptor, SSL session state included —
+# confirmed live while wiring this mode up: forking directly from inside
+# `bin/qa_sweep` corrupted the LEDGER's own connection the moment either
+# racer child exited ("PQsocket() can't get socket descriptor" / "SSL
+# connection has been closed unexpectedly", surfacing on the NEXT
+# `log_check!` call, nowhere near this module's own code). `Process.spawn`
+# execs a genuinely fresh `ruby` — a fresh process image, no inherited
+# Ruby state, no inherited file descriptor to corrupt — exactly what
+# `spawn_sweep_child` already does for the identical reason, one seat
+# over.
+#
+#   bin/qa_concurrency_racer <domain-path> <database> <schema> <verb> <args-json>
+#
+# Prints exactly ONE line to stdout — "succeeded", "refused", or
+# "crashed:<class>: <message>" — the same three outcomes `Hecks::
+# Fuzzing::ConcurrentDispatch.dispatch_one` ever returns, since this
+# script IS that call, run as its own process. Always exits 0: the
+# outcome text carries whatever happened, the same "never raises"
+# contract `dispatch_one` itself keeps — a nonzero exit here would mean
+# `Open3.capture2`'s own caller has to special-case a process failure
+# SEPARATELY from a "crashed:" outcome for no real gain, when the text
+# already says everything an exit code could.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/ports/persistence/plugins/era"
+require "hecks/fuzzing/concurrent_dispatch"
+require "json"
+
+domain_path, database, schema, verb, args_json = ARGV
+abort "usage: bin/qa_concurrency_racer <domain-path> <database> <schema> <verb> <args-json>" \
+  unless domain_path && database && schema && verb && args_json
+
+step = { "verb" => verb, "args" => JSON.parse(args_json) }
+
+outcome = Hecks::Fuzzing::ConcurrentDispatch.boot_preserving_schema(domain_path, database: database, schema: schema) do |copy|
+  Hecks::Fuzzing::ConcurrentDispatch.dispatch_one(Hecks.boot(copy), step)
+end
+
+puts outcome
