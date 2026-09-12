@@ -10,6 +10,8 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["waybill"]
+referral_chain = []
+tenant_ledger = []
 ledger_ordering = []
 waybill = []
 nested_pieces = []

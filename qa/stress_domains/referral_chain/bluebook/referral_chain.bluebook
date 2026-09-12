@@ -1,0 +1,220 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/hecks_qa/SKILL.md's "Authoring a
+# new stress domain" section).
+#
+# TARGETED AT ANGLE-2 (qa/bluebook ledger): reference HOPS, as distinct
+# from entity NESTING. `qa/stress_domains/nested_pieces` proves a piece
+# inside a piece fuzzes and dispatches correctly, but that is entity
+# addressing (`to: { aggregate:, entity: }`); a chain of `reference_to`
+# lookups across AGGREGATES goes through a different mechanism entirely —
+# `CommandRules::References` (`lib/hecks/runtime/command_rules/
+# references.rb`: `resolve_references`, `resolve_state_references`,
+# `dereference`) on the write side and `QuerySpecification::HopPath` on
+# the read side — and ADR 0037's Finding 5 already named that family as
+# the one place Ruby and Rust structurally diverge: `resolve_state_
+# references` (the check that walks an AGGREGATE's own reference-typed
+# attributes against SETTLED state, after `sets` has copied a command's
+# arguments in) was never ported to Rust; only the COMMAND-argument-level
+# `resolve_references` was (`rust/project/domain_generator.rb#reference_
+# checks`). The ADR closed the finding on the grounds that the corpus's
+# one trigger (`SafeDepositBox.Rent` redeclaring `customer` under a plain
+# value-object type) had been removed by unrelated work — and said, in
+# so many words, "re-open this finding the day one does." This domain
+# is that day, deliberately: `Referral.Reassign` below is exactly that
+# shape.
+#
+# EVERY CONSTRUCT HERE IS LOAD-BEARING — the domain is deliberately
+# minimal, one aggregate per hop:
+#
+#   Sponsor  — the far end of every chain (C). Carries the lifecycle
+#              field every hop below reads (`standing`), and the ONE
+#              role-gated command in the domain (`Suspend`) so the
+#              adversary's `role+nonexistent` precedence combination
+#              has a reference-carrying, role-carrying command to land on.
+#   Member   — one hop from a Sponsor (B → C). `Join`'s `given`
+#              dereferences its own `sponsor` argument ONE hop
+#              (`sponsor.standing`) — the same shape `Banking::Account.
+#              Open`'s `customer.status` already exercises, kept here
+#              only because the two-hop chain below has to pass through
+#              it. No query of its own: a ONE-hop `where` already exists
+#              in banking (`Account.OpenForSuspendedCustomers`) and adds
+#              nothing new.
+#   Referral — two hops from a Sponsor (A → B → C). `Issue`'s `given`
+#              dereferences TWO hops through a fresh argument (`member.
+#              sponsor.standing` — `References#dereference` recursing,
+#              `DEREFERENCE_DEPTH`); `FromGoodSponsors` is a TWO-hop
+#              `where` (`member/sponsor/standing`) — real in Ruby via
+#              `HopPath::MAX_HOPS`, a STRUCTURAL skip in Rust (`rust/
+#              project/queries.rb`: a where hopping through a reference
+#              is "read_model territory" — banking's own one-hop query
+#              is skipped the same way, and `query_hop_plan` bails on a
+#              second `/` regardless, D2 of the equivalence-gap plan),
+#              so the differential harness drops it on both sides and
+#              Ruby's own `query_answers_match_reference` property is
+#              what checks the answer; and `Reassign` is the ADR 0037
+#              Finding 5 shape — see its own comment.
+#
+# NOT HERE, AND WHY — `has_many`. The first draft of this domain carried
+# a fourth aggregate (`Circle`, `has_many Members`, a command supplying
+# the list under `list_of(Handle)`) to reach `resolve_state_references`'
+# LIST branch. `bin/project_rust` accepted it and emitted Rust that does
+# not compile — and because `rust/src/generated/mod.rs` declares every
+# generated domain with an unconditional `pub mod`, that broke EVERY
+# feature's build, not just this one's. That is this domain's first
+# finding, recorded in NOTES.md; the aggregate comes back the day
+# codegen can project a `has_many` at all.
+#
+# `Handle` is redeclared per aggregate rather than shared — this corpus's
+# own convention (see waybill.bluebook's `SlotNumber` comment: no chapter
+# shares one value object BY NAME across two aggregates without
+# redeclaring it locally).
+Hecks.bluebook "ReferralChain" do
+  vision "A referral is issued by a member, who was sponsored by a sponsor — three aggregates in a reference chain, built to walk every hop the runtime's reference machinery has (a one-hop and a two-hop given, a two-hop where, and a reference re-pointed through a plain value object so only the settled-state check can catch a dangling one) on both engines at once."
+
+  core
+
+  # C — THE FAR END OF EVERY CHAIN. Its `standing` lifecycle field is
+  # what every hop below reads through one or two references.
+  aggregate "Sponsor" do
+    description "Someone who vouches for members; a sponsor in good standing is what makes a referral chain valid."
+
+    identified_by :handle
+
+    attribute :handle, Handle
+
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    lifecycle :standing, default: "good" do
+      transition "Suspend" => "suspended", from: "good"
+    end
+
+    command "Enroll" do
+      goal "Enroll a sponsor"
+
+      attribute :handle, Handle
+
+      emits "SponsorEnrolled"
+    end
+
+    # THE ONE ROLE-GATED COMMAND IN THIS DOMAIN — kept to exactly one on
+    # purpose: the adversary's `role+nonexistent` precedence shape needs
+    # a command that BOTH declares a role AND addresses an existing
+    # record, and nothing else here needs a role to mean anything.
+    command "Suspend", from: "good" do
+      role "Registrar"
+      goal "Suspend a sponsor, invalidating every chain that runs through them"
+
+      reference_to Sponsor
+
+      emits "SponsorSuspended"
+    end
+  end
+
+  # B — ONE HOP FROM A SPONSOR.
+  aggregate "Member" do
+    description "Someone a sponsor vouched for; joins under exactly one sponsor."
+
+    identified_by :handle
+
+    attribute :handle, Handle
+    reference_to Sponsor
+
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "Join" do
+      goal "Join under a sponsor"
+
+      reference_to Sponsor
+      attribute :handle, Handle
+
+      # ONE HOP through a fresh argument — `References#dereference`, the
+      # same shape `Banking::Account.Open`'s own `customer.status` given.
+      given("the sponsor is in good standing") { sponsor.standing == "good" }
+
+      sets :handle
+      sets :sponsor
+
+      emits "MemberJoined"
+    end
+  end
+
+  # A — TWO HOPS FROM A SPONSOR.
+  aggregate "Referral" do
+    description "A referral a member issues; only valid while the member's own sponsor stands in good standing."
+
+    identified_by :code
+
+    attribute :code, Code
+    reference_to Member
+
+    value_object "Code" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a code is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "Issue" do
+      goal "Issue a referral on behalf of a member"
+
+      reference_to Member
+      attribute :code, Code
+
+      # TWO HOPS through a fresh argument — `member` hydrates to the
+      # Member's state, whose own `sponsor` hydrates one level further
+      # (`dereference`'s own recursion, `DEREFERENCE_DEPTH` = 4). Banking's
+      # `Transfer.Request` reads `source.customer.status` the same way.
+      given("the member's sponsor is in good standing") { member.sponsor.standing == "good" }
+
+      sets :code
+      sets :member
+
+      emits "ReferralIssued"
+    end
+
+    # THE ADR 0037 FINDING 5 SHAPE, RE-OPENED ON PURPOSE. `member` is
+    # REDECLARED here under `Handle` — a plain value object, not the
+    # aggregate's own `Reference<Member>` — so the command-level
+    # `resolve_references` (the one check Rust ported) sees no reference
+    # at all: `reference?` is false on the command's own attribute.
+    # `sets :member` then copies the handle straight into the aggregate's
+    # reference field, and only `resolve_state_references` (Ruby,
+    # `step_save`, walking `Referral.member`'s real `Reference<Member>`
+    # type against the SETTLED state) asks whether it names a Member
+    # that exists. This is `SafeDepositBox.Rent`'s pre-#409 shape, byte
+    # for byte in spirit — the trigger the ADR's own closing note said
+    # to re-open the finding for.
+    command "Reassign" do
+      goal "Re-point a referral at a different member, by handle"
+
+      reference_to Referral
+      attribute :member, Handle
+
+      sets :member
+
+      emits "ReferralReassigned"
+    end
+
+    # TWO-HOP WHERE — real in Ruby (`HopPath::MAX_HOPS`), a structural
+    # refusal in Rust ("is not generated for this domain" — see the
+    # header comment). The differential harness drops it on both sides;
+    # Ruby's own `query_answers_match_reference` property is what checks
+    # the answer, and the structural skip itself is what PR-2's skip
+    # reporting exists to surface.
+    query "FromGoodSponsors" do
+      description "Referrals whose issuing member's sponsor is in good standing."
+      where(:"member/sponsor/standing" => "good")
+      order_by :code
+    end
+  end
+end

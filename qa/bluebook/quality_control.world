@@ -41,10 +41,50 @@
 # `PG.connect(dbname: ...)` fails outright against a name with no
 # database behind it at all), then reboot; renaming this setting to a
 # still-free name works too.
+#
+# CONNECTS AS `hecks_qa`, AN ORDINARY ROLE — NOT THE MACHINE'S DEFAULT
+# USER. A bare `database "hecks_quality_control"` (what this file used to
+# say) connects as whatever Postgres user the shell defaults to, which on
+# a self-hosted dev box is a SUPERUSER — and PostgresEra's era write-fence
+# is row-level security, which a superuser (or any BYPASSRLS role) walks
+# straight through, FORCE ROW LEVEL SECURITY notwithstanding. Found live
+# on this very ledger (BUG#24): an old checkout kept writing era 3
+# through two mints, 37 rows invisible to every newer head, and nothing
+# warned. The boot now REFUSES a superuser connection outright
+# (`Lineage#check_fence_applies!`), naming this file's two ways out:
+# an ordinary role in the URL, or an explicit `allow_superuser true`
+# opt-in that boots with the fence void, on the record, warning on every
+# boot. This ledger takes the real fix, not the opt-in.
+#
+# `hecks_qa` OWNS the database and everything in it — an owner is fenced
+# by RLS like any other role (that is what FORCE is for), and only an
+# owner can provision and mint, which any QA session may have to do
+# (`provisioner?`, owner-only DDL). Not the `role` setting: that names
+# an app role the PROVISIONER grants privileges to, never who this
+# process connects as — `RepositoryFactory` strips it, `connect_for`
+# reads only `database`. A URL with no password: local pg_hba is
+# `trust` on the socket and on localhost, same as every other
+# `postgres://<role>@localhost/...` binding this repo's specs use.
+#
+# THE ONE OPERATOR STEP, BEFORE THE FIRST BOOT AGAINST THIS FILE — the
+# role has to exist and hold the database, or `PG.connect` refuses the
+# login before PostgresEra ever gets a say:
+#
+#   bin/qa_postgres_role hecks_quality_control
+#
+# Idempotent (creates the role only if missing, transfers ownership of
+# the database, the `public` schema, and every relation and function in
+# it only where not already `hecks_qa`'s — see that script's own header),
+# and proven end-to-end on disposable databases by `spec/qa_sweep_all_
+# spec.rb` and `spec/qa_sweep_persistence_parity_spec.rb`, which run this
+# exact script against their own fixtures before binding to the same URL
+# shape. `reset!` (postgres_era.rb) is the one operation that genuinely
+# needs a superuser — spec teardown only, never something this ledger
+# does.
 Hecks.world "QualityControl" do
   realm "QA"
   persisted_by("PostgresEra") do
-    database "hecks_quality_control"
+    database "postgres://hecks_qa@localhost/hecks_quality_control"
   end
 
   # THE REAL, LIVE DEPLOY — the GitHub webhook driving adapter

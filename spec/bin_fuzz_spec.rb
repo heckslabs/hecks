@@ -89,20 +89,66 @@ RSpec.describe "bin/fuzz" do
     end
   end
 
-  # `KNOWN_FUZZ_FINDINGS`/`#known_finding?` used to live here — the
-  # narrowest possible allowlist (`bin/fuzz`'s own equivalent of
-  # `Bluebook::ModelCheck::ALLOWED_FINDINGS`), added in PR #527 to excuse
-  # exactly one already-diagnosed finding (hecks_qa BUG#4/BUG#5:
-  # `mutations_match_recompute` false-positiving on `NestedPieces::
-  # Workspace.Board.AddCard`'s own entity-owned `:append` of a VO-typed
-  # field) from failing the sweep while the real fix was still pending.
-  # That PR's own commit message pinned the exact self-destructing
-  # condition: "this spec fails the moment BUG#4 is actually fixed, which
-  # is the signal to delete the entry" — `recompute_append`'s own fix
-  # (`lib/hecks/fuzzing/properties/dispatch_and_mutations.rb`) is that
-  # fix, seed 2 no longer trips the property at all
-  # (`spec/fuzzing/properties_spec.rb`'s own BUG#5 regression pins the
-  # exact case), and the mechanism had no other entry and no other
-  # purpose — removed whole, mechanism included, rather than left behind
-  # empty with nothing real left to test.
+  # `KNOWN_FUZZ_FINDINGS`/`#known_finding?` — the narrowest possible
+  # allowlist (`bin/fuzz`'s own equivalent of `Bluebook::ModelCheck::
+  # ALLOWED_FINDINGS`), first added in PR #527 to excuse hecks_qa BUG#4/#5
+  # (a bug IN the property check's own recompute) and later removed whole
+  # once that real fix landed. Re-added here for a DIFFERENT kind of
+  # entry: `qa/stress_domains/tenant_ledger` (ANGLE-8) exists specifically
+  # to make `commands_respect_tenant_scope` fire — a correct report that
+  # nothing in the runtime stops a command's own `reference_to` from
+  # crossing two independently tenant-scoped aggregates — on almost any
+  # generated sequence that touches both its aggregates, so a blanket
+  # `bin/fuzz` sweep needs this domain's own finding named and excused the
+  # same way BUG#4's once was. The self-destructing discipline still
+  # applies: this entry should be removed (or narrowed) the moment either
+  # a real `TenantScope`-shaped check for commands lands, or the domain is
+  # retired — whichever makes it stop firing first.
+  describe "#known_finding?" do
+    def domain_path(name) = File.join(InMemoryDomain::ROOT, "qa/stress_domains/#{name}")
+
+    # PINNED AGAINST A REAL, CURRENTLY-REPRODUCING SEED — not a
+    # hand-built message, the same discipline PR #527's own version held
+    # itself to: this fails the moment TENANT_LEDGER_CROSS_REGION_SHAPE
+    # no longer matches what the property actually reports.
+    it "recognizes a real, currently-reproducing commands_respect_tenant_scope finding on tenant_ledger" do
+      fuzz = bin_fuzz_methods
+      domain = domain_path("tenant_ledger")
+
+      steps = Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: 2, steps: 25)
+      verdict, message = fuzz.outcome(domain, steps)
+
+      expect(verdict).to be(:property_violation)
+      failure = { signature: "#{verdict}: #{fuzz.signature_of(message)}", message: message }
+      expect(fuzz.known_finding?("tenant_ledger", failure)).to be(true)
+    end
+
+    it "rejects the identical message under a different domain name" do
+      fuzz = bin_fuzz_methods
+      failure = { signature: "property_violation: commands_respect_tenant_scope",
+                  message:   'commands_respect_tenant_scope: TenantLedger::Transfer#a (region: "x") references ' \
+                             'ledger: "y", but TenantLedger::Ledger#y carries region: "z" — a cross-tenant write ' \
+                             "nothing refused" }
+
+      expect(fuzz.known_finding?("not_tenant_ledger", failure)).to be(false)
+    end
+
+    it "rejects a different property under the same domain" do
+      fuzz = bin_fuzz_methods
+      failure = { signature: "property_violation: some_other_property",
+                  message:   "some_other_property: unrelated finding entirely" }
+
+      expect(fuzz.known_finding?("tenant_ledger", failure)).to be(false)
+    end
+
+    it "rejects the known shape riding alongside a second, unrelated offender" do
+      fuzz = bin_fuzz_methods
+      failure = { signature: "property_violation: commands_respect_tenant_scope",
+                  message:   'commands_respect_tenant_scope: TenantLedger::Transfer#a (region: "x") references ' \
+                             'ledger: "y", but TenantLedger::Ledger#y carries region: "z" — a cross-tenant write ' \
+                             "nothing refused; something else entirely unrelated" }
+
+      expect(fuzz.known_finding?("tenant_ledger", failure)).to be(false)
+    end
+  end
 end

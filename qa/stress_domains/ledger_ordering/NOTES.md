@@ -19,18 +19,23 @@ the one with the unbuilt/uninvariant-checked type). That's a genuinely
 different shape than the ADR's own finding, not a duplicate of it —
 worth keeping on that basis alone.
 
-**Not yet done — real follow-up, not a gap in this note**: Rust-side
-confirmation. `bin/project_rust qa/stress_domains/ledger_ordering` was
-not run (this domain was authored and verified Ruby-only, given time
-already spent getting `qa/bluebook/quality_control.bluebook` codegen-
-compatible in the same session — see that domain's own PR #516 for the
-`<domain>/bluebook/<domain-basename>.bluebook` naming constraint this
-directory shape was deliberately built to satisfy). Next real QA-loop
-sweep against this Target: run `bin/project_rust
-qa/stress_domains/ledger_ordering`, then diff Ruby vs. the compiled
-binary for the exact dispatch `spec/ledger_ordering_spec.rb` already
-exercises. If Rust disagrees (most likely: answers `NotFound` instead,
-matching LedgerEntry.Amend's own pattern), log it as a `Bug` in the
-ledger and treat it as confirmation the divergence is structural
-(applies to any entity command, not LedgerEntry-specific) rather than a
-second, unrelated finding.
+**Rust-side confirmation — done, and it found BUG#13.** An earlier
+version of this note said the domain was "authored and verified
+Ruby-only" and that `bin/project_rust qa/stress_domains/ledger_ordering`
+had not been run. That is stale: `rust/Cargo.toml` declares a
+`ledger_ordering` feature, `rust/src/generated/ledger_ordering/` exists,
+and `bin/qa_sweep ledger_ordering` runs this domain DIFFERENTIALLY (Ruby
+vs the compiled binary). BUG#13 — a duplicate caller-supplied entity
+identity accepted by one engine and refused by the other — was found
+here exactly that way, on this domain's first real differential sweep,
+and is the reason `SequenceGenerator`'s adversarial layer has a
+`duplicate_entity_identity` mutation at all
+(`lib/hecks/fuzzing/sequence_generator/adversary.rb`). The generator's
+`refusal_precedence` mutation now also pairs `nonexistent` with
+`mismatch` on purpose (the exact shape this domain was built to ask
+about), so the ordering question is asked by every sweep, not only by
+`spec/ledger_ordering_spec.rb`'s hand-written case.
+
+`spec/rust_conformance_fuzz_spec.rb`'s `DOMAINS` includes this domain,
+so the differential comparison is CI-gated here too, not only reachable
+through the QA rotation.

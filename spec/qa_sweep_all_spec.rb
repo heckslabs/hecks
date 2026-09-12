@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_role"
 require "open3"
 require "tempfile"
 require "fileutils"
@@ -186,6 +187,18 @@ RSpec.describe "bin/qa_sweep --all", :io do
     end
   RUBY
 
+  # THE SAME TRIVIAL TARGET, BOUND TO PostgresEra — the one capability
+  # `Hecks::Fuzzing::TargetCapabilities` reads off a `.hecksagon` to make
+  # a target eligible for `persistence_parity`, and therefore for
+  # `--all`'s own second wave. No `.world` is needed: `IsolatedBoot#
+  # rebind_to_postgres_era!` writes its own per-boot `.world` pointing at
+  # the throwaway database/schema `bin/qa_sweep` itself owns.
+  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "QaSweepAllFixtureTarget" do
+      QaSweepAllFixtureTarget::Widget.persisted_by("PostgresEra")
+    end
+  RUBY
+
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -195,10 +208,15 @@ RSpec.describe "bin/qa_sweep --all", :io do
     FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                    File.join(@fixture_dir, "quality_control.bluebook"))
     File.write(File.join(@fixture_dir, "quality_control.hecksagon"), FIXTURE_HECKSAGON)
+    # THE SAME URL SHAPE THE REAL LEDGER BINDS (qa/bluebook/quality_control
+    # .world): the database by URL, as `hecks_qa`, an ordinary owner role
+    # — PostgresEra refuses to boot as the ambient superuser (BUG#24).
+    # `bin/qa_postgres_role`, run for real below, is what makes it
+    # connectable — the one operator step that file's header names.
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QA_SWEEP_ALL_DATABASE}" }
+        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_ALL_DATABASE)}" }
       end
     RUBY
 
@@ -214,10 +232,17 @@ RSpec.describe "bin/qa_sweep --all", :io do
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), FIXTURE_TARGET_HECKSAGON)
     @target_domain_relpath = Pathname.new(@target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
 
+    @pg_target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_pg_target-", InMemoryDomain::ROOT)
+    File.write(File.join(@pg_target_domain_dir, "fixture.bluebook"), FIXTURE_TARGET_BLUEBOOK)
+    File.write(File.join(@pg_target_domain_dir, "fixture.hecksagon"), FIXTURE_PG_TARGET_HECKSAGON)
+    @pg_target_domain_relpath =
+      Pathname.new(@pg_target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_ALL_DATABASE} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{QA_SWEEP_ALL_DATABASE}")
     admin.close
+    @role_report = QaLedgerRole.provision!(QA_SWEEP_ALL_DATABASE)
   end
 
   after(:all) do
@@ -228,6 +253,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     admin.close
     FileUtils.remove_entry(@fixture_root)
     FileUtils.remove_entry(@target_domain_dir)
+    FileUtils.remove_entry(@pg_target_domain_dir)
   end
 
   # A FRESH SCHEMA BEFORE EVERY EXAMPLE (`postgres_era_concurrent_
@@ -241,6 +267,36 @@ RSpec.describe "bin/qa_sweep --all", :io do
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+    QaLedgerRole.own_public!(QA_SWEEP_ALL_DATABASE)
+  end
+
+  # THE OPERATOR STEP, PROVEN ON A DISPOSABLE DATABASE (BUG#24) — the
+  # exact `bin/qa_postgres_role <database>` the real ledger's `.world`
+  # header asks an operator to run once against `hecks_quality_control`,
+  # already run for real in `before(:all)` above against this spec's own
+  # throwaway database. What it reports, what a second run reports
+  # (idempotent: nothing left to do), and that the resulting owner is
+  # genuinely an ORDINARY role — the whole point — are the three facts an
+  # operator is being asked to trust.
+  it "bin/qa_postgres_role hands the ledger's database to hecks_qa, an ordinary owner, idempotently" do
+    expect(@role_report).to include("#{QA_SWEEP_ALL_DATABASE} is hecks_qa's")
+    expect(@role_report).to include("database #{QA_SWEEP_ALL_DATABASE}: owner")
+
+    again = QaLedgerRole.provision!(QA_SWEEP_ALL_DATABASE)
+    expect(again).to include("already: role hecks_qa exists, ordinary")
+    expect(again).to include("already: database #{QA_SWEEP_ALL_DATABASE} already owned by hecks_qa")
+    expect(again).not_to include("did:")
+
+    db = PG.connect(dbname: QA_SWEEP_ALL_DATABASE)
+    role = db.exec("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'hecks_qa'")[0]
+    owner = db.exec("SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = current_database()")[0]
+    db.close
+    expect(role).to eq("rolsuper" => "f", "rolbypassrls" => "f")
+    expect(owner["owner"]).to eq("hecks_qa")
+
+    # ...and a boot over that URL is the ordinary, fenced kind: it neither
+    # refuses nor warns, where the ambient superuser would have refused
+    expect { identify_targets!("fenced" => @target_domain_relpath) }.not_to output.to_stderr
   end
 
   # Booted IN-PROCESS, briefly, purely to write `Target` rows down —
@@ -490,6 +546,92 @@ RSpec.describe "bin/qa_sweep --all", :io do
     rotation = runtime.query("QualityControl::Target.Rotation").map { |row| row[:reference][:value] }
     expect(rotation).to include("clean_one")
     expect(rotation).not_to include("found_one")
+  end
+
+  # MODES ARE DATA — `bin/qa_sweep` prints the one rule's answer
+  # (`enabled ∩ eligible`, `Hecks::Fuzzing::TargetCapabilities`) on its
+  # own `resolved modes:` line, and `--modes` overrides the enabled set
+  # for one run. The fixture target binds Heki and has no Cargo feature,
+  # so its capabilities are exactly `sqlite` — the ruby_only seat, with
+  # self-consistency folded in, and nothing else.
+  it "prints the resolved modes and capabilities, and honours --modes as the enabled set" do
+    identify_targets!("modes_one" => @target_domain_relpath)
+
+    stdout, _stderr, status = run_qa_sweep("modes_one", "--seeds", "2")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("resolved modes: ruby_only,self_consistency (capabilities=sqlite)")
+    expect(stdout).to include("seed 1: held (ruby_only, self_consistency)")
+
+    stdout, _stderr, status = run_qa_sweep("modes_one", "--seeds", "2", "--modes", "ruby_only")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("resolved modes: ruby_only (capabilities=sqlite)")
+    expect(stdout).to include("seed 1: held (ruby_only)")
+  end
+
+  it "refuses, before claiming anything, a --modes set this target cannot resolve a comparison seat from" do
+    identify_targets!("modes_none" => @target_domain_relpath)
+
+    stdout, stderr, status = run_qa_sweep("modes_none", "--modes", "differential")
+    expect(status.exitstatus).to eq(1)
+    expect(stderr + stdout).to include("resolves no comparison mode at all")
+
+    _stdout, stderr, status = run_qa_sweep("modes_none", "--modes", "telepathy")
+    expect(status.exitstatus).to eq(1)
+    expect(stderr).to include("no such mode: telepathy")
+
+    # Nothing was claimed or opened — the refusal came before the claim.
+    Hecks.boot(@fixture_dir)
+    expect(QualityControl::Target.find("modes_none").status).to eq("waiting")
+  end
+
+  # THE SECOND WAVE — `--all` used to abort on `--persistence-parity`;
+  # now it runs the parity pass ITSELF over every target that came back
+  # clean from wave 1 AND binds PostgresEra. `pg_one` does; `heki_one`
+  # does not, so exactly one wave-2 child runs, as an ordinary
+  # `bin/qa_sweep pg_one --persistence-parity`, and its own row joins the
+  # report under a `[parity wave]` label. `--no-parity` skips it.
+  it "runs persistence parity as a second wave over PostgresEra-bound targets that came back clean" do
+    identify_targets!("heki_one" => @target_domain_relpath, "pg_one" => @pg_target_domain_relpath)
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "2")
+
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s): pg_one")
+    expect(stdout).to include("clean (3): heki_one, pg_one, pg_one [parity wave]")
+    expect(stdout)
+      .to match(/^  pg_one: ruby_only,self_consistency \(capabilities: postgres_era,sqlite; deferred: persistence_parity\)$/)
+    expect(stdout).to match(/^  pg_one \[parity wave\]: persistence_parity \(capabilities: postgres_era,sqlite\)$/)
+    expect(stdout).to match(/^  heki_one: ruby_only,self_consistency \(capabilities: sqlite\)$/)
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "2", "--no-parity")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).not_to include("parity wave")
+    expect(stdout).to include("clean (2): heki_one, pg_one")
+  end
+
+  # THE `dry_runs` COMPARISON SURFACE FINDS SOMETHING ON ITS OWN — item 5
+  # of the detection plan. `--dry-run 1` turns every generated command
+  # step into a `{"dry_run": …}` step, so the Ruby side of
+  # `spec/fixtures/qa_sweep_all_dry_run_fixture` produces NO instances,
+  # events or refusals — exactly what the fixture crate's
+  # `qa_sweep_all_dry_run_fixture` feature answers — and the two sides
+  # differ on `dry_runs` alone (the binary names a sentinel verb per
+  # dry-run step; see `qa_sweep_all_found_fixture_rust/src/main.rs`).
+  # `--self-consistency false` keeps the Rust rehydration door out of
+  # it: this example is about ONE surface, proven in isolation.
+  it "finds a dry_runs-only divergence, with every other surface agreeing" do
+    identify_targets!("dry_run_one" => "spec/fixtures/qa_sweep_all_dry_run_fixture")
+
+    stdout, _stderr, status = run_qa_sweep("dry_run_one", "--seeds", "2", "--dry-run", "1", "--self-consistency", "false")
+
+    expect(status.exitstatus).to eq(2)
+    expect(stdout).to include("resolved modes: differential,properties_in_differential,structural_skip_report " \
+                              "(capabilities=rust,sqlite)")
+    expect(stdout).to include("seed 1: SURPRISED (differential)")
+    expect(stdout).to include("subject:     [differential] qa_sweep_all_dry_run_fixture fuzz seed 1")
+    expect(stdout).to include("observation: diverged on: dry_runs", "-- dry_runs --")
+    expect(stdout).not_to include("-- instances --", "-- events --", "-- refusals --")
+    expect(stdout).to include("__qa_sweep_all_spec_phantom_dry_run__")
   end
 
   it "exits 1 when every child hit an operational error and nothing was ever found" do

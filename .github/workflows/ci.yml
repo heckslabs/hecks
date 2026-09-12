@@ -389,12 +389,15 @@ jobs:
       # actually drifted. Likewise `rust/Cargo.toml`'s `default` feature
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
-      # roster, ledger_ordering, nested_pieces, waybill is the one order
-      # that reproduces the committed tree byte-for-byte today (verified
-      # by hand before this step was extended to the qa/stress_domains
-      # trio); change it and re-verify locally (`git diff --stat rust/`
-      # after running every `bin/project_rust` line below against a
-      # clean checkout) rather than guessing.
+      # roster, ledger_ordering, nested_pieces, referral_chain, waybill
+      # is the one order that reproduces the committed tree byte-for-byte
+      # today (verified by hand before this step was extended to the
+      # qa/stress_domains trio, and again when referral_chain joined —
+      # slotted BEFORE waybill on purpose, so `default` keeps tracking
+      # waybill and nothing else in the committed tree moved); change it
+      # and re-verify locally (`git diff --stat rust/` after running every
+      # `bin/project_rust` line below against a clean checkout) rather
+      # than guessing.
       #
       # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
       # added here after this exact gap caused a real false positive: a
@@ -423,6 +426,7 @@ jobs:
           bundle exec bin/project_rust examples/roster
           bundle exec bin/project_rust qa/stress_domains/ledger_ordering
           bundle exec bin/project_rust qa/stress_domains/nested_pieces
+          bundle exec bin/project_rust qa/stress_domains/referral_chain
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 

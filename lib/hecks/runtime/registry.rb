@@ -70,6 +70,15 @@ module Hecks
         # a boot with no era-plugin domain at all, whose first touch would
         # otherwise be a live dispatch's own `RepositoryFactory.build` read.
         @resolved_eras = {}
+        # THE SIBLING FACT `EraResolver.check!` records for an OLD checkout:
+        # domain name -> the newest held ordinal that superseded the era this
+        # boot resolved to; absent for every domain booting the current era.
+        # `RepositoryFactory.build` hands it to the adapter as
+        # `superseded_by:`, and `PostgresEra#append` refuses on it before
+        # ever issuing an INSERT — the in-process half of the era fence, the
+        # half that holds even for a connection row-level security cannot
+        # bite (BUG#24). Eager for exactly the reason `@resolved_eras` is.
+        @superseded_eras = {}
         # EAGER, NOT LAZY — see `#capability_graph`'s own comment for why.
         # `CapabilityGraph.new` only stores the registry reference; there is
         # no reason to defer it, and doing so removes the exact same
@@ -163,6 +172,9 @@ module Hecks
       # `Hecks/ThreadSharedIvarMutation` is the reason there is no `||=`
       # left here to flag.
       attr_reader :resolved_eras
+      # Domain name -> the ordinal that superseded this boot's own era, for
+      # an old checkout only — see `initialize`'s own comment on it.
+      attr_reader :superseded_eras
 
       def bluebook(name)  = @bluebooks[name.to_s]
       def hecksagon(name) = @hecksagons[name.to_s]

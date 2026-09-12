@@ -56,20 +56,24 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   FUZZ_RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
-  # pizzas/banking only — the same two real, generateable domains
-  # spec/fuzzing/properties_spec.rb's own "standard battery" already
-  # trusts `SequenceGenerator` against. `entity_list_mutations` is not
-  # included: it has no Cargo feature at all (never regenerated into
-  # `rust/src/generated/`), so there is no binary to compare against.
+  # EVERY DOMAIN WITH A CARGO FEATURE OF ITS OWN — this used to be
+  # pizzas/banking only (ANGLE-3: compliance/roster/chess and the three
+  # stress domains all had compiled binaries and were never wired in
+  # here, so BUG#13's class — an engine-divergence Ruby-only fuzzing
+  # structurally cannot see — was gated in CI on two domains out of
+  # eight). `entity_list_mutations` is still not included: it has no
+  # Cargo feature at all (never regenerated into `rust/src/generated/`),
+  # so there is no binary to compare against; `meta`/`embryonaut` have
+  # their own conformance specs and are not sweep targets.
   # `SEEDS_PER_DOMAIN` is deliberately modest (an `io: true` spec already
   # pays a full `cargo build` per domain; each seed here ALSO pays a
   # subprocess spawn) — widen it locally with `SEEDS=40 bundle exec rspec
   # spec/rust_conformance_fuzz_spec.rb --tag io` when hunting, same
   # convention `bin/fuzz` itself uses for its own seed count.
-  DOMAINS = [
-    File.join(InMemoryDomain::ROOT, "examples/pizzas"),
-    File.join(InMemoryDomain::ROOT, "examples/banking")
-  ].freeze
+  DOMAINS = %w[
+    examples/pizzas examples/banking examples/chess examples/compliance examples/roster
+    qa/stress_domains/waybill qa/stress_domains/nested_pieces qa/stress_domains/ledger_ordering
+  ].map { |path| File.join(InMemoryDomain::ROOT, path) }.freeze
   SEEDS_PER_DOMAIN = Integer(ENV["SEEDS"] || 10)
   STEPS_PER_SEQUENCE = 25
   # OPT-IN, OFF IN CI — `SequenceGenerator`'s adversarial layer

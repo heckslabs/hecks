@@ -83,8 +83,15 @@ module Hecks
       # output is byte-for-byte what it was before the option existed;
       # any positive value is just as deterministic per seed, since every
       # choice the mutation makes comes from the same `Random.new(seed)`.
-      def self.generate(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0)
-        new(domain_path, seed: seed, steps: steps, adapter: adapter, adversarial: adversarial).call
+      #
+      # `role_draw:` / `dry_run:` — two more opt-in fractions with the
+      # identical contract (adversary.rb's `caller_draw!`, step_builder.rb's
+      # `dry_run_draw?`): `0.0` draws nothing, so every pinned seed is
+      # byte-for-byte what it was; `bin/qa_sweep` reads them from
+      # `QualityControlDials::ROLE_DRAW_PROBABILITY`/`DRY_RUN_FRACTION`.
+      def self.generate(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0)
+        new(domain_path, seed: seed, steps: steps, adapter: adapter, adversarial: adversarial,
+            role_draw: role_draw, dry_run: dry_run).call
       end
 
       # How many EVENTS the generated sequence actually produced — not
@@ -97,9 +104,11 @@ module Hecks
       # replay one.
       attr_reader :event_count
 
-      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0)
-        unless adversarial.is_a?(Numeric) && adversarial.between?(0, 1)
-          raise ArgumentError, "adversarial: must be a fraction between 0.0 and 1.0, got #{adversarial.inspect}"
+      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0)
+        { adversarial: adversarial, role_draw: role_draw, dry_run: dry_run }.each do |name, fraction|
+          next if fraction.is_a?(Numeric) && fraction.between?(0, 1)
+
+          raise ArgumentError, "#{name}: must be a fraction between 0.0 and 1.0, got #{fraction.inspect}"
         end
 
         @domain_path         = domain_path
@@ -107,10 +116,17 @@ module Hecks
         @step_count          = steps
         @adapter             = adapter
         @adversarial         = adversarial.to_f
+        @role_draw           = role_draw.to_f
+        @dry_run             = dry_run.to_f
         @random              = Random.new(seed)
         @known_ids           = Hash.new { |h, k| h[k] = [] }
         @entity_known_ids    = Hash.new { |h, k| h[k] = [] }
         @appended_identities = Hash.new { |h, k| h[k] = [] }
+        # ROLE => [actor ids] this sequence's own successful
+        # `Governance::RoleAssignment.Assign` steps granted — what the
+        # `actor_known` caller shape draws from (adversary.rb).
+        @granted             = Hash.new { |h, k| h[k] = [] }
+        @precedence_caller   = nil
         @exercised           = Set.new
         @event_count         = 0
       end

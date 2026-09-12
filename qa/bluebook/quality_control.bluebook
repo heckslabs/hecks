@@ -233,6 +233,79 @@ unless defined?(QualityControlDials)
     # note when it does — a smaller `--seeds` for an ordinary quick check
     # is still honoured exactly as given.
     PERSISTENCE_PARITY_SEED_CAP = 5
+
+    # MODES ARE DATA. Which comparison modes `bin/qa_sweep` runs is the
+    # ONE rule `modes_to_run = MODES.select(enabled) ∩ TargetCapabilities.
+    # infer(path)` (lib/hecks/fuzzing/target_capabilities.rb — that
+    # module's own header explains why inference off the filesystem,
+    # never a stored list, is the decider; `MODE_REQUIREMENTS` there is
+    # the capability each mode needs). This hash is the OTHER half of
+    # that rule: which modes a human has turned on at all. A `false` here
+    # names a mode the practice knows it wants and has not built yet —
+    # flipping it is the whole change once the code exists, and until
+    # then `resolved modes:` already says, per target, which of them
+    # WOULD be eligible. `--modes a,b,c` overrides this list for one run;
+    # `--persistence-parity` and `--self-consistency false` are aliases
+    # kept for the hands that already type them.
+    #
+    # `adapter_parity_sqlite` is OFF until the Memory-vs-Sqlite pass
+    # exists (`PersistenceParity.diff` generalised to `left:/right:`
+    # pairs — the detection plan's PR-4) — an enabled mode nothing runs
+    # would read as coverage the sweep never gave.
+    MODES = {
+      differential:               true,
+      ruby_only:                  true,
+      self_consistency:           true,
+      properties_in_differential: true,
+      structural_skip_report:     true,
+      adapter_parity_sqlite:      false,
+      persistence_parity:         true,
+      adapter_parity_postgres:    false,
+      era_boundary:               false,
+      concurrency:                false,
+      wasm_front:                 false
+    }.freeze
+
+    # HOW OFTEN A GENERATED ROLE-GATED COMMAND STEP CARRIES A DRAWN CALLER
+    # (`role:`/`actor_id:` on the step — `SequenceGenerator`'s
+    # `role_draw:` option, lib/hecks/fuzzing/sequence_generator/
+    # adversary.rb's `caller_role` shapes). `refuse_role_mismatch` is a
+    # `DISPATCH_ORDER` step (lib/hecks/vocabulary.rb) that no generated
+    # sequence had ever exercised: the generator emitted no `role`, so
+    # both engines' role checks were dormant on every sweep. Zero turns
+    # the draw off (byte-identical sequences to before it existed) —
+    # the same opt-in contract `ADVERSARIAL_FRACTION` has.
+    ROLE_DRAW_PROBABILITY = 0.25
+
+    # WHAT FRACTION OF GENERATED COMMAND STEPS ARE OFFERED AS A DRY RUN
+    # (`{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`, `kernel/
+    # cli.rs`'s own `dry_run` door) instead of a real dispatch. Both
+    # engines already answered the step; nothing generated it, so the
+    # `dry_runs` surface was never compared and "a dry run leaves no
+    # trace" was never a checked property. Zero turns the draw off, same
+    # contract as `ROLE_DRAW_PROBABILITY`. Kept low: a dry-run step
+    # reaches no new state for later steps to act on.
+    DRY_RUN_FRACTION = 0.10
+
+    # THE CONSTRUCT FAMILIES A "NOT GENERATED FOR THIS DOMAIN" REFUSAL IS
+    # ALLOWED TO HIDE. `Hecks::Fuzzing::StructuralSkips` attributes every
+    # named query/read model the compiled Rust binary structurally refused
+    # (and the differential comparison therefore dropped from BOTH sides)
+    # to the constructs its own Ruby declaration carries; a skipped verb
+    # whose constructs are all in this list is the documented codegen
+    # boundary (rust/project/queries.rb, read_models.rb), logged Held with
+    # the list on the record. A skipped verb declaring NOTHING here — a
+    # wheres-only query on plain fields, a rooted read model with only
+    # heads, a verb Ruby never declared — is Surprised: either codegen
+    # regressed or the generated tree is stale. Narrow this list as
+    # codegen grows; each name removed turns one more silent skip into a
+    # finding.
+    STRUCTURAL_REFUSAL_BOUNDARY = %w[
+      cursor consistency freshness inspection index_hints authorization null_semantics scope_to
+      order_by limit offset no_wheres
+      reference_hop_where where_nested_field where_none_in_state where_literal
+      wheres group_by count median_field rootless
+    ].freeze
   end
 end
 

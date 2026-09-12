@@ -1,6 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_role"
 require "open3"
 require "fileutils"
 require "pathname"
@@ -121,7 +122,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     File.write(File.join(@fixture_dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{QA_SWEEP_PERSISTENCE_PARITY_DATABASE}" }
+        persisted_by("PostgresEra") { database "#{QaLedgerRole.url(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)}" }
       end
     RUBY
 
@@ -137,6 +138,9 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_PERSISTENCE_PARITY_DATABASE} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{QA_SWEEP_PERSISTENCE_PARITY_DATABASE}")
     admin.close
+    # the real ledger's own operator step, run for real against this
+    # spec's own database (BUG#24; see qa_sweep_all_spec.rb's own example)
+    QaLedgerRole.provision!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 
   after(:all) do
@@ -168,6 +172,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+    QaLedgerRole.own_public!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 
   def run_qa_sweep(*args)
@@ -190,11 +195,45 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   # children are spawned with `out: log, err: log` (`spawn_sweep_child`'s
   # own comment) — a single, non-`--all` invocation of this script keeps
   # the two streams separate, exactly as `Open3.capture3` hands them back.
-  it "refuses --all combined with --persistence-parity before ever booting the ledger" do
-    _stdout, stderr, status = run_qa_sweep("--all", "--persistence-parity")
+  # `--all --persistence-parity` USED TO ABORT ("does not combine with
+  # --all"). It is a legitimate combination now — see `bin/qa_sweep`'s own
+  # comment on `force_parity_wave` — but NOT "narrow every child to only
+  # this one mode" (that would abort the `ineligible` target here
+  # individually, one operational error per target that can't be compared
+  # this way, the exact noisy regression the rewrite avoids). Instead the
+  # flag folds back to plain `--all` with the parity wave FORCED on: wave 1
+  # sweeps `directory` and `ineligible` both normally (`ruby_only` — neither
+  # has a compiled Rust binary), and wave 2 runs the real persistence-parity
+  # pass over `directory` alone, the one target `TargetCapabilities.infer`
+  # finds `postgres_era`-capable. `ineligible` never sees `--persistence-
+  # parity` at all — no narrowing, no individual abort.
+  it "runs --all normally and forces the parity wave on when combined with --persistence-parity" do
+    identify_target!("directory", "examples/directory")
+    identify_target!("ineligible", @ineligible_relpath)
 
-    expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("does not combine with --all")
+    stdout, stderr, status = run_qa_sweep("--all", "--persistence-parity", "--seeds", "2")
+
+    expect(status.exitstatus).to eq(0), "expected a clean --all, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
+    expect(stdout).to include("clean (3): directory, ineligible, directory [parity wave]")
+    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s): directory")
+    expect(stdout).to include(
+      "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
+      "deferred: persistence_parity)"
+    )
+    expect(stdout).to include(
+      "  directory [parity wave]: persistence_parity (capabilities: postgres_era,sqlite,translations)"
+    )
+    expect(stdout).to match(/^  ineligible: ruby_only,self_consistency \(capabilities: sqlite\)$/)
+    expect(stdout).not_to include("declares no persisted_by")
+  end
+
+  it "still skips the parity wave under --all when --no-parity is also given, even with --persistence-parity" do
+    identify_target!("directory", "examples/directory")
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--persistence-parity", "--no-parity", "--seeds", "2")
+
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).not_to include("parity wave")
   end
 
   it "refuses --persistence-parity with no explicit target-reference" do

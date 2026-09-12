@@ -174,13 +174,35 @@ module RustConformanceHelpers
     rust_output.fetch("cross_domain_reactions").flatten.to_set { |r| r["policy"] }
   end
 
-  # See rust_conformance_spec.rb's own comment on this exact, narrow,
-  # cited gap (an argument-check-ordering difference for one malformed-
-  # payload shape three fixed fixtures happen to hit).
-  def known_reaction_gap?(reaction)
-    reaction["policy"] == "FreezeAccountsOnSuspension" &&
-      reaction["trigger"] == "Banking::Account.FreezeAccount" &&
-      reaction["delivered"] == false
+  # RE-EXAMINED 2026-09-11 (ANGLE-4) AND FOUND STALE — REMOVED, not just
+  # quieted, the same discipline model_check.rb's own ALLOWED_FINDINGS
+  # comment already documents for its own removed entries. This used to
+  # read:
+  #
+  #   reaction["policy"] == "FreezeAccountsOnSuspension" &&
+  #     reaction["trigger"] == "Banking::Account.FreezeAccount" &&
+  #     reaction["delivered"] == false
+  #
+  # — rust_conformance_spec.rb's own comment (above the fixture loop)
+  # names the original gap: an argument-check-ordering difference (which
+  # check runs first, unrecognized keys or identity-field absence) that
+  # made Ruby's and Rust's refusal DIAGNOSIS differ for a malformed-
+  # payload shape across three fixtures (entities_policies_sagas.json,
+  # query_filters.json, named_queries_order_limit.json). Re-verified live
+  # by forcing this predicate to `false` unconditionally and re-running
+  # the full fixed corpus (`spec/rust_conformance_spec.rb --tag io`,
+  # cargo binaries rebuilt fresh): all 30 fixtures, including the three
+  # that used to need this exemption, pass with reactions matching
+  # byte-for-byte — the ordering gap it was written for no longer
+  # reproduces (closed by an unrelated fix somewhere in the argument-
+  # gate/identity-check path since this predicate was last needed; not
+  # tracked down further, since there is no longer a live divergence to
+  # attribute). Kept as a named no-op (not deleted outright) so a call
+  # site never breaks and the next real, narrow reaction-shaped gap has
+  # an obvious place to be named by hand, the same as
+  # `KNOWN_REFUSAL_GAP_VERBS`'s own empty-but-kept precedent just below.
+  def known_reaction_gap?(_reaction)
+    false
   end
 
   # THE FIXED CORPUS'S OWN NARROW LIST — found and named by hand against a

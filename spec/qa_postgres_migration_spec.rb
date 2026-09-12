@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_role"
 require "tmpdir"
 require "fileutils"
 require "open3"
@@ -111,7 +112,7 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
       Hecks.world "QualityControl" do
         realm "QA"
         persisted_by("PostgresEra") do
-          database "#{SCRATCH_DB}"
+          database "#{QaLedgerRole.url(SCRATCH_DB)}"
         end
       end
     WORLD
@@ -120,6 +121,9 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
     admin.exec("DROP DATABASE IF EXISTS #{SCRATCH_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{SCRATCH_DB}")
     admin.close
+    # the same URL shape and the same `bin/qa_postgres_role` step the
+    # real ledger's own `.world` documents (BUG#24) — run for real here
+    QaLedgerRole.provision!(SCRATCH_DB)
 
     # ── generate realistic synthetic data, through real dispatch ──────
     @heki_runtime = Hecks.boot(heki_bluebook_dir)
