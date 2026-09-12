@@ -73,3 +73,27 @@ fn tmpl_mutation_arithmetic_host(record: &mut TmplArithmeticHost) {
     { let current = tmpl_current_placeholder(); record.tmpl_field = tmpl_updated_placeholder(); }
     // TMPL:mutation_arithmetic END
 }
+
+// BUG#32 (QualityControl ledger) — `remove:` against an ENTITY-typed
+// list, matched by the entity's own identity field (`tmpl_id_field`)
+// rather than whole-element equality (`Runtime::EntityElement.
+// list_element_match?`'s own comment, Ruby side, gives the full
+// reasoning: an entity is a plain struct, never one comparable whole
+// value the way a value object is). `retain` keeps every element whose
+// identity DOESN'T match the offered value — the inverse of the
+// `reject { |element| element == value }` shape Ruby's own
+// `MutationApplier#removed`/`EntityElement#removed_from_element` share.
+struct TmplRemoveElement {
+    tmpl_id_field: i64,
+}
+struct TmplRemoveHost {
+    tmpl_field: Vec<TmplRemoveElement>,
+}
+fn tmpl_remove_match_placeholder() -> i64 {
+    0
+}
+fn tmpl_mutation_remove_host(record: &mut TmplRemoveHost) {
+    // TMPL:mutation_remove BEGIN
+    record.tmpl_field.retain(|item| item.tmpl_id_field != tmpl_remove_match_placeholder());
+    // TMPL:mutation_remove END
+}

@@ -743,6 +743,109 @@ if !absent.is_empty() {
     }
 }
 
+impl crate::kernel::Fielded for VoidArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "sequence" => Some(Field::Nested(&self.sequence)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct VoidArgs {
+    pub sequence: EntrySequence,
+}
+
+pub fn dispatch_void(
+    repo: &mut impl crate::kernel::Repository<Ledger>, id: &str, args: VoidArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Ledger> {
+        args.sequence.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+    let seed_projections = crate::kernel::seeded_projections(&with_references, LEDGER_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Void",
+        "Corrections::Ledger",
+        "Ledger",
+        "reference.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.entries.retain(|item| item.sequence != args.sequence.clone());
+            Ok(())
+        },
+        &[
+
+        ],
+        &ledger_invariants(),
+        &["EntryVoided"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+    )
+}
+
+impl VoidArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![        ("sequence".to_string(), self.sequence.to_json()),]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+
+impl VoidArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VoidArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["sequence", "id", "ledger", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Void does not declare {} — it takes sequence",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Void"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "sequence"),
+    ])));
+}
+        let sequence = EntrySequence::from_json(&(match v.get("sequence").ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VoidArgs.sequence expects EntrySequence, got nil".to_string()))? { crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()), other => other.clone() }).coerce_single_field("value"))?;
+        sequence.check_invariants()?;
+        Ok(Self {
+        sequence,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for ReplaceEntriesArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;

@@ -282,6 +282,64 @@ module RustProjection
       end
     end
 
+    # BUG#32 (QualityControl ledger) — whether a `remove:` mutation is
+    # generatable at all. `remove:`'s single scalar source is matched
+    # against a stored list element differently depending on what the
+    # list holds (`Runtime::EntityElement.list_element_match?`, read
+    # directly): whole-VALUE equality for a value-object-typed list, or
+    # the entity's own IDENTITY field for an entity-typed one
+    # (`Runtime::Value::Coercion#hydrate_entity_identity`'s own comment
+    # gives the full "why identity, not whole-value equality"
+    # reasoning). This generator only emits the ENTITY shape —
+    # `qa/stress_domains/corrections`'s own `Ledger.Void` is the one
+    # live corpus command that needs it — using the SAME single-head,
+    # single-field-VO identity shape `entity_identity_mint` (above)
+    # already requires for auto-minting an appended entity's own
+    # identity, reused here rather than re-derived so the two "can this
+    # entity's identity be generated at all" questions can never drift.
+    # A VALUE-OBJECT-typed list's own `remove:` (matched by whole-value
+    # equality, real on the Ruby side —
+    # `spec/mutation_remove_growth_spec.rb`) has no live corpus command
+    # for this generator to prove itself against, so it stays
+    # unsupported here, same as before this fix.
+    def remove_field_problems(command, aggregate, value_objects_by_name)
+      command[:mutations].select { |m| m[:op].to_s == "remove" }.filter_map do |m|
+        target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
+        next "#{m[:target]}: not a declared list attribute" unless target_attr && target_attr[:list]
+
+        entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
+        next "#{m[:target]}: remove on a value-object-typed list is not generated yet" unless entity
+
+        # `entity_identity_mint` alone only ever inspects `identified_by`'s
+        # OWN first entry (see that method's own header) — a COMPOSITE
+        # identity (more than one head) needs the same explicit exclusion
+        # `emit_mutation_line_body`'s own append-collision-guard branch
+        # already gives it, or a two-head entity's own first head alone
+        # would silently pass this check.
+        if Array(entity[:identified_by]).size != 1
+          next "#{m[:target]}: #{entity[:name]}'s identity is composite — remove not generated yet"
+        end
+
+        id_attr, = entity_identity_mint(entity, value_objects_by_name)
+        unless id_attr
+          next "#{m[:target]}: #{entity[:name]}'s identity isn't a single bridgeable field — remove not generated yet"
+        end
+
+        unless m[:source].is_a?(Hash) && m[:source][:kind] == "argument"
+          next "#{m[:target]}: remove sources a literal or record state, not an argument — not generated yet"
+        end
+
+        source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name].to_s }
+        next "#{m[:target]}: remove sources undeclared argument #{m[:source][:name]}" unless source_attr
+
+        unless bridgeable_value_types?(source_attr[:type], id_attr[:type], value_objects_by_name)
+          next "#{m[:target]}: #{source_attr[:type]} doesn't bridge to #{id_attr[:type]}"
+        end
+
+        nil
+      end
+    end
+
     # `Marks.read` is the exact, already-proven inverse of the spelling
     # `appended_fields` writes — the OPPOSITE direction of the same round
     # trip the self-hosted grammar's own bootstrap uses it for. A Symbol
@@ -1043,6 +1101,37 @@ module RustProjection
           "tmpl_field" => target_field,
           "tmpl_current_placeholder()" => current,
           "tmpl_updated_placeholder()" => (optional ? "Some(#{updated})" : updated)
+        )
+      when "remove"
+        # BUG#32 (QualityControl ledger) — `remove:` against an
+        # ENTITY-typed list, matched by the entity's own IDENTITY field
+        # — `command_skip_reason`'s own `remove_field_problems` (above)
+        # already confirmed a single, bridgeable identity field exists
+        # before this could ever be reached, the same pairing every
+        # other "can we generate this" / "here's how" split in this file
+        # already uses. `Runtime::EntityElement.list_element_match?`'s
+        # own comment (Ruby) gives the full "why identity, not
+        # whole-value equality" reasoning this ports: a stored element
+        # is a plain struct, never rebuildable as one whole comparable
+        # value the way a value-object list's own `remove:` target is,
+        # so only its own identity field is ever compared. `retain`
+        # keeps every element whose identity DOESN'T match — the same
+        # `reject { |element| ... }` shape Ruby's own `MutationApplier
+        # #removed`/`EntityElement#removed_from_element` share, inverted
+        # the way `Vec#retain` (keep) and `Enumerable#reject` (drop)
+        # always are for the same predicate.
+        target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
+        entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
+        id_attr, = entity_identity_mint(entity, value_objects_by_name)
+        id_field = rust_ident_field(id_attr[:name])
+        source_attr = command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s }
+        match_expr = value_rhs("args.#{rust_ident_field(source_attr[:name])}", source_attr[:type],
+                                id_attr[:type], value_objects_by_name)
+        Exemplar.render(
+          "mutation_remove",
+          "tmpl_field" => target_field,
+          "tmpl_id_field" => id_field,
+          "tmpl_remove_match_placeholder()" => match_expr
         )
       end
     end

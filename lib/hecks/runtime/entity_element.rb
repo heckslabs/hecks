@@ -367,12 +367,57 @@ module Hecks
 
       # `MutationApplier#removed`'s own entity-scoped twin — matches by
       # VALUE EQUALITY, element-wise, the same "so a concurrent Add can
-      # never be lost" reasoning that method's own comment gives.
+      # never be lost" reasoning that method's own comment gives, UNLESS
+      # the list this targets is itself entity-typed — see
+      # `list_element_match?`, below, which both this and
+      # `MutationApplier#removed` now share.
       def removed_from_element(rules, aggregate, entity, element, mutation, args)
         value     = rules.resolve_source(mutation.source, args)
         attribute = entity.attribute(mutation.target)
         value     = Value.for_attribute(aggregate, attribute, value) if attribute
-        Array(element[mutation.target]).reject { |candidate| candidate == value }
+        Array(element[mutation.target]).reject { |candidate| list_element_match?(aggregate, attribute, candidate, value) }
+      end
+
+      # BUG#32 (QualityControl ledger) — THE MATCH RULE `remove:` USES
+      # AGAINST ONE STORED LIST ELEMENT. VALUE EQUALITY for a
+      # VALUE-OBJECT-typed list stays exactly what it always was — an
+      # element and `value` are both real `Value`s there, so `==` already
+      # compares every field, the "concurrent Add can never be lost"
+      # shape `removed`/`removed_from_element`'s own headers describe.
+      # An ENTITY-typed list is different in kind, not just in type: a
+      # stored element is a plain Hash, never a `Value` (`Entity`'s own
+      # header — "an entity must never answer .value_object"), so there
+      # is no whole-value shape to compare against at all — only the
+      # entity's own IDENTITY field, the same field a caller already has
+      # to name to address that element any other way
+      # (`element_of`'s own `wants`, above). `value` arrives here already
+      # coerced against that identity field's declared type
+      # (`Coercion#hydrate_entity_identity`, run underneath
+      # `Value.for_attribute` before either caller above ever sees it),
+      # so this only has to know WHICH field to read off the stored
+      # element — `entity.identity_heads`'s own single head, when there
+      # is exactly one. A composite identity (more than one head, or
+      # none) has no single field a bare `remove:` target could mean —
+      # this returns `false` (never a match, the same documented no-op
+      # `hydrate_entity_identity`'s own header already commits to) rather
+      # than guessing which head, matching the narrow, honest boundary
+      # `MutationApplier#check_entity_collision`'s own header draws for
+      # entity identity elsewhere in this runtime.
+      #
+      # Shared by `MutationApplier#removed` (an aggregate's own list) and
+      # `#removed_from_element` (a list an ENTITY owns), so the two
+      # `remove:` call sites can never quietly disagree on what
+      # "matches" means — the same reasoning this file's own header
+      # gives for centralizing `locate_chain`/`element_of` once rather
+      # than twice.
+      def list_element_match?(aggregate, attribute, element, value)
+        entity = attribute&.list? ? Value.find_entity(aggregate, attribute.type.to_s) : nil
+        return element == value unless entity
+
+        head = entity.identity_heads.one? ? entity.identity_heads.first : nil
+        return false unless head
+
+        element.is_a?(Hash) && element[head] == value
       end
     end
   end

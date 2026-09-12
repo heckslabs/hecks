@@ -2,6 +2,7 @@ require "json"
 require_relative "../rendering"
 require_relative "value/invariant_violation"
 require_relative "value/coercion"
+require_relative "value/entity_list_coercion"
 require_relative "value/admission"
 
 module Hecks
@@ -9,10 +10,14 @@ module Hecks
     # A typed value object in hand: frozen fields, read by name. How one is
     # MADE — coerced from a raw argument, checked against its declared
     # numeric types, patterns and closed sets — is the class-side engine in
-    # value/coercion.rb and value/admission.rb, extended here so the door
-    # stays where it always was: `Value.for`, `Value.build`.
+    # value/coercion.rb, value/entity_list_coercion.rb (a `list_of`
+    # attribute's own elements — split out once growing Coercion tripped
+    # Metrics/ModuleLength, see that file's own header), and
+    # value/admission.rb, extended here so the door stays where it always
+    # was: `Value.for`, `Value.build`.
     class Value
       extend Coercion
+      extend EntityListCoercion
       extend Admission
 
       attr_reader :value_object

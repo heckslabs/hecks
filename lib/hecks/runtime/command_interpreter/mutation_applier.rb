@@ -175,17 +175,24 @@ module Hecks
         # Vendored addition, not (yet) upstream hecks (migration plan
         # task 4): the removal counterpart to #appended -- matches by
         # VALUE EQUALITY, element-wise, no read-modify-write (plan.
-        # bluebook's own words: "so a concurrent Add can never be lost").
-        # `mutation.source` is a single field reference (`:dependency`),
-        # unlike append's field-map -- resolved and Value-coerced the
-        # SAME way increment/decrement already coerce their own amount,
-        # so the comparison is against a like-shaped Value, not a raw
-        # scalar against a wrapped one.
+        # bluebook's own words: "so a concurrent Add can never be lost")
+        # -- UNLESS the target list is itself entity-typed (BUG#32,
+        # QualityControl ledger), in which case `EntityElement.
+        # list_element_match?` matches by the entity's own IDENTITY
+        # field instead -- see that method's own comment for the full
+        # "why identity, not whole-value equality" reasoning. `mutation.
+        # source` is a single field reference (`:dependency`), unlike
+        # append's field-map -- resolved and Value-coerced the SAME way
+        # increment/decrement already coerce their own amount, so the
+        # comparison is against a like-shaped Value, not a raw scalar
+        # against a wrapped one.
         def removed(instance, aggregate, mutation, args)
           value     = @rules.resolve_source(mutation.source, args)
           attribute = aggregate.attribute(mutation.target)
           value     = Value.for_attribute(aggregate, attribute, value) if attribute
-          Array(instance[mutation.target]).reject { |element| element == value }
+          Array(instance[mutation.target]).reject do |element|
+            EntityElement.list_element_match?(aggregate, attribute, element, value)
+          end
         end
 
         # Vendored fix, not (yet) upstream hecks (migration plan

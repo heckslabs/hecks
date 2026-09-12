@@ -30,9 +30,8 @@
   {
     "kind": "command",
     "id": "Corrections::Ledger.Void",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "sets op(s) remove not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "command",
