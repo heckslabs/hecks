@@ -304,6 +304,7 @@ pub fn dispatch_open(
             box_number: Some(args.box_number.clone()),
             status: "open".to_string(),
         }),
+        state_independent: true,
     },
         "Open",
         "Compliance::BoxSurrenderReview",

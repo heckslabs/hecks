@@ -644,6 +644,7 @@ pub fn dispatch_schedule(
             account_customer_status: None,
             status: "scheduled".to_string(),
         }),
+        state_independent: false,
     },
         "Schedule",
         "Banking::ScheduledPayment",

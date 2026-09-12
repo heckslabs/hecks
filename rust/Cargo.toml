@@ -10,6 +10,7 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["waybill"]
+bug28_existence_fixture = []
 lease_clock = []
 referral_chain = []
 tenant_ledger = []

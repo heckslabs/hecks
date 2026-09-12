@@ -220,6 +220,7 @@ pub fn dispatch_open(
             id: Some(args.id.clone()),
             members: vec![],
         }),
+        state_independent: true,
     },
         "Open",
         "HasManyFixture::Circle",

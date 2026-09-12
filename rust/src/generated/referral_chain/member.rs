@@ -221,6 +221,7 @@ pub fn dispatch_join(
             handle: Some(args.handle.clone()),
             sponsor: Some(args.sponsor.clone()),
         }),
+        state_independent: true,
     },
         "Join",
         "ReferralChain::Member",

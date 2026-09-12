@@ -681,6 +681,7 @@ pub fn dispatch_open(
             reference: Some(args.reference.clone()),
             slots: vec![],
         }),
+        state_independent: false,
     },
         "Open",
         "Waybill::Manifest",

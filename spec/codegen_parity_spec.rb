@@ -159,6 +159,17 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
     ["has_many_fixture", lambda {
       domain_ir(File.join(InMemoryDomain::ROOT, "spec/fixtures/rust_project/has_many_fixture/bluebook/has_many_fixture.bluebook"),
                 "HasManyFixture")
+    }],
+    # BUG#28 — the smallest domain pairing a state-independent creating
+    # command with a genuinely-falsifiable aggregate invariant (see the
+    # fixture's own bluebook header). Added here for the same reason
+    # `has_many_fixture` was: the TWO PIPELINES' OWN BYTE-IDENTITY claim
+    # needs checking for `state_independent_creation?`'s own generated
+    # `Hydrate::Create` shape too, not just for constructs neither
+    # pipeline's fix touched.
+    ["bug28_existence_fixture", lambda {
+      fixture_dir = "spec/fixtures/rust_project/bug28_existence_fixture/bluebook/bug28_existence_fixture.bluebook"
+      domain_ir(File.join(InMemoryDomain::ROOT, fixture_dir), "Bug28ExistenceFixture")
     }]
   ].freeze
 
@@ -188,7 +199,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   # regenerating and trusting it via the Ruby generator) — leaving only
   # `embryonaut` on `CODEGEN_PENDING_MEMBERS` (a structural gap: no local
   # `.bluebook` source to load, unrelated to anything ported this stage).
-  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster has_many_fixture].freeze
+  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster has_many_fixture
+                          bug28_existence_fixture].freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty

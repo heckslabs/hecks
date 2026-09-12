@@ -384,6 +384,7 @@ pub fn dispatch_register(
             expires_at: Some(LeaseInstant { value: 0 }),
             status: "free".to_string(),
         }),
+        state_independent: true,
     },
         "Register",
         "LeaseClock::Lease",

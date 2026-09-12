@@ -479,6 +479,7 @@ pub fn dispatch_register(
             standing: Some(CustomerStanding { value: "good".to_string() }),
             status: "active".to_string(),
         }),
+        state_independent: true,
     },
         "Register",
         "Banking::Customer",

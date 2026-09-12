@@ -392,6 +392,7 @@ pub fn dispatch_request(
             ledger: Some(args.ledger.clone()),
             amount_cents: Some(args.amount_cents.clone()),
         }),
+        state_independent: true,
     },
         "Request",
         "TenantLedger::Transfer",

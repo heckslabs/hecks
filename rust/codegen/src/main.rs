@@ -25,6 +25,7 @@ mod attr;
 mod bridging;
 mod commands;
 mod constraints;
+mod dependency_planning;
 mod domain_generator;
 mod exemplar;
 mod expr_emitter;

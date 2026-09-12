@@ -475,6 +475,7 @@ pub fn dispatch_assign(
             starts_at: Some(args.starts_at.clone()),
             ends_at: None,
         }),
+        state_independent: false,
     },
         "Assign",
         "Governance::RoleAssignment",

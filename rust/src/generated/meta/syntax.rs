@@ -1807,6 +1807,7 @@ pub fn dispatch_declare(
             keywords: vec![],
             arguments: vec![],
         }),
+        state_independent: true,
     },
         "Declare",
         "Bluebook::Syntax",
