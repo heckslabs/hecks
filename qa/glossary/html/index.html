@@ -403,6 +403,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Build</h3>
 <p>Say what actually came of chasing this lead. Done by the qa engineer.</p>
 </article>
+<article class="term" id="citing">
+<h3>Citing</h3>
+<p>Every angle ever proposed on one exact citation, whatever became of it — the check before proposing another on the same fact.</p>
+</article>
 <article class="term" id="discard">
 <h3>Discard</h3>
 <p>Decide a lead is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
@@ -462,7 +466,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     paused --&gt; investigating: Revisit</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A Bug references a Sweep.</li><li>A Bug has many tags.</li><li>A bug is referenced.</li><li>A bug sequence is positive.</li><li>A bug is titled.</li><li>A bug is proven by a test somebody can re-run.</li><li>A bug says what actually happened.</li><li>A bug says what should have happened.</li><li>An investigation names where the bug lives.</li><li>An investigation says why the code is wrong.</li><li>A verification says what was actually run.</li><li>Stopping on a bug says why.</li><li>Stopping on a bug says what would move it.</li><li>A waiver count is not negative.</li><li>A waived gate says why.</li><li>An instant is not before the epoch.</li><li>A staleness window is positive.</li><li>A bug is reported by somebody.</li><li>An order is a position, not a direction.</li><li>A tag is a word, not a sentence.</li></ul>
+<ul class="rules"><li>A Bug references a Sweep.</li><li>A Bug has many tags.</li><li>A bug is referenced.</li><li>A bug sequence is positive.</li><li>A bug is titled.</li><li>A bug is proven by a test somebody can re-run.</li><li>A bug says what actually happened.</li><li>A bug says what should have happened.</li><li>An investigation names where the bug lives.</li><li>An investigation says why the code is wrong.</li><li>A verification says what was actually run.</li><li>Stopping on a bug says why.</li><li>Stopping on a bug says what would move it.</li><li>A waiver count is not negative.</li><li>A waived gate says why.</li><li>A gate is waived by a person, never by the loop.</li><li>A waiver is signed.</li><li>An instant is not before the epoch.</li><li>A staleness window is positive.</li><li>A bug is reported by somebody.</li><li>An order is a position, not a direction.</li><li>A tag is a word, not a sentence.</li></ul>
 <div class="terms">
 <article class="term" id="all-1">
 <h3>All</h3>
@@ -547,6 +551,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>Text.</p>
 <p class="rule">Always true: a bug is titled.</p>
 </article>
+<article class="term" id="bug-triaged">
+<h3>Bug triaged</h3>
+<p>Recorded after <a href="#triage">Triage</a>.</p>
+</article>
 <article class="term" id="bug-verified">
 <h3>Bug verified</h3>
 <p>Recorded after <a href="#verify">Verify</a>.</p>
@@ -567,6 +575,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Demonstration</h3>
 <p>Text.</p>
 <p class="rule">Always true: a bug is proven by a test somebody can re-run.</p>
+</article>
+<article class="term" id="disposition">
+<h3>Disposition</h3>
+<p>One of undecided, self_contained, or bigger.</p>
 </article>
 <article class="term" id="drop">
 <h3>Drop</h3>
@@ -679,6 +691,14 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Tagged</h3>
 <p>Every bug carrying one tag, whatever state it is in — the way to find all the flaky ones, or everything about the projector.</p>
 </article>
+<article class="term" id="triage">
+<h3>Triage</h3>
+<p>Write down whether this can be fixed on the spot or needs a bigger judgment. Done by the qa engineer.</p>
+</article>
+<article class="term" id="untriaged">
+<h3>Untriaged</h3>
+<p>Live bugs (logged or investigating) nobody has triaged as self_contained or bigger yet — the judgment still owed on each.</p>
+</article>
 <article class="term" id="verification">
 <h3>Verification</h3>
 <p>Text.</p>
@@ -690,11 +710,16 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="waive">
 <h3>Waive</h3>
-<p>Go round a gate on this bug, on the record. Done by the qa engineer.</p>
+<p>Go round a gate on this bug, on the record, signed by a person. Done by the qa engineer.</p>
 </article>
 <article class="term" id="waived">
 <h3>Waived</h3>
 <p>Bugs that went round one of their own gates — the honesty check on any claim about following the protocol.</p>
+</article>
+<article class="term" id="waived-by">
+<h3>Waived by</h3>
+<p>Text.</p>
+<p class="rule">Always true: a gate is waived by a person, never by the loop; a waiver is signed.</p>
 </article>
 <article class="term" id="waiver-count">
 <h3>Waiver count</h3>
@@ -809,7 +834,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     needs_fix --&gt; closed: Close</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>An Improvement references an Angle.</li><li>An improvement is numbered.</li><li>An improvement says where it lives.</li><li>An improvement says which branch it is on.</li><li>An improvement is titled.</li></ul>
+<ul class="rules"><li>An Improvement references an Angle.</li><li>An instant is not before the epoch.</li><li>An improvement is numbered.</li><li>An improvement says where it lives.</li><li>An improvement says which branch it is on.</li><li>An improvement is titled.</li></ul>
 <div class="terms">
 <article class="term" id="all-3">
 <h3>All</h3>
@@ -875,6 +900,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <p>Text.</p>
 <p class="rule">Always true: an improvement says where it lives.</p>
 </article>
+<article class="term" id="instant-2">
+<h3>Instant</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an instant is not before the epoch.</p>
+</article>
 <article class="term" id="land">
 <h3>Land</h3>
 <p>Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.</p>
@@ -894,6 +924,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="open-the-list">
 <h3>Open (the list)</h3>
 <p>Every PR we&#39;ve landed for deliberate, non-bugfix work that&#39;s still open, by number — bin/qa_pr_check&#39;s own second worklist, the same shape Patch.Open already gives for a bug&#39;s own fix. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+</article>
+<article class="term" id="opened-since">
+<h3>Opened since</h3>
+<p>Every improvement opened at or after one instant, in number order — the other half of today&#39;s count against PR_CAP_PER_DAY.</p>
 </article>
 <article class="term" id="regress-1">
 <h3>Regress</h3>
@@ -920,7 +954,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     opened --&gt; closed: Close</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A Patch references a Bug.</li><li>A patch is numbered.</li><li>A patch says where it lives.</li><li>A patch says which branch it is on.</li><li>A patch is titled.</li></ul>
+<ul class="rules"><li>A Patch references a Bug.</li><li>An instant is not before the epoch.</li><li>A patch is numbered.</li><li>A patch says where it lives.</li><li>A patch says which branch it is on.</li><li>A patch is titled.</li></ul>
 <div class="terms">
 <article class="term" id="all-4">
 <h3>All</h3>
@@ -942,6 +976,11 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>For bug</h3>
 <p>Every patch ever opened for one bug — the duplicate check, the same shape Ticket.ForBug already gives for an issue.</p>
 </article>
+<article class="term" id="instant-3">
+<h3>Instant</h3>
+<p>A whole number.</p>
+<p class="rule">Always true: an instant is not before the epoch.</p>
+</article>
 <article class="term" id="merge-1">
 <h3>Merge</h3>
 <p>Record that GitHub merged it. Done by the qa engineer.</p>
@@ -953,6 +992,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="open-the-list-1">
 <h3>Open (the list)</h3>
 <p>Every PR we&#39;ve opened that&#39;s still open, by number — bin/qa_pr_check&#39;s own worklist. For each of these, ask gh for exactly this number&#39;s CI status; nothing here is a guess.</p>
+</article>
+<article class="term" id="opened-since-1">
+<h3>Opened since</h3>
+<p>Every patch opened at or after one instant, in number order — what today&#39;s count against PR_CAP_PER_DAY is read from.</p>
 </article>
 <article class="term" id="patch-branch">
 <h3>Patch branch</h3>
@@ -1013,7 +1056,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     sweeping --&gt; abandoned: Abandon</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A Sweep references a Target.</li><li>A Sweep has many checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li></ul>
+<ul class="rules"><li>A Sweep references a Target.</li><li>A Sweep has many checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A gate is waived by a person, never by the loop.</li><li>A waiver is signed.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li></ul>
 <div class="terms">
 <article class="term" id="abandon">
 <h3>Abandon</h3>
@@ -1056,7 +1099,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="check-surprised">
 <h3>Check surprised</h3>
-<p>Recorded after <a href="#surprised">Surprised</a>.</p>
+<p>Recorded after <a href="#surprised">Surprised</a>. Prompts <a href="#suspend-on-surprise">Suspend on surprise</a>.</p>
 </article>
 <article class="term" id="check-unsettled">
 <h3>Check unsettled</h3>
@@ -1121,6 +1164,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Surprising</h3>
 <p>Every check the system surprised, across every sweep — the raw material a bug is written from, and the only list here that is supposed to be interesting.</p>
 </article>
+<article class="term" id="suspend-on-surprise">
+<h3>Suspend on surprise</h3>
+<p>When <a href="#check-surprised">Check surprised</a> happens, <a href="#target">Target</a> is asked to <a href="#suspend">Suspend</a>.</p>
+</article>
 <article class="term" id="sweep-abandoned">
 <h3>Sweep abandoned</h3>
 <p>Recorded after <a href="#abandon">Abandon</a>.</p>
@@ -1147,6 +1194,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Sweeping</h3>
 <p>Passes live right now — one per agent, and the reason a target shows as held.</p>
 </article>
+<article class="term" id="target-ref">
+<h3>Target ref</h3>
+<p>Text.</p>
+</article>
 <article class="term" id="unsettled-check">
 <h3>Unsettled (check)</h3>
 <p>Record a check that ran and settled nothing. Done by the qa engineer.</p>
@@ -1157,11 +1208,16 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="waive-1">
 <h3>Waive</h3>
-<p>Go round a gate, on the record. Done by the qa engineer.</p>
+<p>Go round a gate, on the record, signed by a person. Done by the qa engineer.</p>
 </article>
 <article class="term" id="waived-1">
 <h3>Waived</h3>
 <p>Sweeps that went round a gate. Read as a fraction of all of them: a practice whose waiver rate is climbing is not moving faster, it is agreeing with itself less.</p>
+</article>
+<article class="term" id="waived-by-1">
+<h3>Waived by</h3>
+<p>Text.</p>
+<p class="rule">Always true: a gate is waived by a person, never by the loop; a waiver is signed.</p>
 </article>
 <article class="term" id="waiver-count-1">
 <h3>Waiver count</h3>
@@ -1177,7 +1233,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <section id="target">
 <h2>Target</h2>
 <p class="about">A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.</p>
-<p>Starts out waiting. Can be waiting, held, or shelved.</p>
+<p>Starts out waiting. Can be waiting, held, suspended, or shelved.</p>
 <figure>
 <figcaption>How it fits</figcaption>
 <pre class="mermaid">flowchart LR
@@ -1193,16 +1249,27 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
     waiting --&gt; held: Claim
     held --&gt; held: Claim
     held --&gt; waiting: Release
+    suspended --&gt; waiting: Release
+    held --&gt; suspended: Suspend
     waiting --&gt; shelved: Shelve
     held --&gt; shelved: Shelve
     shelved --&gt; waiting: Restore</pre>
 </figure>
 <p class="caption"></p>
-<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
+<ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A mode is named.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li></ul>
 <div class="terms">
 <article class="term" id="all-6">
 <h3>All</h3>
 <p>Every chapter ever written down — the inventory a runner walking the repository checks its findings against.</p>
+</article>
+<article class="term" id="capabilities">
+<h3>Capabilities</h3>
+<p>Text.</p>
+</article>
+<article class="term" id="capability">
+<h3>Capability</h3>
+<p>Text.</p>
+<p class="rule">Always true: a mode is named.</p>
 </article>
 <article class="term" id="claim-1">
 <h3>Claim</h3>
@@ -1212,6 +1279,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Clean streak</h3>
 <p>A whole number.</p>
 <p class="rule">Always true: a streak is not negative.</p>
+</article>
+<article class="term" id="eligible-for">
+<h3>Eligible for</h3>
+<p>Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger&#39;s own answer to which chapters a mode can reach; inference at sweep time is still what decides.</p>
 </article>
 <article class="term" id="engineer-2">
 <h3>Engineer</h3>
@@ -1225,7 +1296,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Identify</h3>
 <p>Write down that a chapter exists which nobody has swept. Done by the qa engineer.</p>
 </article>
-<article class="term" id="instant-2">
+<article class="term" id="instant-4">
 <h3>Instant</h3>
 <p>A whole number.</p>
 <p class="rule">Always true: an instant is not before the epoch.</p>
@@ -1236,7 +1307,7 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 </article>
 <article class="term" id="restore">
 <h3>Restore</h3>
-<p>Put a shelved chapter back in the rotation. Done by the qa engineer.</p>
+<p>Put a shelved chapter back in the rotation, and say what changed. Done by the qa engineer.</p>
 </article>
 <article class="term" id="rotation">
 <h3>Rotation</h3>
@@ -1254,6 +1325,14 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <h3>Stale after</h3>
 <p>A whole number.</p>
 <p class="rule">Always true: a staleness window is positive.</p>
+</article>
+<article class="term" id="suspend">
+<h3>Suspend</h3>
+<p>Take a chapter out of the rotation because a check surprised, until a person releases it. Done by the system.</p>
+</article>
+<article class="term" id="suspended">
+<h3>Suspended</h3>
+<p>Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; bin/qa_sweep &lt;target&gt; --release --notes is how one comes back.</p>
 </article>
 <article class="term" id="swept-in">
 <h3>Swept in</h3>
@@ -1294,6 +1373,10 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <article class="term" id="target-shelved">
 <h3>Target shelved</h3>
 <p>Recorded after <a href="#shelve">Shelve</a>.</p>
+</article>
+<article class="term" id="target-suspended">
+<h3>Target suspended</h3>
+<p>Recorded after <a href="#suspend">Suspend</a>.</p>
 </article>
 <article class="term" id="untouched">
 <h3>Untouched</h3>
@@ -1497,17 +1580,21 @@ section.searching .terms { border-top: 0; margin-top: 0.8rem; }
 <div class="terms">
 <article class="term" id="qa-engineer">
 <h3>QA engineer</h3>
-<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#open-3">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress (bug)</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-2">Close (ticket)</a>, <a href="#open-2">Open (patch)</a>, <a href="#merge-1">Merge (patch)</a>, <a href="#close-1">Close (patch)</a>, <a href="#open-1">Open (improvement)</a>, <a href="#land">Land</a>, <a href="#regress-1">Regress (improvement)</a>, <a href="#merge">Merge (improvement)</a>, <a href="#close">Close (improvement)</a>, and <a href="#start">Start</a>.</p>
+<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#open-3">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#triage">Triage</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress (bug)</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-2">Close (ticket)</a>, <a href="#open-2">Open (patch)</a>, <a href="#merge-1">Merge (patch)</a>, <a href="#close-1">Close (patch)</a>, <a href="#open-1">Open (improvement)</a>, <a href="#land">Land</a>, <a href="#regress-1">Regress (improvement)</a>, <a href="#merge">Merge (improvement)</a>, <a href="#close">Close (improvement)</a>, and <a href="#start">Start</a>.</p>
 </article>
 <article class="term" id="system">
 <h3>System</h3>
-<p>Responsible for <a href="#filed">Filed</a>, <a href="#refused">Refused</a>, <a href="#retry">Retry</a>, <a href="#passed">Passed</a>, and <a href="#failed">Failed</a>.</p>
+<p>Responsible for <a href="#suspend">Suspend</a>, <a href="#filed">Filed</a>, <a href="#refused">Refused</a>, <a href="#retry">Retry</a>, <a href="#passed">Passed</a>, and <a href="#failed">Failed</a>.</p>
 </article></div>
 </section>
 <section id="read-models">
 <h2>Read models</h2>
 <p class="about">Questions answered across more than one of the things above.</p>
 <div class="terms">
+<article class="term" id="bugs-by-disposition">
+<h3>Bugs by disposition</h3>
+<p>Every bug sorted by the call its finder made — self-contained, bigger, or not yet decided — beside its reference. The fix-rate, and the judgment still owed, at a glance.</p>
+</article>
 <article class="term" id="bugs-by-status">
 <h3>Bugs by status</h3>
 <p>Every bug sorted into what became of it — the tally. The share that is withdrawn, beside the share verified, is the honesty check on the whole practice.</p>

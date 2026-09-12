@@ -248,7 +248,7 @@ RSpec.describe "QualityControl" do
     it "offers the least recently swept first" do
       swept = a_target("banking")
       swept.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      swept.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 })
+      swept.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 }, capabilities: { value: "" })
       a_target("pizzas", "examples/pizzas")
 
       # "never" sorts before any sweep reference, which is the ordering the
@@ -290,7 +290,7 @@ RSpec.describe "QualityControl" do
     it "puts a released chapter back at the end of the rotation" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 })
+      target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 }, capabilities: { value: "" })
 
       expect(target.status).to eq("waiting")
       expect(rows("Target.Untouched")).to be_empty
@@ -307,7 +307,8 @@ RSpec.describe "QualityControl" do
     it "stores whatever yield score a release is given" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      released = target.release!(now: { value: 1_000 }, yield_score: { value: 7 }, next_streak: { value: 1 })
+      released = target.release!(now: { value: 1_000 }, yield_score: { value: 7 }, next_streak: { value: 1 },
+                                 capabilities: { value: "" })
 
       expect(released.yield_score.to_h).to eq(value: 7)
     end
@@ -328,11 +329,11 @@ RSpec.describe "QualityControl" do
     it "picks the higher-yield target over the merely-older one, below the floor" do
       exhausted = a_target("pizzas", "examples/pizzas")
       exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
-      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 }, capabilities: { value: "" })
 
       roster = a_target("roster", "examples/roster")
       roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
-      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 }, capabilities: { value: "" })
 
       picked = Hecks::Fuzzing::RotationPriority.pick(
         rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 100_000
@@ -344,11 +345,11 @@ RSpec.describe "QualityControl" do
     it "still picks the exhausted target once it crosses the floor, regardless of yield" do
       exhausted = a_target("pizzas", "examples/pizzas")
       exhausted.claim!(held_by: { value: "agent-one" }, now: { value: 0 })
-      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 })
+      exhausted.release!(now: { value: 0 }, yield_score: { value: 0 }, next_streak: { value: 1 }, capabilities: { value: "" })
 
       roster = a_target("roster", "examples/roster")
       roster.claim!(held_by: { value: "agent-one" }, now: { value: 500 })
-      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 })
+      roster.release!(now: { value: 500 }, yield_score: { value: 6 }, next_streak: { value: 1 }, capabilities: { value: "" })
 
       picked = Hecks::Fuzzing::RotationPriority.pick(
         rows("Target.Rotation"), now: 1_000, weight_seconds: 100, floor_seconds: 900
@@ -383,28 +384,30 @@ RSpec.describe "QualityControl" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
       target = target.release!(now: { value: 1_000 }, yield_score: { value: 0 },
-                               next_streak: { value: target.clean_streak.value + 1 })
+                               next_streak: { value: target.clean_streak.value + 1 }, capabilities: { value: "" })
       expect(target.clean_streak.to_h).to eq(value: 1)
 
       target.claim!(held_by: { value: "agent-one" }, now: { value: 2_000 })
       target = target.release!(now: { value: 2_000 }, yield_score: { value: 0 },
-                               next_streak: { value: target.clean_streak.value + 1 })
+                               next_streak: { value: target.clean_streak.value + 1 }, capabilities: { value: "" })
       expect(target.clean_streak.to_h).to eq(value: 2)
 
       target.claim!(held_by: { value: "agent-one" }, now: { value: 3_000 })
       target = target.release!(now: { value: 3_000 }, yield_score: { value: 0 },
-                               next_streak: { value: target.clean_streak.value + 1 })
+                               next_streak: { value: target.clean_streak.value + 1 }, capabilities: { value: "" })
       expect(target.clean_streak.to_h).to eq(value: 3)
     end
 
     it "resets to zero the moment a caller reports the pass was not clean" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-      target = target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 4 })
+      target = target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 4 },
+                               capabilities: { value: "" })
       expect(target.clean_streak.to_h).to eq(value: 4)
 
       target.claim!(held_by: { value: "agent-one" }, now: { value: 2_000 })
-      target = target.release!(now: { value: 2_000 }, yield_score: { value: 0 }, next_streak: { value: 0 })
+      target = target.release!(now: { value: 2_000 }, yield_score: { value: 0 }, next_streak: { value: 0 },
+                               capabilities: { value: "" })
 
       expect(target.clean_streak.to_h).to eq(value: 0)
     end
@@ -419,7 +422,8 @@ RSpec.describe "QualityControl" do
     it "remembers a check was ever surprised, even after Remake resolves it clean" do
       sweep = a_sweep
       a_check(sweep)
-      check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "as: was silently accepted" })
+      check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "as: was silently accepted" },
+                                target: { value: "banking" })
 
       sweep = QualityControl::Sweep.find(sweep.id)
       expect(sweep.checks.first[:ever_surprised][:value]).to eq("yes")
@@ -525,7 +529,8 @@ RSpec.describe "QualityControl" do
 
       check(sweep, "Held", sequence: { value: 1 }, observation: { value: "refused, as declared" })
       check(sweep, "Surprised", sequence:    { value: 2 },
-                                observation: { value: "as: was accepted and the original name still answered" })
+                                observation: { value: "as: was accepted and the original name still answered" },
+                                target:      { value: "banking" })
 
       surprising = rows("Sweep.Check.Surprising")
       expect(surprising.length).to eq(1)
@@ -555,7 +560,8 @@ RSpec.describe "QualityControl" do
 
     it "lets you through with a reason, and counts it" do
       sweep = a_sweep
-      sweep.waive!(reason: { value: "the chapter would not boot; recording the pass so the rotation moves on" })
+      sweep.waive!(reason:    { value: "the chapter would not boot; recording the pass so the rotation moves on" },
+                   waived_by: { value: "a person" })
 
       expect { sweep.conclude!(notes: { value: "Could not boot the chapter at all — see the waiver." }) }
         .not_to raise_error
@@ -835,12 +841,13 @@ RSpec.describe "QualityControl" do
       a_bug(a_sweep)
     end
 
-    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c")
+    def open_patch(bug, number: 538, branch: "loop-parity/some-slug", commit: "4f2a19c", now: 1_000)
       QualityControl::Patch.open!(
         bug: bug.id, number: { value: number },
         url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
         branch: { value: branch }, commit: { value: commit },
-        title: { value: "loop-parity: #{branch}" }
+        title: { value: "loop-parity: #{branch}" },
+        now: { value: now }
       )
     end
 
@@ -854,7 +861,7 @@ RSpec.describe "QualityControl" do
           bug: "BUG#nope", number: { value: 1 },
           url: { value: "https://example.com/pull/1" },
           branch: { value: "x" }, commit: { value: "4f2a19c" },
-          title: { value: "x" }
+          title: { value: "x" }, now: { value: 1_000 }
         )
       end.to raise_error(Hecks::Runtime::NotFound)
     end
@@ -927,14 +934,15 @@ RSpec.describe "QualityControl" do
   # command on purpose (see the aggregate's own header comment) — a fresh
   # `Land` is also how a `needs_fix` row gets a second chance.
   describe "tracking deliberate work" do
-    def open_improvement(number: 9001, branch: "qa/some-slug", angle: nil)
+    def open_improvement(number: 9001, branch: "qa/some-slug", angle: nil, now: 1_000)
       runtime
       QualityControl::Improvement.open!(
         **(angle ? { angle: angle.id } : {}),
         number: { value: number },
         url:    { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
         branch: { value: branch },
-        title:  { value: "qa: #{branch}" }
+        title:  { value: "qa: #{branch}" },
+        now:    { value: now }
       )
     end
 
@@ -947,7 +955,7 @@ RSpec.describe "QualityControl" do
         QualityControl::Improvement.open!(
           angle: "ANGLE-nope", number: { value: 1 },
           url: { value: "https://example.com/pull/1" },
-          branch: { value: "x" }, title: { value: "x" }
+          branch: { value: "x" }, title: { value: "x" }, now: { value: 1_000 }
         )
       end.to raise_error(Hecks::Runtime::NotFound)
     end
@@ -1148,7 +1156,7 @@ RSpec.describe "QualityControl" do
       improvement = QualityControl::Improvement.open!(
         number: { value: number },
         url: { value: "https://github.com/heckslabs/hecks/pull/#{number}" },
-        branch: { value: "qa/smoke" }, title: { value: "smoke" }
+        branch: { value: "qa/smoke" }, title: { value: "smoke" }, now: { value: 1_000 }
       )
       improvement.land!(number: { value: number }, commit: { value: commit })
     end
@@ -1264,6 +1272,306 @@ RSpec.describe "QualityControl" do
       bug.tag!(tags: [{ value: "regression" }])
 
       expect(references("Bug.Tagged", tag: { value: "regression" })).to eq(["BUG#1"])
+    end
+  end
+
+  # ── a surprised chapter waits for a person ───────────────────────────
+
+  # `suspended` — the state `held` used to stand in for. Nothing here
+  # dispatches `Target.Suspend` by hand: `SuspendOnSurprise` (the
+  # chapter's own foot) does it, from the `target` a surprising check
+  # restates, and that is the whole claim under test.
+  describe "a surprised chapter" do
+    def held_target_with_open_sweep
+      target = a_target
+      target.claim!(held_by: { value: "qa_sweep" }, now: { value: 1_000 })
+      sweep = a_sweep(target)
+      a_check(sweep)
+      [target, sweep]
+    end
+
+    it "is suspended by the ledger itself the moment a check surprises, and leaves the rotation" do
+      target, sweep = held_target_with_open_sweep
+      check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "diverged" },
+                                target: { value: target.id })
+
+      suspended = QualityControl::Target.find(target.id)
+      expect(suspended.status).to eq("suspended")
+      expect(suspended.reason.to_h[:value]).to include("--release")
+      expect(references("Target.Rotation")).to be_empty
+      expect(references("Target.Held")).to be_empty
+      expect(references("Target.Suspended")).to eq([target.id])
+      expect(runtime.reactions).to include(hash_including(policy: "SuspendOnSurprise", delivered: true))
+    end
+
+    it "refuses a surprise that does not say which chapter it is about" do
+      _target, sweep = held_target_with_open_sweep
+
+      expect { check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "diverged" }) }
+        .to raise_error(Hecks::Runtime::AbsentArgument, /target/)
+    end
+
+    # NO STALE-CLAIM ARITHMETIC REACHES A SUSPENDED CHAPTER — that is the
+    # difference from `held`, and the reason the state exists.
+    it "cannot be claimed, however old the suspension, and comes back only through Release" do
+      target, sweep = held_target_with_open_sweep
+      check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "diverged" },
+                                target: { value: target.id })
+      suspended = QualityControl::Target.find(target.id)
+
+      expect { suspended.claim!(held_by: { value: "agent-two" }, now: { value: 1_000_000 }) }
+        .to raise_error(Hecks::Runtime::LifecycleRefused)
+
+      released = suspended.release!(now: { value: 2_000 }, yield_score: { value: 1 }, next_streak: { value: 0 },
+                                    capabilities: { value: "rust" })
+      expect(released.status).to eq("waiting")
+      expect(references("Target.Rotation")).to eq([target.id])
+    end
+  end
+
+  describe "restoring a shelved chapter" do
+    it "refuses without a reason, and records the one it is given" do
+      target = a_target
+      target.shelve!(reason: { value: "no Rust binary, and no time to project one" })
+
+      expect { target.restore! }.to raise_error(Hecks::Runtime::AbsentArgument, /reason/)
+
+      restored = target.restore!(reason: { value: "bin/project_rust now covers it" })
+      expect(restored.status).to eq("waiting")
+      expect(restored.reason.to_h[:value]).to eq("bin/project_rust now covers it")
+    end
+  end
+
+  # ── what a chapter can be compared against ───────────────────────────
+
+  describe "capabilities" do
+    def released_with(reference, path, capabilities)
+      target = a_target(reference, path)
+      target.claim!(held_by: { value: "qa_sweep" }, now: { value: 1_000 })
+      target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 },
+                      capabilities: { value: capabilities })
+    end
+
+    it "start empty — a chapter nobody has released is eligible for nothing yet" do
+      expect(a_target.capabilities.to_h).to eq(value: "")
+      expect(rows("Target.EligibleFor", mode: { value: "rust" })).to be_empty
+    end
+
+    it "are recorded at release and answer which waiting chapters a mode can reach" do
+      released_with("directory", "examples/directory", "postgres_era")
+      released_with("pizzas", "examples/pizzas", "rust,postgres_era")
+      a_target("roster", "examples/roster")
+
+      expect(references("Target.EligibleFor", mode: { value: "postgres_era" })).to contain_exactly("directory", "pizzas")
+      expect(references("Target.EligibleFor", mode: { value: "rust" })).to eq(["pizzas"])
+      expect(references("Target.EligibleFor", mode: { value: "wasm" })).to be_empty
+    end
+
+    it "only count a chapter that is actually waiting" do
+      target = released_with("pizzas", "examples/pizzas", "rust")
+      target.claim!(held_by: { value: "qa_sweep" }, now: { value: 5_000 })
+
+      expect(rows("Target.EligibleFor", mode: { value: "rust" })).to be_empty
+    end
+
+    it "must be said at release — the runner always knows what it inferred" do
+      target = a_target
+      target.claim!(held_by: { value: "qa_sweep" }, now: { value: 1_000 })
+
+      expect { target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 }) }
+        .to raise_error(Hecks::Runtime::AbsentArgument, /capabilities/)
+    end
+  end
+
+  # ── a waiver is signed by a person ───────────────────────────────────
+
+  describe "a signed waiver" do
+    let(:reason) { { value: "the chapter would not boot; recording the pass so the rotation moves on" } }
+
+    it "refuses the loop's own identity, on a sweep and on a bug" do
+      sweep = a_sweep
+      expect { sweep.waive!(reason: reason, waived_by: { value: "qa_sweep" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /never by the loop/)
+
+      bug = a_bug(sweep)
+      expect { bug.waive!(reason: reason, waived_by: { value: "qa_sweep" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /never by the loop/)
+    end
+
+    it "refuses an unsigned one" do
+      expect { a_sweep.waive!(reason: reason, waived_by: { value: "nobody" }) }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /signed/)
+    end
+
+    it "refuses one with no signature at all" do
+      expect { a_sweep.waive!(reason: reason) }.to raise_error(Hecks::Runtime::AbsentArgument, /waived_by/)
+    end
+
+    it "counts a person's waiver and keeps the signature" do
+      sweep = a_sweep.waive!(reason: reason, waived_by: { value: "Chris" })
+      expect(sweep.waived.to_h).to eq(value: 1)
+      expect(sweep.waived_by.to_h).to eq(value: "Chris")
+      expect(references("Sweep.Waived")).to eq([sweep.id])
+
+      bug = a_bug(sweep).waive!(reason: reason, waived_by: { value: "Chris" })
+      expect(bug.waived_by.to_h).to eq(value: "Chris")
+      expect(references("Bug.Waived")).to eq([bug.id])
+    end
+
+    # THE PIN. The invariant grammar reads literals, not constants, so
+    # `WaivedBy` spells "qa_sweep" out where `bin/qa_sweep` reads
+    # `AUTOMATED_ENGINEER` — this is what keeps the two from drifting.
+    it "refuses exactly the identity the loop runs as" do
+      runtime
+
+      expect(QualityControlDials::AUTOMATED_ENGINEER).to eq("qa_sweep")
+      %w[Sweep Bug].each do |aggregate|
+        waived_by = runtime.registry.bluebook("QualityControl").aggregate(aggregate).value_objects
+                           .find { |vo| vo.hecks_name == "WaivedBy" }
+        refused = waived_by.invariants.map { |invariant| invariant.canonical.to_s }.join(" ")
+        expect(refused).to include(QualityControlDials::AUTOMATED_ENGINEER.inspect)
+      end
+    end
+  end
+
+  # ── the judgment, recorded ───────────────────────────────────────────
+
+  describe "triage" do
+    def by_disposition = runtime.query("QualityControl.BugsByDisposition").first[:bugs]
+
+    it "is born undecided, and owed until somebody decides" do
+      bug = a_bug(a_sweep)
+
+      expect(bug.disposition.to_h).to eq(value: "undecided")
+      expect(references("Bug.Untriaged")).to eq([bug.id])
+      expect(by_disposition["undecided"].keys).to eq([bug.id])
+    end
+
+    it "refuses undecided as a decision" do
+      expect { a_bug(a_sweep).triage!(disposition: { value: "undecided" }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /never undecided/)
+    end
+
+    it "records the call, tallies it, and moves nothing else" do
+      sweep = a_sweep
+      one = a_bug(sweep, reference: "BUG#1", sequence: 1)
+      two = a_bug(sweep, reference: "BUG#2", sequence: 2)
+      one.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+
+      one = one.triage!(disposition: { value: "self_contained" })
+      two.triage!(disposition: { value: "bigger" })
+
+      expect(one.status).to eq("investigating")
+      expect(rows("Bug.Untriaged")).to be_empty
+      expect(by_disposition["self_contained"].keys).to eq(["BUG#1"])
+      expect(by_disposition["bigger"].keys).to eq(["BUG#2"])
+    end
+
+    it "drops a bug out of Untriaged once it is no longer live, decided or not" do
+      bug = a_bug(a_sweep)
+      bug.withdraw!(reason: { value: "the test proved something else" })
+
+      expect(rows("Bug.Untriaged")).to be_empty
+    end
+  end
+
+  # ── when a PR was opened ─────────────────────────────────────────────
+
+  describe "when a PR was opened" do
+    def a_fixed_bug
+      bug = a_bug(a_sweep)
+      bug.investigate!(site: { value: "lib/x.rb" }, cause: { value: "c" })
+      bug.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
+    end
+
+    def open_patch(bug, number, now)
+      QualityControl::Patch.open!(
+        bug: bug.id, number: { value: number }, url: { value: "https://example.com/pull/#{number}" },
+        branch: { value: "qa/x" }, commit: { value: "4f2a19c" }, title: { value: "x" }, now: { value: now }
+      )
+    end
+
+    def open_improvement(number, now)
+      QualityControl::Improvement.open!(
+        number: { value: number }, url: { value: "https://example.com/pull/#{number}" },
+        branch: { value: "qa/y" }, title: { value: "y" }, now: { value: now }
+      )
+    end
+
+    def numbers(query, since) = rows(query, since: { value: since }).map { |row| row[:number][:value] }
+
+    it "is stamped with when, and counted from any instant since" do
+      bug = a_fixed_bug
+      open_patch(bug, 1, 5_000)
+      open_patch(bug, 2, 9_000)
+      open_improvement(3, 9_500)
+
+      expect(QualityControl::Patch.find(1).opened_at.to_h).to eq(value: 5_000)
+      expect(numbers("Patch.OpenedSince", 4_000)).to eq([1, 2])
+      expect(numbers("Patch.OpenedSince", 6_000)).to eq([2])
+      expect(numbers("Patch.OpenedSince", 9_001)).to be_empty
+      expect(numbers("Improvement.OpenedSince", 9_000)).to eq([3])
+    end
+
+    # A ROW FROM BEFORE THE FIELD EXISTED hydrates at the epoch, and the
+    # epoch is before any midnight `bin/qa_open_pr` ever counts from.
+    it "never counts a PR recorded at the epoch against a later day" do
+      open_patch(a_fixed_bug, 1, 0)
+
+      expect(numbers("Patch.OpenedSince", 1)).to be_empty
+    end
+
+    it "must say when" do
+      bug = a_fixed_bug
+
+      expect do
+        QualityControl::Patch.open!(
+          bug: bug.id, number: { value: 1 }, url: { value: "u" }, branch: { value: "qa/x" },
+          commit: { value: "4f2a19c" }, title: { value: "x" }
+        )
+      end.to raise_error(Hecks::Runtime::AbsentArgument, /now/)
+    end
+  end
+
+  # ── the duplicate-premise check ──────────────────────────────────────
+
+  describe "citing" do
+    it "finds every angle ever proposed on one exact citation, whatever became of it" do
+      an_angle(reference: "ANGLE-1", citation: "BUG#7")
+      an_angle(reference: "ANGLE-2", citation: "BUG#7").discard!(reason: { value: "already covered" })
+      an_angle(reference: "ANGLE-3", citation: "ADR 0037 F5")
+
+      expect(references("Angle.Citing", citation: { value: "BUG#7" })).to eq(["ANGLE-1", "ANGLE-2"])
+      expect(references("Angle.Citing", citation: { value: "BUG#8" })).to be_empty
+    end
+  end
+
+  # ── the dials the scripts read ───────────────────────────────────────
+
+  describe "the dials" do
+    before { runtime }
+
+    # THE REAL TABLE'S OWN BOUNDARIES — `spec/sweep_depth_spec.rb` proves
+    # the function against a table it passes in; this pins the dial.
+    it "widen the sweep at exactly the fifth and the twentieth clean release" do
+      depth = ->(streak) { Hecks::Fuzzing::SweepDepth.for_streak(streak, tiers: QualityControlDials::WIDENING_TIERS) }
+
+      expect(depth.call(4)).to eq([10, 25])
+      expect(depth.call(5)).to eq([25, 50])
+      expect(depth.call(19)).to eq([25, 50])
+      expect(depth.call(20)).to eq([50, 100])
+    end
+
+    it "bound --all to a positive number of children" do
+      expect(QualityControlDials::SWEEP_MAX_PARALLEL).to be_a(Integer).and be_positive
+    end
+
+    it "say how the loop opens a PR" do
+      expect(QualityControlDials::BRANCH_PREFIX).to end_with("/")
+      expect(QualityControlDials::DRAFT_ONLY).to be(true).or be(false)
+      expect(QualityControlDials::AUTO_MERGE).to be(true).or be(false)
+      expect(QualityControlDials::PR_CAP_PER_DAY).to be_a(Integer).and be >= 0
+      expect(QualityControlDials::LIVENESS_FALLBACK_SECONDS).to be_positive
     end
   end
 end

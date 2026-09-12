@@ -130,7 +130,8 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
 
     t1 = QualityControl::Target.identify!(reference: { value: "banking" }, path: { value: "examples/banking" })
     t1.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
-    t1.release!(now: { value: 1_500 }, yield_score: { value: 0 }, next_streak: { value: 1 })
+    t1.release!(now: { value: 1_500 }, yield_score: { value: 0 }, next_streak: { value: 1 },
+                capabilities: { value: "rust" })
     t1.claim!(held_by: { value: "agent-two" }, now: { value: 1_600 })
 
     t2 = QualityControl::Target.identify!(reference: { value: "pizzas" }, path: { value: "examples/pizzas" })
@@ -150,13 +151,15 @@ RSpec.describe "bin/qa_postgres_migrate", :io do
                                 sequence: { value: n }, observation: { value: "refused as expected, check #{n}" })
       else
         @heki_runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
-                                sequence: { value: n }, observation: { value: "silently accepted, check #{n}" })
+                                sequence: { value: n }, observation: { value: "silently accepted, check #{n}" },
+                                target: { value: t1.id })
       end
     end
     sweep.conclude!(notes: { value: "found several surprising divergences in the freeze/unfreeze cycle" })
 
     sweep2 = QualityControl::Sweep.open!(target: t3.id, reference: { value: "SW-2" }, engineer: { value: "Claude QA 2" })
-    sweep2.waive!(reason: { value: "the chapter would not boot; recording the pass so the rotation moves on" })
+    sweep2.waive!(reason:    { value: "the chapter would not boot; recording the pass so the rotation moves on" },
+                  waived_by: { value: "Claude QA 2" })
     sweep2.conclude!(notes: { value: "boot refused outright; nothing could be checked this pass" })
 
     bug = QualityControl::Bug.log!(

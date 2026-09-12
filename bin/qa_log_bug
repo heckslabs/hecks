@@ -1,0 +1,175 @@
+#!/usr/bin/env ruby
+
+# LOG A BUG THE ONLY WAY THE LEDGER ALLOWS — PROVEN, NUMBERED, TRIAGED.
+#
+# `QualityControl::Bug.Log` (qa/bluebook/quality_control.bluebook) takes
+# a `demonstration` as a REQUIRED argument — this chapter's one absolute
+# rule, "a bug is logged with the failing test that proves it, or it is
+# not logged." What the ledger cannot check is whether the demonstration
+# actually FAILS: a string is a string, and an agent under pressure can
+# type a command that passes and call it a proof. This script closes
+# that gap mechanically — it RUNS `--demonstration` first and refuses,
+# exit 1, unless the command exits non-zero. A passing demonstration
+# proves nothing and is not logged.
+#
+# IT ALSO MINTS THE NUMBER. `BUG#<n>` used to be "pick the next Bug
+# number" in `.claude/skills/hecks_qa/SKILL.md` — and a real BUG#21 was
+# assigned twice, by two agents each reading `Bug.All` and each adding
+# one before the other's `Log` landed. `next_reference` below reads the
+# highest `sequence` over `Bug.All` and takes the next one, then walks
+# forward past any reference somehow already on file — so a collision
+# on the reference is a refusal (`AlreadyExists`) this script retries
+# by minting again, never a silent double-assignment.
+#
+# AND IT RECORDS THE JUDGMENT. `--triage self_contained|bigger` is the
+# one call "On a surprising check" always asked an agent to make and
+# never asked it to write down; `Bug.Triage` is dispatched right after
+# `Log`, so the bug reaches the ledger already carrying it and
+# `Bug.Untriaged`/`BugsByDisposition` can say how much judgment is
+# still owed.
+#
+#   bin/qa_log_bug --sweep <sweep-id> --title "…" \
+#     --demonstration "bundle exec rspec spec/x_spec.rb -e 'the case'" \
+#     --symptom "…" --expectation "…" --submitter "<who>" \
+#     --triage self_contained|bigger [--tag word]…
+#
+# EXIT CODES:
+#   0  logged — the minted reference is the last line of stdout
+#      (`logged BUG#n …`), for a caller to read back.
+#   1  refused — the demonstration passed, an argument is missing, the
+#      sweep does not exist, or the ledger would not boot. Nothing was
+#      written.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: decide whether a surprise is a
+# real bug (that judgment happens before this is ever run), write the
+# failing test, fix anything, or open a PR (`bin/qa_open_pr`).
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+# ADR 0033 — see bin/run's own identical require: the era/lineage
+# subsystem no longer loads with core, and this ledger's `persisted_by
+# "PostgresEra"` binding needs it explicitly.
+require "hecks/ports/persistence/plugins/era"
+require "open3"
+
+ROOT = File.expand_path("..", __dir__)
+# `QA_SWEEP_DOMAIN_DIR` — the same escape hatch `bin/qa_sweep` has, for
+# the same one reason (read that script's own comment by the constant):
+# a spec drives this REAL script against a disposable fixture ledger.
+DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
+
+EXIT_OK      = 0
+EXIT_REFUSED = 1
+
+USAGE = "usage: bin/qa_log_bug --sweep <sweep-id> --title \"…\" --demonstration \"<command that must FAIL>\" " \
+        "--symptom \"…\" --expectation \"…\" --submitter \"<who>\" --triage self_contained|bigger [--tag word]…".freeze
+
+DISPOSITIONS = %w[self_contained bigger].freeze
+
+options = { tags: [] }
+until ARGV.empty?
+  arg = ARGV.shift
+  case arg
+  when "-h", "--help"
+    puts USAGE
+    exit EXIT_OK
+  when "--sweep", "--title", "--demonstration", "--symptom", "--expectation", "--submitter", "--triage"
+    value = ARGV.shift
+    abort "#{USAGE}\n#{arg} needs a value" if value.nil? || value.empty?
+    options[arg.delete_prefix("--").to_sym] = value
+  when "--tag"
+    value = ARGV.shift
+    abort "#{USAGE}\n--tag needs a word" if value.nil? || value.empty?
+    options[:tags] << value
+  else
+    abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
+  end
+end
+
+%i[sweep title demonstration symptom expectation submitter triage].each do |key|
+  abort "#{USAGE}\n--#{key} is required" unless options[key]
+end
+unless DISPOSITIONS.include?(options[:triage])
+  abort "#{USAGE}\n--triage must be one of #{DISPOSITIONS.join('|')}, got #{options[:triage].inspect}"
+end
+
+# ── run the demonstration, and refuse a passing one ────────────────────
+#
+# THE ONE THING THE LEDGER CANNOT CHECK, CHECKED HERE. Run through `sh
+# -c` exactly the way a human would paste it, from the repository root,
+# with its output captured and its tail printed either way — a refusal
+# should show WHY the command passed, and a logged bug should show the
+# failure it is being logged with.
+demo_out, demo_status = Open3.capture2e("sh", "-c", options[:demonstration], chdir: ROOT)
+tail = demo_out.lines.last(15).join
+
+if demo_status.success?
+  puts tail
+  abort "refused: the demonstration PASSED (exit 0) — #{options[:demonstration].inspect}\n" \
+        "a bug is logged with the failing test that proves it; a passing command proves nothing. Nothing was logged."
+end
+
+puts "demonstration failed as required (exit #{demo_status.exitstatus.inspect}):"
+puts tail
+puts
+
+# ── boot the ledger for real ───────────────────────────────────────────
+
+runtime = begin
+  Hecks.boot(DOMAIN_DIR)
+rescue StandardError => e
+  abort "the QualityControl ledger did not boot — fix the ledger itself before logging against it " \
+        "(#{e.class}: #{e.message})"
+end
+
+def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
+
+sweep = QualityControl::Sweep.find(options[:sweep])
+abort "no such sweep: #{options[:sweep].inspect} — the sweep id is on bin/qa_sweep's own FOUND SOMETHING report" unless sweep
+
+# ── mint the reference ────────────────────────────────────────────────
+#
+# THE HIGHEST SEQUENCE ON FILE, PLUS ONE — then forward past any
+# reference that somehow already exists (a hand-typed `BUG#99` from a
+# session that skipped ahead), so the minted pair is free on BOTH the
+# sequence and the reference. Re-read on every attempt: two concurrent
+# minters both see the same maximum, both try the same number, and the
+# loser's `Log` is refused (`AlreadyExists`) rather than landing a twin —
+# `mint_and_log!` below retries from a fresh read.
+def next_reference(runtime)
+  rows = q(runtime, "Bug.All")
+  taken = rows.map { |row| row[:reference][:value] }
+  sequence = rows.map { |row| row[:sequence][:value] }.max.to_i + 1
+  sequence += 1 while taken.include?("BUG##{sequence}")
+  [sequence, "BUG##{sequence}"]
+end
+
+def mint_and_log!(runtime, sweep, options)
+  3.times do
+    sequence, reference = next_reference(runtime)
+    begin
+      return QualityControl::Bug.log!(
+        sweep:         sweep.id,
+        reference:     { value: reference },
+        sequence:      { value: sequence },
+        title:         { value: options[:title] },
+        demonstration: { value: options[:demonstration] },
+        symptom:       { value: options[:symptom] },
+        expectation:   { value: options[:expectation] },
+        submitter:     { value: options[:submitter] },
+        **(options[:tags].empty? ? {} : { tags: options[:tags].map { |tag| { value: tag } } })
+      )
+    rescue Hecks::Runtime::AlreadyExists
+      puts "#{reference} was taken between reading Bug.All and logging — minting again"
+    end
+  end
+  abort "could not mint a free BUG# reference in three attempts — another minter is racing this one; run again"
+end
+
+bug = mint_and_log!(runtime, sweep, options)
+bug = bug.triage!(disposition: { value: options[:triage] })
+
+puts "logged #{bug.id} (sequence #{bug.sequence.value}, #{bug.disposition.value}) against #{sweep.id}: " \
+     "#{options[:title]}"
+exit EXIT_OK

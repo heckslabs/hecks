@@ -32,6 +32,7 @@
 #   bin/qa_sweep directory --persistence-parity   # Memory vs real PostgresEra, one target only
 #   bin/qa_sweep --all --persistence-parity       # --all, forcing the parity wave on regardless of the dial
 #   bin/qa_sweep --all --no-parity                 # --all, skipping the parity wave even if the dial has it on
+#   bin/qa_sweep banking --release --notes "…"    # a PERSON puts a suspended target back (see below)
 #
 # ADVERSARIAL BY DEFAULT. Every sequence this script generates goes
 # through `SequenceGenerator`'s adversarial layer (`lib/hecks/fuzzing/
@@ -151,10 +152,31 @@
 #      on. Fix the actual problem; there is nothing here for an agent to
 #      pick up as QA work.
 #   2  FOUND SOMETHING — a generated sequence surprised the check. The
-#      sweep is left OPEN and the target left HELD, on purpose: no Bug is
-#      logged (that step needs a human/agent judgment call, never this
-#      script's own guess), and nothing is concluded or released. Full
+#      sweep is left OPEN and the target is SUSPENDED — by the ledger's
+#      own `SuspendOnSurprise` policy (qa/bluebook/quality_control.
+#      bluebook, its own foot), the moment `Sweep.Check.Surprised` lands
+#      carrying the target's reference, not by anything this script
+#      dispatches on its own. No Bug is logged (that step needs a
+#      human/agent judgment call, never this script's own guess — `bin/
+#      qa_log_bug` is the door for it), and nothing is concluded or
+#      released: a suspended target stays out of `Target.Rotation` AND
+#      out of `--all`'s stale-hold reclaim until a PERSON runs
+#      `bin/qa_sweep <target> --release --notes "…"` (below). Full
 #      reproduction details are on stdout, above the exit.
+#
+# `--release --notes "…"` — THE ONE VERB HERE A PERSON RUNS, NOT THE LOOP.
+# A suspended target comes back through exactly the arithmetic the clean
+# path runs at the bottom of this file, and nowhere else: every sweep
+# still open against the target is concluded with the notes given (or
+# abandoned, if it never made a check — `Sweep.Conclude` refuses those),
+# the bugs those sweeps logged (`Bug.FoundIn`) are counted as this
+# period's yield, `next_streak` is 0 if any check ever surprised, and
+# `Target.Release` is dispatched with all of that plus the capabilities
+# this script infers for the chapter (`Hecks::Fuzzing::TargetCapabilities
+# .infer`, the same inference an ordinary sweep's own clean release
+# already makes). `--release` also works on a merely `held` target (a
+# stale hold whose release never landed) — `Target.Release` accepts
+# both — but never on a `waiting` one.
 #
 # `--all` — WHY A SECOND MODE OF THE SAME SCRIPT, NOT A SEPARATE ONE.
 # Sweeping the whole rotation used to mean dispatching one LLM subagent
@@ -200,6 +222,30 @@
 # process), and `spec/adapters/driven/postgres_era_concurrent_dispatch_
 # spec.rb` proves that mechanism directly, with real forked processes,
 # already.
+#
+# BOUNDED, SINCE `QualityControlDials::SWEEP_MAX_PARALLEL` EXISTS. `--all`
+# used to spawn every waiting target at once — on a ten-target rotation,
+# ten concurrent Rust conformance builds and ten Ruby runtimes on one
+# machine. `run_pool` (below) keeps at most the dial's worth alive, and
+# starts the next the moment one exits (`Process.wait2(-1)`), so the
+# whole pass still takes roughly as long as the slowest FEW targets, not
+# the sum of all of them, without ever fanning out past what the dial
+# allows. Both waves (`run_all_mode`'s wave 1, `run_parity_wave`'s wave 2)
+# go through the same pool.
+#
+# AND IT RECLAIMS STALE HOLDS. "A claim that goes stale is taken by
+# whoever is next" (the ledger's own header) — `Target.Claim`'s given
+# already lets a `held` target be re-claimed once `claimed_at + window
+# <= now`, but `Target.Rotation` is `where(status: "waiting")` alone and
+# nothing ever OFFERED a stale hold to `--all`. So a hold whose release
+# never landed (a child killed mid-sweep, a machine that slept) dropped
+# out of the rotation for good, silently — found live 2026-09-11, eight
+# of ten targets sitting `held` by `qa_sweep` on claims hours old, and
+# `--all` printing "rotation is empty". `stale_holds` (below) is that
+# given's arithmetic restated in Ruby (a `where` cannot add two fields),
+# and every row it returns is queued beside the waiting ones and named
+# in the report ("reclaimed stale hold: …"). `suspended` and `shelved`
+# are NOT reclaimed, by design: both wait for a person.
 #
 # WHAT THIS REUSES RATHER THAN REINVENTS — see each file's own header:
 #   `Hecks::Fuzzing::SequenceGenerator` / `Hecks::Fuzzing::Replay` — the
@@ -284,7 +330,6 @@ DOMAIN_DIR         = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebo
 # argument — this constant is the only thing that needed to stop being
 # hardcoded for that to reach all the way through.
 RUST_DIR           = ENV.fetch("QA_SWEEP_RUST_DIR", File.join(ROOT, "rust"))
-ENGINEER           = "qa_sweep".freeze
 DEFAULT_TARGETS    = { "pizzas" => "examples/pizzas", "banking" => "examples/banking" }.freeze
 
 EXIT_OK = 0
@@ -295,7 +340,8 @@ USAGE = "usage: bin/qa_sweep [target-reference] [--seeds N] [--steps N] [--adver
         "[--role-draw FRACTION] [--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c]\n       " \
         "bin/qa_sweep --all [--seeds N] [--steps N] [--adversarial FRACTION] [--role-draw FRACTION] " \
         "[--dry-run FRACTION] [--self-consistency true|false] [--modes a,b,c] [--no-parity]\n       " \
-        "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]".freeze
+        "bin/qa_sweep <target-reference> --persistence-parity [--seeds N]\n       " \
+        "bin/qa_sweep <target-reference> --release --notes \"what a person concluded, 40+ chars\"".freeze
 
 # MODES ARE DATA — `QualityControlDials::MODES` (qa/bluebook/quality_
 # control.bluebook) says which comparison modes are turned on;
@@ -344,42 +390,6 @@ def parse_fraction(flag, value)
   fraction
 end
 
-# THE WIDENING TABLE — see this file's own top-of-file comment
-# ("CLEAN-STREAK DEPTH ESCALATION") for the full reasoning; this is only
-# the data. Three discrete tiers, not a continuous `seeds = 10 + streak`
-# formula: BUG#14/#15/#16 (this session's own real finds) turned up at
-# seeds 2-4 on targets whose own seed 1 held clean, so a big first jump
-# (10 -> 25) matters more here than smooth growth does, and three numbers
-# are something a human tunes by editing a table, the same spirit as
-# `QualityControlDials` up in the chapter this reads from — a fact a
-# person changes by editing the file and reviewing the diff.
-#
-# THE LAST ROW IS THE CEILING, EXPLICITLY — `upto: Float::INFINITY` reads
-# oddly next to two finite numbers, and that is deliberate: every OTHER
-# row is a real upper bound on ITS OWN tier, and this one has to say, in
-# the same shape, "there is no tier past this — everything from here up
-# gets the SAME depth, forever." A target clean for 5 sweeps running and
-# one clean for 5,000 both land here and both get exactly 50 seeds x 100
-# steps, never more; leaving this open-ended (no last row, `else` in the
-# lookup below) would say the same thing with no number anybody could
-# grep for, which is the exact complaint `QualityControlDials`'s own
-# header comment already raises about a dial hidden in prose.
-WIDENING_TIERS = [
-  { upto: 4,               seeds: 10, steps: 25 },
-  { upto: 19,              seeds: 25, steps: 50 },
-  { upto: Float::INFINITY, seeds: 50, steps: 100 }
-].freeze
-
-# DETERMINISTIC, FROM THE LEDGER ALONE — the one argument in, the streak
-# `Target.claim!` already handed back, decides the whole answer; no clock,
-# no randomness, nothing else read. Same streak in, same [seeds, steps]
-# out, every time, which is what lets a human predict what a given sweep
-# is about to do before it runs one.
-def widen_for_streak(streak)
-  tier = WIDENING_TIERS.find { |row| streak <= row[:upto] }
-  [tier[:seeds], tier[:steps]]
-end
-
 # A THIN WRAPPER, NOT A REWRITE — `RustConformanceHelpers` is a plain
 # module of instance methods meant to be `include`d into an RSpec example
 # group; this is the same `include`, on a class with no RSpec anywhere
@@ -407,7 +417,8 @@ end
 #
 # `seeds_override`/`steps_override` START NIL, NOT AT A DEFAULT — nil is
 # what says "the caller named nothing, derive it from the streak instead"
-# (see `widen_for_streak` above); a plain `10`/`25` here, the way `seeds`
+# (see `Hecks::Fuzzing::SweepDepth.for_streak`, below); a plain `10`/`25`
+# here, the way `seeds`
 # alone used to default, could never be told apart from a caller who
 # typed `--seeds 10` on purpose, and the override would silently stop
 # overriding anything once the streak-derived default ALSO happened to
@@ -432,6 +443,8 @@ dry_run   = nil
 # given on the command line; nil means "the dial decides".
 explicit_modes = nil
 skip_parity_wave = false
+release_mode  = false
+release_notes = nil
 
 until ARGV.empty?
   arg = ARGV.shift
@@ -449,6 +462,11 @@ until ARGV.empty?
     persistence_parity_mode = explicit_modes == %i[persistence_parity]
   when "--no-parity"
     skip_parity_wave = true
+  when "--release"
+    release_mode = true
+  when "--notes"
+    release_notes = ARGV.shift
+    abort "#{USAGE}\n--notes needs the text a person concluded" unless release_notes
   when "--role-draw"
     role_draw = parse_fraction("--role-draw", ARGV.shift)
   when "--dry-run"
@@ -539,6 +557,17 @@ if persistence_parity_mode && !target_ref
         "(`resolved modes:` on any single-target run says whether a target qualifies)"
 end
 
+if release_mode
+  abort "#{USAGE}\n--release needs an explicit target-reference — the suspended target a person is putting back" unless target_ref
+  unless release_notes
+    abort "#{USAGE}\n--release needs --notes — what a person concluded is the one thing this script cannot supply"
+  end
+  if all_mode || persistence_parity_mode
+    abort "#{USAGE}\n--release is its own mode — it does not combine with --all or --persistence-parity"
+  end
+end
+abort "#{USAGE}\n--notes only means something with --release" if release_notes && !release_mode
+
 # ── boot the ledger for real ───────────────────────────────────────────
 #
 # `Hecks.boot` with `install_facade` at its default (true) — exactly what
@@ -581,6 +610,31 @@ end
 role_draw ||= defined?(QualityControlDials::ROLE_DRAW_PROBABILITY) ? QualityControlDials::ROLE_DRAW_PROBABILITY.to_f : 0.0
 dry_run   ||= defined?(QualityControlDials::DRY_RUN_FRACTION) ? QualityControlDials::DRY_RUN_FRACTION.to_f : 0.0
 
+# THE LOOP'S OWN IDENTITY, FROM THE DIAL — `held_by` on every claim this
+# script takes, `engineer` on every sweep it opens, and the one literal
+# `WaivedBy` (the ledger's own value object) refuses. Named in the
+# bluebook rather than here so the refusal and the identity it refuses
+# are edited in the same file; the fallback is the same literal, for a
+# dial-less fixture ledger.
+ENGINEER = defined?(QualityControlDials::AUTOMATED_ENGINEER) ? QualityControlDials::AUTOMATED_ENGINEER : "qa_sweep"
+
+# THE WIDENING TABLE, FROM THE DIAL — see this file's own top-of-file
+# comment ("CLEAN-STREAK DEPTH ESCALATION") for the full reasoning.
+# `QualityControlDials::WIDENING_TIERS` (qa/bluebook/quality_control.
+# bluebook) used to be a bare constant IN THIS SCRIPT — policy data
+# living in a script, duplicated as prose in SKILL.md — moved to the
+# dial for the same reason every other human-tuned number here already
+# is. `Hecks::Fuzzing::SweepDepth.for_streak` (lib/hecks/fuzzing/
+# sweep_depth.rb, beside `RotationPriority`) is the one reader, and its
+# own `DEFAULT_TIERS` is the identical fallback for a dial-less ledger.
+WIDENING_TIERS = defined?(QualityControlDials::WIDENING_TIERS) ? QualityControlDials::WIDENING_TIERS : Hecks::Fuzzing::SweepDepth::DEFAULT_TIERS
+
+# HOW MANY `bin/qa_sweep <target>` CHILDREN `--all` KEEPS ALIVE AT ONCE
+# — see `run_pool`'s own header, below. Four is the dial's own default
+# too; a dial-less ledger gets the same number rather than an unbounded
+# fan-out.
+SWEEP_MAX_PARALLEL = defined?(QualityControlDials::SWEEP_MAX_PARALLEL) ? QualityControlDials::SWEEP_MAX_PARALLEL : 4
+
 # THE ENABLED MODE SET — `--modes` wins outright; otherwise the dial's
 # `true` entries in the dial's own order; without a dial, the defaults
 # named by `DEFAULT_MODES`. `--self-consistency false` is an ALIAS for
@@ -601,6 +655,39 @@ end
 enabled_modes |= [:persistence_parity] if force_parity_wave
 structural_boundary =
   defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
+
+# ── release arithmetic, shared by the clean path and --release ────────
+#
+# `next_streak` — SEE `Target::Release`'s OWN COMMENT (qa/bluebook/
+# quality_control.bluebook) FOR WHY THIS SCRIPT, NOT THE LEDGER, DOES
+# THIS ARITHMETIC. Reads the STICKY per-check `ever_surprised` bit rather
+# than trusting any loop's own local — belt and braces: the seed loop
+# below always breaks the instant ANY seed surprises, but `Sweep::
+# Conclude`/`Target::Release` are also reachable from `bin/run` by hand,
+# and a call path that resolves a surprise (`Remake` then `Held`) before
+# concluding must never read as clean just because the CURRENT outcome
+# says "held" — that is exactly the case `ever_surprised` exists to
+# still catch. `--release` reads it across every sweep it concludes.
+def sweep_was_clean?(sweep)
+  sweep.checks.none? { |c| c[:ever_surprised][:value] == "yes" }
+end
+
+# THE RELEASE ITSELF — one place, both callers. `capabilities` is
+# whatever `Hecks::Fuzzing::TargetCapabilities.infer` already returned
+# for this target (an array of strings — `sqlite`, `rust`,
+# `postgres_era`, …), comma-joined into `Target.capabilities`'s own
+# shape. Decays whatever the target's `yield_score` already was and adds
+# this period's own finds (`RotationPriority.next_yield_score`'s own
+# comment), and moves the streak the way `Target::Release`'s comment
+# says the caller must.
+def release_target!(target, capabilities, current_streak, surprises:, clean:)
+  next_yield_score = Hecks::Fuzzing::RotationPriority.next_yield_score(
+    old_score: target.yield_score.value, surprises_this_period: surprises
+  )
+  target.release!(now: { value: Time.now.to_i }, yield_score: { value: next_yield_score },
+                  next_streak: { value: clean ? current_streak + 1 : 0 },
+                  capabilities: { value: capabilities.join(",") })
+end
 
 # ── --all: every waiting target, genuinely in parallel ────────────────
 #
@@ -665,20 +752,52 @@ def spawn_sweep_child(target_reference, seeds_override, steps_override, adversar
   { target: target_reference, pid: pid, log: log }
 end
 
-# Blocks until THIS ONE child exits, then reads back everything it ever
-# wrote. Called once per spawned child, in `run_all_mode`'s own
-# `results = children.map { ... }` — by the time the FIRST call here
-# actually blocks, every other child is already an independent,
-# already-running OS process (see `spawn_sweep_child` above), which is
-# what makes the whole pass take roughly as long as the SLOWEST target
-# rather than the sum of all of them.
-def collect_sweep_child(child)
-  _pid, status = Process.waitpid2(child[:pid])
+# Reads back everything ONE already-exited child ever wrote. `status` is
+# what `run_pool`'s own `Process.wait2(-1)` handed back for it — the
+# reaping happens there, once for whichever child finishes next, which
+# is what lets the pool refill without ever blocking on a specific pid.
+def collect_sweep_child(child, status)
   child[:log].rewind
   output = child[:log].read
   child[:log].close
 
   { target: child[:target], exit_status: status.exitstatus, termsig: status.termsig, output: output }
+end
+
+# THE BOUNDED POOL — at most `max_parallel` children alive at once, the
+# next spawned the instant any one exits. `Process.wait2(-1)` reaps
+# whichever child finishes first (every child of this process is one of
+# ours — nothing else is spawned concurrently), and `running` maps its
+# pid back to the record `spawn_sweep_child` returned. Results come back
+# in the ORDER THE TARGETS WERE QUEUED, not the order they finished, so
+# the report reads the same way twice for the same rotation.
+def run_pool(targets, max_parallel)
+  pending = targets.dup
+  running = {}
+  results = {}
+
+  until pending.empty? && running.empty?
+    while running.size < max_parallel && (next_target = pending.shift)
+      child = yield(next_target)
+      running[child[:pid]] = child
+    end
+
+    pid, status = Process.wait2(-1)
+    child = running.delete(pid)
+    next unless child
+
+    results[child[:target]] = collect_sweep_child(child, status)
+  end
+
+  targets.map { |target| results.fetch(target) }
+end
+
+# THE STALE-HOLD ARITHMETIC, `Target.Claim`'s OWN GIVEN RESTATED — see
+# the top-of-file comment on why `--all` reclaims these at all. `now` is
+# an argument for the same reason it is everywhere else in this
+# practice: a pure function cannot ask the time.
+def stale_holds(runtime, now)
+  q(runtime, "Target.Held").select { |row| row[:claimed_at][:value] + row[:window][:value] <= now }
 end
 
 # ONE REPORT, never an interleaved one — every child's own output was
@@ -830,8 +949,10 @@ end
 #
 # A SEPARATE FUNCTION CALLED AFTER WAVE 1, NOT A BRANCH INSIDE IT —
 # `run_all_mode`'s own spawn/collect shape is untouched; this reuses
-# `spawn_sweep_child`/`collect_sweep_child` with `parity: true`.
-def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_run)
+# `spawn_sweep_child`/`run_pool` with `parity: true`, through the SAME
+# bounded pool wave 1 used (`max_parallel`) rather than a second,
+# unbounded fan-out.
+def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_run, max_parallel)
   clean_refs = wave1.select { |r| r[:exit_status] == EXIT_OK }.map { |r| r[:target] }
   rows       = q(runtime, "Target.All").select { |row| clean_refs.include?(row[:reference][:value]) }
   eligible   = rows.select do |row|
@@ -846,39 +967,48 @@ def run_parity_wave(runtime, wave1, seeds_override, adversarial, role_draw, dry_
   end
 
   puts
-  puts "parity wave: Memory vs real PostgresEra for #{candidates.size} target(s): #{candidates.join(', ')}"
-  children = candidates.map do |target_reference|
+  puts "parity wave: Memory vs real PostgresEra for #{candidates.size} target(s), at most #{max_parallel} at once: " \
+       "#{candidates.join(', ')}"
+  results = run_pool(candidates, max_parallel) do |target_reference|
     spawn_sweep_child(target_reference, seeds_override, nil, adversarial, false,
                       modes: [], role_draw: role_draw, dry_run: dry_run, parity: true)
   end
   # Labelled in the target column itself, so every section of the report
   # (clean/errored/found, depths, modes) tells a wave-2 row from the same
   # target's wave-1 row without a second code path per section.
-  children.map { |child| collect_sweep_child(child).then { |r| r.merge(wave: 2, target: "#{r[:target]} [parity wave]") } }
+  results.map { |r| r.merge(wave: 2, target: "#{r[:target]} [parity wave]") }
 end
 
+# rubocop:disable-next Metrics/AbcSize
 def run_all_mode(runtime, seeds_override, steps_override, adversarial, self_consistency, modes:, role_draw:, dry_run:,
-                 parity_wave: true)
+                 parity_wave: true, max_parallel: SWEEP_MAX_PARALLEL)
+  now     = Time.now.to_i
   waiting = q(runtime, "Target.Rotation").map { |row| row[:reference][:value] }
+  stale   = stale_holds(runtime, now)
+  targets = waiting + stale.map { |row| row[:reference][:value] }
 
-  if waiting.empty?
-    puts "rotation is empty — nothing waiting to sweep. Clean no-op."
+  if targets.empty?
+    puts "rotation is empty — nothing waiting to sweep, and no stale hold to reclaim. Clean no-op."
     exit EXIT_OK
   end
 
-  puts "sweeping #{waiting.size} waiting target(s) in parallel: #{waiting.join(', ')} " \
+  puts "sweeping #{targets.size} target(s), at most #{max_parallel} at once: #{targets.join(', ')} " \
        "(adversarial fraction #{adversarial}, self-consistency #{self_consistency}, role draw #{role_draw}, " \
        "dry-run fraction #{dry_run}, enabled modes #{modes.join(',')})"
+  stale.each do |row|
+    puts "reclaimed stale hold: #{row[:reference][:value]} (held by #{row[:held_by][:value]}, " \
+         "#{now - row[:claimed_at][:value]}s ago)"
+  end
   puts
 
   started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  children   = waiting.map do |target_reference|
+  results = run_pool(targets, max_parallel) do |target_reference|
     spawn_sweep_child(target_reference, seeds_override, steps_override, adversarial, self_consistency,
                       modes: modes, role_draw: role_draw, dry_run: dry_run)
   end
-  results    = children.map { |child| collect_sweep_child(child).merge(wave: 1) }
-  results   += run_parity_wave(runtime, results, seeds_override, adversarial, role_draw, dry_run) if parity_wave
-  elapsed    = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+  results = results.map { |r| r.merge(wave: 1) }
+  results += run_parity_wave(runtime, results, seeds_override, adversarial, role_draw, dry_run, max_parallel) if parity_wave
+  elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 
   clean   = results.select { |r| r[:exit_status] == EXIT_OK }
   found   = results.select { |r| r[:exit_status] == EXIT_FOUND_SOMETHING }
@@ -949,6 +1079,59 @@ domain_path = File.join(ROOT, target_path)
 abort "target #{target_reference.inspect} names a path that does not exist on disk: #{domain_path}" \
   unless File.directory?(domain_path)
 
+# ── --release: a person puts a suspended target back ──────────────────
+#
+# BEFORE THE CLAIM, because a suspended target cannot be claimed at all
+# (`Claim` is `from: ["waiting", "held"]`) — and must not be: the whole
+# point of `suspended` is that no sweep runs against it until exactly
+# this. See the top-of-file comment on `--release` for the arithmetic;
+# `release_target!` (above) is the same call the clean path makes.
+if release_mode
+  target = QualityControl::Target.find(target_reference)
+  abort "target #{target_reference.inspect} vanished between being queried and being released" unless target
+  unless %w[suspended held].include?(target.status)
+    abort "target #{target_reference.inspect} is #{target.status.inspect}, not suspended (or held) — " \
+          "nothing to release"
+  end
+
+  open_sweeps = q(runtime, "Sweep.Sweeping").select { |row| row[:target] == target.id }
+                                            .map { |row| QualityControl::Sweep.find(row[:reference][:value]) }
+  surprises = 0
+  clean     = !open_sweeps.empty?
+  open_sweeps.each do |sweep|
+    surprises += q(runtime, "Bug.FoundIn", sweep_id: { value: sweep.id }).size
+    clean &&= sweep_was_clean?(sweep)
+    if sweep.made.value.positive? || sweep.waived.value.positive?
+      begin
+        sweep.conclude!(notes: { value: release_notes })
+      rescue Hecks::Runtime::InvariantViolation => e
+        abort "--notes was refused by Sweep.Conclude — #{e.message}"
+      end
+      puts "concluded #{sweep.id} (#{sweep.made.value} check(s), #{surprises} bug(s) logged against it so far)"
+    else
+      # NEVER MADE A CHECK — `Sweep.Conclude`'s own gate refuses it, and
+      # rightly: nothing was tested. Abandoned, so it leaves `Sweeping`.
+      sweep.abandon!
+      puts "abandoned #{sweep.id} (it never made a check)"
+    end
+  end
+
+  # NO OPEN SWEEP AT ALL — a stale hold whose sweep never opened (a
+  # crash between claim and open). Nothing was watched, so nothing is
+  # known: `clean` is false and the streak goes to zero, the bluebook's
+  # own "zero means no streak yet — the narrowest, cheapest pass until
+  # it has proven itself clean again" stance, never a guessed +1.
+  puts "no open sweep against #{target_reference} — releasing with the streak reset" if open_sweeps.empty?
+
+  capabilities = Hecks::Fuzzing::TargetCapabilities.infer(domain_path, rust_dir: RUST_DIR)
+  was    = target.status
+  target = release_target!(target, capabilities, target.clean_streak.value, surprises: surprises, clean: clean)
+  puts "released #{target_reference} (was #{was}) — status #{target.status}, " \
+       "clean_streak #{target.clean_streak.value}, yield_score #{target.yield_score.value}, " \
+       "capabilities #{target.capabilities.value.inspect}"
+  exit EXIT_OK
+end
+
 # BEFORE THE CLAIM — an ineligible target here is an operational error
 # (exit 1), not a finding, and must never leave the target held or a
 # sweep open. THE ONE RULE: `enabled ∩ eligible`. `deferred` are the
@@ -994,13 +1177,13 @@ end
 # ── size this pass ───────────────────────────────────────────────────
 #
 # READ ONCE, RIGHT AFTER CLAIMING, AND HELD — `current_streak` is used
-# TWICE more below (sizing this sweep now, via `widen_for_streak`;
+# TWICE more below (sizing this sweep now, via `SweepDepth.for_streak`;
 # computing `next_streak` for `Target::Release` once the sweep concludes
 # clean) and nothing between here and there ever changes `clean_streak`
 # out from under this process — only `Target::Release` itself would, and
 # that dispatch is the very last thing this script ever does.
 current_streak = target.clean_streak.value
-default_seeds, default_steps = widen_for_streak(current_streak)
+default_seeds, default_steps = Hecks::Fuzzing::SweepDepth.for_streak(current_streak, tiers: WIDENING_TIERS)
 seeds              = seeds_override || default_seeds
 steps_per_sequence = steps_override || default_steps
 
@@ -1350,9 +1533,15 @@ def mark_held!(runtime, sweep, sequence, observation)
                     sequence: { value: sequence }, observation: { value: observation })
 end
 
-def mark_surprised!(runtime, sweep, sequence, observation)
+# `target:` RESTATED — what `SuspendOnSurprise` (the ledger's own policy)
+# reads to take the target out of the rotation; see `Sweep::Check::
+# Surprised`'s own comment in the bluebook. The suspension happens
+# INSIDE this dispatch, as a reaction, before it returns — nothing below
+# has to dispatch `Target.Suspend` itself.
+def mark_surprised!(runtime, sweep, sequence, observation, target_reference)
   runtime.dispatch("QualityControl::Sweep.Check.Surprised", id: sweep.id,
-                    sequence: { value: sequence }, observation: { value: observation })
+                    sequence: { value: sequence }, observation: { value: observation },
+                    target: { value: target_reference })
 end
 
 mode_label =
@@ -1460,7 +1649,7 @@ begin
       if check[:clean]
         mark_held!(runtime, sweep, sequence, check[:observation])
       else
-        mark_surprised!(runtime, sweep, sequence, check[:observation])
+        mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
       end
       check[:clean]
     end
@@ -1486,7 +1675,7 @@ begin
       mark_held!(runtime, sweep, sequence, check[:observation])
       puts "  structural skips: #{check[:observation]}"
     else
-      mark_surprised!(runtime, sweep, sequence, check[:observation])
+      mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
       puts "  structural skips: SURPRISED — #{check[:observation]}"
       surprise = { seed: nil, steps: [], checks: [check] }
     end
@@ -1511,12 +1700,15 @@ end
 if surprise
   puts
   puts "=" * 72
-  puts "FOUND SOMETHING — sweep #{sweep_reference} left OPEN, target #{target_reference} left HELD."
+  puts "FOUND SOMETHING — sweep #{sweep_reference} left OPEN, target #{target_reference} SUSPENDED."
   puts "No Bug was logged (that needs a real failing-test demonstration, which"
-  puts "needs judgment this script does not have) and the sweep was neither"
-  puts "concluded nor released. An agent decides from here: self-contained fix"
-  puts "with a regression test and a draft PR, or a Bug left open/unclaimed for"
-  puts "something bigger. Never waived here, never filed upstream from here."
+  puts "needs judgment this script does not have — bin/qa_log_bug is the door)"
+  puts "and the sweep was not concluded. The ledger's own SuspendOnSurprise"
+  puts "policy took the target out of the rotation; it stays out until a PERSON"
+  puts "runs: bin/qa_sweep #{target_reference} --release --notes \"…\""
+  puts "An agent decides from here: self-contained fix with a regression test"
+  puts "and a PR (bin/qa_open_pr), or a Bug left open for something bigger."
+  puts "Never waived here, never filed upstream from here."
   puts "=" * 72
   puts
   puts "domain:      #{target_path} (#{domain_path})"
@@ -1599,37 +1791,16 @@ sweep.conclude!(notes: { value: notes })
 
 # ZERO SURPRISES, THIS PATH ONLY — this line is only ever reached when
 # every seed held (the `exit EXIT_FOUND_SOMETHING` above already left
-# this process for a surprise). It still DECAYS whatever the target's
+# this process for a surprise). `release_target!` (defined earlier,
+# shared with `--release`) still DECAYS whatever the target's
 # `yield_score` already was from an earlier, bug-bearing release — a
-# clean pass is real evidence too, the evidence that a hot streak is
-# cooling off. See `Hecks::Fuzzing::RotationPriority#next_yield_score`'s
-# own comment for the decay itself, and `Target.Release`'s own comment
-# for why this computation lives here and not in the command.
-next_yield_score = Hecks::Fuzzing::RotationPriority.next_yield_score(
-  old_score: target.yield_score.value, surprises_this_period: 0
-)
-
-# `next_streak` — SEE `Target::Release`'s OWN COMMENT (qa/bluebook/
-# quality_control.bluebook) FOR WHY THIS SCRIPT, NOT THE LEDGER, DOES
-# THIS ARITHMETIC. `sweep_was_clean?` reads the STICKY per-check
-# `ever_surprised` bit rather than trusting the loop above's own
-# `surprise` local — belt and braces: this script's own loop always
-# breaks the instant ANY seed surprises (so `surprise` is always nil by
-# the time this line runs, and `sweep_was_clean?` always agrees), but
-# `Sweep::Conclude`/`Target::Release` are also reachable from `bin/run`
-# by hand, and a future call path that resolves a surprise (`Remake`
-# then `Held`) before concluding must never read as clean just because
-# the CURRENT outcome says "held" — that is exactly the case
-# `ever_surprised` exists to still catch.
-def sweep_was_clean?(sweep)
-  sweep.checks.none? { |c| c[:ever_surprised][:value] == "yes" }
-end
-
-next_streak = sweep_was_clean?(sweep) ? current_streak + 1 : 0
-target = target.release!(now: { value: Time.now.to_i }, yield_score: { value: next_yield_score },
-                         next_streak: { value: next_streak })
+# clean pass is real evidence too — and re-reads `sweep_was_clean?`'s
+# sticky `ever_surprised` bit rather than trusting this loop's own
+# `surprise` local (belt and braces; that method's own comment says why).
+target = release_target!(target, capabilities, current_streak, surprises: 0, clean: sweep_was_clean?(sweep))
 
 puts
-puts "clean — #{target_reference} concluded and released. clean_streak: #{current_streak} -> #{target.clean_streak.value}."
+puts "clean — #{target_reference} concluded and released. clean_streak: #{current_streak} -> " \
+     "#{target.clean_streak.value}. capabilities: #{target.capabilities.value.inspect}"
 puts notes
 exit EXIT_OK
