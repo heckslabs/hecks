@@ -389,15 +389,18 @@ jobs:
       # actually drifted. Likewise `rust/Cargo.toml`'s `default` feature
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
-      # roster, ledger_ordering, nested_pieces, referral_chain, waybill
-      # is the one order that reproduces the committed tree byte-for-byte
-      # today (verified by hand before this step was extended to the
-      # qa/stress_domains trio, and again when referral_chain joined —
-      # slotted BEFORE waybill on purpose, so `default` keeps tracking
-      # waybill and nothing else in the committed tree moved); change it
-      # and re-verify locally (`git diff --stat rust/` after running every
-      # `bin/project_rust` line below against a clean checkout) rather
-      # than guessing.
+      # roster, ledger_ordering, nested_pieces, referral_chain,
+      # has_many_fixture, waybill is the one order that reproduces the
+      # committed tree byte-for-byte today (verified by hand before this
+      # step was extended to the qa/stress_domains trio, again when
+      # referral_chain joined, then again for `has_many_fixture` —
+      # BUG#25); change it and re-verify locally (`git diff --stat rust/`
+      # after running every `bin/project_rust` line below against a
+      # clean checkout) rather than guessing. Both `referral_chain` and
+      # `has_many_fixture` are slotted BEFORE `waybill`, not last,
+      # specifically so `waybill` stays the committed tree's own
+      # `default` feature — unrelated to either addition, unchanged by
+      # either.
       #
       # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
       # added here after this exact gap caused a real false positive: a
@@ -408,16 +411,22 @@ jobs:
       # against it found what looked like a brand-new Ruby/Rust
       # divergence but was actually just stale generated code repeating
       # an already-fixed bug (see BUG#23's own investigation in
-      # qa/bluebook/quality_control.bluebook). embryonaut's own exclusion
-      # reasoning above applies identically to `chess` (examples/chess):
-      # it is NOT in this step's regen list either, a separate
-      # pre-existing gap outside this change's own scope — see whichever
-      # domain under qa/stress_domains/ has no rust/src/generated/<name>/
-      # directory at all (e.g. none, today) for the "only regenerate a
-      # domain that already has committed Rust output" rule this step
-      # follows; a stress domain authored Ruby-only, with no Rust
-      # projection yet, stays out of this list until one exists (see that
-      # domain's own NOTES.md for why it doesn't yet).
+      # qa/bluebook/quality_control.bluebook). `qa/stress_domains/
+      # referral_chain` (ANGLE-2, PR #580) and `spec/fixtures/rust_
+      # project/has_many_fixture` (BUG#25 — the smallest domain that
+      # reaches `has_many`'s own Rust codegen path, see its own bluebook
+      # header) were each added here for the identical reason: both
+      # have real, committed Rust output, so both follow the same "only
+      # regenerate a domain that already has committed Rust output"
+      # rule everything else in this list already does. embryonaut's
+      # own exclusion reasoning above applies identically to `chess`
+      # (examples/chess): it is NOT in this step's regen list either, a
+      # separate pre-existing gap outside this change's own scope — see
+      # whichever domain under qa/stress_domains/ (or spec/fixtures/
+      # rust_project/) has no rust/src/generated/<name>/ directory at
+      # all for the same rule; a stress domain or fixture authored
+      # Ruby-only, with no Rust projection yet, stays out of this list
+      # until one exists.
       - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
         run: |
           bundle exec bin/project_rust examples/banking
@@ -427,6 +436,7 @@ jobs:
           bundle exec bin/project_rust qa/stress_domains/ledger_ordering
           bundle exec bin/project_rust qa/stress_domains/nested_pieces
           bundle exec bin/project_rust qa/stress_domains/referral_chain
+          bundle exec bin/project_rust spec/fixtures/rust_project/has_many_fixture
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 
@@ -1213,7 +1223,8 @@ jobs:
             spec/semantics_corpus_spec.rb \
             spec/rust_numeric_coercion_spec.rb \
             spec/rust_project/domain_feature_exclusivity_spec.rb \
-            spec/rust_project/naming_landmines_spec.rb
+            spec/rust_project/naming_landmines_spec.rb \
+            spec/rust_project/has_many_spec.rb
 
   # SPLIT OUT OF rspec_rust_io ABOVE (see its own header comment) —
   # measured locally as the single heaviest file of the original 9

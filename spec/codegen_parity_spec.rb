@@ -143,7 +143,23 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
       domain_ir(File.join(InMemoryDomain::ROOT, "examples/roster/bluebook/roster.bluebook"), "Roster")
     }],
     ["banking", -> { domain_ir(InMemoryDomain::BANKING_BLUEBOOK_DIR, "Banking") }],
-    ["bluebook_language", -> { meta_ir }]
+    ["bluebook_language", -> { meta_ir }],
+    # BUG#25 — `has_many` (a LIST OF REFERENCES) never had a Rust
+    # codegen path at all before this fix, and reaches THREE genuinely
+    # separate generator sites at once (json_codec.rb's list-
+    # serialization branches, bridging.rb/mutations.rb's list-target
+    # `:set` bridging) that no other corpus member below exercises — see
+    # `spec/fixtures/rust_project/has_many_fixture/bluebook/has_many_
+    # fixture.bluebook`'s own header for the construct-by-construct
+    # trace. Added here, not just proven by `spec/rust_project/has_many_
+    # spec.rb`'s own compiled-binary round-trip, so the TWO PIPELINES'
+    # OWN BYTE-IDENTITY claim (this file's whole reason to exist) is
+    # checked for the new construct too, not just for constructs neither
+    # pipeline's fix touched.
+    ["has_many_fixture", lambda {
+      domain_ir(File.join(InMemoryDomain::ROOT, "spec/fixtures/rust_project/has_many_fixture/bluebook/has_many_fixture.bluebook"),
+                "HasManyFixture")
+    }]
   ].freeze
 
   # A REAL, per-member reason — never a placeholder. See this file's own
@@ -172,7 +188,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
   # regenerating and trusting it via the Ruby generator) — leaving only
   # `embryonaut` on `CODEGEN_PENDING_MEMBERS` (a structural gap: no local
   # `.bluebook` source to load, unrelated to anything ported this stage).
-  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster].freeze
+  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language roster has_many_fixture].freeze
 
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty

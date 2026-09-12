@@ -287,7 +287,22 @@ module RustProjection
     # (`literal_hash_rhs`, straight from the raw Hash — never `.inspect`'d,
     # see literal_set_bridgeable? above); the argument half is
     # `bridgeable_value_types?`/`value_rhs`'s shared job.
-    def mutation_set_rhs(source, target_type, command, value_objects_by_name)
+    # `target_list:` (BUG#25) — TRUE exactly when the mutation's TARGET
+    # attribute is itself a list (a `has_many`'s own `Reference<Target>`
+    # field, chiefly — `Circle.Admit`'s own `sets :members` from a
+    # `list_of(Handle)` argument is the real, live shape). `value_rhs`
+    # is scalar/element-only by design (see `list_value_rhs`'s own
+    # header) — when BOTH sides are lists, this routes through that
+    # element-wise wrapper instead, so a whole-list `:set` never runs
+    # `value_rhs`'s own "unwrap a single-field value object into its
+    # sole field" fallback directly against a `Vec<T>` (the literal BUG
+    # #25 defect: `record.members = args.members.value.clone()`,
+    # collapsing a `Vec<Handle>` argument as if it were one bare
+    # `Handle`). A source that ISN'T itself a list reaching here with
+    # `target_list: true` is a shape `commands.rb`'s own `mismatched_
+    # sets` check (BUG#25's companion fix there) refuses to generate at
+    # all — this method is never called for that combination.
+    def mutation_set_rhs(source, target_type, command, value_objects_by_name, target_list: false)
       if source[:kind] == "literal"
         return literal_rhs_for(source[:value], target_type, value_objects_by_name)
       end
@@ -303,7 +318,12 @@ module RustProjection
       return "pre.#{rust_ident_field(source[:name])}.clone()" if source[:kind] == "state"
 
       source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
-      value_rhs("args.#{rust_ident_field(source[:name])}", source_attr[:type], target_type, value_objects_by_name)
+      source_expr = "args.#{rust_ident_field(source[:name])}"
+      if target_list && source_attr[:list] && list_bridge_requires_element_mapping?(source_attr[:type], target_type)
+        return list_value_rhs(source_expr, source_attr[:type], target_type, value_objects_by_name)
+      end
+
+      value_rhs(source_expr, source_attr[:type], target_type, value_objects_by_name)
     end
 
     # A `state(:field)` source reads one of the owner's own fields into a
@@ -823,7 +843,7 @@ module RustProjection
           Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
         else
           target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
-          rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
+          rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name, target_list: !!target_attr[:list])
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
           if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name], value_objects_by_name)

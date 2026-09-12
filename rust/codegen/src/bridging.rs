@@ -175,6 +175,45 @@ pub fn value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_
     format!("{source_expr}.{}.clone()", naming::rust_ident_field(crate::attr::name(&attrs[0])))
 }
 
+/// Port of `bridging.rb#list_bridge_requires_element_mapping?` — BUG#25.
+/// TRUE exactly when a list-to-list `:set` genuinely needs `list_value_
+/// rhs`'s own per-element rebuild rather than a single whole-container
+/// `.clone()`. Mirrors `value_rhs`'s own first two early returns — a
+/// `.clone()` on the WHOLE expression is correct whenever the two sides
+/// already share one Rust representation, regardless of list-ness or
+/// optionality (`CardPayment.tags`'s own redundant `sets :tags, to:
+/// :tags` needs a bare `args.tags.clone()`, whatever concrete Rust type
+/// `args.tags` already is — `Vec<Tag>`, or `Option<Vec<Tag>>` when the
+/// ARGUMENT is optional; unconditional element-wise iteration breaks
+/// against the latter, found live: E0277). Element-wise reconstruction
+/// is needed ONLY when the two sides genuinely have DIFFERENT per-
+/// element Rust shapes — `Handle` (a value object) into `Reference
+/// <Member>` (a bare `String`) being the one shape this bug is
+/// actually about.
+pub fn list_bridge_requires_element_mapping(source_type: &str, target_type: &str) -> bool {
+    if source_type == target_type {
+        return false;
+    }
+    !matches!(
+        (naming::effective_scalar_type(source_type), naming::effective_scalar_type(target_type)),
+        (Some(s), Some(t)) if s == t
+    )
+}
+
+/// Port of `bridging.rb#list_value_rhs` — BUG#25. `value_rhs` ELEMENT-WISE,
+/// for a `:set` mutation whose source argument AND target attribute are
+/// both lists AND whose per-element types genuinely differ
+/// (`list_bridge_requires_element_mapping` above is the caller's own
+/// gate) — a `has_many`'s own `Reference<Target>` list field, set
+/// wholesale from a `list_of(SomeHandleType)` argument — `Circle.Admit`'s
+/// own `sets :members` is the real, live shape this closes). See the
+/// Ruby function's own header for why this wraps `value_rhs` in
+/// `.iter().map(...).collect()` rather than teaching `value_rhs` itself
+/// to branch on list-ness.
+pub fn list_value_rhs(source_expr: &str, source_type: &str, target_type: &str, value_objects_by_name: &HashMap<String, &Json>) -> String {
+    format!("{source_expr}.iter().map(|item| {}).collect()", value_rhs("item", source_type, target_type, value_objects_by_name))
+}
+
 pub fn literal_set_bridgeable(value: &Literal, target_type: Option<&str>, value_objects_by_name: &HashMap<String, &Json>) -> bool {
     match value {
         Literal::Hash(_) => match target_type {

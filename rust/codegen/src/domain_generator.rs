@@ -149,6 +149,17 @@ fn state_reference_checks(
         .iter()
         .filter_map(|attr| {
             let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
+            // BUG#25/BUG#26 interaction — see `rust/project/domain_
+            // generator.rb#state_reference_checks`'s own matching
+            // comment: this function's own header already documents a
+            // `has_many`/list relationship as "not covered,
+            // deliberately," but nothing here enforced that until now —
+            // a `has_many` field built a `check_reference` call against
+            // `args.<field>.value`, a single-element accessor applied to
+            // the whole `Vec`, which does not compile.
+            if crate::attr::list(attr) {
+                return None;
+            }
             let attr_name = crate::attr::name(attr);
 
             let mutation = cmd_mutations.iter().find(|m| {

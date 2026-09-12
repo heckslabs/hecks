@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "HasManyFixture::Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "HasManyFixture::Member.Join",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "HasManyFixture::Circle",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "HasManyFixture::Circle.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "HasManyFixture::Circle.Admit",
+    "generated": true,
+    "routed": true
+  }
+]

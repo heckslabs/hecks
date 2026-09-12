@@ -237,7 +237,15 @@ pub fn lifecycle_transition_for(command: &Json, aggregate: &Json) -> Option<Tran
 /// Ruby's real `apply`, for `:set` — coerces whatever arrived into the
 /// TARGET attribute's OWN declared type. `source` is `mutation[:source]`
 /// (raw JSON — `classified_source`'s own shape, never Literal-rendered).
-pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
+///
+/// `target_list` (BUG#25) — TRUE exactly when the mutation's TARGET
+/// attribute is itself a list. See `rust/project/mutations.rb#mutation_
+/// set_rhs`'s own header for the full story: `value_rhs` is scalar/
+/// element-only by design, so when BOTH sides are lists this routes
+/// through `list_value_rhs` instead, rather than running `value_rhs`'s
+/// own "unwrap a single-field value object into its sole field"
+/// fallback directly against a `Vec<T>`.
+pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_objects_by_name: &HashMap<String, &Json>, target_list: bool) -> String {
     if source.get("kind").map(Json::to_s).unwrap_or_default() == "literal" {
         let value = source.get("value").unwrap_or(&Json::Null);
         return crate::bridging::literal_rhs_for(&Literal::from_json(value), Some(target_type), value_objects_by_name);
@@ -252,7 +260,11 @@ pub fn mutation_set_rhs(source: &Json, target_type: &str, command: &Json, value_
     }
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
     let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).expect("mutation source argument must be a declared command attribute");
-    crate::bridging::value_rhs(&format!("args.{}", naming::rust_ident_field(&source_name)), crate::attr::type_name(source_attr), target_type, value_objects_by_name)
+    let source_expr = format!("args.{}", naming::rust_ident_field(&source_name));
+    if target_list && crate::attr::list(source_attr) && crate::bridging::list_bridge_requires_element_mapping(crate::attr::type_name(source_attr), target_type) {
+        return crate::bridging::list_value_rhs(&source_expr, crate::attr::type_name(source_attr), target_type, value_objects_by_name);
+    }
+    crate::bridging::value_rhs(&source_expr, crate::attr::type_name(source_attr), target_type, value_objects_by_name)
 }
 
 pub struct IdentityComponent {
@@ -534,12 +546,12 @@ fn emit_mutation_line_body(
         }
         "set" => {
             if lifecycle_field.map(|f| f == target_name).unwrap_or(false) {
-                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), "String", command, value_objects_by_name);
+                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), "String", command, value_objects_by_name, false);
                 exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
             } else {
                 let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
                 let target_attr = attrs.iter().find(|a| crate::attr::name(a) == target_name).expect("set target must be a declared aggregate attribute");
-                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), crate::attr::type_name(target_attr), command, value_objects_by_name);
+                let rhs = mutation_set_rhs(mutation.get("source").unwrap_or(&Json::Null), crate::attr::type_name(target_attr), command, value_objects_by_name, crate::attr::list(target_attr));
                 let source = mutation.get("source");
                 let source_attr = if source.map(|s| s.get("kind").map(Json::to_s).unwrap_or_default()) == Some("argument".to_string()) {
                     let name = source.unwrap().get("name").map(Json::to_s).unwrap_or_default();

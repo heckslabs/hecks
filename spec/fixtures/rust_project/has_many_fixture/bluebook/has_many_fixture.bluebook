@@ -1,0 +1,90 @@
+# BUG#25 — REGRESSION FIXTURE. `has_many` (a LIST OF REFERENCES, not a
+# `list_of` value object) was the one reference-list shape `bin/
+# project_rust` never projected to Rust correctly: `Circle`'s own
+# `members` field here is exactly PR #580's own first draft
+# (`qa/stress_domains/referral_chain`'s removed `Circle has_many
+# Members`, its `Admit` supplying the whole list under `list_of(Handle)`
+# in one `sets :members`) — the smallest domain that reaches
+# `resolve_state_references`' LIST branch
+# (`lib/hecks/runtime/command_rules/references.rb`) and, on the Rust
+# side, `rust/project/json_codec.rb`'s list-serialization branches and
+# `rust/project/mutations.rb`'s list-target `:set` bridging.
+#
+# Before this bug's fix, `bin/project_rust
+# spec/fixtures/rust_project/has_many_fixture` emitted a `circle.rs`
+# that did not compile (`&String` has no `.to_json()`; a fabricated,
+# never-generated `ReferenceMember::from_json`; the scalar `.value`
+# collapse applied to a `Vec`) — and because `rust/src/generated/mod.rs`
+# declared every generated domain with an unconditional `pub mod`, that
+# one broken module broke `cargo build --features <any other domain>`
+# too. See `spec/rust_project/has_many_spec.rb` for the round-trip this
+# fixture exists to prove: the generated Rust now compiles, is gated
+# behind its own Cargo feature, and Ruby/Rust agree on the resulting
+# state for a real command sequence.
+Hecks.bluebook "HasManyFixture" do
+  vision "The smallest domain that reaches has_many's own Rust codegen path: one aggregate holding a list of references to another, set wholesale by one command."
+
+  core
+
+  aggregate "Member" do
+    description "One admitted member, addressed by their own handle."
+
+    identified_by :handle
+    attribute :handle, Handle
+
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "Join" do
+      role "Person"
+      goal "Register as a member, by handle"
+
+      attribute :handle, Handle
+      sets :handle
+
+      emits "MemberJoined"
+    end
+  end
+
+  aggregate "Circle" do
+    description "A circle of admitted members, addressed by its own id — has_many Members is the whole point of this fixture."
+
+    identified_by :id
+    attribute :id, CircleId
+    has_many Members
+
+    value_object "CircleId" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a circle is referenced") { !value.to_s.empty? }
+    end
+
+    command "Open" do
+      role "Organizer"
+      goal "Start an empty circle"
+
+      attribute :id, CircleId
+      sets :id
+
+      emits "CircleOpened"
+    end
+
+    # THE REAL SHAPE THIS FIXTURE EXISTS FOR — a `list_of(Handle)`
+    # argument `sets` the WHOLE `has_many` list at once, cross-aggregate
+    # (`Handle` is `Member`'s own value object, resolved the same way
+    # `SafeDepositBox.Rent`'s `attribute :customer, CustomerNumber`
+    # already resolves `Customer`'s own `CustomerNumber` — same chapter,
+    # different aggregate).
+    command "Admit" do
+      role "Organizer"
+      goal "Admit a whole batch of already-joined members at once, by handle"
+
+      reference_to Circle
+      attribute :members, list_of(Handle)
+      sets :members
+
+      emits "MembersAdmitted"
+    end
+  end
+end
