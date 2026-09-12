@@ -42,7 +42,7 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
   # the sharpest and the originally-repro'd cases (`Banking` — the
   # `Account.Open` invariant-adjacency case — and `ReferralChain` —
   # `Member.Join`, the bug's own repro).
-  CORPUS = [
+  DEPENDENCY_PLANNING_CORPUS = [
     ["Pizzas", -> { load_domain(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
     ["Compliance", lambda {
       load_domain(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
@@ -58,7 +58,7 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
     }]
   ].freeze
 
-  CORPUS.each do |name, loader|
+  DEPENDENCY_PLANNING_CORPUS.each do |name, loader|
     describe name do
       it "agrees with Runtime::DependencyPlanning::Analyzer for every creates?-true aggregate-root command" do
         _registry, bluebook, ir = loader.call
