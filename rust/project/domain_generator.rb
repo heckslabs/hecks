@@ -104,6 +104,113 @@ module RustProjection
       end
     end
 
+    # `state_reference_checks(aggregate, command, aggregates_by_name,
+    # unsupported_names)` — `CommandRules::References#resolve_state_
+    # references`' own case (references.rb, read directly), read at
+    # codegen time: a SECOND, LATER check Ruby runs at `step_save`
+    # against the SETTLED aggregate state, catching a reference field
+    # REDECLARED on the command under a plain value object (`attribute
+    # :member, Handle; sets :member` — `Referral.Reassign`'s own shape,
+    # ADR 0037 Finding 5, reopened) that `reference_checks` above cannot:
+    # the command's own attribute isn't `reference?`-true, so `resolve_
+    # references`' (and this file's own `reference_checks`) per-attribute
+    # walk sees nothing to check, even though the AGGREGATE's field of
+    # the same name really is `Reference<X>`-typed.
+    #
+    # A full, general port of `resolve_state_references` would need the
+    # SETTLED value — only known once `apply_mutations` has actually run,
+    # inside the hand-written generic `dispatch` (kernel/dispatch.rs),
+    # which has no access to any OTHER aggregate's repo to check against.
+    # This corpus's one trigger (`SafeDepositBox.Rent`, pre-#409; now
+    # `Referral.Reassign`) doesn't need that generality: a bare `sets
+    # :field` mutation (no `to:`, `append:`, etc.) copies its SOURCE
+    # ARGUMENT's value straight into the aggregate's field, unconditionally
+    # — the settled value this check needs is already sitting in `args`,
+    # BEFORE dispatch even runs. So this reuses the exact SAME check shape
+    # `reference_checks` above already emits (a pre-dispatch check against
+    # `args`, at the router), just resolved against the AGGREGATE's own
+    # attribute instead of the command's — no new runtime code, no
+    # settled-state read, no dispatch-function signature change.
+    #
+    # `next if Projector.reference_target(source_attr[:type])` — the
+    # source argument is ALREADY `Reference<X>`-typed (`Referral.Issue`'s
+    # own `member`, declared via `reference_to Member`): `reference_checks`
+    # above already covers that shape; adding it again here would only
+    # double-check the identical fact.
+    #
+    # NOT COVERED, DELIBERATELY (ADR 0037 Finding 5's own closing note):
+    # a mutation shape other than a bare `:set` (nothing in the real
+    # corpus revalues a reference any other way), a `has_many`/list
+    # relationship, and entity-level recursion — the real corpus,
+    # referral_chain included, declares zero entity-level `reference_to`
+    # attributes for this to catch that the command-level check doesn't
+    # already cover.
+    def state_reference_checks(aggregate, command, aggregates_by_name, unsupported_names, value_objects_by_name)
+      aggregate[:attributes].filter_map do |attr|
+        target_name = Projector.reference_target(attr[:type])
+        next unless target_name
+
+        mutation = command[:mutations].find do |m|
+          m[:op].to_s == "set" && m[:target].to_s == attr[:name].to_s && m[:source][:kind] == "argument"
+        end
+        next unless mutation
+
+        source_attr = command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s }
+        next unless source_attr
+        next if Projector.reference_target(source_attr[:type])
+
+        accessor = state_reference_check_accessor(source_attr, value_objects_by_name)
+        next unless accessor
+
+        target = aggregates_by_name[target_name]
+        next unless target
+        next if unsupported_names.include?(target_name)
+
+        {
+          field: accessor,
+          optional: source_attr[:optional],
+          target_mod: target[:name].downcase,
+          target_name: target[:name],
+          heads: target[:identified_by].map { |path| path.split(".").first }.join(", "),
+        }
+      end
+    end
+
+    # `state_reference_check_accessor(source_attr, value_objects_by_name)`
+    # — the SOURCE ARGUMENT's own field-access expression, tacked onto
+    # `args.` by `emit_reference_check` (registry.rb). A plain scalar
+    # argument (`Projector.effective_scalar_type` non-nil — a reference-
+    # typed attribute is already excluded by `state_reference_checks`'
+    # own caller) is a raw `String`/etc already, same shape as an
+    # ordinary `Reference<X>` command attribute: `nil` here means "use
+    # the field name as-is."
+    #
+    # A SINGLE-attribute value object (this corpus's own dominant
+    # convention — `Handle`, `Code`, ...) is a real Rust struct wrapping
+    # that one field (`referral.rs`'s own `Handle { value: String }`), so
+    # the check needs `.{that field}` appended — but ONLY for a REQUIRED
+    # argument: `check_reference`'s optional-argument template already
+    # assumes `Option<String>` (an ordinary optional `Reference<X>`
+    # attribute), not `Option<Handle>`, and teaching it to unwrap an
+    # `Option<Struct>` too is real, separate codegen work nothing in the
+    # real corpus needs yet (`Referral.Reassign`'s own `member` is
+    # required). A multi-attribute value object has no single field to
+    # dot into (Ruby's own `reference_key`, references.rb, joins every
+    # field via `Naming.identity` for that shape) — also not attempted.
+    # `nil` for both: an honest, narrow gap over a shape the real corpus
+    # doesn't exercise, matching ADR 0037 Finding 5's own "not covered,
+    # deliberately" precedent.
+    def state_reference_check_accessor(source_attr, value_objects_by_name)
+      return source_attr[:name] if Projector.effective_scalar_type(source_attr[:type])
+
+      vo = value_objects_by_name[source_attr[:type]]
+      return nil unless vo
+      return nil if source_attr[:optional]
+      return nil unless vo[:attributes].size == 1
+
+      "#{source_attr[:name]}.#{Projector.rust_ident_field(vo[:attributes].first[:name])}"
+    end
+
     def call(ir, source_label, mod_dir, mod_name)
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
@@ -653,7 +760,15 @@ module RustProjection
               args_struct: args_struct,
               creates: creates,
               identity_extra_params: identity_extra_params,
-              reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+              # `state_reference_checks` — ADR 0037 Finding 5 (reopened,
+              # QualityControl BUG#26): a reference field redeclared on
+              # THIS command under a plain value object, checked against
+              # the AGGREGATE's own `Reference<X>` attribute of the same
+              # name instead of the command's own (non-reference) type.
+              # Only ever adds entries `reference_checks` above didn't
+              # already cover — see that method's own header.
+              reference_checks: reference_checks(command, aggregates_by_name, unsupported_names) +
+                state_reference_checks(aggregate, command, aggregates_by_name, unsupported_names, value_objects_by_name),
               reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
               # THIS COMMAND'S OWN DECLARED ATTRIBUTE NAMES (R1) —
               # `reactions.rb`'s own `emit_command_attributes_table`
