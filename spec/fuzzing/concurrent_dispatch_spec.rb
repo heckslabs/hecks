@@ -80,7 +80,18 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
   context "with a real, disposable PostgresEra schema", :io do
     CONCURRENT_DISPATCH_SPEC_DATABASE = "hecks_concurrent_dispatch_spec".freeze
 
-    FIXTURE_BLUEBOOK = <<~RUBY.freeze
+    # NAMESPACED, NOT THE GENERIC `FIXTURE_BLUEBOOK`/`FIXTURE_HECKSAGON`
+    # OTHER SPEC FILES ALSO USE — `spec/qa_sweep_persistence_parity_spec.rb`'s
+    # own comment on `spec/qa_sweep_all_spec.rb`'s `FIXTURE_HECKSAGON`
+    # names the real gotcha this avoids: a bare `CONST = value` written
+    # directly inside an `RSpec.describe`/`context do ... end` block
+    # assigns at the block's own LEXICAL scope (top-level, i.e. `Object`),
+    # never inside the dynamically-created example-group class, so two
+    # spec files that both write the same generic name are defining the
+    # SAME top-level constant — confirmed live: this file's own
+    # `FIXTURE_HECKSAGON` collided with `spec/qa_sweep_all_spec.rb`'s own,
+    # caught by `spec/load_hygiene_spec.rb`.
+    CONCURRENT_DISPATCH_FIXTURE_BLUEBOOK = <<~RUBY.freeze
       Hecks.bluebook "ConcurrentDispatchFixture" do
         vision "The smallest domain that exercises a real cross-process write lock, authored only to prove Hecks::Fuzzing::ConcurrentDispatch works — never examples/, so this spec never depends on this repository's own live corpus staying any particular shape."
         supporting
@@ -124,7 +135,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
       end
     RUBY
 
-    FIXTURE_HECKSAGON = <<~RUBY.freeze
+    CONCURRENT_DISPATCH_FIXTURE_HECKSAGON = <<~RUBY.freeze
       Hecks.hecksagon "ConcurrentDispatchFixture" do
         ConcurrentDispatchFixture::Account.persisted_by("PostgresEra")
       end
@@ -134,8 +145,8 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
       @fixture_root = Dir.mktmpdir("concurrent_dispatch_spec")
-      File.write(File.join(@fixture_root, "fixture.bluebook"), FIXTURE_BLUEBOOK)
-      File.write(File.join(@fixture_root, "fixture.hecksagon"), FIXTURE_HECKSAGON)
+      File.write(File.join(@fixture_root, "fixture.bluebook"), CONCURRENT_DISPATCH_FIXTURE_BLUEBOOK)
+      File.write(File.join(@fixture_root, "fixture.hecksagon"), CONCURRENT_DISPATCH_FIXTURE_HECKSAGON)
 
       admin = PG.connect(dbname: "postgres")
       admin.exec("DROP DATABASE IF EXISTS #{CONCURRENT_DISPATCH_SPEC_DATABASE} WITH (FORCE)")
