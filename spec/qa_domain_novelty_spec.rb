@@ -10,9 +10,9 @@ require "hecks/fuzzing/form_census"
 # ledger (`spec/quality_control_spec.rb`'s own rule: a spec that read
 # the real ledger would depend on what every prior sweep left in it).
 RSpec.describe "bin/qa_domain_novelty" do
-  FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
-  BASELINE = File.join(FIXTURES, "baseline").freeze
-  HOPPER   = File.join(FIXTURES, "hopper").freeze
+  NOVELTY_FIXTURES = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
+  BASELINE = File.join(NOVELTY_FIXTURES, "baseline").freeze
+  HOPPER   = File.join(NOVELTY_FIXTURES, "hopper").freeze
 
   def run_novelty(*args)
     Open3.capture3("bundle", "exec", "ruby", File.join(InMemoryDomain::ROOT, "bin/qa_domain_novelty"), *args,
@@ -49,7 +49,7 @@ RSpec.describe "bin/qa_domain_novelty" do
   end
 
   it "refuses a candidate that is not shaped <name>/bluebook/<name>.bluebook, exit 2" do
-    _out, err, status = run_novelty(File.join(FIXTURES, "flat.bluebook"), "--against", BASELINE)
+    _out, err, status = run_novelty(File.join(NOVELTY_FIXTURES, "flat.bluebook"), "--against", BASELINE)
 
     expect(status.exitstatus).to eq(2)
     expect(err).to include("not shaped like a stress domain")
@@ -57,7 +57,7 @@ RSpec.describe "bin/qa_domain_novelty" do
   end
 
   it "reports, and skips, an --against path with nothing on disk rather than failing" do
-    out, err, status = run_novelty(HOPPER, "--against", BASELINE, File.join(FIXTURES, "__nowhere__"))
+    out, err, status = run_novelty(HOPPER, "--against", BASELINE, File.join(NOVELTY_FIXTURES, "__nowhere__"))
 
     expect(status.exitstatus).to eq(0)
     expect(err).to include("skipping").and include("__nowhere__")
