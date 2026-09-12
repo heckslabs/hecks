@@ -214,6 +214,7 @@ pub fn dispatch_join(
         build: Box::new(|| Member {
             handle: Some(args.handle.clone()),
         }),
+        state_independent: true,
     },
         "Join",
         "HasManyFixture::Member",

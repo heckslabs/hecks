@@ -390,6 +390,7 @@ pub fn dispatch_link(
             issuer: Some(args.issuer.clone()),
             subject: Some(args.subject.clone()),
         }),
+        state_independent: false,
     },
         "Link",
         "Identity::ExternalIdentifier",

@@ -1,0 +1,8 @@
+{
+  "domain": "spec/fixtures/rust_project/bug28_existence_fixture",
+  "note": "BUG#28 (QualityControl ledger) — the ordering pair a BUG#4-shaped mistake would land on: a creating command that is BOTH complete_state? AND state_independent? (Vault.Open sets every owner field straight from its own arguments, no `given` at all) paired with a genuinely-falsifiable aggregate invariant (see this fixture's own bluebook header for why the real corpus's one example of this shape, Account.Open, can't exercise it). Opening the SAME `code` twice, the second time with a negative `balance`, is a duplicate identity AND a falsified invariant on the SAME dispatch. Ruby's own hydrate_complete_state defers its AlreadyExists check all the way to step_save — AFTER apply_mutations and enforce_invariants already ran — so it answers InvariantViolation, never AlreadyExists, for this exact combination. A fix that deferred the existence check to run BEFORE enforce_invariants instead of after (the 'third order that exists nowhere in Ruby') would answer AlreadyExists here instead — this fixture is what catches that.",
+  "steps": [
+    {"verb": "Bug28ExistenceFixture::Vault.Open", "args": {"code": {"value": "v1"}, "balance": {"value": 10}}},
+    {"verb": "Bug28ExistenceFixture::Vault.Open", "args": {"code": {"value": "v1"}, "balance": {"value": -5}}}
+  ]
+}

@@ -430,6 +430,7 @@ pub fn dispatch_request(
             destination_customer_status: None,
             status: "requested".to_string(),
         }),
+        state_independent: false,
     },
         "Request",
         "Banking::Transfer",

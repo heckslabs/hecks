@@ -576,6 +576,7 @@ pub fn dispatch_open(
             reference: Some(args.reference.clone()),
             entries: vec![],
         }),
+        state_independent: false,
     },
         "Open",
         "Corrections::Ledger",

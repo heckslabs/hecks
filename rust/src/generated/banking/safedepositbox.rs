@@ -1120,6 +1120,7 @@ pub fn dispatch_rent(
             customer_status: None,
             status: "vacant".to_string(),
         }),
+        state_independent: false,
     },
         "Rent",
         "Banking::SafeDepositBox",

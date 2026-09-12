@@ -213,6 +213,7 @@ pub fn dispatch_register(
         build: Box::new(|| Identity {
             identity_id: Some(args.identity_id.clone()),
         }),
+        state_independent: false,
     },
         "Register",
         "Identity::Identity",

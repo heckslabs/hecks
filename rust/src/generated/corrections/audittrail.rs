@@ -219,6 +219,7 @@ pub fn dispatch_open(
             reference: Some(args.reference.clone()),
             status: "clean".to_string(),
         }),
+        state_independent: false,
     },
         "Open",
         "Corrections::AuditTrail",

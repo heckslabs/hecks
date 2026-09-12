@@ -466,6 +466,7 @@ pub fn dispatch_request(
             account_customer_status: None,
             status: "requested".to_string(),
         }),
+        state_independent: false,
     },
         "Request",
         "Banking::ExternalTransfer",

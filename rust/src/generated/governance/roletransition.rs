@@ -313,6 +313,7 @@ pub fn dispatch_grant(
             starts_at: Some(args.starts_at.clone()),
             ends_at: None,
         }),
+        state_independent: false,
     },
         "Grant",
         "Governance::RoleTransition",

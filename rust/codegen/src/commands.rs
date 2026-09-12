@@ -607,8 +607,13 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             record_fields.push(format!("            {}: false,", crate::bridging::corrects_flag_field(&ev)));
         }
 
+        // BUG#28 — mirrors `CommandInterpreter#step_hydrate`'s own branch
+        // (`ctx.plan.complete_state? && ctx.plan.state_independent?`);
+        // `dependency_planning::state_independent_creation`'s own header
+        // has the full story.
+        let state_independent = crate::dependency_planning::state_independent_creation(aggregate, command, value_objects_by_name);
         hydrate = format!(
-            "crate::kernel::Hydrate::Create {{\n        id: {},\n        build: Box::new(|| {record} {{\n{}\n        }}),\n    }}",
+            "crate::kernel::Hydrate::Create {{\n        id: {},\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
             mutations::build_identity_expr(&identity),
             record_fields.join("\n")
         );

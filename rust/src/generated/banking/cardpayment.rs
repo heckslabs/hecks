@@ -485,6 +485,7 @@ pub fn dispatch_authorize(
             account_customer_status: None,
             status: "authorized".to_string(),
         }),
+        state_independent: false,
     },
         "Authorize",
         "Banking::CardPayment",

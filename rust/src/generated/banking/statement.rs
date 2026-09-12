@@ -424,6 +424,7 @@ pub fn dispatch_generate(
             generated_on: Some(args.generated_on.clone()),
             frequency: Some(args.frequency.clone()),
         }),
+        state_independent: true,
     },
         "Generate",
         "Banking::Statement",

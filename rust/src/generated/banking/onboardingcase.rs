@@ -317,6 +317,7 @@ pub fn dispatch_open(
             customer_status: None,
             status: "screening".to_string(),
         }),
+        state_independent: false,
     },
         "Open",
         "Banking::OnboardingCase",

@@ -805,6 +805,7 @@ pub fn dispatch_open(
             balance_cents: Some(LedgerAmountCents { value: 0 }),
             entries: vec![],
         }),
+        state_independent: true,
     },
         "Open",
         "TenantLedger::Ledger",

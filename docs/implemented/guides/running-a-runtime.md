@@ -436,7 +436,7 @@ codegen has to fill in on its own, the same place Ruby fills it.
 
 ## Dispatch, in the order it actually runs
 
-Fourteen steps, hand-typed in `Runtime::CommandInterpreter::DISPATCH_ORDER`
+Sixteen steps, hand-typed in `Runtime::CommandInterpreter::DISPATCH_ORDER`
 and held equal to the language's own declared vocabulary by
 `spec/vocabulary_conformance_spec.rb` — this is not a summary, it is
 the literal list:
@@ -447,20 +447,62 @@ refuse_absent_arguments    # every non-optional declared attribute must be prese
 normalize_args             # coerce raw hashes into typed Values — invariant checks fire HERE
 refuse_role_mismatch       # only if the command declares role: and the caller opted into role checking
 resolve_references         # a reference argument (bare id string) is checked to actually exist
-hydrate                    # creating: derive identity, refuse AlreadyExists; acting: look up, refuse NotFound
+hydrate                    # creating: derive identity, USUALLY refuse AlreadyExists here — see below; acting: look up, refuse NotFound
 enforce_givens              # every given must read true against the hydrated instance + args
 admissible_transition       # if the command names a lifecycle transition, its from: must match the current state
 assign_creation_attributes  # creating commands only — see below
 apply_mutations              # every declared sets, in declared order
 advance_lifecycle            # if a transition was found, write the target state
-enforce_ensures               # every ensures must read true, args merged with old: the pre-mutation state
-save                          # write the instance back through the aggregate's repository
-emit                          # build and return the declared events
+delegate_to_entity            # only if the command declares delegates_to — runs the target entity command's own givens/mutations/ensures inline
+enforce_ensures                # every ensures must read true, args merged with old: the pre-mutation state
+enforce_invariants              # every aggregate-level invariant, plus every entity-list element's own, on the settled candidate record
+save                              # write the instance back through the aggregate's repository
+emit                              # build and return the declared events
 ```
 
-Two facts about that list are true and not written down anywhere else
+Three facts about that list are true and not written down anywhere else
 in this repository's guides, because nothing before this page needed
 a second runtime to know them:
+
+**`hydrate`'s own `AlreadyExists` check does NOT always run before
+`enforce_givens`, and there is no single fixed position for it** —
+BUG#28 (QualityControl ledger), found the hard way: a creating command
+whose `given` fails while its identity already exists refused
+`GivenNotMet` in Ruby but `AlreadyExists` in a first Rust port, because
+Rust's generic `dispatch()` checked eagerly, unconditionally, at
+`hydrate` — matching Ruby's `hydrate_prior_or_initial`/`hydrate_legacy_
+creation` (a STATE-DEPENDENT creating command — one with a `from:`
+guard, or a `given`/`ensures` reading the aggregate's own not-yet-
+existing state), but diverging from Ruby's THIRD hydration path,
+`hydrate_complete_state`. When `DependencyPlanning::Analyzer` classifies
+a creating command as BOTH `complete_state?` (every owner field gets a
+deterministic value — a default, or a `sets` sourced from a fresh
+argument or literal) AND `state_independent?` (no `given`/`ensures`/
+mutation reads the aggregate's own prior state) on an `atomic_put`-
+capable adapter (Memory/SQLite/Postgres/D1/LocalStorage — every real
+adapter except Heki), `hydrate_complete_state` explicitly SKIPS its
+eager existence check and defers it ALL THE WAY to `save` — after
+`enforce_givens`, `admissible_transition`, `apply_mutations`,
+`enforce_ensures` AND `enforce_invariants` have all already run,
+mirroring `repository.atomic_put(insert_only: true)`'s own atomic
+check-and-write. `ReferralChain::Member.Join` (its `given` dereferences
+a fresh `sponsor` argument, never its own state) is the shape that
+surfaces this: a caller offering an already-taken `handle` under a
+sponsor that's no longer in good standing gets `GivenNotMet`, not
+`AlreadyExists` — the `given` never even reaches a real, already-
+existing record, because `hydrate_complete_state` never looked one up.
+This is latent throughout the mature banking corpus too (`Account.
+Open`, `OnboardingCase.Open`, `Transfer.Request`, and others each carry
+an explicit "OWN GIVEN, NOT SHARED (S12, ADR 0025)" comment) — narrow
+enough that plain fuzzing rarely rolls the combination (a duplicate
+identity AND a failing given, on the SAME dispatch), but real. Both
+Rust codegen pipelines (`rust/project`'s Ruby-hosted generator and
+`rust/codegen`'s Rust-native one) now derive this SAME classification
+independently, straight from the exported IR's own attributes/
+mutations/given/ensures data — see `rust/project/dependency_planning.rb`
+and `rust/codegen/src/dependency_planning.rs`'s own headers for why
+that's a deliberate, separate re-derivation rather than a single
+precomputed fact threaded through `ir.json`.
 
 **`assign_creation_attributes` and `apply_mutations` are two different
 steps, and only the first is implicit.** A creating command's

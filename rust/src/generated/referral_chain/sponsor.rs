@@ -219,6 +219,7 @@ pub fn dispatch_enroll(
             handle: Some(args.handle.clone()),
             standing: "good".to_string(),
         }),
+        state_independent: false,
     },
         "Enroll",
         "ReferralChain::Sponsor",

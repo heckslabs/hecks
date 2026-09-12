@@ -1041,6 +1041,7 @@ pub fn dispatch_open(
             reference: Some(args.reference.clone()),
             boards: vec![],
         }),
+        state_independent: false,
     },
         "Open",
         "NestedPieces::Workspace",

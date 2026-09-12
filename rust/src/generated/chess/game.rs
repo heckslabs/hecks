@@ -1241,6 +1241,7 @@ pub fn dispatch_start(
             pieces: vec![],
             status: "in_progress".to_string(),
         }),
+        state_independent: true,
     },
         "Start",
         "Chess::Game",

@@ -834,6 +834,7 @@ pub fn dispatch_issue(
             account_customer_status: None,
             status: "issued".to_string(),
         }),
+        state_independent: false,
     },
         "Issue",
         "Banking::ATMCard",

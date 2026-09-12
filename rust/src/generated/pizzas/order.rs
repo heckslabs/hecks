@@ -760,6 +760,7 @@ pub fn dispatch_create_pizza(
             customer_name: None,
             status: "available".to_string(),
         }),
+        state_independent: true,
     },
         "CreatePizza",
         "Pizzas::Order",
