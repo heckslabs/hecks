@@ -1,0 +1,61 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "TenantLedger::Ledger",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "TenantLedger::Ledger.Entry",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "TenantLedger::Ledger.Entry.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "TenantLedger::Ledger.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "TenantLedger::Ledger.Credit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "TenantLedger::Transfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "TenantLedger::Transfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "TenantLedger::Ledger.ByRegion",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "query",
+    "id": "TenantLedger::Transfer.ByRegion",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+  },
+  {
+    "kind": "process_manager",
+    "id": "TenantLedger::SettleAcrossRegions",
+    "generated": true,
+    "routed": true
+  }
+]
