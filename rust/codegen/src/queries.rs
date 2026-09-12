@@ -157,8 +157,18 @@ pub fn query_skip_reason(query: &Json, aggregate: &Json, value_objects_by_name: 
         return Some("declares use_index, out of scope for the same reason the extras above are".to_string());
     }
 
+    // An empty `wheres` list is ONLY a real "nothing to compile" — a
+    // declared `authorize policy, tenant: :field` synthesizes its own
+    // where clause at codegen time (`query_conditions_with_authorization`
+    // below), so a query with no ordinary where clause but a real tenant
+    // gate still has a real reason to generate: the tenant-scoping check
+    // IS the query's whole logic. Checking for a declared tenant here,
+    // before the empty-wheres refusal, is what lets that query through;
+    // `declared_authorization_skip_reason` below still runs afterward
+    // either way, to validate the tenant FIELD itself is generable.
+    let declared_tenant = query.get("authorization").and_then(|a| a.get("tenant")).is_some();
     let wheres = query.get("wheres").map(Json::each).unwrap_or(&[]);
-    if wheres.is_empty() {
+    if wheres.is_empty() && !declared_tenant {
         return Some("declares no where clauses at all — nothing for filter_entries to bake in".to_string());
     }
 

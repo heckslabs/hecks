@@ -249,7 +249,28 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 }
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
-
+crate::kernel::QueryDef {
+    verb: "TenantLedger::Ledger.ByRegion",
+    aggregate: "TenantLedger::Ledger",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "region", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("region") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "code", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "ByRegion", tenant_field: "region", policy: "ledger_access" }),
+},
+crate::kernel::QueryDef {
+    verb: "TenantLedger::Transfer.ByRegion",
+    aggregate: "TenantLedger::Transfer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "region", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("region") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false, nulls: crate::kernel::query_ordering::NullsMode::Native }),
+    offset: None,
+    limit: None,
+    authorization: Some(crate::kernel::named_query::TenantAuth { query_name: "ByRegion", tenant_field: "region", policy: "transfer_access" }),
+},
 ];
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
