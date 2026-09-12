@@ -106,6 +106,7 @@ module Hecks
           fan_outs        = []
           guard_checks    = []
           mutation_traces = []
+          outbox_traces   = []
 
           # EVERY AGGREGATE A `for_each` COULD EVER QUERY, resolved ONCE —
           # `[domain, aggregate_name]` pairs, gleaned from every loaded
@@ -249,6 +250,32 @@ module Hecks
               # named ask.
               reaction_mark = runtime.reactions.size
 
+              # THE OUTBOX ORACLE'S OWN LOW-WATER MARKS — taken before
+              # dispatch, same idiom as `reaction_mark` right above:
+              # `saga_log_mark` slices `runtime.sagas` (a single flat
+              # array, safe to index into directly) the identical way
+              # `reaction_mark` already slices `runtime.reactions`.
+              # `outbox_before_ids` is a SET OF delivery_ids, not a
+              # size — `runtime.outbox.rows` concatenates every bound
+              # repository's own array in a FIXED per-store order
+              # (`Outbox::Relay#rows`, `stores.flat_map`), so a row a
+              # DIFFERENT step's dispatch enqueues into an
+              # earlier-iterated store would land in the MIDDLE of
+              # that concatenated list, not at its tail — a plain
+              # "grew from N to M, take the tail" slice (the shape
+              # `reaction_mark`/`saga_log_mark` both get away with,
+              # since `reaction_log`/`saga_log` are each already ONE
+              # flat array irrespective of domain) would silently miss
+              # or misattribute rows the moment more than one
+              # repository has an outbox. `delivery_id` is unique per
+              # store by construction (`Row#to_h`'s own header;
+              # `hecks_outbox`'s `UNIQUE` column in the Postgres/Sqlite
+              # DDL, `outbox_enqueue`'s own de-dup check in Memory), so
+              # membership in this set is exactly "existed before this
+              # step's own dispatch ran."
+              saga_log_mark      = runtime.sagas.size
+              outbox_before_ids  = runtime.outbox.rows.map(&:delivery_id)
+
               # THE SNAPSHOT A `for_each` QUERY WOULD HAVE SEEN — taken
               # BEFORE this step's own dispatch, not after. The real
               # `deliver_for_each` runs its query SYNCHRONOUSLY, inside
@@ -310,6 +337,26 @@ module Hecks
               result = as_step_caller(step) { runtime.dispatch(step["verb"], **args) }
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
+
+              # THE OUTBOX ORACLE'S OWN CAPTURE — every outbox row THIS
+              # STEP'S OWN dispatch newly wrote (across every bound
+              # repository, including any a reaction cascade touched —
+              # `outbox_before_ids` was taken before `dispatch`, which
+              # is the same call that runs the whole cascade
+              # synchronously, `reenter` included), paired with the
+              # `reaction_log`/`saga_log` rows that same dispatch
+              # produced. Skipped entirely when empty — a step whose
+              # own aggregate has no outbox enqueues nothing here, and
+              # there is nothing for `Properties.outbox_rows_match_
+              # reactions` to check for it (its own reactions, if any,
+              # went through the direct, pre-outbox path instead).
+              outbox_new_rows = runtime.outbox.rows.reject { |row| outbox_before_ids.include?(row.delivery_id) }
+              if outbox_new_rows.any?
+                outbox_traces << { verb: step["verb"], rows: outbox_new_rows.map(&:to_h),
+                                    reactions: runtime.reactions[reaction_mark..].dup,
+                                    sagas: runtime.sagas[saga_log_mark..].dup }
+              end
+
               guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
               # AFTER — only on SUCCESS ; a refused step mutated nothing,
               # so there is no "after" to compare (and #build_mutation_
@@ -395,7 +442,7 @@ module Hecks
                       reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
                       queries: queries, dry_runs: dry_runs, dry_run_traces: dry_run_traces,
                       fan_outs: fan_outs, guard_checks: guard_checks,
-                      mutation_traces: mutation_traces,
+                      mutation_traces: mutation_traces, outbox_traces: outbox_traces,
                       saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
                       bluebook: runtime.registry.bluebooks.values.first,
                       bluebooks: runtime.registry.bluebooks.dup }

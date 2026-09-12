@@ -10,6 +10,7 @@ require_relative "properties/guards"
 require_relative "properties/dispatch_and_mutations"
 require_relative "properties/invariants_and_aggregation"
 require_relative "properties/corrections"
+require_relative "properties/outbox"
 
 module Hecks
   module Fuzzing
@@ -59,6 +60,7 @@ module Hecks
       extend DryRuns
       extend InvariantsAndAggregation
       extend Corrections
+      extend Outbox
 
       module_function
 
@@ -106,7 +108,12 @@ module Hecks
         # for it to claim. Listed (empty) rather than omitted so the
         # discipline this table states — every property names what it
         # is answerable for — has no silent exception.
-        dry_runs_leave_no_trace:                          []
+        dry_runs_leave_no_trace:                          [],
+        # ANOTHER RUNTIME DOOR, NOT A GRAMMAR CONSTRUCT — same reasoning
+        # as dry_runs_leave_no_trace right above: `Runtime::Outbox` is
+        # something a persistence adapter provides underneath a booted
+        # domain, never a word a bluebook declares.
+        outbox_rows_match_reactions:                      []
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
@@ -219,7 +226,8 @@ module Hecks
           dispatch_binding_fidelity:                        dispatch_binding_fidelity(history),
           mutations_match_recompute:                        mutations_match_recompute(history),
           dry_runs_leave_no_trace:                          dry_runs_leave_no_trace(history),
-          corrections_reference_an_emitted_event:           corrections_reference_an_emitted_event(history) }
+          corrections_reference_an_emitted_event:           corrections_reference_an_emitted_event(history),
+          outbox_rows_match_reactions:                      outbox_rows_match_reactions(history) }
       end
     end
   end
