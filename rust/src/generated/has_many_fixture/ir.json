@@ -1,0 +1,357 @@
+{
+  "ir_version": 1,
+  "name": "HasManyFixture",
+  "version": null,
+  "vision": "The smallest domain that reaches has_many's own Rust codegen path: one aggregate holding a list of references to another, set wholesale by one command.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Member",
+      "description": "One admitted member, addressed by their own handle.",
+      "identified_by": [
+        "handle.value"
+      ],
+      "attributes": [
+        {
+          "name": "handle",
+          "type": "Handle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Handle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a handle is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Join",
+          "role": "Person",
+          "goal": "Register as a member, by handle",
+          "references": null,
+          "attributes": [
+            {
+              "name": "handle",
+              "type": "Handle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "handle",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "handle"
+              }
+            }
+          ],
+          "emits": [
+            "MemberJoined"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Circle",
+      "description": "A circle of admitted members, addressed by its own id — has_many Members is the whole point of this fixture.",
+      "identified_by": [
+        "id.value"
+      ],
+      "attributes": [
+        {
+          "name": "id",
+          "type": "CircleId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "members",
+          "type": "Reference<Member>",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "has_many"
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "CircleId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a circle is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Organizer",
+          "goal": "Start an empty circle",
+          "references": null,
+          "attributes": [
+            {
+              "name": "id",
+              "type": "CircleId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "id",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "id"
+              }
+            }
+          ],
+          "emits": [
+            "CircleOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Admit",
+          "role": "Organizer",
+          "goal": "Admit a whole batch of already-joined members at once, by handle",
+          "references": "Circle",
+          "attributes": [
+            {
+              "name": "members",
+              "type": "Handle",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "members",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "members"
+              }
+            }
+          ],
+          "emits": [
+            "MembersAdmitted"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Member",
+        "storage_name": "member",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Circle",
+        "storage_name": "circle",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# BUG#25 — REGRESSION FIXTURE. `has_many` (a LIST OF REFERENCES, not a\n# `list_of` value object) was the one reference-list shape `bin/\n# project_rust` never projected to Rust correctly: `Circle`'s own\n# `members` field here is exactly PR #580's own first draft\n# (`qa/stress_domains/referral_chain`'s removed `Circle has_many\n# Members`, its `Admit` supplying the whole list under `list_of(Handle)`\n# in one `sets :members`) — the smallest domain that reaches\n# `resolve_state_references`' LIST branch\n# (`lib/hecks/runtime/command_rules/references.rb`) and, on the Rust\n# side, `rust/project/json_codec.rb`'s list-serialization branches and\n# `rust/project/mutations.rb`'s list-target `:set` bridging.\n#\n# Before this bug's fix, `bin/project_rust\n# spec/fixtures/rust_project/has_many_fixture` emitted a `circle.rs`\n# that did not compile (`&String` has no `.to_json()`; a fabricated,\n# never-generated `ReferenceMember::from_json`; the scalar `.value`\n# collapse applied to a `Vec`) — and because `rust/src/generated/mod.rs`\n# declared every generated domain with an unconditional `pub mod`, that\n# one broken module broke `cargo build --features <any other domain>`\n# too. See `spec/rust_project/has_many_spec.rb` for the round-trip this\n# fixture exists to prove: the generated Rust now compiles, is gated\n# behind its own Cargo feature, and Ruby/Rust agree on the resulting\n# state for a real command sequence.\nHecks.bluebook \"HasManyFixture\" do\n  vision \"The smallest domain that reaches has_many's own Rust codegen path: one aggregate holding a list of references to another, set wholesale by one command.\"\n\n  core\n\n  aggregate \"Member\" do\n    description \"One admitted member, addressed by their own handle.\"\n\n    identified_by :handle\n    attribute :handle, Handle\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Join\" do\n      role \"Person\"\n      goal \"Register as a member, by handle\"\n\n      attribute :handle, Handle\n      sets :handle\n\n      emits \"MemberJoined\"\n    end\n  end\n\n  aggregate \"Circle\" do\n    description \"A circle of admitted members, addressed by its own id — has_many Members is the whole point of this fixture.\"\n\n    identified_by :id\n    attribute :id, CircleId\n    has_many Members\n\n    value_object \"CircleId\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a circle is referenced\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      role \"Organizer\"\n      goal \"Start an empty circle\"\n\n      attribute :id, CircleId\n      sets :id\n\n      emits \"CircleOpened\"\n    end\n\n    # THE REAL SHAPE THIS FIXTURE EXISTS FOR — a `list_of(Handle)`\n    # argument `sets` the WHOLE `has_many` list at once, cross-aggregate\n    # (`Handle` is `Member`'s own value object, resolved the same way\n    # `SafeDepositBox.Rent`'s `attribute :customer, CustomerNumber`\n    # already resolves `Customer`'s own `CustomerNumber` — same chapter,\n    # different aggregate).\n    command \"Admit\" do\n      role \"Organizer\"\n      goal \"Admit a whole batch of already-joined members at once, by handle\"\n\n      reference_to Circle\n      attribute :members, list_of(Handle)\n      sets :members\n\n      emits \"MembersAdmitted\"\n    end\n  end\nend\n"
+}

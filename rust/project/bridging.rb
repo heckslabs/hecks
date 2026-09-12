@@ -163,6 +163,49 @@ module RustProjection
       "#{source_expr}.#{rust_ident_field(source_vo[:attributes].first[:name])}.clone()"
     end
 
+    # BUG#25 — TRUE exactly when a list-to-list `:set` genuinely needs
+    # `list_value_rhs`'s own per-element rebuild, rather than a single
+    # whole-container `.clone()`. Mirrors `value_rhs`'s own first two
+    # early returns — same-named types, or two types that already share
+    # ONE Rust representation (`effective_scalar_type` equal, `Reference
+    # <Member>` and a bare `String` both being exactly `String`) — a
+    # `.clone()` on the WHOLE expression is correct there regardless of
+    # list-ness OR optionality (a `CardPayment.tags` "redundant re-set" —
+    # `sets :tags, to: :tags` where both sides are `Tag` — needs a bare
+    # `args.tags.clone()`, whatever concrete Rust type `args.tags` itself
+    # already is: `Vec<Tag>`, or `Option<Vec<Tag>>` when the ARGUMENT is
+    # optional; `list_value_rhs`'s own `.iter()` breaks against the
+    # latter, found live: E0277, "a value of type `Option<Vec<Tag>>`
+    # cannot be built from an iterator over elements of type `Vec<Tag>`").
+    # Element-wise reconstruction is needed ONLY when the two sides
+    # genuinely have DIFFERENT per-element Rust shapes — `Handle` (a
+    # value object) into `Reference<Member>` (a bare `String`) being the
+    # one shape this bug is actually about.
+    def list_bridge_requires_element_mapping?(source_type, target_type)
+      return false if source_type == target_type
+
+      !(effective_scalar_type(source_type) && effective_scalar_type(source_type) == effective_scalar_type(target_type))
+    end
+
+    # `value_rhs` ELEMENT-WISE, for a `:set` mutation whose source
+    # argument AND target attribute are both lists AND whose per-element
+    # types genuinely differ (`list_bridge_requires_element_mapping?`
+    # above is the caller's own gate) — a `has_many`'s own
+    # `Reference<Target>` list field, set wholesale from a
+    # `list_of(SomeHandleType)` argument (`Circle.Admit`'s own `sets
+    # :members` is the real, live shape this closes). `value_rhs` itself
+    # stays scalar-only/element-only on purpose (every other caller of it
+    # — command-creation field assembly, `:append`'s own per-field RHS —
+    # already passes it one ELEMENT at a time, never a whole `Vec`), so
+    # this wraps it in the SAME `.iter().map(...).collect()` shape
+    # `emit_to_json_flat`'s own list branch already uses, rather than
+    # teaching `value_rhs` to branch on list-ness itself and risk two
+    # different call shapes (bare value vs list) tangled into one
+    # function's logic.
+    def list_value_rhs(source_expr, source_type, target_type, value_objects_by_name)
+      "#{source_expr}.iter().map(|item| #{value_rhs('item', source_type, target_type, value_objects_by_name)}).collect()"
+    end
+
     def literal_set_bridgeable?(value, target_type, value_objects_by_name)
       return literal_hash_bridgeable?(value, target_type, value_objects_by_name) if value.is_a?(Hash) && target_type
       return false if value.is_a?(Hash)
