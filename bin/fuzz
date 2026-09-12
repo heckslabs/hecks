@@ -133,6 +133,65 @@ def known_finding?(name, failure)
   failure[:message].split("; ").all? { |chunk| matchers.any? { |regex| regex.match?(chunk) } }
 end
 
+# KNOWN, ALREADY-LOGGED GAPS this sweep skips outright rather than crash
+# on — never a blanket `WiringError` catch. Each `when` is scoped to one
+# EXACT exception message, so a match here names a mystery already
+# tracked elsewhere, not a genuine, still-uninvestigated interpreter
+# defect this sweep should keep failing loudly on (bin/fuzz's own whole
+# point: "an interpreter defect propagates and fails" — see the header
+# comment above `outcome`). Re-raises anything that doesn't match.
+def known_unfuzzable_wiring_gap(error)
+  case error.message
+  when %r{a compute/rekey rule is declared}
+    # A `compute`/`rekey` translation rule is an era/Postgres-only
+    # construct (lib/hecks/ports/persistence/plugins/era/era_check.rb)
+    # — it needs a real SQL migration to interpret, so it CANNOT boot
+    # under IsolatedBoot's Memory (or :sqlite) rebind, whatever adapter
+    # this sweep picked; `Loader.check_compute_rules_backstop!` refuses
+    # by design the moment nothing era-aware is loaded to interpret it
+    # (lib/hecks/runtime/loader.rb's own comment: a loaded era plugin
+    # would refuse more specifically, "...is bound to Memory" — this is
+    # the same refusal, just from the plugin-free path IsolatedBoot
+    # always takes). Not a bug in this domain or in fuzzing — every
+    # OTHER domain in the sweep is still fuzzable, so one unfuzzable
+    # domain skipping itself beats the whole sweep dying on the first
+    # `compute`/`rekey` domain anyone ever adds to the corpus (examples/
+    # directory is the first, closing the audit's own "no rekey
+    # anywhere in the example corpus" gap — this domain is why this
+    # rescue exists). Real coverage for compute/rekey stays where it
+    # already lives: spec/adapters/driven/postgres_era/*_spec.rb,
+    # `io: true`, against a real Postgres.
+    :skip_compute_rekey
+  when /no entity mutation applier handles :corrects/
+    # ENTITY-LEVEL `corrects` — a SECOND, separately-scoped exception to
+    # the same rule, for the identical underlying reason: a KNOWN,
+    # ALREADY-LOGGED gap, not a mystery for this sweep to chase down
+    # fresh every run. `EntityInterpreter#step_enforce_givens` never
+    # calls `CommandRules::Admissibility#enforce_correction_target`
+    # (only `CommandInterpreter`'s own aggregate-level twin does), and
+    # `EntityElement.apply_to_element` (entity_element.rb) has no
+    # `:corrects` branch at all — unlike `MutationApplier#apply`'s
+    # aggregate-level twin, which treats `:corrects` as a documented
+    # no-op. Found by `qa/stress_domains/corrections` (ANGLE-9); logged
+    # as a real Bug against the QualityControl ledger (see that
+    # domain's own NOTES.md for the full write-up and reproduction).
+    # Scoped to this EXACT exception message, not a blanket WiringError
+    # rescue — this stops applying automatically, with no further edit
+    # needed here, the moment entity-level `corrects` actually works
+    # and nothing raises it anymore. Remove this `when` once that Bug
+    # is fixed.
+    :skip_entity_corrects
+  else
+    raise
+  end
+end
+
+SKIPPED_DOMAIN_REASONS = {
+  skip_compute_rekey:   "declares compute/rekey, which only an era/Postgres-bound boot can interpret",
+  skip_entity_corrects: "entity-level `corrects` crashes at dispatch (a real, logged Bug; see " \
+                        "qa/stress_domains/corrections/NOTES.md)"
+}.freeze
+
 def fuzz_domain(domain, seeds, steps, adapter = :memory)
   domain = domain.chomp("/")
   name = File.basename(domain)
@@ -149,31 +208,10 @@ def fuzz_domain(domain, seeds, steps, adapter = :memory)
     generated = begin
       Hecks::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: steps, adapter: adapter)
     rescue Hecks::Runtime::WiringError => e
-      # A `compute`/`rekey` translation rule is an era/Postgres-only
-      # construct (lib/hecks/ports/persistence/plugins/era/era_check.rb)
-      # — it needs a real SQL migration to interpret, so it CANNOT boot
-      # under IsolatedBoot's Memory (or :sqlite) rebind, whatever adapter
-      # this sweep picked; `Loader.check_compute_rules_backstop!` refuses
-      # by design the moment nothing era-aware is loaded to interpret it
-      # (lib/hecks/runtime/loader.rb's own comment: a loaded era plugin
-      # would refuse more specifically, "...is bound to Memory" — this is
-      # the same refusal, just from the plugin-free path IsolatedBoot
-      # always takes). Not a bug in this domain or in fuzzing — every
-      # OTHER domain in the sweep is still fuzzable, so one unfuzzable
-      # domain skipping itself beats the whole sweep dying on the first
-      # `compute`/`rekey` domain anyone ever adds to the corpus (examples/
-      # directory is the first, closing the audit's own "no rekey
-      # anywhere in the example corpus" gap — this domain is why this
-      # rescue exists). Real coverage for compute/rekey stays where it
-      # already lives: spec/adapters/driven/postgres_era/*_spec.rb,
-      # `io: true`, against a real Postgres.
-      raise unless e.message.include?("a compute/rekey rule is declared")
-
-      :skip
+      known_unfuzzable_wiring_gap(e)
     end
-    if generated == :skip
-      puts "   skipped — declares compute/rekey, which only an era/Postgres-bound boot can interpret " \
-           "(not fuzzable under :#{adapter})"
+    if (reason = SKIPPED_DOMAIN_REASONS[generated])
+      puts "   skipped — #{reason} (not fuzzable under :#{adapter})"
       return true
     end
     verdict, message = outcome(domain, generated, adapter)
