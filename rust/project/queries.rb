@@ -280,7 +280,17 @@ module RustProjection
              "header has the full argument)" if extras.any?
       return "declares use_index, out of scope for the same reason the extras above are" if Array(query[:index_hints]).any?
 
-      return "declares no where clauses at all — nothing for filter_entries to bake in" if Array(query[:wheres]).empty?
+      # An empty `wheres` list is ONLY a real "nothing to compile" — a
+      # declared `authorize policy, tenant: :field` synthesizes its own
+      # where clause at codegen time (`query_conditions_with_authorization`
+      # below), so a query with no ordinary where clause but a real tenant
+      # gate still has a real reason to generate: the tenant-scoping check
+      # IS the query's whole logic. Checking for a declared tenant here,
+      # before the empty-wheres refusal, is what lets that query through;
+      # `declared_authorization_skip_reason` below still runs afterward
+      # either way, to validate the tenant FIELD itself is generable.
+      declared_tenant = query[:authorization] && query[:authorization][:tenant]
+      return "declares no where clauses at all — nothing for filter_entries to bake in" if Array(query[:wheres]).empty? && !declared_tenant
 
       query[:wheres].each do |where|
         reason = query_where_skip_reason(where, aggregate, value_objects_by_name)

@@ -41,16 +41,12 @@
   {
     "kind": "query",
     "id": "TenantLedger::Ledger.ByRegion",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "TenantLedger::Transfer.ByRegion",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares no where clauses at all — nothing for filter_entries to bake in"
+    "generated": true
   },
   {
     "kind": "process_manager",
