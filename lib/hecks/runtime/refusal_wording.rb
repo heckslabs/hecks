@@ -69,8 +69,8 @@ module Hecks
         "{command} refused — {field} is {current}, and {command} moves it only from {allowed}",
         %w[TypeMismatch value_object_shape]           =>
         "{name} is a {type} — pass its fields as an object, not {offered}",
-        %w[TypeMismatch reference_as_object]          =>
-        "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}",
+        %w[TypeMismatch reference_wrong_shape]         =>
+        "{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}",
         %w[TypeMismatch multi_field_scalar]           =>
         "{type} has multiple fields and cannot stand in for a scalar",
         %w[TypeMismatch composite_identity]           =>
