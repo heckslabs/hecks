@@ -546,6 +546,13 @@ def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 # be worth running, unlike the adversarial layer's own "off is the safe
 # default" stance.
 adversarial ||= defined?(QualityControlDials::ADVERSARIAL_FRACTION) ? QualityControlDials::ADVERSARIAL_FRACTION.to_f : 0.0
+# REMEMBERED BEFORE THE DEFAULT FILLS IT IN — the ALIAS below only
+# applies when a human actually typed `--self-consistency`, never when
+# it is silently defaulting from the dial (or from `true` with no
+# dial). Without this, an explicit `--modes ruby_only` could never
+# actually MEAN "only ruby_only" — the default-true self_consistency
+# would always re-OR itself back into the set `--modes` just named.
+self_consistency_explicit = !self_consistency.nil?
 if self_consistency.nil?
   self_consistency = defined?(QualityControlDials::SELF_CONSISTENCY_CHECKS) ? QualityControlDials::SELF_CONSISTENCY_CHECKS : true
 end
@@ -559,10 +566,16 @@ dry_run   ||= defined?(QualityControlDials::DRY_RUN_FRACTION) ? QualityControlDi
 # `true` entries in the dial's own order; without a dial, the defaults
 # named by `DEFAULT_MODES`. `--self-consistency false` is an ALIAS for
 # "drop `self_consistency` from that set" (and `true` for adding it), so
-# a hand that types the older flag gets exactly what it always got.
+# a hand that types the older flag gets exactly what it always got —
+# but ONLY applied when `--self-consistency` was actually typed, or
+# when `--modes` was not: an explicit `--modes a,b,c` is a COMPLETE
+# override (mentioning `self_consistency` in that list is how it gets
+# back in), not a partial one silently topped up by a flag nobody gave.
 enabled_modes = explicit_modes ||
                 (defined?(QualityControlDials::MODES) ? QualityControlDials::MODES.select { |_, on| on }.keys : DEFAULT_MODES)
-enabled_modes = self_consistency ? (enabled_modes | [:self_consistency]) : (enabled_modes - [:self_consistency])
+if self_consistency_explicit || explicit_modes.nil?
+  enabled_modes = self_consistency ? (enabled_modes | [:self_consistency]) : (enabled_modes - [:self_consistency])
+end
 structural_boundary =
   defined?(QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY) ? QualityControlDials::STRUCTURAL_REFUSAL_BOUNDARY : []
 

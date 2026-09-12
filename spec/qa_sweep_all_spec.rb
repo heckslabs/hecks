@@ -505,7 +505,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
 
     # Nothing was claimed or opened — the refusal came before the claim.
     Hecks.boot(@fixture_dir)
-    expect(QualityControl::Target.find("modes_none").status.value).to eq("waiting")
+    expect(QualityControl::Target.find("modes_none").status).to eq("waiting")
   end
 
   # THE SECOND WAVE — `--all` used to abort on `--persistence-parity`;
