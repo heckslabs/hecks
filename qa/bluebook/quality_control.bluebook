@@ -752,8 +752,10 @@ Hecks.bluebook "QualityControl" do
     # sentence in SKILL.md an agent had to remember. Absent on every
     # sweep that never waived anything, and on every row written before
     # this field existed — no default, on purpose: a default signature
-    # would be a forged one.
-    attribute :waived_by, WaivedBy
+    # would be a forged one. `optional: true` for the same reason: a row
+    # written before this field existed has no way to fill it, and there
+    # is no legitimate value to backfill it with.
+    attribute :waived_by, WaivedBy, optional: true
     attribute :checks,    list_of(Check)
 
     value_object "SweepReference" do
@@ -1133,8 +1135,10 @@ Hecks.bluebook "QualityControl" do
     attribute :next_step,     NextStep
     attribute :waived,        WaiverCount
     # THE SAME SIGNATURE `Sweep.waived_by` CARRIES, for the same reason —
-    # read that attribute's own comment. Absent until a person waives.
-    attribute :waived_by,     WaivedBy
+    # read that attribute's own comment. Absent until a person waives,
+    # and `optional: true` for the same reason: no row written before
+    # this field existed can fill it.
+    attribute :waived_by,     WaivedBy, optional: true
     # SELF-CONTAINED OR BIGGER — the one judgment "On a surprising check"
     # always asked an agent to make and never asked it to WRITE DOWN.
     # `undecided` is the state a bug is born in; `Triage` is the only
