@@ -76,9 +76,10 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     refusal = history[:refusals].find { |r| r[:verb] == "TenantLedger::Transfer.Request" }
     expect(refusal).not_to be_nil
     expect(refusal[:kind]).to eq("Hecks::Runtime::Unauthorized")
-    expect(refusal[:error].to_s).to include("Transfer").and include("region").and include("east")
-                                                          .and include("ledger").and include("Ledger")
-                                                          .and include("west").and include("cross-tenant reference")
+    message = refusal[:error].to_s
+    ["Transfer", "region", "east", "ledger", "Ledger", "west", "cross-tenant reference"].each do |fragment|
+      expect(message).to include(fragment)
+    end
 
     # THE PROPERTY ITSELF HAS NOTHING TO SAY — the same "a refusal is
     # correct behaviour, not a finding" rule the third example below
