@@ -390,17 +390,27 @@ jobs:
       # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
       # whichever domain ran LAST, period. banking, compliance, pizzas,
       # roster, ledger_ordering, nested_pieces, referral_chain,
-      # has_many_fixture, waybill is the one order that reproduces the
-      # committed tree byte-for-byte today (verified by hand before this
-      # step was extended to the qa/stress_domains trio, again when
-      # referral_chain joined, then again for `has_many_fixture` —
-      # BUG#25); change it and re-verify locally (`git diff --stat rust/`
-      # after running every `bin/project_rust` line below against a
-      # clean checkout) rather than guessing. Both `referral_chain` and
-      # `has_many_fixture` are slotted BEFORE `waybill`, not last,
-      # specifically so `waybill` stays the committed tree's own
-      # `default` feature — unrelated to either addition, unchanged by
-      # either.
+      # has_many_fixture, lease_clock, waybill is the one order that
+      # reproduces the committed tree byte-for-byte today (verified by
+      # hand before this step was extended to the qa/stress_domains
+      # trio, again when referral_chain joined, then again for
+      # `has_many_fixture` — BUG#25 — and again for `lease_clock`);
+      # change it and re-verify locally (`git diff --stat rust/` after
+      # running every `bin/project_rust` line below against a clean
+      # checkout) rather than guessing. `referral_chain`,
+      # `has_many_fixture`, and `lease_clock` are each slotted BEFORE
+      # `waybill`, not last, specifically so `waybill` stays the
+      # committed tree's own `default` feature — unrelated to any of the
+      # three additions, unchanged by any of them.
+      #
+      # `tenant_ledger` and `corrections` are NOT in this list despite
+      # both having real, committed `rust/src/generated/` output — a
+      # pre-existing gap outside this change's own scope (neither PR
+      # that added them extended this step), the same class as the
+      # `chess`/`embryonaut` exclusions below: this step simply never
+      # regenerates them, so a future edit to either bluebook would not
+      # be caught here. Left alone rather than silently "fixed" as a
+      # drive-by in an unrelated PR.
       #
       # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
       # added here after this exact gap caused a real false positive: a
@@ -412,14 +422,18 @@ jobs:
       # divergence but was actually just stale generated code repeating
       # an already-fixed bug (see BUG#23's own investigation in
       # qa/bluebook/quality_control.bluebook). `qa/stress_domains/
-      # referral_chain` (ANGLE-2, PR #580) and `spec/fixtures/rust_
+      # referral_chain` (ANGLE-2, PR #580), `spec/fixtures/rust_
       # project/has_many_fixture` (BUG#25 — the smallest domain that
       # reaches `has_many`'s own Rust codegen path, see its own bluebook
-      # header) were each added here for the identical reason: both
-      # have real, committed Rust output, so both follow the same "only
-      # regenerate a domain that already has committed Rust output"
-      # rule everything else in this list already does. embryonaut's
-      # own exclusion reasoning above applies identically to `chess`
+      # header), and `qa/stress_domains/lease_clock` (the QA detection
+      # plan's own "stress domains" backlog item: an explicit Integer
+      # clock argument, since neither runtime reads a wall clock, see
+      # that domain's own bluebook header and NOTES.md) were each added
+      # here for the identical reason: each has real, committed Rust
+      # output, so each follows the same "only regenerate a domain that
+      # already has committed Rust output" rule everything else in this
+      # list already does. embryonaut's own exclusion reasoning above
+      # applies identically to `chess`
       # (examples/chess): it is NOT in this step's regen list either, a
       # separate pre-existing gap outside this change's own scope — see
       # whichever domain under qa/stress_domains/ (or spec/fixtures/
@@ -437,6 +451,7 @@ jobs:
           bundle exec bin/project_rust qa/stress_domains/nested_pieces
           bundle exec bin/project_rust qa/stress_domains/referral_chain
           bundle exec bin/project_rust spec/fixtures/rust_project/has_many_fixture
+          bundle exec bin/project_rust qa/stress_domains/lease_clock
           bundle exec bin/project_rust qa/stress_domains/waybill
           git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
 

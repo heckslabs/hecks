@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "LeaseClock::Lease",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "LeaseClock::Lease.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LeaseClock::Lease.Acquire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LeaseClock::Lease.Renew",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LeaseClock::Lease.Release",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LeaseClock::Lease.Reap",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "LeaseClock::Lease.Expired",
+    "generated": true
+  }
+]
