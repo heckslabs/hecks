@@ -102,9 +102,25 @@ AllCops:
     # lib/hecks/vocabulary.rb's hash-literal spacing broke
     # vocabulary_table_spec.rb because the generator itself still
     # emits the old, un-autocorrected style.
-    - "lib/hecks/vocabulary.rb"
-    - "lib/hecks/projections/parser_table.rb"
-    - "lib/hecks/bluebook/policy.rb"
+    #
+    # `**/`-PREFIXED, NOT BARE — a bare relative path here (what these
+    # three entries used to be) silently stopped matching under the
+    # locally-resolved rubocop toolchain: confirmed live, found while
+    # landing an unrelated fix, unrelated to anything these three files'
+    # own generators do — `bundle exec rubocop -c .rubocop.yml` with NO
+    # file arguments (the exact invocation `.githooks/pre-push` runs)
+    # still reported hundreds of offenses in `lib/hecks/vocabulary.rb`
+    # despite it being named right here, while the GLOB entries just
+    # above (`rust/**/*`, `vendor/**/*`) excluded correctly the whole
+    # time. A leading `**/` (an equivalent glob, not a behavior change
+    # — still names the SAME single file, never its same-basename
+    # siblings `lib/hecks/projections/vocabulary.rb`/`lib/hecks/
+    # bluebook/behaviour/policy.rb`) reproducibly excludes it again; a
+    # bare, wildcard-free path is the one shape that stopped working.
+    # `bin/project_deploy`, below, hit the identical failure mode.
+    - "**/lib/hecks/vocabulary.rb"
+    - "**/lib/hecks/projections/parser_table.rb"
+    - "**/lib/hecks/bluebook/policy.rb"
     # PRE-EXISTING, UNRELATED TO THIS CONFIG — `ruby -c bin/project_deploy`
     # itself fails (confirmed independently of rubocop): two heredocs
     # opened on separate lines of the SAME `if/else` interpolation
@@ -119,7 +135,7 @@ AllCops:
     # one line, or building the branch as a plain string first) with
     # care for the actual generated CloudFormation template, well
     # outside a lint-gate task's scope.
-    - "bin/project_deploy"
+    - "**/bin/project_deploy"
 
 # frozen_string_literal — this codebase has exactly one file that opts
 # in (Gemfile) and 282 that don't; enforcing it now would be a
