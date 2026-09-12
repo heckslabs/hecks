@@ -569,6 +569,7 @@ pub fn dispatch_open(
             reference: Some(args.reference.clone()),
             slips: vec![],
         }),
+        state_independent: false,
     },
         "Open",
         "LedgerOrdering::Folder",

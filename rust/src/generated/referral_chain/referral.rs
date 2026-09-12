@@ -299,6 +299,7 @@ pub fn dispatch_issue(
             code: Some(args.code.clone()),
             member: Some(args.member.clone()),
         }),
+        state_independent: true,
     },
         "Issue",
         "ReferralChain::Referral",

@@ -1,0 +1,252 @@
+{
+  "ir_version": 1,
+  "name": "Bug28ExistenceFixture",
+  "version": null,
+  "vision": "The smallest domain pairing a state-independent creating command with a genuinely-falsifiable aggregate invariant — the existence-vs-invariant ordering pair BUG#28's own real corpus example (Account.Open) can't exercise today.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Vault",
+      "description": "A vault holding a starting balance, addressed by its own code — the balance is never defaulted, so its own invariant is genuinely checkable at creation.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "VaultCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "balance",
+          "type": "Cents",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "VaultCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a code is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Cents",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open a vault with a starting balance",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "VaultCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "balance",
+              "type": "Cents",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            },
+            {
+              "target": "balance",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "balance"
+              }
+            }
+          ],
+          "emits": [
+            "VaultOpened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+        {
+          "description": "a vault's balance never goes negative",
+          "canonical": "balance.value >= 0",
+          "ast": {
+            "op": "compare",
+            "cmp": {
+              "less_than": true,
+              "equal": false,
+              "negated": true
+            },
+            "left": {
+              "op": "lookup",
+              "path": [
+                "balance",
+                "value"
+              ]
+            },
+            "right": {
+              "op": "int",
+              "value": 0
+            }
+          }
+        }
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Vault",
+        "storage_name": "vault",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# BUG#28 (QualityControl ledger) — REGRESSION FIXTURE for the ordering\n# pair a BUG#4-shaped mistake would land on: a creating command that is\n# BOTH `complete_state?` AND `state_independent?` (`Vault.Open` sets\n# every owner field straight from its own arguments, no `given` at all)\n# paired with an aggregate-level invariant that is GENUINELY FALSIFIABLE\n# at creation — unlike the real corpus's own one example of this shape\n# (`Banking::Account.Open`'s \"the balance never goes negative\": `Account`\n# never sets `:balance` in `Open` and `Money.cents` defaults to 0, so\n# that invariant can never actually fail there today). Here, `balance`\n# IS a required, caller-supplied argument with no non-negative\n# constraint of its own, so a caller can genuinely violate \"a vault's\n# balance never goes negative\" at the exact moment it's created.\n#\n# THE CASE THIS PROVES: dispatching `Open` twice under the SAME `code`,\n# the second time with a negative `balance`, is a duplicate identity AND\n# a falsified invariant on the SAME dispatch. Ruby's own\n# `hydrate_complete_state` (ATOMIC_PUT-eligible) defers its `AlreadyExists`\n# check all the way to `step_save` — AFTER `apply_mutations` and\n# `enforce_invariants` already ran — so it answers `InvariantViolation`,\n# never `AlreadyExists`, for this exact combination. A fix that moved\n# the deferred existence check to run BEFORE `enforce_invariants`\n# instead of after (the \"third order that exists nowhere in Ruby\" a\n# BUG#4-shaped mistake produces) would answer `AlreadyExists` here\n# instead — this fixture is what catches that.\n#\n# `spec/corpus/rust_conformance/bug28_ensures_and_invariant_before_\n# atomic_put_existence_check.json` is the differential harness step\n# that actually dispatches this sequence against both engines.\nHecks.bluebook \"Bug28ExistenceFixture\" do\n  vision \"The smallest domain pairing a state-independent creating command with a genuinely-falsifiable aggregate invariant — the existence-vs-invariant ordering pair BUG#28's own real corpus example (Account.Open) can't exercise today.\"\n\n  core\n\n  aggregate \"Vault\" do\n    description \"A vault holding a starting balance, addressed by its own code — the balance is never defaulted, so its own invariant is genuinely checkable at creation.\"\n\n    identified_by :code\n\n    attribute :code, VaultCode\n    attribute :balance, Cents\n\n    value_object \"VaultCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a code is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"Cents\" do\n      attribute :value, Integer\n    end\n\n    invariant(\"a vault's balance never goes negative\") { balance.value >= 0 }\n\n    command \"Open\" do\n      goal \"Open a vault with a starting balance\"\n\n      attribute :code, VaultCode\n      attribute :balance, Cents\n\n      sets :code\n      sets :balance\n\n      emits \"VaultOpened\"\n    end\n  end\nend\n"
+}

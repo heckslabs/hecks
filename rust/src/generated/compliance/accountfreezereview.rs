@@ -218,6 +218,7 @@ pub fn dispatch_open(
             number: Some(args.number.clone()),
             status: "open".to_string(),
         }),
+        state_independent: true,
     },
         "Open",
         "Compliance::AccountFreezeReview",

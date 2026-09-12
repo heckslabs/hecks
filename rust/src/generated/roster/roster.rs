@@ -1137,6 +1137,7 @@ pub fn dispatch_open(
             crew: vec![],
             assignments: vec![],
         }),
+        state_independent: true,
     },
         "Open",
         "Roster::Roster",

@@ -571,12 +571,17 @@ module RustProjection
         record_fields << "            #{rust_ident_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
         correctable_event_names(aggregate).each { |name| record_fields << "            #{corrects_flag_field(name)}: false," }
 
+        # BUG#28 — mirrors `CommandInterpreter#step_hydrate`'s own branch
+        # (`ctx.plan.complete_state? && ctx.plan.state_independent?`):
+        # `state_independent_creation?`'s own header has the full story.
+        state_independent = state_independent_creation?(aggregate, command, value_objects_by_name)
         hydrate = <<~RUST.rstrip
           crate::kernel::Hydrate::Create {
                   id: #{build_identity_expr(identity)},
                   build: Box::new(|| #{record} {
           #{record_fields.join("\n")}
                   }),
+                  state_independent: #{state_independent},
               }
         RUST
         fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params +

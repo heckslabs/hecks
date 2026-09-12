@@ -1,0 +1,65 @@
+# BUG#28 (QualityControl ledger) — REGRESSION FIXTURE for the ordering
+# pair a BUG#4-shaped mistake would land on: a creating command that is
+# BOTH `complete_state?` AND `state_independent?` (`Vault.Open` sets
+# every owner field straight from its own arguments, no `given` at all)
+# paired with an aggregate-level invariant that is GENUINELY FALSIFIABLE
+# at creation — unlike the real corpus's own one example of this shape
+# (`Banking::Account.Open`'s "the balance never goes negative": `Account`
+# never sets `:balance` in `Open` and `Money.cents` defaults to 0, so
+# that invariant can never actually fail there today). Here, `balance`
+# IS a required, caller-supplied argument with no non-negative
+# constraint of its own, so a caller can genuinely violate "a vault's
+# balance never goes negative" at the exact moment it's created.
+#
+# THE CASE THIS PROVES: dispatching `Open` twice under the SAME `code`,
+# the second time with a negative `balance`, is a duplicate identity AND
+# a falsified invariant on the SAME dispatch. Ruby's own
+# `hydrate_complete_state` (ATOMIC_PUT-eligible) defers its `AlreadyExists`
+# check all the way to `step_save` — AFTER `apply_mutations` and
+# `enforce_invariants` already ran — so it answers `InvariantViolation`,
+# never `AlreadyExists`, for this exact combination. A fix that moved
+# the deferred existence check to run BEFORE `enforce_invariants`
+# instead of after (the "third order that exists nowhere in Ruby" a
+# BUG#4-shaped mistake produces) would answer `AlreadyExists` here
+# instead — this fixture is what catches that.
+#
+# `spec/corpus/rust_conformance/bug28_ensures_and_invariant_before_
+# atomic_put_existence_check.json` is the differential harness step
+# that actually dispatches this sequence against both engines.
+Hecks.bluebook "Bug28ExistenceFixture" do
+  vision "The smallest domain pairing a state-independent creating command with a genuinely-falsifiable aggregate invariant — the existence-vs-invariant ordering pair BUG#28's own real corpus example (Account.Open) can't exercise today."
+
+  core
+
+  aggregate "Vault" do
+    description "A vault holding a starting balance, addressed by its own code — the balance is never defaulted, so its own invariant is genuinely checkable at creation."
+
+    identified_by :code
+
+    attribute :code, VaultCode
+    attribute :balance, Cents
+
+    value_object "VaultCode" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a code is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "Cents" do
+      attribute :value, Integer
+    end
+
+    invariant("a vault's balance never goes negative") { balance.value >= 0 }
+
+    command "Open" do
+      goal "Open a vault with a starting balance"
+
+      attribute :code, VaultCode
+      attribute :balance, Cents
+
+      sets :code
+      sets :balance
+
+      emits "VaultOpened"
+    end
+  end
+end

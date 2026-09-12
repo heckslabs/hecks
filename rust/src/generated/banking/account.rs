@@ -1177,6 +1177,7 @@ pub fn dispatch_open(
             status: "open".to_string(),
             emitted_fee_applied: false,
         }),
+        state_independent: false,
     },
         "Open",
         "Banking::Account",

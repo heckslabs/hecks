@@ -390,6 +390,7 @@ pub fn dispatch_request(
             item: Some(args.item.clone()),
             status: "requested".to_string(),
         }),
+        state_independent: false,
     },
         "Request",
         "Waybill::Consignment",
