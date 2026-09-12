@@ -1,0 +1,75 @@
+# A FIXTURE FOR spec/qa_domain_novelty_spec.rb — the "candidate" side:
+# `baseline`'s own two aggregates, plus a third one that hops TWICE
+# (Proposal -> Engagement -> Client) in a `where`. Against `baseline`
+# that third aggregate is the only thing new; against itself, nothing is.
+Hecks.bluebook "Hopper" do
+  generic
+
+  aggregate "Client" do
+    identified_by :name
+    attribute :name, Name
+    value_object("Name") { attribute :value, String }
+
+    lifecycle :status, default: "active" do
+      transition "Churn" => "churned", from: "active"
+    end
+
+    command "Register" do
+      attribute :name, Name
+      sets :name
+      emits "Registered"
+    end
+
+    command "Churn" do
+      reference_to Client
+      emits "Churned"
+    end
+  end
+
+  aggregate "Engagement" do
+    identified_by :reference
+    reference_to Client
+    attribute :reference, Reference
+    value_object("Reference") { attribute :value, String }
+
+    lifecycle :stage, default: "started" do
+      transition "Close" => "closed", from: "started"
+    end
+
+    command "Start" do
+      reference_to Client
+      attribute :reference, Reference
+      sets :reference
+      sets :client
+      emits "Started"
+    end
+
+    command "Close" do
+      reference_to Engagement
+      emits "Closed"
+    end
+
+    query "Started" do
+      where stage: "started"
+    end
+  end
+
+  aggregate "Proposal" do
+    identified_by :number
+    reference_to Engagement
+    attribute :number, Number
+    value_object("Number") { attribute :value, String }
+
+    command "Draft" do
+      reference_to Engagement
+      attribute :number, Number
+      sets :number
+      sets :engagement
+      emits "Drafted"
+    end
+
+    query "FromActiveClients" do
+      where :"engagement/client/status" => "active"
+    end
+  end
+end

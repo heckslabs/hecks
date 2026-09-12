@@ -1,0 +1,661 @@
+{
+  "ir_version": 1,
+  "name": "ReferralChain",
+  "version": null,
+  "vision": "A referral is issued by a member, who was sponsored by a sponsor — three aggregates in a reference chain, built to walk every hop the runtime's reference machinery has (a one-hop and a two-hop given, a two-hop where, and a reference re-pointed through a plain value object so only the settled-state check can catch a dangling one) on both engines at once.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Sponsor",
+      "description": "Someone who vouches for members; a sponsor in good standing is what makes a referral chain valid.",
+      "identified_by": [
+        "handle.value"
+      ],
+      "attributes": [
+        {
+          "name": "handle",
+          "type": "Handle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Handle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a handle is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Enroll",
+          "role": null,
+          "goal": "Enroll a sponsor",
+          "references": null,
+          "attributes": [
+            {
+              "name": "handle",
+              "type": "Handle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "SponsorEnrolled"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Suspend",
+          "role": "Registrar",
+          "goal": "Suspend a sponsor, invalidating every chain that runs through them",
+          "references": "Sponsor",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "SponsorSuspended"
+          ],
+          "from": "good",
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "standing",
+        "default": "good",
+        "transitions": [
+          {
+            "command": "Suspend",
+            "to_state": "suspended",
+            "from_state": "good"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Member",
+      "description": "Someone a sponsor vouched for; joins under exactly one sponsor.",
+      "identified_by": [
+        "handle.value"
+      ],
+      "attributes": [
+        {
+          "name": "handle",
+          "type": "Handle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "sponsor",
+          "type": "Reference<Sponsor>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Handle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a handle is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Join",
+          "role": null,
+          "goal": "Join under a sponsor",
+          "references": null,
+          "attributes": [
+            {
+              "name": "sponsor",
+              "type": "Reference<Sponsor>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "handle",
+              "type": "Handle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "the sponsor is in good standing",
+              "canonical": "sponsor.standing == \"good\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "sponsor",
+                    "standing"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "good"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "handle",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "handle"
+              }
+            },
+            {
+              "target": "sponsor",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "sponsor"
+              }
+            }
+          ],
+          "emits": [
+            "MemberJoined"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Referral",
+      "description": "A referral a member issues; only valid while the member's own sponsor stands in good standing.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "Code",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "member",
+          "type": "Reference<Member>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Code",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a code is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Handle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a handle is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Issue",
+          "role": null,
+          "goal": "Issue a referral on behalf of a member",
+          "references": null,
+          "attributes": [
+            {
+              "name": "member",
+              "type": "Reference<Member>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "code",
+              "type": "Code",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "the member's sponsor is in good standing",
+              "canonical": "member.sponsor.standing == \"good\"",
+              "ast": {
+                "op": "compare",
+                "cmp": {
+                  "less_than": false,
+                  "equal": true,
+                  "negated": false
+                },
+                "left": {
+                  "op": "lookup",
+                  "path": [
+                    "member",
+                    "sponsor",
+                    "standing"
+                  ]
+                },
+                "right": {
+                  "op": "str",
+                  "value": "good"
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            },
+            {
+              "target": "member",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "member"
+              }
+            }
+          ],
+          "emits": [
+            "ReferralIssued"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reassign",
+          "role": null,
+          "goal": "Re-point a referral at a different member, by handle",
+          "references": "Referral",
+          "attributes": [
+            {
+              "name": "member",
+              "type": "Handle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "member",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "member"
+              }
+            }
+          ],
+          "emits": [
+            "ReferralReassigned"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "FromGoodSponsors",
+          "description": "Referrals whose issuing member's sponsor is in good standing.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "member/sponsor/standing",
+              "op": "eq",
+              "value": "\"good\""
+            }
+          ],
+          "order_by": {
+            "field": "code",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Sponsor",
+        "storage_name": "sponsor",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Member",
+        "storage_name": "member",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Referral",
+        "storage_name": "referral",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/hecks_qa/SKILL.md's \"Authoring a\n# new stress domain\" section).\n#\n# TARGETED AT ANGLE-2 (qa/bluebook ledger): reference HOPS, as distinct\n# from entity NESTING. `qa/stress_domains/nested_pieces` proves a piece\n# inside a piece fuzzes and dispatches correctly, but that is entity\n# addressing (`to: { aggregate:, entity: }`); a chain of `reference_to`\n# lookups across AGGREGATES goes through a different mechanism entirely —\n# `CommandRules::References` (`lib/hecks/runtime/command_rules/\n# references.rb`: `resolve_references`, `resolve_state_references`,\n# `dereference`) on the write side and `QuerySpecification::HopPath` on\n# the read side — and ADR 0037's Finding 5 already named that family as\n# the one place Ruby and Rust structurally diverge: `resolve_state_\n# references` (the check that walks an AGGREGATE's own reference-typed\n# attributes against SETTLED state, after `sets` has copied a command's\n# arguments in) was never ported to Rust; only the COMMAND-argument-level\n# `resolve_references` was (`rust/project/domain_generator.rb#reference_\n# checks`). The ADR closed the finding on the grounds that the corpus's\n# one trigger (`SafeDepositBox.Rent` redeclaring `customer` under a plain\n# value-object type) had been removed by unrelated work — and said, in\n# so many words, \"re-open this finding the day one does.\" This domain\n# is that day, deliberately: `Referral.Reassign` below is exactly that\n# shape.\n#\n# EVERY CONSTRUCT HERE IS LOAD-BEARING — the domain is deliberately\n# minimal, one aggregate per hop:\n#\n#   Sponsor  — the far end of every chain (C). Carries the lifecycle\n#              field every hop below reads (`standing`), and the ONE\n#              role-gated command in the domain (`Suspend`) so the\n#              adversary's `role+nonexistent` precedence combination\n#              has a reference-carrying, role-carrying command to land on.\n#   Member   — one hop from a Sponsor (B → C). `Join`'s `given`\n#              dereferences its own `sponsor` argument ONE hop\n#              (`sponsor.standing`) — the same shape `Banking::Account.\n#              Open`'s `customer.status` already exercises, kept here\n#              only because the two-hop chain below has to pass through\n#              it. No query of its own: a ONE-hop `where` already exists\n#              in banking (`Account.OpenForSuspendedCustomers`) and adds\n#              nothing new.\n#   Referral — two hops from a Sponsor (A → B → C). `Issue`'s `given`\n#              dereferences TWO hops through a fresh argument (`member.\n#              sponsor.standing` — `References#dereference` recursing,\n#              `DEREFERENCE_DEPTH`); `FromGoodSponsors` is a TWO-hop\n#              `where` (`member/sponsor/standing`) — real in Ruby via\n#              `HopPath::MAX_HOPS`, a STRUCTURAL skip in Rust (`rust/\n#              project/queries.rb`: a where hopping through a reference\n#              is \"read_model territory\" — banking's own one-hop query\n#              is skipped the same way, and `query_hop_plan` bails on a\n#              second `/` regardless, D2 of the equivalence-gap plan),\n#              so the differential harness drops it on both sides and\n#              Ruby's own `query_answers_match_reference` property is\n#              what checks the answer; and `Reassign` is the ADR 0037\n#              Finding 5 shape — see its own comment.\n#\n# NOT HERE, AND WHY — `has_many`. The first draft of this domain carried\n# a fourth aggregate (`Circle`, `has_many Members`, a command supplying\n# the list under `list_of(Handle)`) to reach `resolve_state_references`'\n# LIST branch. `bin/project_rust` accepted it and emitted Rust that does\n# not compile — and because `rust/src/generated/mod.rs` declares every\n# generated domain with an unconditional `pub mod`, that broke EVERY\n# feature's build, not just this one's. That is this domain's first\n# finding, recorded in NOTES.md; the aggregate comes back the day\n# codegen can project a `has_many` at all.\n#\n# `Handle` is redeclared per aggregate rather than shared — this corpus's\n# own convention (see waybill.bluebook's `SlotNumber` comment: no chapter\n# shares one value object BY NAME across two aggregates without\n# redeclaring it locally).\nHecks.bluebook \"ReferralChain\" do\n  vision \"A referral is issued by a member, who was sponsored by a sponsor — three aggregates in a reference chain, built to walk every hop the runtime's reference machinery has (a one-hop and a two-hop given, a two-hop where, and a reference re-pointed through a plain value object so only the settled-state check can catch a dangling one) on both engines at once.\"\n\n  core\n\n  # C — THE FAR END OF EVERY CHAIN. Its `standing` lifecycle field is\n  # what every hop below reads through one or two references.\n  aggregate \"Sponsor\" do\n    description \"Someone who vouches for members; a sponsor in good standing is what makes a referral chain valid.\"\n\n    identified_by :handle\n\n    attribute :handle, Handle\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    lifecycle :standing, default: \"good\" do\n      transition \"Suspend\" => \"suspended\", from: \"good\"\n    end\n\n    command \"Enroll\" do\n      goal \"Enroll a sponsor\"\n\n      attribute :handle, Handle\n\n      emits \"SponsorEnrolled\"\n    end\n\n    # THE ONE ROLE-GATED COMMAND IN THIS DOMAIN — kept to exactly one on\n    # purpose: the adversary's `role+nonexistent` precedence shape needs\n    # a command that BOTH declares a role AND addresses an existing\n    # record, and nothing else here needs a role to mean anything.\n    command \"Suspend\", from: \"good\" do\n      role \"Registrar\"\n      goal \"Suspend a sponsor, invalidating every chain that runs through them\"\n\n      reference_to Sponsor\n\n      emits \"SponsorSuspended\"\n    end\n  end\n\n  # B — ONE HOP FROM A SPONSOR.\n  aggregate \"Member\" do\n    description \"Someone a sponsor vouched for; joins under exactly one sponsor.\"\n\n    identified_by :handle\n\n    attribute :handle, Handle\n    reference_to Sponsor\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Join\" do\n      goal \"Join under a sponsor\"\n\n      reference_to Sponsor\n      attribute :handle, Handle\n\n      # ONE HOP through a fresh argument — `References#dereference`, the\n      # same shape `Banking::Account.Open`'s own `customer.status` given.\n      given(\"the sponsor is in good standing\") { sponsor.standing == \"good\" }\n\n      sets :handle\n      sets :sponsor\n\n      emits \"MemberJoined\"\n    end\n  end\n\n  # A — TWO HOPS FROM A SPONSOR.\n  aggregate \"Referral\" do\n    description \"A referral a member issues; only valid while the member's own sponsor stands in good standing.\"\n\n    identified_by :code\n\n    attribute :code, Code\n    reference_to Member\n\n    value_object \"Code\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a code is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"Handle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a handle is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Issue\" do\n      goal \"Issue a referral on behalf of a member\"\n\n      reference_to Member\n      attribute :code, Code\n\n      # TWO HOPS through a fresh argument — `member` hydrates to the\n      # Member's state, whose own `sponsor` hydrates one level further\n      # (`dereference`'s own recursion, `DEREFERENCE_DEPTH` = 4). Banking's\n      # `Transfer.Request` reads `source.customer.status` the same way.\n      given(\"the member's sponsor is in good standing\") { member.sponsor.standing == \"good\" }\n\n      sets :code\n      sets :member\n\n      emits \"ReferralIssued\"\n    end\n\n    # THE ADR 0037 FINDING 5 SHAPE, RE-OPENED ON PURPOSE. `member` is\n    # REDECLARED here under `Handle` — a plain value object, not the\n    # aggregate's own `Reference<Member>` — so the command-level\n    # `resolve_references` (the one check Rust ported) sees no reference\n    # at all: `reference?` is false on the command's own attribute.\n    # `sets :member` then copies the handle straight into the aggregate's\n    # reference field, and only `resolve_state_references` (Ruby,\n    # `step_save`, walking `Referral.member`'s real `Reference<Member>`\n    # type against the SETTLED state) asks whether it names a Member\n    # that exists. This is `SafeDepositBox.Rent`'s pre-#409 shape, byte\n    # for byte in spirit — the trigger the ADR's own closing note said\n    # to re-open the finding for.\n    command \"Reassign\" do\n      goal \"Re-point a referral at a different member, by handle\"\n\n      reference_to Referral\n      attribute :member, Handle\n\n      sets :member\n\n      emits \"ReferralReassigned\"\n    end\n\n    # TWO-HOP WHERE — real in Ruby (`HopPath::MAX_HOPS`), a structural\n    # refusal in Rust (\"is not generated for this domain\" — see the\n    # header comment). The differential harness drops it on both sides;\n    # Ruby's own `query_answers_match_reference` property is what checks\n    # the answer, and the structural skip itself is what PR-2's skip\n    # reporting exists to surface.\n    query \"FromGoodSponsors\" do\n      description \"Referrals whose issuing member's sponsor is in good standing.\"\n      where(:\"member/sponsor/standing\" => \"good\")\n      order_by :code\n    end\n  end\nend\n"
+}
