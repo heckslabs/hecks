@@ -1,0 +1,78 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Corrections::Ledger",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Corrections::Ledger.Entry",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Corrections::Ledger.Entry.Amend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::Ledger.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::Ledger.Record",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::Ledger.Void",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "sets op(s) remove not generated yet (only append/set/increment/decrement/multiply/clamp/delegate/corrects are)"
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::Ledger.ReplaceEntries",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Corrections::AuditTrail",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::AuditTrail.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Corrections::AuditTrail.Flag",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Corrections::AuditTrail.Flagged",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Corrections::FlaggedTrailCount",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares reference_to , but includes no matching aggregate head — nothing for this generator's own root fetch to key off (every real corpus read model includes its own reference target; this generator refuses rather than guess at a root-less shape it doesn't cover)"
+  },
+  {
+    "kind": "process_manager",
+    "id": "Corrections::CorrectionWatch",
+    "generated": true,
+    "routed": true
+  }
+]
