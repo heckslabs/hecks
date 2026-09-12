@@ -149,6 +149,21 @@ module RustProjection
       aggregate[:attributes].filter_map do |attr|
         target_name = Projector.reference_target(attr[:type])
         next unless target_name
+        # BUG#25/BUG#26 interaction — this method's own header already
+        # documents a `has_many`/list relationship as "not covered,
+        # deliberately," but nothing here actually enforced that: a
+        # `has_many` field reached this far and built a `check_reference`
+        # call against `args.<field>.value` — a single-field accessor
+        # applied to the WHOLE Vec (`has_many_fixture`'s own `Circle.
+        # Admit`, `sets :members` from a `list_of(Handle)` argument),
+        # which does not compile (`no field 'value' on type Vec<Handle>`,
+        # found live regenerating this fixture against BUG#26's own
+        # fix). `state_reference_check_accessor` builds an ELEMENT-level
+        # accessor unconditionally; a real list-aware port needs
+        # `check_reference` (kernel/repository.rs) to walk each element,
+        # which nothing in the real corpus needs yet — matching this
+        # header's own already-stated scope, just actually applied now.
+        next if attr[:list]
 
         mutation = command[:mutations].find do |m|
           m[:op].to_s == "set" && m[:target].to_s == attr[:name].to_s && m[:source][:kind] == "argument"

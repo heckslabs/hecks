@@ -141,6 +141,13 @@ module RustProjection
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
+      # BUG#25 — the lifecycle field is never list-typed; every other
+      # target's own `[:list]` flag, straight off the aggregate's
+      # declared attribute (`false`/nil when the target isn't found at
+      # all — `target_type_for` above already answers nil for that same
+      # case, so the `target_type && ...` guard below short-circuits
+      # first).
+      target_list_for = ->(target) { target.to_s != lifecycle_field && !!aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:list) }
 
       # A `:set` mutation's literal source is EITHER a bare scalar (`to:
       # "sold"`) or a raw Ruby Hash (`to: { value: "good" }` —
@@ -168,12 +175,28 @@ module RustProjection
       # argument's own type straight across, which only compiles when source
       # and target genuinely agree — checked here so a real mismatch is a named
       # skip, not a `cargo build` error with no Ruby-side explanation.
+      # BUG#25 — `bridgeable_value_types?` checks ELEMENT types only
+      # (correct: a `has_many`'s own `Reference<Target>` element and a
+      # `list_of(Handle)` argument's own `Handle` element genuinely ARE
+      # bridgeable, the same single-field rewrap any other Handle-shaped
+      # scalar gets). What it never checked is CARDINALITY — a scalar
+      # argument can't broadcast into a list target, and (before this
+      # fix, the literal BUG#25 defect) a list argument reaching a list
+      # target via `value_rhs` alone collapsed as if it were one bare
+      # scalar (`args.members.value.clone()` against a `Vec<Handle>`).
+      # `mutation_set_rhs`'s own `target_list:`/`list_value_rhs` (BUG#25)
+      # is what actually generates the list-to-list case correctly, so
+      # the only shape genuinely unsupported here is a MISMATCHED
+      # cardinality — checked as its own, list-aware condition.
       mismatched_sets = command[:mutations].select do |m|
         next false unless m[:op].to_s == "set" && m[:source][:kind] == "argument"
 
         target_type = target_type_for.call(m[:target])
-        source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
-        target_type && source_type && !bridgeable_value_types?(source_type, target_type, value_objects_by_name)
+        source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }
+        source_type = source_attr&.dig(:type)
+        next false unless target_type && source_type
+
+        target_list_for.call(m[:target]) != !!source_attr[:list] || !bridgeable_value_types?(source_type, target_type, value_objects_by_name)
       end.map { |m| m[:target] }
       return "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
 

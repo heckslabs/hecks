@@ -116,6 +116,19 @@ fn target_type_for<'a>(target: &str, aggregate: &'a Json, lifecycle_field: Optio
     attrs.iter().find(|a| crate::attr::name(a) == target).map(crate::attr::type_name)
 }
 
+// BUG#25 — the lifecycle field is never list-typed; every other target's
+// own `list` flag, straight off the aggregate's declared attribute
+// (`false` when the target isn't found at all — `target_type_for`
+// above already answers `None` for that same case, so callers' own
+// `target_type.is_some()` guard short-circuits first).
+fn target_list_for(target: &str, aggregate: &Json, lifecycle_field: Option<&str>) -> bool {
+    if lifecycle_field == Some(target) {
+        return false;
+    }
+    let attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    attrs.iter().find(|a| crate::attr::name(a) == target).map(crate::attr::list).unwrap_or(false)
+}
+
 pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     command_skip_reason_with(command, aggregate, value_objects_by_name, true)
 }
@@ -190,9 +203,19 @@ fn command_skip_reason_with(command: &Json, aggregate: &Json, value_objects_by_n
             let target_type = target_type_for(&target, aggregate, lifecycle_field.as_deref());
             let source_name = source.get("name").map(Json::to_s).unwrap_or_default();
             let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
-            let source_type = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name).map(crate::attr::type_name);
-            match (target_type, source_type) {
-                (Some(t), Some(s)) => !crate::bridging::bridgeable_value_types(s, t, value_objects_by_name),
+            let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name);
+            let source_type = source_attr.map(crate::attr::type_name);
+            // BUG#25 — `bridgeable_value_types` checks ELEMENT types
+            // only; CARDINALITY (list vs scalar) is a separate, equally
+            // necessary condition — see `rust/project/commands.rb`'s own
+            // matching comment for the full story (a mismatch here used
+            // to reach `mutation_set_rhs`/`value_rhs`, which collapsed a
+            // whole `Vec` as if it were one bare scalar).
+            match (target_type, source_type, source_attr) {
+                (Some(t), Some(s), Some(source_attr)) => {
+                    target_list_for(&target, aggregate, lifecycle_field.as_deref()) != crate::attr::list(source_attr)
+                        || !crate::bridging::bridgeable_value_types(s, t, value_objects_by_name)
+                }
                 _ => false,
             }
         })

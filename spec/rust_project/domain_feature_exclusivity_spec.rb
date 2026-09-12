@@ -109,4 +109,44 @@ RSpec.describe "Rust domain Cargo features are mutually exclusive (R5)", :io do
     expect(output).to include(domain_a)
     expect(output).to include(domain_b)
   end
+
+  # BUG#25's OWN COMPANION FIX — root `mod.rs` (`bin/project_rust`'s own
+  # tail, and its two byte-parity duplicates: `rust/project_rust_
+  # pipeline.rb#sync_mod_and_cargo!` and `rust/build/src/cargo_sync.rs`)
+  # now gates EACH domain module behind its OWN Cargo feature
+  # (`#[cfg(feature = "<name>")] pub mod <name>;`, `domains` — a
+  # directory with its own `merged.rs`) rather than declaring every
+  # generated domain unconditionally. Before this fix, a domain whose
+  # generated code didn't even COMPILE (a `has_many` field was BUG#25's
+  # own real, live trigger — referral_chain's removed `Circle`, see that
+  # bug's ledger entry) broke `cargo build --features <any OTHER
+  # domain>` too, because the broken module was always in the crate
+  # regardless of which feature was selected. Proven here directly: pick
+  # two real, non-default domains, deliberately break ONE's own
+  # generated `.rs` file with a `compile_error!`, and confirm the OTHER
+  # domain's build is entirely unaffected. The file is restored in
+  # `ensure` unconditionally, so a failure here never leaves a broken
+  # file committed.
+  it "a deliberately-broken generated module under feature A does not break feature B's build" do
+    domain_a, domain_b = two_non_default_domains
+    broken_file = Dir.glob(File.join(DFE_RUST_DIR, "src", "generated", domain_a, "*.rs"))
+                     .find { |path| !%w[mod.rs merged.rs metadata.rs registry.rs].include?(File.basename(path)) }
+    raise "no aggregate .rs file found under rust/src/generated/#{domain_a} to break" unless broken_file
+
+    original = File.read(broken_file)
+    begin
+      marker = "compile_error!(\"BUG#25 regression spec — deliberately broken, should never reach feature #{domain_b}\");\n"
+      File.write(broken_file, "#{original}\n#{marker}")
+
+      ok_a, = cargo_build("--features", domain_a)
+      expect(ok_a).to be(false), "expected --features #{domain_a} to fail against its own deliberately-broken module"
+
+      ok_b, output_b = cargo_build("--features", domain_b)
+      expect(ok_b).to be(true),
+                      "cargo build --features #{domain_b} failed even though only #{domain_a}'s own module was broken " \
+                      "— a broken/absent domain must never break a different feature's build (BUG#25):\n#{output_b}"
+    ensure
+      File.write(broken_file, original)
+    end
+  end
 end

@@ -117,6 +117,47 @@ pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<Str
     }
 }
 
+/// Port of `json_codec.rb#list_element_from_json_mapper` — BUG#25. See
+/// the Ruby function's own header for the full story: every LIST branch
+/// used to assume unconditionally that an element is a genuine value
+/// object with its own generated `Type::from_json` (correct for
+/// `list_of(Mark)`) — but a SCALAR-represented element (a bare
+/// `list_of(String)`, or `has_many`'s own `Reference<Target>` element,
+/// which `naming::reference_type`/`effective_scalar_type` map to the
+/// SAME plain `String` representation any other reference gets, never a
+/// real generated type) has no such function; calling
+/// `ReferenceMember::from_json` (`rust_ident("Reference<Member>")`)
+/// named a type that was never generated, and does not compile. A
+/// scalar element reads exactly the way any other scalar field already
+/// does (`scalar_from_json_value_expr`) — its own trailing `?` (meant to
+/// propagate out of `from_json` itself at a non-list call site) is
+/// stripped here: inside `.map(...)`, the CLOSURE's own tail expression
+/// must stay a `Result`, not the unwrapped value, so the list caller's
+/// OWN trailing `?` on `.collect::<Result<Vec<_>, _>>()` is what
+/// actually propagates a per-element refusal, not this one.
+pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json) -> String {
+    match naming::effective_scalar_type(crate::attr::type_name(attr)) {
+        Some(scalar) => {
+            let body = scalar_from_json_value_expr(struct_name, key, scalar, "item");
+            let body = body.strip_suffix('?').unwrap_or(&body);
+            format!("|item| {body}")
+        }
+        None => format!("{}::from_json", naming::rust_ident(crate::attr::type_name(attr))),
+    }
+}
+
+/// Port of `json_codec.rb#list_element_to_json_expr` — the inverse of
+/// `list_element_from_json_mapper`, for `emit_to_json_flat`'s own list
+/// branches: a scalar-represented element serializes the same way any
+/// other scalar field does (`scalar_to_json_expr`) instead of calling a
+/// `.to_json()` method String/Integer/Float never have.
+pub fn list_element_to_json_expr(attr: &Json) -> String {
+    match naming::effective_scalar_type(crate::attr::type_name(attr)) {
+        Some(scalar) => scalar_to_json_expr(scalar, "x"),
+        None => "x.to_json()".to_string(),
+    }
+}
+
 /// Port of `json_codec.rb#required_composite_argument_expr` — BUG#4
 /// (loop-parity). See that method's own header for the full trace:
 /// `Value::Coercion#nil_argument` (coercion.rb) builds a REQUIRED
@@ -283,16 +324,16 @@ pub fn emit_from_json_flat(
             let optional = crate::attr::optional(attr);
 
             let rhs = if list && optional {
-                let elem_type = naming::rust_ident(crate::attr::type_name(attr));
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
                 let array_error = json_type_error(struct_name, &key, "an array");
                 format!(
-                    "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) }}",
+                    "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
-                let elem_type = naming::rust_ident(crate::attr::type_name(attr));
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
                 format!(
-                    "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
+                    "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if optional && scalar.is_some() {
@@ -407,10 +448,11 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             let field_optional = optional || crate::attr::optional(attr);
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
 
+            let elem_to_json = if list { Some(list_element_to_json_expr(attr)) } else { None };
             let value_expr = if list && list_is_optional {
-                format!("self.{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)")
+                format!("self.{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| {}).collect())).unwrap_or(crate::kernel::Json::Null)", elem_to_json.as_deref().unwrap())
             } else if list {
-                format!("crate::kernel::Json::Array(self.{ident}.iter().map(|x| x.to_json()).collect())")
+                format!("crate::kernel::Json::Array(self.{ident}.iter().map(|x| {}).collect())", elem_to_json.as_deref().unwrap())
             } else if field_optional && scalar.is_some() {
                 format!("self.{ident}.as_ref().map(|v| {}).unwrap_or(crate::kernel::Json::Null)", scalar_to_json_expr(scalar.unwrap(), "v"))
             } else if field_optional {
@@ -481,16 +523,16 @@ pub fn emit_from_json_state(
             let field_optional = optional || crate::attr::optional(attr);
 
             let rhs = if list && list_is_optional {
-                let elem_type = naming::rust_ident(crate::attr::type_name(attr));
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
                 let array_error = json_type_error(struct_name, &key, "an array");
                 format!(
-                    "match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }}",
+                    "match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
-                let elem_type = naming::rust_ident(crate::attr::type_name(attr));
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
                 format!(
-                    "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
+                    "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if field_optional && scalar.is_some() {

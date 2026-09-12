@@ -111,6 +111,43 @@ module RustProjection
       "#{nested_type}::from_json(#{source})?"
     end
 
+    # BUG#25 — a LIST attribute's per-element `from_json` step. Every
+    # list branch below used to assume unconditionally that an element
+    # is a genuine value object with its own generated `Type::from_json`
+    # (correct for `list_of(Mark)`) — but a SCALAR-represented element
+    # (a bare `list_of(String)`, or `has_many`'s own `Reference<Target>`
+    # element, which `naming.rb#reference_type?` maps to the SAME plain
+    # `String` representation any other reference gets and which is
+    # never a real generated type at all) has no such function; calling
+    # `ReferenceMember::from_json` (`rust_ident("Reference<Member>")`)
+    # named a type that was never generated, and does not compile.
+    # A scalar element reads exactly the way any other scalar field
+    # already does (`scalar_from_json_value_expr`) — the trailing `?`
+    # that expression ends with (meant to propagate out of `from_json`
+    # itself at a non-list call site) is stripped here: inside
+    # `.map(...)`, the CLOSURE's own tail expression must stay a
+    # `Result`, not the unwrapped value, so the list caller's OWN
+    # trailing `?` on `.collect::<Result<Vec<_>, _>>()` is what actually
+    # propagates a per-element refusal, not this one.
+    def list_element_from_json_mapper(struct_name, key, attr)
+      scalar = effective_scalar_type(attr[:type])
+      return "#{rust_ident(attr[:type])}::from_json" unless scalar
+
+      body = scalar_from_json_value_expr(struct_name, key, scalar, "item")
+      "|item| #{body.sub(/\?\z/, '')}"
+    end
+
+    # BUG#25 — the inverse of `list_element_from_json_mapper`, for
+    # `emit_to_json_flat`'s own list branches: a scalar-represented
+    # element (same reference/bare-scalar shapes as above) serializes
+    # the same way any other scalar field does (`scalar_to_json_expr`)
+    # instead of calling a `.to_json()` method String/Integer/Float
+    # never have.
+    def list_element_to_json_expr(attr)
+      scalar = effective_scalar_type(attr[:type])
+      scalar ? scalar_to_json_expr(scalar, "x") : "x.to_json()"
+    end
+
     # BUG#4 (loop-parity) — `Value::Coercion#nil_argument` (coercion.rb),
     # read directly: a REQUIRED command/entity-command ARGUMENT (this
     # method's only two callers pass `absent_argument_check: true`, this
@@ -365,15 +402,15 @@ module RustProjection
         # the key at all (`CardPayment.Authorize`'s own `tags:`),
         # not defaulted to an empty Vec the way a REQUIRED list
         # argument's own absent-key case still is, below.
-        elem_type = rust_ident(attr[:type])
+        mapper = list_element_from_json_mapper(struct_name, key, attr)
         array_error = json_type_error(struct_name, key, "an array")
         "match v.get(#{key.inspect}) { " \
-          "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
+          "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
           "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
       elsif attr[:list]
-        elem_type = rust_ident(attr[:type])
+        mapper = list_element_from_json_mapper(struct_name, key, attr)
         "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
-          "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
+          "Some(items) => items.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
           "None => Vec::new(), }"
       elsif attr[:optional] && scalar
         # `Some(Json::Null) | None` — an optional argument offered as
@@ -559,11 +596,12 @@ module RustProjection
         # `attr[:optional]` there matches `emit_fielded_flat`'s own list
         # field type directly, unchanged.
         list_is_optional = aggregate ? record_optional_list : attr[:optional]
+        elem_to_json = list_element_to_json_expr(attr) if attr[:list]
         value_expr =
           if attr[:list] && list_is_optional
-            "self.#{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)"
+            "self.#{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| #{elem_to_json}).collect())).unwrap_or(crate::kernel::Json::Null)"
           elsif attr[:list]
-            "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| x.to_json()).collect())"
+            "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| #{elem_to_json}).collect())"
           elsif field_optional && scalar
             "self.#{ident}.as_ref().map(|v| #{scalar_to_json_expr(scalar, 'v')}).unwrap_or(crate::kernel::Json::Null)"
           elsif field_optional
@@ -631,15 +669,15 @@ module RustProjection
 
         rhs =
           if attr[:list] && list_is_optional
-            elem_type = rust_ident(attr[:type])
+            mapper = list_element_from_json_mapper(struct_name, key, attr)
             array_error = json_type_error(struct_name, key, "an array")
             "match v.get(#{key.inspect}) { " \
               "Some(&crate::kernel::Json::Null) | None => None, " \
-              "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }"
+              "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }"
           elsif attr[:list]
-            elem_type = rust_ident(attr[:type])
+            mapper = list_element_from_json_mapper(struct_name, key, attr)
             "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
-              "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
+              "Some(items) => items.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
               "None => Vec::new(), }"
           elsif field_optional && scalar
             "match v.get(#{key.inspect}) { " \
