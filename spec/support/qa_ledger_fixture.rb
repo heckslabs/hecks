@@ -2,6 +2,7 @@ require "fileutils"
 require "tmpdir"
 require "open3"
 require_relative "postgres_probe"
+require_relative "qa_ledger_role"
 
 # A DISPOSABLE, POSTGRES-BACKED `QualityControl` LEDGER FOR SPECS THAT
 # DRIVE THE REAL `bin/qa_*` SCRIPTS AS SUBPROCESSES — the exact pattern
@@ -76,10 +77,14 @@ module QaLedgerFixture
       FileUtils.ln_s(File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.bluebook"),
                      File.join(@dir, "quality_control.bluebook"))
       File.write(File.join(@dir, "quality_control.hecksagon"), HECKSAGON)
+      # THE SAME URL SHAPE THE REAL LEDGER BINDS, as `hecks_qa`, an
+      # ordinary owner role — PostgresEra refuses to boot as the ambient
+      # superuser (BUG#24); `bin/qa_postgres_role`, run for real below
+      # through `QaLedgerRole`, is what makes the URL connectable.
       File.write(File.join(@dir, "quality_control.world"), <<~RUBY)
         Hecks.world "QualityControl" do
           realm "QA"
-          persisted_by("PostgresEra") { database "#{@database}" }
+          persisted_by("PostgresEra") { database "#{QaLedgerRole.url(@database)}" }
         end
       RUBY
 
@@ -87,6 +92,7 @@ module QaLedgerFixture
       admin.exec("DROP DATABASE IF EXISTS #{@database} WITH (FORCE)")
       admin.exec("CREATE DATABASE #{@database}")
       admin.close
+      QaLedgerRole.provision!(@database)
       self
     end
 
@@ -104,6 +110,7 @@ module QaLedgerFixture
       scrub.exec("DROP SCHEMA public CASCADE")
       scrub.exec("CREATE SCHEMA public")
       scrub.close
+      QaLedgerRole.own_public!(@database)
     end
 
     # Booted IN-PROCESS, briefly, to seed or read rows — never to run

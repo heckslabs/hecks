@@ -22,8 +22,13 @@ cache under `rust/target/` is real and expensive, and a fresh
 `isolation: "worktree"` per tick would rebuild it every time; the ledger
 itself is Postgres — `hecks_quality_control`, see `qa/bluebook/
 quality_control.world` — so it is shared state, not worktree state).
-Never run the tick inline: its output is large and would land in this
-session's context every wakeup.
+Also once, per machine: the ledger connects as `hecks_qa`, an ordinary
+non-superuser role, because PostgresEra refuses to boot over a superuser
+connection — its era write-fence is row-level security, which a
+superuser walks through (BUG#24). Run `bin/qa_postgres_role
+hecks_quality_control` once (idempotent; the `.world` header explains)
+before the first boot. Never run the tick inline: its output is large
+and would land in this session's context every wakeup.
 
 The subagent's prompt is: `cd <absolute path of the runner worktree>`,
 then `bundle exec ruby bin/qa_tick`, then relay the ENTIRE printed report
