@@ -53,6 +53,51 @@ module Hecks
       # they're included so a real generated sequence occasionally
       # produces the value at all, since nothing had, repo-wide, before.
       INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648, 2**100, -(2**100)].freeze
+      # BUG#35 (QualityControl QA ledger, `lease-clock-json-precision`) —
+      # a Bignum edge case (`2**100`, above) landing on an Integer-typed
+      # CLOCK or COUNT reading fires the already-catalogued `Json::Num`/
+      # f64 precision-loss class (`rust/src/kernel/json.rs`'s
+      # `parse_number` parses every number through `s.parse::<f64>()`
+      # before any target-type conversion runs, and `Json::Num` is a
+      # plain `f64` end to end — see that file's own header) on a NEW
+      # site every time a new clock/count-shaped field is authored,
+      # without adding any new coverage: both engines already refuse
+      # (`TypeMismatch`, out of `i64` range either way) for this shape,
+      # `tenant_ledger`'s own NOTES.md already logged the identical class
+      # on a stored money attribute, and `spec/support/
+      # rust_conformance_helpers.rb`'s own `reduce_to_wire_precision`
+      # already documents and normalizes past the wire format's own loss
+      # for a query's echoed args. An exact-integer Rust JSON
+      # deserialization path was considered and rejected as this
+      # generator's own fix instead: `Json::Num(f64)` is pattern-matched
+      # throughout `rust/src/kernel` (query_comparators.rs,
+      # query_ordering.rs, read_model.rs, named_query.rs, this kernel's
+      # own `Fielded` impl, arithmetic overflow checks) and emitted by
+      # codegen (`rust/project/reactions.rb`, `rust/codegen/src/
+      # reactions.rs`) — adding a second, exact-integer numeric variant
+      # would mean auditing and updating every one of those sites, a
+      # refactor of the JSON layer itself, not a one-domain fix (exactly
+      # the ledger's own stated concern: "risks affecting every other
+      # domain's large-integer handling"). So instead, per the ledger's
+      # own sanctioned fallback: an Integer-typed field whose name reads
+      # as a clock or a count is capped to a narrower, still-real
+      # edge-case pool below (still exercises the ordinary i32
+      # boundaries, just never a value past f64's own 2**53 exact-
+      # integer ceiling) — every OTHER Integer-typed field (a money
+      # amount, an identity sequence, anything not clock/count-shaped)
+      # still draws from the full `INTEGER_EDGE_CASES` pool above,
+      # unchanged.
+      SAFE_INTEGER_EDGE_CASES = [0, -1, 2_147_483_647, -2_147_483_648].freeze
+      # Matched against the value object's own declared name plus the
+      # attribute's own name (`value_for`'s `"#{context} #{attribute.
+      # name}"`, e.g. "LeaseInstant value", "RetryCount value") — a
+      # clock reading ("instant"/"clock"/"expir(es/y)"/"ttl"/"now"/
+      # "timestamp"/"epoch") or a quantity capped by a policy ("count").
+      # Deliberately narrow: matches the ledger's own "clock/count"
+      # wording exactly, not every plausibly-large-looking name (an
+      # "amount"/"cents"/"sequence" field is not clock/count-shaped and
+      # keeps the full Bignum edge-case pool).
+      CLOCK_OR_COUNT_NAME_PATTERN = /clock|instant|expir|ttl|\bnow\b|timestamp|epoch|count/i
       # NaN and +/-Infinity — the real find (see `spec/runtime/
       # numeric_boundary_spec.rb`): `Value::Coercion#check_numeric_fields`
       # used to let all three sail through untyped-checked (each really
@@ -148,7 +193,7 @@ module Hecks
       def primitive(type_name, random:, name: nil)
         case type_name
         when "String"  then string_value(random, name: name)
-        when "Integer" then integer_value(random)
+        when "Integer" then integer_value(random, name: name)
         when "Float"   then float_value(random)
         when "TrueClass", "FalseClass" then random.rand(2).zero?
         else raise ArgumentError, "ValueGenerator does not know primitive type #{type_name.inspect}"
@@ -172,10 +217,17 @@ module Hecks
       # sequence that can never get past one never reaches the state a deeper
       # bug would need. Zero and negative are still real, reachable outcomes —
       # via the edge-case pool, deliberately, not by starving them entirely.
-      def integer_value(random)
-        return INTEGER_EDGE_CASES.sample(random: random) if random.rand < EDGE_CASE_PROBABILITY
+      def integer_value(random, name: nil)
+        if random.rand < EDGE_CASE_PROBABILITY
+          pool = clock_or_count_shaped?(name) ? SAFE_INTEGER_EDGE_CASES : INTEGER_EDGE_CASES
+          return pool.sample(random: random)
+        end
 
         random.rand(1..1000)
+      end
+
+      def clock_or_count_shaped?(name)
+        name.to_s.match?(CLOCK_OR_COUNT_NAME_PATTERN)
       end
 
       def float_value(random)
