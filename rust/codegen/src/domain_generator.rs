@@ -118,6 +118,108 @@ fn reference_checks(
         .collect()
 }
 
+/// Port of `rust/project/domain_generator.rb#state_reference_checks` —
+/// see that method's own header for the full argument. `CommandRules::
+/// References#resolve_state_references`' own case (references.rb): a
+/// reference field redeclared on THIS command under a plain value object
+/// (`attribute :member, Handle; sets :member` — `Referral.Reassign`'s
+/// own shape, ADR 0037 Finding 5, reopened as QualityControl BUG#26),
+/// checked against the AGGREGATE's own `Reference<X>` attribute of the
+/// same name instead of the command's (non-reference) one, which
+/// `reference_checks` above cannot see. A bare `sets :field` mutation
+/// copies its source ARGUMENT's value straight into the aggregate's
+/// field, unconditionally, so the settled value this needs is already
+/// sitting in `args` before dispatch even runs — this reuses the exact
+/// same pre-dispatch check shape `reference_checks` already emits, just
+/// resolved against the aggregate's own attribute. Skips a source
+/// argument that is ALREADY `Reference<X>`-typed (`Referral.Issue`'s own
+/// `member`) — `reference_checks` above already covers that shape.
+fn state_reference_checks(
+    aggregate: &Json,
+    command: &Json,
+    aggregates_by_name: &HashMap<String, &Json>,
+    unsupported_names: &[String],
+    value_objects_by_name: &HashMap<String, &Json>,
+) -> Vec<ReferenceCheck> {
+    let agg_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
+    let cmd_mutations = command.get("mutations").map(Json::each).unwrap_or(&[]);
+    let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+
+    agg_attrs
+        .iter()
+        .filter_map(|attr| {
+            let target_name = crate::naming::reference_target(crate::attr::type_name(attr))?;
+            let attr_name = crate::attr::name(attr);
+
+            let mutation = cmd_mutations.iter().find(|m| {
+                m.get("op").map(Json::to_s).as_deref() == Some("set")
+                    && m.get("target").map(Json::to_s).as_deref() == Some(attr_name)
+                    && m.get("source").and_then(|s| s.get("kind")).map(Json::to_s).as_deref() == Some("argument")
+            })?;
+
+            let source_name = mutation.get("source").and_then(|s| s.get("name")).map(Json::to_s).unwrap_or_default();
+            let source_attr = cmd_attrs.iter().find(|a| crate::attr::name(a) == source_name)?;
+            if crate::naming::reference_target(crate::attr::type_name(source_attr)).is_some() {
+                return None;
+            }
+
+            let accessor = state_reference_check_accessor(source_attr, value_objects_by_name)?;
+
+            let target = aggregates_by_name.get(target_name)?;
+            if unsupported_names.iter().any(|n| n == target_name) {
+                return None;
+            }
+
+            let identified_by = target.get("identified_by").map(Json::each).unwrap_or(&[]);
+            let heads = identified_by
+                .iter()
+                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            Some(ReferenceCheck {
+                field: accessor,
+                optional: crate::attr::optional(source_attr),
+                target_mod: target
+                    .get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_lowercase(),
+                target_name: target
+                    .get("name")
+                    .and_then(Json::as_str)
+                    .unwrap_or("")
+                    .to_string(),
+                heads,
+            })
+        })
+        .collect()
+}
+
+/// Port of `rust/project/domain_generator.rb#state_reference_check_accessor`
+/// — see that method's own header for the full argument. `None` for a
+/// multi-attribute value object, or an OPTIONAL single-attribute one
+/// (`check_reference`'s optional-argument template assumes `Option<
+/// String>`, not `Option<Struct>`) — both real, narrow, deliberately
+/// uncovered gaps, matching ADR 0037 Finding 5's own precedent.
+fn state_reference_check_accessor(source_attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let name = crate::attr::name(source_attr);
+    if crate::naming::effective_scalar_type(crate::attr::type_name(source_attr)).is_some() {
+        return Some(name.to_string());
+    }
+
+    let vo = value_objects_by_name.get(crate::attr::type_name(source_attr))?;
+    if crate::attr::optional(source_attr) {
+        return None;
+    }
+    let vo_attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    if vo_attrs.len() != 1 {
+        return None;
+    }
+
+    Some(format!("{name}.{}", crate::naming::rust_ident_field(crate::attr::name(&vo_attrs[0]))))
+}
+
 pub fn generate(
     exemplar: &Exemplar,
     ir: &Json,
@@ -751,11 +853,15 @@ pub fn generate(
                 args_struct,
                 creates,
                 identity_extra_params,
-                reference_checks: reference_checks(
-                    command,
-                    &aggregates_by_name,
-                    &unsupported_names,
-                ),
+                // `state_reference_checks` — ADR 0037 Finding 5 (reopened,
+                // QualityControl BUG#26): only ever adds entries
+                // `reference_checks` above didn't already cover — see
+                // that function's own header.
+                reference_checks: {
+                    let mut checks = reference_checks(command, &aggregates_by_name, &unsupported_names);
+                    checks.extend(state_reference_checks(aggregate, command, &aggregates_by_name, &unsupported_names, &value_objects_by_name));
+                    checks
+                },
                 reference_specs: crate::reference_specs::reference_specs(domain_name, cmd_attrs),
                 attributes: cmd_attrs
                     .iter()
