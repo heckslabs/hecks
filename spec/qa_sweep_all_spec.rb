@@ -187,6 +187,18 @@ RSpec.describe "bin/qa_sweep --all", :io do
     end
   RUBY
 
+  # THE SAME TRIVIAL TARGET, BOUND TO PostgresEra — the one capability
+  # `Hecks::Fuzzing::TargetCapabilities` reads off a `.hecksagon` to make
+  # a target eligible for `persistence_parity`, and therefore for
+  # `--all`'s own second wave. No `.world` is needed: `IsolatedBoot#
+  # rebind_to_postgres_era!` writes its own per-boot `.world` pointing at
+  # the throwaway database/schema `bin/qa_sweep` itself owns.
+  FIXTURE_PG_TARGET_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "QaSweepAllFixtureTarget" do
+      QaSweepAllFixtureTarget::Widget.persisted_by("PostgresEra")
+    end
+  RUBY
+
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
@@ -220,6 +232,12 @@ RSpec.describe "bin/qa_sweep --all", :io do
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), FIXTURE_TARGET_HECKSAGON)
     @target_domain_relpath = Pathname.new(@target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
 
+    @pg_target_domain_dir = Dir.mktmpdir("qa_sweep_all_spec_pg_target-", InMemoryDomain::ROOT)
+    File.write(File.join(@pg_target_domain_dir, "fixture.bluebook"), FIXTURE_TARGET_BLUEBOOK)
+    File.write(File.join(@pg_target_domain_dir, "fixture.hecksagon"), FIXTURE_PG_TARGET_HECKSAGON)
+    @pg_target_domain_relpath =
+      Pathname.new(@pg_target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_ALL_DATABASE} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{QA_SWEEP_ALL_DATABASE}")
@@ -235,6 +253,7 @@ RSpec.describe "bin/qa_sweep --all", :io do
     admin.close
     FileUtils.remove_entry(@fixture_root)
     FileUtils.remove_entry(@target_domain_dir)
+    FileUtils.remove_entry(@pg_target_domain_dir)
   end
 
   # A FRESH SCHEMA BEFORE EVERY EXAMPLE (`postgres_era_concurrent_
@@ -451,6 +470,92 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(found_report).to include("target:      found_one", "sweep:       SW-found_one-",
                                     "-- instances --", "-- events --")
     expect(found_report).not_to include("clean_one", "broken_one")
+  end
+
+  # MODES ARE DATA — `bin/qa_sweep` prints the one rule's answer
+  # (`enabled ∩ eligible`, `Hecks::Fuzzing::TargetCapabilities`) on its
+  # own `resolved modes:` line, and `--modes` overrides the enabled set
+  # for one run. The fixture target binds Heki and has no Cargo feature,
+  # so its capabilities are exactly `sqlite` — the ruby_only seat, with
+  # self-consistency folded in, and nothing else.
+  it "prints the resolved modes and capabilities, and honours --modes as the enabled set" do
+    identify_targets!("modes_one" => @target_domain_relpath)
+
+    stdout, _stderr, status = run_qa_sweep("modes_one", "--seeds", "2")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("resolved modes: ruby_only,self_consistency (capabilities=sqlite)")
+    expect(stdout).to include("seed 1: held (ruby_only, self_consistency)")
+
+    stdout, _stderr, status = run_qa_sweep("modes_one", "--seeds", "2", "--modes", "ruby_only")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("resolved modes: ruby_only (capabilities=sqlite)")
+    expect(stdout).to include("seed 1: held (ruby_only)")
+  end
+
+  it "refuses, before claiming anything, a --modes set this target cannot resolve a comparison seat from" do
+    identify_targets!("modes_none" => @target_domain_relpath)
+
+    stdout, stderr, status = run_qa_sweep("modes_none", "--modes", "differential")
+    expect(status.exitstatus).to eq(1)
+    expect(stderr + stdout).to include("resolves no comparison mode at all")
+
+    _stdout, stderr, status = run_qa_sweep("modes_none", "--modes", "telepathy")
+    expect(status.exitstatus).to eq(1)
+    expect(stderr).to include("no such mode: telepathy")
+
+    # Nothing was claimed or opened — the refusal came before the claim.
+    Hecks.boot(@fixture_dir)
+    expect(QualityControl::Target.find("modes_none").status).to eq("waiting")
+  end
+
+  # THE SECOND WAVE — `--all` used to abort on `--persistence-parity`;
+  # now it runs the parity pass ITSELF over every target that came back
+  # clean from wave 1 AND binds PostgresEra. `pg_one` does; `heki_one`
+  # does not, so exactly one wave-2 child runs, as an ordinary
+  # `bin/qa_sweep pg_one --persistence-parity`, and its own row joins the
+  # report under a `[parity wave]` label. `--no-parity` skips it.
+  it "runs persistence parity as a second wave over PostgresEra-bound targets that came back clean" do
+    identify_targets!("heki_one" => @target_domain_relpath, "pg_one" => @pg_target_domain_relpath)
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "2")
+
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s): pg_one")
+    expect(stdout).to include("clean (3): heki_one, pg_one, pg_one [parity wave]")
+    expect(stdout)
+      .to match(/^  pg_one: ruby_only,self_consistency \(capabilities: postgres_era,sqlite; deferred: persistence_parity\)$/)
+    expect(stdout).to match(/^  pg_one \[parity wave\]: persistence_parity \(capabilities: postgres_era,sqlite\)$/)
+    expect(stdout).to match(/^  heki_one: ruby_only,self_consistency \(capabilities: sqlite\)$/)
+
+    stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "2", "--no-parity")
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).not_to include("parity wave")
+    expect(stdout).to include("clean (2): heki_one, pg_one")
+  end
+
+  # THE `dry_runs` COMPARISON SURFACE FINDS SOMETHING ON ITS OWN — item 5
+  # of the detection plan. `--dry-run 1` turns every generated command
+  # step into a `{"dry_run": …}` step, so the Ruby side of
+  # `spec/fixtures/qa_sweep_all_dry_run_fixture` produces NO instances,
+  # events or refusals — exactly what the fixture crate's
+  # `qa_sweep_all_dry_run_fixture` feature answers — and the two sides
+  # differ on `dry_runs` alone (the binary names a sentinel verb per
+  # dry-run step; see `qa_sweep_all_found_fixture_rust/src/main.rs`).
+  # `--self-consistency false` keeps the Rust rehydration door out of
+  # it: this example is about ONE surface, proven in isolation.
+  it "finds a dry_runs-only divergence, with every other surface agreeing" do
+    identify_targets!("dry_run_one" => "spec/fixtures/qa_sweep_all_dry_run_fixture")
+
+    stdout, _stderr, status = run_qa_sweep("dry_run_one", "--seeds", "2", "--dry-run", "1", "--self-consistency", "false")
+
+    expect(status.exitstatus).to eq(2)
+    expect(stdout).to include("resolved modes: differential,properties_in_differential,structural_skip_report " \
+                              "(capabilities=rust,sqlite)")
+    expect(stdout).to include("seed 1: SURPRISED (differential)")
+    expect(stdout).to include("subject:     [differential] qa_sweep_all_dry_run_fixture fuzz seed 1")
+    expect(stdout).to include("observation: diverged on: dry_runs", "-- dry_runs --")
+    expect(stdout).not_to include("-- instances --", "-- events --", "-- refusals --")
+    expect(stdout).to include("__qa_sweep_all_spec_phantom_dry_run__")
   end
 
   it "exits 1 when every child hit an operational error and nothing was ever found" do

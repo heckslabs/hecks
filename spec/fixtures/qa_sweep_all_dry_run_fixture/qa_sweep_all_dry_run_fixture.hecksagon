@@ -1,0 +1,3 @@
+Hecks.hecksagon "QaSweepAllDryRunFixture" do
+  QaSweepAllDryRunFixture::Gate.persisted_by("Memory")
+end

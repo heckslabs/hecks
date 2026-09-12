@@ -55,6 +55,7 @@ module Hecks
       extend Querying
       extend Guards
       extend DispatchAndMutations
+      extend DryRuns
       extend InvariantsAndAggregation
 
       module_function
@@ -96,7 +97,14 @@ module Hecks
         fanout_dispatches_once_per_matching_row:          %w[Policy#for_each Policy#where],
         aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
         stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
-        group_by_matches_recompute:                       %w[ReadModel#group_by]
+        group_by_matches_recompute:                       %w[ReadModel#group_by],
+        # A RUNTIME DOOR, NOT A GRAMMAR CONSTRUCT — `Dispatcher#dry_run?`
+        # is something an application asks of a booted domain, not a
+        # word a bluebook can declare, so there is no feature string
+        # for it to claim. Listed (empty) rather than omitted so the
+        # discipline this table states — every property names what it
+        # is answerable for — has no silent exception.
+        dry_runs_leave_no_trace:                          []
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
@@ -207,7 +215,8 @@ module Hecks
           authorize_scopes_or_refuses:                      authorize_scopes_or_refuses(history),
           commands_respect_tenant_scope:                    commands_respect_tenant_scope(history),
           dispatch_binding_fidelity:                        dispatch_binding_fidelity(history),
-          mutations_match_recompute:                        mutations_match_recompute(history) }
+          mutations_match_recompute:                        mutations_match_recompute(history),
+          dry_runs_leave_no_trace:                          dry_runs_leave_no_trace(history) }
       end
     end
   end
