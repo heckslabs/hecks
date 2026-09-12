@@ -215,7 +215,8 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
 
     expect(status.exitstatus).to eq(0), "expected a clean --all, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
     expect(stdout).to include("clean (3): directory, ineligible, directory [parity wave]")
-    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s): directory")
+    expect(stdout).to include("parity wave: Memory vs real PostgresEra for 1 target(s), at most " \
+                              "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory")
     expect(stdout).to include(
       "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
       "deferred: persistence_parity)"
