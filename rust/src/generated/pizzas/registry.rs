@@ -99,6 +99,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddToppingArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["topping", "amount", "id", "order", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddTopping does not declare {} — it takes topping, amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "topping"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddTopping"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "topping, amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddTopping acts on an existing Order — pass name.value:".to_string()))?, };
               let args = crate::generated::pizzas::order::AddToppingArgs::from_json(facts_json)?;
                       args.topping.check_invariants()?;
@@ -113,6 +132,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PurchaseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "customer_name", "id", "order", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Purchase does not declare {} — it takes amount, customer_name",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Purchase"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount, customer_name"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Purchase acts on an existing Order — pass name.value:".to_string()))?, };
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;

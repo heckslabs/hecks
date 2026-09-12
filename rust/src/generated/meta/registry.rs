@@ -206,6 +206,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("IdentifyArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["path", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Identify does not declare {} — it takes path",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["path"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Identify"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "path"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
@@ -219,6 +238,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AttributeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["type", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Attribute does not declare {} — it takes type, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Attribute"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "type, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -239,6 +277,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Reference"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -259,6 +316,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HoldsArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Holds does not declare {} — it takes holds, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["holds", "list", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Holds"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "holds, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -279,6 +355,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LifecycleArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["state_field", "state_start", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Lifecycle does not declare {} — it takes state_field, state_start",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["state_field", "state_start"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Lifecycle"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "state_field, state_start"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::LifecycleArgs::from_json(facts_json)?;
                       args.state_field.check_invariants()?;
@@ -293,6 +388,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("TransitionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Transition does not declare {} — it takes command, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["command", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Transition"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "command, from_state, to_state"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
@@ -308,6 +422,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SealArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Seal does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -320,6 +445,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ValueArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Value does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Value"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Value acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ValueArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -333,6 +477,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("InvariantArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Invariant does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Invariant"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -347,6 +510,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PreconditionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Precondition does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Precondition"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -361,6 +543,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ProjectsArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "reference", "remote_field", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Projects does not declare {} — it takes name, reference, remote_field",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["name", "reference", "remote_field"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Projects"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, reference, remote_field"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::aggregate::Aggregate::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Projects acts on an existing Aggregate — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::aggregate::ProjectsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -376,6 +577,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AttachArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["context", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Attach does not declare {} — it takes context",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["context"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Attach"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "context"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attach acts on an existing Bluebook — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::bluebook::AttachArgs::from_json(facts_json)?;
                       args.context.check_invariants()?;
@@ -389,6 +609,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NormaliseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Normalise does not declare {} — it takes strategy, source_token, replacement, boundary, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["boundary", "replacement", "source_token", "strategy"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Normalise"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "strategy, source_token, replacement, boundary, position"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Normalise acts on an existing Bluebook — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::bluebook::NormaliseArgs::from_json(facts_json)?;
                       args.strategy.check_invariants()?;
@@ -406,6 +645,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Argument"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -426,6 +684,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Reference"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -446,6 +723,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RuleArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Rule does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Rule"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rule acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::RuleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -460,6 +756,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EnsureArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Ensure does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Ensure"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Ensure acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::EnsureArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -474,6 +789,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ChangeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["target", "op", "field", "kind", "source", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Change does not declare {} — it takes target, op, field, kind, source",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["field", "kind", "op", "source", "target"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Change"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "target, op, field, kind, source"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Change acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ChangeArgs::from_json(facts_json)?;
                       args.target.check_invariants()?;
@@ -492,6 +826,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ActsOnArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["root", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ActsOn does not declare {} — it takes root",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["root"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "ActsOn"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "root"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ActsOn acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::ActsOnArgs::from_json(facts_json)?;
                       args.root.check_invariants()?;
@@ -505,6 +858,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AnnounceArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["announces", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Announce does not declare {} — it takes announces",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["announces"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Announce"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "announces"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Announce acts on an existing Command — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::command::AnnounceArgs::from_json(facts_json)?;
                       args.announces.check_invariants()?;
@@ -518,6 +890,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("IdentifyArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["path", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Identify does not declare {} — it takes path",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["path"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Identify"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "path"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Identify acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::IdentifyArgs::from_json(facts_json)?;
                       args.path.check_invariants()?;
@@ -531,6 +922,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SealArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Seal does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Seal acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::SealArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -543,6 +945,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AttributeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["type", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Attribute does not declare {} — it takes type, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Attribute"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "type, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Attribute acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::AttributeArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -563,6 +984,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReferenceArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["points_at", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reference does not declare {} — it takes points_at, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "points_at"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Reference"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "points_at, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reference acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::ReferenceArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -583,6 +1023,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HoldsArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["holds", "name", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Holds does not declare {} — it takes holds, name, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["holds", "list", "name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Holds"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "holds, name, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Holds acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::HoldsArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -603,6 +1062,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PreconditionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Precondition does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Precondition"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Precondition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::PreconditionArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -617,6 +1095,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("InvariantArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Invariant does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Invariant"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Invariant acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::InvariantArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -631,6 +1128,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LifecycleArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["state_field", "state_start", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Lifecycle does not declare {} — it takes state_field, state_start",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Lifecycle acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(facts_json)?;
                       if let Some(v) = &args.state_field { v.check_invariants()?; }
@@ -645,6 +1153,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("TransitionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Transition does not declare {} — it takes command, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["command", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Transition"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "command, from_state, to_state"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::entity::Entity::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Transition acts on an existing Entity — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::entity::TransitionArgs::from_json(facts_json)?;
                       args.command.check_invariants()?;
@@ -660,6 +1187,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BindArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Bind does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Bind"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::policy::Policy::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Bind acts on an existing Policy — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::policy::BindArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
@@ -674,6 +1220,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("StateArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "id", "bluebook"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "State does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "State"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("State acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::processmanager::StateArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -687,6 +1252,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HandlerArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["event_type", "from_state", "to_state", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Handler does not declare {} — it takes event_type, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["event_type", "from_state", "to_state"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Handler"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "event_type, from_state, to_state"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Handler acts on an existing ProcessManager — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::processmanager::HandlerArgs::from_json(facts_json)?;
                       args.event_type.check_invariants()?;
@@ -702,6 +1286,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("GatherArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Gather does not declare {} — it takes aggregate, as, many",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["aggregate", "as", "many"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Gather"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "aggregate, as, many"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Gather acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::GatherArgs::from_json(facts_json)?;
                       args.aggregate.check_invariants()?;
@@ -717,6 +1320,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("GroupByArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "GroupBy does not declare {} — it takes field",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["field"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "GroupBy"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "field"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("GroupBy acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::GroupByArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
@@ -730,6 +1352,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CountArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["count", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Count does not declare {} — it takes count",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Count acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::CountArgs::from_json(facts_json)?;
                       if let Some(v) = &args.count { v.check_invariants()?; }
@@ -743,6 +1376,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MedianArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["median_field", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Median does not declare {} — it takes median_field",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Median acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::MedianArgs::from_json(facts_json)?;
                       if let Some(v) = &args.median_field { v.check_invariants()?; }
@@ -756,6 +1400,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("OptionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Option does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "option"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Option"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "option, key, value, at"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::readmodel::ReadModel::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing ReadModel — pass bluebook, name.value:".to_string()))?, };
               let args = crate::generated::meta::readmodel::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
@@ -772,6 +1435,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FilterArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["field", "op", "value", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Filter does not declare {} — it takes field, op, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["field", "op", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Filter"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "field, op, value"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Filter acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::FilterArgs::from_json(facts_json)?;
                       args.field.check_invariants()?;
@@ -788,6 +1470,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("OptionArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "owner_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Option does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "option"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Option"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "option, key, value, at"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Option acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::OptionArgs::from_json(facts_json)?;
                       args.option.check_invariants()?;
@@ -804,6 +1505,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Argument"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::query::Query::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Query — pass owner_id, name.value:".to_string()))?, };
               let args = crate::generated::meta::query::ArgumentArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -824,6 +1544,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FieldArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "aggregate"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Field does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["list", "name", "type"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Field"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "name, type, list, optional, pattern, default, admits, relationship"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Field acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::FieldArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
@@ -844,6 +1583,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["rows", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Close does not declare {} — it takes rows",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::CloseArgs::from_json(facts_json)?;
                       if let Some(v) = &args.rows { v.check_invariants()?; }
@@ -857,6 +1607,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AssertArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["description", "canonical", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Assert does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["canonical"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Assert"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "description, canonical"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assert acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::AssertArgs::from_json(facts_json)?;
                       if let Some(v) = &args.description { v.check_invariants()?; }
@@ -871,6 +1640,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["position", "id", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Member does not declare {} — it takes position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["position"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Member"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "position"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::valueobject::ValueObject::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Member acts on an existing ValueObject — pass aggregate, name.value:".to_string()))?, };
               let args = crate::generated::meta::valueobject::MemberArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
@@ -898,6 +1686,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Keyword does not declare {} — it takes position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["body", "context", "fills", "inner", "opens", "position", "word"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Keyword"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Keyword acts on an existing Syntax — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::syntax::KeywordArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;
@@ -925,6 +1732,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message", "id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Argument does not declare {} — it takes position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["context", "fills", "keyword", "kind", "position", "required"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Argument"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::meta::syntax::Syntax::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Argument acts on an existing Syntax — pass name.value:".to_string()))?, };
               let args = crate::generated::meta::syntax::ArgumentArgs::from_json(facts_json)?;
                       args.position.check_invariants()?;

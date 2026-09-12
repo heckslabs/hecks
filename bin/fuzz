@@ -85,42 +85,15 @@ DRAW_LIMIT = 5
 # a domain name, keyed to the exact `failure[:signature]` this sweep
 # already computes, holding Regexps that must match EVERY ";"-joined
 # offender in the message — is exactly the one PR #527 added for hecks_qa
-# BUG#4/#5 (removed whole once that real bug was fixed, per its own
-# commit's self-destructing condition: "this spec fails the moment BUG#4
-# is actually fixed, which is the signal to delete the entry"). This
-# entry is a DIFFERENT KIND from that one: not a bug in the property
-# check's own recompute, but `qa/stress_domains/tenant_ledger`'s (ANGLE-8)
-# entire reason to exist — `commands_respect_tenant_scope` (lib/hecks/
-# fuzzing/properties/guards.rb) correctly reports that NOTHING in the
-# runtime stops a command's own `reference_to` from crossing two
-# independently tenant-scoped aggregates, and that domain's `Transfer`/
-# `Ledger` pair is built to make that finding fire on almost any generated
-# sequence that touches both — see that domain's own NOTES.md. The same
-# self-destructing discipline still applies: THIS entry is the signal
-# that no runtime enforcement exists yet, and deleting it (or narrowing
-# it) is exactly what a future fix — either a real `TenantScope`-shaped
-# check for commands, or a decision to retire the domain — should also
-# do, the same way BUG#4's own entry was retired the moment its fix
-# landed.
-# `outcome`'s own `"#{name}: #{message}"` prefixes the PROPERTY's name
-# once, onto the very front of the whole joined message — but `commands_
-# respect_tenant_scope` itself ALSO joins its own multiple offenders with
-# the identical "; " separator (`Properties::Guards`), so splitting on
-# "; " here (below) breaks the combined string into "<property>: <first
-# offender>", then one bare offender per remaining chunk, never a second
-# "<property>: " prefix. The leading label is therefore OPTIONAL, present
-# on the first chunk only.
-TENANT_LEDGER_CROSS_REGION_SHAPE = Regexp.new(
-  '\A(?:commands_respect_tenant_scope: )?TenantLedger::Transfer#.+? \(region: .+?\) references ledger: .+?, ' \
-  'but TenantLedger::Ledger#.+? carries region: .+? — a cross-tenant write nothing refused\z',
-  Regexp::MULTILINE
-)
-
-KNOWN_FUZZ_FINDINGS = {
-  "tenant_ledger" => {
-    "property_violation: commands_respect_tenant_scope" => [TENANT_LEDGER_CROSS_REGION_SHAPE].freeze
-  }.freeze
-}.freeze
+# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (ANGLE-8) own
+# `commands_respect_tenant_scope` entry (a real, then-open write-side
+# tenant enforcement gap, not a bug in the property check's own
+# recompute — see that domain's own NOTES.md). Both were removed whole
+# the moment their real fix landed, per the same self-destructing
+# discipline each carried while it was still open: currently empty,
+# kept as infrastructure for the next narrow, named, explained finding
+# this sweep needs to excuse without being silenced.
+KNOWN_FUZZ_FINDINGS = {}.freeze
 
 # Every "; "-joined chunk of the message must match one of the domain's
 # own allowed shapes — a compound finding that mixes this known shape
@@ -162,34 +135,25 @@ def known_unfuzzable_wiring_gap(error)
     # already lives: spec/adapters/driven/postgres_era/*_spec.rb,
     # `io: true`, against a real Postgres.
     :skip_compute_rekey
-  when /no entity mutation applier handles :corrects/
-    # ENTITY-LEVEL `corrects` — a SECOND, separately-scoped exception to
-    # the same rule, for the identical underlying reason: a KNOWN,
-    # ALREADY-LOGGED gap, not a mystery for this sweep to chase down
-    # fresh every run. `EntityInterpreter#step_enforce_givens` never
-    # calls `CommandRules::Admissibility#enforce_correction_target`
-    # (only `CommandInterpreter`'s own aggregate-level twin does), and
-    # `EntityElement.apply_to_element` (entity_element.rb) has no
-    # `:corrects` branch at all — unlike `MutationApplier#apply`'s
-    # aggregate-level twin, which treats `:corrects` as a documented
-    # no-op. Found by `qa/stress_domains/corrections` (ANGLE-9); logged
-    # as a real Bug against the QualityControl ledger (see that
-    # domain's own NOTES.md for the full write-up and reproduction).
-    # Scoped to this EXACT exception message, not a blanket WiringError
-    # rescue — this stops applying automatically, with no further edit
-    # needed here, the moment entity-level `corrects` actually works
-    # and nothing raises it anymore. Remove this `when` once that Bug
-    # is fixed.
-    :skip_entity_corrects
   else
     raise
   end
 end
 
+# BUG#30 — `entity-level corrects crashes at dispatch` (`no entity
+# mutation applier handles :corrects`) used to have its own `when`
+# here, alongside `skip_compute_rekey` above, and a matching
+# `skip_entity_corrects:` entry below — removed now that
+# `EntityInterpreter#step_enforce_givens` calls `CommandRules::
+# Admissibility#enforce_correction_target` and `EntityElement.
+# apply_to_element` has a real `:corrects` branch (see those methods'
+# own comments): `qa/stress_domains/corrections`'s own `Entry.Amend`
+# dispatches or refuses cleanly now, so nothing raises the message that
+# `when` matched, and this sweep runs it like any other construct — no
+# further edit needed here, per that `when`'s own comment, "the moment
+# entity-level `corrects` actually works and nothing raises it anymore."
 SKIPPED_DOMAIN_REASONS = {
-  skip_compute_rekey:   "declares compute/rekey, which only an era/Postgres-bound boot can interpret",
-  skip_entity_corrects: "entity-level `corrects` crashes at dispatch (a real, logged Bug; see " \
-                        "qa/stress_domains/corrections/NOTES.md)"
+  skip_compute_rekey: "declares compute/rekey, which only an era/Postgres-bound boot can interpret"
 }.freeze
 
 def fuzz_domain(domain, seeds, steps, adapter = :memory)

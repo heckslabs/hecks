@@ -428,6 +428,66 @@ module RustProjection
       end
     end
 
+    # `unknown_check` — factored out of `emit_from_json_flat` (pure
+    # extraction, no behavior change) so `registry.rb`'s own standalone
+    # structural pre-pass (BUG#23, see `structural_precheck`/that file's
+    # header) can build the IDENTICAL text: the unknown-argument check,
+    # then the absent-argument check, matching Ruby's own DISPATCH_ORDER
+    # (unknown arguments refuse first, absent ones second, and only then
+    # does any field get typed).
+    def unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, absent_argument_check)
+      check =
+        if unknown_argument_allowlist
+          known_keys = (attributes.map { |a| rust_field(a[:name]) } + unknown_argument_allowlist).uniq
+          emit_unknown_argument_check(command_name, known_keys, attributes.map { |a| a[:name] })
+        else
+          ""
+        end
+      check += emit_absent_argument_check(command_name, attributes) if absent_argument_check
+      check
+    end
+
+    # THE STANDALONE STRUCTURAL GATE (BUG#23, qa/bluebook/quality_control.
+    # bluebook) — object-shape check, then `unknown_and_absent_argument_
+    # checks` above: the IDENTICAL text `emit_from_json_skeleton`'s own
+    # preamble builds for a command's top-level Args struct
+    # (`emit_object_shape_check(struct_name) + unknown_check`, below) —
+    # extracted so `registry.rb` can run this SAME check directly against
+    # `facts_json`, standalone, BEFORE an acting aggregate command's own
+    # `id_line`/`extract_id` resolves at all. Ruby's `DISPATCH_ORDER` runs
+    # `refuse_unknown_arguments`/`refuse_absent_arguments` structurally
+    # BEFORE `hydrate` — but the generated router used to resolve an
+    # acting command's `id` (via `extract_id`, against raw `facts_json`)
+    # BEFORE ever calling `Args::from_json`, the ONE place these
+    # structural checks lived — so a malformed `id`/`to:` (a route-shaped
+    # `{aggregate:, entities:}` value offered where Revoke declares a
+    # plain scalar identity, say) short-circuited the whole dispatch via
+    # `extract_id`'s own `?`/`NotFound`-wrap before a missing OTHER
+    # argument (`ends_at`, say) was ever checked, so Ruby and Rust refused
+    # different KINDS for the identical malformed command
+    # (`NotFound`/`TypeMismatch` in one domain, `AbsentArgument`/
+    # `NotFound` in another). Running this SAME check a second time,
+    # redundantly, right here BEFORE `id_line` — leaving `from_json`
+    # itself, and its own internal preamble, entirely unchanged — closes
+    # that gap without reordering `id_line` past anything or touching
+    # BUG#4's own already-settled, narrower fix (PR #529): every real
+    # dispatch reaches `id_line` exclusively through this same match arm,
+    # so this earlier copy can only ever refuse SOONER with the exact
+    # kind `from_json` would have produced anyway, never diverge from it
+    # — the identical "deliberately redundant, never conflicting" shape
+    # `invariant_check_lines` already established here for R3 (registry.
+    # rb's own header on that fix has the full argument).
+    #
+    # `absent_argument_check` is always `true` here: every real caller
+    # (an acting aggregate command's own top-level args,
+    # `domain_generator.rb`'s `registry_commands`) already passes it that
+    # way to `emit_from_json_flat` too — there is no aggregate-command
+    # call site that skips it.
+    def structural_precheck(struct_name, command_name, attributes, unknown_argument_allowlist)
+      emit_object_shape_check(struct_name) +
+        unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, true)
+    end
+
     def emit_from_json_flat(struct_name, attributes, value_objects_by_name, unknown_argument_allowlist: nil, command_name: struct_name,
                             absent_argument_check: false, interleave_checks: false, aggregates_by_name: nil)
       idents = attributes.map { |attr| rust_ident_field(attr[:name]) }
@@ -443,16 +503,7 @@ module RustProjection
         end
       end
 
-      unknown_check =
-        if unknown_argument_allowlist
-          known_keys = (attributes.map { |a| rust_field(a[:name]) } + unknown_argument_allowlist).uniq
-          emit_unknown_argument_check(command_name, known_keys, attributes.map { |a| a[:name] })
-        else
-          ""
-        end
-      # Ruby's own DISPATCH_ORDER: unknown arguments refuse first, absent
-      # ones second, and only then does any field get typed.
-      unknown_check += emit_absent_argument_check(command_name, attributes) if absent_argument_check
+      unknown_check = unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, absent_argument_check)
 
       emit_from_json_skeleton(struct_name, field_exprs, unknown_check, shorthand_fields: interleave_checks ? idents : nil)
     end
