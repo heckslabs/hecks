@@ -334,6 +334,9 @@ Hecks.bluebook "Bluebook" do
                        "{field} this ask is scoped to"
       member refusal: "Unauthorized", site: "role_mismatch",
              template: "{command} refused — role: {role}, and the caller stated {caller_role}"
+      member refusal: "Unauthorized", site: "cross_tenant_reference",
+             template: "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own " \
+                       "{target_field} is {other} — a cross-tenant reference"
       member refusal: "AttributeAbsent", site: "absent_read",
              template: "{aggregate} {field} is absent on this record — declared, not optional, and " \
                        "added since it was written. Backfill it in a translation (backfill :{field}, " \
