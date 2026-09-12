@@ -9,6 +9,7 @@ require_relative "properties/querying"
 require_relative "properties/guards"
 require_relative "properties/dispatch_and_mutations"
 require_relative "properties/invariants_and_aggregation"
+require_relative "properties/corrections"
 
 module Hecks
   module Fuzzing
@@ -57,6 +58,7 @@ module Hecks
       extend DispatchAndMutations
       extend DryRuns
       extend InvariantsAndAggregation
+      extend Corrections
 
       module_function
 
@@ -216,7 +218,8 @@ module Hecks
           commands_respect_tenant_scope:                    commands_respect_tenant_scope(history),
           dispatch_binding_fidelity:                        dispatch_binding_fidelity(history),
           mutations_match_recompute:                        mutations_match_recompute(history),
-          dry_runs_leave_no_trace:                          dry_runs_leave_no_trace(history) }
+          dry_runs_leave_no_trace:                          dry_runs_leave_no_trace(history),
+          corrections_reference_an_emitted_event:           corrections_reference_an_emitted_event(history) }
       end
     end
   end

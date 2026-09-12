@@ -1,0 +1,321 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/hecks_qa/SKILL.md's "Authoring a
+# new stress domain" section).
+#
+# THE CONSTRUCT COMBINATION THIS DOMAIN IS FOR — ANGLE-9 (`ask backlog`,
+# QualityControl ledger): `corrects` (retroactive correction) has exactly
+# ONE declaration anywhere in the corpus, `examples/banking/bluebook/
+# deposit_accounts.bluebook:353` (`Account.CorrectFee`), and it is
+# AGGREGATE-level there — `reference_to Account`, not inside an `entity`
+# block. `corrects` is also absent from `Hecks::Fuzzing::Properties::
+# FEATURE_COVERAGE` entirely: no property anywhere has ever claimed the
+# "Command#corrects" language feature. This domain puts `corrects` on an
+# ENTITY-level command instead (`Entry.Amend`, below) — a combination
+# checked directly against the whole corpus before writing this file
+# (`grep -rn 'corrects ' examples/*/bluebook/*.bluebook qa/bluebook/*.
+# bluebook qa/stress_domains/*/bluebook/*.bluebook` — one hit, the
+# aggregate-level one above) — plus a whole-list `list_of(Entry)` COMMAND
+# ARGUMENT (`Ledger.ReplaceEntries`, also a corpus first — `Hecks::
+# Fuzzing::SequenceGenerator::StepBuilder#args_for`'s own comment says a
+# list-of-ENTITY command attribute "has no real example anywhere in this
+# repo's domains"), and a `remove:`-then-`append:` sequence on the same
+# entity list (`Ledger.Void` / `Ledger.Record`), aimed at the
+# `GUARANTEED_BY_CONSTRUCTION` note on `Entity#identified_by` in `lib/
+# hecks/fuzzing/properties.rb` ("current.size + 1 can't repeat unless
+# something remove:s from the list between mints, which no real domain
+# does today").
+#
+# WHAT THIS DOMAIN FOUND, FIRST TRY — NOT FIXED HERE, reported to the QA
+# orchestrator instead (see this domain's own NOTES.md for the full
+# write-up and exact reproduction):
+#
+#   1. `Entry.Amend`'s own `corrects` mutation is UNCHECKED at build time
+#      (`AggregateBuilder::Sealing#seal_correction_targets` walks only
+#      `@commands` — the AGGREGATE's own top-level list — never
+#      `@entities`, so an entity's own `corrects` mutation is invisible
+#      to it) AND crashes at DISPATCH time: `EntityInterpreter#step_
+#      enforce_givens` never calls `CommandRules::Admissibility#
+#      enforce_correction_target` at all (only `CommandInterpreter`'s own
+#      aggregate-level twin does), and `EntityElement.apply_to_element`'s
+#      own `case mutation.op` has no `:corrects` branch — unlike
+#      `MutationApplier#apply`'s aggregate-level twin, which treats it as
+#      a documented no-op. Dispatching `Entry.Amend` therefore always
+#      raises `Hecks::Runtime::WiringError` ("no entity mutation applier
+#      handles :corrects — add one before declaring it"), which is NOT
+#      one of `Hecks::Runtime::DOMAIN_REFUSALS` — it propagates straight
+#      through `Fuzzing::Replay`'s own per-step isolation and crashes the
+#      whole run, the same way an interpreter defect always does.
+#
+#   2. Because of (1), `EntryAmended` (the corrected event) can never be
+#      EMITTED by Ruby at all — so `CorrectionWatch` (the process manager
+#      below, reacting to it) and `FlaggedTrailCount` (the count read
+#      model over what it flags) are both permanently dead code under
+#      Ruby today, not merely untested. Kept anyway — they are exactly
+#      what ANGLE-9's premise asked for ("a saga on the corrected event
+#      and a count read-model over it"), and they are real, well-formed
+#      declarations a future fix makes reachable rather than something
+#      this domain would need to redeclare later.
+#
+#   3. `sets :entries, remove: :sequence` (`Ledger.Void`) is a silent
+#      NO-OP against an entity-typed list, for an unrelated reason:
+#      `Hecks::Runtime::Value::Coercion#for_attribute` routes ANY
+#      `list_of` attribute through `#hydrate_entity_list` before it ever
+#      asks whether the element type is an entity or a value object.
+#      That method unconditionally does `Array(value).map { ... }` — no
+#      `value.is_a?(Array)` guard, unlike its OWN value-object sibling
+#      `#hydrate_value_object_list`, whose comment explains exactly why
+#      that guard exists for `remove:`'s single-target value ("`Array(a_
+#      Hash)` is NOT harmless... silently shredding a single-element
+#      Hash-shaped target into garbage"). For an entity target the single
+#      removal value is a scalar (`EntrySequence`), so `Array(value)`
+#      wraps it into a one-element Array instead of shredding a Hash —
+#      and `MutationApplier#removed`'s `Array(instance[target]).reject {
+#      |element| element == value }` then compares each stored Hash
+#      element against that wrapping Array, which can never be `==` a
+#      Hash. Nothing is ever removed, and nothing refuses either.
+#
+#   4. Because of (3), the `remove:`-then-`append:` sequence this domain
+#      was built to exercise (`GUARANTEED_BY_CONSTRUCTION`'s "current.
+#      size + 1 can't repeat unless something remove:s from the list
+#      between mints, which no real domain does today") cannot actually
+#      happen on THIS domain, or on any domain, as things stand — not
+#      because no real domain has tried it, but because `remove:` on an
+#      entity list does not work at all yet. The comment's premise holds,
+#      but only vacuously: see NOTES.md for the direct, by-hand
+#      confirmation (`Ledger.Record` × 2, `Ledger.Void`, `Ledger.Record`
+#      again — the list has 3 entries, not 2, and the "removed" one is
+#      still there).
+#
+#   5. `Ledger.ReplaceEntries` (`sets :entries` bare, importing the
+#      aggregate's own `list_of(Entry)` attribute onto the command
+#      verbatim — `CommandBuilder#resolve_bare_set!`'s own shape,
+#      `ConsoleSettings::Collection.ReplaceColumns`'s corpus precedent,
+#      but for an ENTITY element type rather than a value object for the
+#      first time) accepts a caller-supplied whole list with NO identity
+#      check at all — `#hydrate_entity_list` rebuilds each element's own
+#      declared fields but never runs `MutationApplier#check_entity_
+#      collision`, the guard every OTHER way of adding an entity element
+#      goes through. Two entries with the same `sequence` — or one with
+#      none at all — both pass silently. See NOTES.md.
+Hecks.bluebook "Corrections" do
+  vision "A ledger of entries where one entry can be corrected after the fact — corrects declared on the entity owning the entry, not the aggregate, for the first time in the corpus — with a saga and a count read model watching the correction, and a remove-then-append sequence on the same entity list."
+
+  core
+
+  aggregate "Ledger" do
+    description "A ledger holding entries, one of which may later be amended."
+
+    identified_by :reference
+
+    attribute :reference, LedgerReference
+    attribute :entries,   list_of(Entry)
+
+    value_object "LedgerReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a ledger is referenced") { !value.to_s.empty? }
+    end
+
+    # POSITIVE-ONLY, same shape as `nested_pieces`' own `BoardNumber`/
+    # `CardSequence` and `waybill`'s own `SlotNumber` — deliberately, so
+    # an offered `0`/negative sequence is non-blank (survives routing)
+    # and still fails the invariant once a typed rebuild is attempted.
+    value_object "EntrySequence" do
+      attribute :value, Integer
+      invariant("an entry sequence is positive") { value.positive? }
+    end
+
+    value_object "EntryAmount" do
+      attribute :cents, Integer
+      invariant("an entry amount is positive") { cents.positive? }
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Open a ledger"
+
+      attribute :reference, LedgerReference
+
+      emits "LedgerOpened"
+    end
+
+    command "Record" do
+      role "Clerk"
+      goal "Record a new entry on the ledger — the auto-minted half of the remove-then-append sequence"
+
+      reference_to Ledger
+      attribute :amount, EntryAmount
+
+      sets :entries, append: { amount: :amount }
+
+      emits "EntryRecorded"
+    end
+
+    # THE REMOVE HALF OF THE SEQUENCE THIS DOMAIN EXISTS TO EXERCISE —
+    # see this file's own header comment, finding 3/4, and NOTES.md for
+    # what actually happens (a confirmed silent no-op, not the identity-
+    # reuse question this domain set out to ask).
+    command "Void" do
+      role "Clerk"
+      goal "Remove an entry from the ledger outright"
+
+      reference_to Ledger
+      attribute :sequence, EntrySequence
+
+      sets :entries, remove: :sequence
+
+      emits "EntryVoided"
+    end
+
+    # THE CORPUS'S FIRST list_of(ENTITY) COMMAND ARGUMENT — every other
+    # entity-owned list anywhere in this repository is populated one
+    # element at a time via an append command (`Record`, above, and every
+    # `AddX` in `nested_pieces`/`waybill`); nothing replaces the WHOLE
+    # list in one dispatch the way `ConsoleSettings::Collection.
+    # ReplaceColumns` already does for a `list_of(VALUE OBJECT)`. `sets
+    # :entries` (bare) imports `Ledger`'s own declared `list_of(Entry)`
+    # attribute onto this command verbatim, the identical mechanism
+    # `ReplaceColumns` uses — untested for an ENTITY element type until
+    # this domain. See this file's own header comment, finding 5, and
+    # NOTES.md for what actually happens.
+    command "ReplaceEntries" do
+      role "Clerk"
+      goal "Replace the ledger's whole list of entries at once"
+
+      reference_to Ledger
+
+      sets :entries
+
+      emits "EntriesReplaced"
+    end
+
+    # A PIECE INSIDE THE LEDGER (ADR 0026) — `identified_by :sequence` is
+    # auto-minted by `Record`'s own `append:` above (one past the highest
+    # held sequence, `MutationApplier#next_identity`), the same
+    # mechanism `nested_pieces`'/`waybill`'s own entity lists already
+    # use.
+    entity "Entry" do
+      description "One recorded entry, whose amount can later be corrected."
+
+      identified_by :sequence
+
+      attribute :sequence, EntrySequence
+      attribute :amount,   EntryAmount
+
+      # THE ENTITY-LEVEL `corrects` COMMAND — THE WHOLE REASON THIS
+      # DOMAIN EXISTS. `reason:` is required in practice
+      # (`CommandBuilder#corrects_impl`'s own comment). `reference`
+      # duplicates the LEDGER's own identity as an ordinary command
+      # argument, purely so `EntryAmended`'s own payload carries it —
+      # `CommandRules::Emission#emit`'s `payload: args` is the command's
+      # OWN dispatch args, and an entity command's emitted event
+      # otherwise carries none of the parent aggregate's own fields
+      # (only `event.id`, read by nothing a `process_manager`'s own
+      # `correlates_by` can name) — so `CorrectionWatch`, below, has a
+      # dotted field to correlate on at all once this event can ever
+      # actually fire. Not `sets`; nothing on `Entry` stores it.
+      command "Amend" do
+        role "Auditor"
+        goal "Correct an entry's amount after it was recorded in error"
+
+        attribute :reference, LedgerReference
+        attribute :amount,    EntryAmount
+        corrects "EntryRecorded", reason: "an entry amount was mis-keyed and needs correcting"
+
+        sets :amount
+
+        emits "EntryAmended"
+      end
+    end
+  end
+
+  # THE SECOND AGGREGATE A `CorrectionWatch` DISPATCH TARGETS —
+  # rootless from `Ledger`'s own perspective on purpose (correlated only
+  # by the shared `reference` field, the same convention `waybill`'s own
+  # `Consignment`/`Manifest` pair already uses, redeclaring the identical
+  # value-object NAME rather than sharing one aggregate-to-aggregate).
+  aggregate "AuditTrail" do
+    description "One flag raised against a ledger once one of its entries has been corrected."
+
+    identified_by :reference
+
+    attribute :reference, LedgerReference
+
+    # REDECLARED, NOT SHARED — `waybill`'s own `SlotNumber`/`ItemLabel`
+    # precedent: a value-object table is per-aggregate, so the SAME
+    # correlation field name across two aggregates still needs its own
+    # local copy of the type.
+    value_object "LedgerReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a ledger is referenced") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "clean" do
+      transition "Flag" => "flagged", from: "clean"
+    end
+
+    command "Open" do
+      role "System"
+      goal "Open an audit trail for a ledger"
+
+      attribute :reference, LedgerReference
+
+      emits "AuditTrailOpened"
+    end
+
+    command "Flag" do
+      role "System"
+      goal "Flag the audit trail once its ledger's own correction lands"
+
+      reference_to AuditTrail
+
+      emits "AuditTrailFlagged"
+    end
+
+    query "Flagged" do
+      description "Audit trails already flagged by a landed correction."
+      where(status: "flagged")
+      order_by :reference
+    end
+  end
+
+  # A COUNT READ MODEL OVER THE CORRECTION'S OWN EFFECT — ANGLE-9's own
+  # premise ("a count read-model over it"). Rootless, like banking's own
+  # `AccountsByKind` — a reviewer's question here ("how many corrections
+  # have landed, across every ledger, right now") has no single ledger to
+  # anchor it to. Answers 0 under Ruby today, always — see this file's
+  # own header comment, finding 2: `AuditTrail::Flag` is reachable only
+  # once `CorrectionWatch`'s own first leg delivers, which needs
+  # `EntryAmended` to be emitted at all.
+  read_model "FlaggedTrailCount" do
+    description "How many audit trails have been flagged following a landed correction — a single number, not the rows themselves."
+    include AuditTrail
+    where(status: "flagged")
+    count
+  end
+
+  # THE SAGA ON THE CORRECTED EVENT — ANGLE-9's own premise ("a process
+  # manager on the corrected event"). `correlates_by :"reference.value"`
+  # reads `Entry.Amend`'s own redundant `reference` argument (see that
+  # command's own comment) on leg 1, and `AuditTrail`'s own identity
+  # field on leg 2 — the same shared-field-name convention `waybill`'s
+  # own `Packing` saga already uses across `Consignment`/`Manifest`.
+  # PERMANENTLY UNREACHABLE UNDER RUBY TODAY (finding 2, this file's own
+  # header comment) — kept, not removed, because it is exactly the
+  # well-formed construct ANGLE-9 asked this domain to give first
+  # coverage to, and a future fix to finding 1 makes it reachable with no
+  # further authoring needed.
+  process_manager "CorrectionWatch" do
+    correlates_by :"reference.value"
+    starts_on Ledger::EntryAmended
+    ends_on   AuditTrail::AuditTrailFlagged
+
+    transition Ledger::EntryAmended => "flagging", from: "flagging" do
+      dispatch AuditTrail::Open, with: { reference: :reference }
+    end
+
+    transition AuditTrail::AuditTrailOpened => "flagging", from: "flagging" do
+      dispatch AuditTrail::Flag, with: { reference: :reference }
+    end
+  end
+end

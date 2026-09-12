@@ -1,0 +1,722 @@
+{
+  "ir_version": 1,
+  "name": "Corrections",
+  "version": null,
+  "vision": "A ledger of entries where one entry can be corrected after the fact — corrects declared on the entity owning the entry, not the aggregate, for the first time in the corpus — with a saga and a count read model watching the correction, and a remove-then-append sequence on the same entity list.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Ledger",
+      "description": "A ledger holding entries, one of which may later be amended.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "LedgerReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "entries",
+          "type": "Entry",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "LedgerReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ledger is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "EntrySequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an entry sequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "EntryAmount",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an entry amount is positive",
+              "canonical": "cents.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "cents"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Clerk",
+          "goal": "Open a ledger",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "LedgerReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "LedgerOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Record",
+          "role": "Clerk",
+          "goal": "Record a new entry on the ledger — the auto-minted half of the remove-then-append sequence",
+          "references": "Ledger",
+          "attributes": [
+            {
+              "name": "amount",
+              "type": "EntryAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "entries",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "amount": ":amount"
+              }
+            }
+          ],
+          "emits": [
+            "EntryRecorded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Void",
+          "role": "Clerk",
+          "goal": "Remove an entry from the ledger outright",
+          "references": "Ledger",
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "EntrySequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "entries",
+              "op": "remove",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "sequence"
+              }
+            }
+          ],
+          "emits": [
+            "EntryVoided"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "ReplaceEntries",
+          "role": "Clerk",
+          "goal": "Replace the ledger's whole list of entries at once",
+          "references": "Ledger",
+          "attributes": [
+            {
+              "name": "entries",
+              "type": "Entry",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "entries",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "entries"
+              }
+            }
+          ],
+          "emits": [
+            "EntriesReplaced"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Entry",
+          "description": "One recorded entry, whose amount can later be corrected.",
+          "identified_by": [
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "EntrySequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "amount",
+              "type": "EntryAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Amend",
+              "role": "Auditor",
+              "goal": "Correct an entry's amount after it was recorded in error",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "reference",
+                  "type": "LedgerReference",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "amount",
+                  "type": "EntryAmount",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "EntryRecorded",
+                  "op": "corrects",
+                  "sign": "",
+                  "fields": {
+                    "as": "nil",
+                    "reason": "\"an entry amount was mis-keyed and needs correcting\"",
+                    "reverses": "false"
+                  }
+                },
+                {
+                  "target": "amount",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "amount"
+                  }
+                }
+              ],
+              "emits": [
+                "EntryAmended"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "AuditTrail",
+      "description": "One flag raised against a ledger once one of its entries has been corrected.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "LedgerReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "LedgerReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ledger is referenced",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "System",
+          "goal": "Open an audit trail for a ledger",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "LedgerReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "AuditTrailOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Flag",
+          "role": "System",
+          "goal": "Flag the audit trail once its ledger's own correction lands",
+          "references": "AuditTrail",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "AuditTrailFlagged"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "clean",
+        "transitions": [
+          {
+            "command": "Flag",
+            "to_state": "flagged",
+            "from_state": "clean"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Flagged",
+          "description": "Audit trails already flagged by a landed correction.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"flagged\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+    {
+      "name": "FlaggedTrailCount",
+      "description": "How many audit trails have been flagged following a landed correction — a single number, not the rows themselves.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "flagged_trail_count",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"flagged\""
+        }
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "AuditTrail",
+          "as": "audit_trails",
+          "many": true
+        }
+      ],
+      "group_by": [
+
+      ],
+      "count": true
+    }
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+    {
+      "name": "CorrectionWatch",
+      "correlates_by": "reference.value",
+      "starts_on": "EntryAmended",
+      "ends_on": "AuditTrailFlagged",
+      "states": [
+        "flagging"
+      ],
+      "handlers": [
+        {
+          "event_type": "EntryAmended",
+          "from_state": "flagging",
+          "to_state": "flagging",
+          "dispatches": [
+            {
+              "command_name": "AuditTrail.Open",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "AuditTrailOpened",
+          "from_state": "flagging",
+          "to_state": "flagging",
+          "dispatches": [
+            {
+              "command_name": "AuditTrail.Flag",
+              "with_spec": [
+                [
+                  "reference",
+                  ":reference"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Ledger",
+        "storage_name": "ledger",
+        "adapter": "Memory"
+      },
+      {
+        "name": "AuditTrail",
+        "storage_name": "audit_trail",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not\n# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own\n# \"being clever\" note and .claude/skills/hecks_qa/SKILL.md's \"Authoring a\n# new stress domain\" section).\n#\n# THE CONSTRUCT COMBINATION THIS DOMAIN IS FOR — ANGLE-9 (`ask backlog`,\n# QualityControl ledger): `corrects` (retroactive correction) has exactly\n# ONE declaration anywhere in the corpus, `examples/banking/bluebook/\n# deposit_accounts.bluebook:353` (`Account.CorrectFee`), and it is\n# AGGREGATE-level there — `reference_to Account`, not inside an `entity`\n# block. `corrects` is also absent from `Hecks::Fuzzing::Properties::\n# FEATURE_COVERAGE` entirely: no property anywhere has ever claimed the\n# \"Command#corrects\" language feature. This domain puts `corrects` on an\n# ENTITY-level command instead (`Entry.Amend`, below) — a combination\n# checked directly against the whole corpus before writing this file\n# (`grep -rn 'corrects ' examples/*/bluebook/*.bluebook qa/bluebook/*.\n# bluebook qa/stress_domains/*/bluebook/*.bluebook` — one hit, the\n# aggregate-level one above) — plus a whole-list `list_of(Entry)` COMMAND\n# ARGUMENT (`Ledger.ReplaceEntries`, also a corpus first — `Hecks::\n# Fuzzing::SequenceGenerator::StepBuilder#args_for`'s own comment says a\n# list-of-ENTITY command attribute \"has no real example anywhere in this\n# repo's domains\"), and a `remove:`-then-`append:` sequence on the same\n# entity list (`Ledger.Void` / `Ledger.Record`), aimed at the\n# `GUARANTEED_BY_CONSTRUCTION` note on `Entity#identified_by` in `lib/\n# hecks/fuzzing/properties.rb` (\"current.size + 1 can't repeat unless\n# something remove:s from the list between mints, which no real domain\n# does today\").\n#\n# WHAT THIS DOMAIN FOUND, FIRST TRY — NOT FIXED HERE, reported to the QA\n# orchestrator instead (see this domain's own NOTES.md for the full\n# write-up and exact reproduction):\n#\n#   1. `Entry.Amend`'s own `corrects` mutation is UNCHECKED at build time\n#      (`AggregateBuilder::Sealing#seal_correction_targets` walks only\n#      `@commands` — the AGGREGATE's own top-level list — never\n#      `@entities`, so an entity's own `corrects` mutation is invisible\n#      to it) AND crashes at DISPATCH time: `EntityInterpreter#step_\n#      enforce_givens` never calls `CommandRules::Admissibility#\n#      enforce_correction_target` at all (only `CommandInterpreter`'s own\n#      aggregate-level twin does), and `EntityElement.apply_to_element`'s\n#      own `case mutation.op` has no `:corrects` branch — unlike\n#      `MutationApplier#apply`'s aggregate-level twin, which treats it as\n#      a documented no-op. Dispatching `Entry.Amend` therefore always\n#      raises `Hecks::Runtime::WiringError` (\"no entity mutation applier\n#      handles :corrects — add one before declaring it\"), which is NOT\n#      one of `Hecks::Runtime::DOMAIN_REFUSALS` — it propagates straight\n#      through `Fuzzing::Replay`'s own per-step isolation and crashes the\n#      whole run, the same way an interpreter defect always does.\n#\n#   2. Because of (1), `EntryAmended` (the corrected event) can never be\n#      EMITTED by Ruby at all — so `CorrectionWatch` (the process manager\n#      below, reacting to it) and `FlaggedTrailCount` (the count read\n#      model over what it flags) are both permanently dead code under\n#      Ruby today, not merely untested. Kept anyway — they are exactly\n#      what ANGLE-9's premise asked for (\"a saga on the corrected event\n#      and a count read-model over it\"), and they are real, well-formed\n#      declarations a future fix makes reachable rather than something\n#      this domain would need to redeclare later.\n#\n#   3. `sets :entries, remove: :sequence` (`Ledger.Void`) is a silent\n#      NO-OP against an entity-typed list, for an unrelated reason:\n#      `Hecks::Runtime::Value::Coercion#for_attribute` routes ANY\n#      `list_of` attribute through `#hydrate_entity_list` before it ever\n#      asks whether the element type is an entity or a value object.\n#      That method unconditionally does `Array(value).map { ... }` — no\n#      `value.is_a?(Array)` guard, unlike its OWN value-object sibling\n#      `#hydrate_value_object_list`, whose comment explains exactly why\n#      that guard exists for `remove:`'s single-target value (\"`Array(a_\n#      Hash)` is NOT harmless... silently shredding a single-element\n#      Hash-shaped target into garbage\"). For an entity target the single\n#      removal value is a scalar (`EntrySequence`), so `Array(value)`\n#      wraps it into a one-element Array instead of shredding a Hash —\n#      and `MutationApplier#removed`'s `Array(instance[target]).reject {\n#      |element| element == value }` then compares each stored Hash\n#      element against that wrapping Array, which can never be `==` a\n#      Hash. Nothing is ever removed, and nothing refuses either.\n#\n#   4. Because of (3), the `remove:`-then-`append:` sequence this domain\n#      was built to exercise (`GUARANTEED_BY_CONSTRUCTION`'s \"current.\n#      size + 1 can't repeat unless something remove:s from the list\n#      between mints, which no real domain does today\") cannot actually\n#      happen on THIS domain, or on any domain, as things stand — not\n#      because no real domain has tried it, but because `remove:` on an\n#      entity list does not work at all yet. The comment's premise holds,\n#      but only vacuously: see NOTES.md for the direct, by-hand\n#      confirmation (`Ledger.Record` × 2, `Ledger.Void`, `Ledger.Record`\n#      again — the list has 3 entries, not 2, and the \"removed\" one is\n#      still there).\n#\n#   5. `Ledger.ReplaceEntries` (`sets :entries` bare, importing the\n#      aggregate's own `list_of(Entry)` attribute onto the command\n#      verbatim — `CommandBuilder#resolve_bare_set!`'s own shape,\n#      `ConsoleSettings::Collection.ReplaceColumns`'s corpus precedent,\n#      but for an ENTITY element type rather than a value object for the\n#      first time) accepts a caller-supplied whole list with NO identity\n#      check at all — `#hydrate_entity_list` rebuilds each element's own\n#      declared fields but never runs `MutationApplier#check_entity_\n#      collision`, the guard every OTHER way of adding an entity element\n#      goes through. Two entries with the same `sequence` — or one with\n#      none at all — both pass silently. See NOTES.md.\nHecks.bluebook \"Corrections\" do\n  vision \"A ledger of entries where one entry can be corrected after the fact — corrects declared on the entity owning the entry, not the aggregate, for the first time in the corpus — with a saga and a count read model watching the correction, and a remove-then-append sequence on the same entity list.\"\n\n  core\n\n  aggregate \"Ledger\" do\n    description \"A ledger holding entries, one of which may later be amended.\"\n\n    identified_by :reference\n\n    attribute :reference, LedgerReference\n    attribute :entries,   list_of(Entry)\n\n    value_object \"LedgerReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger is referenced\") { !value.to_s.empty? }\n    end\n\n    # POSITIVE-ONLY, same shape as `nested_pieces`' own `BoardNumber`/\n    # `CardSequence` and `waybill`'s own `SlotNumber` — deliberately, so\n    # an offered `0`/negative sequence is non-blank (survives routing)\n    # and still fails the invariant once a typed rebuild is attempted.\n    value_object \"EntrySequence\" do\n      attribute :value, Integer\n      invariant(\"an entry sequence is positive\") { value.positive? }\n    end\n\n    value_object \"EntryAmount\" do\n      attribute :cents, Integer\n      invariant(\"an entry amount is positive\") { cents.positive? }\n    end\n\n    command \"Open\" do\n      role \"Clerk\"\n      goal \"Open a ledger\"\n\n      attribute :reference, LedgerReference\n\n      emits \"LedgerOpened\"\n    end\n\n    command \"Record\" do\n      role \"Clerk\"\n      goal \"Record a new entry on the ledger — the auto-minted half of the remove-then-append sequence\"\n\n      reference_to Ledger\n      attribute :amount, EntryAmount\n\n      sets :entries, append: { amount: :amount }\n\n      emits \"EntryRecorded\"\n    end\n\n    # THE REMOVE HALF OF THE SEQUENCE THIS DOMAIN EXISTS TO EXERCISE —\n    # see this file's own header comment, finding 3/4, and NOTES.md for\n    # what actually happens (a confirmed silent no-op, not the identity-\n    # reuse question this domain set out to ask).\n    command \"Void\" do\n      role \"Clerk\"\n      goal \"Remove an entry from the ledger outright\"\n\n      reference_to Ledger\n      attribute :sequence, EntrySequence\n\n      sets :entries, remove: :sequence\n\n      emits \"EntryVoided\"\n    end\n\n    # THE CORPUS'S FIRST list_of(ENTITY) COMMAND ARGUMENT — every other\n    # entity-owned list anywhere in this repository is populated one\n    # element at a time via an append command (`Record`, above, and every\n    # `AddX` in `nested_pieces`/`waybill`); nothing replaces the WHOLE\n    # list in one dispatch the way `ConsoleSettings::Collection.\n    # ReplaceColumns` already does for a `list_of(VALUE OBJECT)`. `sets\n    # :entries` (bare) imports `Ledger`'s own declared `list_of(Entry)`\n    # attribute onto this command verbatim, the identical mechanism\n    # `ReplaceColumns` uses — untested for an ENTITY element type until\n    # this domain. See this file's own header comment, finding 5, and\n    # NOTES.md for what actually happens.\n    command \"ReplaceEntries\" do\n      role \"Clerk\"\n      goal \"Replace the ledger's whole list of entries at once\"\n\n      reference_to Ledger\n\n      sets :entries\n\n      emits \"EntriesReplaced\"\n    end\n\n    # A PIECE INSIDE THE LEDGER (ADR 0026) — `identified_by :sequence` is\n    # auto-minted by `Record`'s own `append:` above (one past the highest\n    # held sequence, `MutationApplier#next_identity`), the same\n    # mechanism `nested_pieces`'/`waybill`'s own entity lists already\n    # use.\n    entity \"Entry\" do\n      description \"One recorded entry, whose amount can later be corrected.\"\n\n      identified_by :sequence\n\n      attribute :sequence, EntrySequence\n      attribute :amount,   EntryAmount\n\n      # THE ENTITY-LEVEL `corrects` COMMAND — THE WHOLE REASON THIS\n      # DOMAIN EXISTS. `reason:` is required in practice\n      # (`CommandBuilder#corrects_impl`'s own comment). `reference`\n      # duplicates the LEDGER's own identity as an ordinary command\n      # argument, purely so `EntryAmended`'s own payload carries it —\n      # `CommandRules::Emission#emit`'s `payload: args` is the command's\n      # OWN dispatch args, and an entity command's emitted event\n      # otherwise carries none of the parent aggregate's own fields\n      # (only `event.id`, read by nothing a `process_manager`'s own\n      # `correlates_by` can name) — so `CorrectionWatch`, below, has a\n      # dotted field to correlate on at all once this event can ever\n      # actually fire. Not `sets`; nothing on `Entry` stores it.\n      command \"Amend\" do\n        role \"Auditor\"\n        goal \"Correct an entry's amount after it was recorded in error\"\n\n        attribute :reference, LedgerReference\n        attribute :amount,    EntryAmount\n        corrects \"EntryRecorded\", reason: \"an entry amount was mis-keyed and needs correcting\"\n\n        sets :amount\n\n        emits \"EntryAmended\"\n      end\n    end\n  end\n\n  # THE SECOND AGGREGATE A `CorrectionWatch` DISPATCH TARGETS —\n  # rootless from `Ledger`'s own perspective on purpose (correlated only\n  # by the shared `reference` field, the same convention `waybill`'s own\n  # `Consignment`/`Manifest` pair already uses, redeclaring the identical\n  # value-object NAME rather than sharing one aggregate-to-aggregate).\n  aggregate \"AuditTrail\" do\n    description \"One flag raised against a ledger once one of its entries has been corrected.\"\n\n    identified_by :reference\n\n    attribute :reference, LedgerReference\n\n    # REDECLARED, NOT SHARED — `waybill`'s own `SlotNumber`/`ItemLabel`\n    # precedent: a value-object table is per-aggregate, so the SAME\n    # correlation field name across two aggregates still needs its own\n    # local copy of the type.\n    value_object \"LedgerReference\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ledger is referenced\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"clean\" do\n      transition \"Flag\" => \"flagged\", from: \"clean\"\n    end\n\n    command \"Open\" do\n      role \"System\"\n      goal \"Open an audit trail for a ledger\"\n\n      attribute :reference, LedgerReference\n\n      emits \"AuditTrailOpened\"\n    end\n\n    command \"Flag\" do\n      role \"System\"\n      goal \"Flag the audit trail once its ledger's own correction lands\"\n\n      reference_to AuditTrail\n\n      emits \"AuditTrailFlagged\"\n    end\n\n    query \"Flagged\" do\n      description \"Audit trails already flagged by a landed correction.\"\n      where(status: \"flagged\")\n      order_by :reference\n    end\n  end\n\n  # A COUNT READ MODEL OVER THE CORRECTION'S OWN EFFECT — ANGLE-9's own\n  # premise (\"a count read-model over it\"). Rootless, like banking's own\n  # `AccountsByKind` — a reviewer's question here (\"how many corrections\n  # have landed, across every ledger, right now\") has no single ledger to\n  # anchor it to. Answers 0 under Ruby today, always — see this file's\n  # own header comment, finding 2: `AuditTrail::Flag` is reachable only\n  # once `CorrectionWatch`'s own first leg delivers, which needs\n  # `EntryAmended` to be emitted at all.\n  read_model \"FlaggedTrailCount\" do\n    description \"How many audit trails have been flagged following a landed correction — a single number, not the rows themselves.\"\n    include AuditTrail\n    where(status: \"flagged\")\n    count\n  end\n\n  # THE SAGA ON THE CORRECTED EVENT — ANGLE-9's own premise (\"a process\n  # manager on the corrected event\"). `correlates_by :\"reference.value\"`\n  # reads `Entry.Amend`'s own redundant `reference` argument (see that\n  # command's own comment) on leg 1, and `AuditTrail`'s own identity\n  # field on leg 2 — the same shared-field-name convention `waybill`'s\n  # own `Packing` saga already uses across `Consignment`/`Manifest`.\n  # PERMANENTLY UNREACHABLE UNDER RUBY TODAY (finding 2, this file's own\n  # header comment) — kept, not removed, because it is exactly the\n  # well-formed construct ANGLE-9 asked this domain to give first\n  # coverage to, and a future fix to finding 1 makes it reachable with no\n  # further authoring needed.\n  process_manager \"CorrectionWatch\" do\n    correlates_by :\"reference.value\"\n    starts_on Ledger::EntryAmended\n    ends_on   AuditTrail::AuditTrailFlagged\n\n    transition Ledger::EntryAmended => \"flagging\", from: \"flagging\" do\n      dispatch AuditTrail::Open, with: { reference: :reference }\n    end\n\n    transition AuditTrail::AuditTrailOpened => \"flagging\", from: \"flagging\" do\n      dispatch AuditTrail::Flag, with: { reference: :reference }\n    end\n  end\nend\n"
+}
