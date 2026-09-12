@@ -75,7 +75,8 @@ module Hecks
       # rubocop:disable-next Lint/StructNewOverride
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
-                           :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows)
+                           :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
+                           :correction_bindings)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -208,9 +209,66 @@ module Hecks
                                 state: ctx.element)
       end
 
+      # BUG#30 — THE ENTITY-LEVEL HALF OF `CommandInterpreter#step_enforce_
+      # givens`'s own structural-before-declared ordering (see that
+      # method's comment for the shared reasoning): "does the fact this
+      # command's `corrects` names even exist" is checked here too, once,
+      # before the entity's own `given`s.
+      #
+      # ADMISSIBILITY IS CHECKED AGAINST THE PARENT/ROOT, NOT THE ENTITY —
+      # deliberately `ctx.instance`/`ctx.aggregate` (the PARENT aggregate
+      # record and the ROOT aggregate construct), never `ctx.view`/
+      # `ctx.entity` (the entity's own pre-mutation view/construct). This
+      # is not a simplification; it is the ONLY choice that lines up with
+      # how the event being corrected was actually recorded: an entity has
+      # no event stream of its own — `CommandRules::Emission#emit` (called
+      # from THIS class's own `step_emit`, and from `CommandInterpreter`'s
+      # `step_emit` for an aggregate-level command alike) always stamps an
+      # emitted event with the ROOT aggregate's own qualified name
+      # (`"#{domain}::#{aggregate.hecks_name}"`) and the PARENT record's
+      # own id (`ctx.instance.id`), regardless of which level dispatched
+      # it. `enforce_correction_target` (CommandRules::Admissibility)
+      # looks a correction target up by exactly those two fields plus the
+      # event name — asking it in terms of the entity instead would search
+      # for an event key/id that no emitted event could ever actually
+      # carry, and every entity-level correction would refuse
+      # (NothingToCorrect) even against a real, already-emitted event.
+      # `qa/stress_domains/corrections`' own `Entry.Amend` (corrects
+      # "EntryRecorded", which `Ledger.Record` — an AGGREGATE-level
+      # command — actually emits) is exactly this shape: the corrected
+      # event's `aggregate`/`id` are the LEDGER's, never the Entry's own
+      # (an Entry has no id an event could be filed under in the first
+      # place). `Fuzzing::Properties::Corrections#corrections_reference_
+      # an_emitted_event` independently encodes the identical rule
+      # (`aggregate_key` built off the OUTER aggregate for both the
+      # `corrects` target and the `emits` produced event, regardless of
+      # entity nesting depth) — this is that property's dispatch-time
+      # enforcement counterpart, not a new invention.
+      #
+      # One structural consequence, worth being explicit about for a
+      # Rust port: because the lookup is scoped to the PARENT record
+      # (not to any one entity element within it), an entity-level
+      # `corrects` only proves "this parent record has emitted the named
+      # event at some point" — it does NOT, and cannot, further narrow
+      # to "...specifically for THIS entity element" (a Ledger with three
+      # Entries all satisfy the same `EntryRecorded`-was-emitted check).
+      # That is not a gap this fix introduces: it is the SAME granularity
+      # the aggregate-level check already has (one record, one event
+      # history), just observed from one level down. A command wanting a
+      # tighter, element-specific correlation has to encode it itself, in
+      # its own `given`s, off `correction`-bound payload fields.
+      #
+      # `correction:` bindings computed here are threaded through to BOTH
+      # halves of the same command's admissibility, same as the
+      # aggregate-level path: `ctx.correction_bindings` is read again by
+      # `step_enforce_ensures`, below, so an `as:`-named binding is
+      # visible to a settled-record `ensures` exactly as freely as it is
+      # here, pre-mutation.
       def step_enforce_givens(ctx)
         step(:enforce_givens) do
-          @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance)
+          ctx.correction_bindings = @rules.enforce_correction_target(ctx.instance, ctx.aggregate, ctx.command, domain: ctx.domain)
+          @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance,
+                                correction: ctx.correction_bindings)
         end
       end
 
@@ -240,7 +298,14 @@ module Hecks
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) do
           settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
-          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance)
+          # `correction:` — same `as:`-bound corrected-event payload
+          # `step_enforce_givens` already located, above; `|| {}` covers
+          # a command with no `corrects` mutation at all, where
+          # `ctx.correction_bindings` is `{}` from that call already, or
+          # (belt-and-braces, matching `CommandInterpreter#step_enforce_
+          # ensures`'s own identical `|| {}`) never set.
+          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance,
+                                 correction: ctx.correction_bindings || {})
         end
       end
 

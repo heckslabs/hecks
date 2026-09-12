@@ -214,7 +214,7 @@ module Hecks
       # shape here without doing the same there would break that
       # intentional mirroring, which is what lets the two be diffed
       # against each other when one gets a fix the other needs too.
-      # rubocop:disable-next Metrics/AbcSize
+      # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
       # `pre` — the element as it was before this command (C4.2): every
       # read below goes through it, every write lands on `element`.
       def apply_to_element(rules, aggregate, entity, element, mutation, args, pre = element)
@@ -243,6 +243,22 @@ module Hecks
           element[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
         when :clamp
           element[mutation.target] = rules.clamp(pre[mutation.target], mutation.source, mutation.target)
+        # `corrects` — BUG#30. `MutationApplier#apply`'s own aggregate-
+        # level `:corrects` branch's own comment gives the full reasoning;
+        # the same one applies here unchanged: this mutation targets no
+        # field on THIS element at all — its own event name, and whether
+        # the OWNING record has actually emitted it, was already checked
+        # once, up front, by `EntityInterpreter#step_enforce_givens`
+        # (`CommandRules::Admissibility#enforce_correction_target`, called
+        # there against the PARENT record/ROOT aggregate — see that
+        # step's own comment for exactly why). Whatever field a correction
+        # actually changes is an ORDINARY declared `sets`/`increment`/etc.
+        # mutation of its own, applied by one of the branches above like
+        # any other — `qa/stress_domains/corrections`' own `Entry.Amend`
+        # pairs `corrects "EntryRecorded", ...` with a separate `sets
+        # :amount`, exactly this shape.
+        when :corrects
+          nil
         else
           # The aggregate-level twin's own backstop
           # (MutationApplier#apply), for the same reason: applying

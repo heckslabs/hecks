@@ -217,6 +217,147 @@ RSpec.describe "a command's corrects" do
     expect(reversed.instance.balance.cents).to eq(0)
   end
 
+  # BUG#30 — `corrects` DECLARED ON AN ENTITY-LEVEL COMMAND, not the
+  # aggregate. Before this fix, `Ledger::Entry.Amend` (below) crashed
+  # outright with `Hecks::Runtime::WiringError` — `EntityInterpreter`
+  # never called `enforce_correction_target` at all, and
+  # `EntityElement.apply_to_element`'s own `case mutation.op` had no
+  # `:corrects` branch. `qa/stress_domains/corrections` found this live
+  # (ANGLE-9); this is the runtime regression coverage for the fix.
+  #
+  # `Ledger.Record` — AGGREGATE-level — is what actually `emits
+  # "EntryRecorded"`; `Entry.Amend` — ENTITY-level — is what `corrects`
+  # it. This is deliberate, not incidental: an entity has no event
+  # stream of its own, so admissibility is checked against the PARENT
+  # record's own history (see `EntityInterpreter#step_enforce_givens`'s
+  # own comment for the full reasoning) — proving the fix against a
+  # correction target that an AGGREGATE-level sibling command emits is
+  # the realistic shape, not a simplification for the test's own sake.
+  #
+  # `Ledger.Import` — a SECOND way to add an Entry that never emits
+  # "EntryRecorded" at all — exists purely so the refusal half below has
+  # a real, already-existing entity element to address whose PARENT
+  # ledger's own event history genuinely never announced the corrected
+  # event, the entity-level analogue of the aggregate-level "two boxes,
+  # only one deposited" refusal proof above. TWO SEPARATE LEDGERS, for
+  # the same reason the aggregate-level proof uses two separate boxes:
+  # admissibility is checked against the PARENT RECORD's own history as
+  # a whole (this file's own `step_enforce_givens` comment), so a second
+  # entry added to the SAME already-recording ledger would still find
+  # "EntryRecorded" in that ledger's history and dispatch cleanly — the
+  # refusal needs a ledger whose own history genuinely never has it.
+  # rubocop:disable-next RSpec/ExampleLength
+  it "dispatches an entity-level corrects command, binding as: and reading it from given/ensures, " \
+     "refusing cleanly (not crashing) against an entry whose ledger never recorded it" do
+    registry = Hecks::Runtime::Registry.new
+
+    Hecks.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+
+      Hecks.bluebook("EntityCorrectsSmoke") do
+        vision "Sanity check for corrects declared on an entity-level command."
+        core
+
+        aggregate "Ledger" do
+          identified_by :reference
+
+          attribute :reference, Reference
+          attribute :entries,   list_of(Entry)
+
+          value_object("Reference")     { attribute :value, String }
+          value_object("Amount")        { attribute :cents, Integer }
+          value_object("EntrySequence") { attribute :value, Integer }
+
+          command "Open" do
+            role "Clerk"
+            attribute :reference, Reference
+            emits "Opened"
+          end
+
+          command "Record" do
+            role "Clerk"
+            reference_to Ledger
+            attribute :amount, Amount
+            sets :entries, append: { amount: :amount }
+            emits "EntryRecorded"
+          end
+
+          # NEVER emits "EntryRecorded" — the clean-refusal fixture's
+          # own entry gets here instead.
+          command "Import" do
+            role "Clerk"
+            reference_to Ledger
+            attribute :amount, Amount
+            sets :entries, append: { amount: :amount }
+            emits "EntryImported"
+          end
+
+          entity "Entry" do
+            identified_by :sequence
+
+            attribute :sequence, EntrySequence
+            attribute :amount,   Amount
+
+            # `as: :original` bound and read from both given and
+            # ensures, the entity-level twin of the aggregate-level
+            # `as:` example above.
+            command "Amend" do
+              role "Auditor"
+              attribute :amount, Amount
+
+              corrects "EntryRecorded", as: :original, reason: "an entry amount was mis-keyed"
+
+              given("the amendment names a different amount than originally recorded") do
+                amount.cents != original.amount.cents
+              end
+              ensures("the amount changed") { amount.cents != old.amount.cents }
+              # Proves `original` (the `as:`-bound corrected event's own
+              # payload) is readable from ensures too, not just given —
+              # the same predicate as the given above, re-checked
+              # post-mutation against the settled record.
+              ensures("the settled amount still differs from the original event it corrects") do
+                amount.cents != original.amount.cents
+              end
+
+              sets :amount
+              emits "EntryAmended"
+            end
+          end
+        end
+      end
+    end
+
+    dispatcher = Hecks::Runtime::Dispatcher.new(registry)
+
+    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-1" })
+    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Record", reference: { value: "l-1" }, amount: { cents: 1000 })
+
+    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Open", reference: { value: "l-2" })
+    dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Import", reference: { value: "l-2" }, amount: { cents: 2000 })
+
+    # LEGITIMATE — l-1's own entry (sequence 1) targets a real,
+    # already-emitted "EntryRecorded" for THIS exact ledger. Dispatches
+    # cleanly, never a WiringError.
+    amended = dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Entry.Amend",
+                                  reference: { value: "l-1" }, sequence: { value: 1 }, amount: { cents: 1500 })
+    entry = amended.instance.entries.find { |e| e[:sequence].value == 1 }
+    expect(entry[:amount].cents).to eq(1500)
+
+    # ILLEGITIMATE — l-2's own entry exists for real (imported, not
+    # recorded), but l-2's own event history never emitted
+    # "EntryRecorded" at all — refuses with NothingToCorrect, never a
+    # crash.
+    expect do
+      dispatcher.dispatch("EntityCorrectsSmoke::Ledger.Entry.Amend",
+                          reference: { value: "l-2" }, sequence: { value: 1 }, amount: { cents: 500 })
+    end.to raise_error(Hecks::Runtime::NothingToCorrect)
+
+    expect(registry.event_log.map(&:name)).to eq(%w[Opened EntryRecorded Opened EntryImported EntryAmended])
+  end
+
   # A build-time refusal proof — the whole point is the raise, and the
   # inline domain is what makes the lossy op concrete.
   # rubocop:disable-next RSpec/ExampleLength
