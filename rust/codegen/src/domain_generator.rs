@@ -857,6 +857,34 @@ pub fn generate(
                 continue;
             }
 
+            // BUG#23 (qa/bluebook/quality_control.bluebook) — the SAME
+            // `allowlist` this command's own `emit_from_json_flat` call
+            // above already built, run through `json_codec::structural_
+            // precheck` so `registry.rs`'s router can run the identical
+            // unknown/absent-argument gate a second time, standalone,
+            // against raw `facts_json`, BEFORE `id_line` resolves — see
+            // that function's own header for the full reasoning.
+            // Computed here, into a plain local, rather than inline
+            // inside the `CommandEntry` literal below: `args_struct` is
+            // moved into that literal's own `args_struct` field, and
+            // struct-literal field initializers evaluate in the order
+            // written, so borrowing it again in a LATER field expression
+            // would use it after that move. `None` for a CREATING
+            // command: `id_line` is never emitted for one (registry.rs's
+            // own `if c.creates { String::new() } else { ... }`), so
+            // there is no identity-resolution-before-structural-checks
+            // race for this fix to close there.
+            let structural_precheck = if creates {
+                None
+            } else {
+                Some(json_codec::structural_precheck(
+                    &args_struct,
+                    command_name,
+                    cmd_attrs,
+                    Some(&allowlist),
+                ))
+            };
+
             registry_commands.push(CommandEntry {
                 verb: format!("{domain_name}::{agg_name}.{command_name}"),
                 name: command_name.to_string(),
@@ -885,6 +913,7 @@ pub fn generate(
                     &value_objects_by_name,
                 ),
                 role: command.get("role").map(Json::to_s),
+                structural_precheck,
             });
         }
 

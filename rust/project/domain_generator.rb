@@ -798,6 +798,18 @@ module RustProjection
               # Ruby's `DISPATCH_ORDER` (VO invariant/admits/pattern is
               # enforced during `normalize_args`, which precedes both).
               invariant_check_lines: Projector.invariant_checks_for(command, aggregates_by_name, value_objects_by_name),
+              # BUG#23 (qa/bluebook/quality_control.bluebook) — the SAME
+              # `allowlist` this command's own `emit_from_json_flat` call
+              # above already built, run through `Projector.structural_
+              # precheck` so `registry.rb`'s router can run the identical
+              # unknown/absent-argument gate a second time, standalone,
+              # against raw `facts_json`, BEFORE `id_line` resolves —
+              # see that method's own header for the full reasoning.
+              # `nil` for a CREATING command: `id_line` is never emitted
+              # for one (registry.rb's own `c[:creates] ? "" : ...`), so
+              # there is no identity-resolution-before-structural-checks
+              # race for this fix to close there.
+              structural_precheck: creates ? nil : Projector.structural_precheck(args_struct, command[:name].to_s, command[:attributes], allowlist),
             }
           end
 

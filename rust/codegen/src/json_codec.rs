@@ -287,6 +287,56 @@ fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declar
     )
 }
 
+/// Port of `json_codec.rb#unknown_and_absent_argument_checks` — factored
+/// out of `emit_from_json_flat` (pure extraction, no behavior change) so
+/// `registry.rs`'s own standalone structural pre-pass (BUG#23, see that
+/// file's header) can build the IDENTICAL text: the unknown-argument
+/// check, then the absent-argument check, matching Ruby's own
+/// DISPATCH_ORDER.
+pub fn unknown_and_absent_argument_checks(command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>, absent_argument_check: bool) -> String {
+    let mut check = match unknown_argument_allowlist {
+        Some(allowlist) => {
+            let mut known_keys: Vec<String> = attributes.iter().map(|a| naming::rust_field(crate::attr::name(a))).collect();
+            for k in allowlist {
+                if !known_keys.contains(k) {
+                    known_keys.push(k.clone());
+                }
+            }
+            let declared_names: Vec<String> = attributes.iter().map(|a| crate::attr::name(a).to_string()).collect();
+            emit_unknown_argument_check(command_name, &known_keys, &declared_names)
+        }
+        None => String::new(),
+    };
+    if absent_argument_check {
+        check.push_str(&emit_absent_argument_check(command_name, attributes));
+    }
+    check
+}
+
+/// Port of `json_codec.rb#structural_precheck` (BUG#23, qa/bluebook/
+/// quality_control.bluebook) — object-shape check, then
+/// `unknown_and_absent_argument_checks` above: the IDENTICAL text
+/// `emit_from_json_skeleton`'s own preamble builds for a command's
+/// top-level Args struct. Exposed (`pub`) so `registry.rs` can run this
+/// SAME check directly against `facts_json`, standalone, BEFORE an
+/// acting aggregate command's own `id_line`/`extract_id` resolves at
+/// all — see that file's own header for the full reasoning:
+/// `id_line` used to run BEFORE `Args::from_json` (the ONE place these
+/// structural checks lived), so a malformed `id`/`to:` short-circuited
+/// dispatch before a missing OTHER argument was ever checked, and Ruby/
+/// Rust refused different KINDS for the identical malformed command.
+/// `absent_argument_check` is always `true` here — every real caller
+/// (an acting aggregate command's own top-level args, `domain_
+/// generator.rs`'s `registry_commands`) already passes it that way to
+/// `emit_from_json_flat` too.
+pub fn structural_precheck(struct_name: &str, command_name: &str, attributes: &[Json], unknown_argument_allowlist: Option<&[String]>) -> String {
+    format!(
+        "{}{}",
+        emit_object_shape_check(struct_name),
+        unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, true)
+    )
+}
+
 /// `interleave_checks`/`aggregates_by_name` — port of `json_codec.rb#
 /// emit_from_json_flat`'s own ADR 0037 Finding 7 fix: `false` (every
 /// value-object `from_json`) keeps the ORIGINAL one-shot struct-literal
@@ -372,23 +422,7 @@ pub fn emit_from_json_flat(
         })
         .collect();
 
-    let mut unknown_check = match unknown_argument_allowlist {
-        Some(allowlist) => {
-            let mut known_keys: Vec<String> = attributes.iter().map(|a| naming::rust_field(crate::attr::name(a))).collect();
-            for k in allowlist {
-                if !known_keys.contains(k) {
-                    known_keys.push(k.clone());
-                }
-            }
-            let declared_names: Vec<String> = attributes.iter().map(|a| crate::attr::name(a).to_string()).collect();
-            emit_unknown_argument_check(command_name, &known_keys, &declared_names)
-        }
-        None => String::new(),
-    };
-    // Ruby's own DISPATCH_ORDER: unknown first, absent second, then typing.
-    if absent_argument_check {
-        unknown_check.push_str(&emit_absent_argument_check(command_name, attributes));
-    }
+    let unknown_check = unknown_and_absent_argument_checks(command_name, attributes, unknown_argument_allowlist, absent_argument_check);
 
     let shorthand_fields = if interleave_checks { Some(idents.as_slice()) } else { None };
     emit_from_json_skeleton(exemplar, struct_name, &field_exprs, &unknown_check, shorthand_fields)

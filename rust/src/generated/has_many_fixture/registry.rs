@@ -122,6 +122,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AdmitArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["members", "id", "circle"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Admit does not declare {} — it takes members",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["members"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Admit"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "members"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::has_many_fixture::circle::Circle::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Admit acts on an existing Circle — pass id.value:".to_string()))?, };
               let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(facts_json)?;
                       for item in &args.members { item.check_invariants()?; }

@@ -97,6 +97,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MarkArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Mark does not declare {} — it takes to",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["to"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Mark"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "to"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Mark acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::MarkArgs::from_json(facts_json)?;
                       args.to.check_invariants()?;
@@ -109,6 +128,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("NoticeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["to", "id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Notice does not declare {} — it takes to",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Notice acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::NoticeArgs::from_json(facts_json)?;
                       if let Some(v) = &args.to { v.check_invariants()?; }
@@ -121,6 +151,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HonorArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["rank", "id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Honor does not declare {} — it takes rank",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["rank"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Honor"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "rank"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Honor acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::HonorArgs::from_json(facts_json)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &id);
@@ -132,6 +181,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddSeatArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["number", "row", "id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddSeat does not declare {} — it takes number, row",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["number", "row"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddSeat"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "number, row"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSeat acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::AddSeatArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
@@ -144,6 +212,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EnlistArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "age", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Enlist does not declare {} — it takes id, age",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["age", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Enlist"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id, age"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Enlist acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::EnlistArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
@@ -157,6 +244,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AssignArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["member", "number", "id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Assign does not declare {} — it takes member, number",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["member", "number"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Assign"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "member, number"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Assign acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::AssignArgs::from_json(facts_json)?;
                       args.member.check_invariants()?;
@@ -170,6 +276,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RetireArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "roster", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes id",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["id"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Retire"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::roster::roster::Roster::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing Roster — pass name.value:".to_string()))?, };
               let args = crate::generated::roster::roster::RetireArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;

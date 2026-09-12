@@ -192,6 +192,36 @@ module RustProjection
           # produces on the Ruby side.
           acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
           id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
+          # BUG#23 (qa/bluebook/quality_control.bluebook) — Ruby's own
+          # `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_
+          # absent_arguments` structurally BEFORE `hydrate`, but `id_line`
+          # just above (an ACTING command's own identity resolution) used
+          # to run BEFORE `#{c[:args_struct]}::from_json` — the ONE place
+          # those structural checks lived — every single time, so a
+          # malformed `id`/`to:` (a route-shaped `{aggregate:, entities:}`
+          # value offered where the command declares a plain scalar
+          # identity, say) short-circuited the whole dispatch via `extract_
+          # id`'s own `?`/`NotFound`-wrap before a missing OTHER argument
+          # was ever checked — Ruby and Rust then refused DIFFERENT KINDS
+          # for the identical malformed command. `Projector.structural_
+          # precheck` (json_codec.rb) builds the IDENTICAL unknown/absent-
+          # argument check text `#{c[:args_struct]}::from_json` already
+          # runs internally — run a SECOND time, standalone, here, against
+          # the raw `facts_json` `v` is bound to, BEFORE `id_line`. Nil for
+          # a CREATING command (`domain_generator.rb`'s own gate on this
+          # field: `id_line` above is never emitted for one either, so
+          # there is no race for this to close there). Deliberately
+          # redundant with the copy still inside `#{c[:args_struct]}::
+          # from_json` itself (unchanged) rather than replacing it — the
+          # same "can only ever refuse SOONER with the exact kind `from_
+          # json` would have produced anyway, never diverge from it" shape
+          # `invariant_check_lines` below already established for R3 (see
+          # that field's own comment) — NOT the reordering BUG#4 (PR #529)
+          # already tried and reverted: `id_line` itself still runs in
+          # exactly the same place, unchanged; this only adds an EARLIER,
+          # narrower gate ahead of it, scoped to a command's own declared
+          # argument shape, never to record existence.
+          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
@@ -219,6 +249,7 @@ module RustProjection
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
+                  structural_precheck_line,
                   id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   # R3 FIX (docs/audits/2026-08-11-bug-triage.md) — VO
                   # invariant/admits/pattern BEFORE role_line/reference_lines,

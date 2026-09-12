@@ -208,6 +208,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SuspendArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["standing", "id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Suspend does not declare {} — it takes standing",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["standing"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Suspend"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "standing"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Suspend acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::SuspendArgs::from_json(facts_json)?;
                       args.standing.check_invariants()?;
@@ -221,6 +240,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReinstateArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reinstate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reinstate acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::ReinstateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Reinstate", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -233,6 +263,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "customer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Close does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::customer::Customer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Close acts on an existing Customer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::customer::CloseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "Close", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -259,6 +300,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CreditArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Credit does not declare {} — it takes amount, narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Credit"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount, narrative"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Credit acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CreditArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -273,6 +333,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DebitArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Debit does not declare {} — it takes amount, narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Debit"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount, narrative"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Debit acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::DebitArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -287,6 +366,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FreezeAccountArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "FreezeAccount does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("FreezeAccount acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::FreezeAccountArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "FreezeAccount", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -299,6 +389,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("UnfreezeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Unfreeze does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Unfreeze acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::UnfreezeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Unfreeze", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -311,6 +412,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CloseAccountArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CloseAccount does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CloseAccount acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CloseAccountArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Branch clerk"), "CloseAccount", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -323,6 +435,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ApplyFeeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "narrative", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ApplyFee does not declare {} — it takes amount, narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "ApplyFee"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount, narrative"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("ApplyFee acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::ApplyFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -337,6 +468,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CorrectFeeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CorrectFee does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "CorrectFee"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CorrectFee acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CorrectFeeArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -350,6 +500,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AccrueInterestArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AccrueInterest does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AccrueInterest"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AccrueInterest acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::AccrueInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -363,6 +532,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CorrectInterestArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "id", "account", "number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CorrectInterest does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "CorrectInterest"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::account::Account::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CorrectInterest acts on an existing Account — pass number.value:".to_string()))?, };
               let args = crate::generated::banking::account::CorrectInterestArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
@@ -390,6 +578,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ClearArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Clear does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Clear acts on an existing OnboardingCase — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::onboardingcase::ClearArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -402,6 +601,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DeclineArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "onboarding_case", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Decline does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::onboardingcase::OnboardingCase::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Decline acts on an existing OnboardingCase — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::onboardingcase::DeclineArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Decline", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -428,6 +638,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RenameArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["nickname", "id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Rename does not declare {} — it takes nickname",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["nickname"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Rename"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "nickname"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Rename acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::RenameArgs::from_json(facts_json)?;
                       args.nickname.check_invariants()?;
@@ -441,6 +670,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("WithdrawArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["cents", "narrative", "id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Withdraw does not declare {} — it takes cents, narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["cents", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Withdraw"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "cents, narrative"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Withdraw acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::WithdrawArgs::from_json(facts_json)?;
                       args.cents.check_invariants()?;
@@ -455,6 +703,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ActivateArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Activate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Activate acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::ActivateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Activate", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -467,6 +726,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RetireArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "atm_card", "serial", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::atmcard::ATMCard::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retire acts on an existing ATMCard — pass serial.value:".to_string()))?, };
               let args = crate::generated::banking::atmcard::RetireArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -494,6 +764,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CaptureArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Capture does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Capture acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::CaptureArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Capture", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -506,6 +787,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VoidArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Void does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Void acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::VoidArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Void", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -518,6 +810,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RefundArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Refund does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Refund acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::RefundArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Refund", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -530,6 +833,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReverseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reverse does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::ReverseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -542,6 +856,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DisputeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["disputed_by", "id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Dispute does not declare {} — it takes disputed_by",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["disputed_by"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Dispute"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "disputed_by"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispute acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::DisputeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -555,6 +888,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ChargebackArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Chargeback does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Chargeback acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::ChargebackArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Chargeback", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -567,6 +911,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RejectDisputeArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "card_payment", "authorisation", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RejectDispute does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::cardpayment::CardPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("RejectDispute acts on an existing CardPayment — pass authorisation.value:".to_string()))?, };
               let args = crate::generated::banking::cardpayment::RejectDisputeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "RejectDispute", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -593,6 +948,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SurrenderArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Surrender does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Surrender acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::SurrenderArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Surrender", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -605,6 +971,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LogVisitArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["date", "sequence", "note", "id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "LogVisit does not declare {} — it takes date, sequence, note",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["date", "sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "LogVisit"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "date, sequence, note"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("LogVisit acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::LogVisitArgs::from_json(facts_json)?;
                       args.date.check_invariants()?;
@@ -620,6 +1005,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("IssueKeyArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["serial", "id", "safe_deposit_box", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IssueKey does not declare {} — it takes serial",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["serial"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "IssueKey"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "serial"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("IssueKey acts on an existing SafeDepositBox — pass branch_code.value, box_number.value:".to_string()))?, };
               let args = crate::generated::banking::safedepositbox::IssueKeyArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
@@ -665,6 +1069,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DebitedArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Debited does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Debited acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::DebitedArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Debited", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -677,6 +1092,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SettleArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Settle does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::SettleArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Settle", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -689,6 +1115,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CreditedArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Credited does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Credited acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::CreditedArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Credited", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -701,6 +1138,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReverseArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reverse does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reverse acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::ReverseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -713,6 +1161,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RejectArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "transfer", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reject does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::transfer::Transfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Reject acts on an existing Transfer — pass reference.value:".to_string()))?, };
               let args = crate::generated::banking::transfer::RejectArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Reject", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -742,6 +1201,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SendTransferArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SendTransfer does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("SendTransfer acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::SendTransferArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "SendTransfer", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -754,6 +1224,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RecallArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Recall does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Recall acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::RecallArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Recall", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -766,6 +1247,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ReturnArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Return does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Return acts on an existing ExternalTransfer — pass end_to_end.value:".to_string()))?, };
               let args = crate::generated::banking::externaltransfer::ReturnArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Return", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -794,6 +1286,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ExecuteArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Execute does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Execute acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::ExecuteArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Execute", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -806,6 +1309,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CancelArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Cancel does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Cancel acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::CancelArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Cancel", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -818,6 +1332,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("FailArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Fail does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Fail acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::FailArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Fail", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -830,6 +1355,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("RetryArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retry does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Retry acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::RetryArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Retry", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -842,6 +1378,17 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AbandonArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "scheduled_payment", "instruction", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Abandon does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Abandon acts on an existing ScheduledPayment — pass instruction.value:".to_string()))?, };
               let args = crate::generated::banking::scheduledpayment::AbandonArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Back office"), "Abandon", caller_role, caller_actor_id, &*store, QUERIES)?;
