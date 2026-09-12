@@ -15,6 +15,7 @@ module Hecks
           parent_scalar = identity_scalar_of(aggregate, args)
 
           @known_ids[aggregate.hecks_name] << parent_scalar if entry[:entity].nil? && entry[:command].creates?
+          record_grant(args) if entry[:verb] == Adversary::GRANT_VERB
 
           populator = populator_for_entry(catalog, entry)
           return unless populator
@@ -44,6 +45,19 @@ module Hecks
           return if populator[:identity_arguments].empty?
 
           @appended_identities[key] << populator[:identity_arguments].to_h { |name| [name.to_s, args[name.to_s]] }
+        end
+
+        # A GRANT THIS SEQUENCE MADE FOR REAL — `Governance::RoleAssignment.
+        # Assign` succeeded with these exact args, so `actor_id` now holds
+        # `role_name` in this boot's own store, on both replay sides. The
+        # `actor_known` caller shape (adversary.rb) replays that identity
+        # against a command gated on the same role: the one way a
+        # generated step reaches `holds_role?`'s AUTHORIZED branch rather
+        # than only its refusing one.
+        def record_grant(args)
+          role  = ValueGenerator.scalar_of(args["role_name"]).to_s
+          actor = ValueGenerator.scalar_of(args["actor_id"]).to_s
+          @granted[role] << actor unless role.empty? || actor.empty?
         end
 
         # THE POOL AN APPENDED ELEMENT LANDS IN — the aggregate's own

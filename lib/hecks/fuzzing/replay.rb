@@ -102,6 +102,7 @@ module Hecks
           refusals        = []
           queries         = []
           dry_runs        = []
+          dry_run_traces  = []
           fan_outs        = []
           guard_checks    = []
           mutation_traces = []
@@ -201,13 +202,38 @@ module Hecks
             # `{"dry_run": verb, "args": …}` — `Dispatcher#dry_run?`: the command
             # evaluated hypothetically, nothing saved or emitted, no reaction.
             # Recorded, never a refusal: a refused dry run is an ANSWER.
+            #
+            # `dry_runs` STAYS EXACTLY `{verb:, ok:, error?:}` — the SAME
+            # shape it always had, and the SAME shape `kernel/cli.rs`'s own
+            # `dry_run` answers (`{"verb", "ok"}` or `{"verb", "ok": false,
+            # "error"}`, that function's own doc comment) — `spec/rust_
+            # conformance_spec.rb` compares this array against the compiled
+            # binary's own verbatim, so it can never carry a key Rust's own
+            # answer does not. The role-gated binding (`as_step_caller`,
+            # the SAME `role:`/`actor_id:` a real dispatch gets below) still
+            # applies to the dry-run call itself — only what gets RECORDED
+            # about it is unchanged.
+            #
+            # `dry_run_traces` — A SEPARATE, PARALLEL array (same order,
+            # not merged into `dry_runs` above) carrying `before:`/`after:`
+            # snapshots of the whole observable store (every instance, the
+            # event count) on either side of the hypothetical call, so
+            # `Properties.dry_runs_leave_no_trace` can hold `Dispatcher
+            # #dry_run?`'s own contract to the store rather than trusting
+            # it. Ruby's own oracle data — Rust has nothing to compare it
+            # against, so it stays out of the compared surface entirely.
             if (hypothetical = step["dry_run"])
+              before = { instances: snapshot_instances(runtime), events: runtime.events.size }
+              entry  = { verb: hypothetical }
               begin
-                runtime.dry_run?(hypothetical, **args)
-                dry_runs << { verb: hypothetical, ok: true }
+                as_step_caller(step) { runtime.dry_run?(hypothetical, **args) }
+                entry[:ok] = true
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-                dry_runs << { verb: hypothetical, ok: false, error: e.message }
+                entry.merge!(ok: false, error: e.message)
               end
+              after = { instances: snapshot_instances(runtime), events: runtime.events.size }
+              dry_runs << entry
+              dry_run_traces << entry.merge(before: before, after: after)
               next
             end
 
@@ -269,20 +295,19 @@ module Hecks
               # all, or one whose identity args don't resolve).
               mutation_trace = build_mutation_trace(runtime, step["verb"], args)
 
-              # `role:` — an OPTIONAL per-step key, absent on every one of
-              # the 231 existing `spec/corpus/*.json` steps (their own
+              # `role:`/`actor_id:` — OPTIONAL per-step keys, absent on every
+              # one of the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
               # already pinned changes behavior). Binds the SAME ambient
               # caller `refuse_role_mismatch` reads (`Hecks.as_caller`,
               # `Runtime::Caller.as`) for exactly the one dispatch this
               # step makes, then unbinds — mirrors `Caller.as`'s own
               # `ensure`-restore, so back-to-back steps with different (or
-              # no) `role:` never leak into each other.
-              result = if step["role"]
-                         Hecks.as_caller(role: step["role"]) { runtime.dispatch(step["verb"], **args) }
-                       else
-                         runtime.dispatch(step["verb"], **args)
-                       end
+              # no) `role:` never leak into each other. `actor_id:` is the
+              # sibling `kernel/cli.rs` already read (its own comment on
+              # the key): with it, a Governance-attached domain runs the
+              # real `holds_role?` lookup instead of the string fallback.
+              result = as_step_caller(step) { runtime.dispatch(step["verb"], **args) }
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
               guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
@@ -368,7 +393,8 @@ module Hecks
           # "the" bluebook — reads this instead.
           history = { instances: instances, events: events, refusals: refusals,
                       reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-                      queries: queries, dry_runs: dry_runs, fan_outs: fan_outs, guard_checks: guard_checks,
+                      queries: queries, dry_runs: dry_runs, dry_run_traces: dry_run_traces,
+                      fan_outs: fan_outs, guard_checks: guard_checks,
                       mutation_traces: mutation_traces,
                       saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
                       bluebook: runtime.registry.bluebooks.values.first,
@@ -382,6 +408,15 @@ module Hecks
 
           history
         end
+      end
+
+      # A step with no `role:` dispatches exactly as every corpus step
+      # always has — bare, no caller bound at all (`Caller.current` nil,
+      # so `refuse_role_mismatch` returns before checking anything).
+      def as_step_caller(step, &)
+        return yield unless step["role"]
+
+        Hecks.as_caller(role: step["role"], actor_id: step["actor_id"], &)
       end
 
       # THE GUARD ORACLE'S OWN RESOLUTION — "which record, if any, is

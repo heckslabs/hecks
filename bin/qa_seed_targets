@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+
+# THE ROTATION, SEEDED WITH EVERY DOMAIN THE PRACTICE ALREADY OWNS — the
+# `Target` counterpart to `bin/qa_seed_angles`, and the same shape as
+# `bin/qa_sweep`'s own `seed_default_targets!` (which mints only
+# pizzas/banking, the two the rotation cannot be empty without).
+#
+# WHY A SCRIPT AND NOT A HAND-TYPED `bin/run ... identify` PER DOMAIN:
+# item 6 of the detection plan ("free targets") — every domain listed
+# below is a real, bootable, ALREADY-FUZZABLE directory this repository
+# ships, most with a compiled Rust conformance feature (`rust/Cargo.toml`
+# `[features]`) that `spec/rust_conformance_fuzz_spec.rb` never wired
+# in (ANGLE-3). Nothing about them needed building; they only needed
+# Identifying, and a list a person edits by reviewing a diff is how this
+# practice records every other "which domains" fact (`QualityControlDials`,
+# `bin/qa_seed_angles`'s own SEED).
+#
+# `Hecks::Fuzzing::TargetCapabilities.infer` is printed per target so
+# the person running this sees, before the first sweep, which modes each
+# one will resolve (`bin/qa_sweep`'s `resolved modes:` line, one row per
+# target, up front).
+#
+# IDEMPOTENT, THE SAME WAY `seed_default_targets!` IS — only the
+# references not already on file get Identified, under whatever status
+# the existing ones are actually in (a `held`/`shelved` target is
+# invisible to `Target.Rotation` but very much on file, and re-Identifying
+# it is a real refusal). Safe to run again from any worktree.
+#
+# NOT LISTED, DELIBERATELY: `examples/embryonaut` is an external
+# product's own domain, not one this practice owns or can open PRs
+# against — never a Target. `lib/hecks/framework` (Governance & co.) has
+# no Cargo feature of its own: `rust/src/generated/governance/` is a
+# framework CHAPTER merged into each attaching domain's binary, with no
+# `merged.rs` to select as `active` — a `governance = []` feature cannot
+# compile until `bin/project_rust` can project a framework chapter
+# standalone, so it is swept THROUGH banking/compliance/pizzas today.
+#
+#   bin/qa_seed_targets
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecks"
+# ADR 0033 — see bin/run's own identical require: the era/lineage plugin
+# has to be loaded before `Hecks.boot` for a real (non-Memory) adapter.
+require "hecks/ports/persistence/plugins/era"
+require "hecks/fuzzing"
+
+ROOT       = File.expand_path("..", __dir__)
+DOMAIN_DIR = ENV.fetch("QA_SWEEP_DOMAIN_DIR", File.join(ROOT, "qa/bluebook"))
+
+# reference => path, relative to the repository root exactly the way
+# `Target.path` is stored and `bin/qa_sweep` resolves it.
+SEED = {
+  "pizzas"          => "examples/pizzas",
+  "banking"         => "examples/banking",
+  "chess"           => "examples/chess",
+  "compliance"      => "examples/compliance",
+  "roster"          => "examples/roster",
+  "directory"       => "examples/directory",
+  "waybill"         => "qa/stress_domains/waybill",
+  "nested_pieces"   => "qa/stress_domains/nested_pieces",
+  "ledger_ordering" => "qa/stress_domains/ledger_ordering",
+  "quality_control" => "qa/bluebook"
+}.freeze
+
+runtime = begin
+  Hecks.boot(DOMAIN_DIR)
+rescue StandardError => e
+  abort "the QualityControl ledger did not boot — fix the ledger itself before seeding it " \
+        "(#{e.class}: #{e.message})"
+end
+
+existing = runtime.query("QualityControl::Target.All").map { |row| row[:reference][:value] }
+
+SEED.each do |reference, path|
+  capabilities = Hecks::Fuzzing::TargetCapabilities.infer(File.join(ROOT, path)).join(",")
+  if existing.include?(reference)
+    puts "already on file: #{reference} (#{path}; capabilities #{capabilities})"
+    next
+  end
+
+  abort "#{reference} names a path that does not exist on disk: #{path}" unless File.directory?(File.join(ROOT, path))
+
+  QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
+  puts "identified: #{reference} (#{path}; capabilities #{capabilities})"
+end

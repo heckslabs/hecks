@@ -10,12 +10,14 @@
 # at THIS Cargo.toml instead of the real one — nothing here is reachable
 # from an ordinary `bin/qa_sweep`/`bin/qa_sweep --all` invocation.
 #
-# ONE FEATURE, matching the fixture domain directory's own basename
-# exactly (`RustConformanceHelpers#build_rust_for`'s own regex) — never
-# added to or removed by `bin/project_rust`, which has no reason to ever
-# look here.
+# ONE FEATURE PER FIXTURE DOMAIN, each matching its fixture directory's
+# own basename exactly (`RustConformanceHelpers#build_rust_for`'s own
+# regex) — never added to or removed by `bin/project_rust`, which has no
+# reason to ever look here. `src/main.rs` branches on `cfg!(feature)` to
+# give each its own fixed answer (its header explains both).
 [features]
 qa_sweep_all_found_fixture = []
+qa_sweep_all_dry_run_fixture = []
 
 [package]
 name = "qa_sweep_all_found_fixture_rust"

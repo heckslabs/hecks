@@ -52,19 +52,54 @@ module Hecks
         # both engines. Nothing downstream of this method can tell a
         # mutated step from an ordinary one except by reading the
         # `"adversarial"` metadata it carries (see adversary.rb).
+        #
+        # TWO MORE DRAWS SIT RIGHT AFTER THE MUTATION, IN A FIXED ORDER —
+        # a caller (`caller_draw!`, adversary.rb: `role:`/`actor_id:` on
+        # the step, bound around this one dispatch exactly the way
+        # `Fuzzing::Replay` and `kernel/cli.rs` will later bind it) and
+        # then the dry-run coin (`{"dry_run": verb}` instead of
+        # `{"verb": verb}` — `Dispatcher#dry_run?` here, the same door on
+        # both replay sides). Order matters for the seed contract: every
+        # draw comes from the one `Random.new(seed)`, so the sequence of
+        # draws per step is what makes a seed reproducible. Both are
+        # off by default and draw nothing when off.
         def build_command_step(runtime, catalog, entry)
           args = args_for(entry[:command].attributes, entry[:aggregate])
           add_identity!(args, entry)
+          steer_grant!(args, entry, catalog)
           mutations = adversarial_mutations!(args, entry, catalog)
+          caller, caller_note = caller_draw!(entry, catalog)
+          mutations << caller_note if caller_note
 
-          outcome = safe_call { runtime.dispatch(entry[:verb], **symbolize(args)) }
-          if outcome
-            record_outcome(catalog, entry, args)
-            @event_count += outcome.events.length
-          end
-          step = { "verb" => entry[:verb], "args" => args }
+          step =
+            if dry_run_draw?
+              safe_call { as_caller(caller) { runtime.dry_run?(entry[:verb], **symbolize(args)) } }
+              { "dry_run" => entry[:verb], "args" => args }
+            else
+              outcome = safe_call { as_caller(caller) { runtime.dispatch(entry[:verb], **symbolize(args)) } }
+              if outcome
+                record_outcome(catalog, entry, args)
+                @event_count += outcome.events.length
+              end
+              { "verb" => entry[:verb], "args" => args }
+            end
+          step.merge!(caller) if caller
           step["adversarial"] = mutations unless mutations.empty?
           step
+        end
+
+        # No RNG draw at all when the fraction is zero — the same "off is
+        # byte-identical" contract `adversarial?` keeps.
+        def dry_run_draw? = @dry_run.positive? && @random.rand < @dry_run
+
+        # `Hecks.as_caller` for exactly this block, or a bare yield — the
+        # SAME binding `Fuzzing::Replay` makes from the step's own keys
+        # later, so the generator's inline dispatch and both replays see
+        # one caller.
+        def as_caller(caller, &)
+          return yield unless caller
+
+          Hecks.as_caller(role: caller["role"], actor_id: caller["actor_id"], &)
         end
 
         def args_for(attributes, aggregate)

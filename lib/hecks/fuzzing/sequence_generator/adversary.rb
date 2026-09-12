@@ -75,7 +75,55 @@ module Hecks
         # key and an absent required key in the SAME step, so both engines
         # have to pick which refusal wins; and each pair, so the ordering
         # of any two is observable on a command too small for all three.
-        PRECEDENCE_SHAPES = %w[unknown+mismatch+absent unknown+absent unknown+mismatch mismatch+absent].freeze
+        #
+        # THE SECOND ROW REACHES FURTHER DOWN `DISPATCH_ORDER`
+        # (lib/hecks/vocabulary.rb): `nonexistent` addresses an id nothing
+        # holds (a `hydrate`-stage NotFound), `lifecycle` aims a
+        # transition-guarded command at a real record (an
+        # `admissible_transition`-stage refusal, IF the record's state
+        # refuses it), `role` binds a caller whose role the command does
+        # not name (the `refuse_role_mismatch` stage no generated step
+        # had ever reached). Paired with an argument-stage fault each,
+        # so the ordering of an EARLY stage against a LATE one is
+        # observable — BUG#13 (ledger_ordering's own NOTES.md) was
+        # exactly an argument-invariant-vs-entity-existence ordering
+        # split, and nothing generated had ever asked the question on
+        # purpose.
+        PRECEDENCE_SHAPES = %w[
+          unknown+mismatch+absent unknown+absent unknown+mismatch mismatch+absent
+          nonexistent+mismatch nonexistent+unknown lifecycle+mismatch role+absent role+nonexistent
+        ].freeze
+
+        # ITEM 2 OF THE DETECTION PLAN (ANGLE-5) — A DRAWN CALLER ON A
+        # ROLE-GATED COMMAND. `refuse_role_mismatch` is a `DISPATCH_ORDER`
+        # step both engines implement (`command_rules/authorization.rb`,
+        # `rust/src/kernel/repository.rs check_role`) and both replay doors
+        # already read (`Fuzzing::Replay` binds `Hecks.as_caller` from a
+        # step's `role:`/`actor_id:`; `kernel/cli.rs` reads the same two
+        # keys) — yet no generated step ever carried either key, so the
+        # check was dormant on every sweep ever run. Five shapes:
+        #   matching        the command's own role — the string fallback
+        #                   authorizes it on both engines
+        #   mismatched      another declared role (or none the domain
+        #                   knows) — Unauthorized on both
+        #   absent_on_gated no caller at all on a gated command — the
+        #                   unchecked default, recorded so the step reads
+        #                   as a deliberate control, not an omission
+        #   actor_known     the role PLUS an actor this same sequence
+        #                   already granted it to (`Governance::
+        #                   RoleAssignment.Assign` succeeded earlier) —
+        #                   the real `holds_role?` lookup, both sides
+        #   actor_unknown   the role plus an actor nothing granted —
+        #                   `holds_role?` must refuse on both
+        # A SEPARATE LAYER FROM `KINDS`, with its own probability
+        # (`role_draw:` — `QualityControlDials::ROLE_DRAW_PROBABILITY`):
+        # a caller composes with any argument mutation above rather than
+        # competing with it for the one-mutation-per-step slot, and draws
+        # nothing from the RNG when off, so every pinned seed is
+        # byte-identical to before it existed.
+        CALLER_SHAPES = %w[matching mismatched absent_on_gated actor_known actor_unknown].freeze
+        GRANT_VERB    = "Governance::RoleAssignment.Assign".freeze
+        UNKNOWN_ROLE  = "Nobody the domain names".freeze
 
         # BUG#11 — an entity command two or more hops deep. Not a mutation
         # of arguments but a PREFERENCE (picker.rb weights these up when
@@ -293,29 +341,45 @@ module Hecks
         # ── BUG#7/#8/#14: unknown + mismatched + absent, in one step ─────
 
         def refusal_precedence_applicable?(args, entry, _catalog)
-          corruptible_attributes(args, entry).any? || droppable_required_attributes(args, entry).any?
+          precedence_shapes_for(args, entry).any?
         end
 
-        def corruptible_attributes(args, entry)
-          entry[:command].attributes.reject(&:list?).select { |attribute| args.key?(attribute.name.to_s) }
+        # EVERY SHAPE WHOSE EVERY PART THIS STEP CAN CARRY. `nonexistent`
+        # and `lifecycle` need a command that ACTS on a record (a creating
+        # step has no addressed id to point elsewhere, and no state to be
+        # in) and flat addressing (`deep_entity_addressing!`'s routed `to:`
+        # envelope owns the ids then); `lifecycle` additionally needs a
+        # command some guard actually watches; `role` needs a declared
+        # `role` to mismatch against.
+        def precedence_shapes_for(args, entry)
+          can = {
+            "mismatch"    => corruptible_attributes(args, entry).any?,
+            "absent"      => droppable_required_attributes(args, entry).any?,
+            "unknown"     => true,
+            "nonexistent" => acts_on_record?(args, entry),
+            "lifecycle"   => acts_on_record?(args, entry) && transition_guarded?(entry),
+            "role"        => !entry[:command].role.to_s.empty?
+          }
+          PRECEDENCE_SHAPES.select { |shape| shape.split("+").all? { |part| can.fetch(part) } }
         end
 
-        def droppable_required_attributes(args, entry)
-          heads = identity_heads_of(entry)
-          entry[:command].attributes.reject(&:optional?).select do |attribute|
-            args.key?(attribute.name.to_s) && !heads.include?(attribute.name.to_s)
-          end
+        def acts_on_record?(args, entry) = !entry[:command].creates? && !args.key?("to")
+
+        def transition_guarded?(entry)
+          command = entry[:command]
+          owner   = entry.key?(:entity) ? entry[:entity] : entry[:aggregate]
+          return true if command.from
+          return false unless owner.respond_to?(:lifecycle)
+
+          owner.lifecycle&.transitions_for(command.hecks_name)&.any? || false
         end
 
-        def apply_refusal_precedence!(args, entry, _catalog)
+        def apply_refusal_precedence!(args, entry, catalog)
           corruptible = corruptible_attributes(args, entry)
           droppable   = droppable_required_attributes(args, entry)
-          shapes = PRECEDENCE_SHAPES.select do |shape|
-            (!shape.include?("mismatch") || corruptible.any?) && (!shape.include?("absent") || droppable.any?)
-          end
-          wanted  = shapes.sample(random: @random).split("+")
-          detail  = { "mutation" => "refusal_precedence", "bug" => "BUG#7/#8/#14" }
-          applied = []
+          wanted      = precedence_shapes_for(args, entry).sample(random: @random).split("+")
+          detail      = { "mutation" => "refusal_precedence", "bug" => "BUG#7/#8/#14" }
+          applied     = []
 
           if wanted.include?("absent")
             dropped = droppable.sample(random: @random)
@@ -336,9 +400,110 @@ module Hecks
             detail["unknown"] = name
             applied << "unknown"
           end
+          apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
           # Reported as what was ACTUALLY done — a command with a single
           # attribute cannot carry both a dropped and a corrupted one.
           detail.merge("shape" => applied.sort.join("+"))
+        end
+
+        # The three parts that reach PAST the argument gate — see
+        # `PRECEDENCE_SHAPES`' own second row. `nonexistent` re-addresses
+        # the step's LAST hop (the entity element for an entity command,
+        # the aggregate itself otherwise) to an id nothing holds;
+        # `lifecycle` mutates nothing (the record's own state is what
+        # refuses, or doesn't) and is recorded so the pairing is visible;
+        # `role` parks a mismatched caller for `StepBuilder` to bind
+        # around this one dispatch.
+        def apply_late_stage_parts!(wanted, args, entry, detail, applied, catalog)
+          if wanted.include?("nonexistent")
+            piece = (entry[:chain] || []).last || entry[:aggregate]
+            head  = (piece.identified_by || :id).to_s
+            args[head] = identity_shaped(piece, piece.identified_by, ValueGenerator.random_id(@random), entry[:aggregate])
+            detail["nonexistent"] = head
+            applied << "nonexistent"
+          end
+          if wanted.include?("lifecycle")
+            detail["lifecycle"] = entry[:command].from || "transition-guarded"
+            applied << "lifecycle"
+          end
+          return unless wanted.include?("role")
+
+          @precedence_caller = { "role" => other_role(entry[:command].role.to_s, catalog) }
+          detail["role"] = @precedence_caller["role"]
+          applied << "role"
+        end
+
+        # ── ANGLE-5: a drawn caller on a role-gated command ──────────────
+
+        def role_draw? = @role_draw.positive?
+
+        # `[caller, note]` — `caller` is the `{"role" => …, "actor_id" =>
+        # …}` pair (or nil for the unchecked control) `StepBuilder` binds
+        # around the step's one dispatch and writes onto the step itself;
+        # `note` rides in the step's `"adversarial"` metadata. A
+        # `refusal_precedence` mutation that already parked a caller for
+        # this step wins outright (its whole point is that pairing); an
+        # ungated command draws nothing (there is no role to match or
+        # mismatch), and with the draw off nothing is drawn at all.
+        def caller_draw!(entry, catalog)
+          if @precedence_caller
+            caller = @precedence_caller
+            @precedence_caller = nil
+            return [caller, nil]
+          end
+
+          role = entry[:command].role.to_s
+          return [nil, nil] if !role_draw? || role.empty? || @random.rand >= @role_draw
+
+          shapes = CALLER_SHAPES.dup
+          shapes.delete("actor_known") if @granted[role].empty?
+          shape  = shapes.sample(random: @random)
+          caller = caller_for_shape(shape, role, catalog)
+          note   = { "mutation" => "caller_role", "angle" => "ANGLE-5", "shape" => shape, "gated_role" => role }
+          [caller, caller ? note.merge(caller) : note]
+        end
+
+        def caller_for_shape(shape, role, catalog)
+          case shape
+          when "matching"      then { "role" => role }
+          when "mismatched"    then { "role" => other_role(role, catalog) }
+          when "actor_known"   then { "role" => role, "actor_id" => @granted[role].sample(random: @random) }
+          when "actor_unknown" then { "role" => role, "actor_id" => ValueGenerator.random_id(@random) }
+          end
+        end
+
+        # Another role the domain itself declares, when it has one — a
+        # real "wrong hat", the more interesting mismatch — else a role no
+        # bluebook names at all.
+        def other_role(role, catalog)
+          others = catalog[:roles] - [role]
+          others.empty? ? UNKNOWN_ROLE : others.sample(random: @random)
+        end
+
+        def corruptible_attributes(args, entry)
+          entry[:command].attributes.reject(&:list?).select { |attribute| args.key?(attribute.name.to_s) }
+        end
+
+        def droppable_required_attributes(args, entry)
+          heads = identity_heads_of(entry)
+          entry[:command].attributes.reject(&:optional?).select do |attribute|
+            args.key?(attribute.name.to_s) && !heads.include?(attribute.name.to_s)
+          end
+        end
+
+        # A GRANT AIMED AT A ROLE SOME COMMAND ACTUALLY DECLARES. Left to
+        # `ValueGenerator`, `Assign`'s `role_name` is random text
+        # ("hotel"), which no command is gated on — so a granted actor
+        # could never satisfy `holds_role?` for anything, and the
+        # `actor_known` shape above would be unreachable by construction.
+        # With the draw on, every generated grant names one of the
+        # domain's own declared roles instead; with it off, nothing here
+        # runs (no RNG draw, no change to the args).
+        def steer_grant!(args, entry, catalog)
+          return unless role_draw? && entry[:verb] == GRANT_VERB && catalog[:roles].any?
+          return unless args.key?("role_name")
+
+          args["role_name"] = { "value" => catalog[:roles].sample(random: @random) }
         end
 
         # ── shared ───────────────────────────────────────────────────────
