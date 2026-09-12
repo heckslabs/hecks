@@ -16,16 +16,51 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
     Hecks::Fuzzing::Replay.call(TENANT_LEDGER_STRESS_DOMAIN, steps)
   end
 
-  # THE SEEDED BUG — a fixture command sequence that ACCEPTS a
-  # cross-tenant reference: `Transfer.Request` declares its own `region`
-  # ("east") independently of `ledger`, which names a Ledger actually
-  # opened under "west". Nothing in the runtime refuses this (`Tenant
-  # Scope` never runs for a command — this domain's own NOTES.md/
-  # bluebook header have the full argument), so the write lands and the
-  # saga (`SettleAcrossRegions`) goes on to credit the west ledger
-  # anyway — the property is what's supposed to catch what dispatch
-  # itself does not.
-  it "fires on a Transfer.Request naming a ledger from a different region" do
+  # THE PROPERTY'S OWN DETECTION LOGIC, PINNED DIRECTLY AGAINST A
+  # SYNTHETIC `history[:instances]` — no longer reachable through a real
+  # `Replay.call` at all, now that `CommandRules::References#enforce_
+  # tenant_boundary` (runtime/command_rules/references.rb) refuses this
+  # exact write at dispatch time (see the "now refuses for real" example
+  # below). A refused write is never stored, so `history[:instances]`
+  # can no longer hold one this shape through real dispatch — but the
+  # property itself stays a real, permanent regression guard (if
+  # `enforce_tenant_boundary` is ever broken by a later refactor, a
+  # stray cross-tenant record landing in storage again is exactly what
+  # this would catch), so its own logic is still worth pinning directly.
+  # Built by replaying a REAL same-region Transfer to get REAL, correctly-
+  # typed `Value` objects for every OTHER field, then hand-patching only
+  # `:ledger` — the one plain scalar reference field — to point at the
+  # other region's ledger, simulating exactly what an unenforced write
+  # used to persist.
+  it "fires on a stored Transfer whose own ledger reference disagrees with its region" do
+    steps = [
+      { "verb" => "TenantLedger::Ledger.Open",
+        "args" => { code: { value: "L-EAST" }, region: { value: "east" } } },
+      { "verb" => "TenantLedger::Ledger.Open",
+        "args" => { code: { value: "L-WEST" }, region: { value: "west" } } },
+      { "verb" => "TenantLedger::Transfer.Request",
+        "args" => { reference: { value: "T-1" }, region: { value: "east" }, ledger: "L-EAST",
+                    amount_cents: { value: 500 } } }
+    ]
+    history = replay(steps)
+    history[:instances]["TenantLedger::Transfer#T-1"][:ledger] = "L-WEST"
+
+    result = Hecks::Fuzzing::Properties.commands_respect_tenant_scope(history)
+
+    expect(result).to be_a(String)
+    expect(result).to include("TenantLedger::Transfer#T-1").and include("region")
+    expect(result).to include("L-WEST").and include("west").and include("cross-tenant write nothing refused")
+  end
+
+  # THE REAL FIX, PROVEN AT DISPATCH TIME — `CommandRules::References#
+  # enforce_tenant_boundary`, mirroring `TenantScope.apply`'s query-side
+  # mechanism (runtime/tenant_scope.rb) for a command's own settled
+  # state. `Transfer.Request` declaring `region: "east"` independently
+  # of a `ledger:` that actually opened under "west" now refuses outright
+  # — nothing is stored, so the saga (`SettleAcrossRegions`) never even
+  # starts (it `starts_on Transfer::TransferRequested`, which a refused
+  # `Request` never emits).
+  it "now refuses for real: a Transfer.Request naming a ledger from a different region" do
     steps = [
       { "verb" => "TenantLedger::Ledger.Open",
         "args" => { code: { value: "L-EAST" }, region: { value: "east" } } },
@@ -35,12 +70,39 @@ RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope" do
         "args" => { reference: { value: "T-1" }, region: { value: "east" }, ledger: "L-WEST",
                     amount_cents: { value: 500 } } }
     ]
+    history = replay(steps)
 
-    result = Hecks::Fuzzing::Properties.commands_respect_tenant_scope(replay(steps))
+    expect(history[:instances]).not_to have_key("TenantLedger::Transfer#T-1")
+    refusal = history[:refusals].find { |r| r[:verb] == "TenantLedger::Transfer.Request" }
+    expect(refusal).not_to be_nil
+    expect(refusal[:kind]).to eq("Hecks::Runtime::Unauthorized")
+    expect(refusal[:error].to_s).to include("Transfer").and include("region").and include("east")
+                                                          .and include("ledger").and include("Ledger")
+                                                          .and include("west").and include("cross-tenant reference")
 
-    expect(result).to be_a(String)
-    expect(result).to include("TenantLedger::Transfer#T-1").and include("region")
-    expect(result).to include("L-WEST").and include("west").and include("cross-tenant write nothing refused")
+    # THE PROPERTY ITSELF HAS NOTHING TO SAY — the same "a refusal is
+    # correct behaviour, not a finding" rule the third example below
+    # already states for a dangling reference, now true for this shape
+    # too.
+    expect(Hecks::Fuzzing::Properties.commands_respect_tenant_scope(history)).to be(true)
+  end
+
+  # THE SAME-TENANT CONTROL, DISPATCHED FOR REAL — a `Transfer.Request`
+  # whose `region` genuinely agrees with the ledger it names must still
+  # succeed. Without this, a fix that refused EVERY `reference_to`
+  # regardless of tenant agreement would look identical to the real one.
+  it "still succeeds for real: a Transfer.Request naming a ledger from its own region" do
+    steps = [
+      { "verb" => "TenantLedger::Ledger.Open",
+        "args" => { code: { value: "L-EAST" }, region: { value: "east" } } },
+      { "verb" => "TenantLedger::Transfer.Request",
+        "args" => { reference: { value: "T-4" }, region: { value: "east" }, ledger: "L-EAST",
+                    amount_cents: { value: 250 } } }
+    ]
+    history = replay(steps)
+
+    expect(history[:instances]).to have_key("TenantLedger::Transfer#T-4")
+    expect(history[:refusals].map { |r| r[:verb] }).not_to include("TenantLedger::Transfer.Request")
   end
 
   # THE CONTROL — the identical shape, same-region, must pass. Without
