@@ -88,7 +88,40 @@ module Hecks
           first  = Replay.call(domain_path, steps, adapter: adapter)
           second = Replay.call(domain_path, steps, adapter: adapter)
 
-          comparable = ->(history) { history.except(:bluebook, :bluebooks) }
+          # `:event_uid`/`:delivery_id` — `Runtime::Outbox::Fanout#rows_for`'s
+          # OWN `SecureRandom.uuid`, minted fresh per enqueue specifically so
+          # it stays OFF `Event#to_h` (that file's own comment: the domain's
+          # own events stay mintless; this is Ruby-only relay bookkeeping,
+          # never part of what a replay claims the DOMAIN produced) — so two
+          # otherwise-identical replays legitimately carry two different
+          # uuids here, the same reason `:bluebook`/`:bluebooks` (live
+          # object identities, not values) are excluded below.
+          #
+          # `row[:event][:occurred_at]` — the outbox row's own `event:` field
+          # is `Outbox.serialize_event`'s `event.to_h.merge(correlation:...)`,
+          # the FULL `Event#to_h`, unlike `history[:events]` (this file's own
+          # `events = runtime.events.map { {name:, aggregate:, id:, payload:}
+          # }`, above) which has ALWAYS deliberately left `occurred_at` OFF
+          # the compared surface for exactly this reason: a wall-clock read,
+          # never reproducible byte-for-byte between two independent
+          # replaying processes a second apart. Stripped here the same way,
+          # for the one place it newly reappears.
+          #
+          # Both stripped from each `outbox_traces` row before comparing
+          # rather than dropping `outbox_traces` wholesale: everything else
+          # on a row (status, consumer, kind, the event's own name/
+          # aggregate/id/payload) IS reproducible from the steps alone and
+          # stays checked.
+          strip_outbox_nondeterminism = lambda do |history|
+            traces = Array(history[:outbox_traces]).map do |trace|
+              trace.merge(rows: trace[:rows].map do |row|
+                row.except(:event_uid, :delivery_id).merge(event: row[:event].except(:occurred_at))
+              end)
+            end
+            history.merge(outbox_traces: traces)
+          end
+
+          comparable = ->(history) { strip_outbox_nondeterminism.call(history).except(:bluebook, :bluebooks) }
           return true if comparable.call(first) == comparable.call(second)
 
           "two replays of the same #{steps.length} steps produced different histories"
