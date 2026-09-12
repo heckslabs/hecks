@@ -33,13 +33,28 @@ module Hecks
     # own `--persistence-parity` handling for the seed-count dial that
     # keeps that cost bounded.
     #
-    # `database:`/`schema:` — REQUIRED, no default: the caller (today,
-    # only `bin/qa_sweep`) owns the disposable database's whole lifecycle
-    # (created before the sweep, dropped after — see that script's own
-    # comment), exactly the discipline `spec/qa_sweep_all_spec.rb`'s own
-    # header already established for the ledger's own disposable Postgres
-    # database, and exactly the discipline `IsolatedBoot#rebind_to_
-    # postgres_era!` refuses to let a caller skip.
+    # GENERALIZED TO `left:`/`right:` — originally hardcoded to Memory vs
+    # PostgresEra (the only pairing that existed), now any two of
+    # `IsolatedBoot`'s own adapter symbols (`:memory`, `:sqlite`,
+    # `:postgres`, `:postgres_era`). Defaults preserve the original
+    # pairing exactly, so every existing caller (this file's own spec,
+    # `bin/qa_sweep`'s `--persistence-parity`) is unchanged. The second
+    # pairing this generalization exists FOR is Memory vs SQLite
+    # (`QualityControlDials::ADAPTER_PARITY_PAIRS`, `bin/qa_sweep`'s own
+    # `adapter_parity_sqlite` mode) — `:sqlite` is nearly as cheap as
+    # Memory itself (`IsolatedBoot#rebind_to_sqlite!`'s own header: an
+    # on-disk file, no server, no disposable database/schema lifecycle to
+    # own), so that pairing folds straight into the ordinary per-seed
+    # loop instead of needing a deferred wave of its own the way
+    # PostgresEra does.
+    #
+    # `database:`/`schema:` — REQUIRED only when `:postgres_era` is one of
+    # the two adapters (the caller — today, only `bin/qa_sweep` — owns the
+    # disposable database's whole lifecycle: created before the sweep,
+    # dropped after — see that script's own comment, and the discipline
+    # `IsolatedBoot#rebind_to_postgres_era!` itself refuses to let a
+    # caller skip); every other adapter ignores both, same as `Replay.
+    # call`/`IsolatedBoot.call` already do for their own `adapter:`.
     module PersistenceParity
       module_function
 
@@ -65,36 +80,36 @@ module Hecks
       # sides identically (a `Runtime::Value`, a `Symbol` key, a `Time`
       # nobody asked for — none of that survives an accidental leak into
       # this comparison unnoticed).
-      def diff(domain_path, steps, database:, schema:)
-        memory_result = Replay.call(domain_path, steps, adapter: :memory)
-        postgres_result = Replay.call(domain_path, steps, adapter: :postgres_era, database: database, schema: schema)
+      def diff(domain_path, steps, left: :memory, right: :postgres_era, database: nil, schema: nil)
+        left_result  = Replay.call(domain_path, steps, adapter: left, database: database, schema: schema)
+        right_result = Replay.call(domain_path, steps, adapter: right, database: database, schema: schema)
 
         divergences = []
-        divergences.concat(diff_instances(memory_result, postgres_result))
-        divergences.concat(diff_events(memory_result, postgres_result))
-        divergences.concat(diff_refusals(memory_result, postgres_result))
-        divergences.concat(diff_queries(memory_result, postgres_result))
-        divergences.concat(diff_sagas(memory_result, postgres_result))
-        divergences.concat(diff_reactions(memory_result, postgres_result))
+        divergences.concat(diff_instances(left_result, right_result, left, right))
+        divergences.concat(diff_events(left_result, right_result, left, right))
+        divergences.concat(diff_refusals(left_result, right_result, left, right))
+        divergences.concat(diff_queries(left_result, right_result, left, right))
+        divergences.concat(diff_sagas(left_result, right_result, left, right))
+        divergences.concat(diff_reactions(left_result, right_result, left, right))
         divergences
       end
 
       def as_json(value) = JSON.parse(JSON.generate(value))
 
-      def diff_instances(memory_result, postgres_result)
-        memory   = as_json(memory_result[:instances])
-        postgres = as_json(postgres_result[:instances])
-        return [] if memory == postgres
+      def diff_instances(left_result, right_result, left, right)
+        l = as_json(left_result[:instances])
+        r = as_json(right_result[:instances])
+        return [] if l == r
 
-        [{ field: "instances", memory: memory, postgres_era: postgres }]
+        [{ field: "instances", left => l, right => r }]
       end
 
-      def diff_events(memory_result, postgres_result)
-        memory   = as_json(memory_result[:events])
-        postgres = as_json(postgres_result[:events])
-        return [] if memory == postgres
+      def diff_events(left_result, right_result, left, right)
+        l = as_json(left_result[:events])
+        r = as_json(right_result[:events])
+        return [] if l == r
 
-        [{ field: "events", memory: memory, postgres_era: postgres }]
+        [{ field: "events", left => l, right => r }]
       end
 
       # `verb:`/`kind:` normalized to plain strings the same way
@@ -102,15 +117,15 @@ module Hecks
       # sides here already answer strings (`Replay#refusal_kind` always
       # returns one), so this is belt-and-suspenders consistency with the
       # sibling mode's own shape, not a real coercion.
-      def diff_refusals(memory_result, postgres_result)
+      def diff_refusals(left_result, right_result, left, right)
         normalize = lambda do |refusals|
           refusals.map { |r| { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s, "error" => r[:error] } }
         end
-        memory   = normalize.call(memory_result[:refusals])
-        postgres = normalize.call(postgres_result[:refusals])
-        return [] if memory == postgres
+        l = normalize.call(left_result[:refusals])
+        r = normalize.call(right_result[:refusals])
+        return [] if l == r
 
-        [{ field: "refusals", memory: memory, postgres_era: postgres }]
+        [{ field: "refusals", left => l, right => r }]
       end
 
       # `instances_at:` dropped from every entry — the same reason
@@ -119,29 +134,29 @@ module Hecks
       # already covered by `diff_instances` above, and would make every
       # query-step entry re-litigate the SAME instances divergence a
       # second time under a different field name.
-      def diff_queries(memory_result, postgres_result)
+      def diff_queries(left_result, right_result, left, right)
         strip = ->(rows) { rows.map { |row| row.except(:instances_at) } }
-        memory   = as_json(strip.call(memory_result[:queries]))
-        postgres = as_json(strip.call(postgres_result[:queries]))
-        return [] if memory == postgres
+        l = as_json(strip.call(left_result[:queries]))
+        r = as_json(strip.call(right_result[:queries]))
+        return [] if l == r
 
-        [{ field: "queries", memory: memory, postgres_era: postgres }]
+        [{ field: "queries", left => l, right => r }]
       end
 
-      def diff_sagas(memory_result, postgres_result)
-        memory   = as_json(memory_result[:sagas])
-        postgres = as_json(postgres_result[:sagas])
-        return [] if memory == postgres
+      def diff_sagas(left_result, right_result, left, right)
+        l = as_json(left_result[:sagas])
+        r = as_json(right_result[:sagas])
+        return [] if l == r
 
-        [{ field: "sagas", memory: memory, postgres_era: postgres }]
+        [{ field: "sagas", left => l, right => r }]
       end
 
-      def diff_reactions(memory_result, postgres_result)
-        memory   = as_json(memory_result[:reactions])
-        postgres = as_json(postgres_result[:reactions])
-        return [] if memory == postgres
+      def diff_reactions(left_result, right_result, left, right)
+        l = as_json(left_result[:reactions])
+        r = as_json(right_result[:reactions])
+        return [] if l == r
 
-        [{ field: "reactions", memory: memory, postgres_era: postgres }]
+        [{ field: "reactions", left => l, right => r }]
       end
     end
   end

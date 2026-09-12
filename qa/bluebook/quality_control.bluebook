@@ -234,6 +234,22 @@ unless defined?(QualityControlDials)
     # is still honoured exactly as given.
     PERSISTENCE_PARITY_SEED_CAP = 5
 
+    # WHICH TWO ADAPTERS EACH ADAPTER-PARITY MODE COMPARES, BY MODE NAME —
+    # `Hecks::Fuzzing::PersistenceParity.diff` (lib/hecks/fuzzing/
+    # persistence_parity.rb) used to hardcode Memory vs PostgresEra; it now
+    # takes `left:`/`right:` adapter symbols, so a NEW pairing is this hash
+    # gaining an entry, never a new diff method. `persistence_parity`'s own
+    # entry is exactly what `bin/qa_sweep` hardcoded before this dial
+    # existed — changing it changes what that mode compares, not just
+    # whether it runs (`MODES`, below, is the "whether"). `adapter_parity_
+    # sqlite`'s pair needs no `database:`/`schema:` — `:sqlite` has no
+    # disposable-database lifecycle to own (`IsolatedBoot#rebind_to_
+    # sqlite!`'s own header).
+    ADAPTER_PARITY_PAIRS = {
+      persistence_parity: { left: :memory, right: :postgres_era },
+      adapter_parity_sqlite: { left: :memory, right: :sqlite }
+    }.freeze
+
     # MODES ARE DATA. Which comparison modes `bin/qa_sweep` runs is the
     # ONE rule `modes_to_run = MODES.select(enabled) ∩ TargetCapabilities.
     # infer(path)` (lib/hecks/fuzzing/target_capabilities.rb — that
@@ -248,10 +264,17 @@ unless defined?(QualityControlDials)
     # `--persistence-parity` and `--self-consistency false` are aliases
     # kept for the hands that already type them.
     #
-    # `adapter_parity_sqlite` is OFF until the Memory-vs-Sqlite pass
-    # exists (`PersistenceParity.diff` generalised to `left:/right:`
-    # pairs — the detection plan's PR-4) — an enabled mode nothing runs
-    # would read as coverage the sweep never gave.
+    # `adapter_parity_sqlite` — THE MEMORY-VS-SQLITE PASS NOW EXISTS
+    # (`PersistenceParity.diff` generalised to `left:/right:` pairs, wired
+    # into `bin/qa_sweep`'s own per-seed loop — the detection plan's
+    # PR-4), and this dial is STILL `false`. `sqlite` is a capability
+    # EVERY domain has (`TargetCapabilities.infer` always includes it), so
+    # flipping this to `true` gives every waiting target with a clean
+    # sweep a SECOND Memory-vs-adapter comparison on every ordinary sweep
+    # — real, if cheap (no server, on-disk SQLite only), extra I/O
+    # multiplied across the whole rotation, and this practice has not yet
+    # measured that cost at rotation scale. Left off until someone does;
+    # flipping it is the entire enablement once they have.
     MODES = {
       differential:               true,
       ruby_only:                  true,

@@ -107,6 +107,31 @@
 # `rebind_to_postgres_era!`'s own header (isolated_boot.rb) for why that
 # distinction matters here specifically.
 #
+# `adapter_parity_sqlite` — THE SAME `Hecks::Fuzzing::PersistenceParity`
+# MECHANISM, A CHEAPER PAIR. Memory vs a real, on-disk SQLite-backed boot
+# instead of Memory vs PostgresEra — `PersistenceParity.diff` was
+# generalized to take `left:`/`right:` adapter symbols precisely so this
+# second pairing is a data change (`QualityControlDials::
+# ADAPTER_PARITY_PAIRS`), not a second copy of the diff logic. `sqlite`
+# is a capability EVERY domain has (`TargetCapabilities.infer` always
+# includes it — no server, no `.hecksagon` binding required, see
+# `IsolatedBoot#rebind_to_sqlite!`'s own header), so unlike
+# `persistence_parity` this pairing needs no disposable database
+# lifecycle and no deferred second wave: it folds straight into the
+# PRIMARY SEAT's own per-seed loop (`diff_ruby_vs_rust`/
+# `ruby_only_outcome`) as one more extra Check, the same way
+# `self_consistency`/`properties_in_differential` already do. It is NOT
+# in `TargetCapabilities::DEFERRED_MODES` for exactly this reason.
+# `QualityControlDials::MODES[:adapter_parity_sqlite]` defaults to
+# `false` — the mode exists and is provably wired (`spec/qa_sweep_
+# adapter_parity_sqlite_spec.rb`, a real subprocess against a real
+# ledger; `spec/fuzzing/persistence_parity_spec.rb`'s own left:/right:
+# generalization group for the underlying diff mechanism), but every
+# waiting target getting a second Memory-vs-adapter comparison on every
+# ordinary sweep is a real cost multiplier this practice has not yet
+# measured against the whole rotation; flipping the dial is the entire
+# enablement once someone has.
+#
 # CLEAN-STREAK DEPTH ESCALATION — WHY TWO SWEEPS OF THE SAME TARGET CAN
 # RUN A DIFFERENT NUMBER OF SEEDS. A fixed `--seeds 10 --steps 25` forever
 # tests a target identically on its first ever pass and its five-hundredth
@@ -634,6 +659,21 @@ WIDENING_TIERS = defined?(QualityControlDials::WIDENING_TIERS) ? QualityControlD
 # too; a dial-less ledger gets the same number rather than an unbounded
 # fan-out.
 SWEEP_MAX_PARALLEL = defined?(QualityControlDials::SWEEP_MAX_PARALLEL) ? QualityControlDials::SWEEP_MAX_PARALLEL : 4
+
+# WHICH TWO ADAPTERS EACH ADAPTER-PARITY MODE COMPARES, KEYED BY MODE
+# NAME — `Hecks::Fuzzing::PersistenceParity.diff`'s own `left:`/`right:`
+# generalization (lib/hecks/fuzzing/persistence_parity.rb) exists so a
+# NEW pairing is a data change here, never a new diff method. Both
+# entries' defaults are exactly what this script hardcoded before
+# `ADAPTER_PARITY_PAIRS` existed — a dial-less ledger runs byte-identical
+# comparisons to before this dial did.
+ADAPTER_PARITY_PAIRS =
+  if defined?(QualityControlDials::ADAPTER_PARITY_PAIRS)
+    QualityControlDials::ADAPTER_PARITY_PAIRS
+  else
+    { persistence_parity:    { left: :memory, right: :postgres_era },
+      adapter_parity_sqlite: { left: :memory, right: :sqlite } }.freeze
+  end
 
 # THE ENABLED MODE SET — `--modes` wins outright; otherwise the dial's
 # `true` entries in the dial's own order; without a dial, the defaults
@@ -1350,6 +1390,9 @@ def diff_ruby_vs_rust(differ, domain_path, steps, binary, modes:)
 
   outcomes = {}
   outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
+  if modes.include?(:adapter_parity_sqlite)
+    outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite_divergences(domain_path, steps)
+  end
 
   stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
   unless status.success?
@@ -1457,6 +1500,9 @@ def ruby_only_outcome(domain_path, steps, modes:)
   history  = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
   outcomes = { ruby_only: property_divergences(history) }
   outcomes[:self_consistency] = self_consistency_divergences(history) if self_consistency
+  if modes.include?(:adapter_parity_sqlite)
+    outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite_divergences(domain_path, steps)
+  end
   outcomes
 rescue StandardError => e
   { ruby_only: [{ field: "crash", detail: "#{e.class}: #{e.message}" }] }
@@ -1480,7 +1526,9 @@ MODE_EXPECTATIONS = {
   ruby_only:                  "no declared property is violated and the interpreter does not crash across every " \
                               "generated step",
   persistence_parity:         "Memory and a real, disposable PostgresEra-backed boot agree on instances, events, " \
-                              "refusals, reactions, sagas and queries across every generated step"
+                              "refusals, reactions, sagas and queries across every generated step",
+  adapter_parity_sqlite:      "Memory and a real, on-disk SQLite-backed boot agree on instances, events, refusals, " \
+                              "reactions, sagas and queries across every generated step"
 }.freeze
 
 def check_for(mode, feature, seed, shape, divergences)
@@ -1569,10 +1617,29 @@ puts "sweeping #{target_reference} (#{target_path}) — #{mode_label}, #{seeds} 
 # above, for the identical reason: an operational failure mid-sweep is
 # still something this script needs to SURFACE, never swallow silently.
 def persistence_parity_outcome(domain_path, steps, database, schema)
-  divergences = Hecks::Fuzzing::PersistenceParity.diff(domain_path, steps, database: database, schema: schema)
+  pair = ADAPTER_PARITY_PAIRS.fetch(:persistence_parity)
+  divergences = Hecks::Fuzzing::PersistenceParity.diff(domain_path, steps, left: pair.fetch(:left), right: pair.fetch(:right),
+                                                                            database: database, schema: schema)
   [divergences.empty? ? :clean : :divergence, divergences]
 rescue StandardError => e
   [:crash, [{ field: "process", detail: "#{e.class}: #{e.message}" }]]
+end
+
+# THE ADAPTER-PARITY-SQLITE OUTCOME — the SAME `PersistenceParity.diff`
+# mechanism as `persistence_parity_outcome` above, the cheaper pair
+# (`ADAPTER_PARITY_PAIRS.fetch(:adapter_parity_sqlite)`, `:memory` vs
+# `:sqlite`, neither side needing `database:`/`schema:`). Folded into
+# the PRIMARY SEAT's own per-seed loop below (`diff_ruby_vs_rust`/
+# `ruby_only_outcome`), never a seat or a wave of its own — see this
+# file's own top-of-file comment on `adapter_parity_sqlite` for why.
+# Same crash discipline as every other outcome here: an operational
+# failure (a malformed on-disk SQLite file, a stray `WiringError`) is
+# surfaced as a `process` finding, never swallowed.
+def adapter_parity_sqlite_divergences(domain_path, steps)
+  pair = ADAPTER_PARITY_PAIRS.fetch(:adapter_parity_sqlite)
+  Hecks::Fuzzing::PersistenceParity.diff(domain_path, steps, left: pair.fetch(:left), right: pair.fetch(:right))
+rescue StandardError => e
+  [{ field: "process", detail: "#{e.class}: #{e.message}" }]
 end
 
 # ONE SEED, EVERY ACTIVE MODE — pulled out of the loop below so that
