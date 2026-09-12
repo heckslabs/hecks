@@ -1,0 +1,244 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, same reasoning waybill/referral_chain/tenant_ledger already
+# give in their own headers (see qa/bluebook/quality_control.bluebook's
+# own "being clever" note and .claude/skills/hecks_qa/SKILL.md's
+# "Authoring a new stress domain" section).
+#
+# TARGETED AT: the differential fuzz harness's own no-clock premise.
+# `spec/rust_conformance_fuzz_spec.rb` runs the SAME generated sequence
+# through Ruby and a compiled Rust conformance binary and diffs the two
+# — which only means anything if both runs are deterministic FUNCTIONS
+# of that sequence. Nothing in either runtime reads a wall clock at
+# dispatch time (grepped: no `Time.now`/`Clock`/`SystemTime` anywhere
+# under `lib/hecks/runtime` or `rust/src/kernel`) — the corpus's own
+# established way to model "now" is `qa/bluebook/quality_control.
+# bluebook`'s `Instant` value object (a plain, non-negative Integer) and
+# `Target.Claim`'s `given` comparing a passed `now` against a stored
+# `claimed_at`: "`now` ARRIVES AS AN ARGUMENT, from the Clock port. A
+# predicate cannot ask the time — it reads attributes and nothing else —
+# so the caller supplies it, exactly as it supplies an id." (that file's
+# own comment, verbatim). That domain is Memory-only — booted directly
+# by `Hecks::Facade`, never generated to Rust (`Hecks::Codemod` isolation
+# guard) — so the shape has never once run through `bin/project_rust`
+# or the differential fuzz spec. This chapter is that port: the
+# identical "clock as data" idiom, minimal, actually compiled and
+# actually fuzzed against Rust for the first time.
+#
+# CHECKED BEFORE AUTHORING (no existing Rust-fuzzed domain already
+# covers this) — `grep -rn "now\|Instant\|expires\|lease\|ttl" examples/
+# qa/stress_domains/*/bluebook` turns up nothing but incidental prose
+# ("now ALSO", "now DEREFERENCES", card `expires`-as-a-static-field-never-
+# compared-to-anything) and exactly one two-Integer-attribute `given`
+# anywhere in the differentially-fuzzed corpus (`transfers_and_payments.
+# bluebook`'s `attempts.value < max_attempts.value`, a counter against
+# another counter, not a clock reading against a recorded one). No
+# bluebook under `examples/` or `qa/stress_domains/` declares an Integer
+# value object read as a point in time, compared via `given` or `where`
+# against a stored Integer field of the same kind. `Hecks::Fuzzing::
+# FormCensus` (the mechanical novelty gate, `bin/qa_domain_novelty`)
+# has no entry for this shape at all — the same "name the form before
+# the gate can see it" gap `referral_chain`'s own NOTES.md hit first;
+# this domain's own NOTES.md records that honestly rather than forcing
+# a census entry this PR has no independent use for.
+#
+# EVERY CONSTRUCT HERE IS LOAD-BEARING, one aggregate, four commands, one
+# query — deliberately not combined with the reference-hop stress
+# `referral_chain` already owns or the entity nesting `nested_pieces`
+# already owns, so a divergence this domain finds is never ambiguous
+# about which construct it belongs to:
+#
+#   Register — creates a lease slot. No clock at all: provisioning one
+#              is not a fact about time.
+#   Acquire  — free -> held, or held -> held when the CALLER'S OWN passed
+#              `now` already clears the previously recorded `expires_at`
+#              (`Target.Claim`'s exact shape, ported). Two `given`s read
+#              the SAME stored Integer field against two DIFFERENT
+#              passed Integer arguments for two different reasons: the
+#              record's own past (was the old lease live) and the
+#              record's own future (is the new expiry honest).
+#   Renew    — held -> held, gated the mirror-image way: only while the
+#              stored expiry has not yet met the passed `now`, and only
+#              to a strictly later passed expiry. The only command that
+#              reads `expires_at` for a comparison AND immediately
+#              overwrites it in the same dispatch.
+#   Release  — held -> free, no clock argument at all: a holder can hand
+#              a lease back whether it has expired or not. Kept beside
+#              `Reap` so the domain draws the same line `qa/bluebook`
+#              draws between `Target.Release` (a person, any time) and
+#              `Target.Claim`'s own staleness window (nobody's to invoke
+#              early) — here inverted onto whether a clock argument is
+#              even part of the command at all.
+#   Reap     — held -> free, ROLE-GATED ("Operator", distinct from every
+#              other command's "Client") and clock-gated the opposite
+#              way from `Acquire`: refuses unless the passed `now` has
+#              already reached the stored `expires_at`. The one command
+#              in the domain combining a role check with a clock `given`
+#              — feeds the adversary's `role+*` precedence combinations
+#              a clock-carrying command to land on, the same role the
+#              referral_chain header cites this domain's own "Reap"
+#              plays for it.
+#
+#   Expired  — a query taking `now` as its own declared attribute and
+#              comparing it against the stored `expires_at` via `lte`
+#              (`Patch.OpenedSince`'s `gte` shape, `qa/bluebook`,
+#              mirrored and inverted) — WITH a second `where` alongside
+#              it (`status: "held"`), specifically so this query never
+#              exercises `tenant_ledger`'s own already-logged codegen
+#              finding (`query_skip_reason` returning "declares no where
+#              clauses at all" before ever reaching authorization support
+#              for a query declaring ONLY `authorize`/`tenant:`) — this
+#              query declares neither `authorize` nor `tenant:` at all,
+#              a different combination entirely.
+#
+# NOT HERE, AND WHY — no entity, no list_of, no reference_to another
+# aggregate, no lifecycle beyond the one two-state field every command
+# above already needs. Combining the clock construct with reference hops
+# or entity nesting would only make a future divergence ambiguous about
+# which construct it belongs to; `referral_chain` and `nested_pieces`
+# already own those stresses on their own.
+Hecks.bluebook "LeaseClock" do
+  vision "One lease slot, acquired, renewed, and reclaimed against a clock value that always arrives as a plain Integer argument — never read off the wall clock — so the same generated sequence produces the same answer whether it runs against Ruby or a compiled Rust binary with no clock of its own."
+
+  core
+
+  aggregate "Lease" do
+    description "A lease slot: held by one caller until an explicitly-passed clock value moves past its own recorded expiry."
+
+    identified_by :key
+
+    attribute :key,        LeaseKey
+    attribute :holder,     LeaseHolder, optional: true
+    attribute :expires_at, LeaseInstant, default: { value: 0 }
+
+    value_object "LeaseKey" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a lease is keyed") { !value.to_s.empty? }
+    end
+
+    value_object "LeaseHolder" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a holder is named") { !value.to_s.empty? }
+    end
+
+    # THE CLOCK, AS DATA. Every `now`/`expiry` in this chapter is this one
+    # Integer value object — never a wall-clock read; see this file's own
+    # header for why there is nothing in either runtime for a `given` to
+    # call to ask the time. Same shape, same invariant, as `qa/bluebook`'s
+    # own `Instant` (`Target.Claim`'s `now`/`claimed_at`) — redeclared
+    # here per this corpus's own habit (a value object is never shared BY
+    # NAME across a domain boundary: `referral_chain`'s own `Handle`
+    # comment) and, unlike that one, actually run through the compiled
+    # Rust conformance binary: `Instant` lives only in the Memory-only QA
+    # ledger (`Hecks::Codemod`'s isolation guard), never generated at all.
+    value_object "LeaseInstant" do
+      attribute :value, Integer, default: 0
+      invariant("a clock reading is not before the epoch") { !value.negative? }
+    end
+
+    lifecycle :status, default: "free" do
+      transition "Acquire" => "held", from: ["free", "held"]
+      transition "Renew"   => "held", from: "held"
+      transition "Release" => "free", from: "held"
+      transition "Reap"    => "free", from: "held"
+    end
+
+    command "Register" do
+      role "Operator"
+      goal "Register a lease slot before anyone can acquire it"
+
+      attribute :key, LeaseKey
+
+      sets :key
+
+      emits "LeaseRegistered"
+    end
+
+    # ACQUIRE — free-to-held, or held-to-held when the CALLER'S OWN passed
+    # `now` already clears the previously recorded `expires_at`: the
+    # exact `Target.Claim` shape, ported into a chapter the differential
+    # harness actually generates against. `expiry` is a FRESH argument
+    # name, deliberately distinct from the stored `expires_at` field it
+    # is copied into (`sets ... to:`) — this corpus's own habit of never
+    # naming a command argument the same as the aggregate field it feeds,
+    # so no `given` here can be misread as resolving the wrong one the
+    # way `referral_chain`'s own `Reassign` deliberately courts.
+    command "Acquire" do
+      role "Client"
+      goal "Take a free lease, or one whose recorded expiry a passed clock value has already passed"
+
+      reference_to Lease
+      attribute :holder, LeaseHolder
+      attribute :now,    LeaseInstant
+      attribute :expiry, LeaseInstant
+
+      given("a live lease is not taken from its own holder") { status != "held" || expires_at.value <= now.value }
+      given("a lease's own new expiry is set after the moment it is acquired") { expiry.value > now.value }
+
+      sets :holder
+      sets :expires_at, to: :expiry
+
+      emits "LeaseAcquired"
+    end
+
+    # RENEW — held-to-held, but only while the passed `now` has not yet
+    # reached the recorded expiry: the one command reading `expires_at`
+    # for a comparison AND overwriting it in the same dispatch.
+    command "Renew" do
+      role "Client"
+      goal "Extend a held lease's expiry, while it is still live"
+
+      reference_to Lease
+      attribute :now,    LeaseInstant
+      attribute :expiry, LeaseInstant
+
+      given("only a still-live lease is renewed") { expires_at.value > now.value }
+      given("a renewal always extends the expiry, never shortens it") { expiry.value > expires_at.value }
+
+      sets :expires_at, to: :expiry
+
+      emits "LeaseRenewed"
+    end
+
+    # RELEASE — VOLUNTARY, no clock argument at all: whoever holds a
+    # lease can hand it back at any point, expired or not.
+    command "Release" do
+      role "Client"
+      goal "Hand a held lease back, before or after its own expiry"
+
+      reference_to Lease
+
+      emits "LeaseReleased"
+    end
+
+    # REAP — the mirror image of `Acquire`'s own staleness check, and the
+    # one role-gated command in the domain: only "Operator" (never
+    # "Client") reclaims a lease nobody released, and only once the
+    # passed `now` has actually reached the stored `expires_at`.
+    command "Reap" do
+      role "Operator"
+      goal "Reclaim a lease its own holder never released, once its recorded expiry has actually passed"
+
+      reference_to Lease
+      attribute :now, LeaseInstant
+
+      given("only a lease whose own recorded expiry the passed clock has reached is reaped") { expires_at.value <= now.value }
+
+      emits "LeaseReaped"
+    end
+
+    # `now` AS A QUERY'S OWN DECLARED ARGUMENT, compared via `lte` against
+    # the stored field it is asking about — `Patch.OpenedSince`'s `gte`
+    # shape (`qa/bluebook/quality_control.bluebook`) mirrored, and paired
+    # with a second, unrelated `where` so this query never lands on
+    # `tenant_ledger`'s own already-logged codegen finding (a query
+    # declaring ONLY `authorize`/`tenant:` and no other `where` skips for
+    # the wrong reason) — this query declares no `authorize` at all.
+    query "Expired" do
+      description "Leases currently held whose own recorded expiry a passed clock value has already reached."
+      attribute :now, LeaseInstant
+      where(status: "held")
+      where(:"expires_at.value" => { lte: :now })
+      order_by :key
+    end
+  end
+end
