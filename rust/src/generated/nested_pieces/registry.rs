@@ -98,6 +98,25 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("AddBoardArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["number", "id", "workspace", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddBoard does not declare {} — it takes number",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["number"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddBoard"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "number"),
+    ])));
+}
+ }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddBoard acts on an existing Workspace — pass reference.value:".to_string()))?, };
               let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
