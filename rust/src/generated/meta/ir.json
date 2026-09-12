@@ -23797,6 +23797,20 @@
             [
               [
                 "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "cross_tenant_reference"
+              ],
+              [
+                "template",
+                "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference"
+              ]
+            ],
+            [
+              [
+                "refusal",
                 "AttributeAbsent"
               ],
               [

@@ -85,42 +85,15 @@ DRAW_LIMIT = 5
 # a domain name, keyed to the exact `failure[:signature]` this sweep
 # already computes, holding Regexps that must match EVERY ";"-joined
 # offender in the message — is exactly the one PR #527 added for hecks_qa
-# BUG#4/#5 (removed whole once that real bug was fixed, per its own
-# commit's self-destructing condition: "this spec fails the moment BUG#4
-# is actually fixed, which is the signal to delete the entry"). This
-# entry is a DIFFERENT KIND from that one: not a bug in the property
-# check's own recompute, but `qa/stress_domains/tenant_ledger`'s (ANGLE-8)
-# entire reason to exist — `commands_respect_tenant_scope` (lib/hecks/
-# fuzzing/properties/guards.rb) correctly reports that NOTHING in the
-# runtime stops a command's own `reference_to` from crossing two
-# independently tenant-scoped aggregates, and that domain's `Transfer`/
-# `Ledger` pair is built to make that finding fire on almost any generated
-# sequence that touches both — see that domain's own NOTES.md. The same
-# self-destructing discipline still applies: THIS entry is the signal
-# that no runtime enforcement exists yet, and deleting it (or narrowing
-# it) is exactly what a future fix — either a real `TenantScope`-shaped
-# check for commands, or a decision to retire the domain — should also
-# do, the same way BUG#4's own entry was retired the moment its fix
-# landed.
-# `outcome`'s own `"#{name}: #{message}"` prefixes the PROPERTY's name
-# once, onto the very front of the whole joined message — but `commands_
-# respect_tenant_scope` itself ALSO joins its own multiple offenders with
-# the identical "; " separator (`Properties::Guards`), so splitting on
-# "; " here (below) breaks the combined string into "<property>: <first
-# offender>", then one bare offender per remaining chunk, never a second
-# "<property>: " prefix. The leading label is therefore OPTIONAL, present
-# on the first chunk only.
-TENANT_LEDGER_CROSS_REGION_SHAPE = Regexp.new(
-  '\A(?:commands_respect_tenant_scope: )?TenantLedger::Transfer#.+? \(region: .+?\) references ledger: .+?, ' \
-  'but TenantLedger::Ledger#.+? carries region: .+? — a cross-tenant write nothing refused\z',
-  Regexp::MULTILINE
-)
-
-KNOWN_FUZZ_FINDINGS = {
-  "tenant_ledger" => {
-    "property_violation: commands_respect_tenant_scope" => [TENANT_LEDGER_CROSS_REGION_SHAPE].freeze
-  }.freeze
-}.freeze
+# BUG#4/#5, and later `qa/stress_domains/tenant_ledger`'s (ANGLE-8) own
+# `commands_respect_tenant_scope` entry (a real, then-open write-side
+# tenant enforcement gap, not a bug in the property check's own
+# recompute — see that domain's own NOTES.md). Both were removed whole
+# the moment their real fix landed, per the same self-destructing
+# discipline each carried while it was still open: currently empty,
+# kept as infrastructure for the next narrow, named, explained finding
+# this sweep needs to excuse without being silenced.
+KNOWN_FUZZ_FINDINGS = {}.freeze
 
 # Every "; "-joined chunk of the message must match one of the domain's
 # own allowed shapes — a compound finding that mixes this known shape

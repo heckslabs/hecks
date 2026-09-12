@@ -2,7 +2,7 @@
 // RefusalWording::TEMPLATES (lib/hecks/runtime/refusal_wording.rb).
 // Do not hand-edit — re-run bin/project_refusal_wording instead.
 //
-// ONE VARIANT PER (refusal class, site) PAIR — 44 entries, every
+// ONE VARIANT PER (refusal class, site) PAIR — 45 entries, every
 // one Ruby's own table declares, not a subset picked for whichever Rust
 // call site happens to exist today. See bin/project_refusal_wording's
 // own header for the full argument (ground truth, why the whole table,
@@ -52,7 +52,7 @@ pub enum RefusalSite {
     UnknownVerbNoAggregate,
     LifecycleRefusedTransitionBlocked,
     TypeMismatchValueObjectShape,
-    TypeMismatchReferenceAsObject,
+    TypeMismatchReferenceWrongShape,
     TypeMismatchMultiFieldScalar,
     TypeMismatchCompositeIdentity,
     TypeMismatchNumericField,
@@ -70,6 +70,7 @@ pub enum RefusalSite {
     InvariantViolationUndeclaredSet,
     UnauthorizedTenantRequired,
     UnauthorizedRoleMismatch,
+    UnauthorizedCrossTenantReference,
     AttributeAbsentAbsentRead,
     ProjectionAbsentAbsentRead,
 }
@@ -109,7 +110,7 @@ impl RefusalSite {
             RefusalSite::UnknownVerbNoAggregate => "{domain} has no aggregate {aggregate}",
             RefusalSite::LifecycleRefusedTransitionBlocked => "{command} refused — {field} is {current}, and {command} moves it only from {allowed}",
             RefusalSite::TypeMismatchValueObjectShape => "{name} is a {type} — pass its fields as an object, not {offered}",
-            RefusalSite::TypeMismatchReferenceAsObject => "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}",
+            RefusalSite::TypeMismatchReferenceWrongShape => "{command} refused — a reference is an id, and {attribute} arrived as {offered}{known_by}",
             RefusalSite::TypeMismatchMultiFieldScalar => "{type} has multiple fields and cannot stand in for a scalar",
             RefusalSite::TypeMismatchCompositeIdentity => "{type} is a composite identity — an identity must have exactly one field",
             RefusalSite::TypeMismatchNumericField => "{type}.{field} expects {expected}, got {offered}",
@@ -127,6 +128,7 @@ impl RefusalSite {
             RefusalSite::InvariantViolationUndeclaredSet => "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds",
             RefusalSite::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             RefusalSite::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
+            RefusalSite::UnauthorizedCrossTenantReference => "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference",
             RefusalSite::AttributeAbsentAbsentRead => "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true",
             RefusalSite::ProjectionAbsentAbsentRead => "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait",
         }
@@ -153,7 +155,7 @@ impl RefusalSite {
     /// exact variant directly, so nothing in this crate iterates `ALL`
     /// for dispatch; it exists for the `#[cfg(test)]` block below (and
     /// any future one) to walk the whole table generically.
-    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::AlreadyExistsEntityDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceAsObject, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchNonFiniteField, RefusalSite::TypeMismatchIntegerRange, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch, RefusalSite::AttributeAbsentAbsentRead, RefusalSite::ProjectionAbsentAbsentRead];
+    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::AlreadyExistsEntityDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceWrongShape, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchNonFiniteField, RefusalSite::TypeMismatchIntegerRange, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch, RefusalSite::UnauthorizedCrossTenantReference, RefusalSite::AttributeAbsentAbsentRead, RefusalSite::ProjectionAbsentAbsentRead];
 }
 
 #[cfg(test)]
