@@ -177,6 +177,66 @@ module RustProjection
       [attr, vo]
     end
 
+    # BUG#33 — `MutationApplier#check_entity_collision`'s own guard
+    # (mutation_applier.rb), ported for `append` already by BUG#13 (see
+    # `emit_mutation_line_body`'s own `"append"` branch, above), extended
+    # here to a whole-list `:set` REPLACE (`sets :entries` bare — `Ledger.
+    # ReplaceEntries`, qa/stress_domains/corrections, the corpus's first
+    # `list_of(ENTITY)` command argument/mutation). Unlike `append`,
+    # there is no per-element RHS to compute here — `rhs` already names a
+    # whole `Vec<Entity>` built by ordinary `from_json` deserialization
+    # (`json_codec.rb`'s own generated `Entity::from_json`, which already
+    # REQUIRES the identity field via `v.require(...)` — a MISSING
+    # identity is therefore already refused, by construction, before this
+    # codegen is ever reached; only the DUPLICATE case is a real gap
+    # here), so this only needs the identity's own field name to compare
+    # elements PAIRWISE with the derived `PartialEq` every generated
+    # entity struct already has.
+    #
+    # Returns `[guard_text, effective_rhs]`: a NON-COMPOSITE entity-typed
+    # list target (`entity[:identified_by].size == 1`, exactly BUG#13's
+    # own scope — a composite identity's own duplicate question is the
+    # same pre-existing, documented gap BUG#13 left open for `append`,
+    # not widened here) gets a `let` binding plus a pairwise duplicate
+    # check ahead of the assignment, and `effective_rhs` then names that
+    # bound local rather than re-evaluating `rhs` a second time; every
+    # other list target (a value-object element, or a composite entity
+    # identity) is untouched, `rhs` handed back exactly as given.
+    def entity_list_replace_guard(aggregate, target_attr, target_field, rhs, value_objects_by_name)
+      entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
+      return ["", rhs] unless entity && entity[:identified_by]&.size == 1
+
+      id_head = entity[:identified_by].first.to_s.split(".").first
+      id_attr = entity[:attributes].find { |a| a[:name].to_s == id_head }
+      return ["", rhs] unless id_attr
+
+      id_field  = rust_ident_field(id_attr[:name])
+      # `Rendering.describe`'s own single-field unwrap (rendering.rb),
+      # matched here so `format!` renders the SAME bare scalar Ruby's
+      # own `RefusalWording.render`'s "offered" arm does — `e.#{id_field}`
+      # alone Debug-prints the WHOLE identity value object
+      # (`EntrySequence { value: 1 }`), not the bare `1` a reader (and
+      # `bin/rust_conformance`'s own byte-exact comparison) expects.
+      id_vo = value_objects_by_name[id_attr[:type]]
+      offered_expr =
+        if id_vo && !id_vo[:closed_set] && id_vo[:attributes].size == 1
+          "e.#{id_field}.#{rust_ident_field(id_vo[:attributes].first[:name])}"
+        else
+          "e.#{id_field}"
+        end
+      local_var = "replaced_#{target_field}"
+      entity_lit    = entity[:name].to_s.inspect
+      aggregate_lit = aggregate[:name].to_s.inspect
+      identity_lit  = entity[:identified_by].join(", ").inspect
+      guard =
+        "let #{local_var} = #{rhs};\n        " \
+        "for (i, e) in #{local_var}.iter().enumerate() { if #{local_var}[..i].iter().any(|prior| prior.#{id_field} == e.#{id_field}) " \
+        "{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[" \
+        "(\"entity\", #{entity_lit}), (\"aggregate\", #{aggregate_lit}), (\"identity\", #{identity_lit}), " \
+        "(\"offered\", &format!(\"{:?}\", #{offered_expr}))]))); } }\n        "
+      [guard, local_var]
+    end
+
     # Every `append` mutation's own field(s), checked against the element
     # they're building — the same "can we generate this" role
     # bridgeable_value_types?/literal_hash_bridgeable? already play for
@@ -865,7 +925,17 @@ module RustProjection
             # shape that has to be skipped.
             Exemplar.render("mutation_set_unwrap_or_default", "tmpl_field" => target_field, "tmpl_optional_rhs_placeholder()" => rhs)
           elsif target_attr[:list]
-            Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
+            # BUG#33 — see `entity_list_replace_guard`'s own comment.
+            # Scoped to exactly this branch (a plain, non-optional-source,
+            # non-creation-optional list replace) because it is the only
+            # one any real domain reaches with an ENTITY-typed list target
+            # today (`Ledger.ReplaceEntries`) — the two branches above
+            # combine list-ness with an optionality shape no entity list
+            # in this corpus uses, and guarding them without a corpus
+            # example to prove the generated Rust against would be
+            # decoration, not a fix.
+            guard, effective_rhs = entity_list_replace_guard(aggregate, target_attr, target_field, rhs, value_objects_by_name)
+            "#{guard}#{Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => effective_rhs)}"
           else
             # `target_attr[:optional]` — a PER-FIELD `Option<T>` target
             # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,

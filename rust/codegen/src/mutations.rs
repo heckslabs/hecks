@@ -69,6 +69,61 @@ pub fn entity_identity_mint<'a>(entity: &'a Json, value_objects_by_name: &HashMa
     Some((attr, vo))
 }
 
+/// BUG#33 — mirrors `rust/project/mutations.rb`'s own
+/// `entity_list_replace_guard` byte for byte (see that method's own
+/// comment for the full argument, including why a MISSING identity
+/// needs no guard here — the generated `Entity::from_json`'s own
+/// `require(...)` call already refuses it before this codegen is ever
+/// reached, and only the DUPLICATE case is a real gap). Returns
+/// `(guard_text, effective_rhs)`.
+pub fn entity_list_replace_guard<'a>(aggregate: &Json, target_attr: &Json, target_field: &str, rhs: &str, value_objects_by_name: &HashMap<String, &'a Json>) -> (String, String) {
+    let target_type = crate::attr::type_name(target_attr);
+    let entity = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().find(|e| e.get("name").and_then(Json::as_str) == Some(target_type));
+    let entity = match entity {
+        Some(e) => e,
+        None => return (String::new(), rhs.to_string()),
+    };
+    let identified_by = entity.get("identified_by").map(Json::each).unwrap_or(&[]);
+    if identified_by.len() != 1 {
+        return (String::new(), rhs.to_string());
+    }
+
+    let id_path = identified_by[0].as_str().unwrap_or_default();
+    let id_head = id_path.split('.').next().unwrap_or_default();
+    let attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
+    let id_attr = match attrs.iter().find(|a| crate::attr::name(a) == id_head) {
+        Some(a) => a,
+        None => return (String::new(), rhs.to_string()),
+    };
+
+    let id_field = naming::rust_ident_field(crate::attr::name(id_attr));
+    // `Rendering.describe`'s own single-field unwrap (rendering.rb),
+    // matched here so `format!` renders the SAME bare scalar Ruby's own
+    // `RefusalWording.render`'s "offered" arm does — `e.{id_field}`
+    // alone Debug-prints the WHOLE identity value object
+    // (`EntrySequence { value: 1 }`), not the bare `1` a reader (and
+    // `bin/rust_conformance`'s own byte-exact comparison) expects.
+    let id_vo = value_objects_by_name.get(crate::attr::type_name(id_attr)).copied();
+    let offered_expr = match id_vo {
+        Some(vo) if !vo.get("closed_set").map(Json::as_bool).unwrap_or(false) && vo.get("attributes").map(Json::each).unwrap_or(&[]).len() == 1 => {
+            let inner = naming::rust_ident_field(crate::attr::name(&vo.get("attributes").map(Json::each).unwrap_or(&[])[0]));
+            format!("e.{id_field}.{inner}")
+        }
+        _ => format!("e.{id_field}"),
+    };
+    let local_var = format!("replaced_{target_field}");
+    let entity_name = entity.get("name").and_then(Json::as_str).unwrap_or_default();
+    let aggregate_name = aggregate.get("name").and_then(Json::as_str).unwrap_or_default();
+    let identity_reading = identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", ");
+    let entity_lit = naming::ruby_inspect_string(entity_name);
+    let aggregate_lit = naming::ruby_inspect_string(aggregate_name);
+    let identity_lit = naming::ruby_inspect_string(&identity_reading);
+    let guard = format!(
+        "let {local_var} = {rhs};\n        for (i, e) in {local_var}.iter().enumerate() {{ if {local_var}[..i].iter().any(|prior| prior.{id_field} == e.{id_field}) {{ return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[(\"entity\", {entity_lit}), (\"aggregate\", {aggregate_lit}), (\"identity\", {identity_lit}), (\"offered\", &format!(\"{{:?}}\", {offered_expr}))]))); }} }}\n        "
+    );
+    (guard, local_var)
+}
+
 /// `Marks.read`/`append_field_source` — the exact inverse of `appended_fields`'s
 /// own spelling: a leading `:` marks a command ARGUMENT; anything else IS
 /// the literal value.
@@ -566,7 +621,11 @@ fn emit_mutation_line_body(
                 } else if crate::attr::list(target_attr) && source_attr.map(crate::attr::optional).unwrap_or(false) {
                     exemplar.render("mutation_set_unwrap_or_default", &[("tmpl_field", target_field.to_string()), ("tmpl_optional_rhs_placeholder()", rhs)])
                 } else if crate::attr::list(target_attr) {
-                    exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", rhs)])
+                    // BUG#33 — see `entity_list_replace_guard`'s own comment.
+                    // Scoped to exactly this branch, mirroring rust/project/
+                    // mutations.rb's own identical scoping note.
+                    let (guard, effective_rhs) = entity_list_replace_guard(aggregate, target_attr, &target_field, &rhs, value_objects_by_name);
+                    format!("{guard}{}", exemplar.render("mutation_set_plain", &[("tmpl_field", target_field.to_string()), ("tmpl_rhs_placeholder2()", effective_rhs)]))
                 } else {
                     let wrap = (optional || crate::attr::optional(target_attr)) && !source_attr.map(crate::attr::optional).unwrap_or(false);
                     if wrap {
