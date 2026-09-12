@@ -426,7 +426,75 @@ module Hecks
               acc[key] = field ? for_attribute(aggregate, field, field_value) : field_value
             end
           end
+          # BUG#33 — only a genuine WHOLE-LIST offering (`value.is_a?(Array)`)
+          # is a caller naming every element's own identity at once; the
+          # single-target shape this same method also hydrates (a `remove:`
+          # target, wrapped one level up by `Array()`) never reaches this
+          # check, and never should — see `check_entity_list_identities`'s
+          # own comment.
+          check_entity_list_identities(aggregate, entity, hydrated) if value.is_a?(Array)
           Freezer.deep(hydrated)
+        end
+
+        # `MutationApplier#check_entity_collision`'s own guard
+        # (mutation_applier.rb), extended from a single caller-supplied
+        # APPEND (BUG#13) to a whole-list REPLACE — `sets :entries` bare
+        # (`Ledger.ReplaceEntries`, the corpus's first `list_of(ENTITY)`
+        # command argument/mutation, qa/stress_domains/corrections). The
+        # array branch above rebuilds each offered element's own declared
+        # fields but never checked the OFFERED LIST ITSELF for either way
+        # it can misname its own entities:
+        #
+        #   - two elements sharing one identity — the same silent-duplicate
+        #     hazard BUG#13's own comment describes: `EntityInterpreter#
+        #     element_of`'s own `find_index` always matches the FIRST
+        #     match, so the second becomes permanently unaddressable by any
+        #     later command.
+        #   - an element missing its identity altogether — there is no
+        #     auto-mint for a whole-list replace the way `MutationApplier#
+        #     entity_element` mints one for a single append (which element
+        #     would it mint for? every element here is the caller's own
+        #     whole state, offered at once), so an absent identity is
+        #     refused rather than guessed.
+        #
+        # NON-COMPOSITE identities only, exactly BUG#13's own scope
+        # (`entity.identified_by` answers a single Symbol only when
+        # `identity_heads.size == 1`, `Behaviour::Traits#derive_identity`) —
+        # a composite identity's own duplicate/missing question is the
+        # same pre-existing, narrower gap BUG#13 documented and left open,
+        # not widened here.
+        #
+        # SKIPPED under `trusting_stored_state?`, the same guard `validate!`
+        # already gives every value object (C6.3): a record already
+        # written is trusted as it was, so tightening this check can never
+        # make an old, already-persisted record unreadable.
+        def check_entity_list_identities(aggregate, entity, elements)
+          identity = entity.identified_by
+          return unless identity
+          return if trusting_stored_state?
+
+          field = entity.attribute(identity)
+          seen  = []
+          elements.each do |fields|
+            next unless fields.is_a?(Hash)
+
+            offered = fields[identity]
+            if offered.nil?
+              raise TypeMismatch,
+                    RefusalWording.render("TypeMismatch", "numeric_field",
+                                          type: entity.hecks_name, field: identity,
+                                          expected: field&.type, offered: "nil")
+            end
+
+            if seen.include?(offered)
+              raise AlreadyExists,
+                    RefusalWording.render("AlreadyExists", "entity_duplicate",
+                                          entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                          identity: entity.identity_paths.join(", "),
+                                          offered: Rendering.describe(offered))
+            end
+            seen << offered
+          end
         end
 
         # The value-object sibling of the entity branch above: an element

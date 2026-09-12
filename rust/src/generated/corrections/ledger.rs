@@ -793,7 +793,9 @@ pub fn dispatch_replace_entries(
         ],
         None,
         |record| {
-        record.entries = args.entries.clone();
+        let replaced_entries = args.entries.clone();
+        for (i, e) in replaced_entries.iter().enumerate() { if replaced_entries[..i].iter().any(|prior| prior.sequence == e.sequence) { return Err(crate::kernel::Refusal::AlreadyExists(crate::kernel::RefusalSite::AlreadyExistsEntityDuplicate.render(&[("entity", "Entry"), ("aggregate", "Ledger"), ("identity", "sequence.value"), ("offered", &format!("{:?}", e.sequence.value))]))); } }
+        record.entries = replaced_entries;
             Ok(())
         },
         &[
