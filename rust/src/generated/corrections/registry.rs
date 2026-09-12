@@ -138,6 +138,38 @@ if !absent.is_empty() {
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::corrections::ledger::dispatch_record(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Corrections::Ledger.Void" => {
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VoidArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["sequence", "id", "ledger", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Void does not declare {} — it takes sequence",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Void"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "sequence"),
+    ])));
+}
+ }
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::corrections::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Void acts on an existing Ledger — pass reference.value:".to_string()))?, };
+              let args = crate::generated::corrections::ledger::VoidArgs::from_json(facts_json)?;
+                      args.sequence.check_invariants()?;
+              crate::kernel::check_role(Some("Clerk"), "Void", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Corrections::Ledger", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::corrections::ledger::dispatch_void(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Corrections::Ledger.ReplaceEntries" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
@@ -285,6 +317,7 @@ pub fn command_creates(verb: &str) -> bool {
     match verb {
         "Corrections::Ledger.Open" => true,
         "Corrections::Ledger.Record" => false,
+        "Corrections::Ledger.Void" => false,
         "Corrections::Ledger.ReplaceEntries" => false,
         "Corrections::Ledger.Entry.Amend" => false,
         "Corrections::AuditTrail.Open" => true,
@@ -312,6 +345,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "Corrections::Ledger.Open" => &["reference"],
         "Corrections::Ledger.Record" => &["amount"],
+        "Corrections::Ledger.Void" => &["sequence"],
         "Corrections::Ledger.ReplaceEntries" => &["entries"],
         "Corrections::Ledger.Entry.Amend" => &["reference", "amount"],
         "Corrections::AuditTrail.Open" => &["reference"],

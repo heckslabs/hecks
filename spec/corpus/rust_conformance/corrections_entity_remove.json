@@ -1,0 +1,12 @@
+{
+  "domain": "qa/stress_domains/corrections",
+  "note": "BUG#32 (QualityControl ledger) — differential coverage for `remove:` on an ENTITY-typed list command argument (`Ledger.Void`, `sets :entries, remove: :sequence`). Before this fix, Rust refused to generate `Void` at all (`sets op(s) remove not generated yet`), and Ruby's own `Value::Coercion#hydrate_entity_list` silently no-opped the removal (see qa/stress_domains/corrections/NOTES.md finding 3 for the full write-up). Two Records mint sequences 1 and 2; Void(sequence: 2) must remove exactly that entry on both engines, leaving only sequence 1; a third Record must then re-mint sequence 2 (C4.5 — 'one past the highest HELD, not size + 1' — the freed identity is safe to reuse the moment the list has genuinely shrunk, which it could not before this fix on either engine). `Entry.Amend` (a different, already-fixed gap — BUG#30) is deliberately not exercised here to keep this fixture isolated to the remove: mechanism alone.",
+  "steps": [
+    {"verb": "Corrections::Ledger.Open", "args": {"reference": {"value": "L1"}}},
+    {"verb": "Corrections::Ledger.Record", "args": {"reference": "L1", "amount": {"cents": 500}}},
+    {"verb": "Corrections::Ledger.Record", "args": {"reference": "L1", "amount": {"cents": 200}}},
+    {"verb": "Corrections::Ledger.Void", "args": {"reference": "L1", "sequence": {"value": 2}}},
+    {"verb": "Corrections::Ledger.Void", "args": {"reference": "L1", "sequence": {"value": 999}}},
+    {"verb": "Corrections::Ledger.Record", "args": {"reference": "L1", "amount": {"cents": 999}}}
+  ]
+}
