@@ -1,0 +1,31 @@
+name: CI rust codegen (reusable)
+
+# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 3 of 4) — see
+# ci-rust-io.yml's own header for the full split rationale. This file
+# holds only `rspec_rust_codegen`, the required-status-check job.
+
+on:
+  workflow_call:
+
+jobs:
+  # rust/codegen/ ("hecks-codegen") — same shape as rspec_rust_parser,
+  # a different independent Cargo project. codegen_parity_spec.rb builds
+  # it via its own `before(:context) { self.class.build_codegen! }`.
+  rspec_rust_codegen:
+    runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+
+      - name: "rspec: Rust codegen parity"
+        run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
