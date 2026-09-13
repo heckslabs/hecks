@@ -10,6 +10,10 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["waybill"]
+generated_route_append = []
+generated_entity_no_identity = []
+generated_revalued_shape = []
+generated_reaction_wording = []
 bug28_existence_fixture = []
 lease_clock = []
 referral_chain = []

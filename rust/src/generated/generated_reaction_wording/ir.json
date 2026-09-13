@@ -1,0 +1,567 @@
+{
+  "ir_version": 1,
+  "name": "GeneratedReactionWording",
+  "version": null,
+  "vision": "A generated domain that puts has_query and has_entity together.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Desk",
+      "description": "A generated desk.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "DeskCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "DeskCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a DeskCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineSequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineLabel is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "DeskScore",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "parcel",
+              "type": "Reference<Parcel>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "code",
+              "type": "DeskCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "DeskOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Close",
+          "role": null,
+          "goal": "Close it",
+          "references": "Desk",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "DeskClosed"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to_state": "closed",
+            "from_state": "open"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Parcel",
+      "description": "A generated parcel.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "ParcelCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ParcelCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ParcelCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ParcelPriority",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "draft"
+              ]
+            ],
+            [
+              [
+                "value",
+                "final"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "ParcelNote",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a ParcelNote is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "ParcelCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "ParcelOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Annotate",
+          "role": null,
+          "goal": "Annotate it",
+          "references": "Parcel",
+          "attributes": [
+            {
+              "name": "note",
+              "type": "ParcelNote",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ParcelAnnotated"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "OnDeskOpenedClose",
+      "on_event": "Desk.DeskOpened",
+      "trigger_command": "Desk.Close",
+      "target_domain": null,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Desk",
+        "storage_name": "desk",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Parcel",
+        "storage_name": "parcel",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed 1002, forms has_query, has_entity. Not hand-written; see bin/qa_generated_domains.\nHecks.bluebook \"GeneratedReactionWording\" do\n  vision \"A generated domain that puts has_query and has_entity together.\"\n\n  core\n\n  aggregate \"Desk\" do\n    description \"A generated desk.\"\n\n    identified_by :code\n    attribute :code, DeskCode\n\n    value_object \"DeskCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a DeskCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"LineSequence\" do\n      attribute :value, Integer\n      invariant(\"a LineSequence is positive\") { value.positive? }\n    end\n\n    value_object \"LineLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineLabel is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"DeskScore\" do\n      attribute :value, Integer\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      reference_to Parcel\n      attribute :code, DeskCode\n      sets :code\n      emits \"DeskOpened\"\n    end\n\n    command \"Close\" do\n      goal \"Close it\"\n      reference_to Desk\n      emits \"DeskClosed\"\n    end\n  end\n\n  aggregate \"Parcel\" do\n    description \"A generated parcel.\"\n\n    identified_by :code\n    attribute :code, ParcelCode\n\n    value_object \"ParcelCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ParcelCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"ParcelPriority\" do\n      attribute :value, String, one_of: [\"draft\", \"final\"]\n    end\n\n    value_object \"ParcelNote\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a ParcelNote is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, ParcelCode\n      sets :code\n      emits \"ParcelOpened\"\n    end\n\n    command \"Annotate\" do\n      goal \"Annotate it\"\n      reference_to Parcel\n      attribute :note, ParcelNote, optional: true\n      emits \"ParcelAnnotated\"\n    end\n  end\n\n  policy \"OnDeskOpenedClose\" do\n    on Desk::DeskOpened\n    trigger Desk::Close\n  end\nend\n"
+}
