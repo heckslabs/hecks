@@ -307,7 +307,17 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json)?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json)?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberRetireEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes id",
+        unknown.join(", ")
+    )));
+}
+ } let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json)?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json)?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
                       if let Some(v) = &args.id { v.check_invariants()?; }
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();

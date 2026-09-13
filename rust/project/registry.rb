@@ -329,10 +329,53 @@ module RustProjection
           # own header on that convention). Falls back to the legacy
           # `extract_id`/`extract_wants` pair against `facts_json` when
           # unrouted, matching the aggregate arm's own `id_line` fallback.
+          #
+          # BUG#38 FIX — `structural_precheck_line`, the SAME BUG#23
+          # standalone gate the aggregate arm's own `structural_precheck_
+          # line` already runs (this file's header on that fix, above),
+          # spliced INSIDE this `match route`'s route-less `None` arm
+          # specifically, BEFORE its own `extract_id` calls. Without it, a
+          # malformed `id` (a route-shaped `{aggregate:, entities:}` value
+          # where the entity declares a plain scalar identity) always
+          # short-circuited via `extract_id`'s own `?` before an unrelated
+          # undeclared argument on the SAME call was ever checked,
+          # refusing `TypeMismatch` where Ruby's `ArgumentGate` (which
+          # always runs BEFORE `locate_element`) refuses `UnknownArgument`
+          # first.
+          #
+          # SCOPED TO THE `None` ARM ONLY — NOT, like the aggregate arm's
+          # own `id_line`, spliced before the WHOLE `match route` — this
+          # is the one place entity dispatch genuinely differs from it.
+          # `id_line`'s own `Some(route) => route.require_depth(0)?` can
+          # NEVER itself refuse: an aggregate command's routed depth is
+          # always 0, and the ONE shape that ever reaches this router with
+          # an explicit but WRONG-shaped `to:` (the `routing_key` fuzz
+          # mutation's `scalar` case) parses into a route with ZERO
+          # entities either way, satisfying depth 0 trivially — so
+          # `structural_precheck_line`'s placement relative to `id_line`
+          # was never actually observable there. An entity command's own
+          # `Some(route) => route.require_depth(1)?` (or `require_depth(2)`
+          # one hop deeper) is NOT trivially satisfied by that same zero-
+          # entity route — confirmed live (`qa/stress_domains/nested_
+          # pieces`, `Workspace.Board.AddCard` with a scalar `to:`
+          # mutation): Ruby resolves an EXPLICITLY given `to:` entirely
+          # independently of `facts`/`ArgumentGate` (`Routing.envelope`
+          # runs off `to:` alone, never touching the command's own
+          # declared-argument shape), so a wrong-depth explicit route
+          # refuses on ITS OWN terms, `TypeMismatch`, before Ruby's
+          # absent-argument check on the UNRELATED `facts` payload is ever
+          # reached — moving `structural_precheck_line` ahead of the
+          # WHOLE match (a first attempt at this exact fix) refused
+          # `AbsentArgument` instead, a genuine new divergence this
+          # narrower placement avoids. Ruby's `ArgumentGate` and
+          # `locate_element` only ever share the SAME data (`facts`) in
+          # the route-LESS case, which is the only case this fix needs to
+          # reorder at all.
+          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   # R3 FIX — see the aggregate arm's own identical comment,
                   # above.
@@ -341,7 +384,7 @@ module RustProjection
                   "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
-                  dispatch_call].compact
+                  dispatch_call].compact.reject(&:empty?)
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
@@ -373,9 +416,22 @@ module RustProjection
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
           dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))"
 
+          # BUG#38 FIX — see the one-level `entity_arms`' own identical
+          # header, above, including WHY this is scoped to the route-less
+          # `None` arm alone (spliced INSIDE it, before its own
+          # `extract_id` calls) rather than before the whole `match route`
+          # the way a first attempt at this fix (reverted) tried: an
+          # explicit but wrong-depth `to:` refuses on its OWN terms in
+          # `Some(route)`, independently of `facts`, before Ruby's
+          # absent-argument check on that unrelated payload is ever
+          # reached. `nil` (never spliced in) when `unrouted_supported` is
+          # false: the `else` branch below always requires an explicit
+          # route and never calls `extract_id` against raw `facts_json`
+          # at all, so there is no route-less arm here for this to close.
+          structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
           route_binding =
             if c[:unrouted_supported]
-              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json)?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json)?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
             else
               "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
             end
@@ -389,7 +445,7 @@ module RustProjection
                   "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
                   "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
-                  dispatch_call].compact
+                  dispatch_call].compact.reject(&:empty?)
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end

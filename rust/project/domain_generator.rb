@@ -533,6 +533,24 @@ module RustProjection
                   # `extract_id`/`extract_wants` — see this loop's own
                   # header comment above).
                   unrouted_supported: unrouted_supported,
+                  # BUG#38 — see `entity_commands`' own identical field,
+                  # above, for the full reasoning; `nil` when `unrouted_
+                  # supported` is false, the SAME gate `structural_
+                  # precheck` uses for a CREATING aggregate command's
+                  # `id_line` (domain_generator.rb's own header there):
+                  # the ELSE branch (`route_binding`, registry.rb) always
+                  # requires an explicit route and never calls `extract_
+                  # id` against raw `facts_json` at all, so there is no
+                  # identity-resolution-before-structural-checks race for
+                  # this fix to close there either.
+                  structural_precheck: unrouted_supported ? Projector.structural_precheck(
+                    "#{nested_rust_name}#{Projector.rust_ident(command[:name])}NestedEntityArgs", command[:name].to_s,
+                    command[:attributes],
+                    Projector.command_argument_allowlist(
+                      aggregate, command, ir[:process_managers],
+                      extra_identity_heads: (entity[:identified_by] + nested[:identified_by]).map { |path| path.split(".").first }
+                    )
+                  ) : nil,
                 }
               end
             end
@@ -629,6 +647,49 @@ module RustProjection
                 # is the full aggregate IR node, no new field needed there).
                 entity_name: entity[:name],
                 entity_identity_reading: entity[:identified_by].join(", "),
+                # BUG#38 (qa/bluebook/quality_control.bluebook) — the SAME
+                # BUG#23 fix `registry_commands`' own `structural_precheck`
+                # field applies here, one construct over: `registry.rb`'s
+                # route-less `entity_arms` used to resolve BOTH the
+                # parent's AND the entity's own identity (`extract_id`
+                # twice, against raw `facts_json`) BEFORE ever calling
+                # `#{args_struct}::from_json` — the ONE place the unknown/
+                # absent-argument check lived — so a malformed `id` (a
+                # route-shaped `{aggregate:, entities:}` value where the
+                # entity declares a plain scalar identity, say) ALWAYS
+                # short-circuited via `extract_id`'s own `?` before an
+                # unrelated undeclared argument on the SAME call was ever
+                # checked, refusing `TypeMismatch` where Ruby's own
+                # `ArgumentGate` (which runs BEFORE `locate_element`
+                # unconditionally) refuses `UnknownArgument` first. Uses
+                # the IDENTICAL allowlist this command's own `emit_from_
+                # json_flat` call above already built (`commands.rb`'s own
+                # `unknown_argument_allowlist:` argument, `extra_identity_
+                # heads:` included) so this can only ever refuse SOONER
+                # with the exact kind `from_json` would have produced
+                # anyway, never diverge from it — matching `registry_
+                # commands`' own `structural_precheck`'s "deliberately
+                # redundant, never conflicting" shape exactly. NOT the
+                # broader "run the WHOLE `from_json` (including declared-
+                # argument type coercion) before `extract_id`" shape a
+                # first attempt at this fix took and reverted — that
+                # additionally coerces the entity's own identity argument
+                # through its value-object's `from_json` before `extract_
+                # id` gets a chance to run at all, surfacing a SEPARATE,
+                # pre-existing bug in how a single-attribute value object's
+                # own `from_json` checks for unknown keys (confirmed
+                # independently reproducible via a bare, ordinary
+                # aggregate-creating command with no entity dispatch
+                # involved at all — filed as its own gap, not fixed here).
+                # This narrower, structural-only precheck avoids ever
+                # calling a declared argument's own value-object coercion
+                # before `extract_id`, so it cannot reach that gap.
+                structural_precheck: Projector.structural_precheck(
+                  "#{entity_name}#{Projector.rust_ident(command[:name])}EntityArgs", command[:name].to_s,
+                  command[:attributes],
+                  Projector.command_argument_allowlist(aggregate, command, ir[:process_managers],
+                                                        extra_identity_heads: entity[:identified_by].map { |path| path.split(".").first })
+                ),
               }
             end
           end

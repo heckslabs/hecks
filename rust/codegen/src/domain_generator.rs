@@ -639,6 +639,36 @@ pub fn generate(
                             .collect::<Vec<_>>()
                             .join(", "),
                         unrouted_supported,
+                        // BUG#38 — see `EntityCommandEntry`'s own
+                        // identical field, above. `None` when `unrouted_
+                        // supported` is false: the ROUTED-only shape
+                        // never calls `extract_id` against raw
+                        // `facts_json`, so there is no race to close.
+                        structural_precheck: if unrouted_supported {
+                            let identity_heads: Vec<String> = entity
+                                .get("identified_by")
+                                .map(Json::each)
+                                .unwrap_or(&[])
+                                .iter()
+                                .chain(nested_identified_by.iter())
+                                .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                                .collect();
+                            let allowlist = crate::json_codec::command_argument_allowlist(
+                                aggregate, command, &process_managers, &identity_heads,
+                            );
+                            let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+                            Some(crate::json_codec::structural_precheck(
+                                &format!(
+                                    "{nested_name_ident}{}NestedEntityArgs",
+                                    crate::naming::rust_ident(nested_command_name)
+                                ),
+                                nested_command_name,
+                                cmd_attrs,
+                                Some(&allowlist),
+                            ))
+                        } else {
+                            None
+                        },
                     });
                 }
             }
@@ -738,6 +768,33 @@ pub fn generate(
                         .map(Json::to_s)
                         .collect::<Vec<_>>()
                         .join(", "),
+                    // BUG#38 (qa/bluebook/quality_control.bluebook) — the
+                    // SAME allowlist `commands::emit_entity_command`'s own
+                    // `Args::from_json` call already builds (`extra_
+                    // identity_heads:` included), run through `json_
+                    // codec::structural_precheck` so `registry.rs`'s
+                    // router can run the identical unknown/absent-
+                    // argument gate a second time, standalone, against
+                    // raw `facts_json`, BEFORE the route-less `None` arm
+                    // resolves `extract_id` — see `EntityCommandEntry::
+                    // structural_precheck`'s own header for the full
+                    // reasoning.
+                    structural_precheck: {
+                        let entity_identity_heads: Vec<String> = identified_by
+                            .iter()
+                            .map(|p| p.to_s().split('.').next().unwrap_or("").to_string())
+                            .collect();
+                        let allowlist = crate::json_codec::command_argument_allowlist(
+                            aggregate, command, &process_managers, &entity_identity_heads,
+                        );
+                        let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
+                        Some(crate::json_codec::structural_precheck(
+                            &format!("{entity_name_ident}{}EntityArgs", crate::naming::rust_ident(entity_command_name)),
+                            entity_command_name,
+                            cmd_attrs,
+                            Some(&allowlist),
+                        ))
+                    },
                 });
             }
         }

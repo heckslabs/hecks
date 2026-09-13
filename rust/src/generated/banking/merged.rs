@@ -1569,7 +1569,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerEntryAmendEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["adjustment", "narrative", "id", "number", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Amend does not declare {} — it takes adjustment, narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["adjustment", "narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Amend"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "adjustment, narrative"),
+    ])));
+}
+ } let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryAmendEntityArgs::from_json(facts_json)?;
                       args.adjustment.check_invariants()?;
                       args.narrative.check_invariants()?;
@@ -1584,7 +1602,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerEntryReverseEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["narrative", "id", "number", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Reverse does not declare {} — it takes narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Reverse"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "narrative"),
+    ])));
+}
+ } let parent_id = crate::generated::banking::account::Account::extract_id(facts_json)?; let element_id = crate::generated::banking::account::LedgerEntry::extract_id(facts_json)?; let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1598,7 +1634,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(facts_json)?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("WithdrawalDisputeEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["narrative", "id", "serial", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Dispute does not declare {} — it takes narrative",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["narrative"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Dispute"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "narrative"),
+    ])));
+}
+ } let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(facts_json)?; let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(facts_json)?; let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1612,7 +1666,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("VisitAnnotateEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["note", "id", "branch_code", "box_number", "date", "sequence", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Annotate does not declare {} — it takes note",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Annotate"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "note"),
+    ])));
+}
+ } let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1626,7 +1698,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("KeyIssuanceReturnEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["serial", "id", "branch_code", "box_number", "reference", "end_to_end"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Return does not declare {} — it takes serial",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["serial"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Return"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "serial"),
+    ])));
+}
+ } let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(facts_json)?; let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(facts_json)?; let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role, caller_actor_id, &*store, QUERIES)?;
