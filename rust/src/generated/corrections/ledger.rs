@@ -419,7 +419,7 @@ pub fn dispatch_entity_entry_amend(
         element_wants,
         &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "", expr: crate::kernel::Expr::Lookup("emitted_entry_recorded"), corrects_event: Some("EntryRecorded") },
         ],
         None,
         |record| {
@@ -442,6 +442,7 @@ pub fn dispatch_entity_entry_amend(
 pub struct Ledger {
     pub reference: Option<LedgerReference>,
     pub entries: Vec<Entry>,
+    pub emitted_entry_recorded: bool,
 }
 
 impl crate::kernel::Fielded for Ledger {
@@ -450,6 +451,7 @@ impl crate::kernel::Fielded for Ledger {
         match name {
             "reference" => self.reference.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "entries" => Some(Field::Value(Value::List(self.entries.len()))),
+            "emitted_entry_recorded" => Some(Field::Value(Value::Bool(self.emitted_entry_recorded))),
             _ => None,
         }
     }
@@ -473,6 +475,7 @@ impl Ledger {
         crate::kernel::Json::Object(vec![
         ("reference".to_string(), self.reference.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("entries".to_string(), crate::kernel::Json::Array(self.entries.iter().map(|x| x.to_json()).collect())),
+        ("emitted_entry_recorded".to_string(), crate::kernel::Json::Bool(self.emitted_entry_recorded)),
         ])
     }
 }
@@ -485,6 +488,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         Ok(Self {
         reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(LedgerReference::from_json(&x.coerce_single_field("value"))?), },
         entries: match v.get("entries").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Entry::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        emitted_entry_recorded: match v.require("emitted_entry_recorded", "Ledger")? { crate::kernel::Json::Bool(b) => *b, _ => return Err(crate::kernel::Refusal::TypeMismatch("Ledger.emitted_entry_recorded: expected a boolean".to_string())) },
         })
     }
 }
@@ -575,6 +579,7 @@ pub fn dispatch_open(
         build: Box::new(|| Ledger {
             reference: Some(args.reference.clone()),
             entries: vec![],
+            emitted_entry_recorded: false,
         }),
         state_independent: false,
     },
@@ -692,6 +697,7 @@ pub fn dispatch_record(
         None,
         |record| {
         record.entries.push(Entry { amount: args.amount.clone(), sequence: EntrySequence { value: record.entries.iter().map(|e| e.sequence.value).max().unwrap_or(0) + 1 } });
+        record.emitted_entry_recorded = true;
             Ok(())
         },
         &[

@@ -249,6 +249,7 @@ fn tmpl_delegate_apply_host(
             |r: &mut TmplRecord| &mut r.tmpl_list_field,
             |el: &TmplElement| el.identity() == element_id,
             "TmplQualifiedCommandName",
+            "TmplQualifiedName",
             "TmplAggregateName",
             "TmplEntityName",
             "TmplEntityIdentityReading",
