@@ -90,6 +90,18 @@ pub struct EntityCommandEntry {
     /// ported scope consumes them.
     pub entity_name: String,
     pub entity_identity_reading: String,
+    /// BUG#38 (qa/bluebook/quality_control.bluebook) — the SAME BUG#23
+    /// standalone structural gate `CommandEntry::structural_precheck`
+    /// already carries for the aggregate arm, one construct over: run
+    /// BEFORE the route-less `None` arm's own `extract_id` calls, using
+    /// the IDENTICAL allowlist this command's own `Args::from_json` call
+    /// already builds (`extra_identity_heads:` included), so a malformed
+    /// `id` can no longer short-circuit via `extract_id`'s own `?` before
+    /// an unrelated undeclared argument on the same call is checked. See
+    /// `emit_registry`'s own header on why this stays the narrow
+    /// structural-only check (no declared-argument type coercion) rather
+    /// than moving the whole `Args::from_json` earlier.
+    pub structural_precheck: Option<String>,
 }
 
 /// BUG#11 (loop-parity) — a command owned by an entity nested TWO levels
@@ -123,6 +135,11 @@ pub struct NestedEntityCommandEntry {
     /// `extract_id`-supported (`domain_generator.rs`'s own header on
     /// why it needs both, not just the innermost).
     pub unrouted_supported: bool,
+    /// BUG#38 — see `EntityCommandEntry`'s own identical field, above.
+    /// `None` when `unrouted_supported` is false: the ROUTED-only arm
+    /// always requires an explicit route and never calls `extract_id`
+    /// against raw `facts_json`, so there is no race for this to close.
+    pub structural_precheck: Option<String>,
 }
 
 pub struct PortEntry {
@@ -491,16 +508,51 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 c.fn_name, a.module_name
             );
 
+            // BUG#38 (qa/bluebook/quality_control.bluebook) — the SAME
+            // BUG#23 standalone structural gate the aggregate arm's own
+            // `structural_precheck_line` already runs (this function's
+            // header, above), one construct over: spliced INSIDE the
+            // route-less `None` arm specifically, BEFORE its own
+            // `extract_id` calls resolve. NOT spliced before the whole
+            // `match route` the way the aggregate arm's `id_line` gets
+            // it: an aggregate command's routed depth is always 0, which
+            // a wrong-shaped explicit `to:` (the `routing_key` fuzz
+            // mutation's `scalar` case parses into a zero-entity route)
+            // always trivially satisfies, so that placement is never
+            // actually observable for `CommandEntry`. An entity command's
+            // `require_depth(1)` (or `require_depth(2)` one hop deeper)
+            // is NOT trivially satisfied by that same zero-entity route —
+            // confirmed live (`qa/stress_domains/nested_pieces`,
+            // `Workspace.Board.AddCard` with a scalar `to:` mutation):
+            // Ruby resolves an EXPLICITLY given `to:` independently of
+            // `facts`/`ArgumentGate`, so a wrong-depth explicit route
+            // refuses on its own terms, `TypeMismatch`, before Ruby's
+            // absent-argument check on the unrelated `facts` payload is
+            // ever reached — moving this ahead of the whole match (a
+            // first attempt at this fix) refused `AbsentArgument`
+            // instead, a genuine new divergence this narrower placement
+            // avoids. See `EntityCommandEntry::structural_precheck`'s own
+            // header for the rest of the reasoning (why this stays the
+            // narrow structural-only check rather than moving the whole
+            // `Args::from_json` earlier).
+            let structural_precheck_line = c
+                .structural_precheck
+                .as_ref()
+                .map(|check| format!("{{ let v = facts_json; {check} }}"))
+                .unwrap_or_default();
+
+            let body_entity_match = format!(
+                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json)?; let element_id = {mod_path}::{}::extract_id(facts_json)?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                a.record, c.entity_record, c.entity_record
+            );
+
             let mut body: Vec<String> = vec![
                 "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
-                format!(
-                    "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json)?; let element_id = {mod_path}::{}::extract_id(facts_json)?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
-                    a.record, c.entity_record, c.entity_record
-                ),
-                format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct),
+                body_entity_match,
             ];
+            body.push(format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct));
             // R3 — see the aggregate arm's own identical splice, above.
             body.extend(c.invariant_check_lines.iter().cloned());
             if let Some(rl) = role_line {
@@ -571,9 +623,26 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 c.fn_name, a.module_name
             );
 
+            // BUG#38 — see `entity_arms`' own identical splice, above,
+            // including WHY this is scoped to INSIDE the route-less
+            // `None` arm alone rather than before the whole `match
+            // route`: an explicit but wrong-depth `to:` refuses on its
+            // own terms in `Some(route)`, independently of `facts`,
+            // before Ruby's absent-argument check on that unrelated
+            // payload is ever reached. `None` (never spliced in) when
+            // `unrouted_supported` is false: the ROUTED-only `else`
+            // branch below always requires an explicit route and never
+            // calls `extract_id` against raw `facts_json` at all, so
+            // there is no route-less arm here for this to close.
+            let structural_precheck_line = c
+                .structural_precheck
+                .as_ref()
+                .map(|check| format!("{{ let v = facts_json; {check} }}"))
+                .unwrap_or_default();
+
             let route_binding = if c.unrouted_supported {
                 format!(
-                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json)?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json)?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
                     a.record, c.entity_record, c.entity_record, c.nested_record, c.nested_record
                 )
             } else {
@@ -591,9 +660,9 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
                 "let route = invocation.route();".to_string(),
                 "let facts_json = invocation.facts();".to_string(),
-                route_binding,
-                format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct),
             ];
+            body.push(route_binding);
+            body.push(format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct));
             body.extend(c.invariant_check_lines.iter().cloned());
             if let Some(rl) = role_line {
                 body.push(rl);

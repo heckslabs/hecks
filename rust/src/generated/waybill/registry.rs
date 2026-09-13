@@ -202,7 +202,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json)?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json)?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SlotFillEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Fill does not declare {} — it takes item",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Fill"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "item"),
+    ])));
+}
+ } let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json)?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json)?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Fill", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -216,7 +234,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json)?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json)?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SlotClearEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["item", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Clear does not declare {} — it takes item",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["item"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Clear"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "item"),
+    ])));
+}
+ } let parent_id = crate::generated::waybill::manifest::Manifest::extract_id(facts_json)?; let element_id = crate::generated::waybill::manifest::Slot::extract_id(facts_json)?; let element_wants = crate::generated::waybill::manifest::Slot::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;

@@ -247,7 +247,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardAddCardEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["sequence", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AddCard does not declare {} — it takes sequence",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["sequence"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "AddCard"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "sequence"),
+    ])));
+}
+ } let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -261,7 +279,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("BoardLabelEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["label", "id", "reference", "number"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Label does not declare {} — it takes label",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["label"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Label"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "label"),
+    ])));
+}
+ } let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let element_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let element_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -275,7 +311,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id(facts_json)?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("CardAnnotateNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["note", "id", "reference", "number", "sequence"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Annotate does not declare {} — it takes note",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Annotate"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "note"),
+    ])));
+}
+ } let parent_id = crate::generated::nested_pieces::workspace::Workspace::extract_id(facts_json)?; let hop1_id = crate::generated::nested_pieces::workspace::Board::extract_id(facts_json)?; let hop1_wants = crate::generated::nested_pieces::workspace::Board::extract_wants(facts_json); let hop2_id = crate::generated::nested_pieces::workspace::Card::extract_id(facts_json)?; let hop2_wants = crate::generated::nested_pieces::workspace::Card::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;

@@ -432,7 +432,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PieceMoveEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "destination", "by", "outcome", "label"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Move does not declare {} — it takes id, destination, by, outcome",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["by", "destination", "id", "outcome"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Move"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id, destination, by, outcome"),
+    ])));
+}
+ } let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceMoveEntityArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.destination.check_invariants()?;
@@ -446,7 +464,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("PieceCaptureEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "by", "label"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Capture does not declare {} — it takes id, by",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["by", "id"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Capture"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "id, by"),
+    ])));
+}
+ } let parent_id = crate::generated::chess::game::Game::extract_id(facts_json)?; let element_id = crate::generated::chess::game::Piece::extract_id(facts_json)?; let element_wants = crate::generated::chess::game::Piece::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::chess::game::PieceCaptureEntityArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();

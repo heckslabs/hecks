@@ -131,7 +131,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json)?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id(facts_json)?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("SlipAmendEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["amount", "id", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Amend does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["amount"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Amend"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "amount"),
+    ])));
+}
+ } let parent_id = crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json)?; let element_id = crate::generated::ledger_ordering::folder::Slip::extract_id(facts_json)?; let element_wants = crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::ledger_ordering::folder::SlipAmendEntityArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Amend", caller_role, caller_actor_id, &*store, QUERIES)?;
