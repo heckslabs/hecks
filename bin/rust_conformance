@@ -89,6 +89,11 @@ their_json =
   when /\.wasm\z/
     abort "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)
     run_subprocess(%w[wasmtime run] + [other], File.read(script))
+  when ->(path) { !path.end_with?(".json") && File.file?(path) && File.executable?(path) }
+    # A PINNED PER-DOMAIN BINARY — `RustConformanceHelpers#build_rust_for`
+    # copies each feature's build out to its own path, which is what
+    # `bin/qa_sweep`'s shrunk-demonstration `replay:` line names.
+    run_subprocess([other], File.read(script))
   else
     File.read(other)
   end
