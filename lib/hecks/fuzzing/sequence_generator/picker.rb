@@ -97,9 +97,18 @@ module Hecks
         # out of the pool entirely rather than being preferred forever.
         def steer(pool)
           fresh = pool.reject { |entry| @exercised.include?(entry[:verb]) }
-          return pool if fresh.empty?
+          steered = fresh.empty? ? pool : pool + (fresh * UNEXERCISED_WEIGHT)
+          favor(steered)
+        end
 
-          pool + (fresh * UNEXERCISED_WEIGHT)
+        # `favor:` (CoverageCampaign's rare verbs) — weighted up when
+        # eligible, never made eligible. An empty favor list returns the
+        # pool untouched, so an unguided seed draws exactly what it did.
+        def favor(pool)
+          return pool if @favor.empty?
+
+          favored = pool.uniq.select { |entry| @favor.include?(entry[:verb]) }
+          pool + (favored * SequenceGenerator::FAVOR_WEIGHT)
         end
       end
     end
