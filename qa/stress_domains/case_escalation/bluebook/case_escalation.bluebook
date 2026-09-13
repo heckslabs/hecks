@@ -1,0 +1,176 @@
+# A STRESS DOMAIN, NOT AN EXAMPLE — lives under qa/stress_domains/, not
+# examples/, on purpose (see qa/bluebook/quality_control.bluebook's own
+# "being clever" note and .claude/skills/hecks_qa/SKILL.md's "Authoring a
+# new stress domain" section).
+#
+# TARGETED AT ANGLE-12 (qa/bluebook ledger). Two feature-coverage gaps
+# (spec/fuzzing/meta_domain_coverage_spec.rb META_DOMAIN_KNOWN_GAPS) meet
+# on nothing in the corpus today:
+#
+#   Policy#target_domain — every `across` policy that exists anywhere in
+#   the corpus (examples/banking, four of them) targets a domain that is
+#   deployed to its OWN, separate Lambda (banking.hecksagon's own comment:
+#   "real cross-domain delivery, rust/host's own lambda_client.rs") and is
+#   never loaded into the same registry banking itself boots into for
+#   fuzzing — so under `bin/fuzz`/`bin/qa_sweep`, every `across` dispatch
+#   in the real corpus hits a DOMAIN_REFUSAL (the target chapter simply
+#   isn't there) and is recorded `delivered: false`, never genuinely
+#   exercised end to end. No fuzzer PROPERTY has ever been ABLE to ask
+#   whether a target_domain resolution matches what actually happened,
+#   because it never actually happens anywhere fuzzed.
+#
+#   Command#references — nothing asks whether a `corrects` command
+#   re-validates a reference that has gone dangling since the event being
+#   corrected was recorded. `qa/stress_domains/referral_chain`'s own
+#   `Referral.Reassign` (ADR 0037 Finding 5) is the ONE place in the
+#   corpus a command redeclares a reference-typed field under a plain
+#   value object so only Ruby's `resolve_state_references` (never ported
+#   to Rust) can catch a dangling one — and `qa/stress_domains/
+#   corrections`'s own BUG#30-33 already showed `corrects`'s own mutation
+#   path has real, independent gaps. The two have never been paired: no
+#   domain's `corrects` command carries a revalued reference.
+#
+# THIS DOMAIN'S OWN SHAPE, MINIMAL, EVERY PIECE LOAD-BEARING:
+#
+#   Vendor           — the far end of a reference `Invoice` amends.
+#   Invoice          — records a charge against a Vendor, then AMENDS it
+#                       (`corrects`) by re-pointing `vendor` at a
+#                       DIFFERENT handle, redeclared as a plain value
+#                       object rather than `Reference<Vendor>` — the
+#                       revalued-reference shape, on a `corrects` command
+#                       for the first time. `AmendCharge`'s own emitted
+#                       event fires a policy that crosses into this
+#                       domain's SECOND chapter (review.bluebook,
+#                       "VendorCompliance") — genuinely, in-process: both
+#                       files sit in this ONE stress domain's own
+#                       `bluebook/` directory, and `Adapters::Folder#
+#                       load_domain` (lib/hecks/adapters/driven/
+#                       folder.rb:127, the same glob `Hecks::Fuzzing::
+#                       FormCensus.census` and `bin/qa_domain_novelty`
+#                       use) loads every `*.bluebook` file there into ONE
+#                       registry — so `across "VendorCompliance"` actually
+#                       resolves and dispatches under Memory-adapter
+#                       fuzzing, unlike every `across` in examples/banking.
+#
+# NOT WIRED INTO RUST — `bin/project_rust` reads exactly `<name>/
+# bluebook/<name>.bluebook` (bin/qa_domain_novelty's own header, citing
+# qa/stress_domains/ledger_ordering/NOTES.md), so only THIS file
+# compiles; review.bluebook's own chapter is Ruby-only, on purpose — the
+# axes this domain is FOR (self-consistency, persistence-parity, and
+# whether the cross-domain dispatch itself behaves) don't need a second
+# engine to disagree with.
+Hecks.bluebook "CaseEscalation" do
+  vision "An invoice's charge, amended after the fact by re-pointing it at a different vendor handle rather than a checked reference — corrects paired with a revalued reference for the first time — whose amendment fans out, in-process, into a second chapter's own compliance review and the multi-head read model built over it."
+
+  core
+
+  aggregate "Vendor" do
+    description "A vendor an invoice's charge can be billed to."
+
+    identified_by :handle
+
+    attribute :handle, Handle
+
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "Enroll" do
+      goal "Enroll a vendor"
+
+      attribute :handle, Handle
+
+      emits "VendorEnrolled"
+    end
+  end
+
+  aggregate "Invoice" do
+    description "A billed charge against a vendor, correctable after the fact by re-pointing it at a different vendor handle."
+
+    identified_by :reference
+
+    attribute :reference, InvoiceReference
+    reference_to Vendor
+    attribute :amount, Amount
+
+    value_object "InvoiceReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an invoice reference is not blank") { !value.to_s.empty? }
+    end
+
+    value_object "Amount" do
+      attribute :value, Integer
+      invariant("an amount is not negative") { !value.negative? }
+    end
+
+    # REDECLARED, NOT SHARED — the same corpus convention referral_chain's
+    # own comment states plainly: no chapter shares one value object BY
+    # NAME across two aggregates without redeclaring it locally.
+    value_object "Handle" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a handle is not blank") { !value.to_s.empty? }
+    end
+
+    command "RecordCharge" do
+      goal "Record a charge against a vendor"
+
+      attribute :reference, InvoiceReference
+      reference_to Vendor
+      attribute :amount, Amount
+
+      sets :reference
+      sets :vendor
+      sets :amount
+
+      emits "ChargeRecorded"
+    end
+
+    # THE REVALUED-REFERENCE SHAPE (ADR 0037 Finding 5 / referral_chain's
+    # own `Referral.Reassign`), ON A `corrects` COMMAND FOR THE FIRST TIME
+    # IN THE CORPUS. `vendor` is redeclared here under this aggregate's
+    # own `Handle`, a plain value object, not `Reference<Vendor>` — the
+    # command-level check (`resolve_references`, the one Rust ported)
+    # sees no reference at all on this argument; only Ruby's own
+    # `resolve_state_references` (walked at `step_save`, against Invoice's
+    # own SETTLED `Reference<Vendor>` field, after `sets` has copied this
+    # command's plain handle in) can ask whether it names a Vendor that
+    # exists — and it has never had to ask that on a `corrects` command's
+    # own mutation path before, which corrections' own BUG#30-33 already
+    # showed has independent gaps (a missing entity-level mutation-applier
+    # branch, an unchecked build-time correction target). Whether the
+    # SAME class of gap exists on an AGGREGATE-level `corrects` command
+    # and interacts with a dangling reference is this domain's own
+    # question, not corrections' or referral_chain's.
+    command "AmendCharge" do
+      goal "Correct a previously recorded charge's own vendor, by handle"
+
+      reference_to Invoice
+      attribute :vendor, Handle
+      corrects "ChargeRecorded", reason: "the wrong vendor handle was recorded and needs correcting"
+
+      sets :vendor
+
+      emits "ChargeAmended"
+    end
+
+    # THE CROSS-DOMAIN POLICY, RESOLVED IN-PROCESS FOR THE FIRST TIME —
+    # see this file's own header. `trigger`'s bare `Review::Open` and
+    # `on`'s bare `Invoice::ChargeAmended` are ADR 0025's own "events
+    # first-class" convention, unchanged from every other policy in the
+    # corpus; what's new is that `across "VendorCompliance"` names a
+    # chapter THIS domain's own second file actually loads, so this
+    # policy's own dispatch has to genuinely resolve `Review.Open`
+    # (review.bluebook) rather than refuse the way every real `across`
+    # policy in examples/banking does under fuzzing today. No `with_spec`
+    # — `trigger_args` (lib/hecks/runtime/policy_interpreter.rb:252) hands
+    # the triggered command the raw event payload by key, and
+    # `ChargeAmended`'s own payload (whatever `AmendCharge` `sets`) is
+    # exactly `{vendor: ...}` — the same key `Review.Open` declares below.
+    policy "FlagAmendment" do
+      on      Invoice::ChargeAmended
+      trigger Review::Open
+      across  "VendorCompliance"
+    end
+  end
+end
