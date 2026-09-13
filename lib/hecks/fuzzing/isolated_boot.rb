@@ -316,7 +316,7 @@ module Hecks
       # touching a given target's own disposable database at a time — but
       # the caller, not this module, is what OWNS that database's name and
       # lifecycle (created, and genuinely dropped, by the caller itself),
-      # exactly the discipline `spec/qa_sweep_all_spec.rb`'s own header
+      # exactly the discipline `spec/support/qa_sweep_all_fixture.rb`'s own header
       # describes and this repository's persistence-parity work is
       # required to follow. Accepting `database:`/`schema:` as REQUIRED
       # keyword arguments (never a fallback constant) is what keeps that

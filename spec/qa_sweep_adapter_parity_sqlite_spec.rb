@@ -30,7 +30,7 @@ require "pathname"
 RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
-  # LINE-FOR-LINE `spec/qa_sweep_all_spec.rb`'s OWN `FIXTURE_HECKSAGON`,
+  # LINE-FOR-LINE `spec/support/qa_sweep_all_fixture.rb`'s OWN `FIXTURE_HECKSAGON`,
   # RENAMED — see that file's own comment (and `spec/fuzzing/
   # persistence_parity_spec.rb`'s own, longer one) on why every spec file
   # that boots a throwaway `QualityControl` ledger must give its own
@@ -71,7 +71,7 @@ RSpec.describe "bin/qa_sweep adapter_parity_sqlite", :io do
     end
   RUBY
 
-  # THE SAME TRIVIAL WIDGET `spec/qa_sweep_all_spec.rb`'s OWN
+  # THE SAME TRIVIAL WIDGET `spec/support/qa_sweep_all_fixture.rb`'s OWN
   # `FIXTURE_TARGET_BLUEBOOK` uses, renamed — bound to `Memory` (not
   # `PostgresEra`, not even `Heki`) to make the point as plainly as
   # possible: this mode reaches a target that declares nothing about
