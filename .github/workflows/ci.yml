@@ -236,199 +236,36 @@ jobs:
   # names. `if: always()` is required — without it the default implicit
   # `success()` condition would skip THIS job whenever a shard failed,
   # which a required check can't afford.
+  # REUSABLE-WORKFLOW SPLIT, group 2 (part 1 of 3) — see ci-rspec.yml's own
+  # header for the full reasoning (why this required-status-check name is
+  # unaffected, why it needed its own file rather than sharing one with
+  # `rspec_postgres_io`/`rspec_postgres_io_parallel`). This job exists
+  # SOLELY so `rspec` keeps being the exact required-status-check name the
+  # `merge-queue-main` ruleset already names.
   rspec:
     runs-on: ubuntu-latest
 
-    needs: rspec_shard
+    needs: rspec_impl
     if: always()
 
     steps:
-      - name: both rspec shards passed
+      - name: rspec_impl (ci_attestation_rspec + both rspec shards) passed
         run: |
-          result="${{ needs.rspec_shard.result }}"
+          result="${{ needs.rspec_impl.result }}"
           if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_shard: $result"
+            echo "rspec_impl: $result"
             exit 0
           fi
-          echo "rspec_shard: $result — at least one shard did not succeed" >&2
+          echo "rspec_impl: $result — at least one shard did not succeed" >&2
           exit 1
 
-  # PHASE 7 DETECTOR — a plain checkout-and-verify, same detector-plus-
-  # gated-job shape `postgres_io_relevant_changed`/`runtime_changed` below
-  # already use, needed here for the same structural reason: a job-level
-  # `if:` can only read ANOTHER job's outputs via `needs:`, never a step's
-  # own output from within the SAME job, so skipping `rspec_shard` WHOLESALE
-  # (rather than skipping individual steps inside it, the finer-grained
-  # approach `checks_static` uses below since only 4 of its 5 steps are
-  # ever attested) needs this tiny separate job. See
-  # .github/actions/check-attestation's own header for the full mechanism
-  # and .githooks/pre-push's own "ATTESTATION" section for what writes the
-  # note this reads.
-  ci_attestation_rspec:
-    runs-on: ubuntu-latest
-
-    # Safe to skip outright on `push` (unlike `postgres_io_relevant_
-    # changed` below, which can't) — `rspec_shard`'s own `if:` short-
-    # circuits on `github.event_name != 'push'` BEFORE it ever looks at
-    # `needs.ci_attestation_rspec.outputs`, so this job's result is never
-    # consulted on that trigger either way.
-    if: github.event_name != 'push'
-
-    outputs:
-      attested: ${{ steps.attest.outputs.attested }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/check-attestation
-        id: attest
-        with:
-          checks: rspec
-          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
-
-  # TWO-WAY MATRIX — 2,700+ examples on one 4-vCPU runner measured ~137s
-  # (checks_fuzz's own header cites the sibling `bin/fuzz` figure as
-  # comparison scale); splitting the file list across two runners, each
-  # still running its own `-n 4` internal `parallel_rspec` workers,
-  # roughly halves that. Same shape as `rspec_postgres_io_parallel_shard`
-  # below: `--group-by runtime` needs a runtime log to group well, so
-  # every leg restores BOTH groups' own most-recently-saved logs (each
-  # leg only ever writes real numbers for the files IT ran, per
-  # `ParallelTests::RSpec::RuntimeLogger`'s own truncate-then-append
-  # behavior under `--only-group` — see that job's header for how this
-  # was confirmed, not assumed) and merges them before grouping.
-  rspec_shard:
-    runs-on: ubuntu-latest
-
-    needs: ci_attestation_rspec
-
-    # Cache-warming push (see top-of-file comment) needs only
-    # `rspec_postgres_io_parallel_shard` below — this job still gets its
-    # real gating run from `pull_request`/`merge_group` alone. The second
-    # clause is Phase 7: skip only when the exact tree checked out here
-    # was already proven clean by a local `parallel_rspec spec` run (see
-    # ci_attestation_rspec above) — the `rspec` aggregator's own
-    # `needs.rspec_shard.result` check already treats "skipped" the same
-    # as "success".
-    #
-    # `always() &&` AND `needs.ci_attestation_rspec.result != 'success'`
-    # ARE BOTH LOAD-BEARING, NOT DEFENSIVE — found by actually watching
-    # this job's own first real CI run, not guessed: a real bug in
-    # check-attestation/action.yml (a literal `${{ }}` inside a
-    # DESCRIPTION string, evaluated by GitHub's template engine like any
-    # other, crashing the action's own load — see that file's own header
-    # for the fix) made `ci_attestation_rspec` FAIL outright, and GitHub's
-    # default behavior for a job whose `needs:` job failed is to SKIP it
-    # — silently skipping `rspec_shard`, a REQUIRED check, instead of
-    # running it for real. The opposite of every other fail-safe default
-    # in this mechanism. `always()` makes this job's own `if:` evaluate
-    # regardless of the detector's outcome, and checking `.result !=
-    # 'success'` explicitly (not just `.outputs.attested`, which would be
-    # empty/undefined on a failed run and might silently coerce to
-    # something unintended) means ANY non-success from the detector — a
-    # future bug included — runs the real job rather than skipping it.
-    if: always() && github.event_name != 'push' && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2]
-
-    # NO POSTGRES SERVICE — Phase 4 of the CI speed effort. THIS USED TO
-    # BE LOAD-BEARING: spec/diagrams_spec.rb, spec/storehouse_spec.rb, and
-    # the committed-OIDC-manifest spec each had SOME examples that boot
-    # the FULL examples/pizzas domain for real (`Hecks.boot`/
-    # `Storehouse.validate`), which wires real PostgresEra at boot time —
-    # and none of those examples was tagged `io: true`, so removing this
-    # service on the (wrong) assumption that only `io: true` specs touch
-    # real Postgres broke this job the first time it ran without one
-    # (18+2+1 failures, all `PG::ConnectionBad`).
-    #
-    # THE GAP ITSELF IS NOW CLOSED, not routed around: every example in
-    # those three files that actually calls `Hecks.boot` on
-    # examples/pizzas (or, for storehouse_spec.rb, `Storehouse.validate`
-    # against it) is now tagged `io: true` — confirmed empirically by
-    # running `parallel_rspec spec -o "--tag ~io --tag ~fuzzing"` (this
-    # job's own command) with Postgres genuinely unreachable and tagging
-    # exactly the 19 examples that failed (16 in diagrams_spec.rb, 3 in
-    # storehouse_spec.rb — one more than the 2 that failed in that one
-    # run, added because it makes the identical `Storehouse.validate`
-    # call and its "pass" was incidental to random example ordering
-    # against a boot-result cache, not a real absence of the Postgres
-    # dependency — and 1 dynamically-generated example per committed
-    # oidc.json in oidc_manifest_spec.rb, tagged unconditionally since a
-    # future domain's own manifest might also be PostgresEra-bound).
-    # Those 19 now run in `rspec_postgres_io`'s serial step (see that
-    # job's own updated header) alongside dsl_spec.rb/guides_spec.rb/
-    # domain_refusal_spec.rb — all of them reach the identical
-    # `postgres://localhost/hecks_pizzas` database via examples/pizzas'
-    # own `.world` file, so they belong in the same single-process job,
-    # not the parallel shard. Every OTHER example in these three files
-    # boots a Memory-bound fixture and needs nothing here — confirmed by
-    # the same empirical run coming back with 0 OTHER failures.
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-ruby
-
-      # Every `io: true`/`fuzzing: true` spec that does a real `cargo
-      # build` — the only kind of real I/O this job no longer provisions
-      # for — now runs in `rspec_rust_io` instead (including its own
-      # wasm32-wasip1/wasmtime setup, main's #416); the Postgres-only
-      # `io: true` specs are in `rspec_postgres_io`. Both moves are safe
-      # by spec_helper.rb's own convention (`config.filter_run_excluding
-      # io: true unless ENV["CI"]` means an `io: true` spec that secretly
-      # needed something only `rspec` still had wouldn't be broken by
-      # this — it would already be broken for every contributor running
-      # a plain local `bundle exec rspec`, since none of them provision a
-      # local Postgres or build Rust either).
-      # PER-GROUP RUNTIME LOG, SAME PATTERN rspec_postgres_io_parallel_
-      # shard USES (see that job's own header for why per-group keys +
-      # a merge step, not one shared key) — restore both groups' own
-      # most-recently-saved logs and merge before this leg's own
-      # `bin/rspec_shard_files` call reads them.
-      - name: Restore rspec runtime log cache (group 1)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group1.log
-          key: rspec-main-runtime-group1-${{ github.run_id }}
-          restore-keys: |
-            rspec-main-runtime-group1-
-
-      - name: Restore rspec runtime log cache (group 2)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group2.log
-          key: rspec-main-runtime-group2-${{ github.run_id }}
-          restore-keys: |
-            rspec-main-runtime-group2-
-
-      - name: Merge the 2 groups' runtime logs into one grouping input
-        run: |
-          mkdir -p tmp
-          cat tmp/parallel_runtime_rspec_main.group*.log > tmp/parallel_runtime_rspec_main.log 2>/dev/null || true
-          touch tmp/parallel_runtime_rspec_main.log
-
-      - name: Determine this shard's own file list
-        run: |
-          bundle exec bin/rspec_shard_files ${{ matrix.group }} 2 tmp/parallel_runtime_rspec_main.log \
-            > tmp/rspec_shard_files.txt
-
-      # `--profile 15` — Phase 0 of the CI speed effort: know the top
-      # examples by wall-clock instead of inferring them from job-level
-      # timestamps. Printed once per `parallel_rspec` worker process (4
-      # of them here), each covering only that worker's own slice.
-      - name: "rspec: parallel (this shard's own file list only)"
-        run: |
-          FILES=()
-          while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
-          bundle exec parallel_rspec "${FILES[@]}" \
-            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log"
-
-      - name: Save this group's own runtime log cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log
-          key: rspec-main-runtime-group${{ matrix.group }}-${{ github.run_id }}
+  # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-rspec.yml's own header for
+  # the full design. `secrets:` here is the call-site half of the explicit
+  # contract that file's own `on.workflow_call.secrets` declares.
+  rspec_impl:
+    uses: ./.github/workflows/ci-rspec.yml
+    secrets:
+      HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # `checks` USED TO BE ONE JOB, SIX UNRELATED KINDS OF WORK IN SERIES,
   # THEN THREE JOBS DEFINED RIGHT HERE — Phase 1 of the CI speed effort
@@ -472,538 +309,83 @@ jobs:
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
+  # REUSABLE-WORKFLOW SPLIT, group 2 (part 2 of 3) — see ci-rspec.yml's own
+  # header for the full split rationale (why `rspec_postgres_io` gets its
+  # own separate reusable-workflow file rather than sharing one with
+  # `rspec`/`rspec_postgres_io_parallel`: three independently-required
+  # check names, three structurally different job shapes). UNLIKE `rspec`,
+  # this job was never already an aggregator before this split — it was a
+  # single plain job whose own name IS the required-status-check string;
+  # this wrapper is the first thing that makes it one.
   rspec_postgres_io:
     runs-on: ubuntu-latest
 
-    # See `rspec` job's own comment above — cache-warming push doesn't
-    # need this job (it keeps no runtime-log cache of its own).
-    if: github.event_name != 'push'
-
-    env:
-      PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-ruby
-
-      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
-      # the CI speed effort (see the action's own header for why this is
-      # the one piece of that phase not yet verified against real
-      # infrastructure). `POSTGRES_HOST_AUTH_METHOD: trust`'s own former
-      # comment still applies unchanged: spec/adapters/driven/postgres/
-      # lineage_spec.rb creates its own unprivileged roles at runtime
-      # with no password, and this action's trust rule for 127.0.0.1/::1
-      # covers any role the same way the old container's env var did.
-      - uses: ./.github/actions/postgres
-
-      # examples/pizzas/bluebook/pizzas.world wires straight at this
-      # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
-      # and the schema-evolution guide's own live example all boot it.
-      # Nothing creates it on demand (unlike the adapter specs' own
-      # scratch databases, which manage their own lifecycle); a fresh
-      # Postgres needs it provisioned once, up front. (The 12 specs that
-      # run in `rspec_rust_io` instead don't reference this database by
-      # name — verified by grep — so that job doesn't need this step.)
-      - name: Create the pizzas example's database
-        run: createdb -h localhost -U postgres hecks_pizzas
-
-      # SIX `io: true` FILES THAT SHARE THIS ONE DATABASE — spec/
-      # dsl_spec.rb, spec/guides_spec.rb, spec/runtime/domain_refusal_
-      # spec.rb (verified: `grep -rl "hecks_pizzas" spec/` names exactly
-      # these three plus spec/support/doctest.rb, which isn't a spec file
-      # itself), PLUS spec/diagrams_spec.rb, spec/storehouse_spec.rb and
-      # spec/oidc_manifest_spec.rb (Phase 4 of the CI speed effort —
-      # these three don't reference the literal string "hecks_pizzas" the
-      # grep above looked for, but every example now tagged `io: true` in
-      # them boots `examples/pizzas` for real via `Hecks.boot`, and that
-      # domain's own `.world` file hardcodes the identical database —
-      # `postgres://localhost/hecks_pizzas` — so they share the exact
-      # same resource as the original three, just reached indirectly.
-      # Confirmed empirically before adding them here, not assumed: with
-      # Postgres genuinely unreachable, `bundle exec parallel_rspec spec
-      # -o "--tag ~io --tag ~fuzzing"` (the `rspec` job's own command)
-      # failed exactly 19 examples, all `PG::ConnectionBad`/
-      # `WiringError`, all inside these three files — see each file's own
-      # `:io` tags for exactly which examples those are; the rest of each
-      # file boots Memory-bound fixtures and stays in the fast `rspec`
-      # job). Kept single-process on purpose: unlike every other
-      # `io: true` spec (see rspec_postgres_io_parallel below), nothing
-      # here was verified safe under a second worker concurrently
-      # reading/writing the SAME pre-seeded database in the same
-      # checkout — untagged examples in these three files that don't
-      # touch Postgres at all are unaffected and still run in `rspec`.
-      - name: "rspec: shared hecks_pizzas database (serial — genuinely shared state)"
-        run: |
-          bundle exec rspec --tag io --tag ~fuzzing \
-            spec/dsl_spec.rb spec/guides_spec.rb spec/runtime/domain_refusal_spec.rb \
-            spec/diagrams_spec.rb spec/storehouse_spec.rb spec/oidc_manifest_spec.rb
-
-  # EVERY OTHER `io: true` SPEC — split out of what used to be one single
-  # serial `rspec_postgres_io` step alongside the three files above.
-  # `rspec_postgres_io`'s own former comment justified staying serial by
-  # "a handful of these specs do before(:context)/after(:context)
-  # backup-and-restore of shared fixture state, which a second worker in
-  # THIS SAME checkout could race" — true of the three hecks_pizzas
-  # files above, but checked file-by-file (not assumed) for the other
-  # ~28: every one of them names its own scratch Postgres
-  # database/role/schema or its own scratch fixture directory basename,
-  # each namespaced by that file's own name
-  # (hecks_tenant_isolation_spec vs. hecks_tenant_isolation_fuzz_spec,
-  # deploy_bluebook_spec_fixture vs. project_deploy_tenant_spec_fixture,
-  # etc.) — grepped across every hardcoded `"hecks_*"` name and every
-  # `*_FIXTURE_BASENAME` constant in this set, zero collisions found.
-  # `parallel_rspec` splits work at the FILE level (RSpec never divides
-  # one file's own examples across workers), so as long as no two files
-  # share a resource name — confirmed here — a second worker touching a
-  # DIFFERENT file's own scratch resources cannot race the first.
-  #
-  # `--exclude-pattern` here is the same maintenance edge
-  # rspec_postgres_io's old comment already named: a new `io: true` spec
-  # added anywhere in `spec/` runs here automatically UNLESS it also
-  # needs a real `cargo build` (add it to `rspec_rust_io` below AND this
-  # list) OR it touches the shared `hecks_pizzas` database by name (add
-  # it to the serial job above AND this list). Forgetting either fails
-  # loud — a spec error, not a silent skip.
-
-  # THE SKIP GATE FOR THE JOB BELOW — mirrors `runtime_changed`/
-  # `stress_concurrency`'s own shape further down this file (a separate
-  # detector job, plus `needs:`/`if:` on the gated job) rather than
-  # reinventing one: a job-level `if:` is the only way to skip
-  # provisioning the Postgres `services:` container below too, not just
-  # the `rspec` invocation — a step-level `if:` doesn't avoid that cost.
-  #
-  # UNLIKE `runtime_changed`, THIS DETECTOR RUNS ON EVERY TRIGGER, `push`
-  # INCLUDED — no `if: github.event_name != 'push'` here. A job whose
-  # `needs:` job was itself SKIPPED is, by default, also skipped — and
-  # reliably overriding that (so `rspec_postgres_io_parallel_shard` still
-  # runs unconditionally on `push` per PR #572, see top-of-file comment)
-  # needs either `always()` on the gated job's own `if:` (which then also
-  # has to avoid treating a genuinely FAILED detector run as "skip", the
-  # wrong default per this job's own loud-not-silent philosophy below) or
-  # just letting this detector run under every trigger so it's never the
-  # thing being skipped in the first place. The latter costs one more
-  # cheap job on `push` (a checkout plus a `git diff`, no services, no
-  # Ruby/Bundler setup) in exchange for `rspec_postgres_io_parallel_shard`'s
-  # own `if:` staying a plain, unambiguous expression. What this job
-  # computes for a `push` run is never actually consulted either way —
-  # `rspec_postgres_io_parallel_shard`'s own `if:` below short-circuits on
-  # `github.event_name == 'push'` before it looks at this job's output —
-  # it still runs so the `needs:`/`if:` relationship stays unconditional
-  # rather than correct only for the two triggers that happen to matter
-  # today. (`rspec_postgres_io_parallel`, the aggregator, doesn't consult
-  # this job's output at all — it just mirrors the shard's own result,
-  # see that job's own header comment further down.)
-  #
-  # THE SAFE-TO-SKIP LIST BELOW IS EXCLUDE-SHAPED, NOT INCLUDE-SHAPED —
-  # deliberately the opposite of `runtime_changed`'s own single
-  # `lib/hecks/runtime/**` prefix. That job's real coverage genuinely is
-  # that narrow (one directory tree); this job's is NOT — real
-  # investigation (not assumed) of what the ~30 files
-  # `bin/rspec_io_parallel_files` actually selects (PR #570's own tool;
-  # see this job's own `--exclude-pattern` comment above for how that
-  # list is derived) found:
-  #
-  #   - EVERY one of the 30 files `require "hecks"` — directly, or via
-  #     `spec_helper.rb`, which itself does. A plain `require "hecks"`
-  #     (lib/hecks.rb) eager-`require_relative`s the ENTIRE `lib/hecks/`
-  #     tree (ports, bluebook, router, runtime, adapters, projector,
-  #     projections, storehouse, framework, ...) — not a lazy autoload of
-  #     only what each file happens to touch. So `lib/**` is in scope
-  #     wholesale, the same way it already is for `rspec`/
-  #     `rspec_postgres_io` — this job's real dependency surface was
-  #     never actually narrower than theirs, it just was never written
-  #     down as a skip condition until now.
-  #   - Many of the 30 real-subprocess-invoke a real `bin/` script —
-  #     grepped every file for `bin/[a-z_]+`, not guessed: `project_deploy`,
-  #     `project_tenant`, `lint_deploy_recipes`, `qa_sweep`,
-  #     `qa_postgres_migrate`, `heki_compact`, `translation_audit`,
-  #     `scaffold_translation`, `merge_tail`. Treated as `bin/**`
-  #     wholesale below rather than that exact list, so a new script one
-  #     of these specs starts shelling out to doesn't silently fall
-  #     outside this list's own blind spot.
-  #   - `spec/self_consistency_rust_spec.rb` — one of the 30 — calls
-  #     `RustConformanceHelpers#build_rust_for("pizzas"/"banking", <the
-  #     real repo-root rust/ crate>)`, which runs a REAL `cargo build
-  #     --features <domain>` against it (spec/support/
-  #     rust_conformance_helpers.rb; confirmed by reading the method, not
-  #     assumed from the filename). This job DOES touch the shared Rust
-  #     crate, despite `IO_PARALLEL_EXCLUDE_PATTERN` above deliberately
-  #     routing every OTHER cargo-building spec to `rspec_rust_*`. So
-  #     `rust/Cargo.toml`, `rust/Cargo.lock`, `rust/src/**`, and
-  #     `rust-toolchain.toml` (pins the toolchain that build uses) are
-  #     all in scope too — but `rust/parser/`, `rust/codegen/`,
-  #     `rust/host/`, `rust/build/`, `rust/lsp/`, `rust/web/`,
-  #     `rust/tests/`, `rust/project/` (the Ruby generator, never
-  #     compiled by `cargo build`), and `rust/project.rb`/
-  #     `rust/project_rust_pipeline.rb` stay OUT of scope — confirmed via
-  #     `rust/Cargo.toml`'s own `[lib]`/`[[bin]]` `path =` pointing only
-  #     at `src/`, no `path =` dependency on any sibling crate, and via
-  #     grep: none of the 30 files reads a file under any of them.
-  #     `qa_sweep_all_report_and_parity_spec.rb`'s own differential-fuzz
-  #     example (one of four files `qa_sweep_all_spec.rb` split into,
-  #     Phase 2 of the CI speed effort) LOOKS like a second
-  #     real-rust-crate dependency but isn't: it sets
-  #     `QA_SWEEP_RUST_DIR` to its OWN small fixture crate under
-  #     `spec/fixtures/`, never the real `rust/` — see that spec file's
-  #     own header comment on `QA_SWEEP_RUST_DIR`.
-  #   - `examples/pizzas`, `examples/banking`, `examples/chess`,
-  #     `examples/directory` are named directly (grepped); so are
-  #     `qa/bluebook/quality_control.bluebook` and `qa/stress_domains/
-  #     {ledger_ordering,waybill}`. Kept as `examples/**`/`qa/**`
-  #     wholesale below rather than that exact subset — small
-  #     directories, and a narrower allowlist here is exactly the kind of
-  #     hand-guessed narrowing this job's own `--exclude-pattern` comment
-  #     above already warns fails loud the WRONG way (silent
-  #     under-testing) the day a new domain lands in whatever got left
-  #     out.
-  #   - `Gemfile`/`Gemfile.lock`/`hecks.gemspec` (every job's own
-  #     `bundler-cache: true` step depends on them) and `.rspec` (this
-  #     job's own "rspec: postgres + deploy/tenant I/O" step's comment
-  #     above already explains how its actual runtime behavior depends on
-  #     `.rspec`'s own `:formatters` merge behavior) are left OUT of the
-  #     safe list below too, for the same reason.
-  #
-  # WHAT'S ACTUALLY LEFT, once all of the above is excluded, is a real,
-  # narrow, genuinely-irrelevant set: documentation (`docs/**`, the
-  # top-level `*.md`/`LICENSE`), the editor extension (`editors/**`), the
-  # gem-release script (`release/**`), `deploy/**` (bin/project_deploy's
-  # own WRITE-ONLY scratch target during these specs — never read as a
-  # fixture, confirmed by grep; the per-domain content actually committed
-  # there today is output from real, non-test deploys), this repository's
-  # own agent tooling (`.claude/**`), the local pre-push hook
-  # (`.githooks/**`, never invoked by this GitHub Actions job itself),
-  # rubocop config (read only by the `checks` job's own `rubocop` step),
-  # and a couple of other local-dev-only files (`.mcp.json`,
-  # `.rspec-local.example`). `.github/**` is deliberately NOT on this
-  # list, `ci.yml` included — a workflow-file change is exactly the kind
-  # of "real doubt" this job's own philosophy says to run through rather
-  # than hand-verify is safe.
-  postgres_io_relevant_changed:
-    runs-on: ubuntu-latest
-
-    outputs:
-      touched: ${{ steps.diff.outputs.touched }}
-
-    env:
-      # See the header comment above for how this was derived — a real
-      # ~30-file dependency-surface investigation, not a guess. Anything
-      # NOT matching one of these prefixes/files is treated as possibly
-      # relevant (fails toward RUNNING the job, never toward skipping it).
-      POSTGRES_IO_SAFE_TO_SKIP_PATTERN: '^(docs/|editors/|release/|deploy/|\.claude/|\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests|project)/|rust/project\.rb$|rust/project_rust_pipeline\.rb$|\.rubocop\.yml$|\.rubocop_todo\.yml$|\.mcp\.json$|\.rspec-local\.example$|README\.md$|CHANGELOG\.md$|CONTRIBUTING\.md$|SECURITY\.md$|LICENSE$|\.gitignore$)'
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # FULL HISTORY — same reason as `runtime_changed`'s own
-          # identical setting below: the `git diff` needs both endpoints
-          # present as real objects in this checkout, not just the tip a
-          # shallow fetch would give it.
-          fetch-depth: 0
-
-      # BASE resolution — the same two cases `runtime_changed`'s own step
-      # below already uses (a pull_request's base commit, else a
-      # merge_group's base), reused rather than re-derived, PLUS a third
-      # case `runtime_changed` never needed: `github.event.before`, for
-      # the `push` trigger this job (unlike `runtime_changed`) actually
-      # runs under. Its result is never consulted for a `push` run either
-      # way (`rspec_postgres_io_parallel_shard`'s own `if:` below
-      # short-circuits on `github.event_name == 'push'` first) — computed
-      # anyway so this step behaves sensibly under every trigger this
-      # workflow has, rather than being correct only for the two cases
-      # that happen to matter today.
-      #
-      # FAILS TOWARD "RUN IT", NOT "SKIP IT" — unlike letting a hard
-      # failure anywhere in this step turn into a job failure (which
-      # would cascade into skipping `rspec_postgres_io_parallel_shard` via
-      # the `needs:`/`if:` below — the OPPOSITE of this job's own "when in
-      # doubt, run it" philosophy, see above), every branch here that
-      # can't positively confirm a real, safely-excludable diff sets
-      # `touched=true` instead of letting the step fail or guessing.
-      - name: does this change touch anything rspec_postgres_io_parallel covers?
-        id: diff
-        run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
-          if [ -z "$BASE" ]; then
-            BASE="${{ github.event.merge_group.base_sha }}"
-          fi
-          if [ -z "$BASE" ]; then
-            BASE="${{ github.event.before }}"
-          fi
-
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
-            echo "no usable BASE to diff against — running rspec_postgres_io_parallel rather than guessing" >&2
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          CHANGED="$(git diff --name-only "$BASE" "${{ github.sha }}")" || {
-            echo "git diff itself failed — running rspec_postgres_io_parallel rather than guessing" >&2
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          if [ -z "$CHANGED" ]; then
-            echo "touched=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if echo "$CHANGED" | grep -vE "$POSTGRES_IO_SAFE_TO_SKIP_PATTERN" | grep -q .; then
-            echo "touched=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "touched=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # SPLIT INTO A MATRIX (this job) PLUS A ONE-STEP AGGREGATOR (immediately
-  # below, `rspec_postgres_io_parallel` itself) — real GitHub Actions
-  # hardware parallelism (N separate runners, N separate Postgres service
-  # containers) instead of the old single job's 4 *internal*
-  # `parallel_rspec` processes contending for one runner's CPU/IO. See the
-  # aggregator job's own comment below for why it has to exist at all:
-  # `rspec_postgres_io_parallel` is a required status check by exact
-  # name in the `merge-queue-main` ruleset (confirmed live via `gh api
-  # repos/heckslabs/hecks/rulesets`, same check `rspec_rust_io`'s own
-  # comment above already relies on) — a `strategy: matrix` job reports
-  # each leg as `<job id> (<matrix value>)`, never the bare id, so the
-  # actual work had to move to a new job id (this one) and the aggregator
-  # now owns the exact required name instead.
-  #
-  # `--only-group` — researched against the vendored parallel_tests-4.10.1
-  # gem source (lib/parallel_tests/cli.rb), not assumed to exist: it does,
-  # and does exactly what this needs. `tests_in_groups` below is still
-  # computed for the FULL `-n 4`, using the SAME grouping algorithm and
-  # the SAME shared runtime-log cache (restored below exactly like the
-  # old single job did) as before; `--only-group` then just selects ONE
-  # of those 4 already-computed groups and forces `num_processes = 1` for
-  # it (cli.rb's own `run_tests_in_parallel`). So all 4 matrix legs
-  # independently compute the IDENTICAL 4-way split and each runs only
-  # its own slice, as ONE `rspec` process instead of one of 4 processes
-  # sharing one job's CPU — the real hardware-parallelism lever, not a
-  # hand-rolled reimplementation of the balancing `parallel_tests`
-  # already does.
-  #
-  # `--group-by runtime` IS NOW EXPLICIT, NOT LEFT UNSET — `--only-group`
-  # requires `--group-by` to be one of `filesize`/`runtime`/`found`
-  # (cli.rb raises otherwise); the old single job's own `nil`/"default"
-  # behavior (auto-picks runtime if the log covers ≥67% of files, else
-  # silently falls back to filesize) isn't a real `--group-by` value and
-  # can't be handed to `--only-group` at all. `runtime` is the right one
-  # of the three — it's what PR #570's whole file-list-shrinking exercise
-  # was FOR. Its own default missing-data behavior is stricter than the
-  # old `nil` case though: `--group-by runtime` alone RAISES
-  # (`RuntimeLogTooSmallError`, confirmed by reading test/runner.rb's
-  # `sort_by_runtime`) if more than 50% of files lack a recorded time,
-  # rather than silently falling back to filesize — a real regression in
-  # cold-cache robustness versus the old job. `--allowed-missing 100`
-  # below closes that gap explicitly: with it, any amount of missing data
-  # is tolerated (unknown files get the known set's average runtime —
-  # parallel_tests' own `set_unknown_runtime` — never a hard failure),
-  # matching the old job's "never raise, just group less precisely on a
-  # cold cache" behavior.
-  rspec_postgres_io_parallel_shard:
-    runs-on: ubuntu-latest
-
-    needs: postgres_io_relevant_changed
-
-    # Same skip gate as before, unchanged in shape — see
-    # `postgres_io_relevant_changed`'s own header comment above and the
-    # aggregator job's below for how this composes with THAT job staying
-    # the actual required check.
-    if: github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true'
-
-    strategy:
-      # `fail-fast: false` — a real regression in one shard shouldn't
-      # cancel the others mid-run and hide their own results; all 4
-      # report independently, same as the old single job's own
-      # `parallel_rspec` invocation always ran all 4 internal processes
-      # to completion regardless of one of them failing.
-      fail-fast: false
-      matrix:
-        # MUST match the `-n 4` passed to parallel_rspec below — both are
-        # the total group count `parallel_tests`' own grouping math
-        # divides by; changing one without the other desyncs
-        # `--only-group`'s 1-indexed range from what `-n` actually
-        # computed.
-        group: [1, 2, 3, 4]
-
-    env:
-      PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      # Single source of truth for both the file-discovery step and the
-      # actual `parallel_rspec` run below — see bin/rspec_io_parallel_files
-      # for why splitting this out from the whole `spec` directory is what
-      # actually makes runtime-based grouping work for this job (it didn't,
-      # under three different nominal grouping strategies, until this).
-      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-ruby
-
-      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
-      # the CI speed effort; see the action's own header. Each of the 4
-      # matrix legs is its own separate runner VM, so each gets its own
-      # isolated Postgres — no cross-leg contention introduced by this.
-      - uses: ./.github/actions/postgres
-
-      # PROVISIONED HERE TOO, EVEN THOUGH THE COMMENT ABOVE SAYS "moved to
-      # the serial job" — found live (PR #488): `spec/load_hygiene_spec.rb`
-      # ALSO reaches this database, via a fresh subprocess booting
-      # examples/pizzas/bluebook/pizzas.world (PostgresEra's own
-      # lazy-autoload path) — but never contains the literal string
-      # "hecks_pizzas" itself (that name lives in the .world file, reached
-      # indirectly), so grepping every spec/*.rb file for that string —
-      # the check the rest of this split's safety argument relied on —
-      # missed it. Rather than keep hunting for more indirect references
-      # by hand (already wrong twice), this database is now simply
-      # created here unconditionally: cheap, idempotent within each
-      # shard's own fresh Postgres service, and closes the whole CLASS of
-      # "missed a hidden reference" risk rather than one instance of it.
-      # Nothing in the ~28-file set was found doing more than
-      # booting/reading against it (no test here asserts on persistent
-      # pizzas business data the way the serial job's own three files
-      # might), so another shard also reaching ITS OWN separate service
-      # container is not expected to race — each matrix leg gets its own
-      # dedicated Postgres, so this is even safer than the old single-job
-      # design where all 4 internal processes shared one.
-      - name: Create the pizzas example's database
-        run: createdb -h localhost -U postgres hecks_pizzas
-
-      # Every one of the 4 matrix legs restores from the SAME cache
-      # prefix, so all 4 independently compute the identical grouping —
-      # see this job's own header comment above. Same key convention as
-      # the old single job: keyed on `github.run_id`, unique to THIS run,
-      # so `key:` itself never matches on restore — it always falls
-      # through to the `restore-keys` prefix match, which resolves to the
-      # MOST RECENT previously-saved log FOR THAT GROUP.
-      #
-      # PER-GROUP KEYS, ALL FOUR RESTORED AND MERGED — the design this
-      # job's own header used to defer (see the "ONLY GROUP 1 SAVES"
-      # comment that used to sit on the save step below). `--only-group N`
-      # + `num_processes=1` makes `ParallelTests::RSpec::RuntimeLogger`'s
-      # `--out` TRUNCATE-then-append (confirmed by reading
-      # `parallel_tests/rspec/logger_base.rb`'s own constructor:
-      # `File.open(@output, 'w') {}` before reopening 'a') — so any one
-      # leg's own saved log only ever has real times for ITS OWN ~1/4 of
-      # the file list, never the other three groups'. Saving only group 1
-      # (the old design) meant the other three groups' files never got
-      # real timing data at all, forever — graded on `--allowed-missing
-      # 100`'s averaged guess instead, every single run. Four independent
-      # per-group keys plus a merge step fixes that: each leg restores its
-      # own group's most recent log (real data for the files it actually
-      # ran last time) and the other three groups' too, concatenates them
-      # (no file appears in more than one group's own log, so this is a
-      # disjoint union, not a conflict), and `--group-by runtime` sees a
-      # genuinely complete history instead of one leg's slice.
-      # FOUR SEPARATE STEPS, NOT ONE WITH A MULTI-LINE `path:` — a single
-      # `actions/cache` call treats every `path:` line as ONE combined
-      # blob under ONE `key`, so bundling all 4 groups' files into one
-      # `restore@v4` call would restore them as a single atomic entry, not
-      # four independently-versioned ones. Every leg runs all 4 restores
-      # regardless of its OWN `matrix.group`, so every leg's own
-      # `--group-by runtime` sees the complete 4-group history, not just
-      # its own slice.
-      - name: Restore rspec runtime log cache (group 1)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group1.log
-          key: postgres-io-parallel-runtime-group1-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group1-
-
-      - name: Restore rspec runtime log cache (group 2)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group2.log
-          key: postgres-io-parallel-runtime-group2-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group2-
-
-      - name: Restore rspec runtime log cache (group 3)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group3.log
-          key: postgres-io-parallel-runtime-group3-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group3-
-
-      - name: Restore rspec runtime log cache (group 4)
-        uses: actions/cache/restore@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group4.log
-          key: postgres-io-parallel-runtime-group4-${{ github.run_id }}
-          restore-keys: |
-            postgres-io-parallel-runtime-group4-
-
-      - name: Merge the 4 groups' runtime logs into one grouping input
-        run: |
-          mkdir -p tmp
-          cat tmp/parallel_runtime_rspec.group*.log > tmp/parallel_runtime_rspec.log 2>/dev/null || true
-          touch tmp/parallel_runtime_rspec.log
-
-      - name: Determine which spec files can ever match --tag io (real dry run, see bin/rspec_io_parallel_files)
-        run: |
-          mkdir -p tmp
-          bin/rspec_io_parallel_files "$IO_PARALLEL_EXCLUDE_PATTERN" -- --tag io --tag ~fuzzing > tmp/io_parallel_files.txt
-
-      - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only — see job header comment on --only-group)"
-        run: |
-          IO_FILES=()
-          while IFS= read -r line; do IO_FILES+=("$line"); done < tmp/io_parallel_files.txt
-          bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 4 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
-            --runtime-log tmp/parallel_runtime_rspec.log \
-            -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
-
-      # EVERY GROUP SAVES ITS OWN FILE NOW — see the restore step's own
-      # header above for why the old "only group 1 saves" design left the
-      # other three groups permanently ungraded on real timing. `--out`
-      # above already points each leg at its own `group${N}.log`, written
-      # fresh by `ParallelTests::RSpec::RuntimeLogger` this run (its own
-      # `--only-group`-forced single process still gets a real,
-      # non-empty `TEST_ENV_NUMBER` — `""`, not unset — so the formatter
-      # is not the no-op it would be if that env var were genuinely
-      # absent; confirmed by reading `parallel_tests/rspec/
-      # runtime_logger.rb`'s own `start_dump` guard against
-      # `parallel_tests/test/runner.rb`'s `test_env_number`).
-      - name: Save this group's own runtime log cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: tmp/parallel_runtime_rspec.group${{ matrix.group }}.log
-          key: postgres-io-parallel-runtime-group${{ matrix.group }}-${{ github.run_id }}
-
-  # AGGREGATOR — exists ONLY so `rspec_postgres_io_parallel` keeps being
-  # the exact required-status-check name the `merge-queue-main` ruleset
-  # already requires (see the matrix job's own header comment above for
-  # why the actual work had to move to a differently-named job). Reports
-  # success if every one of the 4 matrix legs above succeeded, OR the
-  # whole matrix was itself skipped (i.e. `postgres_io_relevant_changed`
-  # gated it off — `needs.*.result` reads `"skipped"` in that case, not
-  # `"success"`, so it's checked explicitly below rather than relied on
-  # to just work), failure otherwise. `if: always()` is required here —
-  # without it, the default implicit `success()` job condition would
-  # itself skip THIS job whenever the matrix above was skipped OR failed,
-  # collapsing "correctly gated off" and "a shard actually failed" into
-  # the same non-answer, which a required check can't afford.
-  rspec_postgres_io_parallel:
-    runs-on: ubuntu-latest
-
-    needs: rspec_postgres_io_parallel_shard
+    needs: rspec_postgres_io_impl
     if: always()
 
     steps:
-      - name: all 4 shards passed (or the whole job was correctly gated off)
+      - name: rspec_postgres_io_impl passed (or was correctly gated off)
         run: |
-          result="${{ needs.rspec_postgres_io_parallel_shard.result }}"
+          result="${{ needs.rspec_postgres_io_impl.result }}"
           if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-            echo "rspec_postgres_io_parallel_shard: $result"
+            echo "rspec_postgres_io_impl: $result"
             exit 0
           fi
-          echo "rspec_postgres_io_parallel_shard: $result — at least one shard did not succeed" >&2
+          echo "rspec_postgres_io_impl: $result" >&2
           exit 1
+
+  # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-postgres-io.yml's own header.
+  # No `secrets:` block: unlike `rspec_impl`, this job never ran the HMAC
+  # attestation step (Phase 7 only covers the `rspec`/`checks` lineages),
+  # so ci-postgres-io.yml's own `on.workflow_call` declares no secrets.
+  rspec_postgres_io_impl:
+    uses: ./.github/workflows/ci-postgres-io.yml
+
+  # REUSABLE-WORKFLOW SPLIT, group 2 (part 3 of 3) — `postgres_io_relevant_
+  # changed` (the skip-gate detector) and `rspec_postgres_io_parallel_shard`
+  # (the 4-way matrix) both moved verbatim into ci-postgres-io-parallel.yml;
+  # see that file's own header for the full reasoning these two jobs'
+  # comments used to carry inline here. `rspec_postgres_io_parallel` below
+  # (the required-check aggregator) now points at that file's own call job
+  # instead of at `rspec_postgres_io_parallel_shard` directly.
+
+
+  # AGGREGATOR — exists ONLY so `rspec_postgres_io_parallel` keeps being
+  # the exact required-status-check name the `merge-queue-main` ruleset
+  # already requires (see ci-postgres-io-parallel.yml's own header for why
+  # the actual work now lives in that reusable-workflow file instead of a
+  # same-named job here). Reports success if the reusable-workflow call
+  # below succeeded, OR was itself skipped (i.e. `postgres_io_relevant_
+  # changed`, now inside that file, gated it off — `.result` reads
+  # `"skipped"` in that case, not `"success"`, so it's checked explicitly
+  # below rather than relied on to just work), failure otherwise. `if:
+  # always()` is required here — without it, the default implicit
+  # `success()` job condition would itself skip THIS job whenever the call
+  # below was skipped OR failed, collapsing "correctly gated off" and "a
+  # shard actually failed" into the same non-answer, which a required
+  # check can't afford.
+  rspec_postgres_io_parallel:
+    runs-on: ubuntu-latest
+
+    needs: rspec_postgres_io_parallel_impl
+    if: always()
+
+    steps:
+      - name: rspec_postgres_io_parallel_impl passed (or was correctly gated off)
+        run: |
+          result="${{ needs.rspec_postgres_io_parallel_impl.result }}"
+          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+            echo "rspec_postgres_io_parallel_impl: $result"
+            exit 0
+          fi
+          echo "rspec_postgres_io_parallel_impl: $result — at least one shard did not succeed" >&2
+          exit 1
+
+  # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-postgres-io-parallel.yml's
+  # own header. No `secrets:` block, same reasoning as `rspec_postgres_io_
+  # impl` above: this lineage never ran the HMAC attestation step either.
+  rspec_postgres_io_parallel_impl:
+    uses: ./.github/workflows/ci-postgres-io-parallel.yml
 
   # FOUR JOBS, NOT ONE — `rspec_rust_io` used to run all 12 `cargo`-
   # touching `io: true` specs serially in a single checkout. Digging into
