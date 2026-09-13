@@ -293,10 +293,23 @@ jobs:
       - name: checks_impl (fuzz, codegen drift, and static checks) passed
         run: |
           result="${{ needs.checks_impl.result }}"
-          if [ "$result" != "success" ]; then
-            echo "checks_impl (checks_fuzz/checks_codegen_drift/checks_static): $result" >&2
-            exit 1
+          # BUGFIX: this used to only accept "success", failing this
+          # required check on every plain `push` to main — checks_impl's
+          # own inner jobs correctly no-op on `push` (see the top-of-file
+          # comment: everything except the postgres_io_parallel matrix/
+          # aggregator skips via `if: github.event_name != 'push'`), which
+          # makes `needs.checks_impl.result` read "skipped", not
+          # "success", on every such run. Every other wrapper job in this
+          # file (`rspec`, `rspec_postgres_io`, `rspec_postgres_io_
+          # parallel`, the 4 rust lineages) already accepts both — this
+          # one was the one straggler, caught live via a real failing push
+          # run on main right after PR #625 merged.
+          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+            echo "checks_impl: $result"
+            exit 0
           fi
+          echo "checks_impl (checks_fuzz/checks_codegen_drift/checks_static): $result" >&2
+          exit 1
 
   # THE REUSABLE-WORKFLOW CALL ITSELF — see ci-checks.yml's own header
   # for the full design (why the required check name above is
