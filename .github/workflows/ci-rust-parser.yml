@@ -1,0 +1,43 @@
+name: CI rust parser (reusable)
+
+# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 2 of 4) — see
+# ci-rust-io.yml's own header for the full split rationale. This file
+# holds only `rspec_rust_parser`, the required-status-check job.
+
+on:
+  workflow_call:
+
+jobs:
+  # rust/parser/ ("hecks-parse") — an independent Cargo project, own
+  # Cargo.toml/target dir, no interaction with rust/src/generated/ or
+  # rust/Cargo.toml at all. The parity and grammar-corpus specs build it
+  # via their own `before(:context) { self.class.build_parser! }` (the
+  # second is a no-op against the first's fresh target/), so no separate
+  # build step is needed at this job level the way rspec_rust_io needs
+  # one (that spec-internal build is exactly why this job is safe to run
+  # concurrently with rspec_rust_io in the first place — nothing here
+  # ever opens a file under the main crate's tree). grammar_corpus_spec
+  # moved here from rspec_postgres_io_parallel — see that job's own
+  # `--exclude-pattern` comment for the overlap failure that found it.
+  rspec_rust_parser:
+    runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: parser
+          crate-root: rust/parser
+
+      - name: "rspec: Rust parser parity + coverage + grammar corpus"
+        run: |
+          bundle exec rspec --tag io \
+            spec/parser_parity_spec.rb \
+            spec/parser_coverage_spec.rb \
+            spec/grammar_corpus_spec.rb
