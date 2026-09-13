@@ -790,7 +790,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?), },
         formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?), },
         normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        attaches_to: match v.get("attaches_to").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AttachesToContext::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        attaches_to: match v.get("attaches_to").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| AttachesToContext::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
 }

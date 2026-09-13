@@ -397,7 +397,7 @@ if !absent.is_empty() {
         ("declared", "members"),
     ])));
 }
-        let members = match v.get("members").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Handle::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), };
+        let members = match v.get("members").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| Handle::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), };
         for item in &members { item.check_invariants()?; }
         Ok(Self {
         members,

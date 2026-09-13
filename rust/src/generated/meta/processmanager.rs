@@ -1435,7 +1435,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         correlates_by: match v.get("correlates_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
         starts_on: match v.get("starts_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
         ends_on: match v.get("ends_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
-        states: match v.get("states").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(SagaState::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        states: match v.get("states").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| SagaState::from_json(&item.coerce_single_field("name"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         handlers: match v.get("handlers").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Handler::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })

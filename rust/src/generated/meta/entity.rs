@@ -724,7 +724,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         owner: match v.get("owner") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), },
-        identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(IdentityPath::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| IdentityPath::from_json(&item.coerce_single_field("value"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         preconditions: match v.get("preconditions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         invariants: match v.get("invariants").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },

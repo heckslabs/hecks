@@ -710,7 +710,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         reference_target: match v.get("reference_target") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         aggregate_heads: match v.get("aggregate_heads").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Head::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectionOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(GroupByField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| GroupByField::from_json(&item.coerce_single_field("field"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         count: match v.get("count") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         median_field: match v.get("median_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },

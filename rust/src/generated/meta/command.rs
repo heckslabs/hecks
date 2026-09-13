@@ -1264,7 +1264,7 @@ if !matches!(v, crate::kernel::Json::Object(_)) {
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(&x.coerce_single_field("value"))?), },
         role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(&x.coerce_single_field("value"))?), },
         goal: match v.get("goal") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Goal::from_json(&x.coerce_single_field("value"))?), },
-        emits: match v.get("emits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Announcement::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        emits: match v.get("emits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(|item| Announcement::from_json(&item.coerce_single_field("name"))).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         references: match v.get("references") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EventName::from_json(&x.coerce_single_field("value"))?), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         givens: match v.get("givens").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },

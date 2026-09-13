@@ -135,14 +135,40 @@ pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<Str
 /// must stay a `Result`, not the unwrapped value, so the list caller's
 /// OWN trailing `?` on `.collect::<Result<Vec<_>, _>>()` is what
 /// actually propagates a per-element refusal, not this one.
-pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json) -> String {
+///
+/// QualityControl ledger — the value-object branch (the `None` arm
+/// below) used to call `Type::from_json` bare, straight off
+/// `.iter().map(...)`, UNLIKE `composite_from_json_expr` above, which
+/// already wraps an equivalent single-field scalar-shaped field with
+/// `coerce_single_field` first. Ruby's own runtime hydration
+/// (`Value::EntityListCoercion#hydrate_value_object_list` →
+/// `Coercion#fields_for`) applies that SAME bare-scalar-per-sole-
+/// attribute shorthand to EVERY element of a `list_of` value-object
+/// attribute, not only to a scalar (non-list) composite field — so
+/// `CardPayment.Authorize`'s own `tags: list_of(Tag)` (a single-
+/// attribute VO) accepts a bare string element on the Ruby side
+/// (`"a-tag"` auto-wraps to `{value: "a-tag"}`) while the generated
+/// Rust called `Tag::from_json` on the bare JSON string directly and
+/// refused `TypeMismatch` — confirmed live: seed 25 of a `--seeds 40
+/// --adversarial 0.3 --steps 25` banking sweep, `Banking::CardPayment.
+/// Authorize` with `tags: ["juliet echo"]`, Ruby coerces the element,
+/// then correctly refuses `InvariantViolation` on the SAME step's
+/// `amount: 0` (`PaymentAmount`'s own "a payment amount is positive"),
+/// while Rust never gets that far — `TypeMismatch` on `tags` first.
+pub fn list_element_from_json_mapper(struct_name: &str, key: &str, attr: &Json, value_objects_by_name: &HashMap<String, &Json>) -> String {
     match naming::effective_scalar_type(crate::attr::type_name(attr)) {
         Some(scalar) => {
             let body = scalar_from_json_value_expr(struct_name, key, scalar, "item");
             let body = body.strip_suffix('?').unwrap_or(&body);
             format!("|item| {body}")
         }
-        None => format!("{}::from_json", naming::rust_ident(crate::attr::type_name(attr))),
+        None => {
+            let nested_type = naming::rust_ident(crate::attr::type_name(attr));
+            match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
+                Some(sole) => format!("|item| {nested_type}::from_json(&item.coerce_single_field({}))", naming::ruby_inspect_string(&sole)),
+                None => format!("{nested_type}::from_json"),
+            }
+        }
     }
 }
 
@@ -374,14 +400,14 @@ pub fn emit_from_json_flat(
             let optional = crate::attr::optional(attr);
 
             let rhs = if list && optional {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
                 let array_error = json_type_error(struct_name, &key, "an array");
                 format!(
                     "match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?) }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
                 format!(
                     "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
                     naming::ruby_inspect_string(&key)
@@ -557,14 +583,14 @@ pub fn emit_from_json_state(
             let field_optional = optional || crate::attr::optional(attr);
 
             let rhs = if list && list_is_optional {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
                 let array_error = json_type_error(struct_name, &key, "an array");
                 format!(
                     "match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| {array_error})?.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }}",
                     naming::ruby_inspect_string(&key)
                 )
             } else if list {
-                let mapper = list_element_from_json_mapper(struct_name, &key, attr);
+                let mapper = list_element_from_json_mapper(struct_name, &key, attr, value_objects_by_name);
                 format!(
                     "match v.get({}).and_then(crate::kernel::Json::as_array) {{ Some(items) => items.iter().map({mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), }}",
                     naming::ruby_inspect_string(&key)
