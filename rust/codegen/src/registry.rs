@@ -316,11 +316,17 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|ident| format!("&{ident}, "))
                 .collect();
 
+            // BUG#22 (QualityControl ledger) — see `rust/project/
+            // registry.rb`'s identical comment: a CREATING command's own
+            // generated `dispatch_*` fn now takes `route` too (right
+            // after `repo`), so it can decide create-vs-find from
+            // whether one was actually given, instead of purely from its
+            // own static `creates:` flag.
             let dispatch_call = format!(
                 "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref)",
                 c.fn_name,
                 a.module_name,
-                if c.creates { extra_pass } else { "&id, ".to_string() }
+                if c.creates { format!("route, {extra_pass}") } else { "&id, ".to_string() }
             );
             // BUG#20 (qa/bluebook/quality_control.bluebook) — `extract_id`'s
             // own `no identity found at all` case (every one of its

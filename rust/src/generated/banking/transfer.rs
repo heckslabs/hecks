@@ -406,7 +406,7 @@ pub struct RequestArgs {
 }
 
 pub fn dispatch_request(
-    repo: &mut impl crate::kernel::Repository<Transfer>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Transfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Transfer> {
         args.reference.check_invariants()?;
         args.amount.check_invariants()?;
@@ -416,8 +416,13 @@ pub fn dispatch_request(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.reference.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.reference.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| Transfer {
             source: Some(args.source.clone()),
             destination: Some(args.destination.clone()),
@@ -431,6 +436,7 @@ pub fn dispatch_request(
             status: "requested".to_string(),
         }),
         state_independent: false,
+    } }
     },
         "Request",
         "Banking::Transfer",

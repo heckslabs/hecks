@@ -372,7 +372,7 @@ pub struct LinkArgs {
 }
 
 pub fn dispatch_link(
-    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, route: Option<&crate::kernel::RoutingEnvelope>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ExternalIdentifier> {
         args.key.check_invariants()?;
         args.issuer.check_invariants()?;
@@ -382,8 +382,13 @@ pub fn dispatch_link(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.key.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.key.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| ExternalIdentifier {
             identity: Some(args.identity.clone()),
             key: Some(args.key.clone()),
@@ -391,6 +396,7 @@ pub fn dispatch_link(
             subject: Some(args.subject.clone()),
         }),
         state_independent: false,
+    } }
     },
         "Link",
         "Identity::ExternalIdentifier",

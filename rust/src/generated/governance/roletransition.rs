@@ -295,7 +295,7 @@ pub struct GrantArgs {
 }
 
 pub fn dispatch_grant(
-    repo: &mut impl crate::kernel::Repository<RoleTransition>, args: GrantArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<RoleTransition>, route: Option<&crate::kernel::RoutingEnvelope>, args: GrantArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleTransition> {
         args.from_role.check_invariants()?;
         args.to_role.check_invariants()?;
@@ -305,8 +305,13 @@ pub fn dispatch_grant(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: format!("{}:{}:{}", args.from_role.value.to_string(), args.to_role.value.to_string(), args.starts_at.value.to_string()),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}:{}", args.from_role.value.to_string(), args.to_role.value.to_string(), args.starts_at.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| RoleTransition {
             from_role: Some(args.from_role.clone()),
             to_role: Some(args.to_role.clone()),
@@ -314,6 +319,7 @@ pub fn dispatch_grant(
             ends_at: None,
         }),
         state_independent: false,
+    } }
     },
         "Grant",
         "Governance::RoleTransition",

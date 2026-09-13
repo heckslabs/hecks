@@ -1680,7 +1680,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::meta::syntax::dispatch_declare(&mut store.syntax, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::syntax::dispatch_declare(&mut store.syntax, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Syntax.Keyword" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

@@ -1,0 +1,8 @@
+{
+  "domain": "examples/pizzas",
+  "note": "BUG#22 (QualityControl ledger) — the OTHER half of hydrate_existing's own route-forces-find shape, alongside bug22_route_forces_find_or_notfound_legacy_creates.json's NotFound case: when the route DOES resolve to a genuinely existing record, Ruby's CommandInterpreter#hydrate_existing returns that record and the SAME dispatch (Grant's own mutations) runs against it as an ACT, not a fresh creation — step_assign_creation_attributes is skipped entirely (legacy_implicit_creation? is false whenever a route was given), so a second Grant routed at an already-granted RoleTransition's own identity re-runs Grant's mutations and re-emits RoleTransitionGranted rather than refusing AlreadyExists or minting a duplicate. Unmodified Rust's generated dispatch never modeled this at all — a creates: command's generated fn only ever knew how to build a fresh record (Hydrate::Create), with no code path standing in for Hydrate::Act. Confirmed genuinely broken before this fixture existed (unmodified Rust silently created/overwrote via facts instead).",
+  "steps": [
+    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "member"}, "to_role": {"value": "admin"}, "starts_at": {"value": "2026-01-01"}}},
+    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "member"}, "to_role": {"value": "admin"}, "starts_at": {"value": "2026-01-01"}, "to": "member:admin:2026-01-01"}}
+  ]
+}

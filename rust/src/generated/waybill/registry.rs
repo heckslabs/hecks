@@ -106,7 +106,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::consignment::dispatch_request(&mut store.consignment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::consignment::dispatch_request(&mut store.consignment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Consignment.Ship" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -164,7 +164,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::waybill::manifest::dispatch_open(&mut store.manifest, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::waybill::manifest::dispatch_open(&mut store.manifest, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Waybill::Manifest.AddSlot" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
