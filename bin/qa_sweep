@@ -386,6 +386,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
+require "hecks/fuzzing/differential"
 require "hecks/fuzzing/era_boundary"
 require "hecks/fuzzing/concurrent_dispatch"
 require "fileutils"
@@ -1615,11 +1616,7 @@ end
 # existing report/exit-code path (`run_one_seed`'s own
 # `divergences.empty?`) needs no special case for where a finding came
 # from.
-def self_consistency_divergences(history)
-  return [] unless history[:self_consistency]
-
-  history[:self_consistency].values.flatten(1)
-end
+def self_consistency_divergences(history) = Hecks::Fuzzing::Differential.self_consistency_divergences(history)
 
 # THE ACTUAL RUBY-VS-RUST DIFF `spec/rust_conformance_fuzz_spec.rb` runs
 # per generated seed, factored out unchanged rather than re-derived —
@@ -1642,115 +1639,17 @@ end
 # targets had never had it run over a single qa_sweep history.
 # Structural skips (item 4) are accumulated on `differ` for the
 # once-per-sweep report after the seed loop.
-# rubocop:disable-next Metrics/AbcSize
-# rubocop:disable-next Metrics/CyclomaticComplexity
-# rubocop:disable-next Metrics/PerceivedComplexity
-# rubocop:disable-next Metrics/MethodLength
 def diff_ruby_vs_rust(differ, domain_path, steps, binary, modes:)
-  self_consistency = modes.include?(:self_consistency)
-  ruby_result    = Hecks::Fuzzing::Replay.call(domain_path, steps, self_consistency: self_consistency)
-  ruby_instances = JSON.parse(JSON.generate(ruby_result[:instances]))
-  ruby_events    = JSON.parse(JSON.generate(ruby_result[:events]))
-  ruby_refusals  = ruby_result[:refusals].map do |r|
-    { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
-  end
-  ruby_queries  = JSON.parse(JSON.generate(ruby_result[:queries].map { |row| row.except(:instances_at) }))
-  ruby_sagas    = JSON.parse(JSON.generate(ruby_result[:sagas]))
-  # `verb`/`ok` only — `error` is prose (C8.2: not the contract), and
-  # `before:`/`after:` are Ruby's own no-trace oracle data.
-  ruby_dry_runs = ruby_result[:dry_runs].map { |d| { "verb" => d[:verb].to_s, "ok" => d[:ok] } }
-
-  outcomes = {}
-  outcomes[:properties_in_differential] = property_divergences(ruby_result) if modes.include?(:properties_in_differential)
-  if modes.include?(:adapter_parity_sqlite)
-    outcomes[:adapter_parity_sqlite] = adapter_parity_sqlite_divergences(domain_path, steps)
-  end
-
-  stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
-  unless status.success?
-    return outcomes.merge(differential: [{ field: "process", detail: "rust binary exited #{status.exitstatus}: #{stdout}" }])
-  end
-
-  rust_output = JSON.parse(stdout)
-  # A DEEP COPY, TAKEN BEFORE `strip_emitted_flags!` MUTATES IN PLACE —
-  # the self-consistency seed below needs the WIRE-REAL `"instances"`
-  # `Store::instances()` actually produced, `emitted_*` bookkeeping
-  # fields and all: `Store::from_seed` requires them (found live, while
-  # this integration was being written — feeding it the STRIPPED copy
-  # the differential comparison uses refused with "Account.emitted_fee_
-  # applied: missing from JSON args," which is this integration's own
-  # bug, not a real one — a real host round-tripping `Store::instances()`
-  # through `Store::from_seed` never strips anything at all).
-  rust_live_instances = JSON.parse(JSON.generate(rust_output["instances"])) if self_consistency
-  differ.strip_emitted_flags!(rust_output["instances"])
-  differ.strip_emitted_flags!(rust_output["queries"])
-  differ.strip_occurred_at!(rust_output["events"])
-
-  divergences = []
-  divergences << { field: "instances", ruby: ruby_instances, rust: rust_output["instances"] } \
-    unless rust_output["instances"] == ruby_instances
-  divergences << { field: "events", ruby: ruby_events, rust: rust_output["events"] } \
-    unless rust_output["events"] == ruby_events
-
-  by_kind = ->(r) { r.slice("verb", "kind") }
-  gap     = ->(r) { differ.known_refusal_gap?(r) || differ.structural_refusal_gap?(r) }
-  rust_refusals       = rust_output["refusals"].reject(&gap).map(&by_kind)
-  kept_ruby_refusals  = ruby_refusals.reject(&gap).map(&by_kind)
-  divergences << { field: "refusals", ruby: kept_ruby_refusals, rust: rust_refusals } \
-    unless rust_refusals == kept_ruby_refusals
-
-  wordless      = ->(row) { differ.reduce_to_wire_precision(row.except("error", "reference_error")) }
-  not_generated = differ.structurally_refused_verbs(rust_output)
-  differ.structural_skips.merge(not_generated)
-  rust_queries      = rust_output["queries"].reject(&gap).map(&wordless)
-  kept_ruby_queries = ruby_queries.reject { |row| gap.call(row) || not_generated.include?(row["query"]) }.map(&wordless)
-  divergences << { field: "queries", ruby: kept_ruby_queries, rust: rust_queries } \
-    unless rust_queries == kept_ruby_queries
-
-  divergences << { field: "sagas", ruby: ruby_sagas, rust: rust_output["sagas"] } \
-    unless rust_output["sagas"] == ruby_sagas
-
-  cross_domain = differ.cross_domain_policy_names(rust_output)
-  kept_ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                            .reject { |r| cross_domain.include?(r["policy"]) || differ.known_reaction_gap?(r) }
-  rust_reactions = rust_output.fetch("reactions").reject { |r| differ.known_reaction_gap?(r) }
-  divergences << { field: "reactions", ruby: kept_ruby_reactions, rust: rust_reactions } \
-    unless rust_reactions == kept_ruby_reactions
-
-  # `dry_runs` — item 5 of the detection plan: both engines always
-  # answered a `{"dry_run": …}` step (`kernel/cli.rs`'s own `dry_runs`
-  # output key), nothing ever generated one, so this surface had never
-  # been compared. `|| []` for an older fixture binary with no such key.
-  rust_dry_runs = Array(rust_output["dry_runs"]).map { |d| d.slice("verb", "ok") }
-  divergences << { field: "dry_runs", ruby: ruby_dry_runs, rust: rust_dry_runs } \
-    unless rust_dry_runs == ruby_dry_runs
-  outcomes[:differential] = divergences
-
-  # SELF-CONSISTENCY — A SECOND AXIS, ITS OWN CHECK. `ruby_result`
-  # already carries every self-consistency finding this SAME replay
-  # produced (`Replay.call`'s own `self_consistency:` kwarg, computed
-  # while its runtime was still live — see that file's own comment).
-  # `rust_live_instances` (captured above, BEFORE the stripping this
-  # method's own differential comparison needs) is the seed for the Rust
-  # binary's OWN rehydration door (`Hecks::Fuzzing::SelfConsistency`'s own
-  # header explains the mechanism) rather than re-derived or re-dispatched.
-  if self_consistency
-    outcomes[:self_consistency] =
-      self_consistency_divergences(ruby_result) +
-      Hecks::Fuzzing::SelfConsistency.check_rust_rehydration(binary, differ, rust_live_instances) +
-      Hecks::Fuzzing::SelfConsistency.check_rust_idempotency(binary, differ, rust_live_instances)
-  end
-
-  outcomes
+  Hecks::Fuzzing::Differential.diff(differ, domain_path, steps, binary, modes:                 modes,
+                                                                        adapter_parity_sqlite: lambda {
+                                                                          adapter_parity_sqlite_divergences(domain_path, steps)
+                                                                        })
 end
 
 # `Properties.check`'s battery over one replayed history, in the SAME
 # flat `field:`/`detail:` divergence shape every other finding uses —
 # the property's own name is the field, its message the detail.
-def property_divergences(history)
-  Hecks::Fuzzing::Properties.check(history).reject { |_, result| result == true }
-                            .map { |name, message| { field: name.to_s, detail: message } }
-end
+def property_divergences(history) = Hecks::Fuzzing::Differential.property_divergences(history)
 
 # THE SINGLE-RUNTIME FALLBACK — `bin/fuzz`'s own `outcome` function,
 # unchanged: a declared property violated, or an exception that escaped

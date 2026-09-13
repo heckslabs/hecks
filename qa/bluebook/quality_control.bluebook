@@ -374,6 +374,26 @@ unless defined?(QualityControlDials)
     # reaches no new state for later steps to act on.
     DRY_RUN_FRACTION = 0.10
 
+    # HOW MANY GENERATED DOMAINS ONE `bin/qa_tick` CHECKS, after the
+    # rotation sweep — `bin/qa_generated_domains --from-dials` (that
+    # script's header has the why: the ledger's most productive sweeps
+    # were each hand-written stress domain's FIRST, and this writes new
+    # construct combinations mechanically). Each tick starts from a fresh
+    # domain seed, printed. Zero turns the step off; the tick then runs
+    # exactly the two steps it always did.
+    GENERATED_DOMAINS_PER_TICK = 2
+
+    # WHETHER THOSE DOMAINS ARE ALSO COMPARED AGAINST A COMPILED RUST
+    # BINARY — projected into a scratch copy of the crate, never the
+    # checked-in `rust/`. Measured while building it: projection ~2.5s and
+    # an incremental `cargo build --features qa_generated` ~2-3s per
+    # domain, so the axis the ledger's bugs mostly came from is cheap
+    # enough to run every tick.
+    GENERATED_DOMAINS_RUST = true
+
+    # HOW MANY GENERATED SEQUENCES EACH GENERATED DOMAIN GETS.
+    GENERATED_DOMAIN_SEEDS = 5
+
     # THE CONSTRUCT FAMILIES A "NOT GENERATED FOR THIS DOMAIN" REFUSAL IS
     # ALLOWED TO HIDE. `Hecks::Fuzzing::StructuralSkips` attributes every
     # named query/read model the compiled Rust binary structurally refused

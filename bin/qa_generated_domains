@@ -1,0 +1,391 @@
+#!/usr/bin/env ruby
+
+# DOMAINS NOBODY WROTE, CHECKED THE WAY THE ROTATION IS.
+#
+#   bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M]
+#                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]
+#   bin/qa_generated_domains --blueprint <blueprint.json> [--rust] …   (re-check one saved blueprint)
+#   bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>
+#
+# Every stress domain in `qa/stress_domains/` was written by hand, and the
+# ledger's most productive sweeps were each one's FIRST: `corrections`
+# found four bugs, `referral_chain` four, `tenant_ledger` two. The bugs
+# lived where two declared forms met on one aggregate for the first time.
+# This writes those meetings mechanically (`Hecks::Fuzzing::
+# DomainGenerator` — a seed picks two `FormCensus::FORMS` to force onto
+# one aggregate, plus what they need and a sprinkle of extras) and runs
+# the same comparisons `bin/qa_sweep` runs, over sequences generated
+# against each one.
+#
+# ONE DOMAIN, ONE CHILD PROCESS. Every generated domain is named
+# `QaGenerated`, so two shapes never share a Ruby process: this script
+# re-invokes itself with `--check <dir>` per domain (and per shrink
+# candidate) and reads back one `QA_GENERATED_RESULT <json>` line.
+#
+# A FINDING IS SHRUNK TWICE. First the DOMAIN — `DomainGenerator.
+# shrink_candidates` removes one element at a time (a query, a command,
+# an entity, an aggregate, a given…), keeping a removal only while a
+# child still reports the same mode and a signature containing the
+# original's (`--domain-shrink-budget` candidates at most). Then the
+# STEPS, inside the final child (`Hecks::Fuzzing::Shrinker`). The report
+# names both, the minimal domain on disk, and a replay line.
+#
+# `--rust` ALSO COMPARES AGAINST A COMPILED BINARY. The domain is
+# projected (`bin/project_rust` with `HECKS_RUST_DIR`) into a SCRATCH
+# copy of the crate under tmp/qa-generated/rust — never the checked-in
+# `rust/` tree — and built with `--features qa_generated`; the one fixed
+# feature name is what keeps rebuilds incremental. A domain whose
+# projection or build fails is itself reported: a valid bluebook the Rust
+# projection cannot compile is exactly BUG#25's class.
+#
+# WHAT HAPPENS TO A FINDING. This script never touches the QA ledger.
+# `--promote` copies a finding's minimal domain into `qa/stress_domains/
+# <name>/` (renamed, with a NOTES.md recording where it came from) and
+# prints the ordinary next steps — novelty gate, Rust projection, `target.
+# identify` — after which the rotation sweeps it and the usual
+# `bin/qa_log_bug` flow applies.
+#
+# A DOMAIN THAT DOES NOT BOOT is `invalid`: a generator defect, counted
+# and printed, never a finding.
+#
+# EXIT CODES: 0 every valid domain clean; 2 at least one finding; 1 an
+# operational error (usage, a failed scratch-crate sync, or no domain
+# valid at all).
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecks"
+require "hecks/fuzzing"
+require "hecks/fuzzing/domain_generator"
+require "hecks/fuzzing/generated_domain_check"
+require "fileutils"
+require "json"
+require "open3"
+
+ROOT          = File.expand_path("..", __dir__)
+EXIT_OK       = 0
+EXIT_ERROR    = 1
+EXIT_FOUND    = 2
+RESULT_MARKER = "QA_GENERATED_RESULT ".freeze
+USAGE = "usage: bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M] " \
+        "[--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]\n       " \
+        "bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>".freeze
+
+Generator = Hecks::Fuzzing::DomainGenerator
+
+options = { domains: 3, start: nil, forms: nil, seeds: 5, steps: 25, adversarial: 0.3, rust: false,
+            shrink_budget: 200, domain_shrink_budget: 40, check: nil, binary: nil, match: nil,
+            promote: nil, name: nil }
+until ARGV.empty?
+  case (arg = ARGV.shift)
+  when "-h", "--help"
+    puts USAGE
+    exit EXIT_OK
+  when "--domains"              then options[:domains] = Integer(ARGV.shift)
+  when "--start"                then options[:start] = Integer(ARGV.shift)
+  when "--forms"                then options[:forms] = ARGV.shift.split(",")
+  when "--seeds"                then options[:seeds] = Integer(ARGV.shift)
+  when "--steps"                then options[:steps] = Integer(ARGV.shift)
+  when "--adversarial"          then options[:adversarial] = Float(ARGV.shift)
+  when "--rust"                 then options[:rust] = true
+  when "--shrink-budget"        then options[:shrink_budget] = Integer(ARGV.shift)
+  when "--domain-shrink-budget" then options[:domain_shrink_budget] = Integer(ARGV.shift)
+  when "--check"                then options[:check] = ARGV.shift
+  when "--binary"               then options[:binary] = ARGV.shift
+  when "--match"                then options[:match] = JSON.parse(ARGV.shift)
+  when "--promote"              then options[:promote] = ARGV.shift
+  when "--name"                 then options[:name] = ARGV.shift
+  when "--from-dials"           then options[:from_dials] = true
+  when "--blueprint"            then options[:blueprint] = ARGV.shift
+  else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
+  end
+end
+
+# ── the child: one domain, one process ───────────────────────────────
+
+if options[:check]
+  differ = nil
+  if options[:binary]
+    require_relative "../spec/support/rust_conformance_helpers"
+    differ = Class.new do
+      include RustConformanceHelpers
+
+      attr_reader :structural_skips
+
+      def initialize
+        @structural_skips = Set.new
+      end
+    end.new
+  end
+  result = Hecks::Fuzzing::GeneratedDomainCheck.run(
+    options[:check], seeds: options[:seeds], steps: options[:steps], adversarial: options[:adversarial],
+                     binary: options[:binary], differ: differ, match: options[:match], shrink_budget: options[:shrink_budget]
+  )
+  puts "#{RESULT_MARKER}#{JSON.generate(result)}"
+  exit EXIT_OK
+end
+
+# ── promotion: a finding becomes an ordinary stress domain ───────────
+
+def camelize(name) = name.split("_").map(&:capitalize).join
+
+if options[:promote]
+  name = options[:name] or abort "#{USAGE}\n--promote needs --name"
+  unless name.match?(/\A[a-z][a-z0-9_]*\z/)
+    abort "--name must be a lowercase identifier (it becomes a Rust module and Cargo feature)"
+  end
+
+  source = File.join(options[:promote], Generator::DIRECTORY, "bluebook", "#{Generator::DIRECTORY}.bluebook")
+  abort "no generated domain at #{source}" unless File.exist?(source)
+  target = File.join(ROOT, "qa/stress_domains", name)
+  abort "#{target} already exists — pick another --name" if File.exist?(target)
+
+  FileUtils.mkdir_p(File.join(target, "bluebook"))
+  text = File.read(source).gsub(Generator::DOMAIN_NAME, camelize(name))
+  File.write(File.join(target, "bluebook", "#{name}.bluebook"), text)
+  blueprint = File.join(options[:promote], "blueprint.json")
+  finding   = File.join(options[:promote], "finding.json")
+  File.write(File.join(target, "NOTES.md"), <<~NOTES)
+    # #{name}
+
+    Promoted from a `bin/qa_generated_domains` finding — generated, not
+    hand-written. The bluebook is the domain-shrunk minimal form of the
+    generated domain that surprised; `QaGenerated` was renamed to
+    `#{camelize(name)}` and nothing else changed.
+
+    ## Blueprint
+
+    ```json
+    #{File.exist?(blueprint) ? File.read(blueprint).strip : '(not recorded)'}
+    ```
+
+    ## Finding
+
+    ```json
+    #{File.exist?(finding) ? File.read(finding).strip : '(not recorded)'}
+    ```
+  NOTES
+  puts "promoted: qa/stress_domains/#{name}"
+  puts "next:"
+  puts "  bin/qa_domain_novelty qa/stress_domains/#{name}"
+  puts "  bin/project_rust qa/stress_domains/#{name}        # when the finding needs the Rust comparison"
+  puts "  bin/run qa/bluebook target.identify reference.value=#{name} path.value=qa/stress_domains/#{name}"
+  exit EXIT_OK
+end
+
+# ── the tick's own entry: the practice's dials decide ────────────────
+#
+# `--from-dials` is how `bin/qa_tick` runs this. The dials are read from
+# the bluebook's own `QualityControlDials` block — evaluated by itself,
+# the text before `Hecks.bluebook`, so reading four numbers never boots
+# the ledger or needs its Postgres. `QA_GENERATED_DOMAINS_PER_TICK`
+# overrides the count for one run (a spec's throwaway tick sets it to 0).
+
+def dial(name, fallback)
+  defined?(QualityControlDials) && QualityControlDials.const_defined?(name) ? QualityControlDials.const_get(name) : fallback
+end
+
+if options[:from_dials]
+  dials_path = File.join(ROOT, "qa/bluebook/quality_control.bluebook")
+  eval(File.read(dials_path).split(/^Hecks\.bluebook/).first, TOPLEVEL_BINDING, dials_path)
+  per_tick = Integer(ENV.fetch("QA_GENERATED_DOMAINS_PER_TICK", dial(:GENERATED_DOMAINS_PER_TICK, 0)))
+  if per_tick.zero?
+    puts "generated domains: off (QualityControlDials::GENERATED_DOMAINS_PER_TICK is 0)"
+    exit EXIT_OK
+  end
+  options.merge!(domains: per_tick, rust: dial(:GENERATED_DOMAINS_RUST, false), seeds: dial(:GENERATED_DOMAIN_SEEDS, 5),
+                 adversarial: dial(:ADVERSARIAL_FRACTION, 0.3).to_f)
+end
+
+# ── the parent: generate, check, shrink, report ──────────────────────
+
+start   = options[:start] || (Time.now.to_i % 1_000_000)
+run_dir = File.join(ROOT, "tmp/qa-generated/run-#{start}")
+scratch = File.join(ROOT, "tmp/qa-generated/rust")
+
+def child_check(dir, options, binary: nil, match: nil, shrink_budget: 0)
+  command = ["bundle", "exec", "ruby", __FILE__, "--check", dir, "--seeds", options[:seeds].to_s,
+             "--steps", options[:steps].to_s, "--adversarial", options[:adversarial].to_s,
+             "--shrink-budget", shrink_budget.to_s]
+  command += ["--binary", binary] if binary
+  command += ["--match", JSON.generate(match)] if match
+  output, status = Open3.capture2e(*command, chdir: ROOT)
+  line = output.lines.reverse.find { |candidate| candidate.start_with?(RESULT_MARKER) }
+  return JSON.parse(line.delete_prefix(RESULT_MARKER)) if line
+
+  { "status" => "error", "error" => "child exited #{status.exitstatus} with no result: #{output.lines.last(5).join.strip}" }
+end
+
+# Projects `dir` into the scratch crate and builds it. Answers
+# `[binary, nil]` or `[nil, { "mode" => …, "detail" => … }]`.
+def build_rust(dir, scratch)
+  project, status = Open3.capture2e({ "HECKS_RUST_DIR" => scratch }, "bundle", "exec", "ruby",
+                                    File.join(ROOT, "bin/project_rust"), dir, chdir: ROOT)
+  return [nil, { "mode" => "rust_projection", "detail" => project.lines.last(12).join }] unless status.success?
+
+  cargo, status = Open3.capture2e("cargo", "build", "--no-default-features", "--features", Generator::DIRECTORY,
+                                  chdir: scratch)
+  return [nil, { "mode" => "rust_build", "detail" => cargo.lines.grep(/error/).first(12).join }] unless status.success?
+
+  binary = File.join(scratch, "target/debug/rust-#{Generator::DIRECTORY}")
+  FileUtils.cp(File.join(scratch, "target/debug/rust"), binary)
+  [binary, nil]
+end
+
+def sync_scratch!(scratch)
+  FileUtils.mkdir_p(scratch)
+  sources = %w[Cargo.toml Cargo.lock src].map { |entry| File.join(ROOT, "rust", entry) }
+  system("rsync", "-a", "--delete", "--exclude", "target", *sources, "#{scratch}/") or abort "rsync into #{scratch} failed"
+end
+
+# One candidate check against a written blueprint: build (when --rust),
+# then a child run. A build failure is its own result shape, so a
+# rust_build finding shrinks by "does it still fail to build".
+def evaluate(blueprint, dir_root, options, scratch, match: nil, shrink_budget: 0)
+  dir = Generator.write(blueprint, dir_root)
+  binary = nil
+  if options[:rust]
+    binary, failure = build_rust(dir, scratch)
+    if failure
+      return { "status" => "clean" } unless match.nil? || match["mode"] == failure["mode"]
+
+      return { "status" => "found", "mode" => failure["mode"], "signature" => [failure["mode"]], "dir" => dir,
+               "divergences" => [{ "field" => failure["mode"], "detail" => failure["detail"] }], "steps" => [] }
+    end
+    return { "status" => "clean" } if match && match["mode"].start_with?("rust_")
+  end
+  child_check(dir, options, binary: binary, match: match, shrink_budget: shrink_budget).merge("binary" => binary, "dir" => dir)
+end
+
+def shrink_domain(blueprint, found, root, options, scratch)
+  match = { "mode" => found["mode"], "signature" => found["signature"] }
+  current = blueprint
+  attempts = 0
+  loop do
+    accepted = false
+    Generator.shrink_candidates(current).each do |candidate|
+      break if attempts >= options[:domain_shrink_budget]
+
+      attempts += 1
+      next unless evaluate(candidate, File.join(root, "candidate"), options, scratch, match: match)["status"] == "found"
+
+      current = candidate
+      accepted = true
+      break
+    end
+    break unless accepted && attempts < options[:domain_shrink_budget]
+  end
+  [current, attempts]
+end
+
+def print_finding_header(report)
+  puts
+  puts "=" * 72
+  puts "GENERATED DOMAIN FOUND SOMETHING — domain seed #{report[:seed]}, forms #{report[:forms].join(' + ')}"
+  puts "=" * 72
+  puts "domain:      #{report[:dir].delete_prefix("#{ROOT}/")}"
+  puts "             shrunk from #{report[:size_before]} to #{report[:size_after]} removable element(s) " \
+       "in #{report[:domain_attempts]} candidate check(s)"
+  puts "blueprint:   #{File.join(report[:root], 'blueprint.json').delete_prefix("#{ROOT}/")}"
+end
+
+def print_finding(report)
+  found = report[:final]
+  options = report[:options]
+  print_finding_header(report)
+  puts "mode:        #{found['mode']}"
+  puts "signature:   #{found['signature'].join(', ')}"
+  if found["seed"]
+    puts "sequence:    seed #{found['seed']} of --seeds #{options[:seeds]}, #{options[:steps]} steps, " \
+         "adversarial #{options[:adversarial]}"
+  end
+  print_shrunk(report, found["steps"], found["shrunk_steps"])
+  puts "promote:     bin/qa_generated_domains --promote #{report[:root].delete_prefix("#{ROOT}/")} --name <stress_domain_name>"
+  puts
+  found["divergences"].each do |divergence|
+    puts "-- #{divergence['field']} --"
+    divergence.except("field").each { |key, value| puts "#{key}: #{value.is_a?(String) ? value : JSON.generate(value)}" }
+    puts
+  end
+end
+
+def print_shrunk(report, steps, shrunk)
+  return unless shrunk
+
+  puts "shrunk:      #{steps.size} -> #{shrunk.size} step(s) — #{report[:steps_file].delete_prefix("#{ROOT}/")}"
+  replay = if report[:binary]
+             "bin/rust_conformance #{report[:dir]} #{report[:steps_file]} #{report[:binary]}"
+           else
+             "bin/run #{report[:dir]} #{report[:steps_file]}"
+           end
+  puts "replay:      #{replay}"
+  shrunk.each_with_index do |step, index|
+    kind = %w[verb query dry_run].find { |key| step.key?(key) }
+    puts "  #{index}: #{"#{kind} " unless kind == 'verb'}#{step[kind]}  args: #{JSON.generate(step['args'])}"
+  end
+end
+
+def record_finding(blueprint, result, root, options, scratch)
+  minimal, attempts = shrink_domain(blueprint, result, root, options, scratch)
+  final_root = File.join(root, "minimal")
+  match = { "mode" => result["mode"], "signature" => result["signature"] }
+  final = evaluate(minimal, final_root, options, scratch, match: match, shrink_budget: options[:shrink_budget])
+  unless final["status"] == "found"
+    minimal = blueprint
+    final = evaluate(blueprint, final_root, options, scratch, shrink_budget: options[:shrink_budget])
+  end
+  File.write(File.join(final_root, "finding.json"), JSON.pretty_generate(final.except("dir", "binary")))
+  steps_file = File.join(final_root, "shrunk_steps.json")
+  File.write(steps_file, JSON.pretty_generate(name: "qa_generated-shrunk", note: "bin/qa_generated_domains finding",
+                                              steps: final.fetch("shrunk_steps") { final.fetch("steps", []) }))
+  { forms: blueprint["forms"], root: final_root, dir: final["dir"], binary: final["binary"], final: final,
+    options: options, steps_file: steps_file, domain_attempts: attempts,
+    size_before: Generator.removals(blueprint).size, size_after: Generator.removals(minimal).size }
+end
+
+sync_scratch!(scratch) if options[:rust]
+puts "generated domains: #{options[:domains]} starting at seed #{start}; #{options[:seeds]} seed(s) x " \
+     "#{options[:steps]} steps each, adversarial #{options[:adversarial]}#{', against Rust' if options[:rust]} " \
+     "— #{run_dir.delete_prefix("#{ROOT}/")}"
+
+counts = Hash.new(0)
+findings = []
+# `--blueprint FILE` — ONE SAVED BLUEPRINT INSTEAD OF GENERATED ONES: a
+# finding's own `blueprint.json`, re-checked (after a fix, say) exactly
+# as it was written, through the same check/shrink/report path.
+blueprints =
+  if options[:blueprint]
+    saved = JSON.parse(File.read(options[:blueprint]))
+    { saved.fetch("seed", start) => saved }
+  else
+    (start...(start + options[:domains])).to_h { |seed| [seed, Generator.generate(seed: seed, forms: options[:forms])] }
+  end
+
+blueprints.each do |domain_seed, blueprint|
+  root = File.join(run_dir, domain_seed.to_s)
+  result = evaluate(blueprint, root, options, scratch)
+  label = "domain #{domain_seed} [#{blueprint['forms'].join('+')}] #{blueprint['aggregates'].size} aggregate(s)"
+
+  case result["status"]
+  when "clean"
+    counts[:clean] += 1
+    puts "  #{label}: clean (#{result['seeds_run']} seed(s))"
+  when "invalid", "error"
+    counts[result["status"].to_sym] += 1
+    puts "  #{label}: #{result['status'].upcase} — #{result['error']}"
+  else
+    counts[:found] += 1
+    puts "  #{label}: FOUND SOMETHING (#{result['mode']}: #{result['signature'].join(', ')}) — shrinking the domain…"
+    findings << record_finding(blueprint, result, root, options, scratch).merge(seed: domain_seed)
+  end
+end
+
+puts
+puts "generated domains: #{counts[:clean]} clean, #{counts[:found]} found something, #{counts[:invalid]} invalid, " \
+     "#{counts[:error]} errored"
+findings.each { |report| print_finding(report) }
+
+if findings.any? then exit EXIT_FOUND
+elsif counts[:clean].zero? then exit EXIT_ERROR
+else exit EXIT_OK
+end
