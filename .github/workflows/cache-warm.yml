@@ -88,21 +88,12 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
+          name: main
+          path: rust/target
 
       - name: Warm native builds (banking, pizzas, roster)
         run: |
@@ -111,16 +102,7 @@ jobs:
           cargo build --no-default-features --features pizzas
           cargo build --no-default-features --features roster
 
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+      - uses: ./.github/actions/wasm-toolchain
 
       - name: Warm wasm cross-compile builds (banking, pizzas, roster)
         run: |
@@ -146,14 +128,11 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Cache Rust build artifacts (build crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            rust/build/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+          name: build
+          path: rust/build/target
+          include-registry: "false"
 
       - name: Warm rust/build (hecks-build)
         run: cd rust/build && cargo build
@@ -177,16 +156,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Cache Rust build artifacts (parser crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/parser/target
-          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-parser-
+          name: parser
+          path: rust/parser/target
 
       - name: Warm rust/parser (hecks-parse)
         run: cd rust/parser && cargo build
@@ -209,16 +182,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Cache Rust build artifacts (codegen crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/codegen/target
-          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-codegen-
+          name: codegen
+          path: rust/codegen/target
 
       - name: Warm rust/codegen (hecks-codegen)
         run: cd rust/codegen && cargo build
@@ -248,16 +215,10 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Cache Rust build artifacts (host crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/host/target
-          key: ${{ runner.os }}-cargo-host-${{ hashFiles('rust/host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-host-
+          name: host
+          path: rust/host/target
 
       - name: Warm rust/host (both harness binaries)
         run: |

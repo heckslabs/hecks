@@ -1,0 +1,47 @@
+name: Cargo build cache
+description: >-
+  Restores (and, at job end, saves) one Rust crate's target dir, keyed on
+  that crate's own Cargo.lock. Five crates in this repo need this
+  identically shaped cache — the main rust/ crate, rust/parser,
+  rust/codegen, rust/host, rust/build — and both ci.yml and
+  cache-warm.yml had their own copy-pasted block per crate (16
+  occurrences total, counted before this action existed).
+inputs:
+  name:
+    description: Crate name for the cache key (main/parser/codegen/host/build).
+    required: true
+  path:
+    description: >-
+      The crate's own target directory, relative to the repo root (e.g.
+      "rust/target", "rust/parser/target").
+    required: true
+  include-registry:
+    description: >-
+      Also cache ~/.cargo/registry and ~/.cargo/git under this key.
+      True for main/parser/codegen/host (verified against ci.yml's own
+      former blocks: all four included these paths); false for `build`
+      (rust/build/Cargo.lock only — its own former block never cached
+      the shared registry either).
+    required: false
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - if: inputs.include-registry == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ${{ inputs.path }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.path)) }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.name }}-
+
+    - if: inputs.include-registry != 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.path)) }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.name }}-

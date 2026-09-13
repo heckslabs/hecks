@@ -34,7 +34,15 @@ RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
     relative = path.delete_prefix("#{ROOT}/")
     domain   = File.dirname(relative)
 
-    it "#{relative} is exactly what bin/project_oidc would regenerate right now" do
+    # `:io` — this boots WHATEVER domain committed this manifest, which
+    # today is only examples/pizzas (PostgresEra-bound) but is discovered
+    # dynamically (see this file's own header): a future domain with its
+    # own committed oidc.json would generate a new example here with no
+    # code change, and it might also be PostgresEra-bound. Tagging every
+    # generated example unconditionally, not just the one domain known
+    # to need it today, is what keeps that true without anyone having to
+    # remember to update an exclusion list.
+    it "#{relative} is exactly what bin/project_oidc would regenerate right now", :io do
       runtime  = Hecks.boot(File.join(ROOT, domain), install_facade: false)
       name     = runtime.registry.bluebooks.keys.first
       bluebook = runtime.registry.bluebook(name)

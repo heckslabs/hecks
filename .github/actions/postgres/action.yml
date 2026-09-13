@@ -1,0 +1,83 @@
+name: Tuned local Postgres
+description: >-
+  Starts the Postgres 16 already preinstalled on ubuntu-24.04 runners
+  (confirmed via actions/runner-images' own Ubuntu2404-Readme.md: "User:
+  postgres / PostgreSQL service is disabled by default. Use ... 'sudo
+  systemctl start postgresql.service'") instead of a `services:` Docker
+  container, and tunes it for disposable test databases — durability
+  settings a `services:` block has no way to set at all, since it has no
+  `command:` field to pass postgres flags through. Phase 5 of the CI
+  speed effort.
+
+  UNTESTED ON REAL INFRASTRUCTURE AS WRITTEN — every other change in
+  this effort was verified against a real local Postgres before it
+  shipped; this one could only be checked against the runner image's own
+  published software manifest (confirmed PG 16.15, confirmed the start
+  command) since there is no Ubuntu box available to rehearse
+  `pg_conftool`/pg_hba.conf edits against the exact package layout
+  ubuntu-24.04 ships. Land this as its own PR and watch its first real
+  CI run closely — do not chain other changes on top of it before that
+  run is seen green.
+inputs:
+  password:
+    description: Password to set for the postgres role, matching PGPASSWORD.
+    required: false
+    default: postgres
+runs:
+  using: composite
+  steps:
+    - name: Start the preinstalled Postgres and tune it for disposable test databases
+      shell: bash
+      run: |
+        set -e
+        sudo systemctl start postgresql.service
+
+        # WAIT FOR REAL READINESS — systemctl returning doesn't mean the
+        # server is accepting connections yet; the `services:` block this
+        # replaces had a `pg_isready` health check for the same reason.
+        for _ in $(seq 1 30); do
+          sudo -u postgres pg_isready -q && break
+          sleep 1
+        done
+        sudo -u postgres pg_isready -q
+
+        PG_VERSION=$(sudo -u postgres psql -tAc "SHOW server_version_num;" | cut -c1-2)
+
+        # DURABILITY OFF, DELIBERATELY — every database this workflow
+        # touches is thrown away at the end of the job; nothing here is
+        # ever recovered from a crash. `pg_conftool` is the standard
+        # Debian/Ubuntu postgresql-common tool for editing
+        # postgresql.conf without hand-parsing it.
+        sudo pg_conftool "$PG_VERSION" main set fsync off
+        sudo pg_conftool "$PG_VERSION" main set synchronous_commit off
+        sudo pg_conftool "$PG_VERSION" main set full_page_writes off
+
+        # TRUST FOR LOCAL TCP CONNECTIONS — matches this repo's own
+        # former `services:` block (`POSTGRES_HOST_AUTH_METHOD: trust`),
+        # scoped the same way: only this ephemeral runner's own loopback.
+        # PREPENDED, not appended: pg_hba.conf is first-match-wins, and
+        # the distro's own default file already has a stricter rule for
+        # 127.0.0.1/::1 earlier in the file that would otherwise shadow
+        # ours.
+        # `sudo cat`, NOT PLAIN `cat` — pg_hba.conf is owned by the
+        # `postgres` user/group, mode 640 by default, unreadable by the
+        # unprivileged runner user this whole script otherwise runs as.
+        # (Found live on this action's own first real CI run: plain
+        # `cat "$HBA_FILE"` failed "Permission denied", failing both
+        # rspec_postgres_io and rspec_rust_host before this fix.)
+        HBA_FILE=$(sudo -u postgres psql -tAc "SHOW hba_file;")
+        {
+          echo "host all all 127.0.0.1/32 trust"
+          echo "host all all ::1/128 trust"
+          sudo cat "$HBA_FILE"
+        } | sudo tee "$HBA_FILE.new" > /dev/null
+        sudo mv "$HBA_FILE.new" "$HBA_FILE"
+
+        sudo systemctl restart postgresql.service
+        for _ in $(seq 1 30); do
+          sudo -u postgres pg_isready -q && break
+          sleep 1
+        done
+        sudo -u postgres pg_isready -q
+
+        sudo -u postgres psql -c "ALTER USER postgres PASSWORD '${{ inputs.password }}';"
