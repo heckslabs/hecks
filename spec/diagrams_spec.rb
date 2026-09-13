@@ -115,7 +115,7 @@ RSpec.describe "the generated diagrams" do
                                                 "longer generates, or is missing one it does — run bin/project_diagrams"
   end
 
-  it "is exactly what bin/project_diagrams would regenerate for pizzas right now" do
+  it "is exactly what bin/project_diagrams would regenerate for pizzas right now", :io do
     assert_undrifted("pizzas", pizzas_chapter, hecksagon: pizzas_hecksagon)
   end
 
@@ -125,7 +125,7 @@ RSpec.describe "the generated diagrams" do
 
   # ── lifecycle -> stateDiagram-v2 ────────────────────────────────────
 
-  it "draws exactly the edges Order's own lifecycle declares, no more and no fewer" do
+  it "draws exactly the edges Order's own lifecycle declares, no more and no fewer", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_lifecycle.mmd"]
     lifecycle = order.lifecycle
 
@@ -138,7 +138,7 @@ RSpec.describe "the generated diagrams" do
     declared_edges.each { |edge| expect(drawn_edges).to include(edge) }
   end
 
-  it "starts at the lifecycle's own declared default state" do
+  it "starts at the lifecycle's own declared default state", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_lifecycle.mmd"]
     expect(diagram).to include("[*] --> #{order.lifecycle.default}")
   end
@@ -166,14 +166,14 @@ RSpec.describe "the generated diagrams" do
 
   # ── dispatch -> flowchart ────────────────────────────────────────────
 
-  it "draws an emits edge for every real command.emits pair in pizzas" do
+  it "draws an emits edge for every real command.emits pair in pizzas", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["dispatch.mmd"]
     declared = pizzas_chapter.aggregates.flat_map(&:commands).sum { |c| c.emits.size }
     drawn = diagram.lines.count { |line| line.include?("|emits|") }
     expect(drawn).to eq(declared)
   end
 
-  it "wires a policy's own trigger to the real command it names" do
+  it "wires a policy's own trigger to the real command it names", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["dispatch.mmd"]
     expect(diagram).to include('evt_PizzaPaymentReceived{{"PizzaPaymentReceived"}} -->|triggers| ' \
                                'cmd_Order_Purchase(["Order.Purchase"])')
@@ -205,14 +205,14 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).to include("role_Back_office((Back office))")
   end
 
-  it "generates a real, non-empty roles.mmd for pizzas too, not just banking" do
+  it "generates a real, non-empty roles.mmd for pizzas too, not just banking", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["roles.mmd"]
     expect(diagram).to include("role_Chef((Chef))")
   end
 
   # ── ports -> flowchart ───────────────────────────────────────────────
 
-  it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)" do
+  it "draws exposes and emits for pizzas' real PaymentGateway.Receive, with no to: edge (none is declared)", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["ports.mmd"]
     expect(diagram).to include('Order[(Order)] -.->|exposes| op_Order_PaymentGateway_Receive[/"PaymentGateway.Receive"/]')
     expect(diagram).to include("op_Order_PaymentGateway_Receive[/\"PaymentGateway.Receive\"/] -->|emits| " \
@@ -269,13 +269,13 @@ RSpec.describe "the generated diagrams" do
     expect(diagram).not_to include("-->|accounts[]|") # the unquoted form that actually broke
   end
 
-  it "draws no read_models.mmd for pizzas — the real corpus declares no read_model there" do
+  it "draws no read_models.mmd for pizzas — the real corpus declares no read_model there", :io do
     expect(Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["read_models.mmd"]).to be_nil
   end
 
   # ── surface -> flowchart ─────────────────────────────────────────────
 
-  it "draws every one of Order's own real commands and queries in pizzas, no more and no fewer" do
+  it "draws every one of Order's own real commands and queries in pizzas, no more and no fewer", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     does = diagram.lines.count { |line| line.include?("|does|") }
     asks = diagram.lines.count { |line| line.include?("|asks|") }
@@ -283,7 +283,7 @@ RSpec.describe "the generated diagrams" do
     expect(asks).to eq(order.queries.size)
   end
 
-  it "draws a command edge solid and a query edge dotted" do
+  it "draws a command edge solid and a query edge dotted", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     expect(diagram).to include('Order[(Order)] -->|does| cmd_Order_CreatePizza(["Order.CreatePizza"])')
     expect(diagram).to include('Order[(Order)] -.->|asks| qry_Order_Available{"Order.Available"}')
@@ -310,14 +310,14 @@ RSpec.describe "the generated diagrams" do
 
   # ── surface -> what each command writes ───────────────────────────────
 
-  it "draws exactly one edge per real mutation Order's own commands declare, no more and no fewer" do
+  it "draws exactly one edge per real mutation Order's own commands declare, no more and no fewer", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     declared = order.commands.sum { |c| c.mutations.size }
     drawn = diagram.lines.count { |line| line.include?("attr_Order_") }
     expect(drawn).to eq(declared)
   end
 
-  it "names the real argument a set/increment/decrement pulls from, in pizzas" do
+  it "names the real argument a set/increment/decrement pulls from, in pizzas", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     expect(diagram).to include('cmd_Order_Purchase(["Order.Purchase"]) -->|"sets: customer_name"| ' \
                                "attr_Order_customer_name[customer_name]")
@@ -332,7 +332,7 @@ RSpec.describe "the generated diagrams" do
                                "attr_Payment_channel[channel]")
   end
 
-  it "names an append's own field names, not a single source, since it has none" do
+  it "names an append's own field names, not a single source, since it has none", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)["Order_surface.mmd"]
     expect(diagram).to include('cmd_Order_AddTopping(["Order.AddTopping"]) -->|"appends: name, amount"| ' \
                                "attr_Order_toppings[toppings]")
@@ -457,7 +457,7 @@ RSpec.describe "the generated diagrams" do
     expect(saga_files).to contain_exactly("Onboarding_saga.mmd", "Settlement_saga.mmd", "ExternalSettlement_saga.mmd")
   end
 
-  it "draws no saga diagram at all for pizzas — the real corpus declares no process_manager there" do
+  it "draws no saga diagram at all for pizzas — the real corpus declares no process_manager there", :io do
     files = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter)
     expect(files.keys).not_to include(a_string_ending_with("_saga.mmd"))
   end
@@ -492,7 +492,7 @@ RSpec.describe "the generated diagrams" do
     ).to eq(1)
   end
 
-  it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing" do
+  it "generates a real, non-empty frameworks.mmd for pizzas too — attaches Governance, reaches across nothing", :io do
     diagram = Hecks::Projector.call(:diagrams, bluebook: pizzas_chapter,
                                                options:  { hecksagon: pizzas_hecksagon })["frameworks.mmd"]
     expect(diagram).to include("Pizzas[(Pizzas)] -.->|attaches| Governance[(Governance)]")
@@ -515,7 +515,7 @@ RSpec.describe "the generated diagrams" do
   # — this just guards the one structural fact that made that true for
   # each kind: the diagram type declaration is the first non-comment
   # line.
-  it "is shaped like real Mermaid in every generated file — the diagram type declared first" do
+  it "is shaped like real Mermaid in every generated file — the diagram type declared first", :io do
     expectations = {
       [:pizzas_chapter, "Order_lifecycle.mmd"]  => "stateDiagram-v2",
       [:pizzas_chapter, "dispatch.mmd"]         => "flowchart LR",
