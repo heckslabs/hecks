@@ -1781,7 +1781,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let element_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("HandlerDispatchEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["command_name", "position", "id", "bluebook", "name", "event_type", "from_state"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Dispatch does not declare {} — it takes command_name, position",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["command_name", "position"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Dispatch"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "command_name, position"),
+    ])));
+}
+ } let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let element_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::processmanager::HandlerDispatchEntityArgs::from_json(facts_json)?;
                       args.command_name.check_invariants()?;
                       args.position.check_invariants()?;
@@ -1796,7 +1814,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?; let element_id = crate::generated::meta::valueobject::Member::extract_id(facts_json)?; let element_wants = crate::generated::meta::valueobject::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("MemberPairEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "aggregate", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Pair does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Pair"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+ } let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(facts_json)?; let element_id = crate::generated::meta::valueobject::Member::extract_id(facts_json)?; let element_wants = crate::generated::meta::valueobject::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::valueobject::MemberPairEntityArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
@@ -1811,7 +1847,17 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordDeprecateEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Deprecate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
@@ -1824,7 +1870,17 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordRetireEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
@@ -1837,7 +1893,17 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentDeprecateEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Deprecate does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
@@ -1850,7 +1916,17 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentRetireEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["id", "name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Retire does not declare {} — it takes ",
+        unknown.join(", ")
+    )));
+}
+ } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
               let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
@@ -1863,7 +1939,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchBindNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Bind does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Bind"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+ } let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindNestedEntityArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
@@ -1877,7 +1971,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchCompensatesNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["compensates_command_name", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Compensates does not declare {} — it takes compensates_command_name",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["compensates_command_name"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Compensates"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "compensates_command_name"),
+    ])));
+}
+ } let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?;
                       args.compensates_command_name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1890,7 +2002,25 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
+              let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("DispatchBindCompensationNestedEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["key", "value", "id", "bluebook", "name", "event_type", "from_state", "command_name", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BindCompensation does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["key", "value"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "BindCompensation"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "key, value"),
+    ])));
+}
+ } let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json)?; let hop1_id = crate::generated::meta::processmanager::Handler::extract_id(facts_json)?; let hop1_wants = crate::generated::meta::processmanager::Handler::extract_wants(facts_json); let hop2_id = crate::generated::meta::processmanager::Dispatch::extract_id(facts_json)?; let hop2_wants = crate::generated::meta::processmanager::Dispatch::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };
               let args = crate::generated::meta::processmanager::DispatchBindCompensationNestedEntityArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
