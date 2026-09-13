@@ -1424,7 +1424,7 @@ if !absent.is_empty() {
                       args.adjustment.check_invariants()?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Amend", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Banking::Account", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1456,7 +1456,7 @@ if !absent.is_empty() {
               let args = crate::generated::banking::account::LedgerEntryReverseEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Banking::Account", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1488,7 +1488,7 @@ if !absent.is_empty() {
               let args = crate::generated::banking::atmcard::WithdrawalDisputeEntityArgs::from_json(facts_json)?;
                       args.narrative.check_invariants()?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Banking::ATMCard", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1520,7 +1520,7 @@ if !absent.is_empty() {
               let args = crate::generated::banking::safedepositbox::VisitAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1552,7 +1552,7 @@ if !absent.is_empty() {
               let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnEntityArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Banking::SafeDepositBox", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

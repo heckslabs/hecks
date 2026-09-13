@@ -299,19 +299,33 @@ module RustProjection
           # refusal path — it's a plain infallible dig, not worth gating
           # behind whether the dispatch actually fails.
           #
-          # `owner_deref` is always empty here — a REAL, DOCUMENTED gap,
-          # not an oversight: an entity's OWN `reference_to` attributes
-          # (dereferenced off the addressed ELEMENT itself, distinct from
-          # `command_deref`'s `"parent"` entry below) would need this
-          # router to find the parent AND match the one addressed element
-          # BEFORE `dispatch_entity` itself does — the exact "parent"/
-          # "element" lookup `kernel::dispatch_entity` already owns
-          # internally. No entity in this corpus declares a reference-typed
-          # attribute of its own (confirmed against the real IR, not
-          # assumed), so nothing here is silently wrong today; a future
-          # entity that does would need this router taught the same
-          # peek-before-dispatch fetch `owner_deref` above already does
-          # for an aggregate.
+          # `owner_deref` — BUG#40 fix: carries the PARENT aggregate's own
+          # `reference_to`/`belongs_to` fields, dereferenced off the
+          # already-known `parent_id`, EXACTLY the same call an
+          # aggregate-level `Act` command already makes for its own `id`
+          # (this file's own `owner_deref_expr`, above). This is what
+          # `seeded_projections` (reference_lookup.rs) needs to re-seed the
+          # PARENT's own `projects` fields (`ACCOUNT_PROJECTED_FIELDS`'s
+          # `reference: "customer"`) on every entity-command save —
+          # `dispatch_entity` (dispatch.rs) unconditionally re-applies every
+          # `seed_projections` entry, aggregate-level `Act` or entity-level
+          # alike, so an entity command needs the SAME reference-keyed
+          # derefs (`"customer"`) an aggregate command's own `owner_deref`
+          # already supplies, not only `command_deref`'s `"parent"` entry
+          # (used for `parent.X`-style given/ensures lookups — a different
+          # name, a different shape: one un-spread node, not spread across
+          # top-level reference names). Before this fix this was
+          # unconditionally `Vec::new()`, so `seeded_projections` could
+          # never resolve `"customer"` here and every entity command wiped
+          # the field to `null` — see BUG#40.
+          #
+          # An entity's OWN `reference_to` attributes (dereferenced off the
+          # addressed ELEMENT itself, a different thing again — REAL,
+          # still-open gap, unaffected by this fix) would need this router
+          # to find the parent AND match the one addressed element BEFORE
+          # `dispatch_entity` itself does. No entity in this corpus declares
+          # a reference-typed attribute of its own (confirmed against the
+          # real IR, not assumed), so nothing here is silently wrong today.
           #
           # `command_deref` covers the entity command's OWN reference-typed
           # arguments (`reference_specs.rb`) PLUS — merged in, matching
@@ -380,7 +394,7 @@ module RustProjection
                   # R3 FIX — see the aggregate arm's own identical comment,
                   # above.
                   *c[:invariant_check_lines], role_line, *reference_lines,
-                  "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
+                  "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id);",
                   "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
@@ -442,7 +456,15 @@ module RustProjection
                   route_binding,
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   *c[:invariant_check_lines], role_line, *reference_lines,
-                  "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
+                  # BUG#40 fix — see `entity_arms`'s own identical comment,
+                  # above: the top-level PARENT aggregate's own
+                  # `#{AGGREGATE}_PROJECTED_FIELDS` is what `seed_projections_
+                  # binding` scopes a nested entity command's re-seeding to
+                  # too (`commands.rb`'s `seed_projections_binding(aggregate)`
+                  # takes the OUTER `aggregate`, never the nested entity), so
+                  # `owner_deref` here needs that SAME top-level `a`'s own
+                  # reference fields, dereferenced off `parent_id`.
+                  "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id);",
                   "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   dispatch_call].compact.reject(&:empty?)
