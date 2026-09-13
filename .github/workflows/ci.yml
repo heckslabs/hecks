@@ -462,6 +462,13 @@ jobs:
   # lineage never ran the HMAC attestation step either.
   rspec_rust_io_impl:
     uses: ./.github/workflows/ci-rust-io.yml
+    # PHASE 8, GHCR BINARY CACHE — a reusable workflow's own jobs can
+    # only use what the calling job's `permissions:` grants; ci-rust-
+    # io.yml's own `rspec_rust_io` job additionally declares this same
+    # block, but the ceiling is set here.
+    permissions:
+      contents: read
+      packages: write
 
   # SPLIT OUT OF rspec_rust_io ABOVE (see its own header comment) —
   # measured locally as the single heaviest file of the original 9
@@ -560,6 +567,10 @@ jobs:
   # attestation step.
   rspec_rust_parser_impl:
     uses: ./.github/workflows/ci-rust-parser.yml
+    # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
+    permissions:
+      contents: read
+      packages: write
 
   # REUSABLE-WORKFLOW SPLIT, group 3 (part 3 of 4) — see ci-rust-io.yml's
   # own header. `rust/codegen/` is the same shape as `rust/parser/`
@@ -587,6 +598,10 @@ jobs:
   # impl` above.
   rspec_rust_codegen_impl:
     uses: ./.github/workflows/ci-rust-codegen.yml
+    # PHASE 8, GHCR BINARY CACHE — see rspec_rust_io_impl's own comment.
+    permissions:
+      contents: read
+      packages: write
 
   # REUSABLE-WORKFLOW SPLIT, group 3 (part 4 of 4) — see ci-rust-io.yml's
   # own header. `rust/host/` is the fourth independent Cargo project, and

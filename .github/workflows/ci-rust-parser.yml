@@ -26,6 +26,17 @@ jobs:
     # need this job.
     if: github.event_name != 'push'
 
+    # PHASE 8, GHCR BINARY CACHE — `packages: write` lets this job push
+    # to GHCR (see ghcr-binary-cache-save's own header); `contents: read`
+    # keeps the default checkout permission a bare `permissions:` block
+    # would otherwise drop. Also declared on the calling
+    # `rspec_rust_parser_impl` job in ci.yml — a reusable workflow's own
+    # jobs can only use what the caller's grant allows, so both sides
+    # need it.
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -35,9 +46,33 @@ jobs:
           name: parser
           crate-root: rust/parser
 
+      # PHASE 8, GHCR BINARY CACHE — see ghcr-binary-cache-restore's own
+      # header for the full design: this is the SAME-run half `actions/
+      # cache` above cannot provide. A hit here means some sibling job in
+      # THIS run (most likely rspec_rust_io, which also opt-in builds
+      # this crate) already built the identical content and pushed it,
+      # so the spec's own `build_parser!` call below becomes a fast
+      # cargo no-op instead of a real cold build.
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache
+        with:
+          name: parser
+          crate-root: rust/parser
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
           bundle exec rspec --tag io \
             spec/parser_parity_spec.rb \
             spec/parser_coverage_spec.rb \
             spec/grammar_corpus_spec.rb
+
+      # Only push on an actual miss — see ghcr-binary-cache-save's own
+      # header for why re-pushing an unchanged hit would just waste
+      # upload bandwidth on bytes GHCR already has.
+      - uses: ./.github/actions/ghcr-binary-cache-save
+        if: steps.ghcr_cache.outputs.cache-hit != 'true'
+        with:
+          name: parser
+          crate-root: rust/parser
+          token: ${{ secrets.GITHUB_TOKEN }}
