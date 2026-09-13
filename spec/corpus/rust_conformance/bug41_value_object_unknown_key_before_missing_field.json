@@ -1,0 +1,8 @@
+{
+  "domain": "examples/chess",
+  "note": "BUG#41 (QualityControl ledger) — rust/src/generated/chess/game.rs's generated GameLabel::from_json calls v.unknown_keys(&[\"value\"]) and refuses UnknownArgument before ever reading the declared value field, for ANY value-object argument carrying a key it doesn't declare. Ruby's Value::Coercion#validate! (lib/hecks/runtime/value/coercion.rb) had no equivalent check anywhere in its door — it only ever read fields[attribute.name] for each DECLARED attribute, silently ignoring anything else offered. Systemic to every generated value-object from_json across every domain, not chess-specific; GameLabel is simply the first case this reproduced against. Decision (following BUG#18's precedent — Ruby tightened to match Rust's stricter, already-existing behavior): Ruby now also refuses an unrecognized value-object key, via a new check_unknown_fields step in Value::Coercion#validate!, run BEFORE check_required_fields (matching Rust's own from_json ordering). Confirmed genuinely broken before this fix: step 1 (unknown key + valid value) used to succeed on Ruby, refuse UnknownArgument on Rust; step 2 (unknown key + MISSING required value) used to refuse TypeMismatch on the missing value on Ruby, the SAME UnknownArgument as step 1 on Rust (unconditional, ahead of the required-field check) — both steps now refuse the identical UnknownArgument on both engines.",
+  "steps": [
+    {"verb": "Chess::Game.Start", "args": {"label": {"value": "game-one", "extra": "bogus"}}},
+    {"verb": "Chess::Game.Start", "args": {"label": {"extra": "bogus"}}}
+  ]
+}
