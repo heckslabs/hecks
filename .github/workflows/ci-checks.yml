@@ -1,0 +1,420 @@
+name: CI checks (reusable)
+
+# REUSABLE-WORKFLOW SPLIT OF ci.yml, first group — the deferred half of
+# the user's own ci.yml modularization request (the composite-actions
+# half shipped earlier the same session; see .github/actions/*/action.yml
+# and ci.yml's own header). ci.yml was 1700+ lines, hard to navigate; this
+# moves the THREE jobs behind the `checks` required-status-check name
+# (checks_fuzz/checks_static/checks_codegen_drift — bin/fuzz, static
+# analysis, and Rust-codegen-drift regen, ~330 lines of job bodies plus
+# their own header comments) into their own file, callable only from this
+# repo's own ci.yml.
+#
+# THE REQUIRED CHECK NAME NEVER CHANGES, AND NEITHER DOES THE MERGE-QUEUE
+# RULESET — the one real risk this kind of split usually carries. A job
+# that calls a reusable workflow (`uses: ./.github/workflows/X.yml`) does
+# NOT report as a single check named after the calling job id; GitHub
+# reports EACH job INSIDE the called workflow as its own separate check,
+# compound-named "<calling job id> / <inner job id>" — so moving
+# `checks_fuzz`/`checks_static`/`checks_codegen_drift` in here, called as
+# a job named e.g. `checks_impl`, would produce checks named
+# "checks_impl / checks_fuzz" etc., NOT the bare names the ruleset
+# expects, and NOT the bare "checks" aggregator name either. This file
+# changes NONE of that: ci.yml keeps its own `checks` job, a plain
+# (non-reusable-workflow) job in ci.yml itself, `needs: checks_impl`
+# — the exact same "aggregator over a renamed/restructured job" trick
+# this workflow already uses three times over (see `checks`/`rspec`/
+# `rspec_postgres_io_parallel`'s own header comments in ci.yml) — so the
+# ONE check a branch-protection rule can see and match on is still
+# exactly "checks", produced by a job that has always lived in ci.yml and
+# still does. No `gh api repos/.../rulesets` change needed for this PR at
+# all — confirmed by design, not by testing against the ruleset live,
+# since there is structurally nothing here for it to react to.
+#
+# SECRETS DO NOT AUTOMATICALLY FLOW INTO A CALLED REUSABLE WORKFLOW —
+# unlike a composite action (`uses: ./.github/actions/...`), which runs
+# inline in the caller's own job and sees the caller's `secrets` context
+# directly, a `workflow_call` reusable workflow needs secrets explicitly
+# declared here (`on.workflow_call.secrets`) and explicitly passed at the
+# call site in ci.yml (`checks_impl: ... secrets: HECKS_CI_ATTEST_KEY:
+# ...`) — NOT `secrets: inherit`, to keep this file's own contract
+# explicit about exactly what it needs, the same reasoning
+# check-attestation/action.yml's own `hmac-key` input already follows.
+# `required: false` — checks_static's own attestation step already
+# treats an empty key as "not attested, run for real" (a fork PR's
+# `pull_request` run never receives repo secrets either way), so nothing
+# here needs to additionally guard against a missing secret.
+
+on:
+  workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
+
+jobs:
+  # DYNAMIC — generates random-but-valid command/query sequences from
+  # EVERY example domain's own IR (plus the self-hosted grammar
+  # meta-domain) and replays each one, checking every declared property
+  # (docs/decisions/0024) plus interpreter-crash and determinism. Wired
+  # in here, not run only ad hoc, because it found a real bug the first
+  # time anyone pointed it at lib/hecks/grammar: a domain composing more
+  # than one bluebook (grammar is Expression+Translation; banking is
+  # Banking+Governance+Identity) could make a property misresolve a
+  # refusal against the wrong domain, and nothing before this step ran on
+  # every push would ever have caught it. No `--seeds`/`--steps`
+  # override — bin/fuzz's own defaults (20 seeds, 30 steps) keep this
+  # fast enough for every push while still exercising real depth; a
+  # deeper, ad hoc sweep (60+ seeds) is what actually found the bug above
+  # and is a manual `bin/fuzz` invocation, not this step's job. Exits
+  # non-zero the same way every other gate in this workflow does — no
+  # special handling here. Its own job, not folded into `checks_static`,
+  # because at 139s it is the single largest step that used to live in
+  # `checks` — giving it a dedicated runner is most of that original
+  # split's win.
+  checks_fuzz:
+    runs-on: ubuntu-latest
+
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      - name: bin/fuzz
+        run: bundle exec bin/fuzz
+
+  checks_static:
+    runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment in ci.yml — cache-warming push
+    # doesn't need this job.
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      # PHASE 7 — finer-grained than `rspec_shard`'s own whole-job skip
+      # in ci.yml, on purpose: this job's 5 steps only overlap 4 of
+      # .githooks/pre-push's own checks (model_check, engine_agreement,
+      # doc_coverage, rubocop — NOT lint_deploy_recipes, which the hook
+      # never runs), so the attestation check lives HERE, as this job's
+      # own first step, and only those 4 steps below gain an `if:`
+      # against its output — lint_deploy_recipes always runs. A step
+      # CAN read another step's output from the SAME job directly
+      # (`steps.attest.outputs.*`), unlike a job-level `if:`, which is why
+      # this doesn't need the separate detector-job shape
+      # `ci_attestation_rspec` (in ci.yml) uses.
+      # `continue-on-error: true` — same fail-safe hardening as
+      # `ci_attestation_rspec`'s own `if:`, applied to this job's
+      # different shape (a step within the SAME job, not a separate
+      # `needs:` job): if this step errors for any reason, it must not
+      # fail `checks_static` outright or skip the real steps below —
+      # `outputs.attested` is simply empty/undefined on a failed run,
+      # which every `if: steps.attest.outputs.attested != 'true'` below
+      # already treats as "not attested, run it".
+      - name: check attestation
+        id: attest
+        continue-on-error: true
+        uses: ./.github/actions/check-attestation
+        with:
+          checks: model_check,engine_agreement,doc_coverage,rubocop
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
+      # Static analysis over the IR — unreachable lifecycle states, dead
+      # transitions, saga states no handler chain reaches — facts the
+      # runtime itself never checks at dispatch time. Boots every corpus
+      # member the same way corpus_spec does, plus the language's own
+      # meta chapters.
+      - name: model check
+        if: steps.attest.outputs.attested != 'true'
+        run: bundle exec bin/model_check
+
+      # THE MECHANICAL GUARD keeping `Ports::Query::InMemory` and
+      # `Runtime::QueryInterpreter` from re-growing their own comparator
+      # tables the way they already drifted twice (see this script's own
+      # header) — for every comparator the grammar declares, checks both
+      # that `QuerySpecification::Common::Comparison` still has a shared
+      # `when` case for it AND that some cross-engine agreement spec
+      # actually exercises it. Reads only already-committed Ruby source —
+      # no cargo, no Postgres — so it belongs in this job right next to
+      # `model check`/`doc coverage`/`rubocop`, not in `rspec` or the
+      # cargo-heavy `checks_codegen_drift`.
+      - name: engine agreement (query comparators)
+        if: steps.attest.outputs.attested != 'true'
+        run: bundle exec bin/check_engine_agreement
+
+      # THE MECHANICAL GUARD against the H13/H14/L20 "blind trust" bug
+      # class fixed in bin/project_deploy (docs/audits/
+      # 2026-08-11-bug-triage.md): a generated deploy Makefile that
+      # reports success without the underlying command's own exit status
+      # actually gating that report, or that does real AWS/DB work with
+      # no echo/validation telling the human running it what's about to
+      # happen. No arguments — generates its own 3 representative fixture
+      # domains (plain/Shared-mode/OAuth) via the real bin/project_deploy
+      # and lints each one's Makefile TEXT; no real AWS or Postgres
+      # touched by the check itself, so — like the step above — this
+      # belongs here rather than in `rspec`. (No domain in this repo's own
+      # CI runs `bin/project_deploy` for real yet; if one ever does, this
+      # script's own header recommends a second, domain-specific lint
+      # step immediately after it.)
+      - name: lint generated deploy recipes
+        run: bundle exec bin/lint_deploy_recipes
+
+      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push (this
+      # one carries a Phase 7 `if:` — the two below in `checks_codegen_
+      # drift` don't, since that job's attestation coverage is narrower;
+      # see its own steps) — the exact gap the rubocop step's own comment
+      # below already names for itself, applied to the one pre-push check
+      # that comment's own audit had missed: pre-push is opt-in per clone
+      # (`git config core.hooksPath .githooks`) and bypassable (`git push
+      # --no-verify`), so a branch that never installed it, or a push
+      # made with that flag, reached GitHub with `bin/doc_coverage`
+      # never having run at all — on a project where most commits come
+      # from an agent, "did this clone install the hook" isn't a safe
+      # assumption. Same command pre-push already runs (`bin/doc_
+      # coverage`'s own header): every live word in docs/implemented/
+      # reference/ carries hand-written prose and a running example.
+      - name: doc coverage
+        if: steps.attest.outputs.attested != 'true'
+        run: bundle exec bin/doc_coverage
+
+      # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
+      # this same integration pass that wired
+      # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/
+      # SequentialHashRenameInLoop into .rubocop.yml's `require:` list
+      # (docs/rubocop-custom-cops.md). Those three cops each guard a real,
+      # already-shipped bug class (8+ instances of a same-receiver `||`
+      # fallback silently dropping a stored `false`; a thread-shared ivar
+      # mutation on Dispatcher/Registry; a hash rename loop clobbering its
+      # own keys mid-pass) — pre-push is opt-in per clone
+      # (`git config core.hooksPath .githooks`) and bypassable
+      # (`git push --no-verify`), so a branch that never installed it, or
+      # a push made with that flag, would otherwise reach GitHub with NONE
+      # of those three guards (or any other rubocop cop) having run at
+      # all — the exact "a push that skipped the hook... can't land red"
+      # gap ci.yml's own top-of-file comment already names as the
+      # reason `rspec`/`checks` both exist rather than trusting
+      # pre-push alone. Same command pre-push already runs, so nothing
+      # cop-specific is needed here (docs/rubocop-custom-cops.md's own
+      # closing note); confirmed clean against this tree before adding
+      # this step.
+      - name: rubocop
+        if: steps.attest.outputs.attested != 'true'
+        run: bundle exec rubocop -c .rubocop.yml
+
+  checks_codegen_drift:
+    runs-on: ubuntu-latest
+
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      # THE GATE EVERY STEP BELOW THIS ONE WAS SILENTLY TRUSTING —
+      # bin/rust_coverage and the "rust coverage: <domain>" steps below
+      # all read whatever's ALREADY COMMITTED under rust/src/generated/;
+      # none of them regenerate. That is exactly how docs/decisions/
+      # 0037-generated-sequence-fuzz-bridge-found-real-gaps-two-fixed-
+      # three-catalogued.md happened: Pizzas::Order.Purchase grew a new
+      # `given` in Ruby, nobody regenerated, and the compiled Rust binary
+      # silently enforced fewer rules than the Bluebook declared — while
+      # every coverage/conformance check that only reads the committed
+      # tree stayed green throughout, because the committed tree was the
+      # thing that was wrong. This step regenerates every domain whose
+      # Bluebook source actually lives in THIS checkout and fails the
+      # build on any diff, so that drift is caught here — on the push
+      # that caused it — instead of the next time someone happens to run
+      # bin/rust_coverage or ADR 0037's fuzz bridge by hand.
+      #
+      # embryonaut is deliberately excluded: its Bluebook source lives in
+      # a separate client repo (docs/decisions/0033-... and PR #394's own
+      # commit message — "embryonaut -> ~/Projects/embryonautfoundersapp/
+      # deploy"), so rust/src/generated/embryonaut/ is committed here
+      # with no way to regenerate it from this checkout at all. It stays
+      # coverage-checked against its own committed snapshot only, same as
+      # every "rust coverage: <domain>" step below already treats it —
+      # see bin/rust_coverage's own "Fallback mode" header for exactly
+      # what that can and can't prove.
+      #
+      # ORDER IS NOT ARBITRARY. Every domain below that `uses_framework
+      # "Governance"` (banking, compliance, pizzas) regenerates
+      # rust/src/generated/governance/ as a side effect, and each pass
+      # stamps that shared output's "GENERATED by ... examples/<domain>"
+      # attribution comment with whichever domain ran it last — content
+      # aside, that comment is real, load-bearing text this diff check
+      # would otherwise flag on every run regardless of whether anything
+      # actually drifted. Likewise `rust/Cargo.toml`'s `default` feature
+      # and `rust/src/generated/mod.rs`'s domain-exclusivity `cfg`s track
+      # whichever domain ran LAST, period. banking, compliance, pizzas,
+      # roster, ledger_ordering, nested_pieces, referral_chain,
+      # has_many_fixture, lease_clock, waybill is the one order that
+      # reproduces the committed tree byte-for-byte today (verified by
+      # hand before this step was extended to the qa/stress_domains
+      # trio, again when referral_chain joined, then again for
+      # `has_many_fixture` — BUG#25 — and again for `lease_clock`);
+      # change it and re-verify locally (`git diff --stat rust/` after
+      # running every `bin/project_rust` line below against a clean
+      # checkout) rather than guessing. `referral_chain`,
+      # `has_many_fixture`, and `lease_clock` are each slotted BEFORE
+      # `waybill`, not last, specifically so `waybill` stays the
+      # committed tree's own `default` feature — unrelated to any of the
+      # three additions, unchanged by any of them.
+      #
+      # `tenant_ledger` and `corrections` are NOT in this list despite
+      # both having real, committed `rust/src/generated/` output — a
+      # pre-existing gap outside this change's own scope (neither PR
+      # that added them extended this step), the same class as the
+      # `chess`/`embryonaut` exclusions below: this step simply never
+      # regenerates them, so a future edit to either bluebook would not
+      # be caught here. Left alone rather than silently "fixed" as a
+      # drive-by in an unrelated PR.
+      #
+      # qa/stress_domains/{ledger_ordering,nested_pieces,waybill} were
+      # added here after this exact gap caused a real false positive: a
+      # fix landed and was correctly regenerated into examples/* (BUG#20,
+      # PR #561), but qa/stress_domains/nested_pieces's own compiled Rust
+      # binary — never in this step's own regen list — was not
+      # regenerated alongside it, so a later differential fuzz sweep
+      # against it found what looked like a brand-new Ruby/Rust
+      # divergence but was actually just stale generated code repeating
+      # an already-fixed bug (see BUG#23's own investigation in
+      # qa/bluebook/quality_control.bluebook). `qa/stress_domains/
+      # referral_chain` (ANGLE-2, PR #580), `spec/fixtures/rust_
+      # project/has_many_fixture` (BUG#25 — the smallest domain that
+      # reaches `has_many`'s own Rust codegen path, see its own bluebook
+      # header), and `qa/stress_domains/lease_clock` (the QA detection
+      # plan's own "stress domains" backlog item: an explicit Integer
+      # clock argument, since neither runtime reads a wall clock, see
+      # that domain's own bluebook header and NOTES.md) were each added
+      # here for the identical reason: each has real, committed Rust
+      # output, so each follows the same "only regenerate a domain that
+      # already has committed Rust output" rule everything else in this
+      # list already does. embryonaut's own exclusion reasoning above
+      # applies identically to `chess`
+      # (examples/chess): it is NOT in this step's regen list either, a
+      # separate pre-existing gap outside this change's own scope — see
+      # whichever domain under qa/stress_domains/ (or spec/fixtures/
+      # rust_project/) has no rust/src/generated/<name>/ directory at
+      # all for the same rule; a stress domain or fixture authored
+      # Ruby-only, with no Rust projection yet, stays out of this list
+      # until one exists.
+      - name: "rust codegen: regenerate every in-repo domain, fail on drift from the committed tree"
+        run: |
+          bundle exec bin/project_rust examples/banking
+          bundle exec bin/project_rust examples/compliance
+          bundle exec bin/project_rust examples/pizzas
+          bundle exec bin/project_rust examples/roster
+          bundle exec bin/project_rust qa/stress_domains/ledger_ordering
+          bundle exec bin/project_rust qa/stress_domains/nested_pieces
+          bundle exec bin/project_rust qa/stress_domains/referral_chain
+          bundle exec bin/project_rust spec/fixtures/rust_project/has_many_fixture
+          bundle exec bin/project_rust qa/stress_domains/lease_clock
+          bundle exec bin/project_rust qa/stress_domains/waybill
+          git diff --exit-code -- rust/src/generated/ rust/Cargo.toml
+
+      # THE COVERAGE CHECKER, PER DOMAIN — a different question than
+      # `rspec_rust_io`'s "Build the Rust conformance binary" and rspec
+      # steps ask. Those check "did Ruby and Rust agree on this script";
+      # this checks "did bin/project_rust generate SOMETHING for every
+      # construct this domain's own IR declares, at all" — a gap class
+      # equivalence checking is structurally blind to (see
+      # bin/rust_coverage's own header). Reads each domain's
+      # already-committed rust/src/generated/<domain>/manifest.json +
+      # ir.json — no build needed first, which is exactly why this can
+      # live in a job with no Rust build step of its own. Exits non-zero
+      # on any un-allowlisted GAP finding; that exit code IS the gate,
+      # nothing here massages it.
+      - name: "rust coverage: pizzas"
+        run: bundle exec bin/rust_coverage pizzas
+
+      - name: "rust coverage: embryonaut"
+        run: bundle exec bin/rust_coverage embryonaut
+
+      - name: "rust coverage: governance"
+        run: bundle exec bin/rust_coverage governance
+
+      - name: "rust coverage: identity"
+        run: bundle exec bin/rust_coverage identity
+
+      # FORMERLY KNOWN RED — as of 2026-08-23, clean (0 GAP). Banking's two
+      # `read_model` constructs (ComplianceDashboard, CustomerPortfolio) are
+      # now on bin/rust_coverage's own ALLOWLIST, citing rust/project/
+      # read_models.rb's header note on group_by/rootless read models being
+      # a main-only concept this generator doesn't cover, plus rust/project/
+      # queries.rb's own eligibility argument. The underlying gap class
+      # (read_model has no Rust code path at all —
+      # rust/project/domain_generator.rb's "QUERIES AND READ MODELS"
+      # comment; docs/HECKS_IMPLEMENTATION_PLAN.md §8, docs/decisions/0013)
+      # is unchanged; what's new is the citation that lets the allowlist
+      # legitimately defer it instead of leaving it an unallowlisted GAP.
+      - name: "rust coverage: banking"
+        run: bundle exec bin/rust_coverage banking
+
+      # FORMERLY ALSO KNOWN RED — as of 2026-08-23, also clean (0 GAP).
+      # Bluebook's own `WholeBluebook` read_model (same whole-kind gap as
+      # banking's, above) and its 19 per-instance gaps (mostly "optional
+      # argument feeds a non-optional target" on `then_set append` shapes,
+      # plus two commands needing an extra caller-supplied identity
+      # parameter no JSON step shape carries) are now all on
+      # bin/rust_coverage's ALLOWLIST with doc citations — see rust/project/
+      # commands.rb's #optional_source_mismatches, rust/project/
+      # read_models.rb's header, and rust/project/domain_generator.rb's
+      # manifest_entry gap_class: "structural" comment. Nothing here was
+      # swallowed without a citation; the allowlist's own requirement for
+      # one still held.
+      - name: "rust coverage: meta"
+        run: bundle exec bin/rust_coverage meta
+
+      # THE KERNEL HALF of the same guarantee. bin/project_kernel_
+      # capabilities' own enums (AttributeShape/OperatorCategory) already
+      # make an exhaustive match over them a compile error the moment the
+      # grammar admits a new capability — enforced for free by the
+      # `rspec_rust_io` job's "Build the exemplar module" step, since
+      # kernel code isn't behind a domain feature flag (and that step
+      # running in a different job doesn't weaken this one — every job in
+      # this workflow must pass). What THIS step catches is the other
+      # half: a capability whose enum variant compiles clean but has no
+      # rust/src/kernel/<category>/<name>.rs file behind it at all — see
+      # bin/rust_kernel_coverage's own header.
+      - name: rust kernel coverage
+        run: bundle exec bin/rust_kernel_coverage
+
+      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
+      # exact gap the rubocop step's own comment below already names for
+      # itself, applied to the one pre-push check that comment's own
+      # audit had missed: pre-push is opt-in per clone (`git config
+      # core.hooksPath .githooks`) and bypassable (`git push
+      # --no-verify`), so a branch that never installed it, or a push
+      # made with that flag, reached GitHub with `bin/doc_coverage`
+      # never having run at all — on a project where most commits come
+      # from an agent, "did this clone install the hook" isn't a safe
+      # assumption. Same command pre-push already runs (`bin/doc_
+      # coverage`'s own header): every live word in docs/implemented/
+      # reference/ carries hand-written prose and a running example.
+      - name: doc coverage
+        run: bundle exec bin/doc_coverage
+
+      # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
+      # this same integration pass that wired
+      # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/
+      # SequentialHashRenameInLoop into .rubocop.yml's `require:` list
+      # (docs/rubocop-custom-cops.md). Those three cops each guard a real,
+      # already-shipped bug class (8+ instances of a same-receiver `||`
+      # fallback silently dropping a stored `false`; a thread-shared ivar
+      # mutation on Dispatcher/Registry; a hash rename loop clobbering its
+      # own keys mid-pass) — pre-push is opt-in per clone
+      # (`git config core.hooksPath .githooks`) and bypassable
+      # (`git push --no-verify`), so a branch that never installed it, or
+      # a push made with that flag, would otherwise reach GitHub with NONE
+      # of those three guards (or any other rubocop cop) having run at
+      # all — the exact "a push that skipped the hook... can't land red"
+      # gap ci.yml's own top-of-file comment already names as the
+      # reason `rspec`/`checks` both exist rather than trusting
+      # pre-push alone. Same command pre-push already runs, so nothing
+      # cop-specific is needed here (docs/rubocop-custom-cops.md's own
+      # closing note); confirmed clean against this tree before adding
+      # this step.
+      - name: rubocop
+        run: bundle exec rubocop -c .rubocop.yml
