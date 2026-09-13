@@ -253,6 +253,38 @@ jobs:
           echo "rspec_shard: $result — at least one shard did not succeed" >&2
           exit 1
 
+  # PHASE 7 DETECTOR — a plain checkout-and-verify, same detector-plus-
+  # gated-job shape `postgres_io_relevant_changed`/`runtime_changed` below
+  # already use, needed here for the same structural reason: a job-level
+  # `if:` can only read ANOTHER job's outputs via `needs:`, never a step's
+  # own output from within the SAME job, so skipping `rspec_shard` WHOLESALE
+  # (rather than skipping individual steps inside it, the finer-grained
+  # approach `checks_static` uses below since only 4 of its 5 steps are
+  # ever attested) needs this tiny separate job. See
+  # .github/actions/check-attestation's own header for the full mechanism
+  # and .githooks/pre-push's own "ATTESTATION" section for what writes the
+  # note this reads.
+  ci_attestation_rspec:
+    runs-on: ubuntu-latest
+
+    # Safe to skip outright on `push` (unlike `postgres_io_relevant_
+    # changed` below, which can't) — `rspec_shard`'s own `if:` short-
+    # circuits on `github.event_name != 'push'` BEFORE it ever looks at
+    # `needs.ci_attestation_rspec.outputs`, so this job's result is never
+    # consulted on that trigger either way.
+    if: github.event_name != 'push'
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
   # TWO-WAY MATRIX — 2,700+ examples on one 4-vCPU runner measured ~137s
   # (checks_fuzz's own header cites the sibling `bin/fuzz` figure as
   # comparison scale); splitting the file list across two runners, each
@@ -267,10 +299,17 @@ jobs:
   rspec_shard:
     runs-on: ubuntu-latest
 
+    needs: ci_attestation_rspec
+
     # Cache-warming push (see top-of-file comment) needs only
     # `rspec_postgres_io_parallel_shard` below — this job still gets its
-    # real gating run from `pull_request`/`merge_group` alone.
-    if: github.event_name != 'push'
+    # real gating run from `pull_request`/`merge_group` alone. The second
+    # clause is Phase 7: skip only when the exact tree checked out here
+    # was already proven clean by a local `parallel_rspec spec` run (see
+    # ci_attestation_rspec above) — the `rspec` aggregator's own
+    # `needs.rspec_shard.result` check already treats "skipped" the same
+    # as "success".
+    if: github.event_name != 'push' && needs.ci_attestation_rspec.outputs.attested != 'true'
 
     strategy:
       fail-fast: false
@@ -447,12 +486,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
+      # PHASE 7 — finer-grained than `rspec_shard`'s own whole-job skip
+      # above, on purpose: this job's 5 steps only overlap 4 of
+      # .githooks/pre-push's own checks (model_check, engine_agreement,
+      # doc_coverage, rubocop — NOT lint_deploy_recipes, which the hook
+      # never runs), so the attestation check lives HERE, as this job's
+      # own first step, and only those 4 steps below gain an `if:`
+      # against its output — lint_deploy_recipes always runs. A step
+      # CAN read another step's output from the SAME job directly
+      # (`steps.attest.outputs.*`), unlike a job-level `if:`, which is why
+      # this doesn't need the separate detector-job shape
+      # `ci_attestation_rspec` above uses.
+      - name: check attestation
+        id: attest
+        uses: ./.github/actions/check-attestation
+        with:
+          checks: model_check,engine_agreement,doc_coverage,rubocop
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
       # Static analysis over the IR — unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches — facts the
       # runtime itself never checks at dispatch time. Boots every corpus
       # member the same way corpus_spec does, plus the language's own
       # meta chapters.
       - name: model check
+        if: steps.attest.outputs.attested != 'true'
         run: bundle exec bin/model_check
 
       # THE MECHANICAL GUARD keeping `Ports::Query::InMemory` and
@@ -466,6 +524,7 @@ jobs:
       # `model check`/`doc coverage`/`rubocop`, not in `rspec` or the
       # cargo-heavy `checks_codegen_drift`.
       - name: engine agreement (query comparators)
+        if: steps.attest.outputs.attested != 'true'
         run: bundle exec bin/check_engine_agreement
 
       # THE MECHANICAL GUARD against the H13/H14/L20 "blind trust" bug
@@ -485,7 +544,10 @@ jobs:
       - name: lint generated deploy recipes
         run: bundle exec bin/lint_deploy_recipes
 
-      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
+      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push (this
+      # one carries a Phase 7 `if:` — the two below in `checks_codegen_
+      # drift` don't, since that job's attestation coverage is narrower;
+      # see its own steps) — the
       # exact gap the rubocop step's own comment below already names for
       # itself, applied to the one pre-push check that comment's own
       # audit had missed: pre-push is opt-in per clone (`git config
@@ -498,6 +560,7 @@ jobs:
       # coverage`'s own header): every live word in docs/implemented/
       # reference/ carries hand-written prose and a running example.
       - name: doc coverage
+        if: steps.attest.outputs.attested != 'true'
         run: bundle exec bin/doc_coverage
 
       # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
@@ -521,6 +584,7 @@ jobs:
       # closing note); confirmed clean against this tree before adding
       # this step.
       - name: rubocop
+        if: steps.attest.outputs.attested != 'true'
         run: bundle exec rubocop -c .rubocop.yml
 
   checks_codegen_drift:
