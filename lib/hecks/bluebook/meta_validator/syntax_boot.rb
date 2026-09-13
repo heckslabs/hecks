@@ -1,3 +1,6 @@
+require "digest"
+require "fileutils"
+
 module Hecks
   module Bluebook
     module MetaValidator
@@ -77,7 +80,12 @@ module Hecks
           chapters = MetaValidator.grammar_registry.bluebooks.to_a
           return @call if @call && same_chapters?(@call_chapters, chapters)
 
-          result = boot
+          result = read_disk_cache(chapters) || begin
+            fresh = boot
+            write_disk_cache(chapters, fresh)
+            fresh
+          end
+
           @call = result
           @call_chapters = chapters
           result
@@ -88,6 +96,110 @@ module Hecks
             cached.zip(current).all? do |(cached_name, cached_chapter), (name, chapter)|
               cached_name == name && cached_chapter.equal?(chapter)
             end
+        end
+
+        # CROSS-PROCESS PERSISTENCE for the SAME ~1s-per-build work `call`
+        # above already memoizes IN-process — this file's own chapter-
+        # identity keying only ever helps callers sharing one process (the
+        # in-memory fixpoint window, or `bin/reference`'s single run); every
+        # FRESH process (a `qa_sweep --all` child, a `parallel_rspec`
+        # worker, `bin/qa_sweep` itself) pays both real builds again from
+        # scratch even when the grammar source hasn't changed at all since
+        # the last process that built it.
+        #
+        # NOT A FIX FOR THE TWO-BUILDS-PER-PROCESS SHAPE — investigated and
+        # confirmed genuine, not waste (see this module's own header
+        # history: the previous "wait for the whole registry" design cost
+        # 42 rebuilds/32s per process precisely because real callers need a
+        # correct table mid-bootstrap, before Paging attaches). Both builds
+        # still happen once each per process; this only makes each of them
+        # a cheap disk read instead of a real ~1s dispatch, once some
+        # earlier process has already paid for that exact chapter-set +
+        # grammar-content combination.
+        #
+        # KEYED THE SAME WAY `same_chapters?` IS, TRANSLATED ACROSS PROCESS
+        # BOUNDARIES — chapter *object identity* (what the in-memory cache
+        # keys on) means nothing to a different process; chapter *names*,
+        # in the same order, do. Combined with a content hash of every
+        # grammar file `boot` can read from (`seed_chapters` walks every
+        # bluebook the registry holds, so this must cover the core chapters
+        # AND every attached one, not just "Bluebook" + "Paging") — a
+        # source edit anywhere in that set correctly misses the old cache
+        # entry rather than silently serving a stale table.
+        #
+        # FAILS TOWARD A REAL BOOT, NEVER TOWARD A WRONG TABLE — same
+        # loud-not-silent discipline this codebase already holds CI to
+        # (`postgres_io_relevant_changed`'s own header). A missing file, a
+        # corrupt Marshal blob, a permission error, an unwritable `tmp/` —
+        # every one of these degrades to "no disk cache today", never to a
+        # crash or a served-but-wrong table. `tmp/` is already gitignored
+        # for exactly this kind of local, disposable-but-useful-while-it-
+        # lasts artifact (`Storehouse::LOG_ROOT`'s own header names the
+        # same convention).
+        #
+        # ATOMIC WRITE, NOT A LOCK — `qa_sweep --all` spawns up to 4
+        # children at once, any of which could reach a cold cache
+        # simultaneously and each compute the identical real boot result
+        # for the identical key. Writing to a PID-suffixed temp file and
+        # `File.rename`ing it into place (a single atomic syscall on the
+        # same filesystem) means a concurrent second writer's rename just
+        # overwrites the first with byte-identical content — never a torn
+        # or partially-written file a concurrent reader could observe.
+        #
+        # `HECKS_SYNTAX_BOOT_CACHE=off` — an escape hatch needing no code
+        # change, the same shape `Storehouse::BOOT_ROOT`'s own
+        # `HECKS_STOREHOUSE_ROOT` override uses, for the day this needs to
+        # be ruled out while debugging something else entirely.
+        CACHE_DIR = File.expand_path("../../../../tmp/hecks_syntax_boot_cache", __dir__).freeze
+
+        def disk_cache_enabled? = ENV["HECKS_SYNTAX_BOOT_CACHE"] != "off"
+
+        def read_disk_cache(chapters)
+          return nil unless disk_cache_enabled?
+
+          path = disk_cache_path(chapters)
+          return nil unless File.exist?(path)
+
+          Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own process-local cache, never external input
+        rescue StandardError
+          nil
+        end
+
+        def write_disk_cache(chapters, result)
+          return unless disk_cache_enabled?
+
+          path = disk_cache_path(chapters)
+          FileUtils.mkdir_p(CACHE_DIR)
+          tmp_path = "#{path}.#{Process.pid}.tmp"
+          File.binwrite(tmp_path, Marshal.dump(result))
+          File.rename(tmp_path, path)
+        rescue StandardError
+          nil
+        end
+
+        def disk_cache_path(chapters)
+          File.join(CACHE_DIR, "#{disk_cache_key(chapters)}.marshal")
+        end
+
+        def disk_cache_key(chapters)
+          names = chapters.map { |name, _chapter| name }
+          Digest::SHA256.hexdigest("#{names.join(',')}:#{grammar_content_digest}")
+        end
+
+        # EVERY FILE `boot` CAN POSSIBLY READ FROM, via `seed_chapters`
+        # walking every bluebook the registry holds — not just "Bluebook"
+        # and "Paging" (the two chapters this module's own comments name
+        # most often), because World/Hecksagon/any future attached chapter
+        # are equally eligible to carry their own `KeywordSeed`/
+        # `ArgumentSeed` value object. Coarser than strictly necessary (any
+        # one file changing invalidates every cached key, not just the
+        # chapter it belongs to) — deliberately, since under-covering this
+        # set is a correctness bug (a stale table survives a real grammar
+        # edit) and over-covering it is only ever a wasted cache miss.
+        def grammar_content_digest
+          files = (MetaValidator::GRAMMAR_FILES + MetaValidator::WORLD_GRAMMAR + MetaValidator::HECKSAGON_GRAMMAR +
+                    Dir.glob(File.join(MetaValidator::ATTACHED_GRAMMAR_DIR, "*.bluebook"))).sort
+          Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
         end
 
         def boot

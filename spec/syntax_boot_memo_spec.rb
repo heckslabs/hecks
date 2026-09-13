@@ -15,9 +15,34 @@ require "spec_helper"
 # The cache is now keyed on the grammar registry's chapter set, by
 # identity — the exact inputs `boot` reads — so it is served precisely
 # while those inputs are unchanged and never otherwise. Three facts:
+#
+# DISK CACHE OFF FOR THIS WHOLE FILE. `SyntaxBoot` also persists its
+# result to disk across PROCESSES, keyed on chapter NAMES (not object
+# identity — a different process has no way to compare identity) plus a
+# content hash of the grammar files on disk. That is a coarser, correctly
+# content-addressed cache: two structurally-identical inputs, even
+# encountered at different moments, legitimately share one answer. This
+# file's own "boots again... and again once it leaves" example below
+# deliberately reverts the chapter NAME list to an earlier state within
+# ONE process (add a throwaway chapter, then remove it) specifically to
+# pin the IN-MEMORY memo's object-identity boundary — a real re-boot on
+# ANY identity change, never mind whether the reverted content happens to
+# match something already seen. The disk cache would otherwise correctly
+# serve that reverted, byte-identical state from what example 1 already
+# wrote, which is right for the disk cache's own contract and wrong for
+# what this file exists to prove. `stack-restore shaped`, same reasoning
+# `MetaValidator.while_disabled` already uses for its own toggle.
 RSpec.describe "SyntaxBoot's memo" do
   SyntaxBootUnderTest = Hecks::Bluebook::MetaValidator::SyntaxBoot
   MetaValidatorUnderTest = Hecks::Bluebook::MetaValidator
+
+  around do |example|
+    previous = ENV.fetch("HECKS_SYNTAX_BOOT_CACHE", nil)
+    ENV["HECKS_SYNTAX_BOOT_CACHE"] = "off"
+    example.run
+  ensure
+    ENV["HECKS_SYNTAX_BOOT_CACHE"] = previous
+  end
 
   it "answers from the cache while the grammar registry's chapters are unchanged" do
     first = SyntaxBootUnderTest.call
