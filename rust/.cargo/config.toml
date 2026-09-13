@@ -1,0 +1,18 @@
+# Phase 6's lld-linker half, rolled out here after the rust/parser
+# canary (PR #620) proved it safe — lld is available and this flag
+# syntax works on GitHub's ubuntu-latest runner image, confirmed live
+# on both a PR run and a real merge_group run, not assumed.
+#
+# THIS IS THE MAIN CRATE — the one every domain's generated code
+# (rust/src/generated/) compiles into, and the one most jobs in ci.yml
+# build against (rspec_rust_io, rspec_rust_io_build, rspec_rust_io_
+# deploy, and the self_consistency_rust_spec examples inside rspec_
+# postgres_io_parallel_shard). No native C library dependencies here
+# (confirmed: no openssl/libpq/-sys entries in Cargo.toml) — nothing
+# for lld to trip over the way a native-linked crate might.
+#
+# HARMLESS ON A CONTRIBUTOR'S OWN MACHINE — `[target.x86_64-unknown-
+# linux-gnu]` only applies when cargo is actually building for that
+# target triple; a local macOS build never matches this section.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
