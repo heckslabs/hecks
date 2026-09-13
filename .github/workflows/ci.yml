@@ -268,11 +268,7 @@ jobs:
     # the same empirical run coming back with 0 OTHER failures.
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # Every `io: true`/`fuzzing: true` spec that does a real `cargo
       # build` — the only kind of real I/O this job no longer provisions
@@ -349,11 +345,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       - name: bin/fuzz
         run: bundle exec bin/fuzz
@@ -367,11 +359,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # Static analysis over the IR — unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches — facts the
@@ -456,11 +444,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # THE GATE EVERY STEP BELOW THIS ONE WAS SILENTLY TRUSTING —
       # bin/rust_coverage and the "rust coverage: <domain>" steps below
@@ -705,11 +689,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # examples/pizzas/bluebook/pizzas.world wires straight at this
       # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
@@ -1069,11 +1049,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # PROVISIONED HERE TOO, EVEN THOUGH THE COMMENT ABOVE SAYS "moved to
       # the serial job" — found live (PR #488): `spec/load_hygiene_spec.rb`
@@ -1285,25 +1261,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # Scoped to just the root crate now that parser/codegen/host have
       # their own jobs/caches below — a dependency bump in, say,
       # rust/parser/Cargo.lock no longer invalidates this cache entry.
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
+          name: main
+          path: rust/target
 
       # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
       # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
@@ -1314,27 +1280,15 @@ jobs:
       # one running concurrently right now), so this lets that build
       # reuse whatever those two jobs already populated last time instead
       # of a guaranteed-cold `cargo build` on every single run.
-      - name: Cache Rust build artifacts (parser crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/parser/target
-          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-parser-
+          name: parser
+          path: rust/parser/target
 
-      - name: Cache Rust build artifacts (codegen crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/codegen/target
-          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-codegen-
+          name: codegen
+          path: rust/codegen/target
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -1442,46 +1396,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
+          name: main
+          path: rust/target
 
       # rust/build ("hecks-build") — a SEPARATE crate from the main one
       # above; this is the one file that builds it (`build_hecks_build!`,
       # class-load time, before any example runs).
-      - name: Cache Rust build artifacts (build crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            rust/build/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+          name: build
+          path: rust/build/target
+          include-registry: "false"
 
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
+      - uses: ./.github/actions/wasm-toolchain
 
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity"
         run: bundle exec rspec --tag io spec/hecks_build_pipeline_spec.rb
@@ -1503,34 +1434,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
+          name: main
+          path: rust/target
 
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
-
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
+      - uses: ./.github/actions/wasm-toolchain
 
       - name: "rspec: per-deploy Ruby/Rust parity gate"
         run: bundle exec rspec --tag io spec/project_deploy_parity_gate_spec.rb
@@ -1555,22 +1466,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (parser crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/parser/target
-          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-parser-
+          name: parser
+          path: rust/parser/target
 
       - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
@@ -1591,22 +1492,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (codegen crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/codegen/target
-          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-codegen-
+          name: codegen
+          path: rust/codegen/target
 
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
@@ -1650,22 +1541,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (host crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/host/target
-          key: ${{ runner.os }}-cargo-host-${{ hashFiles('rust/host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-host-
+          name: host
+          path: rust/host/target
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
@@ -1679,11 +1560,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # `spec/fuzzing/**`, tagged by PATH not by hand
       # (`config.define_derived_metadata(file_path: %r{/spec/fuzzing/})`,
@@ -1811,11 +1688,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # NO FLAGS — this script's own defaults (30 runs of each group,
       # Etc.nprocessors parallel copies of the parallel-safe group, the
