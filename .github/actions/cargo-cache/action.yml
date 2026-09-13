@@ -1,19 +1,65 @@
 name: Cargo build cache
 description: >-
   Restores (and, at job end, saves) one Rust crate's target dir, keyed on
-  that crate's own Cargo.lock. Five crates in this repo need this
-  identically shaped cache — the main rust/ crate, rust/parser,
-  rust/codegen, rust/host, rust/build — and both ci.yml and
-  cache-warm.yml had their own copy-pasted block per crate (16
-  occurrences total, counted before this action existed).
+  that crate's own Cargo.lock AND source tree. Five crates in this repo
+  need this identically shaped cache — the main rust/ crate, rust/parser,
+  rust/codegen, rust/host, rust/build — and both ci.yml and cache-warm.yml
+  had their own copy-pasted block per crate (16 occurrences total, counted
+  before this action existed).
+
+  PHASE 8 OF THE CI SPEED EFFORT — CONTENT-ADDRESSED, NOT JUST DEPENDENCY-
+  ADDRESSED. The key used to be `hashFiles('<path>/Cargo.lock')` where
+  `<path>` was the TARGET dir (e.g. "rust/target") — a REAL BUG, found
+  while extending this action, not guessed: Cargo.lock lives at the
+  CRATE ROOT ("rust/Cargo.lock"), never inside its own target dir, so
+  that pattern matched nothing and `hashFiles` silently returned an empty
+  string on every single call site — the cache key never actually varied
+  with Cargo.lock content at all (every restore fell back to the constant
+  `restore-keys` prefix regardless of what changed; cargo's own internal
+  fingerprinting in target/.fingerprint/ happened to paper over this by
+  still doing correct incremental rebuilds off a stale target dir, which
+  is why nothing user-visible broke). Fixed by replacing the `path`
+  (target dir) input with `crate-root` (the crate's own root, where
+  Cargo.lock and src/ actually live) and deriving the target dir from
+  it — `path` was never anything but "<crate-root>/target" at any of
+  this action's 14 call sites, confirmed by grep, not assumed.
+
+  The key now also hashes `<crate-root>/src/**` alongside Cargo.lock —
+  this is the actual Phase 8 win: an unchanged crate (dependencies AND
+  source, generated code included for the main crate, since rust/src/
+  generated/ lives under rust/src/) gets the exact same key on a later
+  run and pulls a real, already-compiled target dir instead of paying
+  cargo's own incremental-but-still-real recompile cost; a changed
+  crate gets a genuinely different key and builds for real, no
+  approximation. Delivers the cross-RUN half of the plan's original
+  Phase 8 proposal ("an unchanged domain is never compiled again")
+  using the SAME `actions/cache` mechanism this whole workflow already
+  relies on elsewhere (cross-run persistence via the `push: branches:
+  [main]` cache-warming trigger — see ci.yml's own top comment) — NOT
+  the plan's original GHCR/oras design. That fuller design (genuinely
+  independent PARALLEL jobs in the SAME run sharing one build the
+  instant it finishes, which `actions/cache` structurally cannot do —
+  a save only becomes visible to OTHER runs, never to a job still
+  in-flight in the same run) is deliberately deferred: reading these
+  jobs' own spec files closely while extending this action found real
+  complexity the original proposal didn't account for — several specs
+  (spec/project_rust_pipeline_spec.rb and others; see rspec_rust_io's
+  own header) back up and restore rust/src/generated/+Cargo.toml
+  PER EXAMPLE, meaning the actual compiled content within a single job
+  is NOT a single stable artifact a content hash could name cleanly the
+  way a registry-based design assumes — verifying a true binary-registry
+  design against that would need real testing against a live GHCR
+  endpoint this environment can't do blind, so it stays a follow-up
+  rather than shipping unverified.
 inputs:
   name:
     description: Crate name for the cache key (main/parser/codegen/host/build).
     required: true
-  path:
+  crate-root:
     description: >-
-      The crate's own target directory, relative to the repo root (e.g.
-      "rust/target", "rust/parser/target").
+      The crate's own root directory, relative to the repo root (e.g.
+      "rust", "rust/parser") — where its Cargo.lock and src/ actually
+      live. The cached target dir is always "<crate-root>/target".
     required: true
   include-registry:
     description: >-
@@ -33,15 +79,15 @@ runs:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          ${{ inputs.path }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.path)) }}
+          ${{ inputs.crate-root }}/target
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
 
     - if: inputs.include-registry != 'true'
       uses: actions/cache@v4
       with:
-        path: ${{ inputs.path }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.path)) }}
+        path: ${{ inputs.crate-root }}/target
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
