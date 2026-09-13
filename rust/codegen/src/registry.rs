@@ -470,8 +470,38 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             let identity_heads: Vec<&str> =
                 a.identified_by.iter().map(|p| p.split('.').next().unwrap_or(p.as_str())).collect();
             let collision_key = !c.creates && identity_heads.len() == 1 && c.attributes.iter().any(|attr| attr.as_str() == identity_heads[0]);
+            // BUG#56 (qa/bluebook/quality_control.bluebook) — an ACTING
+            // command's own `id_line`, below, already validates an
+            // explicit `to:`'s route depth EAGERLY, ahead of `role_line`
+            // — matching Ruby's own `Dispatcher#dispatch`, which resolves
+            // `Routing.envelope(to)` unconditionally, for EVERY aggregate
+            // command, creating or acting alike, strictly before
+            // `@commands.call` (the door to `CommandInterpreter`'s own
+            // `DISPATCH_ORDER`, `refuse_role_mismatch` included) ever
+            // runs. A CREATING command's own generated `dispatch_*`
+            // function already runs the SAME `route.require_depth(0)?`
+            // check — but only INTERNALLY, deep inside its own
+            // `Hydrate::Create`/`Hydrate::Act` decision, built as an
+            // ARGUMENT to `crate::kernel::dispatch(...)` — and this
+            // router only ever calls that generated function AFTER
+            // `check_role` has already run. A caller offering an
+            // explicit, wrong-depth `to:` (an entity route on an
+            // aggregate-level creating command, say — undeclared,
+            // route-shaped) alongside an unauthorized actor used to
+            // refuse `Unauthorized` here, where Ruby had already refused
+            // `TypeMismatch` on the route itself before ever reaching a
+            // role check at all — confirmed live, `Governance::
+            // RoleTransition.Grant`, `bin/qa_sweep banking --seeds 40
+            // --adversarial 0.3 --role-draw 0.25`. This line closes that
+            // gap the same way `id_line` already does for an acting
+            // command: eagerly, ahead of everything else in this arm — a
+            // plain validation, not an identity computation (a creating
+            // command's own identity comes from its declared attributes,
+            // never from `route`), so nothing is bound from it.
+            let creating_route_precheck_line =
+                "if let Some(route) = route { route.require_depth(0)?; }".to_string();
             let id_line = if c.creates {
-                String::new()
+                creating_route_precheck_line
             } else {
                 let acting_no_identity_message = format!(
                     "{} acts on an existing {} — pass {}:",

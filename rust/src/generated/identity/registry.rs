@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
                       args.identity_id.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -110,6 +111,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.issuer.check_invariants()?;

@@ -927,10 +927,17 @@ pub fn generate(
             // struct-literal field initializers evaluate in the order
             // written, so borrowing it again in a LATER field expression
             // would use it after that move. `None` for a CREATING
-            // command: `id_line` is never emitted for one (registry.rs's
-            // own `if c.creates { String::new() } else { ... }`), so
-            // there is no identity-resolution-before-structural-checks
-            // race for this fix to close there.
+            // command: `id_line` (registry.rs's own `if c.creates {
+            // ... } else { ... }`) resolves no IDENTITY at all there —
+            // a creating command's own identity comes from its declared
+            // attributes, never from `facts_json` — so there is no
+            // identity-resolution-before-structural-checks race for this
+            // fix to close there. BUG#56 (qa/bluebook/quality_control.
+            // bluebook) later gave a creating command's own `id_line` a
+            // real body too — an eager `route.require_depth(0)?`
+            // precheck — but that validates `route`, a piece of data
+            // entirely separate from `facts_json`, so it still cannot
+            // race this field's own check.
             let structural_precheck = if creates {
                 None
             } else {
