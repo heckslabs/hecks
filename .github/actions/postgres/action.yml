@@ -59,11 +59,17 @@ runs:
         # the distro's own default file already has a stricter rule for
         # 127.0.0.1/::1 earlier in the file that would otherwise shadow
         # ours.
+        # `sudo cat`, NOT PLAIN `cat` — pg_hba.conf is owned by the
+        # `postgres` user/group, mode 640 by default, unreadable by the
+        # unprivileged runner user this whole script otherwise runs as.
+        # (Found live on this action's own first real CI run: plain
+        # `cat "$HBA_FILE"` failed "Permission denied", failing both
+        # rspec_postgres_io and rspec_rust_host before this fix.)
         HBA_FILE=$(sudo -u postgres psql -tAc "SHOW hba_file;")
         {
           echo "host all all 127.0.0.1/32 trust"
           echo "host all all ::1/128 trust"
-          cat "$HBA_FILE"
+          sudo cat "$HBA_FILE"
         } | sudo tee "$HBA_FILE.new" > /dev/null
         sudo mv "$HBA_FILE.new" "$HBA_FILE"
 
