@@ -1,0 +1,24 @@
+# Phase 6's lld-linker half, rolled out here after the rust/parser
+# canary (PR #620) proved it safe — see rust/.cargo/config.toml's own
+# header for the full reasoning. This is rust/host ("mint_harness"/
+# "lineage_harness"), built by rust_host_lineage_conformance_spec.rb's
+# own before(:context) hooks inside rspec_rust_host — the one crate that
+# talks to Postgres (tokio-postgres), but does so over rustls, NOT
+# native-tls/OpenSSL (confirmed via this crate's own Cargo.toml comment:
+# "RDS Postgres requires TLS... Rust (rustls), not native-tls/OpenSSL").
+# No native C library dependencies here either — same as the other four
+# crates, nothing for lld to trip over.
+#
+# COULD NOT LOCALLY VERIFY A CARGO BUILD OF THIS SPECIFIC CRATE — this
+# Mac's local rustc (1.94.0) is one patch version behind what several
+# AWS SDK dependencies in this crate's own Cargo.lock require (1.94.1),
+# a pre-existing toolchain-staleness issue confirmed unrelated to this
+# file (the identical failure happens with this file absent too — see
+# the commit history). Not a linker problem: the failure occurs during
+# dependency-version resolution, before any target-scoped rustflags
+# would even be consulted. GitHub's own runner already builds this
+# crate successfully today (confirmed: rspec_rust_host passed on PR
+# #620's own merge_group run), so this file's real verification is that
+# job's next real run, not a local build here.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
