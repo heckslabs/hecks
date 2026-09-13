@@ -199,7 +199,110 @@ module RustProjection
           # `RefusalWording.render("NotFound", "acting_no_identity", ...)`
           # produces on the Ruby side.
           acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
-          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
+          # `collision_key` — BUG#54 (qa/bluebook/quality_control.bluebook)
+          # — a WIRE-KEY COLLISION `structural_precheck_line` (BUG#23)
+          # can't reach: `LedgerOrdering::Folder.AddSlip`'s bare
+          # `reference_to Folder` addresses the aggregate through this
+          # `id_line` using `a[:identified_by]`'s own head name
+          # (`reference` — no `as:` mints a separate wire key) — the SAME
+          # wire key `AddSlip` also separately declares as its own typed
+          # argument (`attribute :reference, SlipReference`, a DIFFERENT
+          # value-object type than the aggregate's own identity type). A
+          # malformed `reference` (`null`, `{}`, or `{value: ""}` — every
+          # shape `extract_id` itself refuses, directly or through
+          # `to_id_component`'s own empty-string guard, R4) makes
+          # `extract_id` fail to resolve ANY identity (BUG#20's own case)
+          # and `id_line` below wraps that into `NotFound` before `#{c[:
+          # args_struct]}::from_json` — the one place `SlipReference`'s
+          # own `required`/pattern check on this SAME key would raise
+          # `TypeMismatch` — ever runs. Ruby's `normalize_args` types
+          # EVERY declared attribute (`reference` included, regardless of
+          # it ALSO being this command's addressing key) unconditionally
+          # before `hydrate`, so it always reaches `TypeMismatch` first;
+          # `id_line`'s ordering can't, structurally, for this collision.
+          #
+          # `collision_key` finds this predicate's ONE colliding attribute
+          # (`a[:identified_by]` is exactly one head AND that head's
+          # plain name is among `c[:attributes]`) — `nil` for every
+          # command in the real corpus and every OTHER command in this
+          # stress domain today (confirmed: no aggregate-level acting
+          # command anywhere else bare-references its owner AND
+          # redeclares that SAME name as its own attribute; verified by
+          # grepping every `identified_by`/`reference_to`/`attribute`
+          # triple in `examples/` and `qa/stress_domains/`) — so `id_line`
+          # below takes its ORIGINAL, UNCHANGED shape, and generated
+          # output is BYTE-IDENTICAL, for every command but this one.
+          #
+          # When the predicate DOES hold, `id_line` no longer wraps
+          # `extract_id`'s failure straight into `NotFound` — it tries
+          # this command's OWN, already-generated argument pipeline
+          # FIRST, inside `extract_id`'s own `Err` arm: the identical
+          # `#{c[:args_struct]}::from_json(facts_json)` call `*extra_
+          # lines, "let args = ..."` already makes two lines down, PLUS
+          # this command's own `invariant_check_lines` (the identical
+          # `args.<field>.check_invariants()?` calls this match arm's
+          # body already runs after `args::from_json` succeeds) — spliced
+          # in VERBATIM, not re-derived, so there is zero risk of drift
+          # between this early copy and the real one. Only if THAT
+          # produces no refusal at all does the code fall through to the
+          # ORIGINAL `NotFound`/`acting_no_identity` wording. This closes
+          # every malformed shape `extract_id` itself can ever refuse on
+          # (not just `null`/`{}}`, a narrower version of this fix tried
+          # first and found insufficient — BUG#54's own adversarial
+          # mutation family also produces a THIRD shape, a syntactically
+          # well-formed `{value: ""}` that `to_id_component`'s own R4
+          # empty-string guard refuses at `extract_id` while `Slip
+          # Reference`'s own pattern still fails it identically) WITHOUT
+          # having to enumerate them: `extract_id` failing at all is
+          # exactly the one condition needed, since `extract_id`'s own
+          # composite-identity path and this command's own value-object
+          # field read the EXACT SAME underlying JSON — whenever one
+          # cannot find a usable value neither can the other, so this can
+          # never turn a case where Ruby's `normalize_args` silently
+          # succeeds (deferring to a real `hydrate` `NotFound`, matching
+          # what `id_line` already answered before this fix) into a
+          # wrongly-surfaced argument refusal instead.
+          #
+          # That "only inside `extract_id`'s OWN failure arm" gate is
+          # deliberate, not incidental: it is what keeps this from being
+          # either of the two shapes already tried here and reverted —
+          #   1. NOT BUG#4's own first attempt (PR #529's commit message)
+          #      — deferring EXISTENCE-CHECKING broadly past argument
+          #      parsing for every command; the happy path (`extract_id`
+          #      resolving an identity, the overwhelming majority of
+          #      calls) is entirely untouched — this only ever runs
+          #      inside the ALREADY-failing arm, and only ever for the
+          #      one command matching the collision predicate above.
+          #   2. NOT BUG#38's own first attempt (this file's `entity_
+          #      commands` header, domain_generator.rb) — running a
+          #      declared argument's OWN value-object coercion UNGATED,
+          #      on the happy path, before `extract_id` runs at all,
+          #      which surfaced a separate, still-open bug (BUG#41: a
+          #      single-attribute value object's own `from_json` refuses
+          #      `UnknownArgument` on an object with an extra key BEFORE
+          #      its own missing-field check). This fix's own early
+          #      argument pipeline runs STRICTLY AFTER `extract_id` has
+          #      ALREADY failed — an input shaped so BUG#41's own gap
+          #      could fire here (an extra key on an object that is ALSO
+          #      missing the field `extract_id` itself needs) was ALREADY
+          #      going to diverge from Ruby before this fix (as `NotFound`
+          #      instead of whatever Ruby's `normalize_args` truly raises,
+          #      the exact BUG#54 shape) — this fix can only ever trade
+          #      one already-wrong answer for BUG#41's own, separately-
+          #      catalogued one on that narrow slice, never break a case
+          #      that agreed before it.
+          identity_heads = Array(a[:identified_by]).map { |path| path.split(".").first }
+          collision_key = (!c[:creates] && identity_heads.length == 1 && c[:attributes].include?(identity_heads.first)) ? identity_heads.first : nil
+          not_found_expr = "crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string())"
+          id_line =
+            if c[:creates]
+              ""
+            elsif collision_key
+              collision_fallback = ["let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;", *c[:invariant_check_lines], "return Err(#{not_found_expr});"].join(" ")
+              "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => match #{mod_path}::#{a[:record]}::extract_id(facts_json) { Ok(resolved) => resolved, Err(_) => { #{collision_fallback} } }, };"
+            else
+              "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| #{not_found_expr})?, };"
+            end
           # BUG#23 (qa/bluebook/quality_control.bluebook) — Ruby's own
           # `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_
           # absent_arguments` structurally BEFORE `hydrate`, but `id_line`

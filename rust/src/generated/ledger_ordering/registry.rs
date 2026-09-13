@@ -117,7 +117,7 @@ if !absent.is_empty() {
     ])));
 }
  }
-              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AddSlip acts on an existing Folder — pass reference.value:".to_string()))?, };
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => match crate::generated::ledger_ordering::folder::Folder::extract_id(facts_json) { Ok(resolved) => resolved, Err(_) => { let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;         args.reference.check_invariants()?;         args.amount.check_invariants()?; return Err(crate::kernel::Refusal::NotFound("AddSlip acts on an existing Folder — pass reference.value:".to_string())); } }, };
               let args = crate::generated::ledger_ordering::folder::AddSlipArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
