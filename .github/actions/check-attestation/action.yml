@@ -1,0 +1,133 @@
+name: Check CI attestation
+description: >
+  Phase 7 of the CI speed effort — "let the pre-push hook prove its work".
+  When .githooks/pre-push runs clean on a developer's own machine, it signs
+  the checked-out tree's hash with a shared secret and writes a git note
+  under refs/notes/ci naming exactly which checks it ran, then pushes that
+  note alongside the branch (see .githooks/pre-push's own attestation
+  section). This action re-derives the same HMAC from the SAME tree hash
+  CI itself just checked out and the SAME secret (an Actions repo secret,
+  threaded in as `hmac-key` since a composite action's own steps have no
+  direct `secrets.*` access — only the calling job does), and reports
+  whether every check the CALLER asked about (`checks` input) was both
+  attested AND actually verifiable, not just claimed.
+
+  KEYED BY TREE HASH, NOT COMMIT SHA — deliberately. `git notes` normally
+  attaches to a commit, but the attestation here is attached to
+  `HEAD^{tree}` directly (a tree object note is exactly as valid a git
+  notes target as a commit note; see the hook's own comment on why). That
+  makes lookup identical whether the checked-out HEAD is a PR branch's own
+  commit or a merge_group run's synthetic merge commit — MOST merge_group
+  runs get a DIFFERENT tree than the PR (main moved, or the merge itself
+  wasn't a no-op), so attestation correctly won't match and the real job
+  runs; but when main hasn't moved and the merge is trivial, the merged
+  tree is byte-identical to the PR's own tree, and a lookup keyed on tree
+  hash finds the SAME note the PR run already fetched — a lookup keyed on
+  commit SHA never could, since that synthetic commit didn't exist when
+  the note was written. This is the one part of the design flagged
+  UNVERIFIED until a real merge_group run confirms it end to end: does
+  `actions/checkout`'s default fetch bring along enough object history for
+  `git rev-parse HEAD^{tree}` on the synthetic merge to actually match the
+  PR tree bit-for-bit? Treated as "probably yes, GitHub constructs a real
+  merge commit" but not yet observed on a live run.
+
+  FAILS TOWARD "NOT ATTESTED", NEVER TOWARD "SKIP THE REAL WORK" — same
+  loud-not-silent convention this whole workflow already follows
+  (postgres_io_relevant_changed's own header names it explicitly). No
+  note, a tree-hash mismatch, an HMAC mismatch, a missing/empty `hmac-key`
+  (fork PRs never receive repo secrets on the `pull_request` event — this
+  is the mechanism, not a bug, that makes a fork PR "run as today" per the
+  plan), or a requested check name absent from the note's own list all
+  produce `attested: false`, quietly, with no failed step — the calling
+  job's real steps just run instead, exactly as if this action didn't
+  exist.
+
+inputs:
+  checks:
+    description: >
+      Comma-separated check names this caller wants attested (must all be
+      present in the note's own `checks=` list for `attested` to be
+      `true`) — e.g. `rspec` or `model_check,engine_agreement,doc_coverage,rubocop`.
+      Matched against exactly the same names .githooks/pre-push writes.
+    required: true
+  hmac-key:
+    description: >
+      The shared secret, threaded in from the calling job's own
+      secrets.HECKS_CI_ATTEST_KEY (a composite action has no direct
+      secrets context of its own — see this file's own top comment) —
+      empty (and therefore always `attested: false`) on any run that
+      doesn't have that secret, which is exactly how a fork PR's run is
+      meant to behave. NOTE: this description deliberately never spells
+      out that reference as a literal double-curly-brace template
+      expression (the exact syntax `run:`/`env:`/`with:` values use to
+      pull in context) — GitHub evaluates that syntax everywhere in an
+      action.yml, description strings included, and a composite action
+      has no secrets context to evaluate it against; a first version of
+      this file crashed on exactly that, confirmed live on this PR's own
+      first CI run (see the commit history for the fix).
+    required: true
+
+outputs:
+  attested:
+    description: '"true" only if every requested check verified against a real, HMAC-valid note on this exact tree; "false" otherwise — never fails the step.'
+    value: ${{ steps.verify.outputs.attested }}
+
+runs:
+  using: composite
+  steps:
+    # Best-effort — a repo with no notes pushed yet (or a shallow/partial
+    # object set that can't resolve them) must not fail this step; every
+    # downstream branch already treats "no note found" as attested=false.
+    - name: Fetch the ci attestation notes ref
+      shell: bash
+      run: git fetch origin refs/notes/ci:refs/notes/ci || true
+
+    - name: Verify attestation for this tree
+      id: verify
+      shell: bash
+      env:
+        WANT_CHECKS: ${{ inputs.checks }}
+        HMAC_KEY: ${{ inputs.hmac-key }}
+      run: |
+        attested=false
+        tree=$(git rev-parse HEAD^{tree})
+
+        if [ -n "$HMAC_KEY" ]; then
+          note=$(git notes --ref=ci show "$tree" 2>/dev/null || true)
+          if [ -n "$note" ]; then
+            note_checks=$(printf '%s\n' "$note" | sed -n 's/^checks=//p')
+            note_hmac=$(printf '%s\n' "$note" | sed -n 's/^hmac=//p')
+            expected_hmac=$(printf '%s:%s' "$tree" "$note_checks" | openssl dgst -sha256 -hmac "$HMAC_KEY" -r | awk '{print $1}')
+
+            if [ -n "$note_hmac" ] && [ "$note_hmac" = "$expected_hmac" ]; then
+              # Every comma-separated name in WANT_CHECKS must appear in
+              # note_checks' own comma-separated list — checked one at a
+              # time rather than a single substring match, so "rspec"
+              # can't false-match a hypothetical future "rspec_rust" entry.
+              all_present=true
+              old_ifs=$IFS
+              IFS=','
+              for want in $WANT_CHECKS; do
+                found=false
+                for have in $note_checks; do
+                  if [ "$want" = "$have" ]; then
+                    found=true
+                    break
+                  fi
+                done
+                if [ "$found" = false ]; then
+                  all_present=false
+                  break
+                fi
+              done
+              IFS=$old_ifs
+
+              if [ "$all_present" = true ]; then
+                attested=true
+              fi
+            fi
+          fi
+        fi
+
+        echo "attested=$attested" >> "$GITHUB_OUTPUT"
+        echo "[check-attestation] tree=$tree want=$WANT_CHECKS attested=$attested"

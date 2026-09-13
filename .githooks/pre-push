@@ -121,3 +121,59 @@ if ! (cd "$ROOT" && bundle exec rubocop -c .rubocop.yml); then
 fi
 
 printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean.\n\n'
+
+# ATTESTATION — Phase 7 of the CI speed effort ("let the pre-push hook
+# prove its work"): everything above this line just verified, on THIS
+# machine, exactly the work CI's own `rspec_shard` and four of
+# `checks_static`'s five steps (model_check, engine_agreement,
+# doc_coverage, rubocop — NOT lint_deploy_recipes, which this hook never
+# runs) redo from scratch on every push. A git note under refs/notes/ci,
+# keyed by `HEAD^{tree}` (a TREE object note, not a commit note — see
+# .github/actions/check-attestation's own header for why that's the part
+# that lets this survive into a merge_group run whose commit didn't exist
+# yet when this note was written), carries an HMAC over the tree hash and
+# the exact check names above, signed with a secret that lives ONLY in
+# this machine's own keychain and as the matching GitHub Actions secret
+# (HECKS_CI_ATTEST_KEY) — nowhere else, same trust boundary a solo repo
+# already extends to its own laptop. CI re-derives the same HMAC and
+# skips only the checks named here; it never trusts the note's own claim
+# without recomputing it.
+#
+# BEST-EFFORT, NEVER BLOCKING — everything below is wrapped so a missing
+# keychain entry (a fresh clone, a non-macOS machine, `security` not on
+# PATH) or a failed `git push` of the notes ref (no write access, offline)
+# degrades to "no attestation note travels with this push," not a blocked
+# push. The checks above already gated correctness; this only ever adds a
+# speed optimization CI is free to ignore.
+#
+# `--no-verify` ON THE NOTES PUSH IS LOAD-BEARING, NOT DEFENSIVE — found
+# by actually running this, not guessed: `git push` of ANY ref invokes
+# pre-push again, this same file included, since core.hooksPath applies
+# to every push regardless of what's being pushed. Without `--no-verify`
+# here, pushing refs/notes/ci re-entered this entire script (the full
+# rspec suite included) a second time before the outer push of the actual
+# branch could proceed — confirmed live: a real push took two full local
+# suite runs instead of one until this flag was added. The inner
+# recursive call's own attestation step would in turn try to push
+# refs/notes/ci YET AGAIN; that this only cost one extra run rather than
+# recursing without bound was incidental (the second push found the ref
+# already up to date at origin and skipped invoking the hook a third
+# time) — not a guarantee worth relying on.
+ATTEST_KEY=$(security find-generic-password -a "$(whoami)" -s hecks-ci-attest-key -w 2>/dev/null || true)
+
+if [ -n "$ATTEST_KEY" ]; then
+  ATTEST_TREE=$(git rev-parse HEAD^{tree})
+  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rspec,rubocop"
+  ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')
+
+  if git notes --ref=ci add -f -m "checks=$ATTEST_CHECKS
+hmac=$ATTEST_HMAC" "$ATTEST_TREE" 2>/dev/null; then
+    if git push --no-verify origin refs/notes/ci >/dev/null 2>&1; then
+      printf '[pre-push] attestation note written and pushed for tree %s\n\n' "$ATTEST_TREE"
+    else
+      printf '[pre-push] attestation note written locally but the push failed (no write access, offline, or notes ref diverged) — push proceeding without it\n\n'
+    fi
+  fi
+else
+  printf '[pre-push] no local attestation key in keychain (service "hecks-ci-attest-key") — push proceeding without a CI attestation note\n\n'
+fi
