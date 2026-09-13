@@ -320,7 +320,7 @@ if !unknown.is_empty() {
  } let parent_id = crate::generated::roster::roster::Roster::extract_id(facts_json)?; let element_id = crate::generated::roster::roster::Member::extract_id(facts_json)?; let element_wants = crate::generated::roster::roster::Member::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::roster::roster::MemberRetireEntityArgs::from_json(facts_json)?;
                       if let Some(v) = &args.id { v.check_invariants()?; }
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Roster::Roster", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

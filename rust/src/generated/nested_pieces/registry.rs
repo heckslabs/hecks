@@ -152,7 +152,7 @@ if !absent.is_empty() {
               let args = crate::generated::nested_pieces::workspace::BoardAddCardEntityArgs::from_json(facts_json)?;
                       args.sequence.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "AddCard", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -184,7 +184,7 @@ if !absent.is_empty() {
               let args = crate::generated::nested_pieces::workspace::BoardLabelEntityArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Label", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -216,7 +216,7 @@ if !absent.is_empty() {
               let args = crate::generated::nested_pieces::workspace::CardAnnotateNestedEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::nested_pieces::workspace::dispatch_entity_board_card_annotate(&mut store.workspace, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
