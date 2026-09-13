@@ -30,8 +30,11 @@
 #      explains the gap it closes).
 #   4. `bin/qa_sweep --all` — the whole rotation, bounded and with stale
 #      holds reclaimed (that script's own header).
-#   5. One consolidated report, and ONE exit code with `bin/qa_sweep
-#      --all`'s own precedence applied across BOTH steps:
+#   5. `bin/qa_generated_domains --from-dials` — domains nobody wrote,
+#      checked the way the rotation is (that script's own header); off
+#      when `QualityControlDials::GENERATED_DOMAINS_PER_TICK` is 0.
+#   6. One consolidated report, and ONE exit code with `bin/qa_sweep
+#      --all`'s own precedence applied across EVERY step:
 #        2  either step found something (a newly-red PR, or a target
 #           that surprised) — an agent's judgment is needed, and the
 #           report above says exactly where;
@@ -126,6 +129,9 @@ puts sweep_output
 sweep_exit = sweep_status.exitstatus
 reclaimed  = sweep_output.scan(/^reclaimed stale hold: (\S+)/).flatten
 
+banner "bin/qa_generated_domains --from-dials"
+generated_exit = run_step("bundle", "exec", "ruby", File.join(ROOT, "bin/qa_generated_domains"), "--from-dials")
+
 # ── 5. one report, one exit code ───────────────────────────────────────
 
 def verdict(code)
@@ -140,10 +146,11 @@ end
 banner "tick report"
 puts "bin/qa_pr_check:   #{verdict(pr_check_exit)} (exit #{pr_check_exit.inspect})"
 puts "bin/qa_sweep --all: #{verdict(sweep_exit)} (exit #{sweep_exit.inspect})"
+puts "bin/qa_generated_domains: #{verdict(generated_exit)} (exit #{generated_exit.inspect})"
 named = reclaimed.empty? ? "" : " (#{reclaimed.join(', ')})"
 puts "stale holds reclaimed: #{reclaimed.size}#{named}"
 
-exits = [pr_check_exit, sweep_exit]
+exits = [pr_check_exit, sweep_exit, generated_exit]
 tick_exit =
   if exits.include?(EXIT_FOUND_SOMETHING) then EXIT_FOUND_SOMETHING
   elsif exits.all?(EXIT_OK) then EXIT_OK

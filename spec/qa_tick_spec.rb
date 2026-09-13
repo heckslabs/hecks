@@ -102,8 +102,11 @@ RSpec.describe "bin/qa_tick", :io do
            out: File::NULL, err: File::NULL) or raise "git #{args.join(' ')} failed"
   end
 
+  # `QA_GENERATED_DOMAINS_PER_TICK=0` — the generated-domains step runs
+  # from the REAL checkout's dials, which a throwaway tick must not spend
+  # minutes generating and building against; zero is its own "off" path.
   def tick
-    @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo })
+    @ledger.run("qa_tick", env: { "QA_REPO_DIR" => @repo, "QA_GENERATED_DOMAINS_PER_TICK" => "0" })
   end
 
   def identify!(targets)
@@ -132,6 +135,11 @@ RSpec.describe "bin/qa_tick", :io do
     expect(pr_check_at).not_to be_nil
     expect(sweep_at).not_to be_nil
     expect(pr_check_at).to be < sweep_at
+    generated_at = stdout.index("── bin/qa_generated_domains --from-dials")
+    expect(generated_at).not_to be_nil
+    expect(sweep_at).to be < generated_at
+    expect(stdout).to include("generated domains: off (QualityControlDials::GENERATED_DOMAINS_PER_TICK is 0)",
+                              "bin/qa_generated_domains: clean (exit 0)")
     expect(stdout).to include("── git fetch origin && git rebase origin/main",
                               "no PRs tracked as open", "rotation is empty",
                               "stale holds reclaimed: 0", "tick: clean (exit 0)")

@@ -270,7 +270,13 @@ else
   # itself actually loads.
   meta_ir = json_shaped(Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
 
-  out_root = File.expand_path("../rust/src/generated", __dir__)
+  # `HECKS_RUST_DIR` — WHICH CRATE THIS PROJECTS INTO. Unset, it is this
+  # repository's own `rust/`, exactly as always. `bin/qa_generated_domains
+  # --rust` points it at a scratch copy of the crate, so projecting a
+  # domain the generator wrote never touches the checked-in generated
+  # tree or `rust/Cargo.toml`.
+  rust_dir = ENV.fetch("HECKS_RUST_DIR", File.expand_path("../rust", __dir__))
+  out_root = File.join(rust_dir, "src/generated")
   FileUtils.mkdir_p(out_root)
 
   # SCOPED clearing, not a whole-tree wipe — multiple domains coexist on
@@ -592,7 +598,7 @@ else
   # Inserted right after the `default = [...]` line, not appended to the
   # end of the file — Cargo.toml is TOML, and a bare `name = []` appended
   # past `[[bin]]` would parse as belonging to THAT table, not `[features]`.
-  cargo_toml_path = File.expand_path("../rust/Cargo.toml", __dir__)
+  cargo_toml_path = File.join(rust_dir, "Cargo.toml")
   cargo_toml = File.read(cargo_toml_path)
   unless cargo_toml.include?("[features]")
     cargo_toml = cargo_toml.sub(/\A/, <<~TOML)
