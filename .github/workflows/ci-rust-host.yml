@@ -1,0 +1,46 @@
+name: CI rust host (reusable)
+
+# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 3 (part 4 of 4) — see
+# ci-rust-io.yml's own header for the full split rationale. This file
+# holds only `rspec_rust_host`, the required-status-check job.
+
+on:
+  workflow_call:
+
+jobs:
+  # rust/host/ ("mint_harness"/"lineage_harness") — the fourth
+  # independent Cargo project, and the ONLY one of the four that needs
+  # Postgres: rust_host_lineage_conformance_spec.rb mints across a real
+  # era boundary against its own scratch database
+  # (`rust_host_lineage_pizzas_#{suffix}`, created and dropped by the
+  # spec itself — it never touches the shared `hecks_pizzas` database,
+  # so no separate provisioning step is needed here either). Its two
+  # binaries are built via the spec's own before(:context) hooks, same
+  # pattern as parser/codegen.
+  rspec_rust_host:
+    runs-on: ubuntu-latest
+
+    # See `rspec` job's own comment in ci.yml — cache-warming push doesn't
+    # need this job.
+    if: github.event_name != 'push'
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header.
+      - uses: ./.github/actions/postgres
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: host
+          crate-root: rust/host
+
+      - name: "rspec: Rust/Ruby lineage parity (rust/host)"
+        run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
