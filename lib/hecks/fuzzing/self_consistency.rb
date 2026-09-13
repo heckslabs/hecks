@@ -548,9 +548,13 @@ module Hecks
       # out of `check_saga_idempotency` itself so that method's own
       # `flat_map`/`filter_map` walk stays readable; every local this
       # shares with its caller (`interpreter`, `anchor`) is passed in
-      # rather than re-derived.
+      # rather than re-derived. The `saga_log` mark/restore pair (BUG#39
+      # fix) belongs right where it guards `interpreter.advance`, not in
+      # a helper a reader would have to jump to just to see what is and
+      # isn't being restored around that one call.
       def check_one_saga_redelivery(runtime, interpreter, domain_name, process_manager, anchor,
                                     correlation, saga, redelivery)
+        # rubocop:disable-next Metrics/BlockLength
         Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
           writer = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
           writer.save_saga(process_manager: process_manager.name, correlation: correlation.to_s,
@@ -565,6 +569,17 @@ module Hecks
 
           saga_instances = runtime.registry.saga_instances[process_manager.name]
           original       = saga_instances[correlation]
+
+          # `saga_log` IS `runtime.sagas`/`history[:sagas]` ITSELF, BY
+          # REFERENCE (`Dispatcher#sagas` — `@registry.saga_log`).
+          # `interpreter.advance` below is a REAL `advance_saga` dispatch,
+          # which appends its own row to this SAME array unconditionally —
+          # a true fact about this probe, but an unrestored append leaks
+          # into the primary trace (BUG#39). Marked here, sliced back off
+          # in `ensure`, same restore-what-I-mutated idiom as
+          # `saga_instances[correlation]` below.
+          saga_log      = runtime.registry.saga_log
+          saga_log_mark = saga_log.size
           begin
             saga_instances[correlation] = { state: state, memory: memory, completed_compensations: compensations || [] }
             interpreter.advance(redelivery, domain_name, only: process_manager)
@@ -576,6 +591,8 @@ module Hecks
             { field: "saga_redelivery_idempotency", domain: domain_name, process_manager: process_manager.name,
               correlation: correlation, on: redelivery.name, before: before, after: after_shape }
           ensure
+            saga_log.slice!(saga_log_mark..) if saga_log.size > saga_log_mark
+
             if original
               saga_instances[correlation] = original
             else
