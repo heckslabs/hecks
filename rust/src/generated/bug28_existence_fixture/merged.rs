@@ -92,7 +92,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::bug28_existence_fixture::vault::dispatch_open(&mut store.vault, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::bug28_existence_fixture::vault::dispatch_open(&mut store.vault, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

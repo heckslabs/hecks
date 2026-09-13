@@ -59,18 +59,41 @@ module RustProjection
     # ::Analyzer` across the whole live example-domain corpus, not just
     # the handful of IR fixtures the parity spec happens to enumerate.
     #
+    # `complete_state?` alone (no `state_independent?` conjunct) — BUG#22
+    # (QualityControl ledger): `CommandInterpreter#step_hydrate` branches on
+    # THIS predicate by itself to choose between `hydrate_complete_state`/
+    # `hydrate_prior_or_initial` (a route given to the command is checked
+    # against its derived identity, refusing `TypeMismatch` on a mismatch)
+    # and the legacy `hydrate_existing`/`hydrate_legacy_creation` pair
+    # (a route given at all forces `hydrate_existing`'s find-or-`NotFound`,
+    # regardless of `creates?`) — `state_independent?` only decides WHEN,
+    # relative to `enforce_givens`/`enforce_ensures`, an already-chosen
+    # `AlreadyExists` check runs, a question `rust/src/kernel/dispatch.rs`'s
+    # `Hydrate::Create.state_independent` field already answers correctly.
+    # `registry.rb`'s router needs this coarser fact too, to decide whether
+    # a route given to a CREATING command should be checked at all.
+    #
+    # ONLY MEANINGFUL for a command `creates_owner?` already answered
+    # `true` for — same caveat as `state_independent_creation?`, below,
+    # which now calls this rather than duplicating its own first half.
+    def complete_state_creation?(aggregate, command, value_objects_by_name)
+      owner_fields = creation_owner_fields(aggregate)
+      payload_fields = command[:attributes].to_set { |a| a[:name].to_s }
+
+      known_writes, disqualified = creation_known_writes(aggregate, command, owner_fields, payload_fields, value_objects_by_name)
+      !disqualified && owner_fields.subset?(known_writes)
+    end
+
     # ONLY MEANINGFUL for a command `creates_owner?` already answered
     # `true` for — callers are expected to check that first, same as
     # `list_attr_creation_optional?`'s own callers do; never true for an
     # entity-owned command (`emit_command`'s own caller never reaches
     # this for one — an entity command is never `creates_owner?`).
     def state_independent_creation?(aggregate, command, value_objects_by_name)
+      return false unless complete_state_creation?(aggregate, command, value_objects_by_name)
+
       owner_fields = creation_owner_fields(aggregate)
       payload_fields = command[:attributes].to_set { |a| a[:name].to_s }
-
-      known_writes, disqualified = creation_known_writes(aggregate, command, owner_fields, payload_fields, value_objects_by_name)
-      return false if disqualified
-      return false unless owner_fields.subset?(known_writes)
 
       rules = command[:givens].map { |rule| [rule, :before] } +
               command[:ensures].map { |rule| [rule, :after] } +

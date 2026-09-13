@@ -460,7 +460,7 @@ pub struct RegisterArgs {
 }
 
 pub fn dispatch_register(
-    repo: &mut impl crate::kernel::Repository<Customer>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Customer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Customer> {
         args.reference.check_invariants()?;
         args.name.check_invariants()?;
@@ -470,8 +470,15 @@ pub fn dispatch_register(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.reference.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Register routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.reference.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Customer {
             reference: Some(args.reference.clone()),
             name: Some(args.name.clone()),
@@ -480,6 +487,19 @@ pub fn dispatch_register(
             status: "active".to_string(),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.reference.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Customer {
+            reference: Some(args.reference.clone()),
+            name: Some(args.name.clone()),
+            email: Some(args.email.clone()),
+            standing: Some(CustomerStanding { value: "good".to_string() }),
+            status: "active".to_string(),
+        }),
+        state_independent: true,
+    } }
     },
         "Register",
         "Banking::Customer",

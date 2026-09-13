@@ -157,7 +157,15 @@ module RustProjection
           end
           extra_pass = extra_idents.map { |ident| "&#{ident}, " }.join
 
-          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? extra_pass : '&id, '}args, mutations, owner_deref, command_deref)"
+          # BUG#22 (QualityControl ledger) — a CREATING command's own
+          # generated `dispatch_*` fn now takes `route` too (right after
+          # `repo`, mirroring where an ACTING command's own `&id` already
+          # sits): `route` is ALREADY bound above, for every arm, whether
+          # or not a creating command used to read it — see this file's
+          # own header on `id_line`/`route` for why. `commands.rb`'s own
+          # header on this exact change has the full story on what the
+          # generated function does with it now.
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? "route, #{extra_pass}" : '&id, '}args, mutations, owner_deref, command_deref)"
           # ROUTING SEPARATION (`to:`/`with:`) — `CommandInvocation` reads
           # either the explicit routed/facts shape or the legacy mixed-
           # args object (rust/src/kernel/routing.rs, this file's own

@@ -92,7 +92,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::ledger_ordering::folder::dispatch_open(&mut store.folder, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::ledger_ordering::folder::dispatch_open(&mut store.folder, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LedgerOrdering::Folder.AddSlip" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

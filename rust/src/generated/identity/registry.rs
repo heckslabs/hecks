@@ -104,7 +104,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -119,7 +119,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

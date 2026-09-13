@@ -104,7 +104,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::has_many_fixture::member::dispatch_join(&mut store.member, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::has_many_fixture::member::dispatch_join(&mut store.member, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "HasManyFixture::Circle.Open" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -116,7 +116,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::has_many_fixture::circle::dispatch_open(&mut store.circle, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::has_many_fixture::circle::dispatch_open(&mut store.circle, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "HasManyFixture::Circle.Admit" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

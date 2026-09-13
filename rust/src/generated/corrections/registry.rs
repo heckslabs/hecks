@@ -104,7 +104,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::ledger::dispatch_open(&mut store.ledger, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::ledger::dispatch_open(&mut store.ledger, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::Ledger.Record" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -211,7 +211,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::corrections::audittrail::dispatch_open(&mut store.audittrail, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::corrections::audittrail::dispatch_open(&mut store.audittrail, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Corrections::AuditTrail.Flag" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

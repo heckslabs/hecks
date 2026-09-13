@@ -403,7 +403,7 @@ pub struct GenerateArgs {
 }
 
 pub fn dispatch_generate(
-    repo: &mut impl crate::kernel::Repository<Statement>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Statement>, route: Option<&crate::kernel::RoutingEnvelope>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Statement> {
         args.period.check_invariants()?;
         args.opening_balance.check_invariants()?;
@@ -414,8 +414,15 @@ pub fn dispatch_generate(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.account.to_string(), args.period.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Generate routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.account.to_string(), args.period.value.to_string()),
+        id: __hydrate_id,
         build: Box::new(|| Statement {
             account: Some(args.account.clone()),
             period: Some(args.period.clone()),
@@ -425,6 +432,20 @@ pub fn dispatch_generate(
             frequency: Some(args.frequency.clone()),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.account.to_string(), args.period.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Statement {
+            account: Some(args.account.clone()),
+            period: Some(args.period.clone()),
+            opening_balance: Some(args.opening_balance.clone()),
+            closing_balance: Some(args.closing_balance.clone()),
+            generated_on: Some(args.generated_on.clone()),
+            frequency: Some(args.frequency.clone()),
+        }),
+        state_independent: true,
+    } }
     },
         "Generate",
         "Banking::Statement",

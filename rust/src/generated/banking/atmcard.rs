@@ -813,7 +813,7 @@ pub struct IssueArgs {
 }
 
 pub fn dispatch_issue(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, route: Option<&crate::kernel::RoutingEnvelope>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.serial.check_invariants()?;
         args.daily_fee.check_invariants()?;
@@ -822,8 +822,13 @@ pub fn dispatch_issue(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.serial.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.serial.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| ATMCard {
             account: Some(args.account.clone()),
             serial: Some(args.serial.clone()),
@@ -835,6 +840,7 @@ pub fn dispatch_issue(
             status: "issued".to_string(),
         }),
         state_independent: false,
+    } }
     },
         "Issue",
         "Banking::ATMCard",

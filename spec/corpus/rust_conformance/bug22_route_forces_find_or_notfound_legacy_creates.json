@@ -1,0 +1,7 @@
+{
+  "domain": "examples/pizzas",
+  "note": "BUG#22 (QualityControl ledger) — a route (to:) given to a creates: command whose plan is NOT complete_state (Governance::RoleTransition.Grant — legacy_implicit_creation?'s domain) forces CommandInterpreter#hydrate_existing's own find-or-NotFound, ignoring the command's own facts-derived identity entirely, regardless of creates?. Unmodified Rust's generated dispatch decided create-vs-find purely from the command's static creates: flag, so it never read the route at all — it minted a fresh RoleTransition from the real facts (from_role/to_role/starts_at) and silently succeeded where Ruby correctly refuses NotFound (\"no RoleTransition with from_role.value, to_role.value, starts_at.value \\\"nonexistent-route-target\\\"\"). Confirmed genuinely broken before this fixture existed. Originally found via Hecks::Fuzzing::SequenceGenerator.generate(\"examples/pizzas\", seed: 3, steps: 25, adversarial: 0.3) step 18's own routing_key adversarial mutation (a scalar to: alongside real flat facts, no with: key).",
+  "steps": [
+    {"verb": "Governance::RoleTransition.Grant", "args": {"from_role": {"value": "member"}, "to_role": {"value": "admin"}, "starts_at": {"value": "2026-01-01"}, "to": "nonexistent-route-target"}}
+  ]
+}

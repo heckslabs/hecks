@@ -115,7 +115,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::referral_chain::sponsor::dispatch_enroll(&mut store.sponsor, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::referral_chain::sponsor::dispatch_enroll(&mut store.sponsor, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "ReferralChain::Sponsor.Suspend" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -150,7 +150,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "sponsor", as_name: "sponsor", target: "ReferralChain::Sponsor" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::referral_chain::member::dispatch_join(&mut store.member, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::referral_chain::member::dispatch_join(&mut store.member, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "ReferralChain::Referral.Issue" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -162,7 +162,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "member", as_name: "member", target: "ReferralChain::Member" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::referral_chain::referral::dispatch_issue(&mut store.referral, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::referral_chain::referral::dispatch_issue(&mut store.referral, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "ReferralChain::Referral.Reassign" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

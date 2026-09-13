@@ -80,6 +80,18 @@ RSpec.describe "RustProjection::Projector.state_independent_creation? matches th
                               "#{aggregate.hecks_name}.#{command.hecks_name}: expected state_independent_creation? " \
                               "to be #{expected} (Runtime::DependencyPlanning::Analyzer: complete_state?=" \
                               "#{plan.complete_state?}, state_independent?=#{plan.state_independent?}), got #{actual}"
+
+            # BUG#22 (QualityControl ledger) — `complete_state?` ALONE (no
+            # `state_independent?` conjunct) is what `registry.rb`'s
+            # router now needs, to decide whether a route given to this
+            # creating command is checked against its derived identity
+            # (complete_state?-true) or forces a plain find-or-`NotFound`
+            # instead (complete_state?-false, the legacy path).
+            complete_actual = RustProjection::Projector.complete_state_creation?(aggregate_ir, command_ir, value_objects_by_name)
+            expect(complete_actual).to eq(plan.complete_state?),
+                                       "#{aggregate.hecks_name}.#{command.hecks_name}: expected " \
+                                       "complete_state_creation? to be #{plan.complete_state?} " \
+                                       "(Runtime::DependencyPlanning::Analyzer), got #{complete_actual}"
           end
         end
 
