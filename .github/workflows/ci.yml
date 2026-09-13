@@ -226,13 +226,56 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # AGGREGATOR — Phase 5 of the CI speed effort, the identical
+  # aggregator-over-a-renamed-job trick `checks`/`rspec_postgres_io_
+  # parallel` already use (see either's own header): a `strategy:
+  # matrix` job reports each leg as `<job id> (<matrix value>)`, never
+  # the bare id, so the real work below moved to `rspec_shard` and this
+  # tiny job exists solely to keep `rspec` valid as the exact
+  # required-status-check name the `merge-queue-main` ruleset already
+  # names. `if: always()` is required — without it the default implicit
+  # `success()` condition would skip THIS job whenever a shard failed,
+  # which a required check can't afford.
   rspec:
+    runs-on: ubuntu-latest
+
+    needs: rspec_shard
+    if: always()
+
+    steps:
+      - name: both rspec shards passed
+        run: |
+          result="${{ needs.rspec_shard.result }}"
+          if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+            echo "rspec_shard: $result"
+            exit 0
+          fi
+          echo "rspec_shard: $result — at least one shard did not succeed" >&2
+          exit 1
+
+  # TWO-WAY MATRIX — 2,700+ examples on one 4-vCPU runner measured ~137s
+  # (checks_fuzz's own header cites the sibling `bin/fuzz` figure as
+  # comparison scale); splitting the file list across two runners, each
+  # still running its own `-n 4` internal `parallel_rspec` workers,
+  # roughly halves that. Same shape as `rspec_postgres_io_parallel_shard`
+  # below: `--group-by runtime` needs a runtime log to group well, so
+  # every leg restores BOTH groups' own most-recently-saved logs (each
+  # leg only ever writes real numbers for the files IT ran, per
+  # `ParallelTests::RSpec::RuntimeLogger`'s own truncate-then-append
+  # behavior under `--only-group` — see that job's header for how this
+  # was confirmed, not assumed) and merges them before grouping.
+  rspec_shard:
     runs-on: ubuntu-latest
 
     # Cache-warming push (see top-of-file comment) needs only
     # `rspec_postgres_io_parallel_shard` below — this job still gets its
     # real gating run from `pull_request`/`merge_group` alone.
     if: github.event_name != 'push'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
 
     # NO POSTGRES SERVICE — Phase 4 of the CI speed effort. THIS USED TO
     # BE LOAD-BEARING: spec/diagrams_spec.rb, spec/storehouse_spec.rb, and
@@ -281,12 +324,55 @@ jobs:
       # this — it would already be broken for every contributor running
       # a plain local `bundle exec rspec`, since none of them provision a
       # local Postgres or build Rust either).
+      # PER-GROUP RUNTIME LOG, SAME PATTERN rspec_postgres_io_parallel_
+      # shard USES (see that job's own header for why per-group keys +
+      # a merge step, not one shared key) — restore both groups' own
+      # most-recently-saved logs and merge before this leg's own
+      # `bin/rspec_shard_files` call reads them.
+      - name: Restore rspec runtime log cache (group 1)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec_main.group1.log
+          key: rspec-main-runtime-group1-${{ github.run_id }}
+          restore-keys: |
+            rspec-main-runtime-group1-
+
+      - name: Restore rspec runtime log cache (group 2)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec_main.group2.log
+          key: rspec-main-runtime-group2-${{ github.run_id }}
+          restore-keys: |
+            rspec-main-runtime-group2-
+
+      - name: Merge the 2 groups' runtime logs into one grouping input
+        run: |
+          mkdir -p tmp
+          cat tmp/parallel_runtime_rspec_main.group*.log > tmp/parallel_runtime_rspec_main.log 2>/dev/null || true
+          touch tmp/parallel_runtime_rspec_main.log
+
+      - name: Determine this shard's own file list
+        run: |
+          bundle exec bin/rspec_shard_files ${{ matrix.group }} 2 tmp/parallel_runtime_rspec_main.log \
+            > tmp/rspec_shard_files.txt
+
       # `--profile 15` — Phase 0 of the CI speed effort: know the top
       # examples by wall-clock instead of inferring them from job-level
       # timestamps. Printed once per `parallel_rspec` worker process (4
       # of them here), each covering only that worker's own slice.
-      - name: "rspec: parallel (everything safe to run concurrently)"
-        run: bundle exec parallel_rspec spec -o "--tag ~io --tag ~fuzzing --profile 15"
+      - name: "rspec: parallel (this shard's own file list only)"
+        run: |
+          FILES=()
+          while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
+          bundle exec parallel_rspec "${FILES[@]}" \
+            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log"
+
+      - name: Save this group's own runtime log cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: tmp/parallel_runtime_rspec_main.group${{ matrix.group }}.log
+          key: rspec-main-runtime-group${{ matrix.group }}-${{ github.run_id }}
 
   # `checks` USED TO BE ONE JOB, SIX UNRELATED KINDS OF WORK IN SERIES —
   # split into three (this job is now a tiny aggregator; see Phase 1 of
