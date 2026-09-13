@@ -1,0 +1,39 @@
+# CANARY — Phase 6's other half of the CI speed effort (compile hygiene;
+# `debug = 0` already shipped repo-wide for all 5 crates). This file
+# switches ONLY rust/parser's own linker to LLVM's lld, which links
+# noticeably faster than the default GNU ld on Linux.
+#
+# SCOPED TO ONE CRATE, DELIBERATELY, NOT SHIPPED WORKSPACE-WIDE — this
+# repo has 5 independent Rust crates (rust/, rust/parser, rust/codegen,
+# rust/host, rust/build), each with its own Cargo.toml/target dir and its
+# own CI job. A `.cargo/config.toml` at the repo root would apply to all
+# five in one push; if `lld` turns out to be missing, the wrong version,
+# or this flag syntax doesn't match what GitHub's ubuntu-latest runner
+# image actually ships (UNVERIFIED — this repo has no way to test a Linux
+# linker change from a Mac, the only place this was written), that would
+# break every Rust-touching required check simultaneously, and this
+# repo's merge-queue-main ruleset has no bypass — nothing could merge
+# until it was reverted. Scoping to rust/parser alone means a failure
+# here breaks only `rspec_rust_parser`, one of five required checks, not
+# all of them — a real, deliberate risk reduction, not a formality. If
+# this canary survives its own first real CI run, the identical
+# `[target.x86_64-unknown-linux-gnu]` block is the mechanical follow-up
+# for rust/, rust/codegen, rust/host, rust/build, each its own PR,
+# watched the same way every other phase in this effort was.
+#
+# `cargo build`/`cargo test` invoked with `chdir: rust/parser` (see
+# spec/parser_parity_spec.rb's own `build_parser!`, spec/grammar_corpus_
+# spec.rb, spec/parser_coverage_spec.rb — all three share this one build)
+# picks up THIS file via cargo's normal directory-walking config
+# discovery; it has no effect on the other four crates' own builds, each
+# invoked from their own directory with no config.toml of their own
+# (confirmed: no other .cargo/config.toml exists in this repo as of this
+# file's own addition).
+#
+# HARMLESS ON A CONTRIBUTOR'S OWN MACHINE — `[target.x86_64-unknown-
+# linux-gnu]` only applies when cargo is actually building for that
+# target triple. A local build on macOS (aarch64-apple-darwin or
+# x86_64-apple-darwin) or any other host simply never matches this
+# section; nothing here changes what a Mac-based `cargo build` does.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
