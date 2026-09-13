@@ -213,6 +213,19 @@
 # many sequences, how long each is). None of them reads another's own
 # constant, and none needed to change to thread this one through.
 #
+# A SURPRISE IS SHRUNK BEFORE IT IS REPORTED. The seed that surprised
+# is typically 25 steps of which two or three matter; the rest used to
+# ride into the ledger's `demonstration` text ("seed 25, 25 steps, step
+# 16") and a human cut them away by hand. Every surprised check whose
+# mode is a pure function of the step list (`SHRINKABLE_MODES`) is now
+# minimized by `Hecks::Fuzzing::Shrinker` — steps first, then arguments
+# — re-running ONLY that check's own comparison per candidate, keeping a
+# candidate only while it still reproduces the SAME finding
+# (`Shrinker.signature`: the divergent verbs/aggregates, not just the
+# field name), within `QualityControlDials::SHRINK_BUDGET` candidate
+# checks. The report then carries a `shrunk:` block per check with the
+# minimal steps, the file under tmp/qa-shrunk/, and a `replay:` line.
+#
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
 #   0  clean — every generated sequence held, the sweep concluded and the
 #      target released. Nothing else to do; relay the printed summary.
@@ -364,6 +377,7 @@ require "hecks/fuzzing"
 require "hecks/fuzzing/self_consistency"
 require "hecks/fuzzing/era_boundary"
 require "hecks/fuzzing/concurrent_dispatch"
+require "fileutils"
 require "json"
 require "open3"
 require "tempfile"
@@ -727,6 +741,11 @@ WIDENING_TIERS = defined?(QualityControlDials::WIDENING_TIERS) ? QualityControlD
 # too; a dial-less ledger gets the same number rather than an unbounded
 # fan-out.
 SWEEP_MAX_PARALLEL = defined?(QualityControlDials::SWEEP_MAX_PARALLEL) ? QualityControlDials::SWEEP_MAX_PARALLEL : 4
+
+# HOW MANY CANDIDATE CHECKS ONE SURPRISED CHECK MAY SPEND BEING SHRUNK —
+# `QualityControlDials::SHRINK_BUDGET`; a ledger without the dial (an
+# isolated spec's own fixture) still shrinks, at the same default.
+SHRINK_BUDGET = defined?(QualityControlDials::SHRINK_BUDGET) ? QualityControlDials::SHRINK_BUDGET : 200
 
 # WHICH TWO ADAPTERS EACH ADAPTER-PARITY MODE COMPARES, KEYED BY MODE
 # NAME — `Hecks::Fuzzing::PersistenceParity.diff`'s own `left:`/`right:`
@@ -1999,6 +2018,71 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_seq
   { steps: steps, checks: outcomes.map { |mode_key, divergences| check_for(mode_key, feature, seed, shape, divergences) } }
 end
 
+# ── shrinking a surprise ─────────────────────────────────────────────
+#
+# WHICH CHECKS CAN BE SHRUNK — every mode whose divergences are a pure
+# function of the step list. `concurrency` is not (a race does not
+# reproduce on demand); `structural_skip_report`/`era_boundary` have no
+# per-seed step list at all; a `generator` crash happened before any
+# sequence existed.
+SHRINKABLE_MODES = %i[differential properties_in_differential self_consistency ruby_only adapter_parity_sqlite
+                      persistence_parity].freeze
+
+# ONE CANDIDATE, ONE MODE — re-runs only the comparison that surprised,
+# never the whole active set: a `properties_in_differential` finding is
+# a Ruby-only question and pays for no Rust subprocess while it shrinks.
+# `seat` matters only for `self_consistency`, which reads the Rust
+# binary's own rehydration door when the seat is differential.
+def candidate_divergences(check_mode, seat, differ, domain_path, steps, binary, database:, schema:)
+  case check_mode
+  when :differential
+    diff_ruby_vs_rust(differ, domain_path, steps, binary, modes: [:differential])[:differential]
+  when :properties_in_differential, :ruby_only
+    ruby_only_outcome(domain_path, steps, modes: [])[:ruby_only]
+  when :self_consistency
+    if seat == :differential
+      diff_ruby_vs_rust(differ, domain_path, steps, binary, modes: [:self_consistency])[:self_consistency]
+    else
+      ruby_only_outcome(domain_path, steps, modes: [:self_consistency])[:self_consistency]
+    end
+  when :adapter_parity_sqlite then adapter_parity_sqlite_divergences(domain_path, steps)
+  when :persistence_parity    then persistence_parity_outcome(domain_path, steps, database, schema).last
+  end || []
+end
+
+# `Hecks::Fuzzing::Shrinker` over one surprised check: a candidate is
+# kept only while `Shrinker.signature` of its re-run divergences still
+# CONTAINS the original's (see that method's own comment for why the
+# field alone is too loose). A candidate that raises is simply not
+# accepted — the original did not raise, so a raising candidate is a
+# different finding, not a smaller copy of this one.
+def shrink_check(check, seat, differ, domain_path, steps, binary, budget:, database: nil, schema: nil)
+  original = Hecks::Fuzzing::Shrinker.signature(check[:divergences])
+  result = Hecks::Fuzzing::Shrinker.call(steps, budget: budget) do |candidate|
+    divergences = candidate_divergences(check[:mode], seat, differ, domain_path, candidate, binary,
+                                        database: database, schema: schema)
+    Hecks::Fuzzing::Shrinker.reproduces?(original, divergences)
+  rescue StandardError
+    false
+  end
+  { mode: check[:mode], steps: result.steps, attempts: result.attempts, exhausted: result.exhausted,
+    original_size: steps.size }
+end
+
+# WHERE A SHRUNK SEQUENCE LANDS — the same `{name, note, steps}` corpus
+# shape `bin/fuzz` writes to tmp/fuzz-failures/, so `bin/run` and
+# `bin/rust_conformance` both replay it unchanged.
+def write_shrunk!(shrunk, sweep_reference, feature, seed)
+  dir = File.join(ROOT, "tmp/qa-shrunk")
+  FileUtils.mkdir_p(dir)
+  path = File.join(dir, "#{sweep_reference}-#{shrunk[:mode]}.json")
+  File.write(path, JSON.pretty_generate(name:  "#{feature}-#{shrunk[:mode]}-shrunk",
+                                        note:  "bin/qa_sweep #{sweep_reference} seed #{seed}, shrunk from " \
+                                               "#{shrunk[:original_size]} steps",
+                                        steps: shrunk[:steps]))
+  path
+end
+
 surprise = nil
 
 begin
@@ -2073,6 +2157,19 @@ begin
       mark_surprised!(runtime, sweep, sequence, check[:observation], target_reference)
       puts "  era boundary: SURPRISED — #{check[:observation]}"
       surprise = { seed: nil, steps: [], checks: [check] }
+    end
+  end
+
+  # SHRINK BEFORE REPORTING, INSIDE THIS `begin` — `persistence_parity`'s
+  # own disposable schema is dropped by the `ensure` below, and its
+  # candidates need it. Only a seeded surprise has a step list to shrink.
+  if surprise && surprise[:seed] && SHRINK_BUDGET.positive?
+    surprise[:shrunk] = surprise[:checks].filter_map do |check|
+      next unless SHRINKABLE_MODES.include?(check[:mode])
+
+      puts "  shrinking [#{check[:mode]}] (#{surprise[:steps].size} steps, budget #{SHRINK_BUDGET})…"
+      shrink_check(check, mode, differ, domain_path, surprise[:steps], binary, budget: SHRINK_BUDGET,
+                   database: persistence_parity_database, schema: persistence_parity_schema)
     end
   end
 ensure
@@ -2182,6 +2279,31 @@ if surprise
     puts "   args: #{JSON.generate(step['args'])}" if step["adversarial"]
   end
   puts
+
+  # THE SHRUNK DEMONSTRATION, ONE PER SHRINKABLE SURPRISED CHECK — what
+  # `bin/qa_log_bug --demonstration` should be built from. Every step and
+  # its full args are printed (a shrunk sequence is short by construction),
+  # and the file is written so the replay line below works as printed.
+  Array(surprise[:shrunk]).each do |shrunk|
+    path   = write_shrunk!(shrunk, sweep_reference, feature, surprise[:seed])
+    budget = shrunk[:exhausted] ? ", budget exhausted — may shrink further" : ""
+    puts "shrunk:      [#{shrunk[:mode]}] #{shrunk[:original_size]} -> #{shrunk[:steps].size} step(s) " \
+         "(#{shrunk[:attempts]} candidate checks#{budget})"
+    puts "file:        #{path.delete_prefix("#{ROOT}/")}"
+    replay =
+      if %i[differential self_consistency].include?(shrunk[:mode]) && binary
+        "bin/rust_conformance #{domain_path} #{path} #{binary}"
+      else
+        "bin/run #{domain_path} #{path}"
+      end
+    puts "replay:      #{replay}"
+    puts "-- shrunk steps [#{shrunk[:mode]}] --"
+    shrunk[:steps].each_with_index do |step, index|
+      kind = %w[verb query dry_run].find { |key| step.key?(key) }
+      puts "#{index}: #{"#{kind} " unless kind == 'verb'}#{step[kind]}  args: #{JSON.generate(step['args'])}"
+    end
+    puts
+  end
 
   exit EXIT_FOUND_SOMETHING
 end
