@@ -309,7 +309,24 @@ jobs:
     # ci_attestation_rspec above) — the `rspec` aggregator's own
     # `needs.rspec_shard.result` check already treats "skipped" the same
     # as "success".
-    if: github.event_name != 'push' && needs.ci_attestation_rspec.outputs.attested != 'true'
+    #
+    # `always() &&` AND `needs.ci_attestation_rspec.result != 'success'`
+    # ARE BOTH LOAD-BEARING, NOT DEFENSIVE — found by actually watching
+    # this job's own first real CI run, not guessed: a real bug in
+    # check-attestation/action.yml (a literal `${{ }}` inside a
+    # DESCRIPTION string, evaluated by GitHub's template engine like any
+    # other, crashing the action's own load — see that file's own header
+    # for the fix) made `ci_attestation_rspec` FAIL outright, and GitHub's
+    # default behavior for a job whose `needs:` job failed is to SKIP it
+    # — silently skipping `rspec_shard`, a REQUIRED check, instead of
+    # running it for real. The opposite of every other fail-safe default
+    # in this mechanism. `always()` makes this job's own `if:` evaluate
+    # regardless of the detector's outcome, and checking `.result !=
+    # 'success'` explicitly (not just `.outputs.attested`, which would be
+    # empty/undefined on a failed run and might silently coerce to
+    # something unintended) means ANY non-success from the detector — a
+    # future bug included — runs the real job rather than skipping it.
+    if: always() && github.event_name != 'push' && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')
 
     strategy:
       fail-fast: false
@@ -497,8 +514,17 @@ jobs:
       # (`steps.attest.outputs.*`), unlike a job-level `if:`, which is why
       # this doesn't need the separate detector-job shape
       # `ci_attestation_rspec` above uses.
+      # `continue-on-error: true` — same fail-safe hardening as
+      # `ci_attestation_rspec`'s own `if:` above, applied to this job's
+      # different shape (a step within the SAME job, not a separate
+      # `needs:` job): if this step errors for any reason, it must not
+      # fail `checks_static` outright or skip the real steps below —
+      # `outputs.attested` is simply empty/undefined on a failed run,
+      # which every `if: steps.attest.outputs.attested != 'true'` below
+      # already treats as "not attested, run it".
       - name: check attestation
         id: attest
+        continue-on-error: true
         uses: ./.github/actions/check-attestation
         with:
           checks: model_check,engine_agreement,doc_coverage,rubocop

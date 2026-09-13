@@ -52,10 +52,19 @@ inputs:
     required: true
   hmac-key:
     description: >
-      The shared secret, threaded in from the calling job as
-      `${{ secrets.HECKS_CI_ATTEST_KEY }}` — empty (and therefore always
-      `attested: false`) on any run that doesn't have that secret, which
-      is exactly how a fork PR's run is meant to behave.
+      The shared secret, threaded in from the calling job's own
+      secrets.HECKS_CI_ATTEST_KEY (a composite action has no direct
+      secrets context of its own — see this file's own top comment) —
+      empty (and therefore always `attested: false`) on any run that
+      doesn't have that secret, which is exactly how a fork PR's run is
+      meant to behave. NOTE: this description deliberately never spells
+      out that reference as a literal double-curly-brace template
+      expression (the exact syntax `run:`/`env:`/`with:` values use to
+      pull in context) — GitHub evaluates that syntax everywhere in an
+      action.yml, description strings included, and a composite action
+      has no secrets context to evaluate it against; a first version of
+      this file crashed on exactly that, confirmed live on this PR's own
+      first CI run (see the commit history for the fix).
     required: true
 
 outputs:
