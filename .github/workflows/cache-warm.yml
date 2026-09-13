@@ -93,7 +93,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
-          path: rust/target
+          crate-root: rust
 
       - name: Warm native builds (banking, pizzas, roster)
         run: |
@@ -131,7 +131,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: build
-          path: rust/build/target
+          crate-root: rust/build
           include-registry: "false"
 
       - name: Warm rust/build (hecks-build)
@@ -159,7 +159,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser
-          path: rust/parser/target
+          crate-root: rust/parser
 
       - name: Warm rust/parser (hecks-parse)
         run: cd rust/parser && cargo build
@@ -185,7 +185,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: codegen
-          path: rust/codegen/target
+          crate-root: rust/codegen
 
       - name: Warm rust/codegen (hecks-codegen)
         run: cd rust/codegen && cargo build
@@ -218,7 +218,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: host
-          path: rust/host/target
+          crate-root: rust/host
 
       - name: Warm rust/host (both harness binaries)
         run: |

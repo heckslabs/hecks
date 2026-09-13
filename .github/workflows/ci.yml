@@ -1333,7 +1333,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
-          path: rust/target
+          crate-root: rust
 
       # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
       # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
@@ -1347,12 +1347,12 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser
-          path: rust/parser/target
+          crate-root: rust/parser
 
       - uses: ./.github/actions/cargo-cache
         with:
           name: codegen
-          path: rust/codegen/target
+          crate-root: rust/codegen
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -1465,7 +1465,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
-          path: rust/target
+          crate-root: rust
 
       # rust/build ("hecks-build") — a SEPARATE crate from the main one
       # above; this is the one file that builds it (`build_hecks_build!`,
@@ -1473,7 +1473,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: build
-          path: rust/build/target
+          crate-root: rust/build
           include-registry: "false"
 
       - uses: ./.github/actions/wasm-toolchain
@@ -1503,7 +1503,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
-          path: rust/target
+          crate-root: rust
 
       - uses: ./.github/actions/wasm-toolchain
 
@@ -1535,7 +1535,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser
-          path: rust/parser/target
+          crate-root: rust/parser
 
       - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
@@ -1561,7 +1561,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: codegen
-          path: rust/codegen/target
+          crate-root: rust/codegen
 
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
@@ -1598,7 +1598,7 @@ jobs:
       - uses: ./.github/actions/cargo-cache
         with:
           name: host
-          path: rust/host/target
+          crate-root: rust/host
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
