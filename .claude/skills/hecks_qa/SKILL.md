@@ -101,6 +101,33 @@ number.value=<n> commit.value=<new-sha>`.
 the open sweep, counts the bugs it logged, moves the streak, and records
 what the chapter can be compared against. Never release from a subagent.
 
+## On a generated-domain finding
+
+`bin/qa_tick`'s third step, `bin/qa_generated_domains --from-dials`,
+checks domains `Hecks::Fuzzing::DomainGenerator` wrote (two
+`FormCensus::FORMS` forced onto one aggregate, plus extras), against Rust
+too when `GENERATED_DOMAINS_RUST` is on. A `GENERATED DOMAIN FOUND
+SOMETHING` block has already been shrunk twice: the domain (`domain:`,
+with its before/after size) and the steps (`shrunk:`, `replay:`). Nothing
+is in the ledger yet and no target is suspended. The per-finding
+subagent's judgments:
+
+1. **Genuine, or a generator artifact?** Replay it. A mode of
+   `rust_projection`/`rust_build` means a bluebook Ruby boots that the
+   Rust projection cannot compile — real, unless the domain uses a name
+   the projection documents as reserved. A divergence the rotation's own
+   known-gap tables already excuse is not new.
+2. **If genuine:** promote it, `bin/qa_generated_domains --promote
+   <finding-dir> --name <stress_domain_name>` (the report's `promote:`
+   line). That copies the minimal domain into `qa/stress_domains/`, renamed,
+   with a NOTES.md. Then follow the printed next steps, `target.identify`
+   last. The next sweep of that target surprises the ordinary way, and the
+   "On a finding" section above applies from there: the failing test, then
+   `bin/qa_log_bug`.
+3. **If an artifact of the generator itself:** say so in your report. A
+   generator fix is deliberate work (`bin/qa_open_pr --improvement`),
+   never a Bug.
+
 ## Authoring a new stress domain (occasional)
 
 Read the backlog first — `bin/run qa/bluebook ask backlog` and `ask
