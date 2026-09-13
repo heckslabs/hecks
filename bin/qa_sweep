@@ -372,6 +372,26 @@ require "securerandom"
 ROOT = File.expand_path("..", __dir__)
 require_relative "../spec/support/rust_conformance_helpers"
 
+# `QA_SWEEP_TRACE=1` — a per-phase stderr timer, added to find out where a
+# single child's real wall-clock actually goes (boot, capability
+# inference, the Postgres claim, the seed loop, conclude/release) instead
+# of guessing from the outside. Off by default and additive only — no
+# behavior here changes when the env var is unset. One mark per call site
+# below; each print is the delta since the PREVIOUS mark in this same
+# process, not since start, so a slow phase is legible without doing the
+# arithmetic by hand.
+QA_TRACE = ENV["QA_SWEEP_TRACE"] == "1"
+qa_trace_last = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+qa_trace = lambda do |label|
+  next unless QA_TRACE
+
+  now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  warn format("[qa_sweep_trace pid=%<pid>d] %<label>-24s +%<delta>6.3fs",
+              pid: Process.pid, label: label, delta: now - qa_trace_last)
+  qa_trace_last = now
+end
+qa_trace.call("require")
+
 # `QA_SWEEP_DOMAIN_DIR` — an escape hatch, not a feature. Every REAL
 # invocation of this script, single-target or `--all`, boots the one
 # true ledger at `qa/bluebook`; nothing here ever points anywhere else
@@ -1304,6 +1324,7 @@ end
 # `explicit_all_deferred` already agrees with it for that one case.
 capabilities   = Hecks::Fuzzing::TargetCapabilities.infer(domain_path, rust_dir: RUST_DIR)
 resolved_modes = Hecks::Fuzzing::TargetCapabilities.resolve(enabled_modes, capabilities)
+qa_trace.call("capabilities+resolve")
 explicit_all_deferred = explicit_modes && !explicit_modes.empty? &&
                         (explicit_modes - Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES).empty?
 deferred_modes = explicit_all_deferred ? [] : resolved_modes & Hecks::Fuzzing::TargetCapabilities::DEFERRED_MODES
@@ -1346,6 +1367,7 @@ begin
 rescue Hecks::Runtime::GivenNotMet => e
   abort "target #{target_reference.inspect} is already held and its claim has not gone stale yet (#{e.message})"
 end
+qa_trace.call("claim")
 
 # ── size this pass ───────────────────────────────────────────────────
 #
@@ -2145,6 +2167,7 @@ notes = "domain=#{target_reference} path=#{target_path} mode=#{mode} modes=#{act
         "adversarial=#{adversarial} role_draw=#{role_draw} dry_run=#{dry_run} — every seed held, no divergence " \
         "or property violation found."
 sweep.conclude!(notes: { value: notes })
+qa_trace.call("seed loop+conclude")
 
 # ZERO SURPRISES, THIS PATH ONLY — this line is only ever reached when
 # every seed held (the `exit EXIT_FOUND_SOMETHING` above already left
@@ -2155,6 +2178,7 @@ sweep.conclude!(notes: { value: notes })
 # sticky `ever_surprised` bit rather than trusting this loop's own
 # `surprise` local (belt and braces; that method's own comment says why).
 target = release_target!(target, capabilities, current_streak, surprises: 0, clean: sweep_was_clean?(sweep))
+qa_trace.call("release")
 
 puts
 puts "clean — #{target_reference} concluded and released. clean_streak: #{current_streak} -> " \

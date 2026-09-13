@@ -4,7 +4,7 @@ require_relative "support/qa_ledger_fixture"
 
 # `bin/qa_log_bug`, PROVEN AGAINST THE REAL THING — a real subprocess, a
 # real disposable PostgresEra ledger (`spec/support/qa_ledger_fixture.rb`,
-# and `spec/qa_sweep_all_spec.rb`'s own header for why nothing here can
+# and `spec/support/qa_sweep_all_fixture.rb`'s own header for why nothing here can
 # be proven against Memory). The three claims the script exists for: a
 # passing demonstration is refused and logs nothing; a failing one is
 # logged with the disposition given; and the minted `BUG#` skips every

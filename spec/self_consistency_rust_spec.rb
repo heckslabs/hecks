@@ -8,7 +8,7 @@ require_relative "support/rust_conformance_helpers"
 # `"seed"` door (`kernel/cli.rs`'s own header; `Hecks::Fuzzing::
 # SelfConsistency`'s own file header explains the mechanism in full).
 # Proven two ways, matching this practice's existing "found something"
-# fixture pattern (`spec/qa_sweep_all_spec.rb`'s own fixture crate):
+# fixture pattern (`spec/support/qa_sweep_all_fixture.rb`'s own fixture crate):
 #
 #   - against a REAL compiled domain binary (pizzas), both checks stay
 #     clean — `Store::from_seed`/`Store::instances` really are inverses

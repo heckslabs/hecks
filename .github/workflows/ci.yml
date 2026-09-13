@@ -210,6 +210,21 @@ on:
   push:
     branches: [main]
 
+# CANCEL A SUPERSEDED PR RUN — Phase 1 of the CI speed effort. A second
+# push to the same PR used to leave the stale run's jobs (up to 18 of
+# them) still occupying runner slots against the org's 20-concurrent-
+# runner ceiling, queueing whatever else needed to start. Grouped by PR
+# number for `pull_request` (so two pushes to the SAME PR share a group
+# and the older one is cancelled); grouped by `github.ref` otherwise —
+# `merge_group`'s own `gh-readonly-queue/...` ref is already unique per
+# attempt, so `cancel-in-progress: false` there is harmless, not a
+# missed cancellation. Never cancels a `merge_group` run: doing so mid-
+# flight would leave the queue uncertain about a PR it had already
+# started testing against main's current tip.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   rspec:
     runs-on: ubuntu-latest
@@ -278,10 +293,80 @@ jobs:
       # this — it would already be broken for every contributor running
       # a plain local `bundle exec rspec`, since none of them provision a
       # local Postgres or build Rust either).
+      # `--profile 15` — Phase 0 of the CI speed effort: know the top
+      # examples by wall-clock instead of inferring them from job-level
+      # timestamps. Printed once per `parallel_rspec` worker process (4
+      # of them here), each covering only that worker's own slice.
       - name: "rspec: parallel (everything safe to run concurrently)"
-        run: bundle exec parallel_rspec spec -o "--tag ~io --tag ~fuzzing"
+        run: bundle exec parallel_rspec spec -o "--tag ~io --tag ~fuzzing --profile 15"
 
+  # `checks` USED TO BE ONE JOB, SIX UNRELATED KINDS OF WORK IN SERIES —
+  # split into three (this job is now a tiny aggregator; see Phase 1 of
+  # the CI speed effort) purely because nothing here shares state with
+  # anything else here: `bin/fuzz` (139s measured), the codegen-drift
+  # regen + rust coverage steps (~110s), and the static-analysis steps
+  # (~90s) never touch each other's output. Splitting them into
+  # `checks_fuzz`/`checks_codegen_drift`/`checks_static` runs all three
+  # concurrently instead of paying their sum serially; this job exists
+  # SOLELY so `checks` keeps being the exact required-status-check name
+  # the `merge-queue-main` ruleset already names — the same
+  # aggregator-over-a-renamed-job trick `rspec_postgres_io_parallel`
+  # already uses for the identical reason (see that job's own header
+  # comment). `if: always()` is required — without it the default
+  # implicit `success()` condition would skip THIS job whenever one of
+  # the three below failed, which a required check can't afford.
   checks:
+    runs-on: ubuntu-latest
+
+    needs: [checks_fuzz, checks_codegen_drift, checks_static]
+    if: always()
+
+    steps:
+      - name: fuzz, codegen drift, and static checks all passed
+        run: |
+          for result in "${{ needs.checks_fuzz.result }}" "${{ needs.checks_codegen_drift.result }}" \
+                        "${{ needs.checks_static.result }}"; do
+            if [ "$result" != "success" ]; then
+              echo "one of checks_fuzz/checks_codegen_drift/checks_static did not succeed: $result" >&2
+              exit 1
+            fi
+          done
+
+  # DYNAMIC — generates random-but-valid command/query sequences from
+  # EVERY example domain's own IR (plus the self-hosted grammar
+  # meta-domain) and replays each one, checking every declared property
+  # (docs/decisions/0024) plus interpreter-crash and determinism. Wired
+  # in here, not run only ad hoc, because it found a real bug the first
+  # time anyone pointed it at lib/hecks/grammar: a domain composing more
+  # than one bluebook (grammar is Expression+Translation; banking is
+  # Banking+Governance+Identity) could make a property misresolve a
+  # refusal against the wrong domain, and nothing before this step ran on
+  # every push would ever have caught it. No `--seeds`/`--steps`
+  # override — bin/fuzz's own defaults (20 seeds, 30 steps) keep this
+  # fast enough for every push while still exercising real depth; a
+  # deeper, ad hoc sweep (60+ seeds) is what actually found the bug above
+  # and is a manual `bin/fuzz` invocation, not this step's job. Exits
+  # non-zero the same way every other gate in this workflow does — no
+  # special handling here. Its own job, not folded into `checks_static`,
+  # because at 139s it is the single largest step that used to live in
+  # `checks` — giving it a dedicated runner is most of this split's win.
+  checks_fuzz:
+    runs-on: ubuntu-latest
+
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: bin/fuzz
+        run: bundle exec bin/fuzz
+
+  checks_static:
     runs-on: ubuntu-latest
 
     # See `rspec` job's own comment above — cache-warming push doesn't
@@ -295,26 +380,6 @@ jobs:
         with:
           ruby-version: "3.3"
           bundler-cache: true
-
-      # DYNAMIC — generates random-but-valid command/query sequences from
-      # EVERY example domain's own IR (plus the self-hosted grammar
-      # meta-domain) and replays each one, checking every declared
-      # property (docs/decisions/0024) plus interpreter-crash and
-      # determinism. Wired in here, not run only ad hoc, because it found
-      # a real bug the first time anyone pointed it at lib/hecks/
-      # grammar: a domain composing more than one bluebook (grammar is
-      # Expression+Translation; banking is Banking+Governance+Identity)
-      # could make a property misresolve a refusal against the wrong
-      # domain, and nothing before this step ran on every push would ever
-      # have caught it. No `--seeds`/`--steps` override — bin/fuzz's own
-      # defaults (20 seeds, 30 steps) keep this fast enough for every
-      # push while still exercising real depth; a deeper, ad hoc sweep
-      # (60+ seeds) is what actually found the bug above and is a manual
-      # `bin/fuzz` invocation, not this step's job. Exits non-zero the
-      # same way every other gate in this workflow does — no special
-      # handling here.
-      - name: bin/fuzz
-        run: bundle exec bin/fuzz
 
       # Static analysis over the IR — unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches — facts the
@@ -332,7 +397,8 @@ jobs:
       # `when` case for it AND that some cross-engine agreement spec
       # actually exercises it. Reads only already-committed Ruby source —
       # no cargo, no Postgres — so it belongs in this job right next to
-      # `model check`/`rust coverage` above and below, not in `rspec`.
+      # `model check`/`doc coverage`/`rubocop`, not in `rspec` or the
+      # cargo-heavy `checks_codegen_drift`.
       - name: engine agreement (query comparators)
         run: bundle exec bin/check_engine_agreement
 
@@ -352,6 +418,57 @@ jobs:
       # step immediately after it.)
       - name: lint generated deploy recipes
         run: bundle exec bin/lint_deploy_recipes
+
+      # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
+      # exact gap the rubocop step's own comment below already names for
+      # itself, applied to the one pre-push check that comment's own
+      # audit had missed: pre-push is opt-in per clone (`git config
+      # core.hooksPath .githooks`) and bypassable (`git push
+      # --no-verify`), so a branch that never installed it, or a push
+      # made with that flag, reached GitHub with `bin/doc_coverage`
+      # never having run at all — on a project where most commits come
+      # from an agent, "did this clone install the hook" isn't a safe
+      # assumption. Same command pre-push already runs (`bin/doc_
+      # coverage`'s own header): every live word in docs/implemented/
+      # reference/ carries hand-written prose and a running example.
+      - name: doc coverage
+        run: bundle exec bin/doc_coverage
+
+      # RUBOCOP, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — added in
+      # this same integration pass that wired
+      # Hecks/FallbackHashLookup/ThreadSharedIvarMutation/
+      # SequentialHashRenameInLoop into .rubocop.yml's `require:` list
+      # (docs/rubocop-custom-cops.md). Those three cops each guard a real,
+      # already-shipped bug class (8+ instances of a same-receiver `||`
+      # fallback silently dropping a stored `false`; a thread-shared ivar
+      # mutation on Dispatcher/Registry; a hash rename loop clobbering its
+      # own keys mid-pass) — pre-push is opt-in per clone
+      # (`git config core.hooksPath .githooks`) and bypassable
+      # (`git push --no-verify`), so a branch that never installed it, or
+      # a push made with that flag, would otherwise reach GitHub with NONE
+      # of those three guards (or any other rubocop cop) having run at
+      # all — the exact "a push that skipped the hook... can't land red"
+      # gap this workflow's own top-of-file comment already names as the
+      # reason `rspec`/`checks` both exist here rather than trusting
+      # pre-push alone. Same command pre-push already runs, so nothing
+      # cop-specific is needed here (docs/rubocop-custom-cops.md's own
+      # closing note); confirmed clean against this tree before adding
+      # this step.
+      - name: rubocop
+        run: bundle exec rubocop -c .rubocop.yml
+
+  checks_codegen_drift:
+    runs-on: ubuntu-latest
+
+    if: github.event_name != 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
 
       # THE GATE EVERY STEP BELOW THIS ONE WAS SILENTLY TRUSTING —
       # bin/rust_coverage and the "rust coverage: <domain>" steps below
@@ -726,8 +843,10 @@ jobs:
   #     `rust/Cargo.toml`'s own `[lib]`/`[[bin]]` `path =` pointing only
   #     at `src/`, no `path =` dependency on any sibling crate, and via
   #     grep: none of the 30 files reads a file under any of them.
-  #     `qa_sweep_all_spec.rb`'s own differential-fuzz example LOOKS like
-  #     a second real-rust-crate dependency but isn't: it sets
+  #     `qa_sweep_all_report_and_parity_spec.rb`'s own differential-fuzz
+  #     example (one of four files `qa_sweep_all_spec.rb` split into,
+  #     Phase 2 of the CI speed effort) LOOKS like a second
+  #     real-rust-crate dependency but isn't: it sets
   #     `QA_SWEEP_RUST_DIR` to its OWN small fixture crate under
   #     `spec/fixtures/`, never the real `rust/` — see that spec file's
   #     own header comment on `QA_SWEEP_RUST_DIR`.
@@ -974,14 +1093,71 @@ jobs:
       # the old single job: keyed on `github.run_id`, unique to THIS run,
       # so `key:` itself never matches on restore — it always falls
       # through to the `restore-keys` prefix match, which resolves to the
-      # MOST RECENT previously-saved log.
-      - name: Restore rspec runtime log cache
+      # MOST RECENT previously-saved log FOR THAT GROUP.
+      #
+      # PER-GROUP KEYS, ALL FOUR RESTORED AND MERGED — the design this
+      # job's own header used to defer (see the "ONLY GROUP 1 SAVES"
+      # comment that used to sit on the save step below). `--only-group N`
+      # + `num_processes=1` makes `ParallelTests::RSpec::RuntimeLogger`'s
+      # `--out` TRUNCATE-then-append (confirmed by reading
+      # `parallel_tests/rspec/logger_base.rb`'s own constructor:
+      # `File.open(@output, 'w') {}` before reopening 'a') — so any one
+      # leg's own saved log only ever has real times for ITS OWN ~1/4 of
+      # the file list, never the other three groups'. Saving only group 1
+      # (the old design) meant the other three groups' files never got
+      # real timing data at all, forever — graded on `--allowed-missing
+      # 100`'s averaged guess instead, every single run. Four independent
+      # per-group keys plus a merge step fixes that: each leg restores its
+      # own group's most recent log (real data for the files it actually
+      # ran last time) and the other three groups' too, concatenates them
+      # (no file appears in more than one group's own log, so this is a
+      # disjoint union, not a conflict), and `--group-by runtime` sees a
+      # genuinely complete history instead of one leg's slice.
+      # FOUR SEPARATE STEPS, NOT ONE WITH A MULTI-LINE `path:` — a single
+      # `actions/cache` call treats every `path:` line as ONE combined
+      # blob under ONE `key`, so bundling all 4 groups' files into one
+      # `restore@v4` call would restore them as a single atomic entry, not
+      # four independently-versioned ones. Every leg runs all 4 restores
+      # regardless of its OWN `matrix.group`, so every leg's own
+      # `--group-by runtime` sees the complete 4-group history, not just
+      # its own slice.
+      - name: Restore rspec runtime log cache (group 1)
         uses: actions/cache/restore@v4
         with:
-          path: tmp/parallel_runtime_rspec.log
-          key: postgres-io-parallel-runtime-${{ github.run_id }}
+          path: tmp/parallel_runtime_rspec.group1.log
+          key: postgres-io-parallel-runtime-group1-${{ github.run_id }}
           restore-keys: |
-            postgres-io-parallel-runtime-
+            postgres-io-parallel-runtime-group1-
+
+      - name: Restore rspec runtime log cache (group 2)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec.group2.log
+          key: postgres-io-parallel-runtime-group2-${{ github.run_id }}
+          restore-keys: |
+            postgres-io-parallel-runtime-group2-
+
+      - name: Restore rspec runtime log cache (group 3)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec.group3.log
+          key: postgres-io-parallel-runtime-group3-${{ github.run_id }}
+          restore-keys: |
+            postgres-io-parallel-runtime-group3-
+
+      - name: Restore rspec runtime log cache (group 4)
+        uses: actions/cache/restore@v4
+        with:
+          path: tmp/parallel_runtime_rspec.group4.log
+          key: postgres-io-parallel-runtime-group4-${{ github.run_id }}
+          restore-keys: |
+            postgres-io-parallel-runtime-group4-
+
+      - name: Merge the 4 groups' runtime logs into one grouping input
+        run: |
+          mkdir -p tmp
+          cat tmp/parallel_runtime_rspec.group*.log > tmp/parallel_runtime_rspec.log 2>/dev/null || true
+          touch tmp/parallel_runtime_rspec.log
 
       - name: Determine which spec files can ever match --tag io (real dry run, see bin/rspec_io_parallel_files)
         run: |
@@ -995,31 +1171,25 @@ jobs:
           bundle exec parallel_rspec "${IO_FILES[@]}" \
             -n 4 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
             --runtime-log tmp/parallel_runtime_rspec.log \
-            -o "--tag io --tag ~fuzzing --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.log"
+            -o "--tag io --tag ~fuzzing --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
-      # ONLY GROUP 1 SAVES — the simpler of the two designs weighed here
-      # (see this PR's own description): each of the 4 legs running
-      # `--only-group` only ever measures real runtime for ITS OWN ~1/4
-      # of the file list, so a save from every leg would need a genuine
-      # merge step to combine 4 partial logs into one before the next
-      # run's restore could use them — real complexity for a cache that's
-      # already only advisory (grouping degrades gracefully to
-      # averaged-time guesses via `--allowed-missing 100` above, never
-      # fails outright, however stale or incomplete it is). Letting only
-      # group 1 save keeps the exact same single-key convention the old
-      # job used, at the cost of the OTHER 3 groups' files never getting
-      # fresh timing data of their own — they'll be graded on the known
-      # set's average runtime, not their own real measured cost,
-      # indefinitely. Accepted as a real, named tradeoff rather than an
-      # oversight: revisit with an actual merge-the-4-logs step if
-      # grouping balance measured over time turns out to matter more than
-      # what this saves in complexity.
-      - name: Save rspec runtime log cache
-        if: always() && matrix.group == 1
+      # EVERY GROUP SAVES ITS OWN FILE NOW — see the restore step's own
+      # header above for why the old "only group 1 saves" design left the
+      # other three groups permanently ungraded on real timing. `--out`
+      # above already points each leg at its own `group${N}.log`, written
+      # fresh by `ParallelTests::RSpec::RuntimeLogger` this run (its own
+      # `--only-group`-forced single process still gets a real,
+      # non-empty `TEST_ENV_NUMBER` — `""`, not unset — so the formatter
+      # is not the no-op it would be if that env var were genuinely
+      # absent; confirmed by reading `parallel_tests/rspec/
+      # runtime_logger.rb`'s own `start_dump` guard against
+      # `parallel_tests/test/runner.rb`'s `test_env_number`).
+      - name: Save this group's own runtime log cache
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: tmp/parallel_runtime_rspec.log
-          key: postgres-io-parallel-runtime-${{ github.run_id }}
+          path: tmp/parallel_runtime_rspec.group${{ matrix.group }}.log
+          key: postgres-io-parallel-runtime-group${{ matrix.group }}-${{ github.run_id }}
 
   # AGGREGATOR — exists ONLY so `rspec_postgres_io_parallel` keeps being
   # the exact required-status-check name the `merge-queue-main` ruleset

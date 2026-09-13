@@ -14,7 +14,7 @@ require "tmpdir"
 # with `--all`'s own precedence; and a stale-hold reclaim is counted out
 # loud so a recurring one is visible across ticks.
 RSpec.describe "bin/qa_tick", :io do
-  # THE SAME TRIVIALLY WELL-BEHAVED TARGET `spec/qa_sweep_all_spec.rb`
+  # THE SAME TRIVIALLY WELL-BEHAVED TARGET `spec/support/qa_sweep_all_fixture.rb`
   # sweeps — read that file's `FIXTURE_TARGET_BLUEBOOK` comment for why a
   # real corpus domain would make a "clean" example flaky.
   TICK_TARGET_BLUEBOOK = <<~RUBY.freeze

@@ -82,14 +82,14 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch do
 
     # NAMESPACED, NOT THE GENERIC `FIXTURE_BLUEBOOK`/`FIXTURE_HECKSAGON`
     # OTHER SPEC FILES ALSO USE — `spec/qa_sweep_persistence_parity_spec.rb`'s
-    # own comment on `spec/qa_sweep_all_spec.rb`'s `FIXTURE_HECKSAGON`
+    # own comment on `spec/support/qa_sweep_all_fixture.rb`'s `FIXTURE_HECKSAGON`
     # names the real gotcha this avoids: a bare `CONST = value` written
     # directly inside an `RSpec.describe`/`context do ... end` block
     # assigns at the block's own LEXICAL scope (top-level, i.e. `Object`),
     # never inside the dynamically-created example-group class, so two
     # spec files that both write the same generic name are defining the
     # SAME top-level constant — confirmed live: this file's own
-    # `FIXTURE_HECKSAGON` collided with `spec/qa_sweep_all_spec.rb`'s own,
+    # `FIXTURE_HECKSAGON` collided with `spec/support/qa_sweep_all_fixture.rb`'s own,
     # caught by `spec/load_hygiene_spec.rb`.
     CONCURRENT_DISPATCH_FIXTURE_BLUEBOOK = <<~RUBY.freeze
       Hecks.bluebook "ConcurrentDispatchFixture" do
