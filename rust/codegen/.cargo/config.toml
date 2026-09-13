@@ -1,0 +1,8 @@
+# Phase 6's lld-linker half, rolled out here after the rust/parser
+# canary (PR #620) proved it safe — see rust/.cargo/config.toml's own
+# header for the full reasoning. This is rust/codegen ("hecks-codegen"),
+# an independent Cargo project built by codegen_parity_spec.rb's own
+# `build_codegen!` inside rspec_rust_codegen. No native C library
+# dependencies (confirmed: no openssl/libpq/-sys entries in Cargo.toml).
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
