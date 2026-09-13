@@ -89,10 +89,36 @@ module Hecks
       # `dry_run_draw?`): `0.0` draws nothing, so every pinned seed is
       # byte-for-byte what it was; `bin/qa_sweep` reads them from
       # `QualityControlDials::ROLE_DRAW_PROBABILITY`/`DRY_RUN_FRACTION`.
-      def self.generate(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0)
-        new(domain_path, seed: seed, steps: steps, adapter: adapter, adversarial: adversarial,
-            role_draw: role_draw, dry_run: dry_run).call
+      #
+      # `prefix:` / `favor:` — the two levers `CoverageCampaign` pulls
+      # (coverage_campaign.rb has the why). `prefix:` is `{ "seed", "steps",
+      # "favor", "prefix" }`: re-generate that seed's first `steps` attempts
+      # (itself recursively prefixed) before this seed's own randomness
+      # starts, so a seed can begin from state an earlier seed reached.
+      # `favor:` names verbs the picker weights up. `nil`/`[]`, the
+      # defaults, draw nothing extra and change nothing: every pinned seed
+      # is byte-for-byte what it was.
+      def self.generate(domain_path, seed:, steps:, **)
+        new(domain_path, seed: seed, steps: steps, **).call
       end
+
+      # THE SAME GENERATION, WITH WHAT IT REACHED — `coverage` is
+      # `[[attempt_index, tuple], ...]` (`coverage_tuple`), `verbs` every
+      # verb the booted catalog offered, so a campaign can tell a verb it
+      # never hit from one that does not exist.
+      Trace = Struct.new(:steps, :coverage, :verbs, keyword_init: true)
+
+      def self.trace(domain_path, seed:, steps:, **)
+        generator = new(domain_path, seed: seed, steps: steps, **)
+        Trace.new(steps: generator.call, coverage: generator.coverage, verbs: generator.verbs)
+      end
+
+      # How strongly a `favor:` verb is preferred when it is eligible —
+      # the same order of magnitude as an unexercised verb, so favor
+      # steers without drowning out what this sequence has not touched.
+      FAVOR_WEIGHT = 4
+
+      attr_reader :coverage, :verbs
 
       # How many EVENTS the generated sequence actually produced — not
       # steps, not successful dispatches, but the sum of every Result#events
@@ -104,7 +130,8 @@ module Hecks
       # replay one.
       attr_reader :event_count
 
-      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0)
+      def initialize(domain_path, seed:, steps:, adapter: :memory, adversarial: 0.0, role_draw: 0.0, dry_run: 0.0,
+                     prefix: nil, favor: [])
         { adversarial: adversarial, role_draw: role_draw, dry_run: dry_run }.each do |name, fraction|
           next if fraction.is_a?(Numeric) && fraction.between?(0, 1)
 
@@ -129,6 +156,12 @@ module Hecks
         @precedence_caller   = nil
         @exercised           = Set.new
         @event_count         = 0
+        @prefix              = prefix
+        @favor               = Array(favor)
+        @own_favor           = @favor
+        @coverage            = []
+        @verbs               = []
+        @attempt             = 0
       end
 
       def call
@@ -142,21 +175,76 @@ module Hecks
         IsolatedBoot.call(@domain_path, adapter: @adapter) do |copy|
           runtime = Hecks.boot(copy)
           catalog = build_catalog(runtime)
-          Array.new(@step_count) { attempt_step(runtime, catalog) }.compact
+          @verbs  = catalog.values_at(:creating, :instance, :entity_commands, :queries, :entity_queries, :read_models)
+                           .flatten.map { |entry| entry[:verb] }.uniq
+
+          steps = []
+          if @prefix
+            realize_prefix(runtime, catalog, @prefix, prefix_limit(@prefix), steps)
+            @random = Random.new(@seed)
+            @favor  = @own_favor
+          end
+          @step_count.times { steps << attempt_step(runtime, catalog) }
+          steps.compact
         end
       end
 
       private
 
+      # A PREFIX IS THE FIRST `limit` ATTEMPTS OF ANOTHER SEED'S GENERATION,
+      # re-run for real: its own nested prefix first (capped the same way it
+      # was capped when that seed was generated), then that seed's own
+      # `Random.new(seed)` and favor for the rest. Same inputs, same
+      # catalog, same draws — the same steps, and the same known ids and
+      # exercised verbs carried forward into this seed.
+      #
+      # THE PREFIX IS ON TOP OF THIS SEED'S OWN BUDGET, NOT OUT OF IT. A
+      # spliced seed still makes all `steps` attempts of its own after the
+      # prefix; a prefix is capped at `steps` attempts, so a spliced
+      # sequence is at most twice as long as an unspliced one. Taking the
+      # prefix OUT of the budget (the first version of this) left a spliced
+      # seed replaying state already seen with almost nothing left to
+      # explore from it — measured: fewer distinct tuples than unguided.
+      def realize_prefix(runtime, catalog, spec, limit, steps)
+        return 0 unless limit.positive?
+
+        inner = spec["prefix"]
+        used  = inner ? realize_prefix(runtime, catalog, inner, [prefix_limit(inner), limit].min, steps) : 0
+        @random = Random.new(Integer(spec.fetch("seed")))
+        @favor  = Array(spec["favor"])
+        (limit - used).times { steps << attempt_step(runtime, catalog) }
+        limit
+      end
+
+      def prefix_limit(spec) = Integer(spec.fetch("steps")).clamp(0, @step_count)
+
       def attempt_step(runtime, catalog)
+        index = @attempt
+        @attempt += 1
         entry = pick(catalog)
         return nil unless entry
 
         @exercised << entry[:verb]
-        if entry[:query]      then build_query_step(runtime, entry)
-        elsif entry[:model]   then build_read_model_step(runtime, entry)
-        else                       build_command_step(runtime, catalog, entry)
-        end
+        @state_before = "-"
+        step =
+          if entry[:query]    then build_query_step(runtime, entry)
+          elsif entry[:model] then build_read_model_step(runtime, entry)
+          else                     build_command_step(runtime, catalog, entry)
+          end
+        @coverage << [index, coverage_tuple(entry, step)]
+        step
+      end
+
+      # `verb | kind | state before | mutation | outcome` — see
+      # CoverageCampaign's header for why the unit is this and not the
+      # verb. `state` is the addressed aggregate's lifecycle value (or
+      # `exists`/`absent` for one without a lifecycle) read just before
+      # dispatch; `mutation` names every adversarial mutation and its shape;
+      # `outcome` is `ok` or the refusal class `safe_call` rescued.
+      def coverage_tuple(entry, step)
+        kind     = %w[verb query dry_run].find { |key| step.key?(key) }
+        mutation = Array(step["adversarial"]).map { |m| [m["mutation"], m["shape"]].compact.join(":") }.join("+")
+        [entry[:verb], kind, @state_before, mutation.empty? ? "-" : mutation, @last_outcome].join(" | ")
       end
     end
   end

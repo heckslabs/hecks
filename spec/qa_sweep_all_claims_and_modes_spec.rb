@@ -49,6 +49,9 @@ RSpec.describe "bin/qa_sweep --all", :io do
     expect(status.exitstatus).to eq(0)
     expect(stdout).to include("resolved modes: ruby_only,self_consistency (capabilities=sqlite)")
     expect(stdout).to include("seed 1: held (ruby_only, self_consistency)")
+    # GUIDED_GENERATION is on in the real dials this fixture ledger loads,
+    # so the sweep's one CoverageCampaign reports what its seeds reached.
+    expect(stdout).to match(/^  coverage: \d+ distinct .* over 2 seed\(s\)/)
 
     stdout, _stderr, status = run_qa_sweep("modes_one", "--seeds", "2", "--modes", "ruby_only")
     expect(status.exitstatus).to eq(0)

@@ -226,6 +226,17 @@
 # checks. The report then carries a `shrunk:` block per check with the
 # minimal steps, the file under tmp/qa-shrunk/, and a `replay:` line.
 #
+# SEEDS REMEMBER EACH OTHER. With `QualityControlDials::GUIDED_GENERATION`
+# on, one `Hecks::Fuzzing::CoverageCampaign` spans the sweep's seed loop:
+# every generated sequence reports the (verb, step kind, lifecycle state,
+# adversarial mutation, outcome) tuples it reached, a seed that reached a
+# new one joins the campaign's corpus, and later seeds may start from a
+# prefix of it (`CORPUS_SPLICE_PROBABILITY`) and weight up the sweep's
+# least-hit verbs (`FAVOR_RARE_VERBS`). Both levers are plain generator
+# arguments, so a guided seed's `reproduce:` line names them and still
+# reproduces from one call. The sweep prints its `coverage:` line after
+# the seed loop.
+#
 # EXIT CODES — the only contract an agent (or a loop) needs to read:
 #   0  clean — every generated sequence held, the sweep concluded and the
 #      target released. Nothing else to do; relay the printed summary.
@@ -736,6 +747,15 @@ ENGINEER = defined?(QualityControlDials::AUTOMATED_ENGINEER) ? QualityControlDia
 # sweep_depth.rb, beside `RotationPriority`) is the one reader, and its
 # own `DEFAULT_TIERS` is the identical fallback for a dial-less ledger.
 WIDENING_TIERS = defined?(QualityControlDials::WIDENING_TIERS) ? QualityControlDials::WIDENING_TIERS : Hecks::Fuzzing::SweepDepth::DEFAULT_TIERS
+
+# COVERAGE-GUIDED GENERATION ACROSS THIS SWEEP'S SEEDS — the three dials
+# `Hecks::Fuzzing::CoverageCampaign` runs on. A ledger without them (an
+# isolated spec's own fixture) generates every seed independently, the
+# same "off without a dial" stance the adversarial layer takes.
+GUIDED_GENERATION = defined?(QualityControlDials::GUIDED_GENERATION) ? QualityControlDials::GUIDED_GENERATION : false
+CORPUS_SPLICE_PROBABILITY =
+  defined?(QualityControlDials::CORPUS_SPLICE_PROBABILITY) ? QualityControlDials::CORPUS_SPLICE_PROBABILITY : 0.5
+FAVOR_RARE_VERBS = defined?(QualityControlDials::FAVOR_RARE_VERBS) ? QualityControlDials::FAVOR_RARE_VERBS : 3
 
 # HOW MANY `bin/qa_sweep <target>` CHILDREN `--all` KEEPS ALIVE AT ONCE
 # — see `run_pool`'s own header, below. Four is the dial's own default
@@ -1697,6 +1717,18 @@ def check_for(mode, feature, seed, shape, divergences)
     observation: divergences.empty? ? "held" : "diverged on: #{divergences.map { |d| d[:field] }.join(', ')}" }
 end
 
+# THE EXTRA `generate` ARGUMENTS A GUIDED SEED NEEDS TO REPRODUCE — empty
+# for an unguided (or unspliced, unfavored) seed, so its `reproduce:` line
+# reads exactly as before.
+def plan_arguments(plan)
+  return "" unless plan
+
+  parts = []
+  parts << "prefix: #{plan.prefix.inspect}" if plan.prefix
+  parts << "favor: #{plan.favor.inspect}" unless plan.favor.empty?
+  parts.empty? ? "" : ", #{parts.join(', ')}"
+end
+
 # ITEM 4 OF THE DETECTION PLAN — THE ONCE-PER-SWEEP STRUCTURAL-SKIP
 # CHECK. `differ.structural_skips` is every verb the binary refused as
 # "not generated" over this sweep's seeds; `Hecks::Fuzzing::StructuralSkips`
@@ -1887,13 +1919,14 @@ end
 # `role_draw:`/`dry_run:` reach the generator the same way `adversarial`
 # does (items 2 and 5 of the detection plan).
 def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial, modes,
-                 role_draw: 0.0, dry_run: 0.0, database: nil, schema: nil,
-                 concurrency_database: nil, concurrency_race_schema: nil, concurrency_reference_schema: nil)
+                 role_draw: 0.0, dry_run: 0.0, database: nil, schema: nil, concurrency: {}, plan: nil)
   shape = "#{steps_per_sequence} steps, adversarial #{adversarial}, role_draw #{role_draw}, dry_run #{dry_run}"
+  shape += ", spliced" if plan&.spliced?
   begin
-    steps = Hecks::Fuzzing::SequenceGenerator.generate(domain_path, seed: seed, steps: steps_per_sequence,
-                                                                    adversarial: adversarial, role_draw: role_draw,
-                                                                    dry_run: dry_run)
+    trace = Hecks::Fuzzing::SequenceGenerator.trace(domain_path, seed: seed, steps: steps_per_sequence,
+                                                                 adversarial: adversarial, role_draw: role_draw,
+                                                                 dry_run: dry_run, **(plan ? plan.generator_options : {}))
+    steps = trace.steps
   rescue StandardError => e
     return { steps: [], checks: [
       { mode: :generator, subject: "[generator] #{feature} fuzz seed #{seed} (#{shape}) — sequence generation",
@@ -1909,12 +1942,13 @@ def run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_seq
     when :differential       then diff_ruby_vs_rust(differ, domain_path, steps, binary, modes: modes)
     when :persistence_parity then { persistence_parity: persistence_parity_outcome(domain_path, steps, database, schema).last }
     when :concurrency
-      { concurrency: concurrency_outcome(domain_path, steps, concurrency_database, concurrency_race_schema,
-                                         concurrency_reference_schema) }
+      { concurrency: concurrency_outcome(domain_path, steps, concurrency[:database], concurrency[:race_schema],
+                                         concurrency[:reference_schema]) }
     else ruby_only_outcome(domain_path, steps, modes: modes)
     end
 
-  { steps: steps, checks: outcomes.map { |mode_key, divergences| check_for(mode_key, feature, seed, shape, divergences) } }
+  { steps: steps, trace: trace,
+    checks: outcomes.map { |mode_key, divergences| check_for(mode_key, feature, seed, shape, divergences) } }
 end
 
 # ── shrinking a surprise ─────────────────────────────────────────────
@@ -1985,6 +2019,13 @@ end
 surprise = nil
 
 begin
+  # ONE CAMPAIGN PER SWEEP — see `GUIDED_GENERATION`, above. `nil` when
+  # off, and every seed is then generated exactly as it always was.
+  campaign = if GUIDED_GENERATION
+               Hecks::Fuzzing::CoverageCampaign.new(splice_probability: CORPUS_SPLICE_PROBABILITY,
+                                                    favor_count:        FAVOR_RARE_VERBS)
+             end
+
   # NO SEED LOOP AT ALL FOR A SEEDLESS-ONLY SWEEP — `seeded_modes.empty?`
   # is exactly the `mode == :seedless` case from the primary-seat
   # selection above; skipping the loop outright (rather than iterating
@@ -1992,11 +2033,14 @@ begin
   # sweep from claiming to have generated sequences it never did.
   if seeded_modes.any?
     (1..seeds).each do |seed|
+      plan   = campaign&.plan(seed)
       result = run_one_seed(mode, differ, domain_path, feature, binary, seed, steps_per_sequence, adversarial,
                             active_modes, role_draw: role_draw, dry_run: dry_run,
                             database: persistence_parity_database, schema: persistence_parity_schema,
-                            concurrency_database: concurrency_database, concurrency_race_schema: concurrency_race_schema,
-                            concurrency_reference_schema: concurrency_reference_schema)
+                            concurrency: { database: concurrency_database, race_schema: concurrency_race_schema,
+                                           reference_schema: concurrency_reference_schema },
+                            plan: plan)
+      campaign.record(seed, plan, result[:trace]) if campaign && result[:trace]
 
       # EVERY MODE'S CHECK IS LOGGED, held or surprised, BEFORE the loop
       # decides anything — a seed that surprised on properties but held
@@ -2019,9 +2063,10 @@ begin
       end
 
       puts "  seed #{seed}: SURPRISED (#{surprised.map { |c| c[:mode] }.join(', ')})"
-      surprise = result.merge(seed: seed, checks: surprised)
+      surprise = result.merge(seed: seed, checks: surprised, plan: plan)
       break
     end
+    puts "  #{campaign.summary}" if campaign
   end
 
   # THE ONCE-PER-SWEEP STRUCTURAL-SKIP CHECK — only after a differential
@@ -2123,7 +2168,7 @@ if surprise
   if surprise[:seed]
     puts "reproduce:   Hecks::Fuzzing::SequenceGenerator.generate(#{domain_path.inspect}, " \
          "seed: #{surprise[:seed]}, steps: #{steps_per_sequence}, adversarial: #{adversarial}, " \
-         "role_draw: #{role_draw}, dry_run: #{dry_run})"
+         "role_draw: #{role_draw}, dry_run: #{dry_run}#{plan_arguments(surprise[:plan])})"
   end
   puts "surprised:   #{surprise[:checks].map { |c| c[:mode] }.join(', ')}"
   puts
