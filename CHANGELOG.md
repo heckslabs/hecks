@@ -7,6 +7,43 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-12
+
+**`hecks_qa`, resurrected: a continuous adversarial Ruby/Rust parity
+loop.** The `QualityControl` bluebook is back and wired to
+`model_check`, running as its own durable ledger (`Bug`/`Patch`/
+`Improvement`/`Angle` aggregates, PR discovery via webhook) instead of
+a one-off script. `bin/qa_sweep` drives real parallel-OS-process sweeps
+across a growing rotation of stress domains (`nested_pieces`,
+`waybill`, `ledger_ordering`, `chess`, `tenant_ledger`,
+`referral_chain`, `corrections`, `lease_clock`, and more), with
+era-boundary/concurrency fuzzing and Memory-vs-Postgres
+persistence-adapter parity as first-class sweep modes alongside the
+original engine-agreement checks. Across continuous operation since
+1.2.0 it found and closed 36 numbered Ruby/Rust divergences
+(`BUG#1`–`BUG#36`): entity and saga command routing at nesting depth
+≥2, `corrects`/`reverses` and entity-level admissibility, tenant-scoped
+queries and `authorize ..., tenant:` enforcement on writes, value-object
+and required-argument validation (`from_json` admission order,
+null/blank identity, non-string references), `AlreadyExists`/`NotFound`
+ordering, fuzzer-generated Integer bounds, and a `PostgresEra`
+superuser RLS bypass (`BUG#24`). The full reasoning trail for each
+lives in the `QualityControl` ledger itself, not duplicated here.
+
+**Rust kernel: real `actor_id`-backed `RoleAssignment` in
+`check_role`.** Closes the governance self-exempt gap the 2026-09-08
+review flagged — Rust's role check now does the same lookup Ruby does
+instead of trusting an unchecked `actor_id`.
+
+**Ubiquitous Language glossary.** A new glossary projector gives every
+domain — `hecks_qa`'s own ledger included — an A-to-Z, non-kind-grouped
+reference generated straight from its bluebook.
+
+**CI:** `rspec_postgres_io_parallel` is now a real GitHub Actions
+matrix, pre-filtered to files `--tag io` can ever match, grouped by
+cached real runtime rather than file count, and skipped entirely when
+nothing it covers changed.
+
 ## [1.2.0] - 2026-09-09
 
 **`rust/host` closes its silent-wrongness gaps against a real
