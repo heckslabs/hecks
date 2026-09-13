@@ -1,0 +1,41 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "GeneratedRevaluedShape::Hangar",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRevaluedShape::Hangar.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRevaluedShape::Hangar.Repoint",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRevaluedShape::Hangar.Reopen",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "GeneratedRevaluedShape::Venue",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRevaluedShape::Venue.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "GeneratedRevaluedShape::Hangar.Listed",
+    "generated": true
+  }
+]

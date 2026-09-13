@@ -1,0 +1,428 @@
+{
+  "aggregates": [
+    {
+      "name": "Hangar",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "HangarCode": {
+          "kind": "string"
+        },
+        "HangarTag": {
+          "kind": "string"
+        },
+        "HangarPriority": {
+          "kind": "closed",
+          "members": [
+            "red",
+            "amber",
+            "green"
+          ]
+        },
+        "HangarScore": {
+          "kind": "integer"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "HangarCode"
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": null,
+      "invariants": [
+
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "HangarCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "HangarOpened"
+          ]
+        },
+        {
+          "name": "Retag",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "tags",
+              "type": "HangarTag",
+              "list": true
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarRetaged"
+          ]
+        },
+        {
+          "name": "Prioritize",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "priority",
+              "type": "HangarPriority"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarPrioritized"
+          ]
+        },
+        {
+          "name": "Rescore",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "amount",
+              "type": "HangarScore"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarRescored"
+          ]
+        }
+      ],
+      "queries": [
+
+      ]
+    },
+    {
+      "name": "Kiosk",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "KioskCode": {
+          "kind": "string"
+        },
+        "KioskPriority": {
+          "kind": "closed",
+          "members": [
+            "low",
+            "high"
+          ]
+        },
+        "KioskScore": {
+          "kind": "integer"
+        },
+        "LineSequence": {
+          "kind": "positive"
+        },
+        "LineLabel": {
+          "kind": "string"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "KioskCode"
+        },
+        {
+          "name": "lines",
+          "type": "Line",
+          "list": true,
+          "requires": [
+            "entity:Kiosk.Line"
+          ]
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to": "closed",
+            "from": [
+              "open"
+            ],
+            "requires": [
+              "command:Kiosk.Close"
+            ]
+          },
+          {
+            "command": "Reopen",
+            "to": "open",
+            "from": [
+              "closed"
+            ],
+            "requires": [
+              "command:Kiosk.Reopen"
+            ]
+          }
+        ]
+      },
+      "invariants": [
+
+      ],
+      "entities": [
+        {
+          "name": "Line",
+          "identity": [
+            "sequence"
+          ],
+          "requires": [
+
+          ],
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "LineSequence"
+            },
+            {
+              "name": "label",
+              "type": "LineLabel",
+              "optional": true
+            }
+          ],
+          "lifecycle": null,
+          "commands": [
+            {
+              "name": "Label",
+              "creates": false,
+              "references": [
+
+              ],
+              "args": [
+                {
+                  "name": "label",
+                  "type": "LineLabel"
+                }
+              ],
+              "givens": [
+
+              ],
+              "sets": [
+                {
+                  "target": "label"
+                }
+              ],
+              "emits": [
+                "LineLabeled"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "KioskCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "KioskOpened"
+          ]
+        },
+        {
+          "name": "Close",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "KioskClosed"
+          ]
+        },
+        {
+          "name": "Reopen",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "KioskReopened"
+          ]
+        },
+        {
+          "name": "Prioritize",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "priority",
+              "type": "KioskPriority"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "KioskPrioritized"
+          ],
+          "role": "Clerk"
+        },
+        {
+          "name": "Rescore",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "amount",
+              "type": "KioskScore"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "KioskRescored"
+          ],
+          "role": "Manager"
+        },
+        {
+          "name": "AddLine",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "sequence",
+              "type": "LineSequence"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "lines",
+              "append": {
+                "sequence": "sequence"
+              },
+              "requires": [
+                "attribute:Kiosk.lines",
+                "entity:Kiosk.Line"
+              ]
+            }
+          ],
+          "emits": [
+            "LineAdded"
+          ],
+          "role": "Manager"
+        }
+      ],
+      "queries": [
+        {
+          "name": "Listed",
+          "wheres": [
+            {
+              "field": "status",
+              "value": "open",
+              "requires": [
+                "lifecycle:Kiosk"
+              ]
+            }
+          ],
+          "order_by": "code"
+        }
+      ]
+    }
+  ],
+  "policies": [
+
+  ],
+  "seed": 1013,
+  "forms": [
+    "list_attr",
+    "multi_emit"
+  ]
+}

@@ -1,0 +1,209 @@
+{
+  "aggregates": [
+    {
+      "name": "Desk",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "DeskCode": {
+          "kind": "string"
+        },
+        "LineSequence": {
+          "kind": "positive"
+        },
+        "LineLabel": {
+          "kind": "string"
+        },
+        "DeskScore": {
+          "kind": "integer"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "DeskCode"
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to": "closed",
+            "from": [
+              "open"
+            ],
+            "requires": [
+              "command:Desk.Close"
+            ]
+          }
+        ]
+      },
+      "invariants": [
+
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+            "Parcel"
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "DeskCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "DeskOpened"
+          ]
+        },
+        {
+          "name": "Close",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "DeskClosed"
+          ]
+        }
+      ],
+      "queries": [
+
+      ]
+    },
+    {
+      "name": "Parcel",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "ParcelCode": {
+          "kind": "string"
+        },
+        "ParcelPriority": {
+          "kind": "closed",
+          "members": [
+            "draft",
+            "final"
+          ]
+        },
+        "ParcelNote": {
+          "kind": "string"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "ParcelCode"
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": null,
+      "invariants": [
+
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "ParcelCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "ParcelOpened"
+          ]
+        },
+        {
+          "name": "Annotate",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "note",
+              "type": "ParcelNote",
+              "optional": true
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "ParcelAnnotated"
+          ]
+        }
+      ],
+      "queries": [
+
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "name": "OnDeskOpenedClose",
+      "on": "Desk::DeskOpened",
+      "trigger": "Desk::Close",
+      "requires": [
+        "event:Desk.DeskOpened",
+        "command:Desk.Close",
+        "lifecycle:Desk"
+      ]
+    }
+  ],
+  "seed": 1002,
+  "forms": [
+    "has_query",
+    "has_entity"
+  ]
+}

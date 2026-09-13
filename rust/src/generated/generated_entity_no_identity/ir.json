@@ -1,0 +1,425 @@
+{
+  "ir_version": 1,
+  "name": "GeneratedEntityNoIdentity",
+  "version": null,
+  "vision": "A generated domain that puts composite_piece and multi_emit together.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Kiosk",
+      "description": "A generated kiosk.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "KioskCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "lines",
+          "type": "Line",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "KioskCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a KioskCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineSequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineBatch",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineBatch is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineLabel is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "KioskCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "KioskOpened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Line",
+          "description": "A generated line.",
+          "identified_by": [
+            "batch.value",
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "batch",
+              "type": "LineBatch",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "LineSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "LineLabel",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Label",
+              "role": null,
+              "goal": "Label it",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "label",
+                  "type": "LineLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "label",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "label"
+                  }
+                }
+              ],
+              "emits": [
+                "LineLabeled"
+              ],
+              "from": null,
+              "provenance": null
+            },
+            {
+              "name": "Settle",
+              "role": null,
+              "goal": "Settle it",
+              "references": null,
+              "attributes": [
+
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+
+              ],
+              "emits": [
+                "LineSettled"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Kiosk",
+        "storage_name": "kiosk",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed 1005, forms composite_piece, multi_emit. Not hand-written; see bin/qa_generated_domains.\nHecks.bluebook \"GeneratedEntityNoIdentity\" do\n  vision \"A generated domain that puts composite_piece and multi_emit together.\"\n\n  core\n\n  aggregate \"Kiosk\" do\n    description \"A generated kiosk.\"\n\n    identified_by :code\n    attribute :code, KioskCode\n    attribute :lines, list_of(Line)\n\n    value_object \"KioskCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a KioskCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"LineSequence\" do\n      attribute :value, Integer\n      invariant(\"a LineSequence is positive\") { value.positive? }\n    end\n\n    value_object \"LineBatch\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineBatch is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"LineLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineLabel is not blank\") { !value.to_s.empty? }\n    end\n\n    entity \"Line\" do\n      description \"A generated line.\"\n      identified_by :batch, :sequence\n      attribute :batch, LineBatch\n      attribute :sequence, LineSequence\n      attribute :label, LineLabel, optional: true\n\n      command \"Label\" do\n        goal \"Label it\"\n        attribute :label, LineLabel\n        sets :label\n        emits \"LineLabeled\"\n      end\n\n      command \"Settle\" do\n        goal \"Settle it\"\n        emits \"LineSettled\"\n      end\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, KioskCode\n      sets :code\n      emits \"KioskOpened\"\n    end\n  end\nend\n"
+}

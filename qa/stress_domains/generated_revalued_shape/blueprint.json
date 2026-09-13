@@ -1,0 +1,206 @@
+{
+  "aggregates": [
+    {
+      "name": "Hangar",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "HangarCode": {
+          "kind": "string"
+        },
+        "VenueHandle": {
+          "kind": "string"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "HangarCode"
+        }
+      ],
+      "references": [
+        "Venue"
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Reopen",
+            "to": "open",
+            "from": [
+              "closed"
+            ],
+            "requires": [
+              "command:Hangar.Reopen"
+            ]
+          }
+        ]
+      },
+      "invariants": [
+
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+            "Venue"
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "HangarCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            },
+            {
+              "target": "venue",
+              "requires": [
+                "reference:Hangar->Venue"
+              ]
+            }
+          ],
+          "emits": [
+            "HangarOpened"
+          ]
+        },
+        {
+          "name": "Repoint",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "venue",
+              "type": "VenueHandle"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "venue",
+              "requires": [
+                "reference:Hangar->Venue"
+              ]
+            }
+          ],
+          "emits": [
+            "HangarRepointed"
+          ]
+        },
+        {
+          "name": "Reopen",
+          "creates": false,
+          "references": [
+
+          ],
+          "args": [
+
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+
+          ],
+          "emits": [
+            "HangarReopened"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "name": "Listed",
+          "wheres": [
+            {
+              "field": "status",
+              "value": "open",
+              "requires": [
+                "lifecycle:Hangar"
+              ]
+            }
+          ],
+          "order_by": "code"
+        }
+      ]
+    },
+    {
+      "name": "Venue",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "VenueCode": {
+          "kind": "string"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "VenueCode"
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": null,
+      "invariants": [
+
+      ],
+      "entities": [
+
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "VenueCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "VenueOpened"
+          ]
+        }
+      ],
+      "queries": [
+
+      ]
+    }
+  ],
+  "policies": [
+
+  ],
+  "seed": 1009,
+  "forms": [
+    "revalued_reference",
+    "has_query"
+  ]
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "GeneratedReactionWording::Desk",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedReactionWording::Desk.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedReactionWording::Desk.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "GeneratedReactionWording::Parcel",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedReactionWording::Parcel.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedReactionWording::Parcel.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "GeneratedReactionWording::OnDeskOpenedClose",
+    "generated": true,
+    "routed": true
+  }
+]

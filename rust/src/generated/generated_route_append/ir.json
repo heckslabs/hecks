@@ -1,0 +1,913 @@
+{
+  "ir_version": 1,
+  "name": "GeneratedRouteAppend",
+  "version": null,
+  "vision": "A generated domain that puts list_attr and multi_emit together.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Hangar",
+      "description": "A generated hangar.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "HangarCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "HangarCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a HangarCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "HangarTag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a HangarTag is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "HangarPriority",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "red"
+              ]
+            ],
+            [
+              [
+                "value",
+                "amber"
+              ]
+            ],
+            [
+              [
+                "value",
+                "green"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "HangarScore",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "HangarCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "HangarOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Retag",
+          "role": null,
+          "goal": "Retag it",
+          "references": "Hangar",
+          "attributes": [
+            {
+              "name": "tags",
+              "type": "HangarTag",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarRetaged"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Prioritize",
+          "role": null,
+          "goal": "Prioritize it",
+          "references": "Hangar",
+          "attributes": [
+            {
+              "name": "priority",
+              "type": "HangarPriority",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarPrioritized"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Rescore",
+          "role": null,
+          "goal": "Rescore it",
+          "references": "Hangar",
+          "attributes": [
+            {
+              "name": "amount",
+              "type": "HangarScore",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarRescored"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Kiosk",
+      "description": "A generated kiosk.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "KioskCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "lines",
+          "type": "Line",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "KioskCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a KioskCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "KioskPriority",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "low"
+              ]
+            ],
+            [
+              [
+                "value",
+                "high"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "KioskScore",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineSequence is positive",
+              "canonical": "value.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "LineLabel",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a LineLabel is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "KioskCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "KioskOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Close",
+          "role": null,
+          "goal": "Close it",
+          "references": "Kiosk",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "KioskClosed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reopen",
+          "role": null,
+          "goal": "Reopen it",
+          "references": "Kiosk",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "KioskReopened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Prioritize",
+          "role": "Clerk",
+          "goal": "Prioritize it",
+          "references": "Kiosk",
+          "attributes": [
+            {
+              "name": "priority",
+              "type": "KioskPriority",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "KioskPrioritized"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Rescore",
+          "role": "Manager",
+          "goal": "Rescore it",
+          "references": "Kiosk",
+          "attributes": [
+            {
+              "name": "amount",
+              "type": "KioskScore",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "KioskRescored"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "AddLine",
+          "role": "Manager",
+          "goal": "AddLine it",
+          "references": "Kiosk",
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "LineSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "lines",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "sequence": ":sequence"
+              }
+            }
+          ],
+          "emits": [
+            "LineAdded"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Close",
+            "to_state": "closed",
+            "from_state": "open"
+          },
+          {
+            "command": "Reopen",
+            "to_state": "open",
+            "from_state": "closed"
+          }
+        ]
+      },
+      "entities": [
+        {
+          "name": "Line",
+          "description": "A generated line.",
+          "identified_by": [
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "LineSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "LineLabel",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Label",
+              "role": null,
+              "goal": "Label it",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "label",
+                  "type": "LineLabel",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "label",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "label"
+                  }
+                }
+              ],
+              "emits": [
+                "LineLabeled"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+        {
+          "name": "Listed",
+          "description": "Generated Listed.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"open\""
+            }
+          ],
+          "order_by": {
+            "field": "code",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Hangar",
+        "storage_name": "hangar",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Kiosk",
+        "storage_name": "kiosk",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed 1013, forms list_attr, multi_emit. Not hand-written; see bin/qa_generated_domains.\nHecks.bluebook \"GeneratedRouteAppend\" do\n  vision \"A generated domain that puts list_attr and multi_emit together.\"\n\n  core\n\n  aggregate \"Hangar\" do\n    description \"A generated hangar.\"\n\n    identified_by :code\n    attribute :code, HangarCode\n\n    value_object \"HangarCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a HangarCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"HangarTag\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a HangarTag is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"HangarPriority\" do\n      attribute :value, String, one_of: [\"red\", \"amber\", \"green\"]\n    end\n\n    value_object \"HangarScore\" do\n      attribute :value, Integer\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, HangarCode\n      sets :code\n      emits \"HangarOpened\"\n    end\n\n    command \"Retag\" do\n      goal \"Retag it\"\n      reference_to Hangar\n      attribute :tags, list_of(HangarTag)\n      emits \"HangarRetaged\"\n    end\n\n    command \"Prioritize\" do\n      goal \"Prioritize it\"\n      reference_to Hangar\n      attribute :priority, HangarPriority\n      emits \"HangarPrioritized\"\n    end\n\n    command \"Rescore\" do\n      goal \"Rescore it\"\n      reference_to Hangar\n      attribute :amount, HangarScore\n      emits \"HangarRescored\"\n    end\n  end\n\n  aggregate \"Kiosk\" do\n    description \"A generated kiosk.\"\n\n    identified_by :code\n    attribute :code, KioskCode\n    attribute :lines, list_of(Line)\n\n    value_object \"KioskCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a KioskCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"KioskPriority\" do\n      attribute :value, String, one_of: [\"low\", \"high\"]\n    end\n\n    value_object \"KioskScore\" do\n      attribute :value, Integer\n    end\n\n    value_object \"LineSequence\" do\n      attribute :value, Integer\n      invariant(\"a LineSequence is positive\") { value.positive? }\n    end\n\n    value_object \"LineLabel\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a LineLabel is not blank\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Close\" => \"closed\", from: \"open\"\n      transition \"Reopen\" => \"open\", from: \"closed\"\n    end\n\n    entity \"Line\" do\n      description \"A generated line.\"\n      identified_by :sequence\n      attribute :sequence, LineSequence\n      attribute :label, LineLabel, optional: true\n\n      command \"Label\" do\n        goal \"Label it\"\n        attribute :label, LineLabel\n        sets :label\n        emits \"LineLabeled\"\n      end\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, KioskCode\n      sets :code\n      emits \"KioskOpened\"\n    end\n\n    command \"Close\" do\n      goal \"Close it\"\n      reference_to Kiosk\n      emits \"KioskClosed\"\n    end\n\n    command \"Reopen\" do\n      goal \"Reopen it\"\n      reference_to Kiosk\n      emits \"KioskReopened\"\n    end\n\n    command \"Prioritize\" do\n      role \"Clerk\"\n      goal \"Prioritize it\"\n      reference_to Kiosk\n      attribute :priority, KioskPriority\n      emits \"KioskPrioritized\"\n    end\n\n    command \"Rescore\" do\n      role \"Manager\"\n      goal \"Rescore it\"\n      reference_to Kiosk\n      attribute :amount, KioskScore\n      emits \"KioskRescored\"\n    end\n\n    command \"AddLine\" do\n      role \"Manager\"\n      goal \"AddLine it\"\n      reference_to Kiosk\n      attribute :sequence, LineSequence\n      sets :lines, append: { sequence: :sequence }\n      emits \"LineAdded\"\n    end\n\n    query \"Listed\" do\n      description \"Generated Listed.\"\n      where(:\"status\" => \"open\")\n      order_by :code\n    end\n  end\nend\n"
+}

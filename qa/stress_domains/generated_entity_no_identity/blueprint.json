@@ -1,0 +1,154 @@
+{
+  "aggregates": [
+    {
+      "name": "Kiosk",
+      "identity": [
+        "code"
+      ],
+      "vos": {
+        "KioskCode": {
+          "kind": "string"
+        },
+        "LineSequence": {
+          "kind": "positive"
+        },
+        "LineBatch": {
+          "kind": "string"
+        },
+        "LineLabel": {
+          "kind": "string"
+        }
+      },
+      "attributes": [
+        {
+          "name": "code",
+          "type": "KioskCode"
+        },
+        {
+          "name": "lines",
+          "type": "Line",
+          "list": true,
+          "requires": [
+            "entity:Kiosk.Line"
+          ]
+        }
+      ],
+      "references": [
+
+      ],
+      "lifecycle": null,
+      "invariants": [
+
+      ],
+      "entities": [
+        {
+          "name": "Line",
+          "identity": [
+            "batch",
+            "sequence"
+          ],
+          "requires": [
+
+          ],
+          "attributes": [
+            {
+              "name": "batch",
+              "type": "LineBatch"
+            },
+            {
+              "name": "sequence",
+              "type": "LineSequence"
+            },
+            {
+              "name": "label",
+              "type": "LineLabel",
+              "optional": true
+            }
+          ],
+          "commands": [
+            {
+              "name": "Label",
+              "creates": false,
+              "references": [
+
+              ],
+              "args": [
+                {
+                  "name": "label",
+                  "type": "LineLabel"
+                }
+              ],
+              "givens": [
+
+              ],
+              "sets": [
+                {
+                  "target": "label"
+                }
+              ],
+              "emits": [
+                "LineLabeled"
+              ]
+            },
+            {
+              "name": "Settle",
+              "creates": false,
+              "references": [
+
+              ],
+              "args": [
+
+              ],
+              "givens": [
+
+              ],
+              "sets": [
+
+              ],
+              "emits": [
+                "LineSettled"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "creates": true,
+          "references": [
+
+          ],
+          "args": [
+            {
+              "name": "code",
+              "type": "KioskCode"
+            }
+          ],
+          "givens": [
+
+          ],
+          "sets": [
+            {
+              "target": "code"
+            }
+          ],
+          "emits": [
+            "KioskOpened"
+          ]
+        }
+      ],
+      "queries": [
+
+      ]
+    }
+  ],
+  "policies": [
+
+  ],
+  "seed": 1005,
+  "forms": [
+    "composite_piece",
+    "multi_emit"
+  ]
+}
