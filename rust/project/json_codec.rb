@@ -129,12 +129,38 @@ module RustProjection
     # `Result`, not the unwrapped value, so the list caller's OWN
     # trailing `?` on `.collect::<Result<Vec<_>, _>>()` is what actually
     # propagates a per-element refusal, not this one.
-    def list_element_from_json_mapper(struct_name, key, attr)
+    #
+    # QualityControl ledger — a genuine value-object element (the `else`
+    # branch below) used to call `Type::from_json` bare, straight off
+    # `.iter().map(...)`, UNLIKE `composite_from_json_expr`'s own
+    # identical-shaped scalar-field case, which already wraps with
+    # `coerce_single_field` first. Ruby's own runtime hydration
+    # (`Value::EntityListCoercion#hydrate_value_object_list` →
+    # `Coercion#fields_for`) applies that SAME bare-scalar-per-sole-
+    # attribute shorthand to EVERY element of a `list_of` value-object
+    # attribute, not only to a scalar (non-list) composite field — so
+    # `CardPayment.Authorize`'s own `tags: list_of(Tag)` (a single-
+    # attribute VO) accepts a bare string element on the Ruby side
+    # (`"a-tag"` auto-wraps to `{value: "a-tag"}`) while the generated
+    # Rust called `Tag::from_json` on the bare JSON string directly and
+    # refused `TypeMismatch` — confirmed live: seed 25 of a `--seeds 40
+    # --adversarial 0.3 --steps 25` banking sweep, `Banking::CardPayment.
+    # Authorize` with `tags: ["juliet echo"]`, Ruby coerces the element,
+    # then correctly refuses `InvariantViolation` on the SAME step's
+    # `amount: 0` (`PaymentAmount`'s own "a payment amount is positive"),
+    # while Rust never gets that far — `TypeMismatch` on `tags` first.
+    def list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
       scalar = effective_scalar_type(attr[:type])
-      return "#{rust_ident(attr[:type])}::from_json" unless scalar
+      if scalar
+        body = scalar_from_json_value_expr(struct_name, key, scalar, "item")
+        return "|item| #{body.sub(/\?\z/, '')}"
+      end
 
-      body = scalar_from_json_value_expr(struct_name, key, scalar, "item")
-      "|item| #{body.sub(/\?\z/, '')}"
+      nested_type = rust_ident(attr[:type])
+      sole = sole_field_of(attr[:type], value_objects_by_name)
+      return "|item| #{nested_type}::from_json(&item.coerce_single_field(#{sole.inspect}))" if sole
+
+      "#{nested_type}::from_json"
     end
 
     # BUG#25 — the inverse of `list_element_from_json_mapper`, for
@@ -402,13 +428,13 @@ module RustProjection
         # the key at all (`CardPayment.Authorize`'s own `tags:`),
         # not defaulted to an empty Vec the way a REQUIRED list
         # argument's own absent-key case still is, below.
-        mapper = list_element_from_json_mapper(struct_name, key, attr)
+        mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
         array_error = json_type_error(struct_name, key, "an array")
         "match v.get(#{key.inspect}) { " \
           "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), " \
           "None => None, }".sub("match v.get(#{key.inspect}) { ", "match v.get(#{key.inspect}) { Some(crate::kernel::Json::Null) | None => None, ").sub(", None => None, }", " }")
       elsif attr[:list]
-        mapper = list_element_from_json_mapper(struct_name, key, attr)
+        mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
         "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
           "Some(items) => items.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
           "None => Vec::new(), }"
@@ -720,13 +746,13 @@ module RustProjection
 
         rhs =
           if attr[:list] && list_is_optional
-            mapper = list_element_from_json_mapper(struct_name, key, attr)
+            mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
             array_error = json_type_error(struct_name, key, "an array")
             "match v.get(#{key.inspect}) { " \
               "Some(&crate::kernel::Json::Null) | None => None, " \
               "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }"
           elsif attr[:list]
-            mapper = list_element_from_json_mapper(struct_name, key, attr)
+            mapper = list_element_from_json_mapper(struct_name, key, attr, value_objects_by_name)
             "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
               "Some(items) => items.iter().map(#{mapper}).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
               "None => Vec::new(), }"
