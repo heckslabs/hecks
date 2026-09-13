@@ -4,6 +4,7 @@
 #
 #   bin/qa_generated_domains [--domains N] [--start SEED] [--forms a,b] [--seeds K] [--steps M]
 #                            [--adversarial F] [--rust] [--shrink-budget B] [--domain-shrink-budget D]
+#   bin/qa_generated_domains --blueprint <blueprint.json> [--rust] …   (re-check one saved blueprint)
 #   bin/qa_generated_domains --promote <finding-dir> --name <stress_domain_name>
 #
 # Every stress domain in `qa/stress_domains/` was written by hand, and the
@@ -95,6 +96,7 @@ until ARGV.empty?
   when "--promote"              then options[:promote] = ARGV.shift
   when "--name"                 then options[:name] = ARGV.shift
   when "--from-dials"           then options[:from_dials] = true
+  when "--blueprint"            then options[:blueprint] = ARGV.shift
   else abort "#{USAGE}\nunexpected argument: #{arg.inspect}"
   end
 end
@@ -348,8 +350,18 @@ puts "generated domains: #{options[:domains]} starting at seed #{start}; #{optio
 
 counts = Hash.new(0)
 findings = []
-(start...(start + options[:domains])).each do |domain_seed|
-  blueprint = Generator.generate(seed: domain_seed, forms: options[:forms])
+# `--blueprint FILE` — ONE SAVED BLUEPRINT INSTEAD OF GENERATED ONES: a
+# finding's own `blueprint.json`, re-checked (after a fix, say) exactly
+# as it was written, through the same check/shrink/report path.
+blueprints =
+  if options[:blueprint]
+    saved = JSON.parse(File.read(options[:blueprint]))
+    { saved.fetch("seed", start) => saved }
+  else
+    (start...(start + options[:domains])).to_h { |seed| [seed, Generator.generate(seed: seed, forms: options[:forms])] }
+  end
+
+blueprints.each do |domain_seed, blueprint|
   root = File.join(run_dir, domain_seed.to_s)
   result = evaluate(blueprint, root, options, scratch)
   label = "domain #{domain_seed} [#{blueprint['forms'].join('+')}] #{blueprint['aggregates'].size} aggregate(s)"
