@@ -31,17 +31,107 @@
 # push, silently testing the wrong tree. `git rev-parse --show-toplevel`
 # reflects the invoking worktree's own root regardless of how hooksPath is
 # configured, so this stays correct even if that drifts again.
-
-set -e
+#
+# THE 7 CHECKS BELOW RUN CONCURRENTLY, NOT IN SERIES — the CI-speed
+# effort's own "stop running independent things one after another"
+# principle, applied here for the first time to something that runs on a
+# developer's own machine rather than in GitHub Actions. Measured serial
+# baseline (warm caches): ~70s total (parallel_rspec 30.9s + spec/fuzzing
+# 28.1s + query_agreement_spec 4.5s + check_engine_agreement 0.2s +
+# model_check 3.0s + doc_coverage 1.8s + rubocop 1.1s). None of the 7
+# reads another's output or depends on another's result — each is already
+# an independent invocation today, just historically run one after
+# another for no reason stronger than "that's how the script was written."
+#
+# REAL MEASURED WIN IS ~25-30%, NOT THE 2X A NAIVE "JUST BACKGROUND ALL
+# 7" READING OF THAT PRINCIPLE WOULD PREDICT — found by timing each of
+# the 7 individually under real contention on a 12-core machine, not
+# assumed from the aggregate. `parallel_rspec` and `spec/fuzzing` are
+# both genuinely CPU-heavy; naively running all 7 concurrently at
+# `parallel_rspec`'s own default worker count (`available CPUs`) starved
+# `spec/fuzzing` badly enough (28.1s → 66s in one measured run) that
+# total wall-clock came out THE SAME OR WORSE than the old serial script.
+# See `RSPEC_WORKERS` below for the fix (capping `parallel_rspec` to half
+# the machine's cores) that actually delivered a real, measured ~52s.
+#
+# Each check's own stdout/stderr is captured to its own file under a
+# scratch dir (same "buffer per worker, print in a fixed order once
+# everyone's done" pattern `bin/qa_sweep`'s own child-output capture
+# already uses) rather than streamed live — seven processes writing to
+# one terminal at once would interleave into something unreadable. `wait`
+# blocks until every one of the 7 has actually finished; the exit code of
+# each is read back from its own file (not from `wait`'s own exit status,
+# which reflects a backgrounded shell FUNCTION's return, not necessarily
+# the wrapped command's — the file is the one number this script actually
+# trusts) and checked explicitly, one at a time, in the SAME fixed order
+# and with the SAME per-check "[pre-push] ..." header and "BLOCKED — ..."
+# wording the old serial script used — a push blocked on two failures
+# reports both, not just whichever happened to be checked first, because
+# every one of the 7 gets its own `if` check below regardless of whether
+# an earlier one already failed.
 
 ROOT=$(git rev-parse --show-toplevel)
+WORKDIR=$(mktemp -d)
+trap 'rm -rf "$WORKDIR"' EXIT
+
+cd "$ROOT"
+
+# Runs one check in the background, capturing its combined output to
+# "$WORKDIR/<id>.log" and its exit code to "$WORKDIR/<id>.exit". The
+# whole function call is what gets backgrounded by the caller (`&`); this
+# function itself always returns 0 so a failing check never trips an
+# unrelated `set -e` in some future edit of this file — the REAL exit
+# code lives in the `.exit` file, which is what every check below
+# actually reads.
+run_check() {
+  id="$1"
+  shift
+  "$@" >"$WORKDIR/$id.log" 2>&1
+  echo $? >"$WORKDIR/$id.exit"
+}
+
+exit_of() {
+  cat "$WORKDIR/$1.exit" 2>/dev/null || echo 1
+}
+
+# `parallel_rspec` DELIBERATELY CAPPED TO HALF THE MACHINE'S CORES, NOT
+# LEFT AT ITS OWN DEFAULT (`available CPUs`) — found live on a 12-core
+# machine, not guessed: at its default worker count, `parallel_rspec`
+# alone already saturates every core, so running it concurrently with
+# spec/fuzzing (the other genuinely CPU-heavy step here) starved fuzzing
+# badly enough that total wall-clock came out THE SAME OR WORSE than the
+# old fully-serial script (~70s either way) — confirmed by timing each of
+# the 7 checks individually under contention, not assumed from the
+# aggregate. Capping to half the core count measured ~26% faster
+# end-to-end on that same machine (~70s → ~52s) — rspec itself takes
+# longer (fewer of its own workers), but that cost is smaller than the
+# contention it was inflicting on fuzzing at full width. Computed at
+# runtime, not hardcoded to "6", so this adapts to whatever machine
+# actually runs the hook rather than assuming this one's core count.
+CPU_COUNT=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+RSPEC_WORKERS=$((CPU_COUNT / 2))
+if [ "$RSPEC_WORKERS" -lt 1 ]; then
+  RSPEC_WORKERS=1
+fi
+
+run_check rspec bundle exec parallel_rspec spec -n "$RSPEC_WORKERS" &
+run_check fuzzing bundle exec rspec spec/fuzzing --tag fuzzing &
+run_check query_agreement bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io &
+run_check engine_agreement "$ROOT/bin/check_engine_agreement" &
+run_check model_check "$ROOT/bin/model_check" &
+run_check doc_coverage "$ROOT/bin/doc_coverage" &
+run_check rubocop bundle exec rubocop -c .rubocop.yml &
+
+wait
+
+fail=0
 
 printf '\n[pre-push] rspec (parallel)\n\n'
-
-if ! (cd "$ROOT" && bundle exec parallel_rspec spec); then
+cat "$WORKDIR/rspec.log"
+if [ "$(exit_of rspec)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — the suite is red.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like any other local rspec\n\n'
@@ -56,10 +146,11 @@ printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like 
 # `--tag <excluded-tag>` override the io step below already uses —
 # ~18-20s on its own (properties_spec.rb's own live-generated-history
 # replays are most of that), the one real cost of closing this gap.
-if ! (cd "$ROOT" && bundle exec rspec spec/fuzzing --tag fuzzing); then
+cat "$WORKDIR/fuzzing.log"
+if [ "$(exit_of fuzzing)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — spec/fuzzing is red.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] adapter agreement — one declared query, every engine, same answer\n\n'
@@ -79,44 +170,53 @@ printf '\n[pre-push] adapter agreement — one declared query, every engine, sam
 # and `in` on a numeric field. Every one of them is invisible to a
 # self-consistent adapter spec: each engine looked fine alone. Catching
 # that on push to GitHub rather than before is catching it a day late.
-if ! (cd "$ROOT" && bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io); then
+cat "$WORKDIR/query_agreement.log"
+if [ "$(exit_of query_agreement)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — the engines disagree about a declared query.\n'
   printf '           One of them is wrong; a self-consistent adapter spec\n'
   printf '           cannot tell you which. Fix it, or push with --no-verify\n'
   printf '           and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] engine agreement — every declared comparator, both engines\n\n'
 
-if ! "$ROOT/bin/check_engine_agreement"; then
+cat "$WORKDIR/engine_agreement.log"
+if [ "$(exit_of engine_agreement)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — a comparator is missing a shared case or cross-engine spec.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] model check — unreachable states, dead transitions, orphaned handlers\n\n'
 
-if ! "$ROOT/bin/model_check"; then
+cat "$WORKDIR/model_check.log"
+if [ "$(exit_of model_check)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — the model checker found something.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] docs coverage — words with no running example\n\n'
 
-if ! "$ROOT/bin/doc_coverage"; then
+cat "$WORKDIR/doc_coverage.log"
+if [ "$(exit_of doc_coverage)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — the language ships something undocumented.\n'
   printf '           Write the missing sections and examples, or push with\n'
   printf '           --no-verify and say why.\n\n'
-  exit 1
+  fail=1
 fi
 
 printf '\n[pre-push] rubocop — static style/correctness gate\n\n'
 
-if ! (cd "$ROOT" && bundle exec rubocop -c .rubocop.yml); then
+cat "$WORKDIR/rubocop.log"
+if [ "$(exit_of rubocop)" -ne 0 ]; then
   printf '\n[pre-push] BLOCKED — rubocop found an offense.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
