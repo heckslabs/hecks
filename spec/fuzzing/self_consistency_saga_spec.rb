@@ -151,6 +151,39 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency saga cold-rehydration (ANGLE-10)
     it "is clean again once the read path is restored" do
       expect(replay_waybill.fetch(:self_consistency)[:saga_redelivery_idempotency]).to eq([])
     end
+
+    # BUG#39 — `check_one_saga_redelivery`'s own probe dispatch
+    # (`interpreter.advance`, above) drives a REAL `SagaInterpreter#
+    # advance_saga`, which appends its own row to `@registry.saga_log`
+    # UNCONDITIONALLY — success, "no conversation", or (this fixture's
+    # own case) a leg mismatch alike, regardless of whether the
+    # redelivery check itself finds anything worth reporting. That array
+    # IS `history[:sagas]` — `Replay.call` hands it out by reference, not
+    # a copy — so an unrestored probe append shows up as a THIRD-party
+    # row in the PRIMARY event-dispatch trace, indistinguishable from a
+    # real dispatch that never happened. `diff_ruby_vs_rust` (`bin/
+    # qa_sweep`) diffs exactly this field against Rust's own single-pass,
+    # probe-free `sagas` output, so the leak surfaced there as a spurious
+    # "diverged on: sagas" finding — a false positive, not a real
+    # Ruby/Rust divergence. Pinned here the same way `replay_spec.rb`'s
+    # own "is deterministic" example pins a different invariant: the
+    # primary trace must come out byte-identical whether or not
+    # self-consistency mode ran alongside it.
+    it "does not leak the redelivery probe's own saga_log row into the primary sagas trace" do
+      stub_const("Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH", 3)
+      without_self_consistency =
+        Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: false)
+      with_self_consistency =
+        Hecks::Fuzzing::Replay.call(SAGA_REHYDRATION_WAYBILL_ROOT, SAGA_REHYDRATION_STEPS, self_consistency: true)
+
+      # THE PROBE GENUINELY RAN — proof this isn't a vacuous "nothing to
+      # redeliver" pass: the stuck "filled" instance has no handler for a
+      # redelivered SlotFilled, so `advance_saga` takes its leg-mismatch
+      # branch and appends a row, every time, whether or not this
+      # assertion's own `eq` below would have caught its leak.
+      expect(with_self_consistency[:sagas].size).to eq(without_self_consistency[:sagas].size)
+      expect(with_self_consistency[:sagas]).to eq(without_self_consistency[:sagas])
+    end
   end
 
   describe "a domain with no process manager at all" do
