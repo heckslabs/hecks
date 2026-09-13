@@ -6,13 +6,13 @@ require_relative "qa_ledger_role"
 
 # A DISPOSABLE, POSTGRES-BACKED `QualityControl` LEDGER FOR SPECS THAT
 # DRIVE THE REAL `bin/qa_*` SCRIPTS AS SUBPROCESSES — the exact pattern
-# `spec/qa_sweep_all_spec.rb` established (read that file's own header
+# `spec/support/qa_sweep_all_fixture.rb` established (read that file's own header
 # FIRST for the full reasoning: why Memory cannot serve a cross-process
 # claim, why the chapter is symlinked and never copied, why only the
 # WIRING is swapped). Extracted here so `spec/qa_tick_spec.rb`,
 # `spec/qa_open_pr_spec.rb` and `spec/qa_log_bug_spec.rb` share one
 # implementation instead of three drifting copies of the same
-# `before(:all)`; `qa_sweep_all_spec.rb` keeps its own, deliberately — it
+# `before(:all)`; `qa_sweep_all_fixture.rb` keeps its own, deliberately — it
 # also builds a fixture TARGET domain and a fixture Rust crate this
 # helper has no reason to know about.
 #
@@ -25,7 +25,7 @@ require_relative "qa_ledger_role"
 module QaLedgerFixture
   # LINE-FOR-LINE `qa/bluebook/quality_control.hecksagon`'s bindings, with
   # the `CI`/`IssueTracker` ports declared but unbound — see
-  # `spec/qa_sweep_all_spec.rb`'s `FIXTURE_HECKSAGON` comment on why an
+  # `spec/support/qa_sweep_all_fixture.rb`'s `FIXTURE_HECKSAGON` comment on why an
   # unbound port is exactly as dormant here as the real file's own
   # deliberately-unbound `IssueTracker`.
   HECKSAGON = <<~RUBY.freeze

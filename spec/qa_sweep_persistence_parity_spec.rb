@@ -7,7 +7,7 @@ require "fileutils"
 require "pathname"
 
 # `bin/qa_sweep --persistence-parity`, PROVEN AGAINST THE REAL THING —
-# same discipline `spec/qa_sweep_all_spec.rb` (read that file's own header
+# same discipline `spec/support/qa_sweep_all_fixture.rb` (read that file's own header
 # FIRST) already established for `--all`: a REAL `bin/qa_sweep` subprocess,
 # against a REAL, disposable Postgres-backed fixture ledger that loads the
 # REAL `qa/bluebook/quality_control.bluebook` (symlinked, never copied),
@@ -28,7 +28,7 @@ require "pathname"
 RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   QA_SWEEP_PERSISTENCE_PARITY_DATABASE = "hecks_qa_sweep_persistence_parity_spec".freeze
 
-  # LINE-FOR-LINE `spec/qa_sweep_all_spec.rb`'s OWN `FIXTURE_HECKSAGON` —
+  # LINE-FOR-LINE `spec/support/qa_sweep_all_fixture.rb`'s OWN `FIXTURE_HECKSAGON` —
   # see that file's own comment on why the `CI`/`IssueTracker` ports stay
   # unbound here (this spec never dispatches `Clearance.CI.Run` either).
   #
@@ -40,7 +40,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
   # because `describe` takes an ordinary BLOCK, not a `class`/`module`
   # keyword body. Every spec file that writes `FIXTURE_HECKSAGON = ...`
   # this way is therefore defining the SAME top-level constant — harmless
-  # between this file and `qa_sweep_all_spec.rb` only because their
+  # between this file and `qa_sweep_all_fixture.rb` only because their
   # content happens to be identical, but genuinely corrupting between
   # either of them and `spec/fuzzing/persistence_parity_spec.rb`'s own
   # DIFFERENT-content `FIXTURE_HECKSAGON`: whichever spec file Ruby loads
@@ -126,7 +126,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
       end
     RUBY
 
-    # LIVING INSIDE THE REAL REPO ROOT, exactly `qa_sweep_all_spec.rb`'s
+    # LIVING INSIDE THE REAL REPO ROOT, exactly `qa_sweep_all_fixture.rb`'s
     # own reasoning — `bin/qa_sweep` resolves a `Target`'s own `path` as
     # `File.join(ROOT, target_path)` against the real repository root.
     @ineligible_dir = Dir.mktmpdir("qa_sweep_persistence_parity_spec_target-", InMemoryDomain::ROOT)
@@ -139,7 +139,7 @@ RSpec.describe "bin/qa_sweep --persistence-parity", :io do
     admin.exec("CREATE DATABASE #{QA_SWEEP_PERSISTENCE_PARITY_DATABASE}")
     admin.close
     # the real ledger's own operator step, run for real against this
-    # spec's own database (BUG#24; see qa_sweep_all_spec.rb's own example)
+    # spec's own database (BUG#24; see qa_sweep_all_fixture.rb's own example)
     QaLedgerRole.provision!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 

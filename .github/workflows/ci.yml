@@ -843,8 +843,10 @@ jobs:
   #     `rust/Cargo.toml`'s own `[lib]`/`[[bin]]` `path =` pointing only
   #     at `src/`, no `path =` dependency on any sibling crate, and via
   #     grep: none of the 30 files reads a file under any of them.
-  #     `qa_sweep_all_spec.rb`'s own differential-fuzz example LOOKS like
-  #     a second real-rust-crate dependency but isn't: it sets
+  #     `qa_sweep_all_report_and_parity_spec.rb`'s own differential-fuzz
+  #     example (one of four files `qa_sweep_all_spec.rb` split into,
+  #     Phase 2 of the CI speed effort) LOOKS like a second
+  #     real-rust-crate dependency but isn't: it sets
   #     `QA_SWEEP_RUST_DIR` to its OWN small fixture crate under
   #     `spec/fixtures/`, never the real `rust/` — see that spec file's
   #     own header comment on `QA_SWEEP_RUST_DIR`.
