@@ -1,0 +1,30 @@
+name: wasm32-wasip1 toolchain
+description: >-
+  Installs the wasm32-wasip1 rustup target (both toolchain-qualified and
+  ambient, mirroring the two `rustup target add` invocations every one
+  of the three former call sites carried — see rspec_rust_io_deploy's
+  own comment on why both are needed) and a pinned wasmtime binary onto
+  PATH. Three jobs needed this identically (rspec_rust_io_build,
+  rspec_rust_io_deploy, cache-warm.yml's warm_main_crate) before this
+  action existed.
+inputs:
+  wasmtime-version:
+    description: Pinned wasmtime release to install.
+    required: false
+    default: "47.0.3"
+runs:
+  using: composite
+  steps:
+    - name: Install the wasm32-wasip1 target
+      shell: bash
+      run: |
+        rustup target add wasm32-wasip1 --toolchain stable
+        rustup target add wasm32-wasip1
+
+    - name: Install wasmtime
+      shell: bash
+      run: |
+        curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v${{ inputs.wasmtime-version }}/wasmtime-v${{ inputs.wasmtime-version }}-x86_64-linux.tar.xz" \
+          | tar xJ -C /tmp
+        sudo mv /tmp/wasmtime-v${{ inputs.wasmtime-version }}-x86_64-linux/wasmtime /usr/local/bin/wasmtime
+        wasmtime --version

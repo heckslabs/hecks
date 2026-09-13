@@ -1,0 +1,26 @@
+name: Ruby setup
+description: >-
+  ruby/setup-ruby with bundler-cache, the exact step every job in
+  ci.yml and cache-warm.yml carried after its own checkout (14
+  occurrences, counted before this action existed) — extracted purely to
+  shrink each job's own body, not to change behavior. Deliberately does
+  NOT also do actions/checkout: a local composite action (`uses:
+  ./.github/actions/...`) can only be loaded once the repo is already
+  checked out, so a checkout step has to run in the CALLING job first —
+  putting it inside this action would be a chicken-and-egg failure, not
+  a simplification. Every calling job still opens with its own
+  `actions/checkout@v4` (with `ref:` pinned in cache-warm.yml's case;
+  see that file's own comment), immediately followed by
+  `uses: ./.github/actions/setup-ruby`.
+inputs:
+  ruby-version:
+    description: Ruby version for ruby/setup-ruby.
+    required: false
+    default: "3.3"
+runs:
+  using: composite
+  steps:
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+        bundler-cache: true

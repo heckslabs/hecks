@@ -166,7 +166,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".validate" do
-    it "answers valid: true for a domain whose wiring boots cleanly" do
+    it "answers valid: true for a domain whose wiring boots cleanly", :io do
       result = described_class.validate(domain: "examples/pizzas")
 
       expect(result).to eq(ok: true, domain: "examples/pizzas", valid: true)
@@ -180,14 +180,14 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:error]).to be_a(String)
     end
 
-    it "runs the static model checker and reports findings when deep: true" do
+    it "runs the static model checker and reports findings when deep: true", :io do
       result = described_class.validate(domain: "examples/pizzas", deep: true)
 
       expect(result[:ok]).to be true
       expect(result[:findings]).to be_an(Array)
     end
 
-    it "answers no findings key at all when deep is omitted" do
+    it "answers no findings key at all when deep is omitted", :io do
       result = described_class.validate(domain: "examples/pizzas")
 
       expect(result).not_to have_key(:findings)

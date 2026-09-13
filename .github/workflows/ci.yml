@@ -234,53 +234,41 @@ jobs:
     # real gating run from `pull_request`/`merge_group` alone.
     if: github.event_name != 'push'
 
-    # STILL NEEDED HERE, even though every `cargo build` and every
-    # deliberately-real-I/O spec moved to `rspec_postgres_io`/
-    # `rspec_rust_io` below: spec/diagrams_spec.rb, spec/storehouse_spec.rb,
-    # and the committed-OIDC-manifest spec all boot the FULL
-    # examples/pizzas domain for real (`Hecks.boot`/`Storehouse.validate`),
-    # which wires real PostgresEra at boot time regardless of what the
-    # spec itself is actually testing — none of the three is tagged
-    # `io: true` (arguably a gap in that convention, not addressed here),
-    # so removing this service on the assumption that only `io: true`
-    # specs touch real Postgres broke this job the first time it ran
-    # without one (18+2+1 failures, all `PG::ConnectionBad`). Confirmed
-    # live before settling here: no other failure in that run was
-    # Rust-build-related, so the Rust build steps below (moved to
-    # `rspec_rust_io`) really were safe to drop from this job.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      PGHOST: localhost
-      PGUSER: postgres
-      PGPASSWORD: postgres
-
+    # NO POSTGRES SERVICE — Phase 4 of the CI speed effort. THIS USED TO
+    # BE LOAD-BEARING: spec/diagrams_spec.rb, spec/storehouse_spec.rb, and
+    # the committed-OIDC-manifest spec each had SOME examples that boot
+    # the FULL examples/pizzas domain for real (`Hecks.boot`/
+    # `Storehouse.validate`), which wires real PostgresEra at boot time —
+    # and none of those examples was tagged `io: true`, so removing this
+    # service on the (wrong) assumption that only `io: true` specs touch
+    # real Postgres broke this job the first time it ran without one
+    # (18+2+1 failures, all `PG::ConnectionBad`).
+    #
+    # THE GAP ITSELF IS NOW CLOSED, not routed around: every example in
+    # those three files that actually calls `Hecks.boot` on
+    # examples/pizzas (or, for storehouse_spec.rb, `Storehouse.validate`
+    # against it) is now tagged `io: true` — confirmed empirically by
+    # running `parallel_rspec spec -o "--tag ~io --tag ~fuzzing"` (this
+    # job's own command) with Postgres genuinely unreachable and tagging
+    # exactly the 19 examples that failed (16 in diagrams_spec.rb, 3 in
+    # storehouse_spec.rb — one more than the 2 that failed in that one
+    # run, added because it makes the identical `Storehouse.validate`
+    # call and its "pass" was incidental to random example ordering
+    # against a boot-result cache, not a real absence of the Postgres
+    # dependency — and 1 dynamically-generated example per committed
+    # oidc.json in oidc_manifest_spec.rb, tagged unconditionally since a
+    # future domain's own manifest might also be PostgresEra-bound).
+    # Those 19 now run in `rspec_postgres_io`'s serial step (see that
+    # job's own updated header) alongside dsl_spec.rb/guides_spec.rb/
+    # domain_refusal_spec.rb — all of them reach the identical
+    # `postgres://localhost/hecks_pizzas` database via examples/pizzas'
+    # own `.world` file, so they belong in the same single-process job,
+    # not the parallel shard. Every OTHER example in these three files
+    # boots a Memory-bound fixture and needs nothing here — confirmed by
+    # the same empirical run coming back with 0 OTHER failures.
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      # See the job-level comment above: this job's own specs (not just
-      # `io: true` ones moved elsewhere) boot examples/pizzas for real.
-      - name: Create the pizzas example's database
-        run: createdb -h localhost -U postgres hecks_pizzas
+      - uses: ./.github/actions/setup-ruby
 
       # Every `io: true`/`fuzzing: true` spec that does a real `cargo
       # build` — the only kind of real I/O this job no longer provisions
@@ -357,11 +345,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       - name: bin/fuzz
         run: bundle exec bin/fuzz
@@ -375,11 +359,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # Static analysis over the IR — unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches — facts the
@@ -464,11 +444,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # THE GATE EVERY STEP BELOW THIS ONE WAS SILENTLY TRUSTING —
       # bin/rust_coverage and the "rust coverage: <domain>" steps below
@@ -684,28 +660,6 @@ jobs:
     # need this job (it keeps no runtime-log cache of its own).
     if: github.event_name != 'push'
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          # spec/adapters/driven/postgres/lineage_spec.rb creates its own
-          # unprivileged roles at runtime (`CREATE ROLE ... LOGIN`, no
-          # password — it's testing GRANTs, not credentials) and connects
-          # as them; the official image's default password auth would
-          # refuse every one of those logins since none has a password to
-          # check. trust is scoped to this ephemeral service container.
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -713,11 +667,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort (see the action's own header for why this is
+      # the one piece of that phase not yet verified against real
+      # infrastructure). `POSTGRES_HOST_AUTH_METHOD: trust`'s own former
+      # comment still applies unchanged: spec/adapters/driven/postgres/
+      # lineage_spec.rb creates its own unprivileged roles at runtime
+      # with no password, and this action's trust rule for 127.0.0.1/::1
+      # covers any role the same way the old container's env var did.
+      - uses: ./.github/actions/postgres
 
       # examples/pizzas/bluebook/pizzas.world wires straight at this
       # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
@@ -730,17 +690,36 @@ jobs:
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
-      # ONLY THE THREE `io: true` FILES THAT SHARE THIS ONE DATABASE —
-      # spec/dsl_spec.rb, spec/guides_spec.rb, spec/runtime/
-      # domain_refusal_spec.rb (verified: `grep -rl "hecks_pizzas" spec/`
-      # names exactly these three plus spec/support/doctest.rb, which
-      # isn't a spec file itself). Kept single-process on purpose: unlike
-      # every other `io: true` spec (see rspec_postgres_io_parallel
-      # below), nothing here was verified safe under a second worker
-      # concurrently reading/writing the SAME pre-seeded database in the
-      # same checkout.
+      # SIX `io: true` FILES THAT SHARE THIS ONE DATABASE — spec/
+      # dsl_spec.rb, spec/guides_spec.rb, spec/runtime/domain_refusal_
+      # spec.rb (verified: `grep -rl "hecks_pizzas" spec/` names exactly
+      # these three plus spec/support/doctest.rb, which isn't a spec file
+      # itself), PLUS spec/diagrams_spec.rb, spec/storehouse_spec.rb and
+      # spec/oidc_manifest_spec.rb (Phase 4 of the CI speed effort —
+      # these three don't reference the literal string "hecks_pizzas" the
+      # grep above looked for, but every example now tagged `io: true` in
+      # them boots `examples/pizzas` for real via `Hecks.boot`, and that
+      # domain's own `.world` file hardcodes the identical database —
+      # `postgres://localhost/hecks_pizzas` — so they share the exact
+      # same resource as the original three, just reached indirectly.
+      # Confirmed empirically before adding them here, not assumed: with
+      # Postgres genuinely unreachable, `bundle exec parallel_rspec spec
+      # -o "--tag ~io --tag ~fuzzing"` (the `rspec` job's own command)
+      # failed exactly 19 examples, all `PG::ConnectionBad`/
+      # `WiringError`, all inside these three files — see each file's own
+      # `:io` tags for exactly which examples those are; the rest of each
+      # file boots Memory-bound fixtures and stays in the fast `rspec`
+      # job). Kept single-process on purpose: unlike every other
+      # `io: true` spec (see rspec_postgres_io_parallel below), nothing
+      # here was verified safe under a second worker concurrently
+      # reading/writing the SAME pre-seeded database in the same
+      # checkout — untagged examples in these three files that don't
+      # touch Postgres at all are unaffected and still run in `rspec`.
       - name: "rspec: shared hecks_pizzas database (serial — genuinely shared state)"
-        run: bundle exec rspec --tag io --tag ~fuzzing spec/dsl_spec.rb spec/guides_spec.rb spec/runtime/domain_refusal_spec.rb
+        run: |
+          bundle exec rspec --tag io --tag ~fuzzing \
+            spec/dsl_spec.rb spec/guides_spec.rb spec/runtime/domain_refusal_spec.rb \
+            spec/diagrams_spec.rb spec/storehouse_spec.rb spec/oidc_manifest_spec.rb
 
   # EVERY OTHER `io: true` SPEC — split out of what used to be one single
   # serial `rspec_postgres_io` step alongside the three files above.
@@ -1029,22 +1008,6 @@ jobs:
         # computed.
         group: [1, 2, 3, 4]
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1054,15 +1017,17 @@ jobs:
       # for why splitting this out from the whole `spec` directory is what
       # actually makes runtime-based grouping work for this job (it didn't,
       # under three different nominal grouping strategies, until this).
-      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec)\.rb$'
+      IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(project_rust_pipeline_spec|parser_parity_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_parity_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|parser_coverage_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header. Each of the 4
+      # matrix legs is its own separate runner VM, so each gets its own
+      # isolated Postgres — no cross-leg contention introduced by this.
+      - uses: ./.github/actions/postgres
 
       # PROVISIONED HERE TOO, EVEN THOUGH THE COMMENT ABOVE SAYS "moved to
       # the serial job" — found live (PR #488): `spec/load_hygiene_spec.rb`
@@ -1274,25 +1239,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # Scoped to just the root crate now that parser/codegen/host have
       # their own jobs/caches below — a dependency bump in, say,
       # rust/parser/Cargo.lock no longer invalidates this cache entry.
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
+          name: main
+          path: rust/target
 
       # project_rust_pipeline_spec.rb below (opt-in HECKS_PARSER=rust
       # HECKS_CODEGEN=rust bin/project_rust) builds these two crates for
@@ -1303,27 +1258,15 @@ jobs:
       # one running concurrently right now), so this lets that build
       # reuse whatever those two jobs already populated last time instead
       # of a guaranteed-cold `cargo build` on every single run.
-      - name: Cache Rust build artifacts (parser crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/parser/target
-          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-parser-
+          name: parser
+          path: rust/parser/target
 
-      - name: Cache Rust build artifacts (codegen crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/codegen/target
-          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-codegen-
+          name: codegen
+          path: rust/codegen/target
 
       # bin/rust_conformance's `native` mode (0012/0013) — regenerated
       # from the CURRENT generator, not just the checked-in rust/src/
@@ -1431,46 +1374,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
+          name: main
+          path: rust/target
 
       # rust/build ("hecks-build") — a SEPARATE crate from the main one
       # above; this is the one file that builds it (`build_hecks_build!`,
       # class-load time, before any example runs).
-      - name: Cache Rust build artifacts (build crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            rust/build/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('rust/build/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+          name: build
+          path: rust/build/target
+          include-registry: "false"
 
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
+      - uses: ./.github/actions/wasm-toolchain
 
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity"
         run: bundle exec rspec --tag io spec/hecks_build_pipeline_spec.rb
@@ -1492,34 +1412,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
+          name: main
+          path: rust/target
 
-      - name: Cache Rust build artifacts (main crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-main-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-main-
-
-      - name: Install the wasm32-wasip1 target
-        run: |
-          rustup target add wasm32-wasip1 --toolchain stable
-          rustup target add wasm32-wasip1
-
-      - name: Install wasmtime
-        run: |
-          curl -sL "https://github.com/bytecodealliance/wasmtime/releases/download/v47.0.3/wasmtime-v47.0.3-x86_64-linux.tar.xz" \
-            | tar xJ -C /tmp
-          sudo mv /tmp/wasmtime-v47.0.3-x86_64-linux/wasmtime /usr/local/bin/wasmtime
-          wasmtime --version
+      - uses: ./.github/actions/wasm-toolchain
 
       - name: "rspec: per-deploy Ruby/Rust parity gate"
         run: bundle exec rspec --tag io spec/project_deploy_parity_gate_spec.rb
@@ -1544,22 +1444,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (parser crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/parser/target
-          key: ${{ runner.os }}-cargo-parser-${{ hashFiles('rust/parser/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-parser-
+          name: parser
+          path: rust/parser/target
 
       - name: "rspec: Rust parser parity + coverage + grammar corpus"
         run: |
@@ -1580,22 +1470,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          ruby-version: "3.3"
-          bundler-cache: true
-
-      - name: Cache Rust build artifacts (codegen crate)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/codegen/target
-          key: ${{ runner.os }}-cargo-codegen-${{ hashFiles('rust/codegen/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-codegen-
+          name: codegen
+          path: rust/codegen/target
 
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
@@ -1616,22 +1496,6 @@ jobs:
     # need this job.
     if: github.event_name != 'push'
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1639,22 +1503,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header.
+      - uses: ./.github/actions/postgres
 
-      - name: Cache Rust build artifacts (host crate)
-        uses: actions/cache@v4
+      - uses: ./.github/actions/cargo-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/host/target
-          key: ${{ runner.os }}-cargo-host-${{ hashFiles('rust/host/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-host-
+          name: host
+          path: rust/host/target
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
@@ -1668,11 +1526,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      - uses: ./.github/actions/setup-ruby
 
       # `spec/fuzzing/**`, tagged by PATH not by hand
       # (`config.define_derived_metadata(file_path: %r{/spec/fuzzing/})`,
@@ -1771,28 +1625,6 @@ jobs:
     # "passing" having exercised only its two parallel-safe specs, never
     # the Postgres-backed one repetition was supposed to stress in the
     # first place.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          # See the `rspec_postgres_io` job's own identical setting above
-          # for why trust is safe here: scoped to this ephemeral service
-          # container, and spec/adapters/driven/postgres_concurrent_
-          # dispatch_spec.rb connects as the plain `postgres` superuser
-          # anyway (it creates and drops its own scratch database, not a
-          # passwordless role).
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1800,11 +1632,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header. The durability
+      # settings it turns off (fsync/synchronous_commit/full_page_writes)
+      # affect only whether a commit survives a crash, never Postgres's
+      # own locking/MVCC visibility rules — the actual contention this
+      # job exists to stress is unaffected either way.
+      - uses: ./.github/actions/postgres
 
       # NO FLAGS — this script's own defaults (30 runs of each group,
       # Etc.nprocessors parallel copies of the parallel-safe group, the
