@@ -660,28 +660,6 @@ jobs:
     # need this job (it keeps no runtime-log cache of its own).
     if: github.event_name != 'push'
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          # spec/adapters/driven/postgres/lineage_spec.rb creates its own
-          # unprivileged roles at runtime (`CREATE ROLE ... LOGIN`, no
-          # password — it's testing GRANTs, not credentials) and connects
-          # as them; the official image's default password auth would
-          # refuse every one of those logins since none has a password to
-          # check. trust is scoped to this ephemeral service container.
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -690,6 +668,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort (see the action's own header for why this is
+      # the one piece of that phase not yet verified against real
+      # infrastructure). `POSTGRES_HOST_AUTH_METHOD: trust`'s own former
+      # comment still applies unchanged: spec/adapters/driven/postgres/
+      # lineage_spec.rb creates its own unprivileged roles at runtime
+      # with no password, and this action's trust rule for 127.0.0.1/::1
+      # covers any role the same way the old container's env var did.
+      - uses: ./.github/actions/postgres
 
       # examples/pizzas/bluebook/pizzas.world wires straight at this
       # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
@@ -1020,22 +1008,6 @@ jobs:
         # computed.
         group: [1, 2, 3, 4]
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1050,6 +1022,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header. Each of the 4
+      # matrix legs is its own separate runner VM, so each gets its own
+      # isolated Postgres — no cross-leg contention introduced by this.
+      - uses: ./.github/actions/postgres
 
       # PROVISIONED HERE TOO, EVEN THOUGH THE COMMENT ABOVE SAYS "moved to
       # the serial job" — found live (PR #488): `spec/load_hygiene_spec.rb`
@@ -1518,22 +1496,6 @@ jobs:
     # need this job.
     if: github.event_name != 'push'
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1542,6 +1504,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header.
+      - uses: ./.github/actions/postgres
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -1659,28 +1625,6 @@ jobs:
     # "passing" having exercised only its two parallel-safe specs, never
     # the Postgres-backed one repetition was supposed to stress in the
     # first place.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-          # See the `rspec_postgres_io` job's own identical setting above
-          # for why trust is safe here: scoped to this ephemeral service
-          # container, and spec/adapters/driven/postgres_concurrent_
-          # dispatch_spec.rb connects as the plain `postgres` superuser
-          # anyway (it creates and drops its own scratch database, not a
-          # passwordless role).
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
       PGHOST: localhost
       PGUSER: postgres
@@ -1689,6 +1633,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort; see the action's own header. The durability
+      # settings it turns off (fsync/synchronous_commit/full_page_writes)
+      # affect only whether a commit survives a crash, never Postgres's
+      # own locking/MVCC visibility rules — the actual contention this
+      # job exists to stress is unaffected either way.
+      - uses: ./.github/actions/postgres
 
       # NO FLAGS — this script's own defaults (30 runs of each group,
       # Etc.nprocessors parallel copies of the parallel-safe group, the
