@@ -1,0 +1,10 @@
+{
+  "domain": "examples/banking",
+  "note": "BUG#41 (QualityControl ledger), second domain — same systemic gap as the chess GameLabel fixture, confirmed here against a multi-field value object (PositiveMoney: cents, currency) reached through an ordinary command argument rather than an identity. Before the fix: Banking::Account.Credit's amount: {cents: 100, currency: \"USD\", extra: \"bogus\"} (unknown key alongside otherwise-valid fields) succeeded silently on Ruby, ignoring extra, while Rust's generated PositiveMoney::from_json refused UnknownArgument (\"PositiveMoney does not declare extra — it takes cents, currency\"); amount: {currency: \"USD\", extra: \"bogus\"} (unknown key AND missing required cents) refused Ruby's own TypeMismatch (\"PositiveMoney.cents expects Integer, got nil\") while Rust refused the SAME UnknownArgument as the first case, unconditionally ahead of its own required-field check. After the fix (Value::Coercion#check_unknown_fields, run before check_required_fields): both steps refuse the identical UnknownArgument on both engines.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 50000}}},
+    {"verb": "Banking::Account.Credit", "args": {"number": "acct-1", "amount": {"cents": 100, "currency": "USD", "extra": "bogus"}, "narrative": {"text": "test"}}},
+    {"verb": "Banking::Account.Credit", "args": {"number": "acct-1", "amount": {"currency": "USD", "extra": "bogus"}, "narrative": {"text": "test2"}}}
+  ]
+}

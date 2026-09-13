@@ -336,6 +336,7 @@ module Hecks
           # the flag; every input door leaves it unset.
           return if trusting_stored_state?
 
+          check_unknown_fields(value_object, fields)
           check_required_fields(value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
@@ -617,17 +618,67 @@ module Hecks
                                       type: type_name, field: field_name, offered: Rendering.describe(given))
         end
 
+        # QualityControl BUG#41 — A VALUE OBJECT REFUSES A KEY IT DOES NOT
+        # DECLARE, the same way a command's own payload does
+        # (`CommandInterpreter::ArgumentGate#refuse_unknown_arguments`,
+        # argument_gate.rb) — reusing that method's EXACT refusal wording
+        # (`UnknownArgument unknown_args`, refusal_wording.rb:
+        # "{command} does not declare {unknown} — it takes {declared}")
+        # rather than inventing a new template, because every generated
+        # Rust value-object `from_json` already renders THIS refusal
+        # through that identical site: `rust/project/json_codec.rb`'s
+        # `emit_unknown_argument_check` (mirrored byte-for-byte in
+        # `rust/codegen/src/json_codec.rs`) emits `v.unknown_keys(&[...])`
+        # and the same "{name} does not declare {unknown} — it takes
+        # {declared}" format string for every value object's own
+        # `from_json` — `GameLabel::from_json`
+        # (rust/src/generated/chess/game.rs) is simply the first case
+        # this gap was reproduced against.
+        #
+        # Ruby never had an equivalent check anywhere in this `validate!`
+        # door before now — `fields[attribute.name]` reads only the
+        # DECLARED attributes, so any other key a caller's Hash carried
+        # was silently ignored. `fields` here only ever holds what a
+        # caller (or `for_attribute`'s own recursive coercion) offered
+        # for THIS value object — built by `fields_for`'s plain
+        # key-symbolizing (never a Hash the runtime pads with bookkeeping
+        # keys of its own; confirmed by reading every call site that
+        # reaches `validate!`) — so there is nothing legitimate here to
+        # exempt.
+        #
+        # CHECKED FIRST, before `check_required_fields` and everything
+        # after it — matching Rust's own `from_json`, which checks
+        # `unknown_keys` before reading a single declared field. So a
+        # Hash offering BOTH an unrecognized key and a missing required
+        # one (BUG#41's own second demonstration case: `label: {extra:
+        # "bogus"}` — unknown AND missing `value`) refuses the same
+        # UnknownArgument on both engines, not two different refusal
+        # kinds for one malformed call.
+        private def check_unknown_fields(value_object, fields)
+          known   = value_object.attributes.map { |attribute| attribute.name.to_sym }
+          unknown = (fields.keys.map(&:to_sym) - known).sort
+          return if unknown.empty?
+
+          declared = value_object.attributes.map(&:name)
+          raise UnknownArgument,
+                RefusalWording.render("UnknownArgument", "unknown_args",
+                                      command: value_object.hecks_name, unknown: unknown.join(", "),
+                                      declared: declared.empty? ? "none" : declared.join(", "))
+        end
+
         # C3.7 — A VALUE OBJECT IS A TYPED FIELD PRODUCT: every non-optional
         # field arrives, or construction refuses. A missing field and a null
         # one are the same absence (`fields[name]` reads nil for both), worded
         # as the type mismatch it is — "{type}.{field} expects {expected}, got
         # nil" — the identical string the Rust side's generated `from_json`
         # gives the same input, so the corpus can pin it on both. Checked
-        # FIRST: an invariant reading a field that never arrived is exactly
-        # the thing that used to answer "invariant violated" (or nothing at
-        # all — `ToppingName`'s `{value: null}` used to be accepted and
-        # stored). A `default:` has already been filled in by `apply_defaults`;
-        # a list field's absence is an empty list, never a refusal.
+        # first among the FIELD-CONTENT checks (after `check_unknown_fields`'s
+        # own structural gate above, BUG#41): an invariant reading a field
+        # that never arrived is exactly the thing that used to answer
+        # "invariant violated" (or nothing at all — `ToppingName`'s
+        # `{value: null}` used to be accepted and stored). A `default:` has
+        # already been filled in by `apply_defaults`; a list field's absence
+        # is an empty list, never a refusal.
         private def check_required_fields(value_object, fields)
           value_object.attributes.each do |attribute|
             next if attribute.optional? || attribute.list?

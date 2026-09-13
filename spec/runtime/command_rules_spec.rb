@@ -300,7 +300,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
-                         serial: { value: "s1" }, daily_fee: { cents: 100 })
+                         serial: { value: "s1" }, daily_fee: { amount: 100 })
       end.not_to raise_error
     end
 
@@ -309,7 +309,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
+                         authorisation: { value: "auth1" }, amount: { cents: 500 },
                          merchant: { value: "Merchant" })
       end.not_to raise_error
 
@@ -318,7 +318,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth2" }, amount: { cents: 500, currency: "USD" },
+                         authorisation: { value: "auth2" }, amount: { cents: 500 },
                          merchant: { value: "Merchant" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — customer is active")
     end
@@ -408,7 +408,7 @@ narrative: { text: "Opening" })
     it "resolves an entity command's parent.status — Withdrawal.Dispute on a card that has since been retired" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
-                       serial: { value: "s1" }, daily_fee: { cents: 100 })
+                       serial: { value: "s1" }, daily_fee: { amount: 100 })
       runtime.dispatch("Banking::ATMCard.Activate", serial: { value: "s1" })
       runtime.dispatch("Banking::ATMCard.Withdraw", serial: { value: "s1" },
                        cents: { cents: 2000 }, narrative: { text: "Airport cash" })
@@ -440,7 +440,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
-                         serial: { value: "s1" }, daily_fee: { cents: 100 })
+                         serial: { value: "s1" }, daily_fee: { amount: 100 })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Issue refused — customer is active")
     end
 
@@ -450,7 +450,7 @@ narrative: { text: "Opening" })
 
       expect do
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
-                         authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
+                         authorisation: { value: "auth1" }, amount: { cents: 500 },
                          merchant: { value: "Merchant" })
       end.to raise_error(Hecks::Runtime::GivenNotMet, "Authorize refused — account is open")
     end
@@ -472,7 +472,7 @@ narrative: { text: "Opening" })
        "ATMCard.Retire on an already-retired card" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
-                       serial: { value: "s1" }, daily_fee: { cents: 100 })
+                       serial: { value: "s1" }, daily_fee: { amount: 100 })
       runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
 
       # S10, ADR 0025 — `Retire`'s own guard moved from a free-text given
