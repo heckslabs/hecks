@@ -522,7 +522,7 @@ module RustProjection
       # own explicit sets above already covers itself, redundantly.
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
-      delegation = delegation_of(command, aggregate, value_objects_by_name)
+      delegation = delegation_of(command, aggregate, value_objects_by_name, domain_name)
       if delegation
         raise "#{command[:name]}: a creating command cannot delegate — nothing exists to delegate to" if creates
 
@@ -674,10 +674,43 @@ module RustProjection
     # Aggregate-wide (not per-command), the same scope `AggregateBuilder
     # #seal_correction_targets`'s own build-time check already reads
     # (`command_skip_reason`'s own header on that check's other half).
+    #
+    # BUG#31 — RECURSES INTO ENTITIES TOO, not just `aggregate[:commands]`.
+    # An entity-level `corrects` (`Ledger::Entry.Amend`, qa/stress_domains/
+    # corrections — the corpus's only example) names an event exactly the
+    # same way an aggregate-level one does, and the flag field it checks
+    # against lives on the PARENT record regardless of which level
+    # declared the `corrects` mutation — BUG#30's own Ruby fix
+    # (`lib/hecks/runtime/entity_interpreter.rb`) is explicit that an
+    # entity has no event stream of its own, so `enforce_correction_
+    # target` is always asked in terms of the PARENT record/ROOT
+    # aggregate. Before this fix, an entity's own `corrects` was entirely
+    # invisible here: `Entry.Amend` corrects "EntryRecorded" but `Record`
+    # (the aggregate-level command that actually emits it) never got a
+    # `emitted_entry_recorded` flag field generated for it at all — the
+    # struct had no such field, `corrects_extra_fields`/the create-time
+    # `false` default/the flag-set mutation line all silently no-opped,
+    # and `corrects_given_specs` (below) would have generated a
+    # `Expr::Lookup` against a field that doesn't exist. Recurses through
+    # nested entities too (`entity[:entities]`) for the same reason
+    # `entity_invariants_vec` already does, though no real corpus domain
+    # nests `corrects` two levels deep today.
     def correctable_event_names(aggregate)
-      aggregate[:commands].flat_map { |c| c[:mutations] }
-                          .select { |m| m[:op].to_s == "corrects" }
-                          .map { |m| m[:target].to_s }.uniq
+      names = corrects_targets_of(aggregate[:commands])
+      (aggregate[:entities] || []).each { |entity| names.concat(entity_correctable_event_names(entity)) }
+      names.uniq
+    end
+
+    def entity_correctable_event_names(entity)
+      names = corrects_targets_of(entity[:commands])
+      (entity[:entities] || []).each { |nested| names.concat(entity_correctable_event_names(nested)) }
+      names
+    end
+
+    def corrects_targets_of(commands)
+      commands.flat_map { |c| c[:mutations] }
+              .select { |m| m[:op].to_s == "corrects" }
+              .map { |m| m[:target].to_s }
     end
 
     # `extra_fields:` entries for `corrects`'s own per-record flag fields
@@ -796,7 +829,7 @@ module RustProjection
     # (before `dispatch`), the apply block (its whole closure body), and
     # the events it emits — the TARGET's, exactly as `step_emit` answers
     # `ctx.delegated_events` in place of the door's own.
-    def delegation_of(command, aggregate, value_objects_by_name)
+    def delegation_of(command, aggregate, value_objects_by_name, domain_name)
       delegation = delegate_of(command)
       return nil unless delegation
 
@@ -842,6 +875,20 @@ module RustProjection
           # left as-is to avoid an unrelated rename churning both codegen
           # paths' templates.
           '"TmplQualifiedCommandName"' => target[:name].to_s.inspect,
+          # BUG#31 — `apply_entity_command`'s own new parameter (kernel/
+          # dispatch.rs), needed for the SAME reason `dispatch_entity`
+          # already carries one: rendering `NothingToCorrect`'s own
+          # wording if a corrects-flagged given ever reaches this path.
+          # No real corpus domain combines `delegates_to` with `corrects`
+          # today (BUG#30's own Ruby fix left this exact combination
+          # unexercised too — `CommandInterpreter#step_delegate_to_
+          # entity`'s own inline pipeline doesn't call `enforce_
+          # correction_target` either), so `given_specs` here never
+          # actually carries a `corrects_event: Some(...)` row — this
+          # value is computed correctly anyway, at no extra cost, rather
+          # than left a landmine for the day some domain's door target
+          # does declare one.
+          '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
           '"TmplAggregateName"' => aggregate[:name].to_s.inspect,
           '"TmplEntityName"' => entity[:name].to_s.inspect,
           '"TmplEntityIdentityReading"' => entity[:identified_by].join(", ").inspect,
@@ -921,7 +968,21 @@ module RustProjection
 
       invariant_checks = invariant_checks_for(command, aggregates_by_name, value_objects_by_name)
 
-      given_specs = command[:givens].map do |given|
+      # BUG#31 — `corrects_given_specs(command)` PREPENDED here, exactly
+      # the way `emit_command`'s own aggregate-level twin already does
+      # (above): before this fix, an entity-level `corrects` command
+      # (`Ledger::Entry.Amend`, qa/stress_domains/corrections) got NO
+      # admissibility check generated at all — the synthetic
+      # `emitted_*`-flag GivenSpec only ever came from this call, and
+      # `emit_entity_command` never made it. `apply_entity_command`
+      # (kernel/dispatch.rs) evaluates a `corrects_event`-carrying given
+      # against the PARENT record, never the entity's own element —
+      # mirroring BUG#30's own Ruby fix (`EntityInterpreter#step_enforce_
+      # givens`, `enforce_correction_target` called with the parent
+      # record/root aggregate) exactly, at the same granularity: "this
+      # PARENT record has emitted the named event at some point," never
+      # narrowed to this one entity element.
+      given_specs = corrects_given_specs(command) + command[:givens].map do |given|
         "            crate::kernel::GivenSpec { description: #{rust_string_literal(given[:description])}, expr: #{ExprEmitter.emit_ast(given[:ast])}, corrects_event: None },"
       end
 
@@ -938,6 +999,27 @@ module RustProjection
       transition_arg =
         transition_check_arg(transition)
 
+      # A `:corrects` mutation reaches `emit_mutation_line` here rather
+      # than being `reject`-ed first the way `emit_command`'s own
+      # aggregate-level twin does (above) — `emit_mutation_line_body`'s
+      # `case mutation.op` has no `"corrects"` arm and no `else`, so it
+      # silently returns `nil` (an effectively blank line), the same
+      # documented-no-op semantics `EntityElement.apply_to_element`'s own
+      # `:corrects` branch has (BUG#30) — harmless, since the admissibility
+      # check itself already ran, above, via `corrects_given_specs`.
+      #
+      # NOT HANDLED HERE, DELIBERATELY, MATCHING BUG#31'S OWN SCOPE: an
+      # ENTITY-level command whose OWN `emits` names a correctable event
+      # (some OTHER command's `corrects` target) would need its flag set
+      # on the PARENT record, but `record` inside THIS closure is typed
+      # `&mut #{element_record}` (the entity element), not the parent —
+      # structurally unreachable from here the way `corrects_flag_mutation_
+      # lines` reaches it at the aggregate level. No real corpus domain
+      # exercises this shape today (`qa/stress_domains/corrections`'
+      # own correctable event, "EntryRecorded", is emitted by `Record`,
+      # an AGGREGATE-level command) — left open the same way BUG#30's own
+      # Ruby fix left `delegates_to`+`corrects` open: latent, not
+      # exercised, not silently miscompiled.
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
       mutation_lines.unshift(pre_state_line) if reads_pre_state?(command[:mutations])
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition && transition[:to_state]
@@ -1109,6 +1191,26 @@ module RustProjection
       qualified_command_name = command[:name].to_s
       fn_name = "dispatch_entity_#{entity[:name].downcase}_#{nested[:name].downcase}_#{dispatch_fn_name(cmd)}"
 
+      # BUG#31 — the hop-2 `apply_entity_command` call below gets the
+      # ROOT aggregate's own qualified name (that new parameter's own
+      # comment, kernel/dispatch.rs) purely to keep the signature
+      # compiling, NOT to make its own `corrects` admissibility real:
+      # `given_specs`, below, is never prepended with `corrects_given_
+      # specs(command)` the way `emit_entity_command`'s ONE-level twin
+      # now is. A hop-2 command's OWN `record` at that inner closure is
+      # the hop-1 ENTITY (`nested_owner`), not the root aggregate — a
+      # correction check evaluated there against `record.clone()` would
+      # check the wrong thing (BUG#30/BUG#31's own semantics need the
+      # ROOT aggregate record specifically). Fixing that honestly needs
+      # the OUTER `record` (the root aggregate, one closure up) threaded
+      # into the hop-2 call, which no real corpus domain needs today: no
+      # two-level-nested entity command anywhere declares `corrects` (the
+      # corpus's only entity-level `corrects` example, `qa/stress_domains/
+      # corrections`' `Ledger::Entry.Amend`, nests exactly one level).
+      # Left open the same way BUG#11's own two-level-nesting note already
+      # documents a structural gap at this exact depth, and matching
+      # BUG#30's own explicit choice to leave every unexercised `corrects`
+      # combination open rather than guessed at.
       nested_dispatch_fn = <<~RUST
         pub fn #{fn_name}(
             repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, hop1_id: &str, hop1_wants: &str,
@@ -1143,6 +1245,7 @@ module RustProjection
                         |r: &mut #{entity_record}| &mut r.#{list_field2},
                         |el: &#{nested_record}| el.identity() == hop2_id,
                         #{qualified_command_name.inspect},
+                        #{"#{domain_name}::#{aggregate_name}".inspect},
                         #{aggregate_name.inspect},
                         #{nested_name.inspect},
                         #{nested_identity_reading.inspect},

@@ -689,6 +689,27 @@ fn emit_mutation_line_body(
                 &[("tmpl_field", target_field.to_string()), ("tmpl_current_placeholder()", current), ("tmpl_updated_placeholder()", if optional { format!("Some({updated})") } else { updated })],
             )
         }
+        // BUG#31 — `rust/project/mutations.rb`'s own `emit_mutation_line_
+        // body` has no `"corrects"` arm and no `else`, so it silently
+        // returns Ruby `nil`, which `emit_mutation_line`'s own
+        // `"        #{...}"` interpolation renders as an effectively
+        // blank (whitespace-only) line — a documented no-op, the SAME
+        // semantics `EntityElement.apply_to_element`'s own `:corrects`
+        // branch has (BUG#30): the mutation targets no field, the
+        // admissibility check already ran up front, and whatever the
+        // correction actually changes is an ordinary declared mutation
+        // of its own, handled by one of the arms above. Reached ONLY
+        // from an ENTITY-level command's own mutation list
+        // (`emit_entity_command`/`emit_nested_entity_command`, which —
+        // like their Ruby-hosted twins — do not filter `"corrects"` out
+        // before calling this function, unlike `emit_command`'s
+        // aggregate-level path, which already does): before this fix,
+        // this hit the `other` panic arm below instead, crashing
+        // `hecks-codegen domain` outright the moment any entity-level
+        // `corrects` command reached it — never possible before BUG#31's
+        // own `corrects_given_specs` prepend made ENTITY-level `corrects`
+        // admissible enough to reach real codegen at all in this crate.
+        "corrects" => String::new(),
         other => panic!("unsupported mutation op {other:?} — command_skip_reason should have caught this"),
     }
 }

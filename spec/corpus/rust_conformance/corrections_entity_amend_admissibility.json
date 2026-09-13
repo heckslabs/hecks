@@ -1,0 +1,9 @@
+{
+  "domain": "qa/stress_domains/corrections",
+  "note": "BUG#31 (QualityControl ledger) — Rust's generated dispatch for an entity-level `corrects` command had NO admissibility check at all: `emit_entity_command` never called `corrects_given_specs`, and `correctable_event_names` never even looked past `aggregate[:commands]` to find an entity's own `corrects` mutation in the first place, so `Ledger.Entry.Amend` (corrects \"EntryRecorded\") accepted a correction against an entry that was never legitimately recorded — confirmed by hand against the compiled binary before this fix, saga side-effects included (see qa/stress_domains/corrections/NOTES.md finding 2). `Ledger.ReplaceEntries` creates an entry (sequence 5) WITHOUT ever emitting `EntryRecorded` — this fixture is that exact demonstration. After the fix, both engines refuse with `NothingToCorrect`, at the SAME parent-record-wide granularity BUG#30's own Ruby fix already has: this ledger's own event history, as a whole, never emitted `EntryRecorded` — a `Record`/`Void` on the SAME ledger for a DIFFERENT entry would still satisfy the check, matching Ruby exactly (that granularity limitation is deliberate, not a gap this fixture is proving).",
+  "steps": [
+    {"verb": "Corrections::Ledger.Open", "args": {"reference": {"value": "L1"}}},
+    {"verb": "Corrections::Ledger.ReplaceEntries", "args": {"reference": "L1", "entries": [{"sequence": {"value": 5}, "amount": {"cents": 700}}]}},
+    {"verb": "Corrections::Ledger.Entry.Amend", "args": {"reference": {"value": "L1"}, "sequence": {"value": 5}, "amount": {"cents": 999}}}
+  ]
+}

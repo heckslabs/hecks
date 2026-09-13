@@ -619,6 +619,7 @@ pub fn dispatch_entity_board_card_annotate(
                 |r: &mut Board| &mut r.cards,
                 |el: &Card| el.identity() == hop2_id,
                 "Annotate",
+                "NestedPieces::Workspace",
                 "Workspace",
                 "Card",
                 "sequence.value",
