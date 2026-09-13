@@ -121,3 +121,12 @@ aws-sdk-lambda = { version = "1", default-features = false, features = ["rt-toki
 aws-sdk-secretsmanager = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
 aws-smithy-http-client = { version = "1", default-features = false, features = ["rustls-ring"] }
 async-trait = "0.1.92"
+
+# DEBUG INFO OFF FOR DEV BUILDS — Phase 6 of the CI speed effort. Every
+# binary this crate produces in CI is run once and thrown away (never
+# attached to a debugger), so the debuginfo a plain `cargo build`/
+# `cargo test` normally embeds is pure build time and disk cost with
+# nothing reading it. Release builds (none of which CI actually uses
+# today) are unaffected — this only touches the dev profile.
+[profile.dev]
+debug = 0

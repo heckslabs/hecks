@@ -37,3 +37,12 @@ path = "src/main.rs"
 # deployed artifact — no runtime-size argument for a dependency here
 # either, only build-time compile cost to avoid.
 [dependencies]
+
+# DEBUG INFO OFF FOR DEV BUILDS — Phase 6 of the CI speed effort. Every
+# binary this crate produces in CI is run once and thrown away (never
+# attached to a debugger), so the debuginfo a plain `cargo build`/
+# `cargo test` normally embeds is pure build time and disk cost with
+# nothing reading it. Release builds (none of which CI actually uses
+# today) are unaffected — this only touches the dev profile.
+[profile.dev]
+debug = 0
