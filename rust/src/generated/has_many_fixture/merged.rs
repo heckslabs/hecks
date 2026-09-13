@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::has_many_fixture::member::JoinArgs::from_json(facts_json)?;
                       args.handle.check_invariants()?;
               crate::kernel::check_role(Some("Person"), "Join", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -110,6 +111,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::has_many_fixture::circle::OpenArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
               crate::kernel::check_role(Some("Organizer"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;

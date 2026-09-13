@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
                       args.actor_id.check_invariants()?;
                       args.role_name.check_invariants()?;
@@ -145,6 +146,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
                       args.from_role.check_invariants()?;
                       args.to_role.check_invariants()?;
