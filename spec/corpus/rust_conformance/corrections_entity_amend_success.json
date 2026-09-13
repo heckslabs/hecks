@@ -1,0 +1,9 @@
+{
+  "domain": "qa/stress_domains/corrections",
+  "note": "BUG#31 (QualityControl ledger) — the POSITIVE half of the fixture pair: a LEGITIMATELY-created entry (via `Ledger.Record`, which actually emits `EntryRecorded`) must still dispatch `Ledger.Entry.Amend` cleanly on both engines after the fix, saga included — the new admissibility check (`corrects_given_specs`, now generated for entity-level `corrects` too) must refuse the illegitimate case (corrections_entity_amend_admissibility.json) without becoming a FALSE refusal here. `EntryAmended` fires, `CorrectionWatch` runs to completion (`AuditTrail` opens and flags), and `emitted_entry_recorded` is `true` on the ledger record — proven directly against the compiled binary before this fixture was added, byte-identical to Ruby.",
+  "steps": [
+    {"verb": "Corrections::Ledger.Open", "args": {"reference": {"value": "L2"}}},
+    {"verb": "Corrections::Ledger.Record", "args": {"reference": "L2", "amount": {"cents": 500}}},
+    {"verb": "Corrections::Ledger.Entry.Amend", "args": {"reference": {"value": "L2"}, "sequence": {"value": 1}, "amount": {"cents": 750}}}
+  ]
+}

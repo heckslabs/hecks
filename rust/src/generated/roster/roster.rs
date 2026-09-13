@@ -1901,6 +1901,7 @@ pub fn dispatch_retire(
                     |r: &mut Roster| &mut r.crew,
                     |el: &Member| el.identity() == element_id,
                     "Retire",
+                    "Roster::Roster",
                     "Roster",
                     "Member",
                     "id.value",

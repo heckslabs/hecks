@@ -531,7 +531,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
     if mutation_lines.is_empty() {
         mutation_lines = vec!["        let _ = record;".to_string()];
     }
-    let delegation = delegation_of(exemplar, command, aggregate, value_objects_by_name);
+    let delegation = delegation_of(exemplar, command, aggregate, value_objects_by_name, domain_name);
     if let Some(d) = &delegation {
         assert!(!creates, "{cmd}: a creating command cannot delegate — nothing exists to delegate to");
         mutation_lines = vec![d.apply.clone()];
@@ -769,7 +769,7 @@ fn indent_block(text: &str, indent: &str) -> String {
     text.lines().map(|l| format!("{indent}{l}")).collect::<Vec<_>>().join("\n").trim_end().to_string()
 }
 
-fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<Delegation> {
+fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_objects_by_name: &HashMap<String, &Json>, domain_name: &str) -> Option<Delegation> {
     let delegation = delegate_of(command)?;
     let (entity, target) = delegate_target(delegation, aggregate);
     let (entity, target) = (entity.expect("delegate_skip_reason admitted the entity"), target.expect("delegate_skip_reason admitted the target"));
@@ -852,6 +852,12 @@ fn delegation_of(exemplar: &Exemplar, command: &Json, aggregate: &Json, value_ob
             // straight into refusal-message text, and Ruby's own
             // `command.hecks_name` is never entity-qualified.
             ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&target.get("name").map(Json::to_s).unwrap_or_default())),
+            // BUG#31 — `apply_entity_command`'s own new parameter
+            // (kernel/dispatch.rs); mirrors `rust/project/commands.rb`'s
+            // own identical fix — see that call site's comment for why
+            // this is computed correctly even though no real corpus
+            // domain combines `delegates_to` with `corrects` today.
+            ("\"TmplQualifiedName\"", naming::ruby_inspect_string(&format!("{domain_name}::{aggregate_name}"))),
             ("\"TmplAggregateName\"", naming::ruby_inspect_string(&aggregate_name)),
             ("\"TmplEntityName\"", naming::ruby_inspect_string(&entity_name)),
             ("\"TmplEntityIdentityReading\"", naming::ruby_inspect_string(&identity_reading)),
@@ -924,15 +930,19 @@ pub fn emit_entity_command(
 
     let invariant_checks = invariant_checks_for(exemplar, command, aggregates_by_name, value_objects_by_name);
 
+    // BUG#31 — `corrects_given_specs(command)` PREPENDED here, mirroring
+    // `emit_command`'s own aggregate-level twin (above) exactly: see
+    // `rust/project/commands.rb`'s own identical fix for the full
+    // reasoning (`apply_entity_command`, kernel/dispatch.rs, evaluates a
+    // `corrects_event`-carrying given against the PARENT record, never
+    // the entity's own element).
     let givens = command.get("givens").map(Json::each).unwrap_or(&[]);
-    let given_specs: Vec<String> = givens
-        .iter()
-        .map(|g| {
-            let description = g.get("description").and_then(Json::as_str).unwrap_or("");
-            let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
-            format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
-        })
-        .collect();
+    let mut given_specs: Vec<String> = crate::bridging::corrects_given_specs(command);
+    given_specs.extend(givens.iter().map(|g| {
+        let description = g.get("description").and_then(Json::as_str).unwrap_or("");
+        let ast = g.get("ast").unwrap_or_else(|| panic!("given row has no ast: {g:?}"));
+        format!("            crate::kernel::GivenSpec {{ description: {}, expr: {}, corrects_event: None }},", naming::ruby_inspect_string(description), crate::expr_emitter::emit_ast(ast))
+    }));
 
     let ensures = command.get("ensures").map(Json::each).unwrap_or(&[]);
     let ensures_specs: Vec<String> = ensures
@@ -1156,6 +1166,15 @@ pub fn emit_nested_entity_command(
     // BARE — same reasoning as `emit_entity_command`'s identical
     // `qualified_command_name`.
     let qualified_command_name = command.get("name").and_then(Json::as_str).unwrap_or("").to_string();
+    // BUG#31 — the hop-2 `apply_entity_command` call below gets the ROOT
+    // aggregate's own qualified name purely to keep the signature
+    // compiling, NOT to make its own `corrects` admissibility real —
+    // mirrors `rust/project/commands.rb`'s own identical fix; see that
+    // call site's comment for the full reasoning (a hop-2 command's OWN
+    // `record` at that inner closure is the hop-1 ENTITY, not the root
+    // aggregate, so a correction check evaluated there would check the
+    // wrong thing — left open, unexercised, same as BUG#30's own explicit
+    // scope boundary).
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
     let emits_expr = emits.iter().map(|e| naming::ruby_inspect_string(&e.to_s())).collect::<Vec<_>>().join(", ");
     let fn_name = format!(
@@ -1198,6 +1217,7 @@ pub fn emit_nested_entity_command(
                         |r: &mut {entity_record}| &mut r.{list_field2},\n                \
                         |el: &{nested_record}| el.identity() == hop2_id,\n                \
                         {qualified_command_name_inspect},\n                \
+                        {qualified_name_inspect},\n                \
                         {aggregate_name_inspect},\n                \
                         {nested_name_inspect},\n                \
                         {nested_identity_reading_inspect},\n                \

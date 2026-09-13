@@ -171,6 +171,24 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", :io do
       fixture_dir = "spec/fixtures/rust_project/bug28_existence_fixture/bluebook/bug28_existence_fixture.bluebook"
       domain_ir(File.join(InMemoryDomain::ROOT, fixture_dir), "Bug28ExistenceFixture")
     }]
+    # NOT ADDED HERE: qa/stress_domains/corrections. Its own `Ledger.Void`
+    # (`sets :entries, remove: :sequence`) hits a PRE-EXISTING, separate
+    # gap in THIS pipeline — BUG#32's own Rust half (rust/project/
+    # mutations.rb's/commands.rb's `remove` support) was never ported to
+    # `rust/codegen/src` (confirmed: `command_skip_reason_with`,
+    # commands.rs, still lists only append/set/increment/decrement/
+    # multiply/clamp/delegate/corrects, no `remove`; `hecks-codegen
+    # domain` panics with "unsupported mutation op \"remove\"" the moment
+    # it's asked to generate this exact domain) — unrelated to BUG#31,
+    # not fixed here. BUG#31's own entity-level `corrects` fix (`emit_
+    # entity_command`'s `corrects_given_specs` prepend, `correctable_
+    # event_names`'s entity recursion) IS mirrored in both pipelines —
+    # see `rust/codegen/src/bridging.rs`/`commands.rs`'s own identical
+    # changes — and is proven correct in `rust/codegen/src/mutations.rs`
+    # (the "corrects" mutation-line no-op arm) directly, and end-to-end
+    # for the Ruby-hosted pipeline via `spec/corpus/rust_conformance/
+    # corrections_entity_amend_*.json`. Adding this domain here waits on
+    # BUG#32's own separate follow-up.
   ].freeze
 
   # A REAL, per-member reason — never a placeholder. See this file's own

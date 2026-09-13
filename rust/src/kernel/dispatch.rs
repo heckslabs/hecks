@@ -508,6 +508,14 @@ pub fn apply_entity_command<'a, T, E>(
     get_list_mut: impl FnOnce(&mut T) -> &mut Vec<E>,
     matches: impl Fn(&E) -> bool,
     command_name: &'static str,
+    // BUG#31 — needed only to render `NothingToCorrect`'s own wording,
+    // below, the exact same text `dispatch`'s aggregate-level twin
+    // already renders (`"{command_name} refused — corrects {event_name},
+    // but {aggregate_qualified_name} #{id} has never emitted it"`).
+    // Every OTHER refusal this function renders already uses the bare
+    // `aggregate_name` — unaffected, on purpose (see that param's own
+    // call sites: Ruby's own `hecks_name`-based wording never qualifies).
+    aggregate_qualified_name: &'static str,
     aggregate_name: &'static str,
     entity_name: &'static str,
     entity_identity_reading: &'static str,
@@ -534,11 +542,47 @@ where
     })?;
     let mut element = get_list(record)[position].clone();
 
+    let parent_before = record.clone();
+
+    // BUG#31 — entity-level `corrects` ADMISSIBILITY, checked against the
+    // PARENT record/ROOT aggregate — never the entity's own element —
+    // mirroring `EntityInterpreter#step_enforce_givens`'s own BUG#30 fix
+    // (`lib/hecks/runtime/entity_interpreter.rb`) exactly: an entity has
+    // no event stream of its own, so `enforce_correction_target` has to
+    // be asked in the SAME terms `CommandRules::Emission#emit` always
+    // stamps an entity command's emitted event with — the ROOT
+    // aggregate's own qualified name and the PARENT record's own id,
+    // never the entity's. Run AFTER the element lookup above (a missing
+    // element still answers `NotFound` first — the same order Ruby's own
+    // `step_locate_element` -> `step_enforce_givens` already runs in) but
+    // BEFORE the entity's own declared `given`s just below (same
+    // structural-before-declared ordering `step_enforce_givens` uses).
+    // One consequence, same as the aggregate-level check: this only
+    // proves "the PARENT record has emitted the named event at some
+    // point," never narrowed to this one entity element — a Ledger with
+    // three Entries all satisfy the same check.
+    for given in givens {
+        let Some(event_name) = given.corrects_event else { continue };
+        let ctx = EvalContext { args, instance: &parent_before };
+        if !interpret(&given.expr, &ctx)?.truthy() {
+            return Err(Refusal::NothingToCorrect(format!(
+                "{command_name} refused — corrects {event_name}, but {aggregate_qualified_name} #{parent_id} has never emitted it"
+            )));
+        }
+    }
+
     {
-        let parent_before = record.clone();
         let with_parent = WithParent { args, parent: &parent_before };
         let given_args: &dyn Fielded = if parent_in_args { &with_parent } else { args };
         for given in givens {
+            // Handled above, against the PARENT record — evaluating it
+            // again here, against `element`, would look up a flag field
+            // that exists on the parent record's own struct, not on the
+            // entity element's, the moment a real `corrects`-flagged
+            // given ever reaches this path.
+            if given.corrects_event.is_some() {
+                continue;
+            }
             let ctx = EvalContext { args: given_args, instance: &element };
             if !interpret(&given.expr, &ctx)?.truthy() {
                 return Err(Refusal::GivenNotMet(format!("{command_name} refused — {}", given.description)));
@@ -642,6 +686,7 @@ where
         get_list_mut,
         matches,
         command_name,
+        aggregate_qualified_name,
         aggregate_name,
         entity_name,
         entity_identity_reading,

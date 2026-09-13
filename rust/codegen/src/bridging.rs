@@ -496,11 +496,49 @@ pub fn corrects_flag_field(event_name: &str) -> String {
 }
 
 /// Every event name ANY command on this aggregate names in a `corrects`
-/// mutation — mirrors `rust/project/bridging.rb`'s own
+/// mutation — mirrors `rust/project/commands.rb`'s own
 /// `correctable_event_names` exactly (aggregate-wide, not per-command).
+///
+/// BUG#31 — RECURSES INTO ENTITIES TOO (`entity_correctable_event_names`,
+/// below), not just `aggregate["commands"]`. An entity-level `corrects`
+/// (`Ledger::Entry.Amend`, qa/stress_domains/corrections — the corpus's
+/// only example) names an event exactly the same way an aggregate-level
+/// one does, and the flag field it checks against lives on the PARENT
+/// record regardless of which level declared the `corrects` mutation —
+/// see `rust/project/commands.rb`'s own identical fix for the full
+/// reasoning (BUG#30's Ruby fix, `enforce_correction_target` always
+/// asked in terms of the parent record/root aggregate).
 pub fn correctable_event_names(aggregate: &Json) -> Vec<String> {
+    let mut names = corrects_targets_of(aggregate.get("commands").map(Json::each).unwrap_or(&[]));
+    for entity in aggregate.get("entities").map(Json::each).unwrap_or(&[]) {
+        for name in entity_correctable_event_names(entity) {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    names
+}
+
+/// The entity-recursive half of `correctable_event_names`, above — walks
+/// nested entities too (`entity["entities"]`), the same depth
+/// `rust/project/commands.rb`'s own twin does, though no real corpus
+/// domain nests `corrects` two levels deep today.
+fn entity_correctable_event_names(entity: &Json) -> Vec<String> {
+    let mut names = corrects_targets_of(entity.get("commands").map(Json::each).unwrap_or(&[]));
+    for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
+        for name in entity_correctable_event_names(nested) {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    names
+}
+
+fn corrects_targets_of(commands: &[Json]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
-    for c in aggregate.get("commands").map(Json::each).unwrap_or(&[]) {
+    for c in commands {
         for m in c.get("mutations").map(Json::each).unwrap_or(&[]) {
             if m.get("op").map(Json::to_s).unwrap_or_default() == "corrects" {
                 let name = m.get("target").map(Json::to_s).unwrap_or_default();
