@@ -242,6 +242,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::customer::RegisterArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.name.check_invariants()?;
@@ -334,6 +335,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::account::OpenArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
                       args.daily_limit.check_invariants()?;
@@ -612,6 +614,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::onboardingcase::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.account_number.check_invariants()?;
@@ -672,6 +675,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::atmcard::IssueArgs::from_json(facts_json)?;
                       args.serial.check_invariants()?;
                       args.daily_fee.check_invariants()?;
@@ -797,6 +801,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::cardpayment::AuthorizeArgs::from_json(facts_json)?;
                       args.authorisation.check_invariants()?;
                       if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
@@ -982,6 +987,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::safedepositbox::RentArgs::from_json(facts_json)?;
                       args.branch_code.check_invariants()?;
                       args.box_number.check_invariants()?;
@@ -1085,6 +1091,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::statement::GenerateArgs::from_json(facts_json)?;
                       args.period.check_invariants()?;
                       args.opening_balance.check_invariants()?;
@@ -1101,6 +1108,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::transfer::RequestArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
@@ -1232,6 +1240,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::externaltransfer::RequestArgs::from_json(facts_json)?;
                       args.end_to_end.check_invariants()?;
                       args.amount.check_invariants()?;
@@ -1318,6 +1327,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::banking::scheduledpayment::ScheduleArgs::from_json(facts_json)?;
                       args.instruction.check_invariants()?;
                       args.amount.check_invariants()?;
@@ -1449,6 +1459,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
                       args.actor_id.check_invariants()?;
                       args.role_name.check_invariants()?;
@@ -1496,6 +1507,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
                       args.from_role.check_invariants()?;
                       args.to_role.check_invariants()?;
@@ -1542,6 +1554,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
                       args.identity_id.check_invariants()?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;
@@ -1554,6 +1567,7 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
                       args.issuer.check_invariants()?;

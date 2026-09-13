@@ -86,6 +86,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::lease_clock::lease::RegisterArgs::from_json(facts_json)?;
                       args.key.check_invariants()?;
               crate::kernel::check_role(Some("Operator"), "Register", caller_role, caller_actor_id, &*store, QUERIES)?;

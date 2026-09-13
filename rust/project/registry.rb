@@ -199,7 +199,37 @@ module RustProjection
           # `RefusalWording.render("NotFound", "acting_no_identity", ...)`
           # produces on the Ruby side.
           acting_no_identity_message = "#{c[:name]} acts on an existing #{a[:record]} — pass #{Array(a[:identified_by]).join(', ')}:"
-          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
+          # BUG#56 (qa/bluebook/quality_control.bluebook) — an ACTING
+          # command's own `id_line`, below, already validates an explicit
+          # `to:`'s route depth EAGERLY, ahead of `role_line` — matching
+          # Ruby's own `Dispatcher#dispatch`, which resolves `Routing.
+          # envelope(to)` unconditionally, for EVERY aggregate command,
+          # creating or acting alike, strictly before `@commands.call`
+          # (the door to `CommandInterpreter`'s own `DISPATCH_ORDER`,
+          # `refuse_role_mismatch` included) ever runs. A CREATING
+          # command's own generated `dispatch_*` function (`commands.rb`)
+          # already runs the SAME `route.require_depth(0)?` check — but
+          # only INTERNALLY, deep inside its own `Hydrate::Create`/
+          # `Hydrate::Act` decision, built as an ARGUMENT to `crate::
+          # kernel::dispatch(...)` — and this router only ever calls that
+          # generated function (`dispatch_call`, below) AFTER `check_role`
+          # has already run, above. A caller offering an explicit,
+          # wrong-depth `to:` (an entity route on an aggregate-level
+          # creating command, say — undeclared, route-shaped, the exact
+          # `routing_key` adversarial mutation `Adversary::ROUTING_SHAPES`
+          # produces) alongside an unauthorized actor used to refuse
+          # `Unauthorized` here, where Ruby had already refused
+          # `TypeMismatch` on the route itself before ever reaching a role
+          # check at all — confirmed live, `Governance::RoleTransition.
+          # Grant`, `bin/qa_sweep banking --seeds 40 --adversarial 0.3
+          # --role-draw 0.25`. This line closes that gap the same way
+          # `id_line` already does for an acting command: eagerly, ahead
+          # of everything else in this arm — a plain validation, not an
+          # identity computation (a creating command's own identity comes
+          # from its declared attributes, never from `route`), so nothing
+          # is bound from it.
+          creating_route_precheck_line = "if let Some(route) = route { route.require_depth(0)?; }"
+          id_line = c[:creates] ? creating_route_precheck_line : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{acting_no_identity_message.inspect}.to_string()))?, };"
           # BUG#23 (qa/bluebook/quality_control.bluebook) — Ruby's own
           # `DISPATCH_ORDER` runs `refuse_unknown_arguments`/`refuse_
           # absent_arguments` structurally BEFORE `hydrate`, but `id_line`

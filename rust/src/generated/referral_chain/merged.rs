@@ -110,6 +110,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::referral_chain::sponsor::EnrollArgs::from_json(facts_json)?;
                       args.handle.check_invariants()?;
               let owner_deref = Vec::new();
@@ -144,6 +145,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::referral_chain::member::JoinArgs::from_json(facts_json)?;
                       args.handle.check_invariants()?;
               crate::kernel::check_reference(&store.sponsor, &args.sponsor, "Sponsor", "handle")?;
@@ -156,6 +158,7 @@ if !unknown.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::referral_chain::referral::IssueArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
               crate::kernel::check_reference(&store.member, &args.member, "Member", "handle")?;
