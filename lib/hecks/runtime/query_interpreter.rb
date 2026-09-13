@@ -276,28 +276,57 @@ module Hecks
 
       # `boundary: false` always (C3.8 — a query's declared argument types
       # name the argument for callers and generators, never a runtime
-      # shape checked here). `argument:`, though, is NOT always false: C3.7
-      # says a named query's declared VALUE-OBJECT arguments are built —
-      # nil-checked — the same way a command argument's own is, so a `nil`
-      # offered for a non-optional value-object-typed query attribute
+      # shape checked here). A null required VALUE-OBJECT-typed query
+      # argument, though, is NOT a runtime-shape question at all: C3.7
+      # says a named query's declared value-object arguments are checked
+      # the same way a command argument's own is, so a `nil` offered for
+      # a non-optional value-object-typed query attribute
       # (Governance::RoleAssignment.AssignmentsForActor's `actor_id`, say)
-      # has to reach Value::Coercion#nil_argument's TypeMismatch the same
-      # way `Interpreting#coerce_declared_arguments`'s `argument: true`
-      # already gets a command argument there — passing `argument: false`
-      # unconditionally (as this used to) let it through as a silent,
-      # unfiltered query instead, a real Ruby/Rust divergence the fuzzer
-      # caught (QualityControl BUG#2). C3.8's own bare-scalar carve-out
-      # stays intact: `checked_vo?` is only true for a value-object-typed
-      # attribute, so a bare `String`/`Integer` query argument offered nil
-      # still passes through exactly as it always did.
+      # has to refuse — passing it through unchecked (as this used to)
+      # let it through as a silent, unfiltered query instead, a real
+      # Ruby/Rust divergence the fuzzer caught (QualityControl BUG#2).
+      #
+      # `checked_vo?` true is handled by `null_vo_argument!` DIRECTLY,
+      # never by routing through `Value.for_attribute(argument: true)`
+      # into the shared `Value::Coercion#nil_argument` the COMMAND door
+      # (`Interpreting#coerce_declared_arguments`) still uses — that
+      # method builds a null value object from ZERO fields, which
+      # SUCCEEDS (silently absorbing the null via the type's own field
+      # defaults) whenever every field happens to have one
+      # (`Lease.Expired`'s `now`, a `LeaseInstant` with a `default: 0`
+      # field; `Account.Overdrawn`/`HighBalance`/`StrictlyAbove`/
+      # `AtMost`'s `floor`/`cap`, a two-defaulted-field `Money`) and only
+      # refuses when a field has none (`Order.CostingLessThan`'s
+      # `ceiling`, a defaultless `Price`) — a real QUERY-side divergence
+      # from Rust, which always refuses `TypeMismatch` on an explicit
+      # null argument regardless of any default (QualityControl BUG#36).
+      # `null_vo_argument!` instead treats an explicit null exactly the
+      # way `Value.fields_for` already treats any other WRONG-SHAPED
+      # (non-Hash, non-Value) value offered for that same attribute — a
+      # single-field value object auto-wraps into `{field: nil}` (whose
+      # OWN `nil` is a PRESENT key, so `Value.build`'s `apply_defaults`
+      # never fills it, and `check_required_fields` refuses it exactly
+      # as any other missing required field would); a multi-field value
+      # object refuses immediately with the same `value_object_shape`
+      # wording an ordinary wrong-shaped scalar already gets. Command
+      # arguments are deliberately UNTOUCHED — this is a query-only
+      # door; `nil_argument`'s own default-absorbing fallback still
+      # governs a null command argument exactly as it always has.
+      #
+      # C3.8's own bare-scalar carve-out stays intact: `checked_vo?` is
+      # only true for a value-object-typed attribute, so a bare
+      # `String`/`Integer` query argument offered nil still passes
+      # through exactly as it always did.
       def normalize_args(aggregate, declared, args)
         declared.attributes.each_with_object(args.dup) do |attribute, normalized|
           next unless normalized.key?(attribute.name)
 
           value = normalized[attribute.name]
-          argument = checked_vo?(aggregate, attribute, value)
-          normalized[attribute.name] = Value.for_attribute(aggregate, attribute, value,
-                                                           boundary: false, argument: argument)
+          normalized[attribute.name] = if checked_vo?(aggregate, attribute, value)
+                                         null_vo_argument!(aggregate, attribute)
+                                       else
+                                         Value.for_attribute(aggregate, attribute, value, boundary: false)
+                                       end
         end
       end
 
@@ -307,6 +336,15 @@ module Hecks
         return false unless aggregate.respond_to?(:value_object)
 
         !Value.value_object_for(aggregate, attribute.type).nil?
+      end
+
+      # Only ever reached when `checked_vo?` has already confirmed the
+      # attribute's type resolves to a real value object — see its own
+      # comment above for why this refuses unconditionally, never
+      # absorbing the null via the type's own field defaults.
+      def null_vo_argument!(aggregate, attribute)
+        value_object = Value.value_object_for(aggregate, attribute.type)
+        Value.build(value_object, Value.fields_for(value_object, attribute.name, nil), aggregate)
       end
 
       def comparable(value) = QuerySpecification::Common::Comparison.comparable(value)

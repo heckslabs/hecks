@@ -55,13 +55,22 @@ module Hecks
         # itself, so a `reference: {value: ...}` offered against a `String`
         # query field is the documented allowance (see banking's own
         # `Account.OpenForCustomer`), not a C3.8 mismatch.
-        # `argument: true` is the CALLER'S door only (`Interpreting#normalize_
-        # args`, every command/entity/port dispatch): the one place a nil
-        # for a non-optional attribute is the caller leaving a required
-        # argument empty (C3.7). Every other caller — `sets` copying an
+        # `argument: true` is the COMMAND/ENTITY/PORT argument door only
+        # (`Interpreting#normalize_args`, every command/entity/port
+        # dispatch): the one place a nil for a non-optional attribute is
+        # the caller leaving a required argument empty (C3.7), absorbed
+        # via the type's own field defaults when every field has one
+        # (`nil_argument` below). Every other caller — `sets` copying an
         # optional argument into state, hydration, entity elements,
-        # identity, defaults — is state assembly, where nil is a legitimate
-        # "absent is not empty" value the aggregate's own attribute may hold.
+        # identity, defaults — is state assembly, where nil is a
+        # legitimate "absent is not empty" value the aggregate's own
+        # attribute may hold. `QueryInterpreter#normalize_args` never
+        # passes `argument: true` — a null required value-object-typed
+        # QUERY argument is checked, and refused, entirely on its own
+        # side (`null_vo_argument!`, query_interpreter.rb) precisely so
+        # it does NOT reach this default-absorbing fallback (QualityControl
+        # BUG#36 — a query's own null VO argument must refuse regardless
+        # of any default, unlike a command's).
         def for_attribute(aggregate, attribute, value, boundary: true, argument: false)
           return nil_or_missing(aggregate, attribute, value, argument) if attribute.nil? || value.nil?
           return reference_list(attribute, value) if attribute.list? && attribute.reference?
