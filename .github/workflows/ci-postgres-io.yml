@@ -1,0 +1,88 @@
+name: CI postgres io (reusable)
+
+# REUSABLE-WORKFLOW SPLIT OF ci.yml, group 2 (part 2 of 3) — see
+# ci-rspec.yml's own header for why this group needed three separate
+# files instead of one. This file holds `rspec_postgres_io`, the single
+# job behind the required-status-check name of the same bare name.
+#
+# UNLIKE ci-rspec.yml/ci-postgres-io-parallel.yml, `rspec_postgres_io`
+# WAS NOT ALREADY AN AGGREGATOR before this split — it's a single, plain
+# job, and its own name is the exact required-status-check string the
+# `merge-queue-main` ruleset names. ci.yml now carries a NEW small
+# wrapper job (also named `rspec_postgres_io`) that simply mirrors this
+# reusable workflow's own result — the same aggregator-over-a-
+# restructured-job trick this file's siblings already use, applied here
+# for the first time to a job that previously needed no wrapper at all.
+
+on:
+  workflow_call:
+
+jobs:
+  rspec_postgres_io:
+    runs-on: ubuntu-latest
+
+    # See ci.yml's `rspec` job's own comment — cache-warming push doesn't
+    # need this job (it keeps no runtime-log cache of its own).
+    if: github.event_name != 'push'
+
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      # PREINSTALLED + TUNED, NOT A `services:` CONTAINER — Phase 5 of
+      # the CI speed effort (see the action's own header for why this is
+      # the one piece of that phase not yet verified against real
+      # infrastructure). `POSTGRES_HOST_AUTH_METHOD: trust`'s own former
+      # comment still applies unchanged: spec/adapters/driven/postgres/
+      # lineage_spec.rb creates its own unprivileged roles at runtime
+      # with no password, and this action's trust rule for 127.0.0.1/::1
+      # covers any role the same way the old container's env var did.
+      - uses: ./.github/actions/postgres
+
+      # examples/pizzas/bluebook/pizzas.world wires straight at this
+      # database by name — spec/dsl_spec.rb, spec/runtime/domain_refusal_spec.rb,
+      # and the schema-evolution guide's own live example all boot it.
+      # Nothing creates it on demand (unlike the adapter specs' own
+      # scratch databases, which manage their own lifecycle); a fresh
+      # Postgres needs it provisioned once, up front. (The 12 specs that
+      # run in `rspec_rust_io` instead don't reference this database by
+      # name — verified by grep — so that job doesn't need this step.)
+      - name: Create the pizzas example's database
+        run: createdb -h localhost -U postgres hecks_pizzas
+
+      # SIX `io: true` FILES THAT SHARE THIS ONE DATABASE — spec/
+      # dsl_spec.rb, spec/guides_spec.rb, spec/runtime/domain_refusal_
+      # spec.rb (verified: `grep -rl "hecks_pizzas" spec/` names exactly
+      # these three plus spec/support/doctest.rb, which isn't a spec file
+      # itself), PLUS spec/diagrams_spec.rb, spec/storehouse_spec.rb and
+      # spec/oidc_manifest_spec.rb (Phase 4 of the CI speed effort —
+      # these three don't reference the literal string "hecks_pizzas" the
+      # grep above looked for, but every example now tagged `io: true` in
+      # them boots `examples/pizzas` for real via `Hecks.boot`, and that
+      # domain's own `.world` file hardcodes the identical database —
+      # `postgres://localhost/hecks_pizzas` — so they share the exact
+      # same resource as the original three, just reached indirectly.
+      # Confirmed empirically before adding them here, not assumed: with
+      # Postgres genuinely unreachable, `bundle exec parallel_rspec spec
+      # -o "--tag ~io --tag ~fuzzing"` (the `rspec` job's own command)
+      # failed exactly 19 examples, all `PG::ConnectionBad`/
+      # `WiringError`, all inside these three files — see each file's own
+      # `:io` tags for exactly which examples those are; the rest of each
+      # file boots Memory-bound fixtures and stays in the fast `rspec`
+      # job). Kept single-process on purpose: unlike every other
+      # `io: true` spec (see rspec_postgres_io_parallel in
+      # ci-postgres-io-parallel.yml), nothing here was verified safe under
+      # a second worker concurrently reading/writing the SAME pre-seeded
+      # database in the same checkout — untagged examples in these three
+      # files that don't touch Postgres at all are unaffected and still
+      # run in `rspec`.
+      - name: "rspec: shared hecks_pizzas database (serial — genuinely shared state)"
+        run: |
+          bundle exec rspec --tag io --tag ~fuzzing \
+            spec/dsl_spec.rb spec/guides_spec.rb spec/runtime/domain_refusal_spec.rb \
+            spec/diagrams_spec.rb spec/storehouse_spec.rb spec/oidc_manifest_spec.rb
