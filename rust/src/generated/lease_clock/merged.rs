@@ -92,7 +92,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::lease_clock::lease::dispatch_register(&mut store.lease, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::lease_clock::lease::dispatch_register(&mut store.lease, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LeaseClock::Lease.Acquire" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

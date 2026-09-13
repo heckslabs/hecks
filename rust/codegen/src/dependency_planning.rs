@@ -14,22 +14,31 @@ use crate::json::Json;
 use crate::literal::{self, Literal};
 use std::collections::{HashMap, HashSet};
 
+/// `complete_state_creation?` — see the Ruby file's own header (BUG#22,
+/// QualityControl ledger): `state_independent?`'s conjunct alone, split
+/// out because `registry.rb`'s router needs it independently, to decide
+/// whether a route given to a CREATING command should be checked against
+/// its derived identity at all (`complete_state?` true) or force a plain
+/// find-or-`NotFound` instead (`complete_state?` false, the legacy path).
+pub fn complete_state_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    let owner_fields = owner_fields(aggregate);
+    let payload_fields: HashSet<String> = command.get("attributes").map(Json::each).unwrap_or(&[]).iter().map(|a| crate::attr::name(a).to_string()).collect();
+
+    let (known_writes, disqualified) = known_writes(aggregate, command, &owner_fields, &payload_fields, value_objects_by_name);
+    !disqualified && owner_fields.iter().all(|field| known_writes.contains(field))
+}
+
 /// `state_independent_creation?` — see the Ruby file's own header.
 /// ONLY MEANINGFUL for a command `crate::shared::creates_owner` already
 /// answered `true` for. `value_objects_by_name` — the SAME domain-wide
 /// map `emit_command`'s own caller already built, reused rather than
 /// rebuilt.
 pub fn state_independent_creation(aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>) -> bool {
+    if !complete_state_creation(aggregate, command, value_objects_by_name) {
+        return false;
+    }
     let owner_fields = owner_fields(aggregate);
     let payload_fields: HashSet<String> = command.get("attributes").map(Json::each).unwrap_or(&[]).iter().map(|a| crate::attr::name(a).to_string()).collect();
-
-    let (known_writes, disqualified) = known_writes(aggregate, command, &owner_fields, &payload_fields, value_objects_by_name);
-    if disqualified {
-        return false;
-    }
-    if !owner_fields.iter().all(|field| known_writes.contains(field)) {
-        return false;
-    }
 
     let mut rules: Vec<(&Json, bool)> = Vec::new();
     for rule in command.get("givens").map(Json::each).unwrap_or(&[]) {

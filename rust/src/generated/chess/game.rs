@@ -1223,7 +1223,7 @@ pub struct StartArgs {
 }
 
 pub fn dispatch_start(
-    repo: &mut impl crate::kernel::Repository<Game>, args: StartArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Game>, route: Option<&crate::kernel::RoutingEnvelope>, args: StartArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Game> {
         args.label.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1231,8 +1231,15 @@ pub fn dispatch_start(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.label.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Start routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.label.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Game {
             label: Some(args.label.clone()),
             turn: None,
@@ -1242,6 +1249,20 @@ pub fn dispatch_start(
             status: "in_progress".to_string(),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.label.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Game {
+            label: Some(args.label.clone()),
+            turn: None,
+            draw_offer: None,
+            ply: None,
+            pieces: vec![],
+            status: "in_progress".to_string(),
+        }),
+        state_independent: true,
+    } }
     },
         "Start",
         "Chess::Game",

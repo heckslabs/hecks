@@ -272,7 +272,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<Vault>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Vault>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Vault> {
         args.code.check_invariants()?;
         args.balance.check_invariants()?;
@@ -281,13 +281,30 @@ pub fn dispatch_open(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.code.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Open routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.code.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Vault {
             code: Some(args.code.clone()),
             balance: Some(args.balance.clone()),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.code.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Vault {
+            code: Some(args.code.clone()),
+            balance: Some(args.balance.clone()),
+        }),
+        state_independent: true,
+    } }
     },
         "Open",
         "Bug28ExistenceFixture::Vault",

@@ -1117,7 +1117,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<Roster>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Roster>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Roster> {
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1125,8 +1125,15 @@ pub fn dispatch_open(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.name.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Open routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.name.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Roster {
             name: Some(args.name.clone()),
             motto: None,
@@ -1138,6 +1145,22 @@ pub fn dispatch_open(
             assignments: vec![],
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Roster {
+            name: Some(args.name.clone()),
+            motto: None,
+            mood: None,
+            standing: None,
+            last_marked: None,
+            seats: vec![],
+            crew: vec![],
+            assignments: vec![],
+        }),
+        state_independent: true,
+    } }
     },
         "Open",
         "Roster::Roster",

@@ -742,7 +742,7 @@ pub struct CreatePizzaArgs {
 }
 
 pub fn dispatch_create_pizza(
-    repo: &mut impl crate::kernel::Repository<Order>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Order>, route: Option<&crate::kernel::RoutingEnvelope>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.name.check_invariants()?;
         args.pizza.check_invariants()?;
@@ -751,8 +751,15 @@ pub fn dispatch_create_pizza(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.name.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("CreatePizza routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.name.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Order {
             name: Some(args.name.clone()),
             pizza: Some(args.pizza.clone()),
@@ -761,6 +768,19 @@ pub fn dispatch_create_pizza(
             status: "available".to_string(),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Order {
+            name: Some(args.name.clone()),
+            pizza: Some(args.pizza.clone()),
+            toppings: vec![],
+            customer_name: None,
+            status: "available".to_string(),
+        }),
+        state_independent: true,
+    } }
     },
         "CreatePizza",
         "Pizzas::Order",

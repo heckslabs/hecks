@@ -250,7 +250,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::customer::dispatch_register(&mut store.customer, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::customer::dispatch_register(&mut store.customer, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Customer.Suspend" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -342,7 +342,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "customer", as_name: "customer", target: "Banking::Customer" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::account::dispatch_open(&mut store.account, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_open(&mut store.account, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Credit" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -620,7 +620,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "customer", as_name: "customer", target: "Banking::Customer" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::onboardingcase::dispatch_open(&mut store.onboardingcase, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::onboardingcase::dispatch_open(&mut store.onboardingcase, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::OnboardingCase.Clear" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -680,7 +680,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::atmcard::dispatch_issue(&mut store.atmcard, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_issue(&mut store.atmcard, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Rename" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -806,7 +806,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::cardpayment::dispatch_authorize(&mut store.cardpayment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_authorize(&mut store.cardpayment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::CardPayment.Capture" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -990,7 +990,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "customer", as_name: "customer", target: "Banking::Customer" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::safedepositbox::dispatch_rent(&mut store.safedepositbox, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::safedepositbox::dispatch_rent(&mut store.safedepositbox, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.Surrender" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1095,7 +1095,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::statement::dispatch_generate(&mut store.statement, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::statement::dispatch_generate(&mut store.statement, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Request" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1111,7 +1111,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "source", as_name: "source", target: "Banking::Account" }, crate::kernel::ReferenceSpec { field: "destination", as_name: "destination", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::transfer::dispatch_request(&mut store.transfer, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_request(&mut store.transfer, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Transfer.Debited" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1243,7 +1243,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::externaltransfer::dispatch_request(&mut store.externaltransfer, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_request(&mut store.externaltransfer, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.SendTransfer" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1328,7 +1328,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "account", as_name: "account", target: "Banking::Account" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::banking::scheduledpayment::dispatch_schedule(&mut store.scheduledpayment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_schedule(&mut store.scheduledpayment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ScheduledPayment.Execute" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1458,7 +1458,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1504,7 +1504,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1548,7 +1548,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -1563,7 +1563,7 @@ if !absent.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.LedgerEntry.Amend" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

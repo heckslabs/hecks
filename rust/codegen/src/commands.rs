@@ -612,12 +612,39 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         // `dependency_planning::state_independent_creation`'s own header
         // has the full story.
         let state_independent = crate::dependency_planning::state_independent_creation(aggregate, command, value_objects_by_name);
-        hydrate = format!(
-            "crate::kernel::Hydrate::Create {{\n        id: {},\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
-            mutations::build_identity_expr(&identity),
+        let create_block = format!(
+            "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
             record_fields.join("\n")
         );
-        let mut sig_parts = vec![format!("repo: &mut impl crate::kernel::Repository<{record}>")];
+
+        // BUG#22 (QualityControl ledger) — see `rust/project/commands.rb`'s
+        // identical block for the full story: `complete_state_creation`
+        // ALONE (not `state_independent_creation`) decides whether a
+        // route given to this creating command is checked against its
+        // own derived identity (complete_state-true — `TypeMismatch` on a
+        // mismatch) or forces a plain find-or-`NotFound` instead
+        // (complete_state-false, the legacy `hydrate_existing` path).
+        let complete_state = crate::dependency_planning::complete_state_creation(aggregate, command, value_objects_by_name);
+        let derived_id_expr = mutations::build_identity_expr(&identity);
+        let route_mismatch_message = format!(
+            "{} routes to {{:?}}, but its identity facts name {{:?}}",
+            command.get("name").and_then(Json::as_str).unwrap_or("")
+        );
+        let route_arm = if complete_state {
+            format!(
+                "Some(__route) => {{\n        __route.require_depth(0)?;\n        let __hydrate_id: String = {derived_id_expr};\n        if __route.aggregate() != __hydrate_id.as_str() {{\n            return Err(crate::kernel::Refusal::TypeMismatch(format!({}, __route.aggregate(), __hydrate_id)));\n        }}\n        {create_block}\n    }}",
+                naming::ruby_inspect_string(&route_mismatch_message)
+            )
+        } else {
+            "Some(__route) => {\n        __route.require_depth(0)?;\n        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }\n    }".to_string()
+        };
+        hydrate = format!(
+            "match route {{\n        {route_arm}\n        None => {{ let __hydrate_id: String = {derived_id_expr}; {create_block} }}\n    }}"
+        );
+        let mut sig_parts = vec![
+            format!("repo: &mut impl crate::kernel::Repository<{record}>"),
+            "route: Option<&crate::kernel::RoutingEnvelope>".to_string(),
+        ];
         sig_parts.extend(identity_extra_params.iter().cloned());
         sig_parts.push(format!("args: {cmd}Args"));
         sig_parts.push("mutations: &mut Vec<crate::kernel::MutationRecord>".to_string());

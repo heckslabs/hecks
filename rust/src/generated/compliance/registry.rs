@@ -104,7 +104,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::compliance::accountfreezereview::dispatch_open(&mut store.accountfreezereview, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::compliance::accountfreezereview::dispatch_open(&mut store.accountfreezereview, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::AccountFreezeReview.Clear" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -163,7 +163,7 @@ if !unknown.is_empty() {
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::compliance::boxsurrenderreview::dispatch_open(&mut store.boxsurrenderreview, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::compliance::boxsurrenderreview::dispatch_open(&mut store.boxsurrenderreview, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::BoxSurrenderReview.Clear" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

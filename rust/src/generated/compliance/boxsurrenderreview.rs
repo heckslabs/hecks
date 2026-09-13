@@ -288,7 +288,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<BoxSurrenderReview> {
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
@@ -297,14 +297,32 @@ pub fn dispatch_open(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string());
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Open routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()),
+        id: __hydrate_id,
         build: Box::new(|| BoxSurrenderReview {
             branch_code: Some(args.branch_code.clone()),
             box_number: Some(args.box_number.clone()),
             status: "open".to_string(),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| BoxSurrenderReview {
+            branch_code: Some(args.branch_code.clone()),
+            box_number: Some(args.box_number.clone()),
+            status: "open".to_string(),
+        }),
+        state_independent: true,
+    } }
     },
         "Open",
         "Compliance::BoxSurrenderReview",

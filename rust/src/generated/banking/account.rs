@@ -1153,7 +1153,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<Account>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Account>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Account> {
         args.number.check_invariants()?;
         args.daily_limit.check_invariants()?;
@@ -1162,8 +1162,13 @@ pub fn dispatch_open(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.number.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.number.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| Account {
             customer: Some(args.customer.clone()),
             number: Some(args.number.clone()),
@@ -1178,6 +1183,7 @@ pub fn dispatch_open(
             emitted_fee_applied: false,
         }),
         state_independent: false,
+    } }
     },
         "Open",
         "Banking::Account",

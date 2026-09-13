@@ -588,16 +588,71 @@ module RustProjection
         # (`ctx.plan.complete_state? && ctx.plan.state_independent?`):
         # `state_independent_creation?`'s own header has the full story.
         state_independent = state_independent_creation?(aggregate, command, value_objects_by_name)
-        hydrate = <<~RUST.rstrip
+        create_block = <<~RUST.rstrip
           crate::kernel::Hydrate::Create {
-                  id: #{build_identity_expr(identity)},
+                  id: __hydrate_id,
                   build: Box::new(|| #{record} {
           #{record_fields.join("\n")}
                   }),
                   state_independent: #{state_independent},
               }
         RUST
-        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params +
+
+        # BUG#22 (QualityControl ledger) — `CommandInterpreter#hydrate_
+        # existing`/`#hydrate_complete_state` both check ROUTE at runtime
+        # before deciding create-vs-find, a decision this generator used
+        # to make purely from `creates:`'s own STATIC flag, never reading
+        # `route` at all. `complete_state_creation?`'s own header has the
+        # full story on why `complete_state?` ALONE (not `state_
+        # independent?`) is the fact that decides which of Ruby's two
+        # route-handling shapes applies here:
+        #   - complete_state?-true (`hydrate_complete_state`/`hydrate_
+        #     prior_or_initial`): a route is checked against this
+        #     command's own derived identity, refusing `TypeMismatch` on a
+        #     mismatch, then creates using that (now-agreeing) identity —
+        #     exactly the plain `None` (no route) case below, just with
+        #     the identity pre-validated against what the caller routed
+        #     to instead of trusted blind.
+        #   - complete_state?-false (`hydrate_existing`, the legacy
+        #     path): `route.nil? && creates?` (`legacy_implicit_
+        #     creation?`) is ALL that gates minting a fresh record — a
+        #     route present, on a creating command or not, forces a plain
+        #     find-or-`NotFound` instead, the exact `Hydrate::Act` shape
+        #     a non-creating command already uses. `route` is already a
+        #     parameter here (this fn takes it whether or not this branch
+        #     ever reads it — see `registry.rb`'s own header on why it's
+        #     ALWAYS bound at the router, unused for a legacy-branch
+        #     creating command before this fix) so no new plumbing is
+        #     needed beyond this function's own signature gaining it.
+        complete_state = complete_state_creation?(aggregate, command, value_objects_by_name)
+        route_mismatch_message = "#{command[:name]} routes to {:?}, but its identity facts name {:?}"
+        route_arm =
+          if complete_state
+            <<~RUST.rstrip
+              Some(__route) => {
+                      __route.require_depth(0)?;
+                      let __hydrate_id: String = #{build_identity_expr(identity)};
+                      if __route.aggregate() != __hydrate_id.as_str() {
+                          return Err(crate::kernel::Refusal::TypeMismatch(format!(#{route_mismatch_message.inspect}, __route.aggregate(), __hydrate_id)));
+                      }
+                      #{create_block}
+                  }
+            RUST
+          else
+            <<~RUST.rstrip
+              Some(__route) => {
+                      __route.require_depth(0)?;
+                      crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+                  }
+            RUST
+          end
+        hydrate = <<~RUST.rstrip
+          match route {
+                  #{route_arm}
+                  None => { let __hydrate_id: String = #{build_identity_expr(identity)}; #{create_block} }
+              }
+        RUST
+        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>", "route: Option<&crate::kernel::RoutingEnvelope>"] + identity_extra_params +
                         ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS]).join(", ")
       else
         hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })

@@ -374,7 +374,7 @@ pub struct RequestArgs {
 }
 
 pub fn dispatch_request(
-    repo: &mut impl crate::kernel::Repository<Transfer>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Transfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Transfer> {
         args.reference.check_invariants()?;
         args.region.check_invariants()?;
@@ -384,8 +384,15 @@ pub fn dispatch_request(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.reference.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Request routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.reference.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Transfer {
             reference: Some(args.reference.clone()),
             region: Some(args.region.clone()),
@@ -393,6 +400,18 @@ pub fn dispatch_request(
             amount_cents: Some(args.amount_cents.clone()),
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.reference.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Transfer {
+            reference: Some(args.reference.clone()),
+            region: Some(args.region.clone()),
+            ledger: Some(args.ledger.clone()),
+            amount_cents: Some(args.amount_cents.clone()),
+        }),
+        state_independent: true,
+    } }
     },
         "Request",
         "TenantLedger::Transfer",

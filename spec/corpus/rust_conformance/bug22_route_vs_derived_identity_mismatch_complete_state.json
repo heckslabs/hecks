@@ -1,0 +1,7 @@
+{
+  "domain": "examples/chess",
+  "note": "BUG#22 (QualityControl ledger) — a route (to:) given to a creates: command whose plan IS complete_state (Chess::Game.Start — no given/ensures/invariant reads any not-yet-existing state) is checked against the command's own facts-derived identity by CommandInterpreter#hydrate_complete_state, refusing TypeMismatch on a mismatch ('#{command} routes to #{route}, but its identity facts name #{derived}'). Unmodified Rust's generated dispatch decided create-vs-find purely from the command's static creates: flag, so it never read the route at all — it minted a fresh Game keyed by the facts-derived label alone and silently succeeded where Ruby correctly refuses. Confirmed genuinely broken before this fixture existed. Originally found via Hecks::Fuzzing::SequenceGenerator.generate(\"examples/chess\", seed: 2, steps: 25, adversarial: 0.3)'s own routing_key adversarial mutation (a scalar to: alongside the real label fact, no with: key).",
+  "steps": [
+    {"verb": "Chess::Game.Start", "args": {"label": {"value": "My Game"}, "to": "some-other-id"}}
+  ]
+}

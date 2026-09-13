@@ -461,7 +461,7 @@ pub struct AuthorizeArgs {
 }
 
 pub fn dispatch_authorize(
-    repo: &mut impl crate::kernel::Repository<CardPayment>, args: AuthorizeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<CardPayment>, route: Option<&crate::kernel::RoutingEnvelope>, args: AuthorizeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<CardPayment> {
         args.authorisation.check_invariants()?;
         if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
@@ -472,8 +472,13 @@ pub fn dispatch_authorize(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.authorisation.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.authorisation.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| CardPayment {
             account: Some(args.account.clone()),
             disputed_by: None,
@@ -486,6 +491,7 @@ pub fn dispatch_authorize(
             status: "authorized".to_string(),
         }),
         state_independent: false,
+    } }
     },
         "Authorize",
         "Banking::CardPayment",

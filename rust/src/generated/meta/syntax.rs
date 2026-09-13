@@ -1790,7 +1790,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Syntax>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Syntax>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.bluebook.check_invariants()?;
         args.name.check_invariants()?;
@@ -1799,8 +1799,15 @@ pub fn dispatch_declare(
 
     crate::kernel::dispatch(
         repo,
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        let __hydrate_id: String = args.name.value.to_string();
+        if __route.aggregate() != __hydrate_id.as_str() {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!("Declare routes to {:?}, but its identity facts name {:?}", __route.aggregate(), __hydrate_id)));
+        }
         crate::kernel::Hydrate::Create {
-        id: args.name.value.to_string(),
+        id: __hydrate_id,
         build: Box::new(|| Syntax {
             bluebook: Some(args.bluebook.value.clone()),
             name: Some(args.name.clone()),
@@ -1808,6 +1815,18 @@ pub fn dispatch_declare(
             arguments: vec![],
         }),
         state_independent: true,
+    }
+    }
+        None => { let __hydrate_id: String = args.name.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
+        build: Box::new(|| Syntax {
+            bluebook: Some(args.bluebook.value.clone()),
+            name: Some(args.name.clone()),
+            keywords: vec![],
+            arguments: vec![],
+        }),
+        state_independent: true,
+    } }
     },
         "Declare",
         "Bluebook::Syntax",

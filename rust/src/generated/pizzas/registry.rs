@@ -93,7 +93,7 @@ pub fn dispatch_by_name(
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.AddTopping" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

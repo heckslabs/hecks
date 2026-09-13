@@ -299,7 +299,7 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<OnboardingCase>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<OnboardingCase>, route: Option<&crate::kernel::RoutingEnvelope>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<OnboardingCase> {
         args.reference.check_invariants()?;
         args.account_number.check_invariants()?;
@@ -308,8 +308,13 @@ pub fn dispatch_open(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: args.reference.value.to_string(),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = args.reference.value.to_string(); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| OnboardingCase {
             customer: Some(args.customer.clone()),
             reference: Some(args.reference.clone()),
@@ -318,6 +323,7 @@ pub fn dispatch_open(
             status: "screening".to_string(),
         }),
         state_independent: false,
+    } }
     },
         "Open",
         "Banking::OnboardingCase",

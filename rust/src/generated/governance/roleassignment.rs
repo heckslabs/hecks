@@ -455,7 +455,7 @@ pub struct AssignArgs {
 }
 
 pub fn dispatch_assign(
-    repo: &mut impl crate::kernel::Repository<RoleAssignment>, args: AssignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<RoleAssignment>, route: Option<&crate::kernel::RoutingEnvelope>, args: AssignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleAssignment> {
         args.actor_id.check_invariants()?;
         args.role_name.check_invariants()?;
@@ -466,8 +466,13 @@ pub fn dispatch_assign(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: format!("{}:{}:{}", args.actor_id.value.to_string(), args.role_name.value.to_string(), args.starts_at.value.to_string()),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}:{}", args.actor_id.value.to_string(), args.role_name.value.to_string(), args.starts_at.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| RoleAssignment {
             actor_id: Some(args.actor_id.clone()),
             role_name: Some(args.role_name.clone()),
@@ -476,6 +481,7 @@ pub fn dispatch_assign(
             ends_at: None,
         }),
         state_independent: false,
+    } }
     },
         "Assign",
         "Governance::RoleAssignment",

@@ -1099,7 +1099,7 @@ pub struct RentArgs {
 }
 
 pub fn dispatch_rent(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, route: Option<&crate::kernel::RoutingEnvelope>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
@@ -1108,8 +1108,13 @@ pub fn dispatch_rent(
 
     crate::kernel::dispatch(
         repo,
-        crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()),
+        match route {
+        Some(__route) => {
+        __route.require_depth(0)?;
+        crate::kernel::Hydrate::Act { id: __route.aggregate().to_string() }
+    }
+        None => { let __hydrate_id: String = format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()); crate::kernel::Hydrate::Create {
+        id: __hydrate_id,
         build: Box::new(|| SafeDepositBox {
             customer: Some(args.customer.clone()),
             branch_code: Some(args.branch_code.clone()),
@@ -1121,6 +1126,7 @@ pub fn dispatch_rent(
             status: "vacant".to_string(),
         }),
         state_independent: false,
+    } }
     },
         "Rent",
         "Banking::SafeDepositBox",
