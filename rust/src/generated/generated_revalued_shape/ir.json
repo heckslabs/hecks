@@ -1,0 +1,467 @@
+{
+  "ir_version": 1,
+  "name": "GeneratedRevaluedShape",
+  "version": null,
+  "vision": "A generated domain that puts revalued_reference and has_query together.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "aggregates": [
+    {
+      "name": "Hangar",
+      "description": "A generated hangar.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "HangarCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "venue",
+          "type": "Reference<Venue>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "HangarCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a HangarCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VenueHandle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a VenueHandle is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "venue",
+              "type": "Reference<Venue>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "code",
+              "type": "HangarCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            },
+            {
+              "target": "venue",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "venue"
+              }
+            }
+          ],
+          "emits": [
+            "HangarOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Repoint",
+          "role": null,
+          "goal": "Repoint it",
+          "references": "Hangar",
+          "attributes": [
+            {
+              "name": "venue",
+              "type": "VenueHandle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "venue",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "venue"
+              }
+            }
+          ],
+          "emits": [
+            "HangarRepointed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reopen",
+          "role": null,
+          "goal": "Reopen it",
+          "references": "Hangar",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "HangarReopened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Reopen",
+            "to_state": "open",
+            "from_state": "closed"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Listed",
+          "description": "Generated Listed.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"open\""
+            }
+          ],
+          "order_by": {
+            "field": "code",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Venue",
+      "description": "A generated venue.",
+      "identified_by": [
+        "code.value"
+      ],
+      "attributes": [
+        {
+          "name": "code",
+          "type": "VenueCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "VenueCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a VenueCode is not blank",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": null,
+          "goal": "Open it",
+          "references": null,
+          "attributes": [
+            {
+              "name": "code",
+              "type": "VenueCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              }
+            }
+          ],
+          "emits": [
+            "VenueOpened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Hangar",
+        "storage_name": "hangar",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Venue",
+        "storage_name": "venue",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# GENERATED by Hecks::Fuzzing::DomainGenerator — seed 1009, forms revalued_reference, has_query. Not hand-written; see bin/qa_generated_domains.\nHecks.bluebook \"GeneratedRevaluedShape\" do\n  vision \"A generated domain that puts revalued_reference and has_query together.\"\n\n  core\n\n  aggregate \"Hangar\" do\n    description \"A generated hangar.\"\n\n    identified_by :code\n    attribute :code, HangarCode\n    reference_to Venue\n\n    value_object \"HangarCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a HangarCode is not blank\") { !value.to_s.empty? }\n    end\n\n    value_object \"VenueHandle\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a VenueHandle is not blank\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Reopen\" => \"open\", from: \"closed\"\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      reference_to Venue\n      attribute :code, HangarCode\n      sets :code\n      sets :venue\n      emits \"HangarOpened\"\n    end\n\n    command \"Repoint\" do\n      goal \"Repoint it\"\n      reference_to Hangar\n      attribute :venue, VenueHandle\n      sets :venue\n      emits \"HangarRepointed\"\n    end\n\n    command \"Reopen\" do\n      goal \"Reopen it\"\n      reference_to Hangar\n      emits \"HangarReopened\"\n    end\n\n    query \"Listed\" do\n      description \"Generated Listed.\"\n      where(:\"status\" => \"open\")\n      order_by :code\n    end\n  end\n\n  aggregate \"Venue\" do\n    description \"A generated venue.\"\n\n    identified_by :code\n    attribute :code, VenueCode\n\n    value_object \"VenueCode\" do\n      attribute :value, String, pattern: '[^ \\t\\n\\r]'\n      invariant(\"a VenueCode is not blank\") { !value.to_s.empty? }\n    end\n\n    command \"Open\" do\n      goal \"Open it\"\n      attribute :code, VenueCode\n      sets :code\n      emits \"VenueOpened\"\n    end\n  end\nend\n"
+}
