@@ -64,10 +64,15 @@ open; nothing re-fuzzes it until a person releases it. Your judgments,
 in order:
 
 1. **Genuine, or a harness artifact?** Reproduce with the report's own
-   `reproduce:` line. A divergence that is really a known gap, a flake,
-   or a fixture problem is not a bug — say why in your report and stop.
+   `replay:` line (the SHRUNK sequence, under `shrunk:`) — or, when no
+   `shrunk:` block was printed (a non-shrinkable mode, or
+   `SHRINK_BUDGET = 0`), the `reproduce:` line. A divergence that is
+   really a known gap, a flake, or a fixture problem is not a bug — say
+   why in your report and stop.
 2. **Write the failing test** that proves it — a real spec or command
-   that exits non-zero today.
+   that exits non-zero today. Build it from the shrunk steps, not the
+   full generated seed: they are already the minimal sequence that
+   still reproduces the same finding.
 3. **Log it, triaged:** `bin/qa_log_bug --sweep <sweep-id> --title … \
    --demonstration "<that command>" --symptom … --expectation … \
    --submitter <you> --triage self_contained|bigger`. It RUNS the

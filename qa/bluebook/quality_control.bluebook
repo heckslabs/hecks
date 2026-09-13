@@ -170,6 +170,19 @@ unless defined?(QualityControlDials)
     # `ADVERSARIAL_FRACTION`.
     SELF_CONSISTENCY_CHECKS = true
 
+    # HOW MANY CANDIDATE CHECKS `bin/qa_sweep` MAY SPEND SHRINKING ONE
+    # SURPRISED CHECK before printing its report (`Hecks::Fuzzing::
+    # Shrinker`, lib/hecks/fuzzing/shrinker.rb). Each candidate is one
+    # replay of that check's own mode — for `differential` that is a Ruby
+    # replay plus a Rust subprocess, for `persistence_parity` a real
+    # Postgres round trip — so this is a time fence, not a quality dial:
+    # a budget that runs out still hands back a demonstration that
+    # reproduces, just a less small one. Zero turns shrinking off (the
+    # report then carries only the full generated sequence, as before
+    # this existed). `concurrency` is never shrunk at any budget: a race
+    # does not reproduce on demand, so "still reproduces" means nothing.
+    SHRINK_BUDGET = 200
+
     # THE THREE DIALS BELOW ARE READ IN CODE — `Hecks::Fuzzing::
     # RotationPriority`, every time `bin/qa_sweep` picks a single target
     # with no name given — because the weighting formula has to be a pure
