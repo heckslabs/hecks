@@ -674,6 +674,7 @@ rescue StandardError => e
   abort "the QualityControl ledger did not boot — fix the ledger itself before sweeping against it " \
         "(#{e.class}: #{e.message})"
 end
+qa_trace.call("ledger boot")
 
 def q(runtime, name, **args) = runtime.query("QualityControl::#{name}", **args)
 
@@ -1020,6 +1021,29 @@ def print_all_mode_report(results, elapsed, clean, found, errored)
   print_resolved_modes(results)
   print_operational_errors(errored)
   print_found_something(found)
+  print_trace_output(results)
+end
+
+# QA_SWEEP_TRACE=1's OWN MISSING HALF — every child already prints its
+# own `[qa_sweep_trace ...]` lines to stderr (bin/qa_sweep's own
+# top-of-file `qa_trace` lambda), but `spawn_sweep_child` captures that
+# into a per-child temp file the report above only ever surfaces for
+# FOUND/ERRORED targets — a CLEAN child's own trace, the common case
+# this env var exists to inspect, was silently discarded. Printed here,
+# gated on the same env var so a normal run's report is unchanged.
+def print_trace_output(results)
+  return unless ENV["QA_SWEEP_TRACE"] == "1"
+  return if results.empty?
+
+  puts
+  puts "QA_SWEEP_TRACE output (by target, in sweep order):"
+  results.each do |r|
+    trace_lines = r[:output].lines.grep(/^\[qa_sweep_trace /)
+    next if trace_lines.empty?
+
+    puts "  #{r[:target]}:"
+    trace_lines.each { |line| puts "    #{line.chomp}" }
+  end
 end
 
 # THE PRECEDENCE — a genuine finding always outranks an operational
