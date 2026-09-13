@@ -1,0 +1,86 @@
+name: GHCR binary cache (restore)
+description: >-
+  Phase 8 of the CI speed effort, the fuller design `actions/cache`
+  structurally cannot deliver — see .github/actions/cargo-cache/action.yml's
+  own header for why that action's content-addressed key only ever helps
+  ACROSS separate runs, never between two SIBLING jobs racing each other in
+  the SAME run: a cache save only becomes visible to future runs, never to
+  a job still in flight right now. `rspec_rust_io`'s own comment names the
+  real, live instance of this gap: its opt-in `project_rust_pipeline_spec.rb`
+  step builds rust/parser and rust/codegen for real, redundant with
+  rspec_rust_parser/rspec_rust_codegen's own dedicated builds running
+  concurrently on separate runners, whenever a PR actually touches either
+  crate's source (the common case — an untouched crate already gets a fast
+  `actions/cache` hit — costs nothing extra either way).
+
+  This action pushes/pulls one crate's ENTIRE built `target/` directory as
+  a single GHCR OCI artifact, content-hash-tagged the identical way
+  cargo-cache's own key is derived (Cargo.lock + src/**) — restoring here
+  makes cargo's own incremental build (still invoked by each spec's own
+  `before(:context)` build helper; this doesn't skip that call, same as
+  `actions/cache` doesn't) a fast no-op the instant a SIBLING job in this
+  same run has already pushed the identical content, rather than waiting
+  for a future run to warm `actions/cache`.
+
+  SCOPED TO 4 CRATES ONLY (parser/codegen/host/build) — never the main
+  rust/ crate. Several specs mutate rust/src/generated/+Cargo.toml PER
+  EXAMPLE via their own before(:context)/after(:context) backup-and-
+  restore (see rspec_rust_io's own header) — the main crate's target dir
+  is not a single stable artifact a content hash can name cleanly the way
+  it can for these four independent, never-mutated-mid-run crates.
+
+  NOT A CORRECTNESS DEPENDENCY — a pull miss (network hiccup, GHCR outage,
+  first run ever for a given hash) just means `cache-hit` reads "false"
+  and the job's own subsequent build step runs exactly as it always did.
+  This action never raises on a miss; only a real, unexpected `oras`
+  invocation failure during setup does.
+inputs:
+  name:
+    description: Crate name for the artifact tag (parser/codegen/host/build).
+    required: true
+  crate-root:
+    description: >-
+      The crate's own root directory, relative to the repo root (e.g.
+      "rust/parser") — same meaning as cargo-cache's own `crate-root`
+      input. The restored directory is always "<crate-root>/target".
+    required: true
+  token:
+    description: >-
+      Token with packages-read access on this repo — composite actions
+      can't read the secrets context directly, so the caller passes the
+      job's GITHUB_TOKEN explicitly (same reason ghcr-binary-cache-save
+      takes the identical input).
+    required: true
+outputs:
+  cache-hit:
+    description: "\"true\" if a matching artifact was found and extracted, \"false\" otherwise."
+    value: ${{ steps.pull.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - uses: oras-project/setup-oras@v2
+
+    - name: Log in to GHCR
+      shell: bash
+      run: echo "${{ inputs.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+    - name: Try pull cached target/ from GHCR
+      id: pull
+      shell: bash
+      env:
+        TAG: ${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+      run: |
+        set +e
+        IMAGE="ghcr.io/${{ github.repository }}/rust-cache-${{ inputs.name }}:$TAG"
+        WORKDIR="$(mktemp -d)"
+        oras pull "$IMAGE" -o "$WORKDIR" 2>/tmp/ghcr-pull-${{ inputs.name }}.log
+        if [ $? -eq 0 ] && [ -f "$WORKDIR/target.tar.gz" ]; then
+          mkdir -p "${{ inputs.crate-root }}"
+          tar xzf "$WORKDIR/target.tar.gz" -C "${{ inputs.crate-root }}"
+          echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+          echo "GHCR binary cache hit: $IMAGE"
+        else
+          echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+          echo "GHCR binary cache miss: $IMAGE (this is normal on the first run for a given content hash)"
+          cat /tmp/ghcr-pull-${{ inputs.name }}.log || true
+        fi

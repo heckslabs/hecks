@@ -18,6 +18,12 @@ jobs:
     # need this job.
     if: github.event_name != 'push'
 
+    # PHASE 8, GHCR BINARY CACHE — see ci-rust-parser.yml's own comment
+    # on the identical block; same reasoning applies here.
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -27,5 +33,22 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
+      # PHASE 8, GHCR BINARY CACHE — see ghcr-binary-cache-restore's own
+      # header. A hit here means rspec_rust_io's own opt-in codegen build
+      # already ran this run and pushed the identical content.
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache
+        with:
+          name: codegen
+          crate-root: rust/codegen
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
+
+      - uses: ./.github/actions/ghcr-binary-cache-save
+        if: steps.ghcr_cache.outputs.cache-hit != 'true'
+        with:
+          name: codegen
+          crate-root: rust/codegen
+          token: ${{ secrets.GITHUB_TOKEN }}

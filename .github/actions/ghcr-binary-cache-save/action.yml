@@ -1,0 +1,61 @@
+name: GHCR binary cache (save)
+description: >-
+  The save half of the ghcr-binary-cache-restore/save pair — see that
+  action's own header for the full Phase 8 design rationale. Callers gate
+  this step with `if: steps.<restore-id>.outputs.cache-hit != 'true'`
+  (mirroring `actions/cache/save@v4`'s own "only save on an actual miss"
+  convention already used elsewhere in this repo for the rspec_postgres_
+  io_parallel_shard runtime-log cache): a real cache hit means the job
+  already has the identical content GHCR would store, so pushing again
+  would just waste upload bandwidth on bytes already there under the same
+  content-hash tag.
+
+  IDEMPOTENT, NOT RACY — two sibling jobs that both miss the SAME tag (a
+  PR that changes shared source neither has seen before) may both push
+  the same tag around the same time; since the tag is a content hash of
+  the exact inputs that produced this target/ dir, both pushes carry
+  identical bytes, so whichever lands second just overwrites the first
+  with the same content. No corruption risk, only (rare, harmless)
+  duplicate upload cost.
+inputs:
+  name:
+    description: Crate name for the artifact tag (parser/codegen/host/build).
+    required: true
+  crate-root:
+    description: >-
+      The crate's own root directory, relative to the repo root — same
+      meaning as ghcr-binary-cache-restore's own `crate-root` input.
+    required: true
+  token:
+    description: >-
+      Token with `packages: write` on this repo — see ghcr-binary-cache-
+      restore's own `token` input for why this can't just read `secrets`
+      directly.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: oras-project/setup-oras@v2
+
+    - name: Log in to GHCR
+      shell: bash
+      run: echo "${{ inputs.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+    - name: Push target/ to GHCR
+      shell: bash
+      env:
+        TAG: ${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+      run: |
+        set -e
+        WORKDIR="$(mktemp -d)"
+        tar czf "$WORKDIR/target.tar.gz" -C "${{ inputs.crate-root }}" target
+        IMAGE="ghcr.io/${{ github.repository }}/rust-cache-${{ inputs.name }}:$TAG"
+        # `oras push` refuses an absolute file path by default (real
+        # failure caught live on PR #632's own first CI run: "Error:
+        # absolute file path detected") — cd into WORKDIR and reference
+        # the tarball by its relative name instead of passing
+        # --disable-path-validation, so the manifest oras records still
+        # names a plain relative filename.
+        cd "$WORKDIR"
+        oras push "$IMAGE" "target.tar.gz:application/gzip"
+        echo "Pushed GHCR binary cache: $IMAGE"

@@ -48,6 +48,16 @@ jobs:
     # need this job.
     if: github.event_name != 'push'
 
+    # PHASE 8, GHCR BINARY CACHE — `packages: write`/`packages: read` for
+    # the parser/codegen restore-and-save pair below; see ghcr-binary-
+    # cache-restore's own header for the full design, and this job's own
+    # comment on those two steps for why THIS job (not rspec_rust_host/
+    # rspec_rust_io_build) is the other half of the only real same-run
+    # race that exists.
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -129,6 +139,48 @@ jobs:
       - name: Build the exemplar module
         run: cd rust && cargo test --lib
 
+      # PHASE 8, GHCR BINARY CACHE — THE REAL SAME-RUN RACE THIS EXISTS
+      # FOR. `rust/host` and `rust/build` deliberately do NOT get this
+      # treatment (their own jobs, ci-rust-host.yml/ci.yml's rspec_rust_
+      # io_build, are each that crate's ONLY builder anywhere in the job
+      # graph — confirmed by grep, not assumed — so there is no sibling
+      # job for a GHCR hit to ever come FROM; `actions/cache` above
+      # already gives them everything a cross-run cache can). Parser and
+      # codegen are different: THIS job and rspec_rust_parser/rspec_rust_
+      # codegen's own dedicated jobs both build them, concurrently, on
+      # separate runners, whenever a PR touches either crate's source —
+      # exactly the redundant-cold-build case `actions/cache` cannot
+      # help with (a save only becomes visible to a FUTURE run, never a
+      # sibling still in flight right now). A hit here means one of
+      # those two dedicated jobs already finished and pushed first.
+      #
+      # DELIBERATELY PLACED HERE, NOT RIGHT AFTER THE CARGO-CACHE STEPS
+      # ABOVE — caught live on PR #632's own first real CI run: with the
+      # restore attempt that early, every one of THIS job's own two
+      # pulls fired within ~10s of job start, well before either
+      # dedicated job had finished building AND pushed (their own
+      # restore→build→push cycle took ~25-30s in that same run) — a real,
+      # measured miss every time, not a hypothetical one. Moving the
+      # restore to immediately before the one step that actually
+      # consumes these crates gives the two dedicated jobs the two build
+      # steps above's own wall-clock as extra head start to win the race
+      # first — still no guarantee (both jobs still start at the same
+      # moment), but a real, measured improvement over the original
+      # placement rather than an unverified guess.
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache_parser
+        with:
+          name: parser
+          crate-root: rust/parser
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/ghcr-binary-cache-restore
+        id: ghcr_cache_codegen
+        with:
+          name: codegen
+          crate-root: rust/codegen
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       # THE 7 REMAINING `io: true` SPECS THAT TOUCH THE SHARED `rust/`
       # CRATE — via before(:context)/after(:context) backup-and-restore
       # of rust/src/generated/+Cargo.toml (project_rust_pipeline_spec.rb)
@@ -164,3 +216,24 @@ jobs:
             spec/rust_project/domain_feature_exclusivity_spec.rb \
             spec/rust_project/naming_landmines_spec.rb \
             spec/rust_project/has_many_spec.rb
+
+      # PHASE 8, GHCR BINARY CACHE — only push on an actual miss, same
+      # convention as ghcr-binary-cache-save's own header describes.
+      # `if: always()` on each so a real test failure above still lets a
+      # freshly-built crate get pushed for whichever sibling job hasn't
+      # started its own restore yet — a spec failure here says nothing
+      # about whether cargo actually built parser/codegen successfully
+      # moments earlier.
+      - uses: ./.github/actions/ghcr-binary-cache-save
+        if: always() && steps.ghcr_cache_parser.outputs.cache-hit != 'true'
+        with:
+          name: parser
+          crate-root: rust/parser
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/ghcr-binary-cache-save
+        if: always() && steps.ghcr_cache_codegen.outputs.cache-hit != 'true'
+        with:
+          name: codegen
+          crate-root: rust/codegen
+          token: ${{ secrets.GITHUB_TOKEN }}
