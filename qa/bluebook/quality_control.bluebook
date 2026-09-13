@@ -155,6 +155,35 @@ unless defined?(QualityControlDials)
     # N` overrides this for one run.
     ADVERSARIAL_FRACTION = 0.3
 
+    # COVERAGE-GUIDED GENERATION ACROSS ONE SWEEP'S SEEDS — `Hecks::
+    # Fuzzing::CoverageCampaign` (lib/hecks/fuzzing/coverage_campaign.rb
+    # has the full why). `false` makes every seed independent again,
+    # exactly as before this existed. The coverage unit is a (verb, step
+    # kind, lifecycle state before, adversarial mutation, outcome) tuple.
+    GUIDED_GENERATION = true
+
+    # WHAT FRACTION OF SEEDS (0.0..1.0) START FROM A PREFIX OF AN EARLIER
+    # SEED THAT REACHED A NEW TUPLE, instead of from an empty store.
+    #
+    # OFF BY DEFAULT, BECAUSE IT WAS MEASURED. Nine rotation domains, three
+    # repetitions, 1500 generated attempts each, adversarial 0.3, against
+    # unguided generation (geometric mean of distinct tuples / tuples
+    # reached from an existing record / distinct refusal combinations):
+    #   favor 3 alone          x1.049 / x1.086 / x1.038
+    #   favor 6 alone          x1.030 / x1.066 / x1.020
+    #   splice 0.25 + favor 3  x1.018 / x1.064 / x1.007
+    #   splice 0.5  + favor 3  x0.980 / x1.074 / x0.979
+    # Splicing trades breadth for depth: on banking, 0.5 reached x1.41 the
+    # deep-state tuples, while on chess it lost x0.88 of all tuples.
+    # Favor alone won on all three axes and never lost on any domain. Turn
+    # this up for a target whose bugs need long setup more than variety.
+    CORPUS_SPLICE_PROBABILITY = 0.0
+
+    # HOW MANY OF THE SWEEP'S LEAST-HIT VERBS (never-hit declared verbs
+    # first) the next seed weights up — 3 measured best of 3 and 6 (see
+    # the table above). Zero turns the favor lever off.
+    FAVOR_RARE_VERBS = 3
+
     # WHETHER `bin/qa_sweep` ALSO RUNS THE SELF-CONSISTENCY PASS — cold
     # rehydration, replay idempotency, value-object JSON round trip
     # (`Hecks::Fuzzing::SelfConsistency`) — beside its own, older
