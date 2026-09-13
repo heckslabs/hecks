@@ -224,7 +224,7 @@ if !absent.is_empty() {
               let args = crate::generated::waybill::manifest::SlotFillEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Fill", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -256,7 +256,7 @@ if !absent.is_empty() {
               let args = crate::generated::waybill::manifest::SlotClearEntityArgs::from_json(facts_json)?;
                       args.item.check_invariants()?;
               crate::kernel::check_role(Some("Loader"), "Clear", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Waybill::Manifest", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());

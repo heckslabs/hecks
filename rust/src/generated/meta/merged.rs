@@ -1804,7 +1804,7 @@ if !absent.is_empty() {
                       args.command_name.check_invariants()?;
                       args.position.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Dispatch", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1837,7 +1837,7 @@ if !absent.is_empty() {
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Pair", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1860,7 +1860,7 @@ if !unknown.is_empty() {
  } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1883,7 +1883,7 @@ if !unknown.is_empty() {
  } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Keyword::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Keyword::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::KeywordRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1906,7 +1906,7 @@ if !unknown.is_empty() {
  } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentDeprecateEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Deprecate", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1929,7 +1929,7 @@ if !unknown.is_empty() {
  } let parent_id = crate::generated::meta::syntax::Syntax::extract_id(facts_json)?; let element_id = crate::generated::meta::syntax::Argument::extract_id(facts_json)?; let element_wants = crate::generated::meta::syntax::Argument::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::meta::syntax::ArgumentRetireEntityArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Language"), "Retire", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::Syntax", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -1962,7 +1962,7 @@ if !absent.is_empty() {
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Bind", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
@@ -1993,7 +1993,7 @@ if !absent.is_empty() {
               let args = crate::generated::meta::processmanager::DispatchCompensatesNestedEntityArgs::from_json(facts_json)?;
                       args.compensates_command_name.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "Compensates", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_compensates(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
@@ -2025,7 +2025,7 @@ if !absent.is_empty() {
                       args.key.check_invariants()?;
                       args.value.check_invariants()?;
               crate::kernel::check_role(Some("Language"), "BindCompensation", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::meta::processmanager::dispatch_entity_handler_dispatch_bind_compensation(&mut store.processmanager, &parent_id, &hop1_id, &hop1_wants, &hop2_id, &hop2_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))

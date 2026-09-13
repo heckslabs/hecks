@@ -559,17 +559,31 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 body.push(rl);
             }
             body.extend(reference_lines);
-            // `owner_deref` is always empty for an entity command — see
-            // `rust/project/registry.rb`'s own header on the real,
-            // documented gap (no entity in this corpus declares its own
-            // `reference_to`). `command_deref` covers the entity
-            // command's own reference-typed arguments, PLUS — merged in
-            // exactly like Ruby's own `parent:` tier — the PARENT
-            // aggregate's own dereferenced state under one `"parent"` key.
-            body.push(
-                "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();"
-                    .to_string(),
-            );
+            // `owner_deref` — BUG#40 fix — see `rust/project/registry.rb`'s
+            // own identical, longer comment: carries the PARENT
+            // aggregate's own `reference_to`/`belongs_to` fields,
+            // dereferenced off the already-known `parent_id`, exactly the
+            // same call an aggregate-level `Act` command already makes for
+            // its own `id` (this file's own `owner_deref_expr`, above) —
+            // what `seeded_projections` needs to re-seed the PARENT's own
+            // `projects` fields on every entity-command save, since
+            // `dispatch_entity` unconditionally re-applies every
+            // `seed_projections` entry the same way the aggregate-level
+            // `dispatch` does. Previously unconditionally `Vec::new()`, so
+            // `seeded_projections` could never resolve a reference name
+            // like `"customer"` here and every entity command wiped the
+            // field to `null`. An entity's OWN `reference_to` attributes
+            // (dereferenced off the addressed ELEMENT itself, a different
+            // thing again) remain a real, still-open, separate gap — no
+            // entity in this corpus declares one. `command_deref` covers
+            // the entity command's own reference-typed arguments, PLUS —
+            // merged in exactly like Ruby's own `parent:` tier — the
+            // PARENT aggregate's own dereferenced state under one
+            // `"parent"` key.
+            body.push(format!(
+                "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &parent_id);",
+                naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
+            ));
             body.push(format!(
                 "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
                 reference_specs::emit_reference_specs_literal(&c.reference_specs)
@@ -668,10 +682,18 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 body.push(rl);
             }
             body.extend(reference_lines);
-            body.push(
-                "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();"
-                    .to_string(),
-            );
+            // BUG#40 fix — see `entity_arms`'s own identical comment,
+            // above: the top-level PARENT aggregate's own
+            // `#{AGGREGATE}_PROJECTED_FIELDS` is what `seed_projections_
+            // binding` scopes a nested entity command's re-seeding to too
+            // (`commands.rb`'s `seed_projections_binding(aggregate)` takes
+            // the OUTER `aggregate`, never the nested entity), so
+            // `owner_deref` here needs that SAME top-level `a`'s own
+            // reference fields, dereferenced off `parent_id`.
+            body.push(format!(
+                "let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &parent_id);",
+                naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
+            ));
             body.push(format!(
                 "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
                 reference_specs::emit_reference_specs_literal(&c.reference_specs)
