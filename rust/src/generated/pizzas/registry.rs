@@ -90,7 +90,7 @@ pub fn dispatch_by_name(
               let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(facts_json)?;
                       args.name.check_invariants()?;
                       args.pizza.check_invariants()?;
-              crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Chef"), "CreatePizza", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -124,7 +124,7 @@ if !absent.is_empty() {
               let args = crate::generated::pizzas::order::AddToppingArgs::from_json(facts_json)?;
                       args.topping.check_invariants()?;
                       args.amount.check_invariants()?;
-              crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Chef"), "AddTopping", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -158,7 +158,7 @@ if !absent.is_empty() {
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
                       args.amount.check_invariants()?;
                       if let Some(v) = &args.customer_name { v.check_invariants()?; }
-              crate::kernel::check_role(Some("Customer"), "Purchase", caller_role, caller_actor_id, &*store, QUERIES)?;
+              crate::kernel::check_role_via(Some("Customer"), "Purchase", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
               let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
@@ -307,6 +307,8 @@ crate::kernel::QueryDef {
     authorization: None,
 },
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

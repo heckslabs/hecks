@@ -1222,6 +1222,7 @@ module RustProjection
       # shape this generator doesn't cover, the same distinction every
       # OTHER per-instance skip in this file already draws.
       query_aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
+      assignments_verb = Projector.provided_assignments(ir)
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
@@ -1247,6 +1248,7 @@ module RustProjection
             offset: query[:offset] ? Projector.emit_query_offset(query[:offset]) : nil,
             limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
             authorization: Projector.emit_query_authorization(query[:name], query[:authorization]),
+            assignments: assignments_verb == "#{aggregate[:name]}.#{query[:name]}",
           }
         end
 

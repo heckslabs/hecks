@@ -268,6 +268,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 
 ];
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 /// C3.7 for a named query's own arguments — `query_arg_checks`
 /// (rust/project/queries.rb) has the full story.

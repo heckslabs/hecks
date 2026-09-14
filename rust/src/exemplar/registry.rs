@@ -15,10 +15,15 @@
 // (kernel/cli.rs). Empty here — this exemplar proves the CALL SHAPE
 // compiles, not any particular domain's own declared queries.
 static QUERIES: &[crate::kernel::QueryDef] = &[];
+// `AUTHORIZATION_ASSIGNMENTS` — emitted beside `QUERIES` by the same
+// `emit_query_table`: the assignments query a chapter's `provides
+// "authorization"` names, or `None`. `None` here for the same reason
+// `QUERIES` is empty.
+static AUTHORIZATION_ASSIGNMENTS: Option<&str> = None;
 
 fn tmpl_role_check_host(store: &TmplStore2, caller_role: Option<&str>, caller_actor_id: Option<&str>) -> Result<(), crate::kernel::Refusal> {
     // TMPL:role_check BEGIN
-    crate::kernel::check_role(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES)?;
+    crate::kernel::check_role_via(Some("TmplRole"), "TmplCommandName", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?;
     // TMPL:role_check END
     Ok(())
 }
