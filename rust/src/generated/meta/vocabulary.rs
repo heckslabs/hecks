@@ -1315,8 +1315,8 @@ pub enum RustReservedWord {
     Pub,
     Ref,
     Return,
-    Self,
-    Self,
+    SelfValue,
+    SelfType,
     Static,
     Struct,
     Super,
@@ -1346,7 +1346,7 @@ impl crate::kernel::Fielded for RustReservedWord {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { RustReservedWord::As => "as".to_string(), RustReservedWord::Break => "break".to_string(), RustReservedWord::Const => "const".to_string(), RustReservedWord::Continue => "continue".to_string(), RustReservedWord::Crate => "crate".to_string(), RustReservedWord::Dyn => "dyn".to_string(), RustReservedWord::Else => "else".to_string(), RustReservedWord::Enum => "enum".to_string(), RustReservedWord::Extern => "extern".to_string(), RustReservedWord::False => "false".to_string(), RustReservedWord::Fn => "fn".to_string(), RustReservedWord::For => "for".to_string(), RustReservedWord::If => "if".to_string(), RustReservedWord::Impl => "impl".to_string(), RustReservedWord::In => "in".to_string(), RustReservedWord::Let => "let".to_string(), RustReservedWord::Loop => "loop".to_string(), RustReservedWord::Match => "match".to_string(), RustReservedWord::Mod => "mod".to_string(), RustReservedWord::Move => "move".to_string(), RustReservedWord::Mut => "mut".to_string(), RustReservedWord::Pub => "pub".to_string(), RustReservedWord::Ref => "ref".to_string(), RustReservedWord::Return => "return".to_string(), RustReservedWord::Self => "self".to_string(), RustReservedWord::Self => "Self".to_string(), RustReservedWord::Static => "static".to_string(), RustReservedWord::Struct => "struct".to_string(), RustReservedWord::Super => "super".to_string(), RustReservedWord::Trait => "trait".to_string(), RustReservedWord::True => "true".to_string(), RustReservedWord::Type => "type".to_string(), RustReservedWord::Unsafe => "unsafe".to_string(), RustReservedWord::Use => "use".to_string(), RustReservedWord::Where => "where".to_string(), RustReservedWord::While => "while".to_string(), RustReservedWord::Abstract => "abstract".to_string(), RustReservedWord::Become => "become".to_string(), RustReservedWord::Box => "box".to_string(), RustReservedWord::Do => "do".to_string(), RustReservedWord::Final => "final".to_string(), RustReservedWord::Macro => "macro".to_string(), RustReservedWord::Override => "override".to_string(), RustReservedWord::Priv => "priv".to_string(), RustReservedWord::Typeof => "typeof".to_string(), RustReservedWord::Unsized => "unsized".to_string(), RustReservedWord::Virtual => "virtual".to_string(), RustReservedWord::Yield => "yield".to_string(), RustReservedWord::Try => "try".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { RustReservedWord::As => "as".to_string(), RustReservedWord::Break => "break".to_string(), RustReservedWord::Const => "const".to_string(), RustReservedWord::Continue => "continue".to_string(), RustReservedWord::Crate => "crate".to_string(), RustReservedWord::Dyn => "dyn".to_string(), RustReservedWord::Else => "else".to_string(), RustReservedWord::Enum => "enum".to_string(), RustReservedWord::Extern => "extern".to_string(), RustReservedWord::False => "false".to_string(), RustReservedWord::Fn => "fn".to_string(), RustReservedWord::For => "for".to_string(), RustReservedWord::If => "if".to_string(), RustReservedWord::Impl => "impl".to_string(), RustReservedWord::In => "in".to_string(), RustReservedWord::Let => "let".to_string(), RustReservedWord::Loop => "loop".to_string(), RustReservedWord::Match => "match".to_string(), RustReservedWord::Mod => "mod".to_string(), RustReservedWord::Move => "move".to_string(), RustReservedWord::Mut => "mut".to_string(), RustReservedWord::Pub => "pub".to_string(), RustReservedWord::Ref => "ref".to_string(), RustReservedWord::Return => "return".to_string(), RustReservedWord::SelfValue => "self".to_string(), RustReservedWord::SelfType => "Self".to_string(), RustReservedWord::Static => "static".to_string(), RustReservedWord::Struct => "struct".to_string(), RustReservedWord::Super => "super".to_string(), RustReservedWord::Trait => "trait".to_string(), RustReservedWord::True => "true".to_string(), RustReservedWord::Type => "type".to_string(), RustReservedWord::Unsafe => "unsafe".to_string(), RustReservedWord::Use => "use".to_string(), RustReservedWord::Where => "where".to_string(), RustReservedWord::While => "while".to_string(), RustReservedWord::Abstract => "abstract".to_string(), RustReservedWord::Become => "become".to_string(), RustReservedWord::Box => "box".to_string(), RustReservedWord::Do => "do".to_string(), RustReservedWord::Final => "final".to_string(), RustReservedWord::Macro => "macro".to_string(), RustReservedWord::Override => "override".to_string(), RustReservedWord::Priv => "priv".to_string(), RustReservedWord::Typeof => "typeof".to_string(), RustReservedWord::Unsized => "unsized".to_string(), RustReservedWord::Virtual => "virtual".to_string(), RustReservedWord::Yield => "yield".to_string(), RustReservedWord::Try => "try".to_string(), }))),
             _ => None,
         }
     }
@@ -1382,8 +1382,8 @@ impl RustReservedWord {
             RustReservedWord::Pub => "pub",
             RustReservedWord::Ref => "ref",
             RustReservedWord::Return => "return",
-            RustReservedWord::Self => "self",
-            RustReservedWord::Self => "Self",
+            RustReservedWord::SelfValue => "self",
+            RustReservedWord::SelfType => "Self",
             RustReservedWord::Static => "static",
             RustReservedWord::Struct => "struct",
             RustReservedWord::Super => "super",
@@ -1475,8 +1475,8 @@ impl RustReservedWord {
             "pub" => Ok(RustReservedWord::Pub),
             "ref" => Ok(RustReservedWord::Ref),
             "return" => Ok(RustReservedWord::Return),
-            "self" => Ok(RustReservedWord::Self),
-            "Self" => Ok(RustReservedWord::Self),
+            "self" => Ok(RustReservedWord::SelfValue),
+            "Self" => Ok(RustReservedWord::SelfType),
             "static" => Ok(RustReservedWord::Static),
             "struct" => Ok(RustReservedWord::Struct),
             "super" => Ok(RustReservedWord::Super),
