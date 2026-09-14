@@ -581,10 +581,46 @@ module RustProjection
           # the route-LESS case, which is the only case this fix needs to
           # reorder at all.
           structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
+          # BUG#132 (qa/bluebook/quality_control.bluebook) — the SAME
+          # BUG#20 fix the aggregate arm's own `id_line` already applies
+          # (this file's header, above: wrap `extract_id`'s raw `Err`
+          # into the exact `NotFound` wording Ruby's own identity-
+          # resolution failure produces) had never been extended to this,
+          # the ENTITY arm's route-less `None` branch — both `parent_id`
+          # and `element_id` here still let `extract_id`'s own bare
+          # `TypeMismatch` propagate via a plain `?`, diverging from
+          # Ruby's own `EntityInterpreter#parent` (raises `NotFound`/
+          # `entity_parent_no_identity` when the PARENT aggregate's
+          # identity can't be read off `args` at all — entity_
+          # interpreter.rb, read directly) and `EntityElement#element_of`
+          # (raises `NotFound`/`entity_element_no_identity` when the
+          # ELEMENT's own identity is absent — entity_element.rb).
+          # Confirmed live: `Roster::Roster.Member.Retire` with a
+          # genuinely empty `args: {}` — `Member.Retire`'s own `id` is
+          # declared `optional: true` (line 100 of examples/roster/
+          # bluebook/roster.bluebook, not a routing source — an entity's
+          # own identity is always read off `extract_id`/route, never
+          # this optional echo argument), so `structural_precheck_line`
+          # above (unknown/absent-argument names only) never fires for
+          # this shape and both `extract_id` calls run unguarded. Ruby
+          # refuses `NotFound` ("Retire acts on a Roster's Member — pass
+          # name.value:"); Rust refused `TypeMismatch` ("Roster: no
+          # identity found (tried name.value, id, roster)") instead — a
+          # DIFFERENT gap than BUG#38/#126 (both about `structural_
+          # precheck_line`'s own PLACEMENT relative to `extract_id`, an
+          # argument-existence-check ordering issue): here the structural
+          # precheck runs, passes cleanly (nothing IS unknown or absent-
+          # required), and it is `extract_id`'s own failure that was never
+          # wrapped for this arm at all — roster's committed Rust output
+          # was not stale (byte-identical to what `bin/project_rust
+          # examples/roster` produces on this same commit; roster is
+          # already in `.github/workflows/ci-checks.yml`'s regen list).
+          entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
+          entity_element_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
           body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
                   "let route = invocation.route();",
                   "let facts_json = invocation.facts();",
-                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_element_no_identity_message.inspect}.to_string()))?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   # R3 FIX — see the aggregate arm's own identical comment,
                   # above.
@@ -638,9 +674,23 @@ module RustProjection
           # route and never calls `extract_id` against raw `facts_json`
           # at all, so there is no route-less arm here for this to close.
           structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
+          # BUG#132 — see `entity_arms`'s own identical fix, above: the
+          # SAME unwrapped `extract_id(facts_json)?` gap, one nesting hop
+          # deeper. `parent_id` wraps into `entity_parent_no_identity`
+          # (Ruby's `EntityInterpreter#parent`, joined entity path —
+          # `ctx.entity_name` there is `entity_names.join(".")`, matching
+          # `"#{c[:entity_name]}.#{c[:nested_name]}"` here); `hop1_id`/
+          # `hop2_id` each wrap into their OWN hop's `entity_element_no_
+          # identity` (Ruby's `EntityElement#element_of` runs once per
+          # chain entry — `locate_chain`, entity_element.rb — so each
+          # hop's failure names THAT hop's own entity/identity, never the
+          # other's).
+          entity_parent_no_identity_message = "#{c[:name]} acts on a #{a[:record]}'s #{c[:entity_name]}.#{c[:nested_name]} — pass #{Array(a[:identified_by]).join(', ')}:"
+          hop1_no_identity_message = "#{c[:name]} acts on one #{c[:entity_name]} — pass #{c[:entity_identity_reading]}:"
+          hop2_no_identity_message = "#{c[:name]} acts on one #{c[:nested_name]} — pass #{c[:nested_identity_reading]}:"
           route_binding =
             if c[:unrouted_supported]
-              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json)?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
+              "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route { Some(route) => { route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }, None => { #{structural_precheck_line} let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{entity_parent_no_identity_message.inspect}.to_string()))?; let hop1_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop1_no_identity_message.inspect}.to_string()))?; let hop1_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); let hop2_id = #{mod_path}::#{c[:nested_record]}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound(#{hop2_no_identity_message.inspect}.to_string()))?; let hop2_wants = #{mod_path}::#{c[:nested_record]}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }, };"
             else
               "let route = route.ok_or_else(|| crate::kernel::Refusal::TypeMismatch(#{"#{c[:verb]} addresses an entity nested two levels deep — requires an explicit to: { aggregate:, entities: [...] } route".inspect}.to_string()))?; route.require_depth(2)?; let parent_id = route.aggregate().to_string(); let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); let hop1_wants = hop1_id.clone(); let hop2_wants = hop2_id.clone();"
             end

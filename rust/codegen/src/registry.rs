@@ -689,9 +689,29 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|check| format!("{{ let v = facts_json; {check} }}"))
                 .unwrap_or_default();
 
+            // BUG#132 (qa/bluebook/quality_control.bluebook) — the SAME
+            // BUG#20 fix the aggregate arm's own `id_line` already
+            // applies (this file's header, above) had never been
+            // extended to this, the ENTITY arm's route-less `None`
+            // branch — see `rust/project/registry.rb`'s own identical,
+            // longer comment for the full trace (Ruby's own
+            // `EntityInterpreter#parent`/`EntityElement#element_of`,
+            // entity_interpreter.rb/entity_element.rb).
+            let entity_parent_no_identity_message = format!(
+                "{} acts on a {}'s {} — pass {}:",
+                c.name, a.record, c.entity_name, a.identified_by.join(", ")
+            );
+            let entity_element_no_identity_message = format!(
+                "{} acts on one {} — pass {}:",
+                c.name, c.entity_name, c.entity_identity_reading
+            );
             let body_entity_match = format!(
-                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json)?; let element_id = {mod_path}::{}::extract_id(facts_json)?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
-                a.record, c.entity_record, c.entity_record
+                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                a.record,
+                naming::ruby_inspect_string(&entity_parent_no_identity_message),
+                c.entity_record,
+                naming::ruby_inspect_string(&entity_element_no_identity_message),
+                c.entity_record
             );
 
             let mut body: Vec<String> = vec![
@@ -802,10 +822,39 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .map(|check| format!("{{ let v = facts_json; {check} }}"))
                 .unwrap_or_default();
 
+            // BUG#132 — see `entity_arms`'s own identical fix, above: the
+            // SAME unwrapped `extract_id(facts_json)?` gap, one nesting
+            // hop deeper. `parent_id` wraps into `entity_parent_no_
+            // identity` (Ruby's joined entity path — `ctx.entity_name`
+            // there is `entity_names.join(".")`, matching
+            // `"{entity_name}.{nested_name}"` here); `hop1_id`/`hop2_id`
+            // each wrap into their OWN hop's `entity_element_no_identity`
+            // (Ruby's `EntityElement#element_of` runs once per chain
+            // entry, so each hop's failure names THAT hop's own entity/
+            // identity, never the other's).
+            let entity_parent_no_identity_message = format!(
+                "{} acts on a {}'s {}.{} — pass {}:",
+                c.name, a.record, c.entity_name, c.nested_name, a.identified_by.join(", ")
+            );
+            let hop1_no_identity_message = format!(
+                "{} acts on one {} — pass {}:",
+                c.name, c.entity_name, c.entity_identity_reading
+            );
+            let hop2_no_identity_message = format!(
+                "{} acts on one {} — pass {}:",
+                c.name, c.nested_name, c.nested_identity_reading
+            );
             let route_binding = if c.unrouted_supported {
                 format!(
-                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_id = {mod_path}::{}::extract_id(facts_json)?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json)?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
-                    a.record, c.entity_record, c.entity_record, c.nested_record, c.nested_record
+                    "let (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) = match route {{ Some(route) => {{ route.require_depth(2)?; let hop1_id = route.entities()[0].clone(); let hop2_id = route.entities()[1].clone(); (route.aggregate().to_string(), hop1_id.clone(), hop1_id, hop2_id.clone(), hop2_id) }}, None => {{ {structural_precheck_line} let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop1_wants = {mod_path}::{}::extract_wants(facts_json); let hop2_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let hop2_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, hop1_id, hop1_wants, hop2_id, hop2_wants) }}, }};",
+                    a.record,
+                    naming::ruby_inspect_string(&entity_parent_no_identity_message),
+                    c.entity_record,
+                    naming::ruby_inspect_string(&hop1_no_identity_message),
+                    c.entity_record,
+                    c.nested_record,
+                    naming::ruby_inspect_string(&hop2_no_identity_message),
+                    c.nested_record
                 )
             } else {
                 let route_error = format!(
