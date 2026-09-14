@@ -897,6 +897,21 @@ impl Member {
 }
 
 impl Member {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("position.value")?.to_id_component_lenient().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("member").and_then(|j| j.to_id_component_lenient().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Member: no identity found (tried position.value, id, member)".to_string())
+        })
+    }
+}
+
+impl Member {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("position.value")?.to_id_component().ok()?;

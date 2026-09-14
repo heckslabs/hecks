@@ -105,6 +105,10 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
         if json_codec::extract_id_supported(entity) {
             puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
             puts_blank(&mut out);
+            // BUG#140 — see `rust/project/domain_generator.rb`'s own
+            // identical comment (`json_codec::emit_extract_id_lenient`).
+            puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, entity));
+            puts_blank(&mut out);
             puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, entity));
             puts_blank(&mut out);
             puts_str(&mut out, &json_codec::emit_self_identity(exemplar, entity));

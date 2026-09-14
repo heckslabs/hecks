@@ -1,0 +1,35 @@
+{
+  "domain": "examples/roster",
+  "note": "BUG#140's own second required fixture (the ledger investigation's own `next_step`): the SAME shrunk repro as roster_retire_blank_delegate_id.json, but this time the door's own aggregate genuinely exists first (`Roster::Roster.Open name: \"charlie\"`) — pinning the OTHER real Ruby outcome for a blank `id: { value: \"\" }` mapped into the delegated Member.Retire's own identity. Ruby's `EntityElement#element_of` (entity_element.rb) only ever refuses `entity_element_no_identity` when the identity key is genuinely ABSENT (`raw = args[head] || raise(...)` — Ruby's `||` is falsy-or-nil, and an empty string is truthy) — a PRESENT blank value flows on as an ordinary, ultimately non-matching value, so with the roster now found but no crew member ever enlisted under an empty id, Ruby refuses `NotFound`/`entity_element_missing` (\"no Member with id.value ... on Roster \\\"charlie\\\"\"), never `entity_element_no_identity` and never a TypeMismatch. Fixed by `to_id_component_lenient`/`extract_id_lenient` (kernel json.rs, json_codec.rb) — a present-but-blank identity component is a valid, merely non-matching value now, exactly like Ruby, and `apply_entity_command`'s own already-correct `entity_element_missing` wording (kernel/dispatch.rs) takes over once no stored element's own `identity()` matches the empty string.",
+  "steps": [
+    {
+      "verb": "Roster::Roster.Open",
+      "args": {
+        "name": { "value": "charlie" }
+      }
+    },
+    {
+      "verb": "Roster::Roster.AddSeat",
+      "args": {
+        "name": { "value": "charlie" },
+        "number": { "value": 1 },
+        "row": { "value": "back" }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Enlist",
+      "args": {
+        "name": { "value": "charlie" },
+        "id": { "value": "ren" },
+        "age": { "value": 30 }
+      }
+    },
+    {
+      "verb": "Roster::Roster.Retire",
+      "args": {
+        "name": { "value": "charlie" },
+        "id": { "value": "" }
+      }
+    }
+  ]
+}

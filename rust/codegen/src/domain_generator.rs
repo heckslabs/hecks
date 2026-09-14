@@ -559,6 +559,10 @@ pub fn generate(
                 if unrouted_supported {
                     puts_str(&mut out, &json_codec::emit_extract_id(exemplar, nested));
                     puts_blank(&mut out);
+                    // BUG#140 — see `rust/project/domain_generator.rb`'s
+                    // own identical comment.
+                    puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, nested));
+                    puts_blank(&mut out);
                     puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, nested));
                     puts_blank(&mut out);
                 }
@@ -678,6 +682,10 @@ pub fn generate(
             // there too).
             if entity_can_route {
                 puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
+                puts_blank(&mut out);
+                // BUG#140 — see `rust/project/domain_generator.rb`'s own
+                // identical comment.
+                puts_str(&mut out, &json_codec::emit_extract_id_lenient(exemplar, entity));
                 puts_blank(&mut out);
                 puts_str(&mut out, &json_codec::emit_extract_wants(exemplar, entity));
                 puts_blank(&mut out);

@@ -613,6 +613,22 @@ impl Visit {
 }
 
 impl Visit {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("date.value")?.to_id_component_lenient().ok()?;
+            let c1 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
+            Some(vec![c0, c1].join(":"))
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("visit").and_then(|j| j.to_id_component_lenient().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Visit: no identity found (tried date.value, sequence.value, id, visit)".to_string())
+        })
+    }
+}
+
+impl Visit {
     pub fn extract_wants(v: &crate::kernel::Json) -> String {
         (|| -> Option<String> {
             let c0 = v.dig("date.value")?.to_id_component().ok()?;
@@ -803,6 +819,21 @@ impl KeyIssuance {
         })();
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
         let by_reference_key = v.get("key_issuance").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("KeyIssuance: no identity found (tried serial.value, id, key_issuance)".to_string())
+        })
+    }
+}
+
+impl KeyIssuance {
+    pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("serial.value")?.to_id_component_lenient().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
+        let by_reference_key = v.get("key_issuance").and_then(|j| j.to_id_component_lenient().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
             crate::kernel::Refusal::TypeMismatch("KeyIssuance: no identity found (tried serial.value, id, key_issuance)".to_string())

@@ -761,12 +761,34 @@ pub fn extract_id_supported(aggregate: &Json) -> bool {
 }
 
 pub fn emit_extract_id(exemplar: &Exemplar, aggregate: &Json) -> String {
+    emit_extract_id_shaped(exemplar, aggregate, "extract_id", "to_id_component")
+}
+
+/// BUG#140 — see `rust/project/json_codec.rb`'s own `emit_extract_id_
+/// lenient` header for the full reasoning: the SAME `extract_id` shape,
+/// minted a second time as `extract_id_lenient`, calling `to_id_
+/// component_lenient` (kernel `json.rs`) instead of the strict `to_id_
+/// component`. Wired ONLY into entity/nested-entity ADDRESSING call
+/// sites — never a root aggregate's own hydrate.
+pub fn emit_extract_id_lenient(exemplar: &Exemplar, entity: &Json) -> String {
+    emit_extract_id_shaped(exemplar, entity, "extract_id_lenient", "to_id_component_lenient")
+}
+
+fn emit_extract_id_shaped(exemplar: &Exemplar, aggregate: &Json, method_name: &str, coercion: &str) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let identified_by: Vec<String> = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(Json::to_s).collect();
     let reference_key = crate::hecks_naming::snake(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
 
-    let tier1_subs: Vec<Vec<(&str, String)>> =
-        identified_by.iter().enumerate().map(|(i, path)| vec![("\"tmpl_path\"", naming::ruby_inspect_string(path)), ("c0", format!("c{i}"))]).collect();
+    // `"tmpl_id_coercion" => coercion` also goes into EACH tier1_subs
+    // entry — mirrors `rust/project/json_codec.rb`'s own identical fix:
+    // `compose`'s nested `TIER1_LINE` slot enforces its own leftover-
+    // placeholder check independently, before the outer text's other two
+    // `tmpl_id_coercion` occurrences ever get substituted.
+    let tier1_subs: Vec<Vec<(&str, String)>> = identified_by
+        .iter()
+        .enumerate()
+        .map(|(i, path)| vec![("\"tmpl_path\"", naming::ruby_inspect_string(path)), ("c0", format!("c{i}")), ("tmpl_id_coercion", coercion.to_string())])
+        .collect();
 
     let tier1_join = if identified_by.len() == 1 {
         "c0".to_string()
@@ -783,6 +805,8 @@ pub fn emit_extract_id(exemplar: &Exemplar, aggregate: &Json) -> String {
         "extract_id",
         &[
             ("TmplExtractIdType", name.clone()),
+            ("tmpl_extract_id_name", method_name.to_string()),
+            ("tmpl_id_coercion", coercion.to_string()),
             ("\"tmpl_reference_key\"", naming::ruby_inspect_string(&reference_key)),
             ("tmpl_tier1_join_placeholder()", tier1_join),
             ("\"tmpl_error_text\"", naming::ruby_inspect_string(&format!("{name}: no identity found (tried {tried})"))),
