@@ -451,6 +451,22 @@ jobs:
       - name: rust kernel coverage
         run: bundle exec bin/rust_kernel_coverage
 
+      # THE VOCABULARY HALF of the kernel's generated code:
+      # rust/src/kernel/vocab/*.rs (RefusalSite, QueryComparator,
+      # FieldHint, AggregateStep, EntityStep) regenerated from
+      # vocabulary.bluebook. Fails on any diff, and on any untracked file
+      # the projection emits that was never committed.
+      - name: "rust vocabulary: regenerate kernel vocab tables, fail on drift"
+        run: |
+          bundle exec bin/project_rust_vocabulary
+          git diff --exit-code -- rust/src/kernel/vocab/
+          untracked="$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)"
+          if [ -n "$untracked" ]; then
+            echo "rust/src/kernel/vocab has uncommitted generated files:" >&2
+            echo "$untracked" >&2
+            exit 1
+          fi
+
       # DOC COVERAGE, ALSO HERE NOW, NOT ONLY IN .githooks/pre-push — the
       # exact gap the rubocop step's own comment below already names for
       # itself, applied to the one pre-push check that comment's own
