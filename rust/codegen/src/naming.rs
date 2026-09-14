@@ -63,9 +63,61 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
     out.to_lowercase()
 }
 
-/// Generated from the `RustReservedWord` vocabulary by
-/// `bin/project_reserved_names` — the same table `naming.rb` reads.
-pub use crate::reserved_names::RUST_KEYWORDS;
+/// Generated from the `RustReservedWord`/`CargoReservedName` vocabularies by
+/// `bin/project_reserved_names` — the same tables `naming.rb` reads.
+pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
+
+/// `/\A[a-z_][a-z0-9_]*\z/` — a plain lowercase Rust identifier.
+fn plain_lower_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c == '_' || c.is_ascii_lowercase())
+        && chars.all(|c| c == '_' || c.is_ascii_lowercase() || c.is_ascii_digit())
+}
+
+/// Mirrors `legal_aggregate_mod_identifier?` — the identifier-SHAPE half
+/// only, against the downcased name.
+pub fn legal_aggregate_mod_identifier(name: &str) -> bool {
+    plain_lower_identifier(&name.to_lowercase())
+}
+
+/// Mirrors `valid_domain_mod_name?` — shape, and neither a Rust keyword nor
+/// a reserved Cargo.toml key.
+pub fn valid_domain_mod_name(name: &str) -> bool {
+    plain_lower_identifier(name) && !RUST_KEYWORDS.contains(&name) && !CARGO_RESERVED_DOMAIN_NAMES.contains(&name)
+}
+
+/// Port of `RustProjection::Projector.reserved_name_refusal` (BUG#124) —
+/// `None` when every aggregate name and the domain's module name are usable,
+/// else the byte-identical refusal the Ruby generator raises. Aggregates are
+/// checked (and reported) before the domain name, all at once.
+pub fn reserved_name_refusal(source_label: &str, mod_name: &str, aggregate_names: &[&str]) -> Option<String> {
+    let refused: Vec<&str> = aggregate_names
+        .iter()
+        .copied()
+        .filter(|name| {
+            let module = name.to_lowercase();
+            RUST_KEYWORDS.contains(&module.as_str()) || !legal_aggregate_mod_identifier(name)
+        })
+        .collect();
+    if let Some(first) = refused.first() {
+        let names = refused.iter().map(|name| format!("{name:?}")).collect::<Vec<_>>().join(", ");
+        return Some(format!(
+            "{source_label}: aggregate name(s) {names} can't be used as-is — downcased, each becomes a bare Rust \
+             module identifier (`pub mod {};`) and a generated file name, and at least one is not a plain identifier \
+             or is a Rust keyword (RustReservedWord). Module names get no raw-identifier (r#name) escape hatch — \
+             rename the aggregate.",
+            first.to_lowercase()
+        ));
+    }
+    if valid_domain_mod_name(mod_name) {
+        return None;
+    }
+    Some(format!(
+        "{source_label}: domain module name {mod_name:?} can't be used as-is — it has to double as a Rust module \
+         identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, is a Rust \
+         keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
+    ))
+}
 
 pub fn rust_field(name: &str) -> String {
     name.to_string()
@@ -188,4 +240,36 @@ pub fn ruby_inspect_string(s: &str) -> String {
     }
     out.push('"');
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refuses_an_aggregate_whose_module_name_is_a_rust_keyword() {
+        let refusal = reserved_name_refusal("shop", "shop", &["Pizza", "Match", "Type"]).expect("refused");
+        assert!(refusal.starts_with("shop: aggregate name(s) \"Match\", \"Type\" can't be used as-is"), "{refusal}");
+        assert!(refusal.contains("`pub mod match;`"), "{refusal}");
+        assert!(refusal.contains("Rust keyword"), "{refusal}");
+    }
+
+    #[test]
+    fn refuses_an_aggregate_name_that_is_not_a_plain_identifier() {
+        assert!(reserved_name_refusal("shop", "shop", &["My-App"]).is_some());
+        assert!(reserved_name_refusal("shop", "shop", &[""]).is_some());
+    }
+
+    #[test]
+    fn refuses_a_domain_module_name_that_is_a_keyword_or_a_cargo_key() {
+        for name in ["crate", "type", "package", "default", "version"] {
+            let refusal = reserved_name_refusal("label", name, &["Widget"]).expect("refused");
+            assert!(refusal.starts_with(&format!("label: domain module name {name:?} can't be used as-is")), "{refusal}");
+        }
+    }
+
+    #[test]
+    fn accepts_ordinary_names_and_cargo_keys_as_aggregate_names() {
+        assert_eq!(reserved_name_refusal("shop", "shop", &["Pizza", "Version", "Default"]), None);
+    }
 }

@@ -1,12 +1,21 @@
 #!/usr/bin/env ruby
 
-# Generates rust/codegen/src/reserved_names.rs from the `RustReservedWord`
-# and `CargoReservedName` vocabularies (lib/hecks/language/bluebook/
+# Generates reserved_names.rs from the `RustReservedWord` and
+# `CargoReservedName` vocabularies (lib/hecks/language/bluebook/
 # vocabulary.bluebook, read through the generated lib/hecks/vocabulary.rb)
 # — the words a generated Rust identifier or a domain's Cargo feature key
-# must not take. The Ruby generator (rust/project/naming.rb) reads the same
-# two tables, so hecks-codegen and RustProjection escape or refuse the SAME
-# words instead of two hand-typed lists held equal by a comment.
+# must not take. Written into BOTH Rust build-tool crates, which share no
+# library dependency (rust/build calls rust/codegen as a subprocess — see
+# rust/build/Cargo.toml):
+#
+#   rust/codegen/src/reserved_names.rs  — hecks-codegen's field escaping and
+#                                         reserved-name refusal (naming.rs)
+#   rust/build/src/reserved_names.rs    — hecks-build's domain-name guard
+#                                         (cargo_sync.rs)
+#
+# The Ruby side (rust/project/naming.rb, Hecks::Bluebook::ModelCheck) reads
+# the same two tables, so every generator escapes or refuses the SAME words
+# instead of hand-typed lists held equal by a comment.
 #
 # Same skeleton as bin/project_refusal_wording: a language-level constant
 # table mirrored into Rust, written atomically. Deliberately small and
@@ -25,7 +34,10 @@ require "fileutils"
 require "tempfile"
 
 ROOT = File.expand_path("..", __dir__)
-TARGET = File.join(ROOT, "rust/codegen/src/reserved_names.rs")
+TARGETS = [
+  File.join(ROOT, "rust/codegen/src/reserved_names.rs"),
+  File.join(ROOT, "rust/build/src/reserved_names.rs")
+].freeze
 
 TABLES = {
   "RUST_KEYWORDS"               => "RustReservedWord",
@@ -62,4 +74,4 @@ content = <<~RUST
   #{consts.join("\n\n")}
 RUST
 
-write_atomically(TARGET, content)
+TARGETS.each { |target| write_atomically(target, content) }

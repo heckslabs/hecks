@@ -314,23 +314,15 @@ module RustProjection
 
     def call(ir, source_label, mod_dir, mod_name)
       # BUG#124 — VALIDATED FIRST, before ANY side effect this method has
-      # (the `mkdir_p` immediately below included) — same placement
-      # reasoning as `bin/project_rust`'s own domain-name guard: a name
-      # collision found only after some OTHER aggregate in this same `ir`
-      # already had files written would leave a partial, silently-stale
-      # generated tree behind when this raises. Every aggregate in THIS
-      # chapter is checked up front, not just the first offender, so one
-      # `bin/project_rust` run reports every colliding name at once
-      # rather than making the domain author fix them one at a time.
-      keyword_collisions = ir[:aggregates].reject { |a| Projector.valid_aggregate_mod_name?(a[:name]) }
-      if keyword_collisions.any?
-        names = keyword_collisions.map { |a| a[:name].inspect }.join(", ")
-        raise "RustProjection::DomainGenerator.call(#{source_label}): aggregate name(s) #{names} can't be used as-is — " \
-              "downcased, each becomes a bare Rust module identifier (`pub mod #{keyword_collisions.first[:name].downcase};`) " \
-              "and a generated file name, and at least one collides with a Rust keyword " \
-              "(RustProjection::Projector::RUST_KEYWORDS). Module names get no raw-identifier (r#name) escape hatch — " \
-              "rename the aggregate."
-      end
+      # (the `mkdir_p` immediately below included): a name collision found
+      # only after some OTHER aggregate already had files written would
+      # leave a partial, silently-stale generated tree behind. Every
+      # aggregate is checked up front, so one run reports every colliding
+      # name at once. The reserved-word half is the shared
+      # `ModelCheck.rust_reserved_name_findings`; hecks-codegen's
+      # `write_domain` refuses with the identical message.
+      refusal = Projector.reserved_name_refusal(source_label, mod_name, ir[:aggregates].map { |a| a[:name] })
+      raise refusal if refusal
 
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]

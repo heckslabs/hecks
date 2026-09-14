@@ -139,6 +139,19 @@ fn write_domain(
     mod_name: &str,
     out_dir: &str,
 ) -> Result<domain_generator::GeneratedDomain, String> {
+    // BUG#124 — refused before any file is written, with the same message
+    // `RustProjection::DomainGenerator.call` raises (`naming::reserved_name_refusal`).
+    let aggregate_names: Vec<&str> = ir
+        .get("aggregates")
+        .map(Json::each)
+        .unwrap_or(&[])
+        .iter()
+        .map(|a| a.get("name").and_then(Json::as_str).unwrap_or(""))
+        .collect();
+    if let Some(refusal) = naming::reserved_name_refusal(source_label, mod_name, &aggregate_names) {
+        return Err(refusal);
+    }
+
     std::fs::create_dir_all(out_dir).map_err(|e| format!("creating {out_dir}: {e}"))?;
 
     let generated = domain_generator::generate(ex, ir, source_label, mod_name);

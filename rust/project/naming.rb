@@ -1,4 +1,5 @@
 require "hecks/vocabulary"
+require "hecks/bluebook/model_check"
 
 module RustProjection
   module Projector
@@ -80,41 +81,50 @@ module RustProjection
     # TRUE exactly when `name` is safe to use, unescaped, as all three of
     # the above at once. Plain lowercase-identifier shape (no leading
     # digit, no `-`, not empty) rules out landmine class 1 (an outright
-    # Rust syntax error); the two reserved-word checks rule out class 2
-    # (a legal identifier that collides with something load-bearing).
+    # Rust syntax error); the reserved-word half (class 2, a legal
+    # identifier that collides with something load-bearing) is
+    # `ModelCheck.rust_reserved_name_findings`, the one shared check.
     def valid_domain_mod_name?(name)
       str = name.to_s
       str.match?(/\A[a-z_][a-z0-9_]*\z/) &&
-        !RUST_KEYWORDS.include?(str) &&
-        !CARGO_RESERVED_DOMAIN_NAMES.include?(str)
+        Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(domain_name: str).empty?
     end
 
-    # BUG#124 — AN AGGREGATE'S OWN NAME has the SAME landmine class 2 as a
-    # domain name's `pub mod #{name};` above, at a different site:
-    # `domain_generator.rb`'s own per-aggregate file (`#{aggregate[:name].
-    # downcase}.rs`) and the `pub mod #{a[:name].downcase};` line it later
-    # writes into the domain's own `mod.rs` (both keyed off the DOWNCASED
-    # name — an aggregate is conventionally declared PascalCase, e.g.
-    # `Crate`, and it's the lowercase form that collides with a keyword).
-    # An aggregate name does NOT also have to double as a Cargo feature
-    # key (only a DOMAIN's own directory name does — see
-    # `CARGO_RESERVED_DOMAIN_NAMES`'s own header), so this checks only
-    # the identifier-shape + `RUST_KEYWORDS` half of `valid_domain_mod_
-    # name?`'s own two checks, against the downcased form actually used
-    # as the module identifier — not the raw, as-declared name.
-    #
-    # Unescapable in EITHER direction: module names get no `r#name` raw-
-    # identifier escape hatch at all (same as a domain name, per `bin/
-    # project_rust`'s own comment on `target_mod_name`), and even if they
-    # did, `crate`/`self`/`super`/`Self` (`RUST_UNESCAPABLE_KEYWORDS`,
-    # below) couldn't use one anyway — raw identifiers are syntactically
-    # excluded for exactly those four. Refusing up front, the same way
-    # `valid_domain_mod_name?` already does for a domain name, is the
-    # only fix that's actually correct for the whole `RUST_KEYWORDS` set,
-    # not just the four that could never be escaped either way.
-    def valid_aggregate_mod_name?(name)
-      str = name.to_s.downcase
-      str.match?(/\A[a-z_][a-z0-9_]*\z/) && !RUST_KEYWORDS.include?(str)
+    # BUG#124 — an aggregate's name becomes, downcased, a per-aggregate
+    # `<name>.rs` file and a `pub mod <name>;` line in the domain's `mod.rs`.
+    # This is only the identifier-SHAPE half (a PascalCase name always
+    # passes; "2Crate"/"My-App"/"" do not). Whether the downcased name is a
+    # Rust keyword is `ModelCheck.rust_reserved_name_findings`' job — see
+    # `reserved_name_refusal`, below, which asks both. An aggregate name
+    # never doubles as a Cargo feature key, so `CargoReservedName` does not
+    # apply to it.
+    def legal_aggregate_mod_identifier?(name)
+      name.to_s.downcase.match?(/\A[a-z_][a-z0-9_]*\z/)
+    end
+
+    # THE GENERATOR'S REFUSAL — `nil` when every name is usable, else the
+    # message `DomainGenerator.call` raises. hecks-codegen's
+    # `naming::reserved_name_refusal` returns the identical string for the
+    # identical input (rust/codegen/src/naming.rs), so either generator
+    # refuses a keyword-named aggregate (BUG#124) or domain the same way.
+    # Always Rust-targeted — generating Rust IS the Rust target — so the
+    # shared check's findings here are errors, never warnings.
+    def reserved_name_refusal(source_label, mod_name, aggregate_names)
+      names = aggregate_names.map(&:to_s)
+      reserved = Hecks::Bluebook::ModelCheck.rust_reserved_name_findings(aggregate_names: names, rust_target: true)
+                                            .map(&:subject)
+      refused = names.select { |name| reserved.include?(name) || !legal_aggregate_mod_identifier?(name) }
+      if refused.any?
+        return "#{source_label}: aggregate name(s) #{refused.map(&:inspect).join(', ')} can't be used as-is — " \
+               "downcased, each becomes a bare Rust module identifier (`pub mod #{refused.first.downcase};`) and a " \
+               "generated file name, and at least one is not a plain identifier or is a Rust keyword " \
+               "(RustReservedWord). Module names get no raw-identifier (r#name) escape hatch — rename the aggregate."
+      end
+      return nil if valid_domain_mod_name?(mod_name)
+
+      "#{source_label}: domain module name #{mod_name.to_s.inspect} can't be used as-is — it has to double as a Rust " \
+        "module identifier and a Cargo feature name, and this one is either not a plain lowercase identifier, is a " \
+        "Rust keyword (RustReservedWord), or is a reserved Cargo.toml key (CargoReservedName). Rename the domain."
     end
 
     # THE SUBSET OF `RUST_KEYWORDS` A RAW IDENTIFIER (`r#name`) CANNOT
