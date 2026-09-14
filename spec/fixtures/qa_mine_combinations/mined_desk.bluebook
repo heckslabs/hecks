@@ -1,0 +1,24 @@
+Hecks.bluebook "MinedDesk" do
+  vision "A fixture candidate for spec/qa_mine_combinations_spec.rb."
+
+  core
+
+  aggregate "Desk" do
+    description "A desk."
+
+    identified_by :code
+    attribute :code, DeskCode
+
+    value_object "DeskCode" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a DeskCode is not blank") { !value.to_s.empty? }
+    end
+
+    command "Open" do
+      goal "Open it"
+      attribute :code, DeskCode
+      sets :code
+      emits "DeskOpened"
+    end
+  end
+end
