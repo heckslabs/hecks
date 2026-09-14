@@ -742,7 +742,7 @@ pub struct CreatePizzaArgs {
 }
 
 pub fn dispatch_create_pizza(
-    repo: &mut impl crate::kernel::Repository<Order>, route: Option<&crate::kernel::RoutingEnvelope>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Order>, route: Option<&crate::kernel::RoutingEnvelope>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.name.check_invariants()?;
         args.pizza.check_invariants()?;
@@ -804,6 +804,7 @@ pub fn dispatch_create_pizza(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -883,7 +884,7 @@ pub struct AddToppingArgs {
 }
 
 pub fn dispatch_add_topping(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: AddToppingArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: AddToppingArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.topping.check_invariants()?;
         args.amount.check_invariants()?;
@@ -914,6 +915,7 @@ pub fn dispatch_add_topping(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -993,7 +995,7 @@ pub struct PurchaseArgs {
 }
 
 pub fn dispatch_purchase(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.amount.check_invariants()?;
         if let Some(v) = &args.customer_name { v.check_invariants()?; }
@@ -1027,6 +1029,7 @@ pub fn dispatch_purchase(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

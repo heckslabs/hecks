@@ -89,10 +89,11 @@ pub fn dispatch_by_name(
               if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::chess::game::StartArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_start(&mut store.game, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_start(&mut store.game, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.PlacePiece" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -121,10 +122,11 @@ if !absent.is_empty() {
               let args = crate::generated::chess::game::PlacePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.square.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_place_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_place_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.MovePiece" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -153,10 +155,11 @@ if !absent.is_empty() {
               let args = crate::generated::chess::game::MovePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
                       args.destination.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_move_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_move_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.CapturePiece" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -184,10 +187,11 @@ if !absent.is_empty() {
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("CapturePiece acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::CapturePieceArgs::from_json(facts_json)?;
                       args.id.check_invariants()?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_capture_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_capture_piece(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.AdvanceTurn" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -214,10 +218,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AdvanceTurn acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::AdvanceTurnArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_advance_turn(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_advance_turn(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.DeclareCheck" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -244,10 +249,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheck acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::DeclareCheckArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_declare_check(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_declare_check(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.DeclareCheckmate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -274,10 +280,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareCheckmate acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::DeclareCheckmateArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_declare_checkmate(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_declare_checkmate(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.DeclareStalemate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -304,10 +311,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclareStalemate acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::DeclareStalemateArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_declare_stalemate(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_declare_stalemate(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.Resign" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -334,10 +342,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Resign acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::ResignArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_resign(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_resign(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.OfferDraw" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -364,10 +373,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("OfferDraw acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::OfferDrawArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_offer_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_offer_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.AcceptDraw" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -394,10 +404,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("AcceptDraw acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::AcceptDrawArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_accept_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_accept_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.DeclineDraw" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -424,10 +435,11 @@ if !absent.is_empty() {
  }
               let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::chess::game::Game::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("DeclineDraw acts on an existing Game — pass label.value:".to_string()))?, };
               let args = crate::generated::chess::game::DeclineDrawArgs::from_json(facts_json)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Chess::Game", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::chess::game::dispatch_decline_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::chess::game::dispatch_decline_draw(&mut store.game, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Chess::Game.Piece.Move" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

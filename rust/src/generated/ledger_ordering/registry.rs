@@ -90,10 +90,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::ledger_ordering::folder::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::ledger_ordering::folder::dispatch_open(&mut store.folder, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::ledger_ordering::folder::dispatch_open(&mut store.folder, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LedgerOrdering::Folder.AddSlip" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -123,10 +124,11 @@ if !absent.is_empty() {
                       args.reference.check_invariants()?;
                       args.amount.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "AddSlip", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "LedgerOrdering::Folder", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::ledger_ordering::folder::dispatch_add_slip(&mut store.folder, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::ledger_ordering::folder::dispatch_add_slip(&mut store.folder, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "LedgerOrdering::Folder.Slip.Amend" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

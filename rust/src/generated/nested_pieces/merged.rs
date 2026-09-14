@@ -114,10 +114,11 @@ pub fn dispatch_by_name(
               let args = crate::generated::nested_pieces::workspace::OpenArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::nested_pieces::workspace::dispatch_open(&mut store.workspace, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::nested_pieces::workspace::dispatch_open(&mut store.workspace, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "NestedPieces::Workspace.AddBoard" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -146,10 +147,11 @@ if !absent.is_empty() {
               let args = crate::generated::nested_pieces::workspace::AddBoardArgs::from_json(facts_json)?;
                       args.number.check_invariants()?;
               crate::kernel::check_role(Some("Owner"), "AddBoard", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "NestedPieces::Workspace", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::nested_pieces::workspace::dispatch_add_board(&mut store.workspace, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::nested_pieces::workspace::dispatch_add_board(&mut store.workspace, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Assign" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -162,10 +164,11 @@ if !absent.is_empty() {
                       args.scope.check_invariants()?;
                       args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -194,10 +197,11 @@ if !absent.is_empty() {
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -209,10 +213,11 @@ if !absent.is_empty() {
                       args.to_role.check_invariants()?;
                       args.starts_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -241,10 +246,11 @@ if !absent.is_empty() {
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
                       args.ends_at.check_invariants()?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "NestedPieces::Workspace.Board.AddCard" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;

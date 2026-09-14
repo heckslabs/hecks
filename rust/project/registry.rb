@@ -220,7 +220,14 @@ module RustProjection
           # own header on `id_line`/`route` for why. `commands.rb`'s own
           # header on this exact change has the full story on what the
           # generated function does with it now.
-          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? "route, #{extra_pass}" : '&id, '}args, mutations, owner_deref, command_deref)"
+          # BUG#139 — `tenant_boundary_check` (an already-computed
+          # `Result<(), Refusal>`, see this file's own `tenant_boundary_
+          # lines`/`tenant_boundary_check_line` below) trails `command_
+          # deref` here — the same "computed eagerly at router level,
+          # applied deferred inside `dispatch()`" split `owner_deref`/
+          # `command_deref` themselves already use, one more argument
+          # wide.
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? "route, #{extra_pass}" : '&id, '}args, mutations, owner_deref, command_deref, tenant_boundary_check)"
           # ROUTING SEPARATION (`to:`/`with:`) — `CommandInvocation` reads
           # either the explicit routed/facts shape or the legacy mixed-
           # args object (rust/src/kernel/routing.rs, this file's own
@@ -420,13 +427,48 @@ module RustProjection
           structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          # ANGLE-8's write-side tenant boundary (PR #595) — run right
+          # ANGLE-8's write-side tenant boundary (PR #595) — COMPUTED right
           # after the plain existence checks above, matching Ruby's own
           # `resolve_state_references` order (`validate_reference_values`
-          # then `enforce_tenant_boundary`, per attribute). `[]` for every
+          # then `enforce_tenant_boundary`, per attribute) — it needs
+          # `store` (every OTHER aggregate's own repo, to look up the
+          # referenced record's own tenant field), the same reason `owner_
+          # deref`/`command_deref` below are computed at this router level
+          # rather than inside the generated `dispatch_*` function itself.
+          #
+          # BUG#139 — no longer APPLIED here, though: each individual
+          # check's own `return Err(...)` used to fire the instant this
+          # line ran, well before `hydrate`/`givens`/`mutations`/`ensures`/
+          # `invariants` ever got their own say — inverting Ruby's real
+          # `step_save`-time position (`CommandInterpreter#step_save`,
+          # read directly: `resolve_state_references` runs before `seed_
+          # projected_fields`/`persist_instance`, but AFTER every earlier
+          # `DISPATCH_ORDER` step has already run to completion). Each
+          # check's own body (`emit_tenant_boundary_check`, below — itself
+          # UNCHANGED, still a `return Err(...)` on violation) is now
+          # wrapped in an immediately-invoked closure instead: `return`
+          # inside a closure returns from the CLOSURE, not this match arm,
+          # so the RESULT (`Ok(())`, or the FIRST violation found — the
+          # same short-circuit Ruby's own `.each { ... raise ... }` gives)
+          # is captured as a plain owned value and handed to `dispatch_
+          # call`'s own new trailing argument (this file's own comment on
+          # that line), applied by `kernel::dispatch()` at the exact
+          # deferred point Ruby's own `resolve_state_references` occupies
+          # (`kernel/dispatch.rs`'s own header comment on the `tenant_
+          # boundary_check` parameter has the full story). `[]` for every
           # command outside `tenant_ledger` today — `tenant_boundary_
-          # checks`'s own header has the full argument.
-          tenant_boundary_lines = Array(c[:tenant_boundary_checks]).map { |check| emit_tenant_boundary_check(check) }
+          # checks`'s own header has the full argument — so `Ok(())`
+          # unconditionally for every one of them, zero behavior change
+          # from before this fix for any command that isn't `TenantLedger
+          # ::Transfer.Request`.
+          tenant_boundary_check_bodies = Array(c[:tenant_boundary_checks]).map { |check| emit_tenant_boundary_check(check) }
+          tenant_boundary_check_line =
+            if tenant_boundary_check_bodies.empty?
+              "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());"
+            else
+              "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = " \
+                "(|| -> Result<(), crate::kernel::Refusal> { #{tenant_boundary_check_bodies.join(' ')} Ok(()) })();"
+            end
 
           # `owner_deref`/`command_deref` — `given`/`ensures` cross-
           # aggregate dereference (`customer.status`, `account.customer.
@@ -462,7 +504,7 @@ module RustProjection
                   # `domain_generator.rb`'s own comment on `invariant_check_
                   # lines` has the full argument for why this is safe to run
                   # a second time, redundantly, inside that fn too).
-                  *c[:invariant_check_lines], role_line, *reference_lines, *tenant_boundary_lines,
+                  *c[:invariant_check_lines], role_line, *reference_lines, tenant_boundary_check_line,
                   *deref_lines,
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)

@@ -813,7 +813,7 @@ pub struct IssueArgs {
 }
 
 pub fn dispatch_issue(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, route: Option<&crate::kernel::RoutingEnvelope>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, route: Option<&crate::kernel::RoutingEnvelope>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.serial.check_invariants()?;
         args.daily_fee.check_invariants()?;
@@ -866,6 +866,7 @@ pub fn dispatch_issue(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -946,7 +947,7 @@ pub struct RenameArgs {
 }
 
 pub fn dispatch_rename(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RenameArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RenameArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.nickname.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -976,6 +977,7 @@ pub fn dispatch_rename(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1051,7 +1053,7 @@ pub struct WithdrawArgs {
 }
 
 pub fn dispatch_withdraw(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: WithdrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: WithdrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.cents.check_invariants()?;
         args.narrative.check_invariants()?;
@@ -1083,6 +1085,7 @@ pub fn dispatch_withdraw(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1159,7 +1162,7 @@ pub struct ActivateArgs {
 }
 
 pub fn dispatch_activate(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: ActivateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: ActivateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1189,6 +1192,7 @@ pub fn dispatch_activate(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1251,7 +1255,7 @@ pub struct RetireArgs {
 }
 
 pub fn dispatch_retire(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RetireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RetireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1281,6 +1285,7 @@ pub fn dispatch_retire(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

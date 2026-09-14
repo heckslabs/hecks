@@ -868,7 +868,7 @@ pub struct AttachArgs {
 }
 
 pub fn dispatch_attach(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: AttachArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: AttachArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.context.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -898,6 +898,7 @@ pub fn dispatch_attach(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -979,7 +980,7 @@ pub struct NormaliseArgs {
 }
 
 pub fn dispatch_normalise(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.strategy.check_invariants()?;
         args.source_token.check_invariants()?;
@@ -1013,6 +1014,7 @@ pub fn dispatch_normalise(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

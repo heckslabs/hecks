@@ -103,10 +103,11 @@ pub fn dispatch_by_name(
                       args.code.check_invariants()?;
                       args.region.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Open", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::tenant_ledger::ledger::dispatch_open(&mut store.ledger, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::tenant_ledger::ledger::dispatch_open(&mut store.ledger, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "TenantLedger::Ledger.Credit" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -137,10 +138,11 @@ if !absent.is_empty() {
                       args.sequence.check_invariants()?;
                       args.reference.check_invariants()?;
               crate::kernel::check_role(Some("System"), "Credit", caller_role, caller_actor_id, &*store, QUERIES)?;
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::tenant_ledger::ledger::dispatch_credit(&mut store.ledger, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::tenant_ledger::ledger::dispatch_credit(&mut store.ledger, &id, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "TenantLedger::Transfer.Request" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -153,11 +155,11 @@ if !absent.is_empty() {
                       args.amount_cents.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?;
-              if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[("aggregate", "Transfer"), ("field", "region"), ("tenant", &format!("{:?}", own_tenant)), ("attribute", "ledger"), ("target", "Ledger"), ("target_field", "region"), ("other", &format!("{:?}", target_tenant))]))); } } }
+              let tenant_boundary_check: Result<(), crate::kernel::Refusal> = (|| -> Result<(), crate::kernel::Refusal> { if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[("aggregate", "Transfer"), ("field", "region"), ("tenant", &format!("{:?}", own_tenant)), ("attribute", "ledger"), ("target", "Ledger"), ("target_field", "region"), ("other", &format!("{:?}", target_tenant))]))); } } } Ok(()) })();
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "ledger", as_name: "ledger", target: "TenantLedger::Ledger" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-              crate::generated::tenant_ledger::transfer::dispatch_request(&mut store.transfer, route, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::tenant_ledger::transfer::dispatch_request(&mut store.transfer, route, args, mutations, owner_deref, command_deref, tenant_boundary_check).map(|(_, events)| stamp_payload(events, &payload))
           }
           "TenantLedger::Ledger.Entry.Annotate" => {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
@@ -181,7 +183,7 @@ if !absent.is_empty() {
         ("declared", "note"),
     ])));
 }
- } let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json)?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id(facts_json)?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on a Ledger's Entry — pass code.value:".to_string()))?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Annotate acts on one Entry — pass sequence.value:".to_string()))?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;

@@ -442,7 +442,7 @@ pub struct RequestArgs {
 }
 
 pub fn dispatch_request(
-    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, route: Option<&crate::kernel::RoutingEnvelope>, args: RequestArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ExternalTransfer> {
         args.end_to_end.check_invariants()?;
         args.amount.check_invariants()?;
@@ -500,6 +500,7 @@ pub fn dispatch_request(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -588,7 +589,7 @@ pub struct SendTransferArgs {
 }
 
 pub fn dispatch_send_transfer(
-    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: SendTransferArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: SendTransferArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ExternalTransfer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -619,6 +620,7 @@ pub fn dispatch_send_transfer(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -681,7 +683,7 @@ pub struct RecallArgs {
 }
 
 pub fn dispatch_recall(
-    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: RecallArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: RecallArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ExternalTransfer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -712,6 +714,7 @@ pub fn dispatch_recall(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -774,7 +777,7 @@ pub struct ReturnArgs {
 }
 
 pub fn dispatch_return(
-    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: ReturnArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: ReturnArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<ExternalTransfer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -805,6 +808,7 @@ pub fn dispatch_return(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

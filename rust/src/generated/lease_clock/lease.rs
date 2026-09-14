@@ -368,7 +368,7 @@ pub struct RegisterArgs {
 }
 
 pub fn dispatch_register(
-    repo: &mut impl crate::kernel::Repository<Lease>, route: Option<&crate::kernel::RoutingEnvelope>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Lease>, route: Option<&crate::kernel::RoutingEnvelope>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
         args.key.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -426,6 +426,7 @@ pub fn dispatch_register(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -503,7 +504,7 @@ pub struct AcquireArgs {
 }
 
 pub fn dispatch_acquire(
-    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: AcquireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: AcquireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
         args.holder.check_invariants()?;
         args.now.check_invariants()?;
@@ -538,6 +539,7 @@ pub fn dispatch_acquire(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -621,7 +623,7 @@ pub struct RenewArgs {
 }
 
 pub fn dispatch_renew(
-    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: RenewArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: RenewArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
         args.now.check_invariants()?;
         args.expiry.check_invariants()?;
@@ -654,6 +656,7 @@ pub fn dispatch_renew(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -730,7 +733,7 @@ pub struct ReleaseArgs {
 }
 
 pub fn dispatch_release(
-    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: ReleaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: ReleaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -760,6 +763,7 @@ pub fn dispatch_release(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -823,7 +827,7 @@ pub struct ReapArgs {
 }
 
 pub fn dispatch_reap(
-    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: ReapArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Lease>, id: &str, args: ReapArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Lease> {
         args.now.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -853,6 +857,7 @@ pub fn dispatch_reap(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 

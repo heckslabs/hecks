@@ -1790,7 +1790,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Syntax>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Syntax>, route: Option<&crate::kernel::RoutingEnvelope>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.bluebook.check_invariants()?;
         args.name.check_invariants()?;
@@ -1850,6 +1850,7 @@ pub fn dispatch_declare(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -1947,7 +1948,7 @@ pub struct KeywordArgs {
 }
 
 pub fn dispatch_keyword(
-    repo: &mut impl crate::kernel::Repository<Syntax>, id: &str, args: KeywordArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Syntax>, id: &str, args: KeywordArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.position.check_invariants()?;
         args.word.check_invariants()?;
@@ -1992,6 +1993,7 @@ pub fn dispatch_keyword(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
@@ -2139,7 +2141,7 @@ pub struct ArgumentArgs {
 }
 
 pub fn dispatch_argument(
-    repo: &mut impl crate::kernel::Repository<Syntax>, id: &str, args: ArgumentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    repo: &mut impl crate::kernel::Repository<Syntax>, id: &str, args: ArgumentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>, tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.position.check_invariants()?;
         args.keyword.check_invariants()?;
@@ -2187,6 +2189,7 @@ pub fn dispatch_argument(
         args.to_json(),
         mutations,
         seed_projections,
+        tenant_boundary_check,
     )
 }
 
