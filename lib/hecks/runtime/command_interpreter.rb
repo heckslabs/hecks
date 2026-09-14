@@ -92,6 +92,16 @@ module Hecks
 
       private
 
+      # A NO-OP, AND UNTRACED — Vocabulary::AggregateDispatchOrder's
+      # decode_arguments. Routing (`Runtime::Routing`) has already handed
+      # `call` a decoded argument hash by the time any step runs, so there is
+      # nothing left to decode here yet; like a conditional step that does
+      # not fire, it records nothing in `trace`. Declared so the Rust
+      # kernel's generated step enum carries the step its generated decoder
+      # will move into (roadmap D2), and so a typed Invocation (I2) has a
+      # step to be consumed at.
+      def step_decode_arguments(_ctx); end
+
       def step_refuse_unknown_arguments(ctx)
         step(:refuse_unknown_arguments) { refuse_unknown_arguments(ctx.domain, ctx.aggregate, ctx.command, ctx.args) }
       end

@@ -745,6 +745,7 @@ impl LoadOrder {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AggregateDispatchOrder {
+    DecodeArguments,
     RefuseUnknownArguments,
     RefuseAbsentArguments,
     NormalizeArgs,
@@ -767,7 +768,7 @@ impl crate::kernel::Fielded for AggregateDispatchOrder {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { AggregateDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), AggregateDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), AggregateDispatchOrder::NormalizeArgs => "normalize_args".to_string(), AggregateDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), AggregateDispatchOrder::ResolveReferences => "resolve_references".to_string(), AggregateDispatchOrder::Hydrate => "hydrate".to_string(), AggregateDispatchOrder::EnforceGivens => "enforce_givens".to_string(), AggregateDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), AggregateDispatchOrder::AssignCreationAttributes => "assign_creation_attributes".to_string(), AggregateDispatchOrder::ApplyMutations => "apply_mutations".to_string(), AggregateDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), AggregateDispatchOrder::DelegateToEntity => "delegate_to_entity".to_string(), AggregateDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), AggregateDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), AggregateDispatchOrder::Save => "save".to_string(), AggregateDispatchOrder::Emit => "emit".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { AggregateDispatchOrder::DecodeArguments => "decode_arguments".to_string(), AggregateDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), AggregateDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), AggregateDispatchOrder::NormalizeArgs => "normalize_args".to_string(), AggregateDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), AggregateDispatchOrder::ResolveReferences => "resolve_references".to_string(), AggregateDispatchOrder::Hydrate => "hydrate".to_string(), AggregateDispatchOrder::EnforceGivens => "enforce_givens".to_string(), AggregateDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), AggregateDispatchOrder::AssignCreationAttributes => "assign_creation_attributes".to_string(), AggregateDispatchOrder::ApplyMutations => "apply_mutations".to_string(), AggregateDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), AggregateDispatchOrder::DelegateToEntity => "delegate_to_entity".to_string(), AggregateDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), AggregateDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), AggregateDispatchOrder::Save => "save".to_string(), AggregateDispatchOrder::Emit => "emit".to_string(), }))),
             _ => None,
         }
     }
@@ -779,6 +780,7 @@ impl crate::kernel::Fielded for AggregateDispatchOrder {
 impl AggregateDispatchOrder {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
+            AggregateDispatchOrder::DecodeArguments => "decode_arguments",
             AggregateDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments",
             AggregateDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments",
             AggregateDispatchOrder::NormalizeArgs => "normalize_args",
@@ -839,6 +841,7 @@ impl AggregateDispatchOrder {
             return Err(crate::kernel::Refusal::TypeMismatch("AggregateDispatchOrder.step expects String, got nil".to_string()));
         }
         match candidate.ruby_to_s().as_str() {
+            "decode_arguments" => Ok(AggregateDispatchOrder::DecodeArguments),
             "refuse_unknown_arguments" => Ok(AggregateDispatchOrder::RefuseUnknownArguments),
             "refuse_absent_arguments" => Ok(AggregateDispatchOrder::RefuseAbsentArguments),
             "normalize_args" => Ok(AggregateDispatchOrder::NormalizeArgs),
@@ -857,7 +860,7 @@ impl AggregateDispatchOrder {
             "emit" => Ok(AggregateDispatchOrder::Emit),
             _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "AggregateDispatchOrder"),
-                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"delegate_to_entity\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
+                ("admitted", "\"decode_arguments\", \"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"delegate_to_entity\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
                 ("offered", &candidate.inspect()),
             ]))),
         }
@@ -866,6 +869,7 @@ impl AggregateDispatchOrder {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntityDispatchOrder {
+    DecodeArguments,
     RefuseUnknownArguments,
     RefuseAbsentArguments,
     NormalizeArgs,
@@ -887,7 +891,7 @@ impl crate::kernel::Fielded for EntityDispatchOrder {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "value" => Some(Field::Value(Value::Str(match self { EntityDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), EntityDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), EntityDispatchOrder::NormalizeArgs => "normalize_args".to_string(), EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), EntityDispatchOrder::ResolveReferences => "resolve_references".to_string(), EntityDispatchOrder::HydrateParent => "hydrate_parent".to_string(), EntityDispatchOrder::LocateElement => "locate_element".to_string(), EntityDispatchOrder::EnforceGivens => "enforce_givens".to_string(), EntityDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), EntityDispatchOrder::ApplyMutations => "apply_mutations".to_string(), EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), EntityDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), EntityDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), EntityDispatchOrder::Save => "save".to_string(), EntityDispatchOrder::Emit => "emit".to_string(), }))),
+            "value" => Some(Field::Value(Value::Str(match self { EntityDispatchOrder::DecodeArguments => "decode_arguments".to_string(), EntityDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments".to_string(), EntityDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments".to_string(), EntityDispatchOrder::NormalizeArgs => "normalize_args".to_string(), EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch".to_string(), EntityDispatchOrder::ResolveReferences => "resolve_references".to_string(), EntityDispatchOrder::HydrateParent => "hydrate_parent".to_string(), EntityDispatchOrder::LocateElement => "locate_element".to_string(), EntityDispatchOrder::EnforceGivens => "enforce_givens".to_string(), EntityDispatchOrder::AdmissibleTransition => "admissible_transition".to_string(), EntityDispatchOrder::ApplyMutations => "apply_mutations".to_string(), EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle".to_string(), EntityDispatchOrder::EnforceEnsures => "enforce_ensures".to_string(), EntityDispatchOrder::EnforceInvariants => "enforce_invariants".to_string(), EntityDispatchOrder::Save => "save".to_string(), EntityDispatchOrder::Emit => "emit".to_string(), }))),
             _ => None,
         }
     }
@@ -899,6 +903,7 @@ impl crate::kernel::Fielded for EntityDispatchOrder {
 impl EntityDispatchOrder {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
+            EntityDispatchOrder::DecodeArguments => "decode_arguments",
             EntityDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments",
             EntityDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments",
             EntityDispatchOrder::NormalizeArgs => "normalize_args",
@@ -958,6 +963,7 @@ impl EntityDispatchOrder {
             return Err(crate::kernel::Refusal::TypeMismatch("EntityDispatchOrder.step expects String, got nil".to_string()));
         }
         match candidate.ruby_to_s().as_str() {
+            "decode_arguments" => Ok(EntityDispatchOrder::DecodeArguments),
             "refuse_unknown_arguments" => Ok(EntityDispatchOrder::RefuseUnknownArguments),
             "refuse_absent_arguments" => Ok(EntityDispatchOrder::RefuseAbsentArguments),
             "normalize_args" => Ok(EntityDispatchOrder::NormalizeArgs),
@@ -975,7 +981,7 @@ impl EntityDispatchOrder {
             "emit" => Ok(EntityDispatchOrder::Emit),
             _ => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "EntityDispatchOrder"),
-                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
+                ("admitted", "\"decode_arguments\", \"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
                 ("offered", &candidate.inspect()),
             ]))),
         }

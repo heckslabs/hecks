@@ -22850,6 +22850,12 @@
             [
               [
                 "step",
+                "decode_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
                 "refuse_unknown_arguments"
               ]
             ],
@@ -22964,6 +22970,12 @@
           ],
           "closed_set": true,
           "members": [
+            [
+              [
+                "step",
+                "decode_arguments"
+              ]
+            ],
             [
               [
                 "step",

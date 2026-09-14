@@ -22866,6 +22866,12 @@
             [
               [
                 "step",
+                "decode_arguments"
+              ]
+            ],
+            [
+              [
+                "step",
                 "refuse_unknown_arguments"
               ]
             ],
@@ -22980,6 +22986,12 @@
 
           ],
           "members": [
+            [
+              [
+                "step",
+                "decode_arguments"
+              ]
+            ],
             [
               [
                 "step",
