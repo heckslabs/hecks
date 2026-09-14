@@ -816,8 +816,20 @@ structural_boundary =
 # concluding must never read as clean just because the CURRENT outcome
 # says "held" — that is exactly the case `ever_surprised` exists to
 # still catch. `--release` reads it across every sweep it concludes.
+#
+# `&.` on the lookup: a Check row logged before `ever_surprised` was
+# added to this aggregate (PR #566) was never re-materialized with the
+# attribute's own `default: { value: "no" }` — that default applies to
+# attribute reads, not to this raw hash `[]` lookup — so an old row's
+# hash is simply missing the key. `--release` sweeps up EVERY still-open
+# sweep for a target (some genuinely stale, reclaimed here rather than
+# concluded at the time), so hitting one of these old rows is not
+# hypothetical: it crashed the very first live `--release` call this
+# session made against `roster`, which had a check from before
+# `ever_surprised` existed. Missing means "no sticky surprise was ever
+# recorded for this row" — the same as an explicit "no".
 def sweep_was_clean?(sweep)
-  sweep.checks.none? { |c| c[:ever_surprised][:value] == "yes" }
+  sweep.checks.none? { |c| c[:ever_surprised]&.[](:value) == "yes" }
 end
 
 # THE RELEASE ITSELF — one place, both callers. `capabilities` is
