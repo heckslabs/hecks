@@ -67,6 +67,23 @@ jobs:
             spec/parser_coverage_spec.rb \
             spec/grammar_corpus_spec.rb
 
+      # The crate's own unit + tests/gates.rs suite — never ran in CI
+      # before (only `cargo test --lib` in rust/ did). Reuses the parser
+      # target dir the spec above just built.
+      - name: "cargo test: rust/parser (hecks-parse)"
+        run: cd rust/parser && cargo test
+
+      # rust/lsp ("hecks_lsp") — its own independent Cargo project, no Cargo
+      # dependency on hecks-parse (it shells out to the binary at runtime),
+      # so it needs its own target-dir cache. Also never ran in CI before.
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lsp
+          crate-root: rust/lsp
+
+      - name: "cargo test: rust/lsp (hecks_lsp)"
+        run: cd rust/lsp && cargo test
+
       # Only push on an actual miss — see ghcr-binary-cache-save's own
       # header for why re-pushing an unchanged hit would just waste
       # upload bandwidth on bytes GHCR already has.

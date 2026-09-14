@@ -8,7 +8,7 @@ name: Cache warm (main)
 # real side effect nobody had checked until now: main's own ref never
 # runs ci.yml at all, so none of its Rust build caches (rust/target,
 # rust/build/target, rust/parser/target, rust/codegen/target,
-# rust/host/target) ever get a refs/heads/main-scoped cache entry.
+# rust/host/target, rust/lsp/target) ever get a refs/heads/main-scoped cache entry.
 #
 # Confirmed empirically (`gh api repos/heckslabs/hecks/actions/caches`,
 # 2026-09-09) — every existing cache entry for these crates is scoped
@@ -189,6 +189,27 @@ jobs:
 
       - name: Warm rust/codegen (hecks-codegen)
         run: cd rust/codegen && cargo build
+
+  # Mirrors rspec_rust_parser's own lsp cache step (rust/lsp's `cargo
+  # test` runs in that job).
+  warm_lsp_crate:
+    runs-on: ubuntu-latest
+
+    if: github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      # `ref:` pinned to the triggering run — see warm_main_crate's comment.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: ./.github/actions/cargo-cache
+        with:
+          name: lsp
+          crate-root: rust/lsp
+
+      - name: Warm rust/lsp (hecks_lsp)
+        run: cd rust/lsp && cargo build
 
   # Mirrors rspec_rust_host's own cache step. Builds both binaries
   # spec/rust_host_lineage_conformance_spec.rb needs — the exact

@@ -46,6 +46,11 @@ jobs:
       - name: "rspec: Rust codegen parity"
         run: bundle exec rspec --tag io spec/codegen_parity_spec.rb
 
+      # The crate's own unit tests — never ran in CI before (only
+      # `cargo test --lib` in rust/ did).
+      - name: "cargo test: rust/codegen (hecks-codegen)"
+        run: cd rust/codegen && cargo test
+
       - uses: ./.github/actions/ghcr-binary-cache-save
         if: steps.ghcr_cache.outputs.cache-hit != 'true'
         with:
