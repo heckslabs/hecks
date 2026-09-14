@@ -63,6 +63,61 @@ module RustProjection
       end
     end
 
+    # `emit_tenant_boundary_check(check)` — `domain_generator.rb`'s own
+    # `tenant_boundary_checks` builds the plain Hash this reads; see that
+    # method's header for the full argument. Hand-built via `format`
+    # rather than an `Exemplar` shape (unlike `emit_reference_check`,
+    # above): the TARGET side's own accessor needs a genuinely different
+    # expression shape depending on whether the tenant attribute is a
+    # single-attribute value object (`record.region.as_ref().map(|v|
+    # v.value.clone())`) or an already-bare scalar (`record.region.
+    # clone()`), which the fixed two-shape (`required`/`optional`)
+    # `reference_check_*` templates have no slot for — the same "hand-
+    # build the varying structure, keep the fixed skeleton fenced" split
+    # `mutations.rb#entity_list_replace_guard` already makes.
+    #
+    # `RefusalSite::UnauthorizedCrossTenantReference`'s own template
+    # (`refusal_wording.rb`) is `"{aggregate} {field} is {tenant}, but
+    # {attribute} names a {target} whose own {target_field} is {other} —
+    # a cross-tenant reference"` — a plain key-based replace-fold
+    # (`RefusalWording.render`/`kernel/refusal_wording.rs`'s own `render`),
+    # so the `(key, value)` pairs below need no particular order.
+    # `format!("{:?}", ...)` on the bare unwrapped scalar matches `Rendering.
+    # describe`'s own single-field unwrap for a String/Integer exactly
+    # (Rust's `Debug` for `String` quotes the same way Ruby's
+    # `String#inspect` does; for `Integer`, `{:?}` and `#inspect` both
+    # print the bare digits) — the SAME reasoning `mutations.rb#entity_
+    # list_replace_guard`'s own `offered_expr` comment already gives for
+    # the identical technique.
+    def emit_tenant_boundary_check(check)
+      ref_ident = rust_ident_field(check[:reference_field])
+      own_expr = "args.#{rust_ident_field(check[:own_accessor])}.clone()"
+
+      target_accessor = check[:target_accessor]
+      target_expr =
+        if target_accessor.include?(".")
+          head, inner = target_accessor.split(".", 2)
+          "record.#{rust_ident_field(head)}.as_ref().map(|v| v.#{rust_ident_field(inner)}.clone())"
+        else
+          "record.#{rust_ident_field(target_accessor)}.clone()"
+        end
+
+      "if let Some(record) = store.#{check[:target_mod]}.find(&args.#{ref_ident}) { " \
+        "if let Some(target_tenant) = #{target_expr} { " \
+        "let own_tenant = #{own_expr}; " \
+        "if target_tenant != own_tenant { " \
+        "return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[" \
+        "(\"aggregate\", #{check[:aggregate_name].inspect}), " \
+        "(\"field\", #{check[:own_tenant_field].to_s.inspect}), " \
+        "(\"tenant\", &format!(\"{:?}\", own_tenant)), " \
+        "(\"attribute\", #{check[:reference_field].to_s.inspect}), " \
+        "(\"target\", #{check[:target_name].inspect}), " \
+        "(\"target_field\", #{check[:target_tenant_field].to_s.inspect}), " \
+        "(\"other\", &format!(\"{:?}\", target_tenant))" \
+        "]))); " \
+        "} } }"
+    end
+
     # `a[:chapter_mod]` — which top-level generated module (`meta`,
     # `embryonaut`, `governance`, ...) this aggregate's own .rs file
     # lives under (`domain_generator.rb`'s own header on why: `super::`
@@ -365,6 +420,13 @@ module RustProjection
           structural_precheck_line = c[:structural_precheck] ? "{ let v = facts_json; #{c[:structural_precheck]} }" : ""
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
+          # ANGLE-8's write-side tenant boundary (PR #595) — run right
+          # after the plain existence checks above, matching Ruby's own
+          # `resolve_state_references` order (`validate_reference_values`
+          # then `enforce_tenant_boundary`, per attribute). `[]` for every
+          # command outside `tenant_ledger` today — `tenant_boundary_
+          # checks`'s own header has the full argument.
+          tenant_boundary_lines = Array(c[:tenant_boundary_checks]).map { |check| emit_tenant_boundary_check(check) }
 
           # `owner_deref`/`command_deref` — `given`/`ensures` cross-
           # aggregate dereference (`customer.status`, `account.customer.
@@ -400,7 +462,7 @@ module RustProjection
                   # `domain_generator.rb`'s own comment on `invariant_check_
                   # lines` has the full argument for why this is safe to run
                   # a second time, redundantly, inside that fn too).
-                  *c[:invariant_check_lines], role_line, *reference_lines,
+                  *c[:invariant_check_lines], role_line, *reference_lines, *tenant_boundary_lines,
                   *deref_lines,
                   "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)

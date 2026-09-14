@@ -98,6 +98,7 @@ pub fn dispatch_by_name(
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::tenant_ledger::ledger::OpenArgs::from_json(facts_json)?;
                       args.code.check_invariants()?;
                       args.region.check_invariants()?;
@@ -145,12 +146,14 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
+              if let Some(route) = route { route.require_depth(0)?; }
               let args = crate::generated::tenant_ledger::transfer::RequestArgs::from_json(facts_json)?;
                       args.reference.check_invariants()?;
                       args.region.check_invariants()?;
                       args.amount_cents.check_invariants()?;
               crate::kernel::check_role(Some("Clerk"), "Request", caller_role, caller_actor_id, &*store, QUERIES)?;
               crate::kernel::check_reference(&store.ledger, &args.ledger, "Ledger", "code")?;
+              if let Some(record) = store.ledger.find(&args.ledger) { if let Some(target_tenant) = record.region.as_ref().map(|v| v.value.clone()) { let own_tenant = args.region.value.clone(); if target_tenant != own_tenant { return Err(crate::kernel::Refusal::Unauthorized(crate::kernel::RefusalSite::UnauthorizedCrossTenantReference.render(&[("aggregate", "Transfer"), ("field", "region"), ("tenant", &format!("{:?}", own_tenant)), ("attribute", "ledger"), ("target", "Ledger"), ("target_field", "region"), ("other", &format!("{:?}", target_tenant))]))); } } }
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "ledger", as_name: "ledger", target: "TenantLedger::Ledger" }], &args);
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -160,11 +163,29 @@ if !absent.is_empty() {
               let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
               let route = invocation.route();
               let facts_json = invocation.facts();
-              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json)?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id(facts_json)?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+              let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { { let v = facts_json; if !matches!(v, crate::kernel::Json::Object(_)) {
+    return Err(crate::kernel::Refusal::TypeMismatch(format!("EntryAnnotateEntityArgs expects an object, got {}", v.inspect())));
+}
+let unknown = v.unknown_keys(&["note", "id", "code", "sequence", "reference"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Annotate does not declare {} — it takes note",
+        unknown.join(", ")
+    )));
+}
+let absent: Vec<&str> = ["note"].into_iter().filter(|key| v.get(key).is_none()).collect();
+if !absent.is_empty() {
+    return Err(crate::kernel::Refusal::AbsentArgument(crate::kernel::RefusalSite::AbsentArgumentAbsentArgs.render(&[
+        ("command", "Annotate"),
+        ("absent", absent.join(", ").as_str()),
+        ("declared", "note"),
+    ])));
+}
+ } let parent_id = crate::generated::tenant_ledger::ledger::Ledger::extract_id(facts_json)?; let element_id = crate::generated::tenant_ledger::ledger::Entry::extract_id(facts_json)?; let element_wants = crate::generated::tenant_ledger::ledger::Entry::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::tenant_ledger::ledger::EntryAnnotateEntityArgs::from_json(facts_json)?;
                       args.note.check_invariants()?;
               crate::kernel::check_role(Some("Auditor"), "Annotate", caller_role, caller_actor_id, &*store, QUERIES)?;
-              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "TenantLedger::Ledger", &parent_id) { command_deref.push(("parent", parent_node)); }
               let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
