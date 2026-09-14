@@ -236,8 +236,16 @@ module Hecks
         end
 
         # A dotted path's first segment is a top-level (symbol) key; a
-        # second segment reaches into a value-object member, stored with a
-        # string key exactly as the adapter's own journal reader loaded it.
+        # second segment reaches into a value-object member by its STRING
+        # key — the spelling a RAW stored row carries. Translation runs on
+        # raw rows, BEFORE the state codec decodes anything (PR A3): its
+        # only caller (`Translation::Audit::LayerTwo`) feeds it
+        # head-snapshot rows straight out of `JSON.parse`, and the
+        # PostgresEra head applies the same rules in SQL before
+        # `PostgresEra#decode` ever sees the jsonb. Decode is always the
+        # LAST step, so an undeclared (retired) member this rule has to
+        # read is still exactly as it was written, and never something an
+        # adapter's `entries` — decoded, deep-symbol — would be fed here.
         def apply_move(state, move)
           old_top, old_member = move.from.split(".", 2)
           new_top, new_member = move.to.split(".", 2)

@@ -86,7 +86,11 @@ module Hecks
       # overwrite that write on disk rather than layer on top of it.
       def project(entry)
         current = read
-        entry.save? ? current[entry.id] = entry.state.dup : current.delete(entry.id)
+        if entry.save?
+          current[entry.id] = Ports::Persistence::StateCodec.encode(@aggregate, entry.state)
+        else
+          current.delete(entry.id)
+        end
         write(current)
         @store = current
         entry
@@ -134,11 +138,13 @@ module Hecks
         @saga_store ||= SagaStore.new(File.dirname(@path))
       end
 
+      # `record` is the snapshot/journal's own string-keyed JSON — decoded
+      # deep through the state codec, never symbolized one level by hand.
       def instance(id, record)
         Runtime::Instance.new(
           aggregate: @aggregate,
           id:        id,
-          state:     record.transform_keys(&:to_sym)
+          state:     Ports::Persistence::StateCodec.decode(@aggregate, record)
         )
       end
 

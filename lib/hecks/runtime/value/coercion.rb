@@ -339,7 +339,23 @@ module Hecks
           return fields unless aggregate.respond_to?(:value_object)
 
           value_object.attributes.each do |attribute|
-            next if attribute.list? || !fields.key?(attribute.name)
+            next unless fields.key?(attribute.name)
+
+            # A LIST MEMBER READ BACK FROM THE STORE hydrates like a top-level
+            # list — `list_of(Entity)` elements get their fields coerced,
+            # `list_of(ValueObject)` elements become Values — so a value object
+            # holding a list loads into the SAME shape the live dispatch that
+            # wrote it held. Found by PR A3 (every adapter through the state
+            # codec): chess-style `sets :positions, append: { pieces:
+            # state(:pieces) }` snapshots read back from Heki/Sqlite/Postgres
+            # (and now Memory's codec copy) with raw element hashes, so a
+            # `given` comparing a snapshot piece's `id` Value to a live one
+            # never matched after a restart. Load door only: an input list
+            # member is left exactly as before, refusals unchanged.
+            if attribute.list?
+              fields[attribute.name] = for_attribute(aggregate, attribute, fields[attribute.name]) if trusting_stored_state?
+              next
+            end
 
             raw = fields[attribute.name]
             next if raw.nil? || raw.is_a?(self)
