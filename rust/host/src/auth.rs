@@ -422,15 +422,20 @@ pub async fn provision(
         anyhow::bail!("Identity::ExternalIdentifier.Link refused: {}", link_external.result);
     }
 
+    // The grant verb this domain's declared authorization provider names
+    // (`ir::authorization_provider`), never a hard-coded chapter.
+    let Some(provider) = crate::ir::authorization_provider(domain_ir) else {
+        anyhow::bail!("this domain attaches no chapter that provides \"authorization\" — cannot grant a role");
+    };
     let assign_role = dispatch::handle(
-        client, wasm_path, "Governance::RoleAssignment.Assign",
+        client, wasm_path, &provider.grant,
         json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": config.domain.clone()},
             "starts_at": {"value": httpdate_now()},
         }), None, config, invoker,
     ).await?;
     if !assign_role.accepted {
-        anyhow::bail!("Governance::RoleAssignment.Assign refused: {}", assign_role.result);
+        anyhow::bail!("{} refused: {}", provider.grant, assign_role.result);
     }
 
     // NOT dispatch::handle -- Embryonaut::Member isn't in rust/host's
@@ -493,10 +498,16 @@ pub async fn all_people(client: &Mutex<Client>, domain_ir: &Value) -> anyhow::Re
         .collect())
 }
 
-pub fn holds_admin(instances: &Value, identity_id: &str) -> bool {
+/// Whether `identity_id` holds a live "Admin" assignment in the chapter
+/// this domain declares as its authorization provider (`ir::
+/// authorization_provider`). `None` — nothing attached provides
+/// authorization — means no assignment can exist, so never admin.
+pub fn holds_admin(instances: &Value, identity_id: &str, provider: Option<&crate::ir::AuthorizationProvider>) -> bool {
+    let Some(provider) = provider else { return false };
+    let prefix = format!("{}#", provider.assignment_aggregate);
     instances.as_object().is_some_and(|obj| {
         obj.iter().any(|(key, state)| {
-            key.starts_with("Governance::RoleAssignment#")
+            key.starts_with(&prefix)
                 && state.get("actor_id").and_then(|v| v.get("value")).and_then(|v| v.as_str()) == Some(identity_id)
                 && state.get("role_name").and_then(|v| v.get("value")).and_then(|v| v.as_str()) == Some("Admin")
                 && state.get("ends_at").map(|v| v.is_null()).unwrap_or(true)
@@ -691,8 +702,14 @@ mod tests {
             },
         });
 
-        assert!(holds_admin(&instances, "id-1"));
-        assert!(!holds_admin(&instances, "id-2"));
+        let provider = crate::ir::AuthorizationProvider {
+            grant: "Governance::RoleAssignment.Assign".to_string(),
+            assignment_aggregate: "Governance::RoleAssignment".to_string(),
+        };
+        assert!(holds_admin(&instances, "id-1", Some(&provider)));
+        assert!(!holds_admin(&instances, "id-2", Some(&provider)));
+        // No declared provider: no assignment can exist, so never admin.
+        assert!(!holds_admin(&instances, "id-1", None));
     }
 
     #[test]
