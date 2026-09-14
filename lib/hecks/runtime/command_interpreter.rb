@@ -48,7 +48,7 @@ module Hecks
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows)
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -66,10 +66,17 @@ module Hecks
       # went stale. See `MAX_STALE_WRITE_RETRIES`/`Runtime::StaleWrite`
       # for why exhaustion is a pathological-contention signal, not the
       # expected shape of a two-writer race.
-      def call(domain, aggregate, command, args, correlation = nil, route: nil, dry_run: false)
+      #
+      # `invocation` — the `Runtime::Invocation` `Dispatcher` built for this
+      # call. `ctx.args` is `invocation.to_args` (the same Hash routing
+      # always handed this method), `ctx.route` its `target`.
+      def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false)
+        args    = invocation.to_args
+        route   = invocation.target
         attempt = 0
         begin
           ctx = Context.new(domain, aggregate, command, args)
+          ctx.invocation = invocation
           ctx.correlation = correlation
           ctx.route = route
           ctx.dry_run = dry_run

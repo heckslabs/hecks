@@ -6,7 +6,7 @@ require_relative "identity"
 require_relative "instance"
 require_relative "value"
 require_relative "refusal_wording"
-require_relative "routing"
+require_relative "invocation"
 require_relative "dependency_planning"
 require_relative "../ports/persistence/execution"
 require_relative "entity_element"
@@ -76,11 +76,32 @@ module Hecks
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,
-                           :correction_bindings)
+                           :correction_bindings, :invocation)
+
+      # A dotted entity verb resolved against its aggregate — see #resolve.
+      Resolution = Data.define(:entity_names, :chain, :command_name, :command)
 
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
+      end
+
+      # WALKS THE DOTTED VERB to its entity command, refusing UnknownVerb for
+      # an unknown entity or command. Separate from #call so `Dispatcher` can
+      # resolve it at the point `Invocation.from_call` reads the declaring
+      # command — after `to:` is parsed, before the facts are.
+      def resolve(aggregate, dotted)
+        *entity_names, command_name = dotted.to_s.split(".")
+        if entity_names.empty?
+          raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                   aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
+        end
+
+        chain = walk_entity_chain(aggregate, entity_names)
+        command = chain.last.command(command_name) ||
+                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
+                                                           entity: chain.last.hecks_name, command: command_name.inspect))
+        Resolution.new(entity_names: entity_names, chain: chain, command_name: command_name, command: command)
       end
 
       # `dry_run:` — CommandInterpreter#call's own twin, see that method's
@@ -91,23 +112,21 @@ module Hecks
       # `CommandInterpreter#call`'s own retry: a fresh `ctx`, a fresh
       # `step_hydrate_parent`/`step_locate_element` re-reading current
       # state.
-      def call(domain, aggregate, dotted, legacy_args, route: nil, with: nil, dry_run: false)
-        *entity_names, command_name = dotted.to_s.split(".")
-        if entity_names.empty?
-          raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                   aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
-        end
-
-        chain  = walk_entity_chain(aggregate, entity_names)
-        entity = chain.last
-        command = entity.command(command_name) ||
-                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
-                                                           entity: entity.hecks_name, command: command_name.inspect))
-
-        args = Routing.payload(command, with: with, legacy: legacy_args)
+      #
+      # `resolution` is #resolve's answer; `invocation` the
+      # `Runtime::Invocation` `Dispatcher` built — `ctx.args` is its
+      # `to_args`, `ctx.route` its `target`.
+      def call(domain, aggregate, resolution, invocation, dry_run: false)
+        chain        = resolution.chain
+        entity       = chain.last
+        command      = resolution.command
+        command_name = resolution.command_name
+        route        = invocation.target
+        args         = invocation.to_args
         attempt = 0
         begin
-          ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
+          ctx = Context.new(domain, aggregate, entity, resolution.entity_names.join("."), command, command_name, args)
+          ctx.invocation = invocation
           ctx.chain = chain
           ctx.route = route
           ctx.dry_run = dry_run
