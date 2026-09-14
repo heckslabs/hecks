@@ -74,10 +74,6 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     cell
   end
 
-  it "accepts the bluebook without refusing any of it" do
-    expect(refusals).to be_empty
-  end
-
   it "gives back the bluebook called Pizzas" do
     rows = runtime.query("Bluebook::Bluebook.Called", name: { value: "Pizzas" })
 

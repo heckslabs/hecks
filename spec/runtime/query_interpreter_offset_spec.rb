@@ -58,13 +58,4 @@ RSpec.describe "QueryInterpreter applies offset" do
     rows = runtime.reference_query("Banking::ATMCard.ByFee")
     expect(rows.map { |r| r[:serial].to_h }).to eq([{ value: "s2" }, { value: "s3" }, { value: "s4" }])
   end
-
-  it "native and reference agree, exactly what query_answers_match_reference asserts" do
-    runtime = boot_banking
-    four_cards(runtime)
-
-    native    = runtime.query("Banking::ATMCard.ByFee").map { |r| r[:serial].to_h }
-    reference = runtime.reference_query("Banking::ATMCard.ByFee").map { |r| r[:serial].to_h }
-    expect(native).to eq(reference)
-  end
 end

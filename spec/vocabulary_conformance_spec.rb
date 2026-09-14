@@ -55,34 +55,15 @@ RSpec.describe "the declared vocabularies" do
     terms
   end
 
-  {
-    "Comparison"             => -> { Hecks::Bluebook::Expression::Evaluator::COMPARISONS },
-    "QueryComparator"        => -> { Hecks::QuerySpecification::Common::COMPARATORS },
-    "SignTest"               => -> { Hecks::Bluebook::Expression::Resolver::SIGN_TESTS },
-    "IncludeHaystack"        => -> { Hecks::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
-    "ToStringType"           => -> { Hecks::Bluebook::Expression::Resolver::TO_STRING_TYPES },
-    "SizedType"              => -> { Hecks::Bluebook::Expression::Resolver::SIZED_TYPES },
-    "Primitive"              => -> { Hecks::Bluebook::Attribute::PRIMITIVES },
-    "NormalisationStrategy"  => -> { Hecks::Bluebook::Expression::CanonicalForm::STRATEGIES },
-    "LoadOrder"              => -> { Hecks::Adapters::Folder::DOMAIN_ORDER },
-    "DomainRefusal"          => -> { Hecks::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"                => -> { [Hecks::Bluebook::ProcessManager::REFUSED] },
-    # AGGREGATE/ENTITY DISPATCH ORDER, THE SAME SPLIT AS EVERY VOCABULARY
-    # ABOVE — CommandInterpreter/EntityInterpreter#DISPATCH_ORDER is a
-    # hand-typed live table now (call is driven BY it), not read live off the
-    # meta-domain at every dispatch, matching RefusalWording::TEMPLATES'
-    # own reasoning. What used to be checked by tracing a real dispatch and
-    # comparing the trace to the declaration is checked below instead —
-    # tautological now that `call` mechanically follows DISPATCH_ORDER, so
-    # what remains worth proving is coverage (every declared step resolves to
-    # a real handler) and conditional correctness (the two conditional steps
-    # actually fire/skip under the right preconditions), not the sequence.
-    "AggregateDispatchOrder" => -> { Hecks::Runtime::CommandInterpreter::DISPATCH_ORDER },
-    "EntityDispatchOrder"    => -> { Hecks::Runtime::EntityInterpreter::DISPATCH_ORDER }
-  }.each do |vocabulary, live|
-    it "#{vocabulary} matches the table the runtime uses" do
-      expect(declared(vocabulary)).to eq(live.call.map(&:to_s))
-    end
+  # Every OTHER closed set's constant now reads the generated table itself
+  # (lib/hecks/vocabulary.rb, `Hecks::Vocabulary.fetch`/`.symbols`), and
+  # spec/vocabulary_table_spec.rb holds both halves — the table equal to
+  # the declaration, and each constant equal to the table — so a per-set
+  # comparison here would only restate it. Comparison is the exception:
+  # Evaluator::COMPARISONS derives from the operator projection, not the
+  # vocabulary table, so its declared ORDER is still held here.
+  it "Comparison matches the table the runtime uses" do
+    expect(declared("Comparison")).to eq(Hecks::Bluebook::Expression::Evaluator::COMPARISONS.map(&:to_s))
   end
 
   # THE LANGUAGE'S OWN DUPLICATE OF ITS OWN CLOSED SET — GONE, NOT GATED.

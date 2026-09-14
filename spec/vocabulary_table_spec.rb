@@ -24,9 +24,10 @@ RSpec.describe "the generated vocabulary table" do
                          "lib/hecks/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
   end
 
-  # The point of generating rather than gating. spec/vocabulary_conformance_spec
-  # holds each Ruby constant equal to the language; this proves there is
-  # no longer a second thing to hold equal — the constant IS the table.
+  # The point of generating rather than gating. Together with the
+  # regeneration check above, this is what holds each Ruby constant equal
+  # to the language: there is no longer a second thing to hold equal — the
+  # constant IS the table.
   describe "the constants read the table rather than repeating it" do
     {
       "Primitive"             => -> { Hecks::Bluebook::Attribute::PRIMITIVES },

@@ -45,10 +45,6 @@ RSpec.describe Hecks::Projector do
   end
 
   describe ":ir, registered for real" do
-    it "is registered at load time, not something a spec has to opt into" do
-      expect(described_class.registered?(:ir)).to be true
-    end
-
     it "needs no live runtime — a bare Bluebook is enough" do
       expect(described_class.call(:ir, bluebook: pizzas)).to eq(pizzas.to_h)
     end

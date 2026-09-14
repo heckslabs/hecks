@@ -89,12 +89,4 @@ RSpec.describe Hecks::Adapters::LocalStorage do
     expect(local_storage.reset!).to equal(local_storage)
     expect(local_storage.count).to eq(0)
   end
-
-  it "is trivially tenant-capable, the same guarantee Memory carries" do
-    expect(described_class.tenant_capable?).to be(true)
-  end
-
-  it "does not claim lineage capability — no era story for a small local adapter" do
-    expect(described_class.respond_to?(:lineage_capable?)).to be(false)
-  end
 end

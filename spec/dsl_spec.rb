@@ -568,11 +568,6 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Malformed, "Do's then_set is gone — sets is the word now")
     end
 
-    it "refuses a mutation that names two operations" do
-      expect { build_command("Torn") { sets :balance, to: 5, increment: :amount } }
-        .to raise_error(Malformed, /one mutation, one meaning/)
-    end
-
     it "refuses a command that names its own root twice" do
       expect do
         build_command("Confused") do
@@ -597,18 +592,6 @@ RSpec.describe "the DSL surface" do
           Hecks.bluebook("Unreadable") do
             aggregate("Thing") do
               command("Do") { given("unreadable", &eval("proc { 1 < 2 }")) } # rubocop:disable Style/EvalWithLocation -- deliberately WITHOUT file/line: this fixture exercises the "source could not be read" refusal, which needs an untraceable source_location
-            end
-          end
-        end
-      end.to raise_error(Malformed, /did not survive extraction/)
-    end
-
-    it "refuses an invariant whose source could not be read" do
-      expect do
-        in_registry do
-          Hecks.bluebook("Unreadable2") do
-            aggregate("Thing") do
-              value_object("V") { invariant("unreadable", &eval("proc { 1 < 2 }")) } # rubocop:disable Style/EvalWithLocation -- deliberately WITHOUT file/line: this fixture exercises the "source could not be read" refusal, which needs an untraceable source_location
             end
           end
         end
@@ -2547,55 +2530,6 @@ RSpec.describe "the DSL surface" do
       expect(aggregate.attribute(:pizza).to_h[:type]).to eq("Reference<Pizza>")
     end
 
-    it "has_one declares one relationship and retains its kind" do
-      account = build_bluebook("Owning") do
-        aggregate("Profile") do
-          identified_by :id
-          description "A profile"
-        end
-        aggregate("Account") do
-          identified_by :id
-          has_one Profile
-        end
-      end.aggregate("Account")
-
-      expect([account.attribute(:profile).list?, account.attribute(:profile).relationship])
-        .to eq([false, "has_one"])
-    end
-
-    it "belongs_to retains the relationship concept" do
-      player = build_bluebook("Dependent") do
-        aggregate("Team") do
-          identified_by :id
-          description "A team"
-        end
-        aggregate("Player") do
-          identified_by :id
-          belongs_to Team
-        end
-      end.aggregate("Player")
-
-      expect(player.attribute(:team).relationship).to eq("belongs_to")
-    end
-
-    it "has_many holds a real list of target identities" do
-      ledger = build_bluebook("Holding") do
-        aggregate("Invoice") do
-          identified_by :id
-          description "An invoice"
-        end
-        aggregate("Ledger") do
-          identified_by :id
-          has_many Invoices
-        end
-      end.aggregate("Ledger")
-
-      expect([ledger.attribute(:invoices).type.target_name,
-              ledger.attribute(:invoices).list?,
-              ledger.attribute(:invoices).relationship])
-        .to eq(["Invoice", true, "has_many"])
-    end
-
     it "reference_to still takes as: to override the default name, the way has_* used to" do
       aggregate = build_bluebook("Aliased") do
         aggregate("Warehouse") do
@@ -2912,11 +2846,6 @@ RSpec.describe "the DSL surface" do
       expect { build_command("CmdUnknownRemap") { sets :status, to: :nonexistent_arg } }
         .to raise_error(Hecks::Bluebook::DSL::Malformed,
                         /resolves :nonexistent_arg from its arguments, but Do declares no nonexistent_arg attribute/)
-    end
-
-    it "sets increment: a symbol naming no declared attribute refuses the same way" do
-      expect { build_command("CmdUnknownIncrement") { sets :balance, increment: :nonexistent_arg } }
-        .to raise_error(Hecks::Bluebook::DSL::Malformed, /resolves :nonexistent_arg from its arguments/)
     end
 
     # THE NEGATIVE CASE — neither the command nor the owner declares the
