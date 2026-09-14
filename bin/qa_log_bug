@@ -12,6 +12,18 @@
 # exit 1, unless the command exits non-zero. A passing demonstration
 # proves nothing and is not logged.
 #
+# `--reproduced no` IS THE ONE DELIBERATE EXCEPTION, for a finding an
+# agent is confident is real but cannot get to reproduce reliably
+# (flaky, environment-sensitive, timing-dependent) — without it, that
+# finding was simply LOST: never logged at all, because the must-fail
+# check above has no reliable pass/fail signal to check. `--demonstration`
+# is STILL REQUIRED with `--reproduced no` — it must still be a real
+# reproduction script or command, an agent's own best-effort attempt,
+# saved as actual runnable code — but it is not RUN, and is checked only
+# for looking like runnable code rather than prose (`looks_runnable?`,
+# below). Default remains `yes`, unchanged: every ordinary bug still
+# demands a demonstration that actually fails.
+#
 # IT ALSO MINTS THE NUMBER. `BUG#<n>` used to be "pick the next Bug
 # number" in `.claude/skills/hecks_qa/SKILL.md` — and a real BUG#21 was
 # assigned twice, by two agents each reading `Bug.All` and each adding
@@ -31,14 +43,15 @@
 #   bin/qa_log_bug --sweep <sweep-id> --title "…" \
 #     --demonstration "bundle exec rspec spec/x_spec.rb -e 'the case'" \
 #     --symptom "…" --expectation "…" --submitter "<who>" \
-#     --triage self_contained|bigger [--tag word]…
+#     --triage self_contained|bigger [--tag word]… [--reproduced yes|no]
 #
 # EXIT CODES:
 #   0  logged — the minted reference is the last line of stdout
 #      (`logged BUG#n …`), for a caller to read back.
-#   1  refused — the demonstration passed, an argument is missing, the
-#      sweep does not exist, or the ledger would not boot. Nothing was
-#      written.
+#   1  refused — the demonstration passed (or, with `--reproduced no`,
+#      does not look like a runnable script/command), an argument is
+#      missing, the sweep does not exist, or the ledger would not boot.
+#      Nothing was written.
 #
 # WHAT THIS DELIBERATELY DOES NOT DO: decide whether a surprise is a
 # real bug (that judgment happens before this is ever run), write the
@@ -63,18 +76,21 @@ EXIT_OK      = 0
 EXIT_REFUSED = 1
 
 USAGE = "usage: bin/qa_log_bug --sweep <sweep-id> --title \"…\" --demonstration \"<command that must FAIL>\" " \
-        "--symptom \"…\" --expectation \"…\" --submitter \"<who>\" --triage self_contained|bigger [--tag word]…".freeze
+        "--symptom \"…\" --expectation \"…\" --submitter \"<who>\" --triage self_contained|bigger " \
+        "[--tag word]… [--reproduced yes|no]".freeze
 
 DISPOSITIONS = %w[self_contained bigger].freeze
+REPRODUCED   = %w[yes no].freeze
 
-options = { tags: [] }
+options = { tags: [], reproduced: "yes" }
 until ARGV.empty?
   arg = ARGV.shift
   case arg
   when "-h", "--help"
     puts USAGE
     exit EXIT_OK
-  when "--sweep", "--title", "--demonstration", "--symptom", "--expectation", "--submitter", "--triage"
+  when "--sweep", "--title", "--demonstration", "--symptom", "--expectation", "--submitter", "--triage",
+       "--reproduced"
     value = ARGV.shift
     abort "#{USAGE}\n#{arg} needs a value" if value.nil? || value.empty?
     options[arg.delete_prefix("--").to_sym] = value
@@ -93,25 +109,64 @@ end
 unless DISPOSITIONS.include?(options[:triage])
   abort "#{USAGE}\n--triage must be one of #{DISPOSITIONS.join('|')}, got #{options[:triage].inspect}"
 end
+unless REPRODUCED.include?(options[:reproduced])
+  abort "#{USAGE}\n--reproduced must be one of #{REPRODUCED.join('|')}, got #{options[:reproduced].inspect}"
+end
+
+# ── does `--demonstration` look like code, not prose? ──────────────────
+#
+# ONLY MEANINGFUL WHEN THE MUST-FAIL CHECK BELOW IS SKIPPED (`--reproduced
+# no`) — the must-fail check itself is a far stronger proof that the
+# string is real runnable code (it ran it), so this only needs to run on
+# the path that never executes the string at all. A real path already on
+# disk (a saved spec/script — `tmp/qa-repro-attempts/…`, or a file the
+# fix work will carry alongside it) or a line that plainly launches a
+# command (`bundle exec …`, `bin/…`, `./…`, a bare interpreter, or a
+# direct `Hecks::Fuzzing::Replay.call` snippet) both count; a sentence
+# describing what happened does not.
+def looks_runnable?(str)
+  first = str.to_s.strip.split(/\s+/).first.to_s
+  return true if first.start_with?("/") && File.exist?(first)
+  return true if File.exist?(File.expand_path(first, ROOT))
+  return true if first.match?(%r{\A(bundle|bin/|\./|rspec|ruby|sh|bash|zsh|python3?|node|cargo)\b})
+  return true if str.match?(/\.(rb|sh|py|rs|js)\b/)
+  return true if str.include?("Hecks::Fuzzing::Replay")
+
+  false
+end
 
 # ── run the demonstration, and refuse a passing one ────────────────────
 #
-# THE ONE THING THE LEDGER CANNOT CHECK, CHECKED HERE. Run through `sh
-# -c` exactly the way a human would paste it, from the repository root,
-# with its output captured and its tail printed either way — a refusal
-# should show WHY the command passed, and a logged bug should show the
-# failure it is being logged with.
-demo_out, demo_status = Open3.capture2e("sh", "-c", options[:demonstration], chdir: ROOT)
-tail = demo_out.lines.last(15).join
+# THE ONE THING THE LEDGER CANNOT CHECK, CHECKED HERE — UNLESS
+# `--reproduced no` SAYS THERE IS NO RELIABLE SIGNAL TO CHECK. Run
+# through `sh -c` exactly the way a human would paste it, from the
+# repository root, with its output captured and its tail printed either
+# way — a refusal should show WHY the command passed, and a logged bug
+# should show the failure it is being logged with.
+if options[:reproduced] == "no"
+  unless looks_runnable?(options[:demonstration])
+    abort "#{USAGE}\nrefused: --demonstration doesn't look like a runnable script or command — " \
+          "#{options[:demonstration].inspect}\n" \
+          "with --reproduced no there is no pass/fail signal to check, but the demonstration must still be " \
+          "real, saved, runnable code (a file path or a shell/ruby invocation), never prose describing what " \
+          "happened. Nothing was logged."
+  end
+  puts "reproduced=no — skipping the must-fail check (no reliable pass/fail signal for this finding)"
+  puts "demonstration (best-effort, not run): #{options[:demonstration]}"
+else
+  demo_out, demo_status = Open3.capture2e("sh", "-c", options[:demonstration], chdir: ROOT)
+  tail = demo_out.lines.last(15).join
 
-if demo_status.success?
+  if demo_status.success?
+    puts tail
+    abort "refused: the demonstration PASSED (exit 0) — #{options[:demonstration].inspect}\n" \
+          "a bug is logged with the failing test that proves it; a passing command proves nothing. " \
+          "Nothing was logged."
+  end
+
+  puts "demonstration failed as required (exit #{demo_status.exitstatus.inspect}):"
   puts tail
-  abort "refused: the demonstration PASSED (exit 0) — #{options[:demonstration].inspect}\n" \
-        "a bug is logged with the failing test that proves it; a passing command proves nothing. Nothing was logged."
 end
-
-puts "demonstration failed as required (exit #{demo_status.exitstatus.inspect}):"
-puts tail
 puts
 
 # ── boot the ledger for real ───────────────────────────────────────────
@@ -158,6 +213,7 @@ def mint_and_log!(runtime, sweep, options)
         symptom:       { value: options[:symptom] },
         expectation:   { value: options[:expectation] },
         submitter:     { value: options[:submitter] },
+        reproduced:    { value: options[:reproduced] },
         **(options[:tags].empty? ? {} : { tags: options[:tags].map { |tag| { value: tag } } })
       )
     rescue Hecks::Runtime::AlreadyExists
@@ -170,6 +226,6 @@ end
 bug = mint_and_log!(runtime, sweep, options)
 bug = bug.triage!(disposition: { value: options[:triage] })
 
-puts "logged #{bug.id} (sequence #{bug.sequence.value}, #{bug.disposition.value}) against #{sweep.id}: " \
-     "#{options[:title]}"
+puts "logged #{bug.id} (sequence #{bug.sequence.value}, #{bug.disposition.value}, " \
+     "reproduced=#{bug.reproduced.value}) against #{sweep.id}: #{options[:title]}"
 exit EXIT_OK

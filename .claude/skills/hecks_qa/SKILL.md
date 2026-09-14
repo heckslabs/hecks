@@ -72,13 +72,27 @@ in order:
 2. **Write the failing test** that proves it — a real spec or command
    that exits non-zero today. Build it from the shrunk steps, not the
    full generated seed: they are already the minimal sequence that
-   still reproduces the same finding.
+   still reproduces the same finding. **If you are confident the finding
+   is genuine but cannot get a reliable, deterministic reproduction**
+   (flaky, environment-sensitive, timing-dependent) — do NOT silently
+   drop it. Author your best-effort reproduction attempt anyway: real,
+   runnable code (a spec file, a script, a direct
+   `Hecks::Fuzzing::Replay.call` snippet — whatever fits), saved under
+   `tmp/qa-repro-attempts/` (the same convention `tmp/qa-shrunk/` already
+   uses for shrunk sequences) or committed alongside any fix work, then
+   log it with `--reproduced no` (step 3) rather than leaving it
+   unlogged.
 3. **Log it, triaged:** `bin/qa_log_bug --sweep <sweep-id> --title … \
    --demonstration "<that command>" --symptom … --expectation … \
-   --submitter <you> --triage self_contained|bigger`. It RUNS the
-   demonstration and refuses a passing one; it mints `BUG#n` itself.
-   `self_contained` means a missing guard, an off-by-one, a validation
-   gap — no semantic or architectural call. Anything else is `bigger`.
+   --submitter <you> --triage self_contained|bigger [--reproduced no]`.
+   It RUNS the demonstration and refuses a passing one — UNLESS
+   `--reproduced no` is passed (default `yes`), which skips that check
+   for exactly the no-reliable-signal case above. `--demonstration` is
+   still required either way, and must still be real runnable code (a
+   file path or an actual command), never prose describing what
+   happened. It mints `BUG#n` itself. `self_contained` means a missing
+   guard, an off-by-one, a validation gap — no semantic or architectural
+   call. Anything else is `bigger`.
 4. **If `self_contained`:** fix it on a fresh `qa/<slug>` branch in the
    runner worktree; move the bug through `bin/run qa/bluebook
    bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
@@ -156,7 +170,10 @@ never the whole answer.
   auto-merge per the dial; CI decides).
 - Waive a gate. `sweep.waive`/`bug.waive` now REFUSE `waived_by`
   `qa_sweep` and `nobody` — only a signed person gets through.
-- Release a suspended target, log a bug without a failing demonstration,
-  or mint a `BUG#` by hand — the scripts refuse each.
+- Release a suspended target, log a bug without a `--demonstration` at
+  all, or mint a `BUG#` by hand — the scripts refuse each.
+  `--demonstration` must still fail when run UNLESS `--reproduced no`
+  says there is no reliable pass/fail signal to check (see "On a
+  finding" above) — but it is never optional, and never prose.
 - Run the tick inline, hand it a fresh worktree, or skip `bin/qa_pr_check`
   — `bin/qa_tick` is the order.

@@ -1475,6 +1475,46 @@ RSpec.describe "QualityControl" do
     end
   end
 
+  # ── whether it reliably reproduces ───────────────────────────────────
+
+  describe "reproduced" do
+    def a_bug_reproduced(sweep, reproduced:)
+      QualityControl::Bug.log!(
+        sweep: sweep.id,
+        reference: { value: "BUG#1" }, sequence: { value: 1 },
+        title: { value: "as: is accepted and does not alias" },
+        demonstration: { value: 'rspec spec/qa_bugs_spec.rb -e "aliasing"' },
+        symptom: { value: "the alias is ignored and the original name still answers" },
+        expectation: { value: "the aliased name answers and the original does not" },
+        submitter: { value: "Claude QA" },
+        reproduced: { value: reproduced }
+      )
+    end
+
+    it "defaults to yes when Log omits it — additive over every bug already on file" do
+      bug = a_bug(a_sweep)
+
+      expect(bug.reproduced.to_h).to eq(value: "yes")
+    end
+
+    it "can be logged as no, for a finding with no reliable pass/fail signal" do
+      bug = a_bug_reproduced(a_sweep, reproduced: "no")
+
+      expect(bug.reproduced.to_h).to eq(value: "no")
+    end
+
+    it "can be logged as yes explicitly, same as the default" do
+      bug = a_bug_reproduced(a_sweep, reproduced: "yes")
+
+      expect(bug.reproduced.to_h).to eq(value: "yes")
+    end
+
+    it "refuses any value outside the closed set" do
+      expect { a_bug_reproduced(a_sweep, reproduced: "maybe") }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /Reproduced admits "yes", "no"/)
+    end
+  end
+
   # ── when a PR was opened ─────────────────────────────────────────────
 
   describe "when a PR was opened" do
