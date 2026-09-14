@@ -70,6 +70,14 @@ module Hecks
     module SelfConsistency
       module_function
 
+      # EVERY Heki THIS PASS OPENS IS GUARDED like a runtime repository
+      # (Phase 2, Track A, PR A4). These adapters are built directly, not
+      # through `RepositoryFactory.build`, so without this a cold read here
+      # could hand `Runtime::Instance` undecoded state and the codec's
+      # guarantee would have a bypass in exactly the check that exists to
+      # compare stored state against live state.
+      def guarded_heki(**options) = Ports::Persistence::CodecBoundary.guard!(Adapters::Heki.new(**options))
+
       # THE WHOLE PASS — called once, with the runtime STILL LIVE (inside
       # `Replay.call`'s own `IsolatedBoot.call` block, before the tmp
       # directory and its adapters go out of scope) and the `history`
@@ -91,7 +99,7 @@ module Hecks
         each_touched_repository(runtime).filter_map do |domain_name, aggregate, repository, entries|
           live = snapshot(repository)
           Dir.mktmpdir("hecks-self-consistency") do |tmp|
-            writer     = Adapters::Heki.new(aggregate: aggregate, root: tmp)
+            writer     = guarded_heki(aggregate: aggregate, root: tmp)
             rehydrated = fold!(writer, tmp, aggregate, entries)
             next if rehydrated == live
 
@@ -110,7 +118,7 @@ module Hecks
       def check_idempotency(runtime)
         each_touched_repository(runtime).filter_map do |domain_name, aggregate, repository, entries|
           Dir.mktmpdir("hecks-self-consistency") do |tmp|
-            writer = Adapters::Heki.new(aggregate: aggregate, root: tmp)
+            writer = guarded_heki(aggregate: aggregate, root: tmp)
             once   = fold!(writer, tmp, aggregate, entries)
             twice  = fold!(writer, tmp, aggregate, entries)
             next if once == twice
@@ -237,7 +245,7 @@ module Hecks
           next unless anchor
 
           Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
-            writer = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+            writer = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
             persisted.each do |correlation, saga|
               writer.save_saga(process_manager: process_manager.name, correlation: correlation.to_s,
                                state: saga[:state], memory: saga[:memory], completed_compensations: [])
@@ -477,7 +485,7 @@ module Hecks
       # process memory (the same reason `fold!`, above, opens a second
       # `Adapters::Heki` instance rather than reading its own writer back).
       def cold_read_saga_rows(anchor, tmp, domain_name)
-        reader = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+        reader = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
         reader.each_saga.with_object({}) do |(_pm, correlation, state, memory, _completed), rows|
           rows[correlation] = { state: state, memory: deep_stringify_keys(memory) }
         end
@@ -556,11 +564,11 @@ module Hecks
                                     correlation, saga, redelivery)
         # rubocop:disable-next Metrics/BlockLength
         Dir.mktmpdir("hecks-self-consistency-saga") do |tmp|
-          writer = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+          writer = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
           writer.save_saga(process_manager: process_manager.name, correlation: correlation.to_s,
                            state: saga[:state], memory: saga[:memory], completed_compensations: [])
 
-          rehydrated = Adapters::Heki.new(aggregate: anchor, root: tmp, settings: { domain: domain_name })
+          rehydrated = guarded_heki(aggregate: anchor, root: tmp, settings: { domain: domain_name })
                                      .each_saga.find { |_pm, corr, *| corr == correlation.to_s }
           next unless rehydrated
 
@@ -619,7 +627,7 @@ module Hecks
           writer.project(entry)
         end
 
-        Adapters::Heki.new(aggregate: aggregate, root: tmp).all
+        guarded_heki(aggregate: aggregate, root: tmp).all
                       .to_h { |record| [record.id.to_s, Runtime::Value.materialize(record.state)] }
       end
 

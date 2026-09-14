@@ -145,7 +145,11 @@ candidates.each do |candidate|
   domain_name = candidate[:domain_name]
   aggregate   = candidate[:aggregate]
 
-  source = Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
+  # Guarded like a factory-built repository (PR A4): a legacy Heki store
+  # read here must decode through the state codec before it is migrated.
+  source = Hecks::Ports::Persistence::CodecBoundary.guard!(
+    Hecks::Adapters::Heki.new(aggregate: aggregate, settings: { dir: heki_dir }, root: nil)
+  )
   dest   = registry.repository(domain_name, aggregate)
 
   source.all.each do |instance|
