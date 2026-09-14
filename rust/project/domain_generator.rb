@@ -56,12 +56,56 @@ module RustProjection
     # `kernel::cli.rs`'s own JSON router, because the owning aggregate's
     # or entity's identity shape isn't one `extract_id` resolves). Nothing
     # else in this generator has that second axis, so nothing else sets it.
-    def manifest_entry(kind:, id:, generated:, reason: nil, gap_class: nil, routed: nil)
+    #
+    # `construct` — THE MACHINE-READABLE HALF OF A GAP. Every entry that
+    # carries a `gap_class` also names the construct family that forced
+    # it (`reference_hop_where`, `optional_source`, `entity_query`, ...;
+    # `Projector::SkipReason#construct`, set by the very branch that wrote
+    # `reason`). Readers tolerate or allowlist a gap by `kind` +
+    # `gap_class` + `construct`, never by matching `reason` prose:
+    # `Hecks::Fuzzing::RustGapManifest` (the differential fuzzer),
+    # `bin/rust_coverage`'s ALLOWLIST, and the `structural_refusal_
+    # boundary` ratchet in spec/fuzzing/rust_gap_manifest_spec.rb. Refused
+    # here, at write time, rather than defaulted: a gap with no construct
+    # is a skip nobody classified, which is exactly what those readers
+    # exist to stop tolerating.
+    def manifest_entry(kind:, id:, generated:, reason: nil, gap_class: nil, routed: nil, construct: nil)
+      if (generated == false || routed == false) && gap_class.nil?
+        raise ArgumentError, "manifest entry #{kind} #{id} records a gap with no gap_class"
+      end
+      if gap_class && construct.to_s.empty?
+        raise ArgumentError, "manifest entry #{kind} #{id} declares gap_class #{gap_class.inspect} with no construct — " \
+                             "every recorded gap names the construct family that forced it"
+      end
+
       entry = { kind: kind, id: id, generated: generated }
       entry[:routed] = routed unless routed.nil?
       entry[:gap_class] = gap_class if gap_class
-      entry[:reason] = reason if reason
+      entry[:construct] = construct.to_s if gap_class
+      entry[:reason] = reason.to_s if reason
       entry
+    end
+
+    # ENTITY-SCOPED QUERIES — `query` blocks declared inside an entity
+    # (`Banking::Account.LedgerEntry.Reversed`, `Chess::Game.Piece.OnBoard`).
+    # Nothing in this generator emits a QUERIES row for one (the query loop
+    # in `call` walks `aggregate[:queries]` only), so `kernel/cli.rs`
+    # refuses every such ask as "not generated". These entries used to be
+    # missing from the manifest entirely — the differential fuzzer only
+    # tolerated the refusal because it matched Rust's wording. Recorded
+    # here as the whole-kind gap they are, recursively, one entry per
+    # declared entity query at any depth.
+    def entity_query_entries(owner_id, entities)
+      entities.flat_map do |entity|
+        entity_id = "#{owner_id}.#{entity[:name]}"
+        own = Array(entity[:queries]).map do |query|
+          manifest_entry(kind: "query", id: "#{entity_id}.#{query[:name]}", generated: false, gap_class: "whole_kind",
+                         construct: "entity_query",
+                         reason: "an entity-scoped query has no generated code path — only an aggregate's own " \
+                                 "declared queries reach the QUERIES table")
+        end
+        own + entity_query_entries(entity_id, Array(entity[:entities]))
+      end
     end
 
     def lifecycle_extra_field(node)
@@ -397,7 +441,7 @@ module RustProjection
                               "(a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
           puts "skipping #{domain_name}::#{aggregate[:name]}: #{aggregate_reason}"
           manifest << manifest_entry(kind: "aggregate", id: "#{domain_name}::#{aggregate[:name]}", generated: false,
-                                      gap_class: "per_instance", reason: aggregate_reason)
+                                      gap_class: "per_instance", construct: "attribute_type", reason: aggregate_reason)
           # CASCADE, not silence: every command/entity-command/port-op this
           # skipped aggregate owns was never even considered for its OWN
           # per-instance checks (`command_skip_reason` etc. all need a
@@ -408,17 +452,17 @@ module RustProjection
           aggregate[:commands].each do |command|
             manifest << manifest_entry(kind: "command", id: "#{domain_name}::#{aggregate[:name]}.#{command[:name]}",
                                         generated: false, gap_class: "per_instance",
-                                        reason: "owning aggregate not generated: #{aggregate_reason}")
+                                        construct: "owning_aggregate", reason: "owning aggregate not generated: #{aggregate_reason}")
           end
           aggregate[:entities].each do |entity|
             manifest << manifest_entry(kind: "entity", id: "#{domain_name}::#{aggregate[:name]}.#{entity[:name]}",
                                         generated: false, gap_class: "per_instance",
-                                        reason: "owning aggregate not generated: #{aggregate_reason}")
+                                        construct: "owning_aggregate", reason: "owning aggregate not generated: #{aggregate_reason}")
             entity[:commands].each do |command|
               manifest << manifest_entry(kind: "entity_command",
                                           id: "#{domain_name}::#{aggregate[:name]}.#{entity[:name]}.#{command[:name]}",
                                           generated: false, gap_class: "per_instance",
-                                          reason: "owning aggregate not generated: #{aggregate_reason}")
+                                          construct: "owning_aggregate", reason: "owning aggregate not generated: #{aggregate_reason}")
             end
           end
           aggregate[:ports].each do |port|
@@ -426,7 +470,7 @@ module RustProjection
               manifest << manifest_entry(kind: "port_operation",
                                           id: "#{domain_name}::#{aggregate[:name]}.#{port[:name]}.#{operation[:name]}",
                                           generated: false, gap_class: "per_instance",
-                                          reason: "owning aggregate not generated: #{aggregate_reason}")
+                                          construct: "owning_aggregate", reason: "owning aggregate not generated: #{aggregate_reason}")
             end
           end
           next
@@ -611,7 +655,7 @@ module RustProjection
                 if reason
                   puts "skipping #{nested_command_verb}: #{reason}"
                   manifest << manifest_entry(kind: "entity_command", id: nested_command_verb, generated: false,
-                                              gap_class: "per_instance", reason: reason)
+                                              gap_class: "per_instance", construct: reason.construct, reason: reason)
                   next
                 end
 
@@ -697,7 +741,7 @@ module RustProjection
               if reason
                 puts "skipping #{entity_command_verb}: #{reason}"
                 manifest << manifest_entry(kind: "entity_command", id: entity_command_verb, generated: false,
-                                            gap_class: "per_instance", reason: reason)
+                                            gap_class: "per_instance", construct: reason.construct, reason: reason)
                 next
               end
 
@@ -719,7 +763,7 @@ module RustProjection
               unless entity_can_route
                 manifest << manifest_entry(kind: "entity_command", id: entity_command_verb, generated: true,
                                             routed: false, gap_class: "per_instance",
-                                            reason: "generated as a real Rust function, but not JSON-dispatchable — #{entity_router_reason}")
+                                            construct: "router_identity", reason: "generated as a real Rust function, but not JSON-dispatchable —#{entity_router_reason}")
                 next
               end
 
@@ -885,7 +929,7 @@ module RustProjection
             reason = Projector.command_skip_reason(command, aggregate, value_objects_by_name)
             if reason
               puts "skipping #{command_verb}: #{reason}"
-              manifest << manifest_entry(kind: "command", id: command_verb, generated: false, gap_class: "per_instance", reason: reason)
+              manifest << manifest_entry(kind: "command", id: command_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
               next
             end
 
@@ -960,7 +1004,7 @@ module RustProjection
               puts "skipping #{command_verb}'s JSON router entry: #{acting_router_reason}"
               manifest << manifest_entry(kind: "command", id: command_verb, generated: true, routed: false,
                                           gap_class: "per_instance",
-                                          reason: "generated as a real Rust function, but not JSON-dispatchable — #{acting_router_reason}")
+                                          construct: "router_identity", reason: "generated as a real Rust function, but not JSON-dispatchable —#{acting_router_reason}")
               next
             end
 
@@ -1038,7 +1082,7 @@ module RustProjection
               if reason
                 puts "skipping #{operation_verb}: #{reason}"
                 manifest << manifest_entry(kind: "port_operation", id: operation_verb, generated: false,
-                                            gap_class: "per_instance", reason: reason)
+                                            gap_class: "per_instance", construct: reason.construct, reason: reason)
                 next
               end
 
@@ -1174,7 +1218,7 @@ module RustProjection
           reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name)
           if reason
             puts "skipping query #{query_verb}: #{reason}"
-            manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", reason: reason)
+            manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
             next
           end
 
@@ -1191,6 +1235,8 @@ module RustProjection
             authorization: Projector.emit_query_authorization(query[:name], query[:authorization]),
           }
         end
+
+        manifest.concat(entity_query_entries("#{domain_name}::#{aggregate[:name]}", aggregate[:entities]))
       end
 
       # ── READ MODELS — a declared `report "X" do ... end` block
@@ -1212,7 +1258,7 @@ module RustProjection
         reason = Projector.read_model_skip_reason(read_model, aggregates_by_name, unsupported_names)
         if reason
           puts "skipping read_model #{read_model_id}: #{reason}"
-          manifest << manifest_entry(kind: "read_model", id: read_model_id, generated: false, gap_class: "per_instance", reason: reason)
+          manifest << manifest_entry(kind: "read_model", id: read_model_id, generated: false, gap_class: "per_instance", construct: reason.construct, reason: reason)
           next
         end
 

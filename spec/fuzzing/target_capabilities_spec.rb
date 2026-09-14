@@ -145,39 +145,31 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities do
     end
   end
 
+  # Constructs come from banking's committed manifest.json, the generator's
+  # own record of why it skipped each verb — not from the Ruby declaration.
   describe Hecks::Fuzzing::StructuralSkips do
     let(:skips) { described_class }
-    let(:bluebooks) { Hecks::Fuzzing::Replay.call(CAP_BANKING, [])[:bluebooks] }
+    let(:gaps)  { Hecks::Fuzzing::RustGapManifest.new(rust_dir: CAP_RUST_DIR, feature: "banking") }
 
-    it "attributes a declared query to the constructs its own declaration carries" do
-      constructs = skips.constructs_of(bluebooks, "Banking::ATMCard.ByFee")
-      expect(constructs).to include("limit", "offset", "order_by", "where_literal")
+    it "attributes a skipped query to the construct its manifest entry names" do
+      expect(skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers]))
+        .to eq([{ verb: "Banking::Account.OpenForSuspendedCustomers", constructs: %w[reference_hop_where] }])
+      expect(skips.attribute(gaps, %w[Banking::Account.LedgerEntry.Reversed]).first[:constructs]).to eq(%w[entity_query])
     end
 
-    it "attributes a rootless, grouped read model to rootless + group_by" do
-      expect(skips.constructs_of(bluebooks, "Banking.accounts_by_kind")).to include("rootless", "group_by")
+    it "answers `unknown` for a verb the manifest never declared not generated" do
+      # `Banking::ATMCard.ByFee` is generated; `customer_portfolio` is a
+      # generated read model. Neither can be explained as a declared skip.
+      attributed = skips.attribute(gaps, %w[Banking::ATMCard.ByFee Banking.customer_portfolio])
+      expect(attributed.map { |e| e[:constructs] }).to eq([%w[unknown], %w[unknown]])
+      expect(skips.outside_boundary(attributed, %w[reference_hop_where entity_query]).size).to eq(2)
     end
 
-    it "answers `unknown` for a verb Ruby never declared — a stale generated tree is not a boundary" do
-      expect(skips.constructs_of(bluebooks, "Banking::Account.NoSuchQuery")).to eq(%w[unknown])
-      expect(skips.constructs_of(bluebooks, "Banking.no_such_report")).to eq(%w[unknown])
-    end
-
-    it "flags a skipped verb with no admitted construct, and passes one whose constructs the boundary admits" do
-      attributed = skips.attribute(bluebooks, %w[Banking::ATMCard.ByFee Banking.customer_portfolio])
-      outside    = skips.outside_boundary(attributed, %w[limit offset order_by where_literal])
-
-      # `customer_portfolio` is a rooted read model with nothing but heads —
-      # the generated subset. If Rust ever refused it as "not generated",
-      # nothing explains the skip: that is the surprise this exists for.
-      expect(outside.map { |e| e[:verb] }).to eq(%w[Banking.customer_portfolio])
-    end
-
-    it "flags a construct the boundary does not admit" do
-      attributed = skips.attribute(bluebooks, %w[Banking::ATMCard.ByFee])
-      expect(skips.outside_boundary(attributed, %w[limit order_by]).map { |e| e[:verb] })
-        .to eq(%w[Banking::ATMCard.ByFee])
-      expect(skips.outside_boundary(attributed, %w[limit offset order_by where_literal])).to be_empty
+    it "flags a construct the boundary does not admit, and passes one it does" do
+      attributed = skips.attribute(gaps, %w[Banking::Account.OpenForSuspendedCustomers])
+      expect(skips.outside_boundary(attributed, %w[entity_query]).map { |e| e[:verb] })
+        .to eq(%w[Banking::Account.OpenForSuspendedCustomers])
+      expect(skips.outside_boundary(attributed, %w[reference_hop_where])).to be_empty
     end
   end
 end

@@ -455,12 +455,21 @@
     "id": "Banking::Account.OpenForSuspendedCustomers",
     "generated": false,
     "gap_class": "per_instance",
+    "construct": "reference_hop_where",
     "reason": "where clause on \"customer/status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
   },
   {
     "kind": "query",
     "id": "Banking::Account.OpenForCustomer",
     "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.LedgerEntry.Reversed",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "construct": "entity_query",
+    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
   },
   {
     "kind": "query",
@@ -476,6 +485,14 @@
     "kind": "query",
     "id": "Banking::ATMCard.ByFee",
     "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.Withdrawal.Recent",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "construct": "entity_query",
+    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
   },
   {
     "kind": "query",
@@ -496,6 +513,14 @@
     "kind": "query",
     "id": "Banking::SafeDepositBox.Rented",
     "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::SafeDepositBox.Visit.Recent",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "construct": "entity_query",
+    "reason": "an entity-scoped query has no generated code path — only an aggregate's own declared queries reach the QUERIES table"
   },
   {
     "kind": "query",
