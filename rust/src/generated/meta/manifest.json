@@ -544,9 +544,6 @@
   {
     "kind": "read_model",
     "id": "Bluebook::WholeBluebook",
-    "generated": false,
-    "gap_class": "per_instance",
-    "construct": "include_undeclared_aggregate",
-    "reason": "includes Member, which this domain never declares"
+    "generated": true
   }
 ]
