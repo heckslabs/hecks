@@ -116,7 +116,7 @@ if !absent.is_empty() {
         ("declared", "label"),
     ])));
 }
- } let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json)?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id(facts_json)?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::generated_entity_no_identity::kiosk::LineLabelEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on a Kiosk's Line — pass code.value:".to_string()))?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Line — pass batch.value, sequence.value:".to_string()))?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::generated_entity_no_identity::kiosk::LineLabelEntityArgs::from_json(facts_json)?;
                       args.label.check_invariants()?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedEntityNoIdentity::Kiosk", &parent_id);
@@ -135,11 +135,11 @@ if !absent.is_empty() {
 let unknown = v.unknown_keys(&["id", "code", "batch", "sequence"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Settle does not declare {} — it takes ",
+        "Settle does not declare {} — it takes none",
         unknown.join(", ")
     )));
 }
- } let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json)?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id(facts_json)?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
+ } let _args_precheck = crate::generated::generated_entity_no_identity::kiosk::LineSettleEntityArgs::from_json(facts_json)?; let parent_id = crate::generated::generated_entity_no_identity::kiosk::Kiosk::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on a Kiosk's Line — pass code.value:".to_string()))?; let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on one Line — pass batch.value, sequence.value:".to_string()))?; let element_wants = crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };
               let args = crate::generated::generated_entity_no_identity::kiosk::LineSettleEntityArgs::from_json(facts_json)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "GeneratedEntityNoIdentity::Kiosk", &parent_id);
               let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
