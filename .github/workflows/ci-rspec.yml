@@ -210,4 +210,20 @@ jobs:
           while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
           bundle exec parallel_rspec "${FILES[@]}" \
             --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \
-            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation"
+            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
+
+      # UPLOADED, NEVER RESTORED — this run's own per-file seconds, kept as
+      # an artifact so `bin/refresh_rspec_runtime_baseline --from-run
+      # <run-id>` can rebuild the committed baseline from CI timings rather
+      # than a laptop's (subprocess-heavy specs run ~2.7x slower here,
+      # relative to the rest of the suite, than locally — PR #688's run).
+      # Grouping above never reads it: a cached log is exactly the input
+      # that made the legs diverge (see the shard-list step).
+      - name: Upload this shard's runtime log (for bin/refresh_rspec_runtime_baseline --from-run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rspec-runtime-group-${{ matrix.group }}
+          path: tmp/runtime_rspec.log
+          retention-days: 14
+          if-no-files-found: ignore
