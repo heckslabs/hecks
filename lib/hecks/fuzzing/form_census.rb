@@ -1,4 +1,5 @@
 require "json"
+require_relative "../corpus"
 
 module Hecks
   module Fuzzing
@@ -140,17 +141,11 @@ module Hecks
         end
       end
 
-      # WHERE A DOMAIN PATH KEEPS ITS BLUEBOOKS — `<domain>/bluebook/*.
-      # bluebook` (every example and stress domain), or the directory
-      # itself (`qa/bluebook`, the ledger's own `Target.path`): the same
-      # two shapes `bin/model_check`'s `bluebook_in` reads. `nil` when
-      # neither holds a bluebook.
+      # WHERE A DOMAIN PATH KEEPS ITS BLUEBOOKS — see
+      # `Hecks::Corpus.bluebook_files`, the one definition every corpus
+      # walk shares. `nil` when neither shape holds a bluebook.
       def bluebook_files(domain_path)
-        [File.join(domain_path, "bluebook"), domain_path].each do |dir|
-          files = Dir[File.join(dir, "*.bluebook")]
-          return files unless files.empty?
-        end
-        nil
+        Hecks::Corpus.bluebook_files(domain_path)
       end
 
       # THE SAME CENSUS OVER A DOMAIN ON DISK, booted the lightweight
