@@ -119,6 +119,7 @@ AllCops:
     # bare, wildcard-free path is the one shape that stopped working.
     # `bin/project_deploy`, below, hit the identical failure mode.
     - "**/lib/hecks/vocabulary.rb"
+    - "**/lib/hecks/bluebook/dsl/bootstrap_table.rb"
     - "**/lib/hecks/projections/parser_table.rb"
     - "**/lib/hecks/bluebook/policy.rb"
     # PRE-EXISTING, UNRELATED TO THIS CONFIG — `ruby -c bin/project_deploy`

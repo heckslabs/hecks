@@ -32,6 +32,7 @@ print a usage line on a missing argument).
 | `bin/pattern-cases` | THE RECORDED FIXTURE for `pattern:`, and how to regenerate it : bin/pattern-cases > spec/corpus/fixtures/patterns.json spec/pattern_subse... |
 | `bin/present` | Boots the banking example against the in-memory adapter (same rebind spec/facade/handle_spec.rb already uses — banking.hecksagon itself b... |
 | `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
+| `bin/project_bootstrap_table` | Projects the grammar's bootstrap-window fallbacks into lib/hecks/bluebook/dsl/bootstrap_table.rb, from the Keyword rows' own calls:/re... |
 | `bin/project_cli` | Mints a command-line binary for a domain, named after its bluebook. bin/project_cli # every domain in this checkout bin/project_cli qa # ... |
 | `bin/project_deploy` | The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md. Generates the SAM template and build Makefile for rus... |
 | `bin/project_diagrams` | Projects a booted domain's own shape into Mermaid diagrams — one stateDiagram-v2 per lifecycle-bearing aggregate/entity, one erDiagram fo... |
