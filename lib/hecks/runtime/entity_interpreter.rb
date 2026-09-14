@@ -320,14 +320,16 @@ module Hecks
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
-      # `dry_run:` skips this — see CommandInterpreter#step_save's own
-      # comment, same reasoning and the same precedent
-      # (`step_assign_creation_attributes`'s own conditional-skip).
+      # `dry_run:` skips the WRITE half of this step — see
+      # CommandInterpreter#step_save's own comment (BUG#127): the
+      # reference-existence check stays unconditional, only the actual
+      # persist is behind the early return.
       def step_save(ctx)
+        step(:save) { @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state) }
+
         return if ctx.dry_run
 
         step(:save) do
-          @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
           # `expected_version:` — see CommandInterpreter#step_save's own
           # comment: nil for a repository that isn't CAS-capable, or an
           # instance never read from storage, either of which falls
